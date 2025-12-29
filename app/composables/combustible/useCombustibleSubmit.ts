@@ -9,6 +9,7 @@ export function useCombustibleSubmit() {
   const error = ref<string | null>(null)
 
   async function submit(form: CombustibleForm) {
+    console.log('useCombustibleSubmit', form)
     loading.value = true
     error.value = null
 
@@ -18,12 +19,14 @@ export function useCombustibleSubmit() {
 
       // 2️⃣ guardar cabecera
       const cabeceraPayload = buildCabecera(form, cfg)
+      console.log('cabeceraPayload', cabeceraPayload)
       const cabResp = await postData(
-        '/donandres/workspace/saveRegistroCab',
+        '/workspace/saveRegistroCab',
         cabeceraPayload
       )
+      console.log(cabResp)
 
-      const cabeceraId = cabResp?.id
+      const cabeceraId = cabResp?.data.id
       if (!cabeceraId) {
         throw new Error('No se pudo crear la cabecera de combustible')
       }
@@ -31,17 +34,17 @@ export function useCombustibleSubmit() {
       // 3️⃣ guardar cuerpo
       const cuerpoPayload = buildCuerpo(form, cfg, cabeceraId)
       const cuerpoResp = await postData(
-        '/donandres/workspace/saveRegistroCuerpo',
+        '/workspace/saveRegistroCuerpo',
         cuerpoPayload
       )
-
+      console.log(cuerpoResp)
       const cuerpoId = cuerpoResp?.id
       if (!cuerpoId) {
         throw new Error('No se pudo crear el cuerpo de combustible')
       }
 
       // 4️⃣ avanzar estado (cabecera + cuerpo)
-      await postData('/donandres/workspace/setProximoEstadoCuerposYCab', {
+      await postData('/workspace/setProximoEstadoCuerposYCab', {
         siguienteEstadoCommandList: [
           {
             id: cuerpoId,

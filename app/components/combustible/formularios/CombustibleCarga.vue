@@ -26,8 +26,17 @@ const model = defineModel<any>()
 
     <SelectCamiones v-model="model.camionId" label="Unidad" />
 
-    <UInput v-model="model.litros" type="number" label="Litros" />
-    <UInput v-model="model.km" type="number" label="Kilómetros" />
-    <UInput v-model="model.horas" type="number" label="Horas" />
+    <div class="flex flex-col gap-2">
+      <span>Litros</span>
+      <UInput v-model="model.litros" type="number" label="Litros" />
+    </div>
+    <div class="flex flex-col gap-2">
+      <span>Kilómetros</span>
+      <UInput v-model="model.km" type="number" label="Kilómetros" />
+    </div>
+    <div class="flex flex-col gap-2">
+      <span>Horas</span>
+      <UInput v-model="model.horas" type="number" label="Horas" />
+    </div>
   </div>
 </template>

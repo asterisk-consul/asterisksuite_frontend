@@ -86,7 +86,12 @@ async function onSubmit() {
     <template #footer>
       <div class="flex justify-end gap-2">
         <UButton variant="outline" @click="open = false">Cancelar</UButton>
-        <UButton type="submit" color="primary" :loading="loading">
+        <UButton
+          type="submit"
+          color="primary"
+          :loading="loading"
+          @click="onSubmit"
+        >
           Guardar
         </UButton>
       </div>

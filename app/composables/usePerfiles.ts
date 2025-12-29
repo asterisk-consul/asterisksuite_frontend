@@ -19,7 +19,7 @@ export function usePerfiles(tipo?: number) {
         label:
           (p.identificador ?? p.razonsocial ?? `${p.apellido ?? ''}`.trim()) ||
           '-',
-        value: p.identificador ?? p.razonsocial ?? `${p.apellido ?? ''}`.trim()
+        value: p.id
       }))
   }
 

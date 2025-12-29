@@ -72,8 +72,8 @@ watch(
 </script>
 
 <template>
-  <div>
-    <label v-if="props.label" class="block my-2">{{ props.label }}</label>
+  <div class="flex flex-col gap-2">
+    <label v-if="props.label" class="block">{{ props.label }}</label>
     <UInputDate
       ref="inputDate"
       :model-value="internalDate"

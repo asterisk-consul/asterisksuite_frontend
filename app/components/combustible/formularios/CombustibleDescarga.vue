@@ -11,23 +11,28 @@ const estaciones = [
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-4">
+  <div class="grid grid-cols-2 items-center gap-4">
     <SelectPefiles
       v-model="model.cargadorId"
       :tipo="4"
       :categoriaid="11090"
       label="Responsable"
     />
-
-    <USelect v-model="model.estacion" :items="estaciones" label="Estación" />
+    <div class="flex flex-col gap-2">
+      <span>Estación</span>
+      <USelect v-model="model.estacion" :items="estaciones" label="Estación" />
+    </div>
 
     <DataPicker v-model="model.fecha" label="Fecha" />
 
-    <UInput
-      v-model="model.litros"
-      type="number"
-      label="Litros descargados"
-      class="col-span-2"
-    />
+    <div class="flex flex-col gap-2">
+      <span>Litros descargados</span>
+      <UInput
+        v-model="model.litros"
+        type="number"
+        label="Litros descargados"
+        class="col-span-2"
+      />
+    </div>
   </div>
 </template>

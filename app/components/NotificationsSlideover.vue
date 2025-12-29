@@ -1,10 +1,10 @@
 <script setup lang="ts">
-  import { formatTimeAgo } from '@vueuse/core'
+import { formatTimeAgo } from '@vueuse/core'
 
-  const { isNotificationsSlideoverOpen } = useDashboard()
+const { isNotificationsSlideoverOpen } = useDashboard()
 
-  const { data: notifications } =
-    await useFetch<Notification[]>('/api/notifications')
+const { data: notifications } =
+  await useFetch<Notification[]>('/api/notifications')
 </script>
 
 <template>

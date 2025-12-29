@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import type { SelectItem } from '@nuxt/ui'
 import { usePerfiles } from '~/composables/usePerfiles'
 import type { PropType } from 'vue'
@@ -7,15 +7,15 @@ import type { PropType } from 'vue'
 // --- props ---
 const props = defineProps({
   modelValue: {
-    type: String as PropType<string>,
-    default: ''
+    type: Number as PropType<number | null>,
+    default: null
   },
   label: {
-    type: String as PropType<string>,
+    type: String,
     default: ''
   },
   placeholder: {
-    type: String as PropType<string>,
+    type: String,
     default: 'Seleccionar un perfil'
   },
   tipo: {
@@ -30,20 +30,14 @@ const props = defineProps({
 
 // --- emits ---
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: string): void
+  (e: 'update:modelValue', value: number | null): void
 }>()
 
-// --- estado interno ---
-const selectedValue = ref(props.modelValue)
-
-// --- sincronizar v-model ---
-watch(selectedValue, (val) => emit('update:modelValue', val))
-watch(
-  () => props.modelValue,
-  (val) => {
-    if (val !== selectedValue.value) selectedValue.value = val ?? ''
-  }
-)
+// --- v-model normalizado ---
+const model = computed<number | null>({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
+})
 
 // --- composable perfiles ---
 const perfiles = usePerfiles(props.tipo ?? undefined)
@@ -52,23 +46,23 @@ const loading = perfiles.loading
 // --- cargar perfiles ---
 onMounted(async () => {
   await perfiles.load(props.tipo ?? undefined, true)
-  console.log('Perfiles cargados:', perfiles.entities.value)
 })
 
-// --- items filtrados por categoriaid ---
+// --- items filtrados ---
 const items = computed<SelectItem[]>(() =>
   perfiles.selectOptions(props.categoriaid ?? undefined)
 )
 </script>
 
 <template>
-  <div>
-    <label v-if="props.label" class="block my-2">{{ props.label }}</label>
+  <div class="flex flex-col gap-2">
+    <label v-if="label" class="block">{{ label }}</label>
+
     <USelect
-      v-model="selectedValue"
+      v-model="model"
       :items="items"
       :loading="loading"
-      :placeholder="props.placeholder"
+      :placeholder="placeholder"
       class="w-full"
       disable-portal
     />
