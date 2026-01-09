@@ -45,9 +45,13 @@ const { data: dataCombustible, loading: loadingCombustible } =
 
 const { data: dataUrea, loading: loadingUrea } = useRegistroCabList(paramsUrea)
 
-onMounted(() => {
-  console.log(totalCantidadCombustible.value)
-})
+// const onCombustibleSelection = (rows: any[]) => {
+//   console.log('Combustible:', rows)
+// }
+
+// const onUreaSelection = (rows: any[]) => {
+//   console.log('Urea:', rows)
+// }
 </script>
 
 <template>
@@ -83,10 +87,11 @@ onMounted(() => {
             :litros-actuales="totalCantidadCombustible"
           />
           <TablaList
+            key="combustible"
             :data="dataCombustible"
             :loading="loadingCombustible"
             selectable
-            @selection-change="(rows) => console.log(rows)"
+            @selection-change="onCombustibleSelection"
             :column-config="{
               fecha: { renderer: 'date' },
               creationdate: { renderer: 'date' },
@@ -98,7 +103,7 @@ onMounted(() => {
           <FormsubirCombustible v-model="open" />
           <SubirCsv v-model="openCsv" />
         </template>
-        <template #urea>
+        <!-- <template #urea>
           <UDashboardNavbar title="Urea">
             <template #right>
               <UButton
@@ -116,10 +121,11 @@ onMounted(() => {
           </UDashboardNavbar>
           <CisternaMedida :total-litros="5000" :litros-actuales="3500" />
           <TablaList
+            key="urea"
             :data="dataUrea"
             :loading="loadingUrea"
             selectable
-            @selection-change="(rows) => console.log(rows)"
+            @selection-change="onUreaSelection"
             :column-config="{
               fecha: { renderer: 'date' },
               creationdate: { renderer: 'date' },
@@ -128,9 +134,10 @@ onMounted(() => {
               totalimpuestos: { renderer: 'currency', align: 'right' }
             }"
           />
+
           <FormsubirCombustible v-model="open" />
           <SubirCsv v-model="openCsv" />
-        </template>
+        </template> -->
       </UTabs>
     </template>
   </UDashboardPanel>

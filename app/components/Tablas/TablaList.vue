@@ -11,7 +11,7 @@ import type { ColumnConfig } from '@/utils/tableTypes'
 const UCheckbox = resolveComponent('UCheckbox')
 
 /**
- * Props (GENÉRICAS)
+ * Props
  */
 const props = defineProps<{
   data: {
@@ -32,14 +32,18 @@ const emit = defineEmits<{
 }>()
 
 /**
- * Table refs
+ * Refs
  */
-const table = useTemplateRef('table')
-const rowSelection = ref({})
+const tableRef = ref<HTMLElement | null>(null)
+const rowSelection = ref<Record<string, boolean>>({})
 const pagination = ref({
   pageIndex: 0,
   pageSize: 5
 })
+
+// Estados para el checkbox de selección múltiple
+const allSelected = ref(false)
+const indeterminate = ref(false)
 
 /**
  * Utils
@@ -51,14 +55,13 @@ const humanize = (key: string) =>
     .replace(/\b\w/g, (l) => l.toUpperCase())
 
 /**
- * Columnas dinámicas desde props.data.cols
+ * Columnas base sin la columna de selección
  */
-const columns = computed<TableColumn<any>[]>(() => {
+const baseColumns = computed<TableColumn<any>[]>(() => {
   if (!props.data?.cols) return []
 
-  const apiColumns: TableColumn<any>[] = props.data.cols.map((col) => {
+  return props.data.cols.map((col) => {
     const config = props.columnConfig?.[col]
-
     const renderer: CellRenderer = tableRenderers[config?.renderer ?? 'text']
 
     return {
@@ -78,52 +81,139 @@ const columns = computed<TableColumn<any>[]>(() => {
         )
     }
   })
-
-  if (!props.selectable) return apiColumns
-
-  return [
-    {
-      id: 'select',
-      header: ({ table }) =>
-        h(UCheckbox, {
-          modelValue: table.getIsSomePageRowsSelected()
-            ? 'indeterminate'
-            : table.getIsAllPageRowsSelected(),
-          'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-            table.toggleAllPageRowsSelected(!!value)
-        }),
-      cell: ({ row }: CellContext<any, unknown>) =>
-        h(UCheckbox, {
-          modelValue: row.getIsSelected(),
-          'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-            row.toggleSelected(!!value)
-        })
-    },
-    ...apiColumns
-  ]
 })
 
 /**
- * Emitir selección
+ * Columnas completas (con selección si está habilitado)
  */
-watch(rowSelection, () => {
-  if (!props.selectable) return
+const columns = computed<TableColumn<any>[]>(() => {
+  if (!props.selectable) return baseColumns.value
 
-  const rows =
-    table.value?.tableApi
-      ?.getFilteredSelectedRowModel()
-      .rows.map((r) => r.original) || []
+  const selectColumn: TableColumn<any> = {
+    id: 'select',
+    header: () =>
+      h(UCheckbox, {
+        modelValue: indeterminate.value ? 'indeterminate' : allSelected.value,
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') => {
+          const isChecked = value === true
 
-  emit('selection-change', rows)
+          // Actualizar el estado
+          allSelected.value = isChecked
+          indeterminate.value = false
+
+          // Actualizar todas las filas
+          const currentRows = props.data?.rows || []
+          const newSelection: Record<string, boolean> = {}
+
+          if (isChecked) {
+            currentRows.forEach((_, index) => {
+              newSelection[index.toString()] = true
+            })
+          }
+
+          rowSelection.value = newSelection
+        }
+      }),
+    cell: ({ row }: CellContext<any, unknown>) => {
+      const rowIndex = row.index.toString()
+      const isSelected = !!rowSelection.value[rowIndex]
+
+      return h(UCheckbox, {
+        modelValue: isSelected,
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') => {
+          const newSelection = { ...rowSelection.value }
+
+          if (value === true) {
+            newSelection[rowIndex] = true
+          } else {
+            delete newSelection[rowIndex]
+          }
+
+          rowSelection.value = newSelection
+        }
+      })
+    }
+  }
+
+  return [selectColumn, ...baseColumns.value]
+})
+
+/**
+ * Filas seleccionadas
+ */
+const selectedRows = computed(() => {
+  if (!props.selectable || !props.data?.rows) return []
+
+  const selectedIndices = Object.keys(rowSelection.value)
+  return props.data.rows.filter(
+    (_, index) => rowSelection.value[index.toString()]
+  )
+})
+
+/**
+ * Contador de filas seleccionadas
+ */
+const selectedCount = computed(() => {
+  return Object.keys(rowSelection.value).length
+})
+
+/**
+ * Watchers
+ */
+watch(
+  rowSelection,
+  () => {
+    const totalRows = props.data?.rows?.length || 0
+    const currentSelectedCount = selectedCount.value
+
+    // Actualizar estados del checkbox de cabecera
+    allSelected.value = currentSelectedCount === totalRows && totalRows > 0
+    indeterminate.value =
+      currentSelectedCount > 0 && currentSelectedCount < totalRows
+
+    // Emitir evento
+    emit('selection-change', selectedRows.value)
+  },
+  { deep: true }
+)
+
+// Resetear selección cuando cambian los datos
+watch(
+  () => props.data?.rows,
+  () => {
+    rowSelection.value = {}
+    allSelected.value = false
+    indeterminate.value = false
+  }
+)
+
+/**
+ * Manejo de paginación
+ */
+const handlePageChange = (page: number) => {
+  const tableApi = (tableRef.value as any)?.tableApi
+  if (tableApi) {
+    tableApi.setPageIndex(page - 1)
+  }
+}
+
+// Información de paginación actual
+const currentPage = computed(() => {
+  const tableApi = (tableRef.value as any)?.tableApi
+  return (tableApi?.getState().pagination.pageIndex || 0) + 1
+})
+
+const currentPageSize = computed(() => {
+  const tableApi = (tableRef.value as any)?.tableApi
+  return tableApi?.getState().pagination.pageSize || 5
 })
 </script>
 
 <template>
   <div class="flex-1 w-full">
     <UTable
-      ref="table"
+      ref="tableRef"
       v-model:pagination="pagination"
-      v-model:row-selection="rowSelection"
       :data="data?.rows || []"
       :columns="columns"
       :loading="loading"
@@ -137,15 +227,15 @@ watch(rowSelection, () => {
       class="flex justify-between items-center border-t border-default py-4 px-4"
     >
       <div v-if="selectable" class="text-sm text-muted">
-        {{ table?.tableApi?.getFilteredSelectedRowModel().rows.length || 0 }}
-        fila(s) seleccionadas
+        {{ selectedCount }} fila(s) seleccionadas
       </div>
 
       <UPagination
-        :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
-        :items-per-page="table?.tableApi?.getState().pagination.pageSize"
-        :total="data?.total || 0"
-        @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
+        v-if="data?.total"
+        :page="currentPage"
+        :items-per-page="currentPageSize"
+        :total="data.total"
+        @update:page="handlePageChange"
       />
     </div>
   </div>
