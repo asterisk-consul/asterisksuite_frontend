@@ -14,8 +14,9 @@ export const useRegistroCabList = (params: Ref<RegistroParams>) => {
         '/workspace/getRegistroCabList',
         params.value
       )
- 
+
       data.value = res
+      console.log(res)
     } catch (err) {
       error.value = err
     } finally {

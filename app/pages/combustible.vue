@@ -45,13 +45,13 @@ const { data: dataCombustible, loading: loadingCombustible } =
 
 const { data: dataUrea, loading: loadingUrea } = useRegistroCabList(paramsUrea)
 
-// const onCombustibleSelection = (rows: any[]) => {
-//   console.log('Combustible:', rows)
-// }
+const onCombustibleSelection = (rows: any[]) => {
+  // console.log('Combustible:', rows)
+}
 
-// const onUreaSelection = (rows: any[]) => {
-//   console.log('Urea:', rows)
-// }
+const onUreaSelection = (rows: any[]) => {
+  // console.log('Urea:', rows)
+}
 </script>
 
 <template>
@@ -87,23 +87,16 @@ const { data: dataUrea, loading: loadingUrea } = useRegistroCabList(paramsUrea)
             :litros-actuales="totalCantidadCombustible"
           />
           <TablaList
-            key="combustible"
+            table-key="combustible"
             :data="dataCombustible"
             :loading="loadingCombustible"
             selectable
             @selection-change="onCombustibleSelection"
-            :column-config="{
-              fecha: { renderer: 'date' },
-              creationdate: { renderer: 'date' },
-              total: { renderer: 'number', align: 'right' },
-              totalprecio: { renderer: 'currency', align: 'right' },
-              totalimpuestos: { renderer: 'currency', align: 'right' }
-            }"
           />
           <FormsubirCombustible v-model="open" />
           <SubirCsv v-model="openCsv" />
         </template>
-        <!-- <template #urea>
+        <template #urea>
           <UDashboardNavbar title="Urea">
             <template #right>
               <UButton
@@ -121,23 +114,16 @@ const { data: dataUrea, loading: loadingUrea } = useRegistroCabList(paramsUrea)
           </UDashboardNavbar>
           <CisternaMedida :total-litros="5000" :litros-actuales="3500" />
           <TablaList
-            key="urea"
+            table-key="urea"
             :data="dataUrea"
             :loading="loadingUrea"
             selectable
             @selection-change="onUreaSelection"
-            :column-config="{
-              fecha: { renderer: 'date' },
-              creationdate: { renderer: 'date' },
-              total: { renderer: 'number', align: 'right' },
-              totalprecio: { renderer: 'currency', align: 'right' },
-              totalimpuestos: { renderer: 'currency', align: 'right' }
-            }"
           />
 
           <FormsubirCombustible v-model="open" />
           <SubirCsv v-model="openCsv" />
-        </template> -->
+        </template>
       </UTabs>
     </template>
   </UDashboardPanel>
