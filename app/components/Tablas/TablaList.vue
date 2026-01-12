@@ -1,3 +1,4 @@
+//HOLA
 <script setup lang="ts">
 import {
   h,
@@ -6,24 +7,29 @@ import {
   ref,
   onMounted,
   watch,
-  nextTick
+  nextTick,
+  shallowRef
 } from 'vue'
-import { getPaginationRowModel, getFilteredRowModel } from '@tanstack/vue-table'
+import {
+  getPaginationRowModel,
+  getFilteredRowModel,
+  type FilterFn
+} from '@tanstack/vue-table'
 import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { useDraggable } from 'vue-draggable-plus'
+import FiltroDateCompras from '../compras/FiltroDateCompras.vue'
+import { sub } from 'date-fns'
 
+/* UI */
 const UCheckbox = resolveComponent('UCheckbox')
 const UButton = resolveComponent('UButton')
 const UKbd = resolveComponent('UKbd')
 const UIcon = resolveComponent('UIcon')
 const UInput = resolveComponent('UInput')
-const UPopover = resolveComponent('UPopover')
 const USelectMenu = resolveComponent('USelectMenu')
 
-/**
- * Props
- */
+/* PROPS */
 const props = defineProps<{
   data: {
     rows: Record<string, any>[]
@@ -36,74 +42,112 @@ const props = defineProps<{
   pageSize?: number
 }>()
 
-/**
- * Emits
- */
+/* EMITS */
 const emit = defineEmits<{
-  (e: 'selection-change', rows: any[]): void
   (e: 'delete-selected', rows: any[]): void
-  (e: 'reorder', rows: any[]): void // Evento para guardar el nuevo orden
+  (e: 'reorder', rows: any[]): void
 }>()
 
-/**
- * Refs y Estado Local
- */
+/* ESTADO */
 const tableRef = ref<any>(null)
 const rowSelection = ref({})
 const pagination = ref({
   pageIndex: 0,
   pageSize: props.pageSize || 10
 })
-const globalFilter = ref('')
-const columnFilters = ref<{ id: string; value: unknown }[]>([])
 
-// Estado para el selector de búsqueda "Buscar por..."
-const searchScope = ref('global')
-const searchQuery = ref('')
-
-const searchColumns = ref([
-  { label: 'Global (Todo)', value: 'global' },
-  { label: 'ID', value: 'id' },
-  { label: 'Fecha', value: 'fecha' },
-  { label: 'Cliente', value: 'clientname' },
-  { label: 'Referencia', value: 'referenciatexto' },
-  { label: 'Precio', value: 'totalprecio' },
-  { label: 'Total', value: 'total' },
-  { label: 'Vendedor', value: 'vendedorid' }
-])
-
-// Watcher principal para coordinar la búsqueda
-watch([searchQuery, searchScope], ([query, scope]) => {
-  if (scope === 'global') {
-    // Modo Global: Limpiar filtros de columna y udar globalFilter
-    columnFilters.value = []
-    globalFilter.value = query
-  } else {
-    // Modo Columna: Limpiar globalFilter y aplicar a la columna específica
-    globalFilter.value = ''
-    columnFilters.value = [{ id: scope, value: query }]
-  }
+/* RANGO DE FECHAS */
+const range = shallowRef<DateRange>({
+  start: sub(new Date(), { days: 14 }),
+  end: new Date()
 })
 
-// Referencia local reactiva necesaria para el Draggable
+/* COLUMNA DE FECHA A FILTRAR */
+const dateColumn = ref<{ label: string; value: string }>({
+  label: 'Sin Filtro',
+  value: 'sinFiltro'
+})
+
+const dateColumns = [
+  { label: 'Sin Filtro', value: 'sinFiltro' },
+  { label: 'Fecha', value: 'fecha' },
+  { label: 'Fecha compromiso', value: 'fechacompromiso' },
+  { label: 'Fecha vencimiento', value: 'fechavencimiento' },
+  { label: 'Creación', value: 'creationdate' }
+]
+
+/* BÚSQUEDA */
+const searchScopes = ref<string[]>([])
+const searchQuery = ref('')
+
+const searchColumns = [
+  { label: 'ID', value: 'id' },
+  { label: 'Cliente', value: 'clientname' },
+  { label: 'Referencia', value: 'referenciatexto' },
+  { label: 'Total', value: 'total' }
+]
+const useGlobalSearch = computed(() => {
+  return searchScopes.value.length === 0
+})
+
+/* FILTRO FECHA (TanStack) */
+const dateRangeFilter: FilterFn<any> = (row, columnId, value) => {
+  if (!value?.start || !value?.end) return true
+  const raw = row.getValue(columnId)
+  if (!raw) return false
+  const d = new Date(raw)
+  return d >= value.start && d <= value.end
+}
+
+/* FILTROS DERIVADOS */
+const globalFilter = computed(() =>
+  useGlobalSearch.value ? searchQuery.value : ''
+)
+const columnFilters = computed(() => {
+  const filters: { id: string; value: unknown }[] = []
+
+  // 🔹 Filtro de fecha
+  if (
+    dateColumn.value.value !== 'sinFiltro' &&
+    range.value?.start &&
+    range.value?.end
+  ) {
+    filters.push({
+      id: dateColumn.value.value,
+      value: range.value
+    })
+  }
+
+  // 🔹 Búsqueda avanzada OR
+  if (
+    !useGlobalSearch.value &&
+    searchQuery.value &&
+    searchScopes.value.length
+  ) {
+    filters.push({
+      id: 'multiSearch',
+      value: {
+        query: searchQuery.value,
+        scopes: searchScopes.value
+      }
+    })
+  }
+
+  return filters
+})
+
+/* DATA LOCAL (para drag) */
 const tableData = ref([...(props.data?.rows || [])])
 
-// Sincronizar tableData cuando los props cambien (ej. carga inicial o filtros)
 watch(
   () => props.data?.rows,
-  (newRows) => {
-    tableData.value = [...(newRows || [])]
+  (rows) => {
+    tableData.value = [...(rows || [])]
   },
   { deep: true }
 )
 
-/**
- * CONFIGURACIÓN DRAGGABLE
- */
-
-/**
- * COLUMNAS
- */
+/* COLUMNAS */
 const DRAG_COLUMN: TableColumn<any> = {
   id: 'drag',
   header: '',
@@ -123,195 +167,132 @@ const SELECT_COLUMN: TableColumn<any> = {
       modelValue: table.getIsSomePageRowsSelected()
         ? 'indeterminate'
         : table.getIsAllPageRowsSelected(),
-      'onUpdate:modelValue': (v: boolean | 'indeterminate') =>
-        table.toggleAllPageRowsSelected(!!v),
-      ariaLabel: 'Select all'
+      'onUpdate:modelValue': (v) => table.toggleAllPageRowsSelected(!!v)
     }),
   cell: ({ row }) =>
     h(UCheckbox, {
       modelValue: row.getIsSelected(),
-      'onUpdate:modelValue': (v: boolean | 'indeterminate') =>
-        row.toggleSelected(!!v),
-      ariaLabel: 'Select row'
+      'onUpdate:modelValue': (v) => row.toggleSelected(!!v)
     })
 }
 
-const headerWithDrag =
-  (label: string) =>
-  ({ column }: any) =>
-    h('div', { class: 'flex items-center gap-2 group' }, [
-      h(UIcon, {
-        name: 'i-lucide-grip-vertical',
-        class:
-          'col-drag-handle cursor-grab w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity'
-      }),
-      h('span', { class: 'flex-1 truncate' }, label)
-    ])
-
 const DATA_COLUMNS: TableColumn<any>[] = [
-  { accessorKey: 'id', header: headerWithDrag('ID') },
+  { accessorKey: 'id', header: 'ID' },
   {
     accessorKey: 'fecha',
-    header: headerWithDrag('Fecha'),
-    cell: ({ row }) =>
-      row.original.fecha
-        ? new Date(row.original.fecha).toLocaleDateString('es-AR')
-        : '-'
-  },
-  { accessorKey: 'clientname', header: headerWithDrag('Cliente') },
-  { accessorKey: 'referenciatexto', header: headerWithDrag('Referencia') },
-  {
-    accessorKey: 'totalprecio',
-    header: headerWithDrag('Precio'),
-    cell: ({ row }) =>
-      h(
-        'div',
-        { class: 'text-right' },
-        row.original.totalprecio != null
-          ? `$ ${row.original.totalprecio.toLocaleString('es-AR')}`
-          : '-'
-      )
+    header: 'Fecha',
+    filterFn: dateRangeFilter
   },
   {
-    accessorKey: 'totalimpuestos',
-    header: headerWithDrag('Impuestos'),
-    cell: ({ row }) =>
-      h(
-        'div',
-        { class: 'text-right' },
-        row.original.totalimpuestos != null
-          ? `$ ${row.original.totalimpuestos.toLocaleString('es-AR')}`
-          : '-'
-      )
+    accessorKey: 'fechacompromiso',
+    header: 'Fecha compromiso',
+    filterFn: dateRangeFilter
   },
   {
-    accessorKey: 'total',
-    header: headerWithDrag('Total'),
-    cell: ({ row }) =>
-      h(
-        'div',
-        { class: 'text-right font-medium' },
-        row.original.total != null
-          ? `$ ${row.original.total.toLocaleString('es-AR')}`
-          : '-'
-      )
+    accessorKey: 'fechavencimiento',
+    header: 'Fecha vencimiento',
+    filterFn: dateRangeFilter
   },
-  { accessorKey: 'vendedorid', header: headerWithDrag('Vendedor') }
+  {
+    accessorKey: 'creationdate',
+    header: 'Creación',
+    filterFn: dateRangeFilter
+  },
+  { accessorKey: 'clientname', header: 'Cliente' },
+  { accessorKey: 'referenciatexto', header: 'Referencia' },
+  { accessorKey: 'total', header: 'Total' }
 ]
 
 const tableColumns = ref<TableColumn<any>[]>([])
 
-// Inicializar columnas
-const initColumns = () => {
-  const cols = [DRAG_COLUMN, ...DATA_COLUMNS]
-  if (props.selectable) cols.splice(1, 0, SELECT_COLUMN)
-  tableColumns.value = [...cols]
+const multiColumnSearchFilter: FilterFn<any> = (row, _columnId, value) => {
+  const { query, scopes } = value || {}
+  if (!query || !scopes?.length) return true
+
+  const q = String(query).toLowerCase()
+
+  return scopes.some((scope: any) => {
+    const columnId = typeof scope === 'string' ? scope : scope?.value // ← clave real
+
+    if (!columnId) return false
+
+    const cell = row.getValue(columnId)
+    return String(cell ?? '')
+      .toLowerCase()
+      .includes(q)
+  })
 }
 
-// Watch para regenerar si cambian props estructurales (opcional pero recomendado)
+const SEARCH_COLUMN: TableColumn<any> = {
+  id: 'multiSearch',
+  header: '',
+  filterFn: multiColumnSearchFilter
+}
+
+const initColumns = () => {
+  const cols = [DRAG_COLUMN, SEARCH_COLUMN, ...DATA_COLUMNS]
+  if (props.selectable) cols.splice(1, 0, SELECT_COLUMN)
+  tableColumns.value = cols
+}
+
+initColumns()
 watch(() => props.selectable, initColumns)
 
-// Inicialización inicial
-initColumns() // Se llamará en setup
-
-/**
- * CONFIGURACIÓN DRAGGABLE
- */
+/* DRAG */
 onMounted(async () => {
   await nextTick()
-
-  // 1. Draggable de FILES (body)
-  const elCtx = tableRef.value?.$el.querySelector('tbody')
-  if (elCtx) {
-    useDraggable(elCtx, tableData, {
-      animation: 150,
-      handle: '.drag-handle', // Solo se arrastra desde el icono
+  const tbody = tableRef.value?.$el.querySelector('tbody')
+  if (tbody) {
+    useDraggable(tbody, tableData, {
+      handle: '.drag-handle',
       draggable: 'tr',
-      ghostClass: 'bg-primary-50/50', // Clase visual al arrastrar
-      onEnd: () => {
-        emit('reorder', tableData.value)
-      }
-    })
-  }
-
-  // 2. Draggable de COLUMNAS (header)
-  // Buscamos el thead > tr
-  const elHeader = tableRef.value?.$el.querySelector('thead > tr')
-  if (elHeader) {
-    useDraggable(elHeader, tableColumns, {
       animation: 150,
-      handle: '.col-drag-handle', // Solo se mueve desde el handle
-      draggable: 'th',
-      filter: '.no-drag', // Ignorar elementos con esta clase
-      ghostClass: 'bg-primary-50/50',
-      onEnd: () => {
-        // Opción: emitir evento o guardar
-      }
+      onEnd: () => emit('reorder', tableData.value)
     })
   }
 })
 
-/**
- * LÓGICA DE SELECCIÓN Y COLUMNAS
- */
-const getSelectedRows = () => {
-  const model = tableRef.value?.tableApi?.getFilteredSelectedRowModel()
-  return model?.rows?.map((r: any) => r.original) ?? []
-}
-
+/* SELECCIÓN */
 const selectedCount = computed(() => Object.keys(rowSelection.value).length)
 
 const handleDeleteConfirm = () => {
-  const rows = getSelectedRows()
-  if (!rows.length) return
-  emit('delete-selected', rows)
+  const selectedRows =
+    tableRef.value?.tableApi
+      ?.getSelectedRowModel()
+      .rows.map((r: any) => r.original) || []
+  emit('delete-selected', selectedRows)
   rowSelection.value = {}
 }
 
-const STORAGE_KEY = `table-columns-${props.tableKey}`
-
-onMounted(() => {
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (!saved || !tableRef.value?.tableApi) return
-  const visibility = JSON.parse(saved)
-  Object.entries(visibility).forEach(([id, visible]) => {
-    tableRef.value.tableApi.getColumn(id)?.toggleVisibility(!!visible)
-  })
-})
-
-const persistColumnVisibility = () => {
-  const visibility: Record<string, boolean> = {}
-  tableRef.value?.tableApi?.getAllColumns().forEach((c: any) => {
-    visibility[c.id] = c.getIsVisible()
-  })
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(visibility))
-}
-
-const getColumnItems = () =>
-  tableRef.value?.tableApi
-    ?.getAllColumns()
-    .filter((c: any) => c.getCanHide())
-    .map((c: any) => ({
-      label: upperFirst(c.id),
-      type: 'checkbox' as const,
-      checked: c.getIsVisible(),
-      onUpdateChecked(v: boolean) {
-        c.toggleVisibility(!!v)
-        persistColumnVisibility()
-      },
-      onSelect(e?: Event) {
-        e?.preventDefault()
-      }
-    })) ?? []
-
+/* PAGINACIÓN */
 const getPaginationInfo = () => {
-  const api = tableRef.value?.tableApi
-  if (!api) return { page: 1, size: 5, total: 0 }
+  const table = tableRef.value?.tableApi
+  if (!table) return { page: 1, size: 10, total: 0 }
+
   return {
-    page: api.getState().pagination.pageIndex + 1,
-    size: api.getState().pagination.pageSize,
+    page: table.getState().pagination.pageIndex + 1,
+    size: table.getState().pagination.pageSize,
     total: props.data?.total || 0
   }
+}
+
+/* COLUMNAS VISIBLES */
+const getColumnItems = () => {
+  const table = tableRef.value?.tableApi
+  if (!table) return []
+
+  return [
+    table
+      .getAllColumns()
+      .filter((column: any) => column.getCanHide())
+      .map((column: any) => ({
+        label: column.columnDef.header,
+        icon: column.getIsVisible()
+          ? 'i-lucide-check-square'
+          : 'i-lucide-square',
+        click: () => column.toggleVisibility()
+      }))
+  ]
 }
 </script>
 
@@ -349,24 +330,33 @@ const getPaginationInfo = () => {
         />
       </UDropdownMenu>
     </div>
+    <div>
+      <FiltroDateCompras v-model="range" class="-ms-1" />
+
+      <USelectMenu
+        v-model="dateColumn"
+        :items="dateColumns"
+        option-attribute="label"
+        value-attribute="value"
+        class="w-52"
+      />
+    </div>
 
     <div class="flex items-center gap-2 mb-4">
       <UInput
         v-model="searchQuery"
         icon="i-lucide-search"
-        :placeholder="
-          searchScope === 'global'
-            ? 'Buscar en toda la tabla...'
-            : `Buscar por ${searchColumns.find((c) => c.value === searchScope)?.label}...`
-        "
+        placeholder="Buscar..."
         class="w-full max-w-sm"
       />
       <USelectMenu
-        v-model="searchScope"
-        :options="searchColumns"
+        v-model="searchScopes"
+        :items="searchColumns"
         option-attribute="label"
         value-attribute="value"
-        class="w-48"
+        multiple
+        placeholder="Búsqueda avanzada (opcional)"
+        class="w-64"
       />
     </div>
 

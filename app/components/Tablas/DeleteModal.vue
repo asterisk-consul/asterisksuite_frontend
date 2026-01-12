@@ -10,6 +10,10 @@ withDefaults(
   }
 )
 
+const emit = defineEmits<{
+  (e: 'confirm'): void
+}>()
+
 const open = ref(false)
 const loading = ref(false)
 
@@ -37,6 +41,7 @@ async function onSubmit() {
   await new Promise((resolve) => setTimeout(resolve, 1000))
   loading.value = false
   open.value = false
+  emit('confirm')
 }
 </script>
 
