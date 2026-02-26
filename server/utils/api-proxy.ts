@@ -35,8 +35,8 @@ export async function apiProxy(
 ) {
   const config = useRuntimeConfig()
 
-  const accessToken = getCookie(event, 'api_token')
-  const refreshToken = getCookie(event, 'refresh_token')
+  const accessToken = getCookie(event, 'api_access')
+  const refreshToken = getCookie(event, 'api_refresh')
 
   const method = (options.method ?? 'GET') as HTTPMethod
 
@@ -56,7 +56,7 @@ export async function apiProxy(
         }
       )
 
-      setCookie(event, 'api_token', refreshRes.access_token, {
+      setCookie(event, 'api_access', refreshRes.access_token, {
         httpOnly: true,
         sameSite: 'lax',
         path: '/'

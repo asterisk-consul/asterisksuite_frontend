@@ -1,29 +1,17 @@
 export default defineEventHandler(async (event) => {
+  const accessToken = getCookie(event, 'api_access')
+
+  if (!accessToken) {
+    throw createError({ statusCode: 401, message: 'No access token' })
+  }
+
   const config = useRuntimeConfig()
 
-  type me = {
-    id: number
-    name: string
-    email: string
-    roles: string[]
-  }
-
-  const token2 = getCookie(event, 'api_token')
-  if (!token2) {
-    throw createError({ statusCode: 401 })
-  }
-
-  // Backend 2 es la fuente de verdad
-  const me: me = await $fetch(`${config.public.apiBase2}/auth/me`, {
+  const user = await $fetch(`${config.public.apiBase}/auth/me`, {
     headers: {
-      Authorization: `Bearer ${token2}`
+      Authorization: `Bearer ${accessToken}` // ✅ JwtAuthGuard lo requiere
     }
   })
 
-  return {
-    id: me.id,
-    name: me.name,
-    email: me.email,
-    roles: me.roles
-  }
+  return user
 })

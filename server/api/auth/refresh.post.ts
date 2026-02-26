@@ -1,30 +1,36 @@
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-
   const refreshToken = getCookie(event, 'api_refresh')
 
   if (!refreshToken) {
-    throw createError({ statusCode: 401 })
+    throw createError({ statusCode: 401, message: 'No refresh token' })
   }
 
-  const api = await $fetch(`${config.public.apiBase}/auth/refresh`, {
-    method: 'POST',
-    body: { refreshToken }
-  })
+  const config = useRuntimeConfig()
 
-  setCookie(event, 'api_access', api.accessToken, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 15
-  })
+  try {
+    const api = await $fetch<{ accessToken: string; refreshToken: string }>(
+      `${config.public.apiBase}/auth/refresh`,
+      {
+        method: 'POST',
+        body: { refreshToken }
+      }
+    )
 
-  setCookie(event, 'api_refresh', api.refreshToken, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7
-  })
+    setCookie(event, 'api_access', api.accessToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 15
+    })
+    setCookie(event, 'api_refresh', api.refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7
+    })
 
-  return { user: api.user }
+    return { ok: true }
+  } catch (e: any) {
+    throw createError({ statusCode: 401, message: 'Refresh failed' })
+  }
 })

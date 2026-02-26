@@ -1,4 +1,4 @@
-import type { ApiLoginResponse } from '@/types/auth-api'
+import type { ApiLoginResponse } from '@/types/auth'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -12,20 +12,19 @@ export default defineEventHandler(async (event) => {
     }
   )
 
-  // 🔐 Access token (corto)
-  setCookie(event, 'api_access', api.access_token, {
+  // ✅ camelCase — como los devuelve tu backend
+  setCookie(event, 'api_access', api.accessToken, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 15 // 15 min
+    maxAge: 60 * 15
   })
 
-  // 🔁 Refresh token (largo)
-  setCookie(event, 'api_refresh', api.refresh_token, {
+  setCookie(event, 'api_refresh', api.refreshToken, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7 // 7 días
+    maxAge: 60 * 60 * 24 * 7
   })
 
   return { user: api.user }

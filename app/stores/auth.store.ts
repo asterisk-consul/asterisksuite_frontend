@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import type { AuthUser } from '@/types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
+  const fetchApi = import.meta.client ? $fetch : useRequestFetch()
+
   const user = ref<AuthUser | null>(null)
   const initialized = ref(false)
   const loading = ref(false)
@@ -13,7 +15,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
 
     try {
-      const res = await $fetch<{ user: AuthUser }>('/api/auth/login', {
+      const res = await fetchApi<{ user: AuthUser }>('/api/auth/login', {
         method: 'POST',
         body: { email, password },
         credentials: 'include'
@@ -28,7 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 👤 ME (usuario actual)
   async function fetchMe() {
     try {
-      const res = await $fetch<AuthUser>('/api/auth/me', {
+      const res = await fetchApi<AuthUser>('/api/auth/me', {
         credentials: 'include'
       })
 
@@ -41,7 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 🔄 REFRESH
   async function refresh() {
     try {
-      await $fetch('/api/auth/refresh', {
+      await fetchApi('/api/auth/refresh', {
         method: 'POST',
         credentials: 'include'
       })
@@ -68,7 +70,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 🚪 LOGOUT REAL
   async function logout() {
-    await $fetch('/api/auth/logout', {
+    await fetchApi('/api/auth/logout', {
       method: 'POST',
       credentials: 'include'
     })
