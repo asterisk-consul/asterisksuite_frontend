@@ -25,7 +25,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
     toast.add({
       title: 'Ingreso exitoso',
-      description: `Bienvenido ${payload.data.username}`,
+      description: `Bienvenido ${auth.user?.name}`,
       color: 'success'
     })
 

@@ -1,7 +1,9 @@
 export interface AuthUser {
   id?: number
-  username: string
-  roles: string[]
+  name?: string
+  email?: string
+  role?: string
+  companyId?: string
 }
 
 export interface ApiLoginResponse {

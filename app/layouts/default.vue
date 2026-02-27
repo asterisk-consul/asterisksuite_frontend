@@ -4,10 +4,7 @@ import { navigationLinks } from '~/data/navigation'
 const route = useRoute()
 const toast = useToast()
 
-const auth = useAuthStore()
-
 const open = ref(false)
-const showSidebar = computed(() => auth.isLogged)
 
 const links = navigationLinks
 
@@ -66,7 +63,6 @@ onMounted(async () => {
 <template>
   <UDashboardGroup unit="rem">
     <UDashboardSidebar
-      v-if="showSidebar"
       id="default"
       v-model:open="open"
       collapsible

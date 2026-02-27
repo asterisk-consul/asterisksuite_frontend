@@ -4,7 +4,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 defineProps<{
   collapsed?: boolean
 }>()
-const auth =useAuthStore()
+const auth = useAuthStore()
 
 const colorMode = useColorMode()
 const appConfig = useAppConfig()
@@ -31,7 +31,7 @@ const colors = [
 const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
 
 const user = ref({
-  name: auth.userData?.username,
+  name: auth.user?.name,
   avatar: {
     src: 'https://github.com/benjamincanac.png',
     alt: 'Benjamin Canac'
@@ -70,13 +70,13 @@ const items = computed<DropdownMenuItem[][]>(() => [
             align: 'center',
             collisionPadding: 16
           },
-          children: colors.map(color => ({
+          children: colors.map((color) => ({
             label: color,
             chip: color,
             slot: 'chip',
             checked: appConfig.ui.colors.primary === color,
             type: 'checkbox',
-            onSelect: e => {
+            onSelect: (e) => {
               e.preventDefault()
 
               appConfig.ui.colors.primary = color
@@ -94,13 +94,13 @@ const items = computed<DropdownMenuItem[][]>(() => [
             align: 'end',
             collisionPadding: 16
           },
-          children: neutrals.map(color => ({
+          children: neutrals.map((color) => ({
             label: color,
             chip: color === 'neutral' ? 'old-neutral' : color,
             slot: 'chip',
             type: 'checkbox',
             checked: appConfig.ui.colors.neutral === color,
-            onSelect: e => {
+            onSelect: (e) => {
               e.preventDefault()
 
               appConfig.ui.colors.neutral = color
@@ -155,16 +155,15 @@ const items = computed<DropdownMenuItem[][]>(() => [
       to: 'https://github.com/nuxt-ui-templates/dashboard',
       target: '_blank'
     },
-   {
-  label: 'Log out',
-  icon: 'i-lucide-log-out',
-  onSelect: () => {
-    const auth = useAuthStore()
-    auth.clearCredentials()   // 🔹 Limpia token, cookies y userData
-    navigateTo('/login')      // 🔹 Redirige al login
-  }
-}
-
+    {
+      label: 'Log out',
+      icon: 'i-lucide-log-out',
+      onSelect: () => {
+        const auth = useAuthStore()
+        auth.logout() // 🔹 Limpia token, cookies y userData
+        navigateTo('/login') // 🔹 Redirige al login
+      }
+    }
   ]
 ])
 </script>
