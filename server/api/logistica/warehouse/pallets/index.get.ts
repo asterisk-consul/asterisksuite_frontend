@@ -1,12 +1,8 @@
+import { apiProxy } from '~~/server/utils/api-proxy'
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const token = getCookie(event, 'api2_token')
   const query = getQuery(event)
 
-  return await $fetch(`${config.public.apiBase2}/warehouse/pallets`, {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : ''
-    },
+  return await apiProxy(event, `/warehouse/pallets`, {
     method: 'GET',
     query
   })

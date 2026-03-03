@@ -1,12 +1,6 @@
+import { apiProxy } from '~~/server/utils/api-proxy'
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const token = getCookie(event, 'api2_token')
   const { id } = event.context.params!
 
-  return await $fetch(`${config.apiBase2}/delivery-notes/${id}/confirm`, {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : ''
-    },
-    method: 'POST'
-  })
+  return apiProxy(event, `/delivery-notes/${id}/confirm`)
 })

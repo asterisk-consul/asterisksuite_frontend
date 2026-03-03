@@ -1,12 +1,8 @@
+import { apiProxy } from '~~/server/utils/api-proxy'
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const token = getCookie(event, 'api2_token')
   const body = await readBody(event)
 
-  return await $fetch(`${config.public.apiBase2}/logistica/picking/transfer`, {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : ''
-    },
+  return await apiProxy(event, `/logistica/picking/transfer`, {
     method: 'PATCH',
     body
   })

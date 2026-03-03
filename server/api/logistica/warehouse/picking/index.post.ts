@@ -3,10 +3,7 @@ export default defineEventHandler(async (event) => {
   const token = getCookie(event, 'api2_token')
   const body = await readBody(event)
 
-  return await $fetch(`${config.public.apiBase2}/logistica/picking`, {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : ''
-    },
+  return await apiProxy(event, `/logistica/picking`, {
     method: 'POST',
     body
   })
