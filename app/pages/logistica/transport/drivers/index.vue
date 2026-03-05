@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import { useChoferesStore } from '@/stores/logistica/transport/choferes.store'
 import { useDriverMetrics } from '~/composables/logistica/useDriverMetrics'
 import type { CreateDriverInput } from '@/types/logistica/transport/drivers'
+import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 import { driverFormFields } from '~/form/driverFormFields'
 
@@ -93,13 +94,7 @@ function saveDriver(data: any) {
         </div>
       </UCard>
     </div>
-    <UTable
-      :loading="loading"
-      sticky
-      :data="drivers"
-      :columns="columns"
-      class="border border-default rounded-lg"
-    />
+    <LogisticaTable :loading="loading" :data="drivers" :columns="columns" />
   </div>
   <ModalForm
     v-model:open="open"

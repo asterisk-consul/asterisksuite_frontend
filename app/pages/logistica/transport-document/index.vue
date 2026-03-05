@@ -1,31 +1,30 @@
 <script setup lang="ts">
-import { useLocationsStore } from '@/stores/logistica/meta-data/locations.store'
-import { columns } from './columns'
-import { locationFormFields } from '~/form/locationsFormFields'
+import { storeToRefs } from 'pinia'
+import { useDocumentTypesStore } from '~/stores/logistica/documents/document-types.store'
+import { documentTypeFormFields } from '~/form/documentTypeFormFields'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
-const store = useLocationsStore()
+
+import ModalForm from '~/components/ModalForm.vue'
+import { columns } from './columns'
 
 definePageMeta({
   layout: 'logistica'
 })
 
-const { items } = storeToRefs(store)
-const open = ref(false)
 const loading = ref(true)
+const store = useDocumentTypesStore()
+const { items } = storeToRefs(store)
+
+const open = ref(false)
 
 onMounted(async () => {
   await store.fetchAll()
-  console.log(items)
   loading.value = store.loading
 })
-const saveLocation = async (data: any) => {
-  const payload = {
-    city: data.city,
-    province: data.province,
-    country: data.country,
-    postalCode: data.postal_code
-  }
-  await store.create(payload)
+
+function saveDriver(data: any) {
+  const { id, ...payload } = data
+  store.create(payload)
   open.value = false
 }
 </script>
@@ -33,19 +32,17 @@ const saveLocation = async (data: any) => {
 <template>
   <div class="space-y-4">
     <div class="flex flex-row items-center justify-between">
-      <h3>Locaciones</h3>
+      <h3>Docuementos de Transporte</h3>
       <UButton icon="i-heroicons-plus" @click="open = true">
-        Nueva Locacion
+        Nuevo Documentos
       </UButton>
     </div>
-
     <LogisticaTable :loading="loading" :data="items" :columns="columns" />
   </div>
-
   <ModalForm
     v-model:open="open"
-    :fields="locationFormFields"
-    title="Nueva Locacion"
-    @submit="saveLocation"
+    :fields="documentTypeFormFields"
+    title="Nuevo Chofer"
+    @submit="saveDriver"
   />
 </template>

@@ -3,7 +3,7 @@ import { useProductsStore } from '@/stores/logistica/meta-data/products.store'
 import { columns } from './columns'
 import { productFormFields } from '~/form/productFormFields'
 import { useProductsMetrics } from '~/composables/logistica/useProductsMetrics'
-
+import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 const store = useProductsStore()
 
 definePageMeta({
@@ -48,14 +48,9 @@ const saveLocation = async (data: any) => {
         </div>
       </UCard>
     </div>
-    <UTable
-      :loading="loading"
-      sticky
-      :data="items"
-      :columns="columns"
-      class="border border-default rounded-lg"
-    />
+    <LogisticaTable :loading="loading" :data="items" :columns="columns" />
   </div>
+
   <ModalForm
     v-model:open="open"
     :fields="productFormFields"

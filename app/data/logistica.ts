@@ -30,6 +30,11 @@ export const links: NavigationMenuItem[][] = [
           label: 'Productos',
           icon: 'i-heroicons-cube',
           to: '/logistica/master-data/productos/'
+        },
+        {
+          label: 'Depósitos',
+          icon: 'i-heroicons-building-storefront',
+          to: '/logistica/warehouse/'
         }
       ]
     },
@@ -39,7 +44,18 @@ export const links: NavigationMenuItem[][] = [
       to: '/'
     },
     { label: 'Stock', icon: 'i-heroicons-archive-box', to: '/' },
-    { label: 'Flota', icon: 'i-heroicons-wrench-screwdriver', to: '/' },
+    {
+      label: 'Flota',
+      icon: 'i-heroicons-wrench-screwdriver',
+      to: '/logistica/transport/vehicles-combinations/',
+      children: [
+        {
+          label: 'Vehículos',
+          icon: 'i-lucide-bus-front',
+          to: '/logistica/transport/vehicles/'
+        }
+      ]
+    },
     {
       label: 'Clientes',
       icon: 'i-heroicons-building-office-2',
@@ -48,7 +64,14 @@ export const links: NavigationMenuItem[][] = [
     { label: 'Reportes', icon: 'i-heroicons-chart-bar', to: '/' },
     {
       label: 'Configuraciones',
-      icon: 'i-heroicons-cog-6-tooth'
+      icon: 'i-heroicons-cog-6-tooth',
+      children: [
+        {
+          label: 'Documentacion de transporte',
+          icon: 'i-heroicons-book-open',
+          to: '/logistica/transport-document/'
+        }
+      ]
     }
   ]
 ]

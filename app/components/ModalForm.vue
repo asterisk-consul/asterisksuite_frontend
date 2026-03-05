@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { reactive, watch, computed } from 'vue'
+import { CalendarDate } from '@internationalized/date'
 import type { BaseField } from '@/types/form.types'
 
 const props = defineProps<{
@@ -17,14 +18,16 @@ const emit = defineEmits<{
 /* ---------------------------------------
    CONTROL MODAL
 --------------------------------------- */
+
 const modalOpen = computed({
   get: () => props.open,
   set: (val: boolean) => emit('update:open', val)
 })
 
 /* ---------------------------------------
-   STATE DINÁMICO TIPADO
+   STATE
 --------------------------------------- */
+
 const state = reactive<Record<string, any>>({})
 
 function buildInitialState() {
@@ -38,9 +41,15 @@ function buildInitialState() {
       case 'checkbox':
         state[field.name] = false
         break
+
       case 'select':
         state[field.name] = null
         break
+
+      case 'date':
+        state[field.name] = null
+        break
+
       default:
         state[field.name] = ''
     }
@@ -50,6 +59,7 @@ function buildInitialState() {
 /* ---------------------------------------
    WATCHERS
 --------------------------------------- */
+
 watch(
   () => props.fields,
   () => buildInitialState(),
@@ -59,26 +69,57 @@ watch(
 watch(
   () => props.open,
   (val) => {
-    if (!val) {
-      buildInitialState()
-    }
+    if (!val) buildInitialState()
   }
 )
 
 /* ---------------------------------------
+   DATE FORMAT
+--------------------------------------- */
+
+function formatDate(date: CalendarDate | null) {
+  if (!date) return ''
+
+  const y = date.year
+  const m = String(date.month).padStart(2, '0')
+  const d = String(date.day).padStart(2, '0')
+
+  return `${d}/${m}/${y}`
+}
+
+/* ---------------------------------------
    SUBMIT
 --------------------------------------- */
+
 function handleSubmit() {
-  emit('submit', { ...state } as T)
+  const payload: Record<string, any> = {}
+
+  for (const key in state) {
+    const value = state[key]
+
+    if (value instanceof CalendarDate) {
+      payload[key] = value.toString()
+    } else {
+      payload[key] = value
+    }
+  }
+
+  emit('submit', payload as T)
   modalOpen.value = false
 }
 </script>
 
 <template>
-  <UModal v-model:open="modalOpen">
+  <UModal
+    v-model:open="modalOpen"
+    :ui="{
+      content:
+        'w-[calc(100vw-2rem)] max-w-3xl rounded-lg shadow-lg ring ring-default'
+    }"
+  >
     <!-- HEADER -->
     <template #header>
-      <div class="flex justify-between items-center">
+      <div class="flex justify-between items-center w-full">
         <h3 class="text-lg font-semibold">
           {{ title ?? 'Formulario' }}
         </h3>
@@ -95,7 +136,7 @@ function handleSubmit() {
     <!-- BODY -->
     <template #body>
       <div class="max-h-[70vh] overflow-y-auto pr-2">
-        <UForm :state="state" @submit="handleSubmit" class="space-y-8">
+        <UForm :state="state" @submit="handleSubmit">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <template v-for="field in fields" :key="field.name">
               <!-- HIDDEN -->
@@ -105,11 +146,17 @@ function handleSubmit() {
                 v-model="state[field.name]"
               />
 
-              <UFormField v-else :label="field.label" :name="field.name">
+              <UFormField
+                v-else
+                :label="field.label"
+                :name="field.name"
+                :class="field.span === 2 ? 'md:col-span-2' : ''"
+              >
                 <!-- CHECKBOX -->
                 <UCheckbox
                   v-if="field.type === 'checkbox'"
                   v-model="state[field.name]"
+                  :disabled="field.disabled"
                 />
 
                 <!-- SELECT -->
@@ -117,31 +164,51 @@ function handleSubmit() {
                   v-else-if="field.type === 'select'"
                   v-model="state[field.name]"
                   :items="field.options"
+                  :disabled="field.disabled"
                   class="w-full"
                 />
+
+                <!-- DATE -->
+                <UPopover v-else-if="field.type === 'date'">
+                  <template #default>
+                    <UInput
+                      :model-value="formatDate(state[field.name])"
+                      icon="i-heroicons-calendar-days"
+                      placeholder="Seleccionar fecha"
+                      readonly
+                      class="w-full"
+                    />
+                  </template>
+
+                  <template #content>
+                    <UCalendar v-model="state[field.name]" class="p-2" />
+                  </template>
+                </UPopover>
 
                 <!-- TEXTAREA -->
                 <UTextarea
                   v-else-if="field.type === 'textarea'"
                   v-model="state[field.name]"
                   :placeholder="field.placeholder"
-                  size="lg"
+                  :disabled="field.disabled"
+                  class="w-full"
                 />
 
-                <!-- INPUTS -->
+                <!-- INPUT -->
                 <UInput
                   v-else
                   v-model="state[field.name]"
                   :type="field.type"
                   :placeholder="field.placeholder"
-                  size="lg"
+                  :disabled="field.disabled"
+                  class="w-full"
                 />
               </UFormField>
             </template>
           </div>
 
           <!-- FOOTER -->
-          <div class="flex justify-end gap-3 pt-6 border-t">
+          <div class="flex justify-end gap-3 pt-6 border-t mt-6">
             <UButton color="neutral" variant="soft" @click="modalOpen = false">
               Cancelar
             </UButton>

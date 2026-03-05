@@ -2,6 +2,7 @@
 import { useBusinessPartiesStore } from '@/stores/logistica/meta-data/bussines-parties.store'
 import { businessPartyFormFields } from '~/form/businessPartyFormFields'
 import { columns } from './columns'
+import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 definePageMeta({ layout: 'logistica' })
 
 const store = useBusinessPartiesStore()
@@ -41,13 +42,8 @@ const saveLocation = async (data: any) => {
         Crear Parte Interesada
       </UButton>
     </div>
-    <UTable
-      :loading="loading"
-      sticky
-      :data="items"
-      :columns="columns"
-      class="border border-default rounded-lg"
-    />
+
+    <LogisticaTable :loading="loading" :data="items" :columns="columns" />
   </div>
   <ModalForm
     v-model:open="open"
