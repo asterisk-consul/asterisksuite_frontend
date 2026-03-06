@@ -1,14 +1,6 @@
-// server/api/logistica/transport/trips/[id].delete.ts
+import { apiProxy } from '~~/server/utils/api-proxy'
 
-export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const token = getCookie(event, 'api2_token')
+export default defineEventHandler((event) => {
   const { id } = event.context.params!
-
-  return await $fetch(`${config.public.apiBase2}/transport/trips/${id}`, {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : ''
-    },
-    method: 'DELETE'
-  })
+  return apiProxy(event, `/trips/${id}`, { method: 'DELETE' })
 })

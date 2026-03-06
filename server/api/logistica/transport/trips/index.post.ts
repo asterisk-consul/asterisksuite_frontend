@@ -1,13 +1,6 @@
-export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const token = getCookie(event, 'api2_token')
-  const body = await readBody(event)
+import { apiProxy } from '~~/server/utils/api-proxy'
 
-  return await $fetch(`${config.apiBase2}/transport/trips`, {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : ''
-    },
-    method: 'POST',
-    body
-  })
+export default defineEventHandler(async (event) => {
+  const body = await readBody(event)
+  return apiProxy(event, '/trips', { method: 'POST', body })
 })

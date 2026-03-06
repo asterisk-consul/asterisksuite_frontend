@@ -1,13 +1,17 @@
 import type {
   Driver,
-  CreateDriverInput
-} from '~/types/logistica/transport/drivers'
+  CreateDriverInput,
+  UpdateDriverInput
+} from '@/types/logistica/transport/drivers'
 
 export const useChoferesService = () => {
-  const getAll = (companyId: string) =>
+  const getAll = (company_id: string) =>
     $fetch<Driver[]>('/api/logistica/transport/drivers', {
-      query: { companyId }
+      query: { company_id }
     })
+
+  const getById = (id: string) =>
+    $fetch<Driver>(`/api/logistica/transport/drivers/${id}`)
 
   const create = (body: CreateDriverInput) =>
     $fetch<Driver>('/api/logistica/transport/drivers', {
@@ -15,5 +19,22 @@ export const useChoferesService = () => {
       body
     })
 
-  return { getAll, create }
+  const update = (id: string, body: UpdateDriverInput) =>
+    $fetch<Driver>(`/api/logistica/transport/drivers/${id}`, {
+      method: 'PATCH',
+      body
+    })
+
+  const remove = (id: string) =>
+    $fetch<{ deleted: boolean }>(`/api/logistica/transport/drivers/${id}`, {
+      method: 'DELETE'
+    })
+
+  return {
+    getAll,
+    getById,
+    create,
+    update,
+    remove
+  }
 }

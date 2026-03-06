@@ -1,9 +1,8 @@
 import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
-  const { id } = getRouterParams(event)
-
-  return apiProxy(event, `/logistica/vehicle-combinations/${id}`, {
+  const { id } = event.context.params!
+  return apiProxy(event, `/vehicle-combinations/${id}`, {
     method: 'GET'
   })
 })

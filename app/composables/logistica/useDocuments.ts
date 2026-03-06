@@ -7,18 +7,26 @@ export interface SelectItem {
 }
 
 export function useDocuments(documents: Ref<DocumentType[]>) {
-  const items = computed<SelectItem[]>(() =>
-    documents.value.map((document) => {
-      const label = document.name
-
-      return {
-        label,
+  const vehicleItems = computed<SelectItem[]>(() =>
+    documents.value
+      .filter((document) => document.entity === 'VEHICLE')
+      .map((document) => ({
+        label: document.name,
         value: document.id
-      }
-    })
+      }))
+  )
+
+  const driverItems = computed<SelectItem[]>(() =>
+    documents.value
+      .filter((document) => document.entity === 'DRIVER')
+      .map((document) => ({
+        label: document.name,
+        value: document.id
+      }))
   )
 
   return {
-    items
+    vehicleItems,
+    driverItems
   }
 }

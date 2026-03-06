@@ -5,15 +5,23 @@ import type {
 } from '~/types/logistica/transport/vehicles-combinations'
 
 export const useVehicleCombinationsService = () => {
-  const getAll = (companyId: string) =>
+  const getAll = (company_id: string) =>
     $fetch<VehicleCombination[]>(
       '/api/logistica/transport/vehicles-combinations',
       {
-        query: { companyId }
+        query: { company_id }
       }
     )
 
-  const getOne = (id: string) =>
+  const getActive = (company_id: string) =>
+    $fetch<VehicleCombination[]>(
+      '/api/logistica/transport/vehicles-combinations/active',
+      {
+        query: { company_id }
+      }
+    )
+
+  const getById = (id: string) =>
     $fetch<VehicleCombination>(
       `/api/logistica/transport/vehicles-combinations/${id}`
     )
@@ -36,17 +44,35 @@ export const useVehicleCombinationsService = () => {
       }
     )
 
-  const close = (id: string) =>
+  const finish = (id: string) =>
     $fetch<VehicleCombination>(
-      `/api/logistica/transport/vehicles-combinations/${id}/close`,
-      { method: 'PATCH' }
+      `/api/logistica/transport/vehicles-combinations/${id}/finish`,
+      {
+        method: 'PATCH'
+      }
+    )
+
+  const remove = (id: string) =>
+    $fetch<{ deleted: boolean }>(
+      `/api/logistica/transport/vehicles-combinations/${id}`,
+      {
+        method: 'DELETE'
+      }
+    )
+
+  const historyByVehicle = (vehicle_id: string) =>
+    $fetch<VehicleCombination[]>(
+      `/api/logistica/transport/vehicles-combinations/vehicle/${vehicle_id}`
     )
 
   return {
     getAll,
-    getOne,
+    getActive,
+    getById,
     create,
     update,
-    close
+    finish,
+    remove,
+    historyByVehicle
   }
 }

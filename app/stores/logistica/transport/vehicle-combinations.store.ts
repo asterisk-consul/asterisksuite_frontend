@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
 import { useVehicleCombinationsService } from '~/services/logistica/transport/vehicles-combnations.service'
 import type {
   VehicleCombination,
@@ -9,40 +10,30 @@ import type {
 export const useVehicleCombinationsStore = defineStore(
   'vehicleCombinations',
   () => {
-    // ================= STATE =================
     const items = ref<VehicleCombination[]>([])
     const current = ref<VehicleCombination | null>(null)
-
     const loading = ref(false)
     const error = ref<string | null>(null)
 
     const service = useVehicleCombinationsService()
 
-    // ================= GETTERS =================
-
-    const activeCombinations = computed(() =>
-      items.value.filter((c) => !c.valid_until)
-    )
-
-    const getById = (id: string) =>
-      computed(() => items.value.find((c) => c.id === id) ?? null)
-
-    const activeByTractor = (tractorId: string) =>
-      computed(
-        () =>
-          items.value.find(
-            (c) => c.tractor_id === tractorId && !c.valid_until
-          ) ?? null
-      )
-
-    // ================= ACTIONS =================
-
-    const fetchAll = async (companyId: string) => {
+    const fetchAll = async (company_id: string) => {
       loading.value = true
       error.value = null
-
       try {
-        items.value = await service.getAll(companyId)
+        items.value = await service.getAll(company_id)
+      } catch (err: any) {
+        error.value = err?.data?.message || err.message
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const fetchActive = async (company_id: string) => {
+      loading.value = true
+      error.value = null
+      try {
+        items.value = await service.getActive(company_id)
       } catch (err: any) {
         error.value = err?.data?.message || err.message
       } finally {
@@ -53,17 +44,12 @@ export const useVehicleCombinationsStore = defineStore(
     const fetchOne = async (id: string) => {
       loading.value = true
       error.value = null
-
       try {
-        const combo = await service.getOne(id)
-        current.value = combo
-
-        const index = items.value.findIndex((c) => c.id === id)
-        if (index !== -1) {
-          items.value[index] = combo
-        }
-
-        return combo
+        const vehicle = await service.getById(id)
+        current.value = vehicle
+        const index = items.value.findIndex((v) => v.id === id)
+        if (index !== -1) items.value[index] = vehicle
+        return vehicle
       } catch (err: any) {
         error.value = err?.data?.message || err.message
         throw err
@@ -75,7 +61,6 @@ export const useVehicleCombinationsStore = defineStore(
     const create = async (payload: CreateVehicleCombinationInput) => {
       loading.value = true
       error.value = null
-
       try {
         const created = await service.create(payload)
         items.value.unshift(created)
@@ -94,19 +79,11 @@ export const useVehicleCombinationsStore = defineStore(
     ) => {
       loading.value = true
       error.value = null
-
       try {
         const updated = await service.update(id, payload)
-
-        const index = items.value.findIndex((c) => c.id === id)
-        if (index !== -1) {
-          items.value[index] = updated
-        }
-
-        if (current.value?.id === id) {
-          current.value = updated
-        }
-
+        const index = items.value.findIndex((v) => v.id === id)
+        if (index !== -1) items.value[index] = updated
+        if (current.value?.id === id) current.value = updated
         return updated
       } catch (err: any) {
         error.value = err?.data?.message || err.message
@@ -116,23 +93,30 @@ export const useVehicleCombinationsStore = defineStore(
       }
     }
 
-    const close = async (id: string) => {
+    const finish = async (id: string) => {
       loading.value = true
       error.value = null
-
       try {
-        const closed = await service.close(id)
+        const finished = await service.finish(id)
+        const index = items.value.findIndex((v) => v.id === id)
+        if (index !== -1) items.value[index] = finished
+        if (current.value?.id === id) current.value = finished
+        return finished
+      } catch (err: any) {
+        error.value = err?.data?.message || err.message
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
 
-        const combo = items.value.find((c) => c.id === id)
-        if (combo) {
-          combo.valid_until = closed.valid_until
-        }
-
-        if (current.value?.id === id) {
-          current.value.valid_until = closed.valid_until
-        }
-
-        return closed
+    const remove = async (id: string) => {
+      loading.value = true
+      error.value = null
+      try {
+        await service.remove(id)
+        items.value = items.value.filter((v) => v.id !== id)
+        if (current.value?.id === id) current.value = null
       } catch (err: any) {
         error.value = err?.data?.message || err.message
         throw err
@@ -146,23 +130,17 @@ export const useVehicleCombinationsStore = defineStore(
     }
 
     return {
-      // state
       items,
       current,
       loading,
       error,
-
-      // getters
-      activeCombinations,
-      getById,
-      activeByTractor,
-
-      // actions
       fetchAll,
+      fetchActive,
       fetchOne,
       create,
       update,
-      close,
+      finish,
+      remove,
       clearError
     }
   }

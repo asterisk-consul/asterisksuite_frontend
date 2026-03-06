@@ -1,82 +1,74 @@
 import { h } from 'vue'
 import { UBadge } from '#components'
 import type { TableColumn } from '@nuxt/ui'
-import type { VehicleCombination } from '~/types/logistica/transport/vehicles-combinations'
-import type { BadgeColor } from '~/types/colors.types'
+import type { VehicleCombination } from '@/types/logistica/transport/vehicles-combinations'
 
-function formatVehicle(v: any) {
-  if (!v) return '—'
-
-  const brand = v.brand ?? ''
-  const model = v.model ?? ''
-
-  return `${v.plate} ${brand} ${model}`.trim()
-}
-
-function getStatus(validUntil: string | null): {
-  label: string
-  color: BadgeColor
-} {
-  if (!validUntil) return { label: 'Activa', color: 'success' }
-
-  const today = new Date()
-  const end = new Date(validUntil)
-
-  if (end < today) return { label: 'Finalizada', color: 'neutral' }
-
-  return { label: 'Activa', color: 'success' }
+function formatDate(date?: string | null) {
+  if (!date) return '—'
+  return new Date(date).toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  })
 }
 
 export const columns: TableColumn<VehicleCombination>[] = [
   {
-    id: 'tractor',
-    header: 'Tractor',
-    cell: ({ row }) => formatVehicle(row.original.tractor)
+    accessorKey: 'unit_number',
+    header: 'N° Unidad',
+    cell: ({ row }) => row.original.unit_number || '—'
   },
-
-  {
-    id: 'trailer',
-    header: 'Trailer',
-    cell: ({ row }) => formatVehicle(row.original.trailer)
-  },
-
-  {
-    accessorKey: 'valid_from',
-    header: 'Desde',
-    cell: ({ row }) =>
-      new Date(row.original.valid_from).toLocaleDateString('es-AR')
-  },
-
-  {
-    accessorKey: 'valid_until',
-    header: 'Hasta',
-    cell: ({ row }) =>
-      row.original.valid_until
-        ? new Date(row.original.valid_until).toLocaleDateString('es-AR')
-        : '—'
-  },
-
   {
     id: 'status',
     header: 'Estado',
     cell: ({ row }) => {
-      const status = getStatus(row.original.valid_until)
+      const validUntil = row.original.valid_until
+      const isActive = !validUntil || new Date(validUntil) >= new Date()
 
-      return h(
-        UBadge,
-        {
-          color: status.color,
-          variant: 'subtle'
-        },
-        () => status.label
-      )
+      return h(UBadge, {
+        label: isActive ? 'Activo' : 'Histórico',
+        color: isActive ? 'success' : 'neutral',
+        variant: 'subtle'
+      })
     }
   },
-
+  {
+    id: 'tractor',
+    header: 'Tractor',
+    cell: ({ row }) => {
+      const t = row.original.tractor
+      return t ? `${t.plate} - ${t.brand || ''} ${t.model || ''}`.trim() : '—'
+    }
+  },
+  {
+    id: 'trailer',
+    header: 'Trailer',
+    cell: ({ row }) => {
+      const t = row.original.trailer
+      return t ? `${t.plate} - ${t.brand || ''} ${t.model || ''}`.trim() : '—'
+    }
+  },
+  {
+    id: 'driver',
+    header: 'Chofer',
+    cell: ({ row }) => {
+      const d = row.original.driver
+      return d ? `${d.first_name} ${d.last_name}` : '—'
+    }
+  },
+  {
+    accessorKey: 'valid_from',
+    header: 'Válido desde',
+    cell: ({ row }) => formatDate(row.original.valid_from)
+  },
+  {
+    accessorKey: 'valid_until',
+    header: 'Válido hasta',
+    cell: ({ row }) => formatDate(row.original.valid_until)
+  },
   {
     accessorKey: 'created_at',
     header: 'Creado',
-    cell: ({ row }) =>
-      new Date(row.original.created_at).toLocaleDateString('es-AR')
+    cell: ({ row }) => formatDate(row.original.created_at)
   }
 ]

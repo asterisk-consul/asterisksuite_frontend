@@ -1,55 +1,46 @@
 import type {
   Trip,
   CreateTripInput,
-  AddTripCargoInput,
-  TripCargo
-} from '~/types/logistica/transport/trips'
+  UpdateTripInput,
+  TripRate,
+  CreateTripRateInput,
+  UpdateTripRateInput
+} from '~/types/logistica/trips'
 
 export const useTripsService = () => {
-  const getAll = (companyId: string) =>
-    $fetch<Trip[]>('/api/logistica/transport/trips', {
-      query: { companyId }
-    })
+  const base = '/api/logistica/transport/trips'
+  const getAll = (company_id: string) =>
+    $fetch<Trip[]>(`${base}`, { query: { company_id } })
 
-  const getById = (id: string) =>
-    $fetch<Trip>(`/api/logistica/transport/trips/${id}`)
+  const getById = (id: string) => $fetch<Trip>(`/api/trips/${id}`)
 
   const create = (body: CreateTripInput) =>
-    $fetch<Trip>('/api/logistica/transport/trips', {
-      method: 'POST',
-      body
-    })
+    $fetch<Trip>(`${base}`, { method: 'POST', body })
 
-  const start = (id: string) =>
-    $fetch<Trip>(`/api/logistica/transport/trips/${id}`, {
-      method: 'PATCH',
-      body: { action: 'start' }
-    })
-
-  const complete = (id: string) =>
-    $fetch<Trip>(`/api/logistica/transport/trips/${id}`, {
-      method: 'PATCH',
-      body: { action: 'complete' }
-    })
+  const update = (id: string, body: UpdateTripInput) =>
+    $fetch<Trip>(`${base}+${id}`, { method: 'PATCH', body })
 
   const remove = (id: string) =>
-    $fetch<void>(`/api/logistica/transport/trips/${id}`, {
-      method: 'DELETE'
-    })
-  const addCargo = (body: AddTripCargoInput) => {
-    return $fetch<TripCargo>('/api/logistica/transport/trips/cargo', {
-      method: 'POST',
-      body
-    })
-  }
+    $fetch<{ deleted: boolean }>(`${base}+${id}`, { method: 'DELETE' })
+
+  // trip rates
+  const addRate = (trip_id: string, body: CreateTripRateInput) =>
+    $fetch<TripRate>(`${base}/${trip_id}/rates`, { method: 'POST', body })
+
+  const updateRate = (id: string, body: UpdateTripRateInput) =>
+    $fetch<TripRate>(`${base}/rates/${id}`, { method: 'PATCH', body })
+
+  const removeRate = (id: string) =>
+    $fetch<{ deleted: boolean }>(`${base}/rates/${id}`, { method: 'DELETE' })
 
   return {
     getAll,
     getById,
     create,
-    start,
-    complete,
-    addCargo,
-    remove
+    update,
+    remove,
+    addRate,
+    updateRate,
+    removeRate
   }
 }

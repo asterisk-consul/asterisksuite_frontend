@@ -2,8 +2,6 @@ import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
   const { id } = event.context.params!
-
-  return apiProxy(event, `/transport/drivers/${id}`, {
-    method: 'DELETE'
-  })
+  const body = await readBody(event)
+  return apiProxy(event, `/trips/rates/${id}`, { method: 'PATCH', body })
 })

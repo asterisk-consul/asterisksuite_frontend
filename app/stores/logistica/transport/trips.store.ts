@@ -1,79 +1,167 @@
-// stores/trips.store.ts
-
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useTripsService } from '~/services/logistica/transport/trips.service'
 import type {
   Trip,
   CreateTripInput,
-  AddTripCargoInput
-} from '~/types/logistica/transport/trips'
+  UpdateTripInput,
+  TripRate,
+  CreateTripRateInput,
+  UpdateTripRateInput
+} from '~/types/logistica/trips'
 
 export const useTripsStore = defineStore('trips', () => {
+  const items = ref<Trip[]>([])
+  const current = ref<Trip | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
   const service = useTripsService()
 
-  const trips = ref<Trip[]>([])
-  const currentTrip = ref<Trip | null>(null)
-  const loading = ref(false)
-
-  const fetchTrips = async (companyId: string) => {
+  const fetchAll = async (company_id: string) => {
+    loading.value = true
+    error.value = null
     try {
-      loading.value = true
-      trips.value = await service.getAll(companyId)
+      items.value = await service.getAll(company_id)
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
     } finally {
       loading.value = false
     }
   }
 
-  const createTrip = async (payload: CreateTripInput) => {
+  const fetchOne = async (id: string) => {
+    loading.value = true
+    error.value = null
     try {
-      loading.value = true
-      const trip = await service.create(payload)
-      trips.value.push(trip)
+      const trip = await service.getById(id)
+      current.value = trip
+      const index = items.value.findIndex((t) => t.id === id)
+      if (index !== -1) items.value[index] = trip
       return trip
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
     } finally {
       loading.value = false
     }
   }
 
-  const startTrip = async (id: string) => {
-    const updated = await service.start(id)
-
-    const index = trips.value.findIndex((t) => t.id === id)
-    if (index !== -1) trips.value[index] = updated
-
-    return updated
-  }
-
-  const completeTrip = async (id: string) => {
-    const updated = await service.complete(id)
-
-    const index = trips.value.findIndex((t) => t.id === id)
-    if (index !== -1) trips.value[index] = updated
-
-    return updated
-  }
-
-  const addCargoToTrip = async (payload: AddTripCargoInput) => {
-    const cargo = await service.addCargo(payload)
-
-    const trip = trips.value.find((t) => t.id === payload.tripId)
-    if (trip) {
-      if (!trip.cargo) trip.cargo = []
-      trip.cargo.push(cargo)
+  const create = async (payload: CreateTripInput) => {
+    loading.value = true
+    error.value = null
+    try {
+      const created = await service.create(payload)
+      items.value.unshift(created)
+      return created
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
     }
+  }
 
-    return cargo
+  const update = async (id: string, payload: UpdateTripInput) => {
+    loading.value = true
+    error.value = null
+    try {
+      const updated = await service.update(id, payload)
+      const index = items.value.findIndex((t) => t.id === id)
+      if (index !== -1) items.value[index] = updated
+      if (current.value?.id === id) current.value = updated
+      return updated
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const remove = async (id: string) => {
+    loading.value = true
+    error.value = null
+    try {
+      await service.remove(id)
+      items.value = items.value.filter((t) => t.id !== id)
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // trip rates
+  const addRate = async (trip_id: string, payload: CreateTripRateInput) => {
+    loading.value = true
+    error.value = null
+    try {
+      const rate = await service.addRate(trip_id, payload)
+      const trip = items.value.find((t) => t.id === trip_id)
+      if (trip) trip.trip_rates = [...(trip.trip_rates || []), rate]
+      return rate
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const updateRate = async (id: string, payload: UpdateTripRateInput) => {
+    loading.value = true
+    error.value = null
+    try {
+      const updated = await service.updateRate(id, payload)
+      items.value.forEach((trip) => {
+        trip.trip_rates?.forEach((rate) => {
+          if (rate.id === id) Object.assign(rate, updated)
+        })
+      })
+      return updated
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const removeRate = async (id: string) => {
+    loading.value = true
+    error.value = null
+    try {
+      await service.removeRate(id)
+      items.value.forEach((trip) => {
+        trip.trip_rates = trip.trip_rates?.filter((rate) => rate.id !== id)
+      })
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const clearError = () => {
+    error.value = null
   }
 
   return {
-    trips,
-    currentTrip,
+    items,
+    current,
     loading,
-    fetchTrips,
-    createTrip,
-    startTrip,
-    completeTrip,
-    addCargoToTrip
+    error,
+    fetchAll,
+    fetchOne,
+    create,
+    update,
+    remove,
+    addRate,
+    updateRate,
+    removeRate,
+    clearError
   }
 })

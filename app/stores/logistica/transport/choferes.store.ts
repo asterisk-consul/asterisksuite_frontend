@@ -2,45 +2,95 @@ import { defineStore } from 'pinia'
 import { useChoferesService } from '~/services/logistica/transport/choferes.service'
 import type {
   Driver,
-  CreateDriverInput
-} from '~/types/logistica/transport/drivers'
+  CreateDriverInput,
+  UpdateDriverInput
+} from '@/types/logistica/transport/drivers'
 
-export const useChoferesStore = defineStore('choferes', () => {
+export const useChoferesStore = defineStore('drivers', () => {
+  const service = useChoferesService()
+
   const drivers = ref<Driver[]>([])
-  const current = ref<Driver | null>(null)
-
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const service = useChoferesService()
-
-  // ========================================
-  // GET ALL
-  // ========================================
-  const fetchAll = async (companyId: string) => {
+  const fetchAll = async (company_id: string) => {
     loading.value = true
     error.value = null
 
     try {
-      drivers.value = await service.getAll(companyId)
+      drivers.value = await service.getAll(company_id)
     } catch (err: any) {
       error.value = err?.data?.message || err.message
+      throw err
     } finally {
       loading.value = false
     }
   }
 
-  // ========================================
-  // CREATE
-  // ========================================
-  const createDriver = async (payload: CreateDriverInput) => {
+  const fetchById = async (id: string) => {
     loading.value = true
     error.value = null
 
     try {
-      const newDriver = await service.create(payload)
-      drivers.value.push(newDriver)
-      return newDriver
+      return await service.getById(id)
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const create = async (body: CreateDriverInput) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const created = await service.create(body)
+      drivers.value.unshift(created)
+      return created
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const update = async (id: string, body: UpdateDriverInput) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const updated = await service.update(id, body)
+
+      const index = drivers.value.findIndex((i) => i.id === id)
+
+      if (index !== -1) {
+        drivers.value[index] = updated
+      }
+
+      return updated
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const remove = async (id: string) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      await service.remove(id)
+
+      const index = drivers.value.findIndex((i) => i.id === id)
+
+      if (index !== -1) {
+        drivers.value[index]!.active = false
+      }
     } catch (err: any) {
       error.value = err?.data?.message || err.message
       throw err
@@ -51,10 +101,12 @@ export const useChoferesStore = defineStore('choferes', () => {
 
   return {
     drivers,
-    current,
     loading,
     error,
     fetchAll,
-    createDriver
+    fetchById,
+    create,
+    update,
+    remove
   }
 })

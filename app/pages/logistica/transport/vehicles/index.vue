@@ -25,7 +25,7 @@ const store = useVehiclesStore()
 const { items } = storeToRefs(store)
 const { items: documentTypes } = storeToRefs(documentStore)
 
-const { items: documents } = useDocuments(documentTypes)
+const { vehicleItems } = useDocuments(documentTypes)
 
 // ========================================
 // COMPUTED
@@ -40,8 +40,8 @@ const fields = computed(() =>
     ) {
       return {
         ...field,
-        options: documents.value,
-        disabled: documents.value.length === 0
+        options: vehicleItems.value,
+        disabled: vehicleItems.value.length === 0
       }
     }
 

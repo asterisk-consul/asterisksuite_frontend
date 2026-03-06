@@ -4,11 +4,13 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 //stores
 import { useVehiclesStore } from '~/stores/logistica/transport/vehicles.store'
 import { useVehicleCombinationsStore } from '~/stores/logistica/transport/vehicle-combinations.store'
+import { useChoferesStore } from '~/stores/logistica/transport/choferes.store'
 import { useAuthStore } from '~/stores/auth.store'
 //form
-import { vehicleCombinationFields } from '~/form/vehicleCombinationsForm'
+import { vehicleCombinationsFormFields } from '~/form/vehicleCombinationsForm'
 import ModalForm from '~/components/ModalForm.vue'
 //composables
+import { useDriverMetrics } from '~/composables/logistica/useDriverMetrics'
 import { useVehicles } from '~/composables/logistica/useVehicles'
 //tabla columns
 import { columns } from './columns'
@@ -23,24 +25,30 @@ const open = ref(false)
 
 const store = useVehicleCombinationsStore()
 const vehiculoStore = useVehiclesStore()
+const choferStore = useChoferesStore()
 const authStore = useAuthStore()
 
 const { items } = storeToRefs(store)
 const { items: vehicles } = storeToRefs(vehiculoStore)
+const { drivers } = storeToRefs(choferStore)
 
 const { tractorOptions, trailerOptions } = useVehicles(vehicles)
+const { items: driverItems } = useDriverMetrics(drivers)
 
 // ========================================
 // COMPUTED
 // ========================================
 
 const fields = computed(() =>
-  vehicleCombinationFields.map((field) => {
-    if (field.name === 'tractorId') {
+  vehicleCombinationsFormFields.map((field) => {
+    if (field.name === 'tractor_id') {
       return { ...field, options: tractorOptions.value }
     }
-    if (field.name === 'trailerId') {
+    if (field.name === 'trailer_id') {
       return { ...field, options: trailerOptions.value }
+    }
+    if (field.name === 'driver_id') {
+      return { ...field, options: driverItems.value }
     }
     return field
   })
@@ -51,8 +59,10 @@ const fields = computed(() =>
 // ========================================
 
 onMounted(async () => {
-  await store.fetchAll('a060f7ff-0281-4df4-b5b3-cbdf940be31e')
-  await vehiculoStore.fetchAll('a060f7ff-0281-4df4-b5b3-cbdf940be31e')
+  const companyId = 'a060f7ff-0281-4df4-b5b3-cbdf940be31e'
+  await store.fetchAll(companyId)
+  await vehiculoStore.fetchAll(companyId)
+  await choferStore.fetchAll(companyId)
   await authStore.fetchMe()
   loading.value = store.loading
 })
@@ -62,11 +72,13 @@ onMounted(async () => {
 // ========================================
 
 function saveDriver(data: any) {
+  const { id, ...rest } = data
+
   const payload = {
-    ...data,
-    companyId: 'a060f7ff-0281-4df4-b5b3-cbdf940be31e', // override al final
-    createdBy: authStore.user?.id
+    ...rest,
+    company_id: 'a060f7ff-0281-4df4-b5b3-cbdf940be31e'
   }
+  console.log(payload)
   store.create(payload)
   open.value = false
 }

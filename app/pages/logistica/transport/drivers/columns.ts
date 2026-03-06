@@ -3,70 +3,75 @@ import { UBadge } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 import type { Driver } from '~/types/logistica/transport/drivers'
 
+function getDocumentColor(expiration?: string | null) {
+  if (!expiration) return 'neutral'
+
+  const today = new Date()
+  const exp = new Date(expiration)
+
+  const diff = Math.ceil(
+    (exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  )
+
+  if (diff < 0) return 'error'
+  if (diff < 30) return 'warning'
+
+  return 'success'
+}
+
 export const columns: TableColumn<Driver>[] = [
   {
-    accessorKey: 'id',
-    header: '#',
+    id: 'driver',
+    header: 'Chofer',
     cell: ({ row }) => {
-      const id = row.getValue('id') as string
-      return `#${id.slice(0, 8)}`
+      const d = row.original
+      return `${d.first_name} ${d.last_name}`
     }
   },
-  {
-    id: 'full_name',
-    header: 'Nombre',
-    cell: ({ row }) => {
-      const first = row.original.first_name
-      const last = row.original.last_name
-      return `${first} ${last}`
-    }
-  },
+
   {
     accessorKey: 'document',
     header: 'Documento'
   },
+
   {
     accessorKey: 'phone',
-    header: 'Teléfono'
+    header: 'Teléfono',
+    cell: ({ row }) => row.original.phone ?? '—'
   },
-  {
-    accessorKey: 'license_number',
-    header: 'N° Licencia'
-  },
-  {
-    accessorKey: 'license_expiration',
-    header: 'Vencimiento',
-    cell: ({ row }) => {
-      const date = row.getValue('license_expiration') as string
 
-      return new Date(date).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      })
-    }
-  },
   {
-    accessorKey: 'active',
-    header: 'Estado',
+    id: 'documents',
+    header: 'Documentos',
     cell: ({ row }) => {
-      const active = row.getValue('active') as boolean
+      const docs = row.original.driverDocuments
+
+      if (!docs?.length) return '—'
 
       return h(
-        UBadge,
-        {
-          variant: 'subtle',
-          color: active ? 'success' : 'error'
-        },
-        () => (active ? 'Activo' : 'Inactivo')
+        'div',
+        { class: 'flex flex-wrap gap-1' },
+        docs.map((doc) =>
+          h(
+            UBadge,
+            {
+              variant: 'subtle',
+              color: getDocumentColor(doc.expiration_date)
+            },
+            () => doc.transport_document_types?.name ?? 'Documento'
+          )
+        )
       )
     }
   },
+
   {
     accessorKey: 'created_at',
     header: 'Creado',
     cell: ({ row }) => {
-      const date = row.getValue('created_at') as string
+      const date = (row.original as any).created_at
+
+      if (!date) return '—'
 
       return new Date(date).toLocaleDateString('es-AR', {
         day: '2-digit',

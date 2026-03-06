@@ -5,7 +5,7 @@ export const links: NavigationMenuItem[][] = [
     {
       label: 'Viajes',
       icon: 'i-heroicons-truck',
-      to: '/',
+      to: '/logistica/transport/trips',
       defaultOpen: false,
       children: [
         {
@@ -70,6 +70,11 @@ export const links: NavigationMenuItem[][] = [
           label: 'Documentacion de transporte',
           icon: 'i-heroicons-book-open',
           to: '/logistica/transport-document/'
+        },
+        {
+          label: 'Tarifas',
+          icon: 'i-heroicons-cash',
+          to: '/logistica/master-data/tarifas/'
         }
       ]
     }

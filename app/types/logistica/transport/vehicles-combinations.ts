@@ -1,30 +1,28 @@
-import type { Vehicle } from './vehicles'
-
 export interface VehicleCombination {
   id: string
   company_id: string
   tractor_id: string
-  trailer_id: string | null
+  trailer_id?: string | null
+  driver_id?: string | null
+  unit_number?: string | null
   valid_from: string
-  valid_until: string | null
-  created_by: string | null
+  valid_until?: string | null
   created_at: string
-
-  tractor: Vehicle
-  trailer: Vehicle | null
-
-  trips?: any[]
+  deleted_at?: string | null
+  deleted_by?: string | null
+  tractor?: { id: string; plate: string; brand?: string; model?: string } // ✅ corregido
+  trailer?: { id: string; plate: string; brand?: string; model?: string } // ✅ corregido
+  driver?: { id: string; first_name: string; last_name: string } // ✅ corregido
 }
 
 export interface CreateVehicleCombinationInput {
-  companyId: string
-  tractorId: string
-  trailerId?: string
-  validFrom: string
-  validUntil?: string
-  createdBy?: string
+  company_id: string
+  tractor_id: string
+  trailer_id?: string
+  driver_id?: string
+  unit_number?: string
+  valid_from: string
+  valid_until?: string
 }
 
-export interface UpdateVehicleCombinationInput {
-  validUntil?: string
-}
+export interface UpdateVehicleCombinationInput extends Partial<CreateVehicleCombinationInput> {}
