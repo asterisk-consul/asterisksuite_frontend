@@ -138,8 +138,19 @@ export const createWarehouseColumns = (actions: {
   },
 
   {
+    accessorKey: 'location',
     id: 'location',
     header: 'Ubicación',
+    accessorFn: (row) => {
+      const loc = row.locations
+      if (!loc) return 'sin asignar'
+
+      const address = loc.address ?? ''
+      const city = loc.city ?? ''
+
+      return address ? `${address} - ${city}` : city
+    },
+
     cell: ({ row }) => {
       const location = row.original.locations
 
@@ -157,6 +168,8 @@ export const createWarehouseColumns = (actions: {
   {
     accessorKey: 'active',
     header: 'Estado',
+
+    accessorFn: (row) => (row.active ? 'activo' : 'inactivo'),
     cell: ({ row }) =>
       h(WarehouseActiveCell, {
         active: row.original.active,
