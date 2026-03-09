@@ -4,6 +4,13 @@ import type { TableColumn } from '@nuxt/ui'
 import WarehouseActiveCell from '@/components/ui/PopoverTableActive.vue'
 import type { Warehouse } from '~/types/logistica/warehouses/warehouse'
 import type { Component } from 'vue'
+import '@tanstack/table-core'
+
+declare module '@tanstack/table-core' {
+  interface ColumnMeta<TData, TValue> {
+    filterType?: 'text' | 'date-range'
+  }
+}
 
 type EditableField = 'name' | 'code' | 'locationId'
 type EditableValue = string | null | undefined
@@ -161,10 +168,32 @@ export const createWarehouseColumns = (actions: {
   {
     accessorKey: 'created_at',
     header: 'Creado',
-    cell: ({ row }) => {
-      const date = row.getValue('created_at') as string
 
-      return new Date(date).toLocaleDateString('es-AR', {
+    meta: { filterType: 'date-range' }, // ✅ coincide con tu tabla
+
+    // 👇 filtro por rango de fechas
+    filterFn: (row, columnId, value) => {
+      if (!value?.start || !value?.end) return true
+
+      const raw = row.getValue<string>(columnId)
+      if (!raw) return false
+
+      const date = new Date(raw)
+
+      const start = new Date(value.start)
+      start.setHours(0, 0, 0, 0)
+
+      const end = new Date(value.end)
+      end.setHours(23, 59, 59, 999)
+
+      return date >= start && date <= end
+    },
+
+    // 👇 solo para render
+    cell: ({ row }) => {
+      const raw = row.getValue<string>('created_at')
+
+      return new Date(raw).toLocaleDateString('es-AR', {
         day: '2-digit',
         month: 'short',
         year: 'numeric'

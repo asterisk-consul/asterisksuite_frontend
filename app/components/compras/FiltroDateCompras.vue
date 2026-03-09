@@ -10,6 +10,11 @@ const df = new DateFormatter('es-AR', {
   dateStyle: 'medium'
 })
 
+export type DateRange = {
+  start: Date
+  end: Date
+}
+
 const selected = defineModel<DateRange>({ required: true })
 
 const ranges = [
