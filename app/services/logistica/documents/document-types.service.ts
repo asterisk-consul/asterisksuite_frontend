@@ -1,15 +1,17 @@
 import type {
   DocumentType,
   CreateDocumentTypeInput,
-  DocumentEntity
+  DocumentEntity,
+  UpdateDocumentTypeInput
 } from '~/types/logistica/transport-document/document-types'
 
 export const useDocumentTypesService = () => {
+  const urlBase = '/api/transport-document'
   /**
    * Obtener todos (opcional filtrar por entity)
    */
   const getAll = (entity?: DocumentEntity) =>
-    $fetch<DocumentType[]>('/api/transport-document', {
+    $fetch<DocumentType[]>(`${urlBase}`, {
       query: entity ? { entity } : undefined
     })
 
@@ -17,8 +19,14 @@ export const useDocumentTypesService = () => {
    * Crear tipo de documento
    */
   const create = (body: CreateDocumentTypeInput) =>
-    $fetch<DocumentType>('/api/transport-document', {
+    $fetch<DocumentType>(`${urlBase}`, {
       method: 'POST',
+      body
+    })
+
+  const update = (id: string, body: UpdateDocumentTypeInput) =>
+    $fetch<DocumentType>(`${urlBase}/${id}`, {
+      method: 'PATCH',
       body
     })
 
@@ -26,13 +34,19 @@ export const useDocumentTypesService = () => {
    * Desactivar (soft delete)
    */
   const deactivate = (id: string) =>
-    $fetch<void>(`/api/transport-document/${id}/deactivate`, {
+    $fetch<void>(`${urlBase}/${id}/deactivate`, {
+      method: 'PATCH'
+    })
+  const activate = (id: string) =>
+    $fetch<void>(`${urlBase}/${id}/activate`, {
       method: 'PATCH'
     })
 
   return {
     getAll,
     create,
-    deactivate
+    deactivate,
+    activate,
+    update
   }
 }

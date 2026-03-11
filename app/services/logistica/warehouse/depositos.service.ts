@@ -5,28 +5,31 @@ import type {
 } from '~/types/logistica/warehouses/warehouse' // services/warehouse.service.ts
 
 export const useDepositosService = () => {
-  const getAll = () =>
-    $fetch<Warehouse[]>('/api/logistica/warehouse/warehouses')
+  const urlBase = '/api/logistica/warehouse/warehouses'
+  const getAll = () => $fetch<Warehouse[]>(`${urlBase}`)
 
-  const getById = (id: string) =>
-    $fetch<Warehouse>(`/api/logistica/warehouse/warehouses/${id}`)
+  const getById = (id: string) => $fetch<Warehouse>(`${urlBase}/${id}`)
 
   const create = (body: CreateWarehouseInput) =>
-    $fetch<Warehouse>('/api/logistica/warehouse/warehouses', {
+    $fetch<Warehouse>(`${urlBase}`, {
       method: 'POST',
       body
     })
 
   const update = (id: string, body: UpdateWarehouseInput) =>
-    $fetch<Warehouse>(`/api/logistica/warehouse/warehouses/${id}`, {
+    $fetch<Warehouse>(`${urlBase}/${id}`, {
       method: 'PATCH',
       body
     })
 
-  const remove = (id: string) =>
-    $fetch<void>(`/api/logistica/warehouse/warehouses/${id}`, {
-      method: 'DELETE'
+  const desactivate = (id: string) =>
+    $fetch<Warehouse>(`${urlBase}/${id}/desactivate`, {
+      method: 'PATCH'
+    })
+  const active = (id: string) =>
+    $fetch<Warehouse>(`${urlBase}/${id}/activate`, {
+      method: 'PATCH'
     })
 
-  return { getAll, getById, create, update, remove }
+  return { getAll, getById, create, update, desactivate, active }
 }

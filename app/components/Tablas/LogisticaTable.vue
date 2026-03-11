@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { ref, computed, watch, onMounted } from 'vue'
+import { getPaginationRowModel } from '@tanstack/vue-table'
 import { useDebounceFn } from '@vueuse/core'
 import type { TableColumn } from '@nuxt/ui'
 import type { ComponentPublicInstance } from 'vue'
@@ -21,10 +22,23 @@ type ExtendedColumn<T> = TableColumn<T> & {
     filterType?: FilterType
   }
 }
-
 interface TableApi<T> {
-  getFilteredSelectedRowModel: () => { rows: Array<{ original: T }> }
-  getFilteredRowModel: () => { rows: Array<{ original: T }> }
+  getState: () => {
+    pagination: {
+      pageIndex: number
+      pageSize: number
+    }
+  }
+
+  setPageIndex: (index: number) => void
+
+  getFilteredSelectedRowModel: () => {
+    rows: Array<{ original: T }>
+  }
+
+  getFilteredRowModel: () => {
+    rows: Array<{ original: T }>
+  }
 
   getColumn: (id: string) =>
     | {
@@ -34,7 +48,6 @@ interface TableApi<T> {
 
   setGlobalFilter: (v: unknown) => void
 }
-
 interface UTableInstance<T> extends ComponentPublicInstance {
   tableApi: TableApi<T> | null
 }
@@ -209,6 +222,11 @@ const totalCount = computed<number>(
   () => table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0
 )
 
+const pagination = ref({
+  pageIndex: 0,
+  pageSize: 5
+})
+
 /* ========================
    Acciones
 ======================== */
@@ -241,6 +259,7 @@ function confirmDelete(): void {
     <!-- Tabla -->
     <UTable
       ref="table"
+      v-model:pagination="pagination"
       v-model:row-selection="rowSelection"
       v-model:column-filters="columnFilters"
       v-model:global-filter="globalFilter"
@@ -248,6 +267,9 @@ function confirmDelete(): void {
       :data="props.data"
       :columns="props.columns"
       :loading="props.loading"
+      :pagination-options="{
+        getPaginationRowModel: getPaginationRowModel()
+      }"
       :class="[
         'border border-default',
         selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg'
@@ -255,10 +277,21 @@ function confirmDelete(): void {
     />
 
     <!-- Footer -->
-    <div class="px-4 py-3.5 border-t border-accented text-sm text-muted">
-      Filas seleccionadas: {{ selectedCount }} de {{ totalCount }}
-    </div>
 
+    <div
+      class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2"
+    >
+      <div class="text-xs text-muted">
+        {{ selectedCount }} seleccionadas • {{ totalCount }} totales
+      </div>
+      <UPagination
+        size="sm"
+        :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
+        :items-per-page="table?.tableApi?.getState().pagination.pageSize"
+        :total="totalCount"
+        @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
+      />
+    </div>
     <!-- Barra selección -->
     <TableSelectionBar
       :count="selectedCount"

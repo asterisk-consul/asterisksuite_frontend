@@ -49,13 +49,11 @@ export const useDepositosStore = defineStore('warehouses', () => {
   }
 
   const desactivate = async (id: string) => {
-    await service.remove(id)
-    warehouses.value = warehouses.value.filter((w) => w.id !== id)
+    await service.desactivate(id)
   }
 
-  const deleteWarehouse = async (id: string) => {
-    await service.remove(id)
-    warehouses.value = warehouses.value.filter((w) => w.id !== id)
+  const active = async (id: string) => {
+    await service.active(id)
   }
 
   return {
@@ -67,6 +65,7 @@ export const useDepositosStore = defineStore('warehouses', () => {
     fetchById,
     createWarehouse,
     updateWarehouse,
-    deleteWarehouse
+    desactivate,
+    active
   }
 })

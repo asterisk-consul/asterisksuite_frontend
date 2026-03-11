@@ -4,8 +4,78 @@ import { useDocumentTypesStore } from '~/stores/logistica/documents/document-typ
 import { documentTypeFormFields } from '~/form/documentTypeFormFields'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
+import type {
+  CreateDocumentTypeInput,
+  UpdateDocumentTypeInput
+} from '~/types/logistica/transport-document/document-types'
+
+type EditableField = 'name'
+type EditableValue = string | null | undefined
+
 import ModalForm from '~/components/ModalForm.vue'
-import { columns } from './columns'
+import { transportDocumentTypeColumns } from './columns'
+
+/* ---------------------------------------
+   MODAL CONTROL
+--------------------------------------- */
+
+const modalOpen = ref(false)
+const modalMode = ref<'create' | 'edit'>('create')
+const editingRow = ref<any>(null)
+
+function openCreate() {
+  modalMode.value = 'create'
+  editingRow.value = null
+  modalOpen.value = true
+}
+
+function openEdit(row: any) {
+  modalMode.value = 'edit'
+
+  editingRow.value = {
+    ...row,
+    locationId: row.locationId ?? row.locations?.id ?? null
+  }
+  modalOpen.value = true
+}
+
+const columns = transportDocumentTypeColumns({
+  onEdit: openEdit,
+  onToggleActive: async (row, value) => {
+    const prev = row.active
+    row.active = value
+
+    try {
+      if (value) await store.activate(row.id)
+      else await store.deactivate(row.id)
+    } catch {
+      row.active = prev
+    }
+  },
+  onToggleEntity: async (row, value) => {
+    row.entity = value
+    console.log(value)
+    try {
+      await store.update(row.id, { entity: value })
+    } catch {
+      row.entity = !value ? 'VEHICLE' : 'DRIVER'
+    }
+  },
+  onInlineSave: async (row, field: EditableField, value: EditableValue) => {
+    const prev = row[field] as EditableValue
+    row[field] = value ?? ''
+
+    try {
+      const normalized = value ?? undefined
+
+      await store.update(row.id, {
+        [field]: normalized
+      })
+    } catch {
+      row[field] = prev ?? ''
+    }
+  }
+})
 
 definePageMeta({
   layout: 'logistica'
@@ -15,17 +85,37 @@ const loading = ref(true)
 const store = useDocumentTypesStore()
 const { items } = storeToRefs(store)
 
-const open = ref(false)
+/* ---------------------------------------
+   LIFECYCLE
+--------------------------------------- */
 
 onMounted(async () => {
   await store.fetchAll()
   loading.value = store.loading
 })
 
-function saveDriver(data: any) {
-  const { id, ...payload } = data
-  store.create(payload)
-  open.value = false
+/* ---------------------------------------
+   SUBMIT HANDLER
+--------------------------------------- */
+
+async function handleSubmit(data: any) {
+  if (modalMode.value === 'create') {
+    const { id, ...payload } = data
+
+    await store.create(payload)
+  } else {
+    console.log(data)
+    const payload: UpdateDocumentTypeInput = {
+      name: data.name,
+      entity: data.entity
+    }
+
+    await store.update(editingRow.value.id, payload)
+  }
+
+  await store.fetchAll() // 🔥 FALTA ESTO
+
+  modalOpen.value = false
 }
 </script>
 
@@ -33,16 +123,17 @@ function saveDriver(data: any) {
   <div class="space-y-4">
     <div class="flex flex-row items-center justify-between">
       <h3>Docuementos de Transporte</h3>
-      <UButton icon="i-heroicons-plus" @click="open = true">
+      <UButton icon="i-heroicons-plus" @click="openCreate">
         Nuevo Documentos
       </UButton>
     </div>
     <LogisticaTable :loading="loading" :data="items" :columns="columns" />
   </div>
   <ModalForm
-    v-model:open="open"
+    v-model:open="modalOpen"
     :fields="documentTypeFormFields"
-    title="Nuevo Chofer"
-    @submit="saveDriver"
+    :title="modalMode === 'create' ? 'Nuevo Documento' : 'Editar Documento'"
+    :initial-values="editingRow"
+    @submit="handleSubmit"
   />
 </template>

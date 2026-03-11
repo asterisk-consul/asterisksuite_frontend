@@ -80,7 +80,8 @@ const columns = createWarehouseColumns({
     row.active = value
 
     try {
-      await store.updateWarehouse(row.id, { active: value })
+      if (value) await store.active(row.id)
+      else await store.desactivate(row.id)
     } catch {
       row.active = prev
     }
@@ -154,6 +155,8 @@ async function handleSubmit(data: any) {
 
     await store.updateWarehouse(editingRow.value.id, payload)
   }
+
+  await store.fetchAll() // 🔥 FALTA ESTO
 
   modalOpen.value = false
 }

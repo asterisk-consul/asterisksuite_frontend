@@ -3,7 +3,8 @@ import { useDocumentTypesService } from '~/services/logistica/documents/document
 import type {
   DocumentType,
   CreateDocumentTypeInput,
-  DocumentEntity
+  DocumentEntity,
+  UpdateDocumentTypeInput
 } from '~/types/logistica/transport-document/document-types'
 
 export const useDocumentTypesStore = defineStore('documentTypes', () => {
@@ -71,6 +72,28 @@ export const useDocumentTypesStore = defineStore('documentTypes', () => {
       loading.value = false
     }
   }
+  const update = async (id: string, payload: UpdateDocumentTypeInput) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const updated = await service.update(id, payload)
+
+      const index = items.value.findIndex((i) => i.id === id)
+      if (index !== -1) {
+        items.value[index] = updated
+      }
+
+      if (current.value?.id === id) {
+        current.value = updated
+      }
+
+      return updated
+    } catch (err: any) {
+    } finally {
+      loading.value = false
+    }
+  }
 
   const deactivate = async (id: string) => {
     loading.value = true
@@ -83,6 +106,25 @@ export const useDocumentTypesStore = defineStore('documentTypes', () => {
 
       if (item) {
         item.active = false
+      }
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+  const activate = async (id: string) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      await service.activate(id)
+
+      const item = items.value.find((i) => i.id === id)
+
+      if (item) {
+        item.active = true // ✅ sin riesgo de undefined
       }
     } catch (err: any) {
       error.value = err?.data?.message || err.message
@@ -115,6 +157,8 @@ export const useDocumentTypesStore = defineStore('documentTypes', () => {
     // actions
     fetchAll,
     create,
+    update,
+    activate,
     deactivate,
     setCurrent,
     clearError

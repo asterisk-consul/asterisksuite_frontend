@@ -92,6 +92,21 @@ export const useTransferRatesStore = defineStore('transferRates', () => {
     }
   }
 
+  const activate = async (id: string) => {
+    loading.value = true
+    error.value = null
+    try {
+      await service.activate(id)
+      const item = items.value.find((r) => r.id === id)
+      if (item) item.active = true // ✅ sin riesgo de undefined
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   const clearError = () => {
     error.value = null
   }
@@ -105,6 +120,7 @@ export const useTransferRatesStore = defineStore('transferRates', () => {
     fetchOne,
     create,
     update,
+    activate,
     deactivate,
     clearError
   }

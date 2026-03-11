@@ -15,12 +15,16 @@ export const useTransferRatesService = () => {
     $fetch<TransferRate>(`${base}`, { method: 'POST', body })
 
   const update = (id: string, body: UpdateTransferRateInput) =>
-    $fetch<TransferRate>(`${base}+${id}`, { method: 'PATCH', body })
+    $fetch<TransferRate>(`${base}/${id}`, { method: 'PATCH', body })
 
   const deactivate = (id: string) =>
-    $fetch<{ deleted: boolean }>(`${base}+${id}`, {
-      method: 'DELETE'
+    $fetch<{ deleted: boolean }>(`${base}/${id}/desactivate`, {
+      method: 'PATCH'
+    })
+  const activate = (id: string) =>
+    $fetch<{ deleted: boolean }>(`${base}/${id}/activate`, {
+      method: 'PATCH'
     })
 
-  return { getAll, getById, create, update, deactivate }
+  return { getAll, getById, create, update, deactivate, activate }
 }

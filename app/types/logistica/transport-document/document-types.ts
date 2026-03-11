@@ -12,3 +12,5 @@ export interface CreateDocumentTypeInput {
   name: string
   entity: DocumentEntity
 }
+
+export type UpdateDocumentTypeInput = Partial<CreateDocumentTypeInput>

@@ -1,9 +1,10 @@
 import { h } from 'vue'
 import { UBadge, UCheckbox, UInput } from '#components'
 import type { TableColumn } from '@nuxt/ui'
-import WarehouseActiveCell from '@/components/ui/PopoverTableActive.vue'
+import StatusToggle from '@/components/ui/PopoverTableActive.vue'
 import type { Warehouse } from '~/types/logistica/warehouses/warehouse'
 import type { Component } from 'vue'
+type OptionValue = string | boolean
 import '@tanstack/table-core'
 
 declare module '@tanstack/table-core' {
@@ -171,10 +172,15 @@ export const createWarehouseColumns = (actions: {
 
     accessorFn: (row) => (row.active ? 'activo' : 'inactivo'),
     cell: ({ row }) =>
-      h(WarehouseActiveCell, {
-        active: row.original.active,
-        onToggle: (value: boolean) =>
-          actions.onToggleActive?.(row.original, value)
+      h(StatusToggle, {
+        modelValue: row.original.active,
+        title: 'Cambiar estado',
+        options: [
+          { label: 'Activo', value: true, color: 'success' },
+          { label: 'Inactivo', value: false, color: 'error' }
+        ],
+        'onUpdate:modelValue': (value: OptionValue) =>
+          actions.onToggleActive?.(row.original, value as boolean)
       })
   },
 

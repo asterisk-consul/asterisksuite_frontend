@@ -73,7 +73,7 @@ export const links: NavigationMenuItem[][] = [
         },
         {
           label: 'Tarifas',
-          icon: 'i-heroicons-cash',
+          icon: 'i-heroicons-banknotes',
           to: '/logistica/master-data/tarifas/'
         }
       ]
