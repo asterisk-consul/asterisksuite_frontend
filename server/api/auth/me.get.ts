@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
 
   const config = useRuntimeConfig()
 
-  const user = await $fetch(`${config.public.apiBase}/auth/me`, {
+  const user = await $fetch(`${config.apiBase}/auth/me`, {
     headers: {
       Authorization: `Bearer ${accessToken}` // ✅ JwtAuthGuard lo requiere
     }

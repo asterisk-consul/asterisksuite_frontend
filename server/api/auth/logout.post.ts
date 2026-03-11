@@ -3,7 +3,7 @@ export default defineEventHandler(async (event) => {
 
   if (refreshToken) {
     const config = useRuntimeConfig()
-    await $fetch(`${config.public.apiBase}/auth/logout`, {
+    await $fetch(`${config.apiBase}/auth/logout`, {
       method: 'POST',
       body: { refreshToken } // ✅ revocar en BD
     }).catch(() => {})

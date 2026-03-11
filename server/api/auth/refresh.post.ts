@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const api = await $fetch<{ accessToken: string; refreshToken: string }>(
-      `${config.public.apiBase}/auth/refresh`,
+      `$${config.apiBase}/auth/refresh`,
       {
         method: 'POST',
         body: { refreshToken }

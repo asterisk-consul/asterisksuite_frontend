@@ -4,13 +4,10 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const config = useRuntimeConfig()
 
-  const api = await $fetch<ApiLoginResponse>(
-    `${config.public.apiBase}/auth/login`,
-    {
-      method: 'POST',
-      body
-    }
-  )
+  const api = await $fetch<ApiLoginResponse>(`${config.apiBase}/auth/login`, {
+    method: 'POST',
+    body
+  })
 
   // ✅ camelCase — como los devuelve tu backend
   setCookie(event, 'api_access', api.accessToken, {
