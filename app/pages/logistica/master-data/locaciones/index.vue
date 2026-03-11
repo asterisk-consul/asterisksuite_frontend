@@ -1,32 +1,119 @@
 <script setup lang="ts">
 import { useLocationsStore } from '@/stores/logistica/meta-data/locations.store'
-import { columns } from './columns'
+import { LocationColumns } from './columns'
 import { locationFormFields } from '~/form/locationsFormFields'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 const store = useLocationsStore()
 
+// page meta
 definePageMeta({
   layout: 'logistica'
 })
 
+/* ---------------------------------------
+   TIPOS
+--------------------------------------- */
+
+import type {
+  CreateLocationInput,
+  UpdateLocationInput,
+  Location
+} from '~/types/logistica/master-data/locations'
+
+type EditableField = 'city' | 'province' | 'country' | 'postalCode'
+
+type EditableValue = string | null | undefined
+/* ---------------------------------------
+   STATE
+--------------------------------------- */
 const { items } = storeToRefs(store)
-const open = ref(false)
 const loading = ref(true)
 
+/* ---------------------------------------
+   MODAL CONTROL
+--------------------------------------- */
+
+const modalOpen = ref(false)
+const modalMode = ref<'create' | 'edit'>('create')
+const editingRow = ref<any>(null)
+
+function openCreate() {
+  modalMode.value = 'create'
+  editingRow.value = null
+  modalOpen.value = true
+}
+
+function openEdit(row: any) {
+  modalMode.value = 'edit'
+
+  editingRow.value = {
+    ...row,
+    locationId: row.locationId ?? row.locations?.id ?? null
+  }
+  modalOpen.value = true
+}
+
+/* ---------------------------------------
+   TABLE COLUMNS
+--------------------------------------- */
+
+const columns = LocationColumns({
+  onEdit: openEdit,
+  onInlineSave: async (
+    row: Location,
+    field: EditableField,
+    value: EditableValue
+  ) => {
+    const prev = row[field]
+    row[field] = value ?? ''
+
+    try {
+      await store.update(row.id, {
+        [field]: value ?? undefined
+      })
+    } catch {
+      row[field] = prev
+    }
+  }
+})
+
+/* ---------------------------------------
+   LIFECYCLE
+--------------------------------------- */
 onMounted(async () => {
   await store.fetchAll()
   console.log(items)
   loading.value = store.loading
 })
-const saveLocation = async (data: any) => {
-  const payload = {
-    city: data.city,
-    province: data.province,
-    country: data.country,
-    postalCode: data.postal_code
+
+/* ---------------------------------------
+   SUBMIT HANDLER
+--------------------------------------- */
+
+async function handleSubmit(data: any) {
+  if (modalMode.value === 'create') {
+    const payload: CreateLocationInput = {
+      city: data.city,
+      province: data.province,
+      country: data.country,
+      postalCode: data.postal_code
+    }
+
+    await store.create(payload)
+  } else {
+    const payload: UpdateLocationInput = {
+      city: data.city,
+      province: data.province,
+      country: data.country,
+      postalCode: data.postal_code
+    }
+
+    await store.update(editingRow.value.id, payload)
   }
-  await store.create(payload)
-  open.value = false
+
+  await store.fetchAll() // 🔥 FALTA ESTO
+
+  modalOpen.value = false
 }
 </script>
 
@@ -34,7 +121,7 @@ const saveLocation = async (data: any) => {
   <div class="space-y-4">
     <div class="flex flex-row items-center justify-between">
       <h3>Locaciones</h3>
-      <UButton icon="i-heroicons-plus" @click="open = true">
+      <UButton icon="i-heroicons-plus" @click="openCreate">
         Nueva Locacion
       </UButton>
     </div>
@@ -43,9 +130,10 @@ const saveLocation = async (data: any) => {
   </div>
 
   <ModalForm
-    v-model:open="open"
+    v-model:open="modalOpen"
     :fields="locationFormFields"
-    title="Nueva Locacion"
-    @submit="saveLocation"
+    :title="modalMode === 'create' ? 'Nueva Locación' : 'Editar Locación'"
+    :initial-values="editingRow"
+    @submit="handleSubmit"
   />
 </template>

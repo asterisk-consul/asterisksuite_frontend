@@ -53,20 +53,21 @@ export const useLocationsStore = defineStore('locations', () => {
   // UPDATE
   // =========================
   const update = async (id: string, payload: UpdateLocationInput) => {
-    const updated = await service.update(id, payload)
+    console.log('Payload enviado:', payload) // 👈 verificá qué estás mandando
 
-    const index = items.value.findIndex((i) => i.id === id)
-    if (index !== -1) {
-      items.value[index] = updated
+    try {
+      const updated = await service.update(id, payload)
+
+      const index = items.value.findIndex((i) => i.id === id)
+      if (index !== -1) items.value[index] = updated
+      if (current.value?.id === id) current.value = updated
+
+      return updated
+    } catch (error: any) {
+      console.log('Error detalle:', error.data) // 👈 mensaje exacto del backend
+      throw error
     }
-
-    if (current.value?.id === id) {
-      current.value = updated
-    }
-
-    return updated
   }
-
   // =========================
   // DELETE
   // =========================
