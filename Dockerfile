@@ -10,6 +10,9 @@ ARG NUXT_API_BASE
 ENV NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE
 ENV NUXT_API_BASE=$NUXT_API_BASE
 
+# 👇 Aumentar memoria disponible para Node durante el build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
@@ -21,7 +24,6 @@ RUN pnpm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Solo necesitas el output de Nitro
 COPY --from=builder /app/.output ./.output
 
 ENV NODE_ENV=production
