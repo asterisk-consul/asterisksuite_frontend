@@ -44,7 +44,7 @@ const current = computed(() =>
           size="xs"
           :color="option.color"
           :variant="modelValue === option.value ? 'solid' : 'ghost'"
-          @click="emit('update:modelValue', option.value)"
+          @click.stop.prevent="emit('update:modelValue', option.value)"
         >
           {{ option.label }}
         </UButton>

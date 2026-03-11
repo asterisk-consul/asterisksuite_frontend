@@ -1,7 +1,7 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 export const links: NavigationMenuItem[][] = [
   [
-    { label: 'Dashboard', icon: 'i-heroicons-squares-2x2', to: '/' },
+    { label: 'Dashboard', icon: 'i-heroicons-squares-2x2' },
     {
       label: 'Viajes',
       icon: 'i-heroicons-truck',

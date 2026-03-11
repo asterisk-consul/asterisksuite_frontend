@@ -24,14 +24,16 @@ export const useTripsService = () => {
   const remove = (id: string) =>
     $fetch<{ deleted: boolean }>(`${base}/${id}`, { method: 'DELETE' })
 
-  const updateStatus = (id: string, status: string) =>
-    $fetch<Trip>(`${base}/${id}/status/${status}`, {
+  const updateStatus = async (id: string, status: string) => {
+    // Añade un log aquí para ver la URL final exacta
+    const url = `${base}/${id}/status/${status}`
+    return await $fetch<Trip>(url, {
       method: 'PATCH'
     })
-
+  }
   // rates
-  const addRate = (trip_id: string, body: CreateTripRateInput) =>
-    $fetch<TripRate>(`${base}/${trip_id}/rates`, { method: 'POST', body })
+  const addRate = (id: string, body: CreateTripRateInput) =>
+    $fetch<TripRate>(`${base}/${id}/rates`, { method: 'POST', body })
 
   const updateRate = (id: string, body: UpdateTripRateInput) =>
     $fetch<TripRate>(`${base}/rates/${id}`, { method: 'PATCH', body })

@@ -86,7 +86,6 @@ export const useTripsStore = defineStore('trips', () => {
 
     const prev = trip.status
     trip.status = status // optimistic update
-
     try {
       await service.updateStatus(id, status)
     } catch (err: any) {
@@ -131,7 +130,6 @@ export const useTripsStore = defineStore('trips', () => {
     loading.value = true
     error.value = null
     try {
-      console.log(id, payload)
       const updated = await service.updateRate(id, payload)
       items.value.forEach((trip) => {
         trip.trip_rates?.forEach((rate) => {

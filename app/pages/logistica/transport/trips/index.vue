@@ -70,7 +70,6 @@ const columns = tripsColumns({
   onToggleStatus: async (row, value) => {
     const prev = row.status
     row.status = value
-    console.log(value)
     try {
       await store.updateStatus(row.id, value)
     } catch {
@@ -111,7 +110,6 @@ onMounted(async () => {
   await vehiculoStore.fetchAll(companyId)
   await locationsStore.fetchAll()
   await tableRenderers.fetchAll(companyId)
-  console.log(store.items)
   loading.value = store.loading
 })
 
@@ -121,6 +119,7 @@ async function handleSubmit(data: any) {
   const basePayload = {
     ...rest,
     company_id: 'a060f7ff-0281-4df4-b5b3-cbdf940be31e',
+    kilometers: data.kilometers ? Number(data.kilometers) : undefined,
     departure_time: data.departure_time
       ? new Date(data.departure_time).toISOString()
       : undefined,
@@ -140,6 +139,7 @@ async function handleSubmit(data: any) {
       ...basePayload,
       status // include status in the PATCH body (not via separate endpoint)
     }
+    console.log(payload)
     await store.update(editingRow.value.id, payload)
   }
 
