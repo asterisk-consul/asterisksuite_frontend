@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'logistica',
+  middleware: ['auth']
+})
 import type {
   CreateDriverInput,
   UpdateDriverInput
@@ -18,10 +22,6 @@ import { driverFormFields } from '~/form/driverFormFields'
 import ModalForm from '~/components/ModalForm.vue'
 //tabla
 import { driversColumns } from './columns'
-
-definePageMeta({
-  layout: 'logistica'
-})
 
 const loading = ref(true)
 const store = useChoferesStore()

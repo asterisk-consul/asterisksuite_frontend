@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'logistica',
+  middleware: ['auth']
+})
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -66,10 +70,6 @@ const columns = tarifasColumns({
       row[field] = prev ?? ''
     }
   }
-})
-//page meta
-definePageMeta({
-  layout: 'logistica'
 })
 
 const loading = ref(true)

@@ -1,14 +1,14 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'logistica',
+  middleware: ['auth']
+})
 import { useProductsStore } from '@/stores/logistica/meta-data/products.store'
 import { columns } from './columns'
 import { productFormFields } from '~/form/productFormFields'
 import { useProductsMetrics } from '~/composables/logistica/useProductsMetrics'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 const store = useProductsStore()
-
-definePageMeta({
-  layout: 'logistica'
-})
 
 const { items } = storeToRefs(store)
 const metrics = useProductsMetrics(items)

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth']
+})
+
 import FormsubirCombustible from '~/components/combustible/FormsubirCombustible.vue'
 import SubirCsv from '~/components/combustible/SubirCsv.vue'
 import CisternaMedida from '~/components/combustible/CisternaMedida.vue'

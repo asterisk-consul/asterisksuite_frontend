@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth']
+})
+
 import type { TableColumn } from '@nuxt/ui'
 import { upperFirst } from 'scule'
 import { getPaginationRowModel } from '@tanstack/table-core'
@@ -326,9 +330,7 @@ const pagination = ref({
         class="flex items-center justify-between gap-3 border-t border-default pt-4 mt-auto"
       >
         <div class="text-sm text-muted">
-          {{
-            table?.tableApi?.getFilteredSelectedRowModel().rows.length || 0
-          }}
+          {{ table?.tableApi?.getFilteredSelectedRowModel().rows.length || 0 }}
           of
           {{ table?.tableApi?.getFilteredRowModel().rows.length || 0 }} row(s)
           selected.

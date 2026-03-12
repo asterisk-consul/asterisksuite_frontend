@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth']
+})
+
 import { links } from '~/data/logistica'
 import SidebarModules from '~/components/ui/SidebarModules.vue'
 </script>

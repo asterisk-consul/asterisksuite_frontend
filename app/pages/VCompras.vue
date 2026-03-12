@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth']
+})
+
 import TablaCompras from '@/components/compras/TablaCompras.vue'
 </script>
 

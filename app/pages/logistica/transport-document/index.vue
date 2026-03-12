@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'logistica',
+  middleware: ['auth']
+})
 import { storeToRefs } from 'pinia'
 import { useDocumentTypesStore } from '~/stores/logistica/documents/document-types.store'
 import { documentTypeFormFields } from '~/form/documentTypeFormFields'
@@ -75,10 +79,6 @@ const columns = transportDocumentTypeColumns({
       row[field] = prev ?? ''
     }
   }
-})
-
-definePageMeta({
-  layout: 'logistica'
 })
 
 const loading = ref(true)

@@ -1,25 +1,15 @@
 import { h } from 'vue'
 import { UBadge } from '#components'
 import type { TableColumn } from '@nuxt/ui'
+import type {
+  Vehicle,
+  VehicleDocument
+} from '~/types/logistica/transport/vehicles'
 
-interface VehicleDocument {
-  id: string
-  expiration_date: string
-  transport_document_types: {
-    name: string
-  }
-}
-
-interface Vehicle {
-  id: string
-  plate: string
-  type: string
-  brand?: string | null
-  model?: string | null
-  refrigeration: boolean
-  vehicleDocuments: VehicleDocument[]
-  created_at: string
-}
+import { useSelectColumn } from '@/composables/table/useSelectColumn'
+import { useIdColumn } from '@/composables/table/useIdColumn'
+import { useDateColumn } from '@/composables/useDateColumn'
+const createdDate = useDateColumn('es-AR')
 
 function getDocumentColor(expiration: string) {
   const today = new Date()
@@ -34,8 +24,16 @@ function getDocumentColor(expiration: string) {
 
   return 'success'
 }
+type Row = Vehicle
+export const vehiclesColumns = (actions: {
+  // onToggleActive?: (row: Row, value: boolean) => void
+  onEdit?: (row: Row) => void
+}): TableColumn<Row>[] => [
+  // ♻️ si querés selección múltiple
+  useSelectColumn<Row>(),
 
-export const columns: TableColumn<Vehicle>[] = [
+  // ♻️ si Driver tiene id:string y querés click para editar
+  useIdColumn<Row>(actions.onEdit),
   {
     accessorKey: 'plate',
     header: 'Patente'
@@ -99,17 +97,12 @@ export const columns: TableColumn<Vehicle>[] = [
     }
   },
 
+  // ♻️ fecha reusable
   {
-    accessorKey: 'created_at',
+    accessorKey: 'created_at', // 👈 camelCase si normalizaste API
     header: 'Creado',
-    cell: ({ row }) => {
-      const date = row.original.created_at
-
-      return new Date(date).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      })
-    }
+    meta: createdDate.meta,
+    filterFn: createdDate.filterFn,
+    cell: ({ row }) => createdDate.format(row.getValue<string>('created_at'))
   }
 ]

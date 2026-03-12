@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth']
+})
+
 import { ref, computed } from 'vue'
 import { getPaginationRowModel } from '@tanstack/vue-table'
 import { useKilometrosStore } from '@/stores/useKilometrosStore'

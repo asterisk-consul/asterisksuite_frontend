@@ -1,14 +1,13 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'logistica',
+  middleware: ['auth']
+})
 import { useLocationsStore } from '@/stores/logistica/meta-data/locations.store'
 import { LocationColumns } from './columns'
 import { locationFormFields } from '~/form/locationsFormFields'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 const store = useLocationsStore()
-
-// page meta
-definePageMeta({
-  layout: 'logistica'
-})
 
 /* ---------------------------------------
    TIPOS

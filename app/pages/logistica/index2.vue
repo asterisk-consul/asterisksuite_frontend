@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth']
+})
+
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 

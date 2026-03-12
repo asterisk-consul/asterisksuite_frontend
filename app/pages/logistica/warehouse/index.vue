@@ -27,7 +27,8 @@ import { createWarehouseColumns } from './columns'
 
 // page meta
 definePageMeta({
-  layout: 'logistica'
+  layout: 'logistica',
+  middleware: ['auth']
 })
 
 /* ---------------------------------------
