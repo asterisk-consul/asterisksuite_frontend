@@ -4,7 +4,7 @@ definePageMeta({
   middleware: ['auth']
 })
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/locations.store'
-import { LocationColumns } from './columns'
+import { LocationColumns } from '../../../../modulos/logistica/master-data/locations/columns'
 import { locationFormFields } from '~/form/locationsFormFields'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 const store = useLocationsStore()

@@ -11,7 +11,7 @@ import { useTransferRatesStore } from '~/modulos/logistica/transport/transfer-ra
 //form
 import { transferRatesFormFields } from '~/form/transfer-rates.form'
 import ModalForm from '~/components/ModalForm.vue'
-import { tarifasColumns } from './columns'
+import { tarifasColumns } from '../../../../modulos/logistica/transport/transfer-rates/columns'
 
 import type {
   TransferRate,

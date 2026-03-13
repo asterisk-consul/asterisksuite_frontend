@@ -21,7 +21,7 @@ import type { Driver } from '~/modulos/logistica/transport/drivers/drivers.types
 import { driverFormFields } from '~/form/driverFormFields'
 import ModalForm from '~/components/ModalForm.vue'
 //tabla
-import { driversColumns } from './columns'
+import { driversColumns } from '../../../../modulos/logistica/transport/drivers/columns'
 
 const loading = ref(true)
 const store = useChoferesStore()

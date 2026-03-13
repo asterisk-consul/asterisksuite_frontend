@@ -23,7 +23,7 @@ import type {
 } from '~/modulos/logistica/warehouses/warehouse/warehouse.types'
 
 // columns
-import { createWarehouseColumns } from './columns'
+import { createWarehouseColumns } from '../../../modulos/logistica/warehouses/warehouse/columns'
 
 // page meta
 definePageMeta({

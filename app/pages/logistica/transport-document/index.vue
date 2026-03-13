@@ -17,7 +17,7 @@ type EditableField = 'name'
 type EditableValue = string | null | undefined
 
 import ModalForm from '~/components/ModalForm.vue'
-import { transportDocumentTypeColumns } from './columns'
+import { transportDocumentTypeColumns } from '../../../modulos/logistica/documents/delivery-types/columns'
 
 /* ---------------------------------------
    MODAL CONTROL

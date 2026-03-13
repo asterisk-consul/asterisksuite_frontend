@@ -17,7 +17,7 @@ import ModalForm from '~/components/ModalForm.vue'
 import { useDriverMetrics } from '~/composables/logistica/useDriverMetrics'
 import { useVehicles } from '~/composables/logistica/useVehicles'
 //tabla columns
-import { columns } from './columns'
+import { columns } from '../../../../modulos/logistica/transport/vehicles-combinations/columns'
 
 const loading = ref(true)
 const open = ref(false)

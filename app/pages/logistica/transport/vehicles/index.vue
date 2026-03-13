@@ -15,7 +15,7 @@ import { mapVehicleDocumentsToForm } from '~/mappers/mapVehicleDocumentsToForm'
 //composables
 import { useDocuments } from '~/composables/logistica/useDocuments'
 //tabla columns
-import { vehiclesColumns } from './vehicles.columns'
+import { vehiclesColumns } from '../../../../modulos/logistica/transport/vehicles/vehicles.columns'
 import type {
   Vehicle,
   CreateVehicleInput,

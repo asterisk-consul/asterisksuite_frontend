@@ -22,7 +22,7 @@ import { useLocations } from '~/composables/logistica/useLocations'
 import { useVehiclesCombinations } from '~/composables/logistica/useVehicleCombinations'
 import { useTransferRate } from '~/composables/logistica/useTransferRate'
 //tabla columns
-import { tripsColumns } from './columns'
+import { tripsColumns } from '../../../../modulos/logistica/transport/trips/columns'
 
 const loading = ref(true)
 const store = useTripsStore()
