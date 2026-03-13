@@ -21,7 +21,6 @@ onMounted(async () => {
 })
 
 const saveLocation = async (data: any) => {
-  console.log(data)
   const payload = {
     company_id: 'a060f7ff-0281-4df4-b5b3-cbdf940be31e',
     type: data.type,
@@ -31,8 +30,9 @@ const saveLocation = async (data: any) => {
     email: data.email,
     active: true
   }
-  console.log(payload)
+
   await store.create(payload)
+  await store.fetchAll('a060f7ff-0281-4df4-b5b3-cbdf940be31e')
   open.value = false
 }
 </script>
