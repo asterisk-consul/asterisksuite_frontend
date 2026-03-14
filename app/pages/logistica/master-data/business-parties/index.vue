@@ -15,7 +15,7 @@ const open = ref(false)
 const loading = ref(true)
 
 onMounted(async () => {
-  await store.fetchAll('a060f7ff-0281-4df4-b5b3-cbdf940be31e')
+  await store.fetchAll('c07cff19-1412-4d12-8ee0-089d2ccac729')
   console.log(store.items)
   loading.value = store.loading
 })
@@ -23,7 +23,7 @@ onMounted(async () => {
 const saveLocation = async (data: any) => {
   console.log(data)
   const payload = {
-    company_id: 'a060f7ff-0281-4df4-b5b3-cbdf940be31e',
+    company_id: 'a12364b6-c47b-4baa-b4a1-4188b8003433',
     type: data.type,
     name: data.name,
     tax_id: data.tax_id,
