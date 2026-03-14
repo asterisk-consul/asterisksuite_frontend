@@ -28,6 +28,7 @@ type EditableValue = string | null | undefined
 /* ---------------------------------------
    STATE
 --------------------------------------- */
+const COMPANY_ID = 'a060f7ff-0281-4df4-b5b3-cbdf940be31e'
 
 const loading = ref(true)
 const documentStore = useDocumentTypesStore()
@@ -57,15 +58,16 @@ function openEdit(row: Vehicle) {
 
   const documentFields = mapVehicleDocumentsToForm(row)
 
+  console.log('ROW:', JSON.stringify(row, null, 2)) // ← agregar
+  console.log('DOC FIELDS:', JSON.stringify(documentFields, null, 2)) // ← agregar
+
   editingRow.value = {
     ...row,
-
     ...documentFields
   }
 
   modalOpen.value = true
 }
-
 /* ---------------------------------------
    TABLE COLUMNS
 --------------------------------------- */
@@ -124,38 +126,39 @@ onMounted(async () => {
   await documentStore.fetchAll()
   loading.value = store.loading
 })
-
-// ========================================
-// ACTIONS
-// ========================================
+/* ---------------------------------------
+   ACTIONS
+--------------------------------------- */
 
 async function handleSubmit(data: any) {
   if (modalMode.value === 'create') {
-    const payload: CreateVehicleInput = mapVehiclePayload(data)
-
+    const payload = mapCreateVehiclePayload(data)
     await store.create(payload)
   } else {
-    const payload: UpdateVehicleInput = mapVehiclePayload(data)
-
-    await store.update(editingRow.value.id, payload)
+    const payload = mapUpdateVehiclePayload(data) // ya usa editingRow internamente
+    console.log('UPDATE PAYLOAD:', JSON.stringify(payload, null, 2))
+    await store.update(editingRow.value!.id, payload)
   }
 
-  await store.fetchAll('a060f7ff-0281-4df4-b5b3-cbdf940be31e') // 🔥 FALTA ESTO
-
+  await store.fetchAll(COMPANY_ID)
   modalOpen.value = false
 }
-// ========================================
-// MAP PAYLOAD
-// ========================================
-function mapVehiclePayload(form: any) {
-  const documents = []
+
+/* ---------------------------------------
+   MAPPERS
+--------------------------------------- */
+
+function mapVehicleBase(form: any, existingRow?: any) {
+  const documents: any[] = []
 
   for (let i = 1; i <= 4; i++) {
     const type = form[`doc${i}Type`]
     const expiration = form[`doc${i}Expiration`]
+    const docId = existingRow?.[`doc${i}Id`] // ← leer del editingRow, no del form
 
     if (type) {
       documents.push({
+        ...(docId && { id: docId }),
         documentTypeId: type,
         expirationDate: expiration || undefined
       })
@@ -163,7 +166,6 @@ function mapVehiclePayload(form: any) {
   }
 
   return {
-    companyId: 'a060f7ff-0281-4df4-b5b3-cbdf940be31e',
     type: form.type,
     plate: form.plate,
     brand: form.brand,
@@ -174,6 +176,17 @@ function mapVehiclePayload(form: any) {
     refrigeration: form.refrigeration,
     documents
   }
+}
+
+function mapCreateVehiclePayload(form: any): CreateVehicleInput {
+  return {
+    companyId: COMPANY_ID,
+    ...mapVehicleBase(form)
+  }
+}
+
+function mapUpdateVehiclePayload(form: any): UpdateVehicleInput {
+  return mapVehicleBase(form, editingRow.value) // ← pasar editingRow
 }
 </script>
 

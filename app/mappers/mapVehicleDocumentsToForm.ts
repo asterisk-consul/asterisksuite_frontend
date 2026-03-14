@@ -14,13 +14,14 @@ function toCalendarDate(value?: string | null): CalendarDate | null {
  * Mapea los documentos del vehículo a los campos del form
  */
 export function mapVehicleDocumentsToForm(vehicle: Vehicle) {
-  const mapped: Record<string, any> = {}
+  const result: Record<string, any> = {}
 
-  vehicle.vehicleDocuments?.forEach((doc, index) => {
+  vehicle.vehicleDocuments.forEach((doc, index) => {
     const i = index + 1
-    mapped[`doc${i}Type`] = doc.document_type_id
-    mapped[`doc${i}Expiration`] = toCalendarDate(doc.expiration_date)
+    result[`doc${i}Id`] = doc.id // ← AGREGAR ESTO
+    result[`doc${i}Type`] = doc.document_type_id
+    result[`doc${i}Expiration`] = doc.expiration_date ?? ''
   })
 
-  return mapped
+  return result
 }

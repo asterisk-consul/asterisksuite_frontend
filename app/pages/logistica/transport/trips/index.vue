@@ -11,6 +11,7 @@ import { useVehicleCombinationsStore } from '~/modulos/logistica/transport/vehic
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/locations.store'
 import { useTransferRatesStore } from '~/modulos/logistica/transport/transfer-rates/transfer-rates.store'
 import type {
+  Trip,
   CreateTripInput,
   UpdateTripInput
 } from '~/modulos/logistica/transport/trips/trips.types'
@@ -22,7 +23,10 @@ import { useLocations } from '~/composables/logistica/useLocations'
 import { useVehiclesCombinations } from '~/composables/logistica/useVehicleCombinations'
 import { useTransferRate } from '~/composables/logistica/useTransferRate'
 //tabla columns
-import { tripsColumns } from '../../../../modulos/logistica/transport/trips/columns'
+import { tripsColumns } from '~/modulos/logistica/transport/trips/columns'
+
+type EditableField = 'reference_number' | 'kilometers'
+type EditableValue = string | null | undefined
 
 const loading = ref(true)
 const store = useTripsStore()
@@ -68,7 +72,25 @@ function openEdit(row: any) {
 
 const columns = tripsColumns({
   onEdit: openEdit,
+  onInlineSave: async <K extends EditableField>(
+    row: Trip,
+    field: K,
+    value: Trip[K]
+  ) => {
+    const prev = row[field]
 
+    row[field] = value ?? prev
+
+    try {
+      const updateData: UpdateTripInput = {
+        [field]: value ?? undefined
+      }
+
+      await store.update(row.id, updateData)
+    } catch {
+      row[field] = prev
+    }
+  },
   onToggleStatus: async (row, value) => {
     const prev = row.status
     row.status = value

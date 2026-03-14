@@ -33,9 +33,10 @@ const tripStatusConfig: Record<
   CANCELLED: { label: 'Cancelado', color: 'error' }
 }
 type Row = Trip
-type EditableField = 'city' | 'province' | 'country' | 'postalCode'
+type EditableField = 'reference_number' | 'kilometers'
 export const tripsColumns = (actions: {
   onToggleStatus?: (row: Row, value: TripStatus) => void
+  onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void
   onEdit?: (row: Row) => void
 }): TableColumn<Row>[] => [
   useSelectColumn<Row>(),
@@ -43,7 +44,8 @@ export const tripsColumns = (actions: {
 
   {
     accessorKey: 'reference_number',
-    header: 'Referencia'
+    header: 'Referencia',
+    cell: ({ row }) => editableCell('reference_number', row.original, actions)
   },
   {
     accessorKey: 'status',
@@ -76,10 +78,11 @@ export const tripsColumns = (actions: {
       return vc.unit_number || `VC-${vc.id.slice(0, 8)}`
     }
   },
+
   {
     accessorKey: 'kilometers',
     header: 'Km',
-    cell: ({ row }) => row.original.kilometers || '—'
+    cell: ({ row }) => editableCell('kilometers', row.original, actions)
   },
   {
     id: 'trip_rates',

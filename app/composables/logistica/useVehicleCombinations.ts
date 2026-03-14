@@ -9,7 +9,7 @@ export interface SelectItem {
 export function useVehiclesCombinations(vehicles: Ref<VehicleCombination[]>) {
   const items = computed<SelectItem[]>(() =>
     vehicles.value.map((vehicle) => {
-      const label = `${vehicle.unit_number} - ${vehicle.tractor_id} - ${vehicle.trailer_id}`
+      const label = `${vehicle.unit_number} - ${vehicle.tractor?.plate} - ${vehicle.trailer?.plate}`
       return { label, value: vehicle.id }
     })
   )

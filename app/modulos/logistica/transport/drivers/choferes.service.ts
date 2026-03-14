@@ -5,32 +5,32 @@ import type {
 } from '~/modulos/logistica/transport/drivers/drivers.types'
 
 export const useChoferesService = () => {
+  const baseUrl = '/api/logistica/transport/drivers'
   const getAll = (company_id: string) =>
-    $fetch<Driver[]>('/api/logistica/transport/drivers', {
+    $fetch<Driver[]>(`${baseUrl}`, {
       query: { company_id }
     })
 
-  const getById = (id: string) =>
-    $fetch<Driver>(`/api/logistica/transport/drivers/${id}`)
+  const getById = (id: string) => $fetch<Driver>(`${baseUrl}/${id}`)
 
   const create = (body: CreateDriverInput) =>
-    $fetch<Driver>('/api/logistica/transport/drivers', {
+    $fetch<Driver>(`${baseUrl}`, {
       method: 'POST',
       body
     })
 
   const update = (id: string, body: UpdateDriverInput) =>
-    $fetch<Driver>(`/api/logistica/transport/drivers/${id}`, {
+    $fetch<Driver>(`${baseUrl}/${id}`, {
       method: 'PATCH',
       body
     })
 
   const activate = (id: string) =>
-    $fetch<void>(`/api/logistica/transport/drivers/${id}/activate`, {
+    $fetch<void>(`${baseUrl}/${id}/activate`, {
       method: 'PATCH'
     })
   const desactivate = (id: string) =>
-    $fetch<void>(`/api/logistica/transport/drivers/${id}/desactivate`, {
+    $fetch<void>(`${baseUrl}/${id}/desactivate`, {
       method: 'PATCH'
     })
 
