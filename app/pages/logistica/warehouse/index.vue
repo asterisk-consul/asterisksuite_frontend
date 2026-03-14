@@ -6,11 +6,11 @@ type EditableField = 'name' | 'code' | 'locationId'
 type EditableValue = string | null | undefined
 
 // stores
-import { useDepositosStore } from '@/stores/logistica/warehouse/depositos.store'
-import { useLocationsStore } from '~/stores/logistica/meta-data/locations.store'
+import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
+import { useLocationsStore } from '~/modulos/logistica/master-data/locations/locations.store'
 
 // form
-import { warehouseFormFields } from '~/form/warehouseFormFields'
+import { warehouseFormFields } from '~/modulos/logistica/warehouses/warehouse/warehouseFormFields'
 import ModalForm from '~/components/ModalForm.vue'
 
 // composables
@@ -20,10 +20,10 @@ import { useLocations } from '~/composables/logistica/useLocations'
 import type {
   CreateWarehouseInput,
   UpdateWarehouseInput
-} from '~/types/logistica/warehouses/warehouse'
+} from '~/modulos/logistica/warehouses/warehouse/warehouse.types'
 
 // columns
-import { createWarehouseColumns } from './columns'
+import { createWarehouseColumns } from '../../../modulos/logistica/warehouses/warehouse/columns'
 
 // page meta
 definePageMeta({

@@ -12,25 +12,36 @@ interface Option {
     | 'primary'
     | 'secondary'
     | 'neutral'
+  disabled?: boolean
 }
 
 const props = defineProps<{
   modelValue: OptionValue
   options: Option[]
   title?: string
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: OptionValue]
 }>()
 
+// 👇 Controla el estado abierto/cerrado del popover
+const open = ref(false)
+
 const current = computed(() =>
   props.options.find((o) => o.value === props.modelValue)
 )
+
+function selectOption(option: Option) {
+  if (option.disabled) return
+  emit('update:modelValue', option.value)
+  open.value = false // 👈 cierra el popover
+}
 </script>
 
 <template>
-  <UPopover mode="click">
+  <UPopover v-model:open="open" mode="click">
     <UBadge class="cursor-pointer" variant="subtle" :color="current?.color">
       {{ current?.label }}
     </UBadge>
@@ -44,7 +55,8 @@ const current = computed(() =>
           size="xs"
           :color="option.color"
           :variant="modelValue === option.value ? 'solid' : 'ghost'"
-          @click.stop.prevent="emit('update:modelValue', option.value)"
+          :disabled="option.disabled"
+          @click.stop.prevent="selectOption(option)"
         >
           {{ option.label }}
         </UButton>

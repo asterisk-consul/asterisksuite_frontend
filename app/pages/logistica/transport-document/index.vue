@@ -4,20 +4,20 @@ definePageMeta({
   middleware: ['auth']
 })
 import { storeToRefs } from 'pinia'
-import { useDocumentTypesStore } from '~/stores/logistica/documents/document-types.store'
-import { documentTypeFormFields } from '~/form/documentTypeFormFields'
+import { useDocumentTypesStore } from '~/modulos/logistica/documents/delivery-types/document-types.store'
+import { documentTypeFormFields } from '~/modulos/logistica/documents/delivery-types/documentTypeFormFields'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 import type {
   CreateDocumentTypeInput,
   UpdateDocumentTypeInput
-} from '~/types/logistica/transport-document/document-types'
+} from '~/modulos/logistica/documents/delivery-types/document-types.types'
 
 type EditableField = 'name'
 type EditableValue = string | null | undefined
 
 import ModalForm from '~/components/ModalForm.vue'
-import { transportDocumentTypeColumns } from './columns'
+import { transportDocumentTypeColumns } from '../../../modulos/logistica/documents/delivery-types/columns'
 
 /* ---------------------------------------
    MODAL CONTROL

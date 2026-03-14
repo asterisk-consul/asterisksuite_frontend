@@ -6,20 +6,27 @@ definePageMeta({
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 //stores
-import { useTripsStore } from '~/stores/logistica/transport/trips.store'
-import { useVehicleCombinationsStore } from '~/stores/logistica/transport/vehicle-combinations.store'
-import { useLocationsStore } from '~/stores/logistica/meta-data/locations.store'
-import { useTransferRatesStore } from '~/stores/logistica/transfer-rates/transfer-rates.store'
-import type { CreateTripInput, UpdateTripInput } from '~/types/logistica/trips'
+import { useTripsStore } from '~/modulos/logistica/transport/trips/trips.store'
+import { useVehicleCombinationsStore } from '~/modulos/logistica/transport/vehicles-combinations/vehicle-combinations.store'
+import { useLocationsStore } from '~/modulos/logistica/master-data/locations/locations.store'
+import { useTransferRatesStore } from '~/modulos/logistica/transport/transfer-rates/transfer-rates.store'
+import type {
+  Trip,
+  CreateTripInput,
+  UpdateTripInput
+} from '~/modulos/logistica/transport/trips/trips.types'
 //form
-import { tripsFormFields } from '~/form/tripFormFields'
+import { tripsFormFields } from '~/modulos/logistica/transport/trips/tripFormFields'
 import ModalForm from '~/components/ModalForm.vue'
 //composables
 import { useLocations } from '~/composables/logistica/useLocations'
 import { useVehiclesCombinations } from '~/composables/logistica/useVehicleCombinations'
 import { useTransferRate } from '~/composables/logistica/useTransferRate'
 //tabla columns
-import { tripsColumns } from './columns'
+import { tripsColumns } from '~/modulos/logistica/transport/trips/columns'
+
+type EditableField = 'reference_number' | 'kilometers'
+type EditableValue = string | null | undefined
 
 const loading = ref(true)
 const store = useTripsStore()
@@ -65,7 +72,25 @@ function openEdit(row: any) {
 
 const columns = tripsColumns({
   onEdit: openEdit,
+  onInlineSave: async <K extends EditableField>(
+    row: Trip,
+    field: K,
+    value: Trip[K]
+  ) => {
+    const prev = row[field]
 
+    row[field] = value ?? prev
+
+    try {
+      const updateData: UpdateTripInput = {
+        [field]: value ?? undefined
+      }
+
+      await store.update(row.id, updateData)
+    } catch {
+      row[field] = prev
+    }
+  },
   onToggleStatus: async (row, value) => {
     const prev = row.status
     row.status = value

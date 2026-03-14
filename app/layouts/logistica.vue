@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { links as logistica } from '~/data/logistica'
+import { links as logistica } from '~/pages/logistica/logisticaNavigation'
 import SidebarModules from '~/components/ui/SidebarModules.vue'
 import { navigationLinks } from '~/data/navigation'
+import { useVersion } from '~/composables/useVersion'
+
+const versions = useVersion()
 
 const route = useRoute()
 const toast = useToast()
@@ -83,9 +86,25 @@ onMounted(async () => {
           class="mt-auto"
         />
       </template>
-
       <template #footer="{ collapsed }">
-        <UserMenu :collapsed="collapsed" />
+        <div class="flex flex-col w-full">
+          <UserMenu :collapsed="collapsed" />
+          <div class="py-3 flex justify-center">
+            <div class="flex items-center text-xs text-muted">
+              <span>v{{ versions.version }}</span>
+
+              <UBadge
+                v-if="versions.stage"
+                size="xs"
+                variant="soft"
+                color="neutral"
+                class="ml-2 capitalize"
+              >
+                {{ versions.stage }}
+              </UBadge>
+            </div>
+          </div>
+        </div>
       </template>
     </UDashboardSidebar>
 

@@ -6,22 +6,22 @@ definePageMeta({
 import type {
   CreateDriverInput,
   UpdateDriverInput
-} from '@/types/logistica/transport/drivers'
+} from '~/modulos/logistica/transport/drivers/drivers.types'
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
-import { useDocumentTypesStore } from '~/stores/logistica/documents/document-types.store'
-import { useChoferesStore } from '@/stores/logistica/transport/choferes.store'
+import { useDocumentTypesStore } from '~/modulos/logistica/documents/delivery-types/document-types.store'
+import { useChoferesStore } from '~/modulos/logistica/transport/drivers/choferes.store'
 //composable
 import { mapDriverDocumentsToForm } from '~/mappers/mapDriverDocumentsToForm'
 import { useDocuments } from '~/composables/logistica/useDocuments'
 import { useDriverMetrics } from '~/composables/logistica/useDriverMetrics'
-import type { Driver } from '~/types/logistica/transport/drivers'
+import type { Driver } from '~/modulos/logistica/transport/drivers/drivers.types'
 //form
-import { driverFormFields } from '~/form/driverFormFields'
+import { driverFormFields } from '~/modulos/logistica/transport/drivers/driverFormFields'
 import ModalForm from '~/components/ModalForm.vue'
 //tabla
-import { driversColumns } from './columns'
+import { driversColumns } from '~/modulos/logistica/transport/drivers/columns'
 
 const loading = ref(true)
 const store = useChoferesStore()
@@ -51,8 +51,7 @@ function openEdit(row: Driver) {
 
   editingRow.value = {
     ...row,
-    ...mapDriverDocumentsToForm(row),
-    locationId: row.locationId ?? row.locations?.id ?? null
+    ...mapDriverDocumentsToForm(row)
   }
 
   modalOpen.value = true

@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { VehicleCombination } from '~/types/logistica/transport/vehicles-combinations'
+import type { VehicleCombination } from '~/modulos/logistica/transport/vehicles-combinations/vehicles-combinations.types'
 
 export interface SelectItem {
   label: string
@@ -9,7 +9,7 @@ export interface SelectItem {
 export function useVehiclesCombinations(vehicles: Ref<VehicleCombination[]>) {
   const items = computed<SelectItem[]>(() =>
     vehicles.value.map((vehicle) => {
-      const label = `${vehicle.unit_number} - ${vehicle.tractor_id} - ${vehicle.trailer_id}`
+      const label = `${vehicle.unit_number} - ${vehicle.tractor?.plate} - ${vehicle.trailer?.plate}`
       return { label, value: vehicle.id }
     })
   )

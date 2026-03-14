@@ -3,9 +3,9 @@ definePageMeta({
   layout: 'logistica',
   middleware: ['auth']
 })
-import { useProductsStore } from '@/stores/logistica/meta-data/products.store'
-import { columns } from './columns'
-import { productFormFields } from '~/form/productFormFields'
+import { useProductsStore } from '~/modulos/logistica/master-data/product/products.store'
+import { columns } from '../../../../modulos/logistica/master-data/product/columns'
+import { productFormFields } from '~/modulos/logistica/master-data/product/productFormFields'
 import { useProductsMetrics } from '~/composables/logistica/useProductsMetrics'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 const store = useProductsStore()

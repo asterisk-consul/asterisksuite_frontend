@@ -6,25 +6,29 @@ definePageMeta({
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 //stores
-import { useVehiclesStore } from '~/stores/logistica/transport/vehicles.store'
-import { useDocumentTypesStore } from '~/stores/logistica/documents/document-types.store'
+import { useVehiclesStore } from '~/modulos/logistica/transport/vehicles/vehicles.store'
+import { useDocumentTypesStore } from '~/modulos/logistica/documents/delivery-types/document-types.store'
 //form
-import { vehicleFormFields } from '~/form/vehicleFormFields'
+import { vehicleFormFields } from '~/modulos/logistica/transport/vehicles/vehicleFormFields'
 import ModalForm from '~/components/ModalForm.vue'
 import { mapVehicleDocumentsToForm } from '~/mappers/mapVehicleDocumentsToForm'
 //composables
 import { useDocuments } from '~/composables/logistica/useDocuments'
 //tabla columns
-import { vehiclesColumns } from './vehicles.columns'
+import { vehiclesColumns } from '~/modulos/logistica/transport/vehicles/vehicles.columns'
 import type {
   Vehicle,
   CreateVehicleInput,
   UpdateVehicleInput
-} from '~/types/logistica/transport/vehicles'
+} from '~/modulos/logistica/transport/vehicles/vehicles.types'
 
+type EditableField = 'plate'
+
+type EditableValue = string | null | undefined
 /* ---------------------------------------
    STATE
 --------------------------------------- */
+const COMPANY_ID = 'a060f7ff-0281-4df4-b5b3-cbdf940be31e'
 
 const loading = ref(true)
 const documentStore = useDocumentTypesStore()
@@ -54,21 +58,72 @@ function openEdit(row: Vehicle) {
 
   const documentFields = mapVehicleDocumentsToForm(row)
 
+  console.log('ROW:', JSON.stringify(row, null, 2)) // ← agregar
+  console.log('DOC FIELDS:', JSON.stringify(documentFields, null, 2)) // ← agregar
+
   editingRow.value = {
     ...row,
-
     ...documentFields
   }
 
   modalOpen.value = true
 }
-
 /* ---------------------------------------
    TABLE COLUMNS
 --------------------------------------- */
 
 const columns = vehiclesColumns({
-  onEdit: openEdit
+  onEdit: openEdit,
+  onInlineSave: async (
+    row: Vehicle,
+    field: EditableField,
+    value: EditableValue
+  ) => {
+    const prev = row[field]
+    row[field] = value ?? ''
+
+    try {
+      // Type assertion para el objeto dinámico
+      const updateData = {
+        [field]: value ?? undefined
+      } as UpdateVehicleInput // ← Solución temporal
+
+      await store.update(row.id, updateData)
+    } catch {
+      row[field] = prev
+    }
+  },
+  onToggleActive: async (row, value) => {
+    const prev = row.active
+    row.active = value
+
+    try {
+      if (value) await store.activate(row.id)
+      else await store.deactivate(row.id)
+    } catch {
+      row.active = prev
+    }
+  },
+  onToggleRefrigeration: async (row, value) => {
+    const prev = row.refrigeration
+    row.refrigeration = value
+
+    try {
+      await store.update(row.id, { refrigeration: value })
+    } catch {
+      row.refrigeration = prev
+    }
+  },
+  onToggleType(row, value) {
+    const prev = row.type
+    row.type = value
+
+    try {
+      store.update(row.id, { type: value })
+    } catch {
+      row.type = prev
+    }
+  }
 })
 
 // ========================================
@@ -102,38 +157,39 @@ onMounted(async () => {
   await documentStore.fetchAll()
   loading.value = store.loading
 })
-
-// ========================================
-// ACTIONS
-// ========================================
+/* ---------------------------------------
+   ACTIONS
+--------------------------------------- */
 
 async function handleSubmit(data: any) {
   if (modalMode.value === 'create') {
-    const payload: CreateVehicleInput = mapVehiclePayload(data)
-
+    const payload = mapCreateVehiclePayload(data)
     await store.create(payload)
   } else {
-    const payload: UpdateVehicleInput = mapVehiclePayload(data)
-
-    await store.update(editingRow.value.id, payload)
+    const payload = mapUpdateVehiclePayload(data) // ya usa editingRow internamente
+    console.log('UPDATE PAYLOAD:', JSON.stringify(payload, null, 2))
+    await store.update(editingRow.value!.id, payload)
   }
 
-  await store.fetchAll('a12364b6-c47b-4baa-b4a1-4188b8003433') // 🔥 FALTA ESTO
-
+  await store.fetchAll(COMPANY_ID)
   modalOpen.value = false
 }
-// ========================================
-// MAP PAYLOAD
-// ========================================
-function mapVehiclePayload(form: any) {
-  const documents = []
+
+/* ---------------------------------------
+   MAPPERS
+--------------------------------------- */
+
+function mapVehicleBase(form: any, existingRow?: any) {
+  const documents: any[] = []
 
   for (let i = 1; i <= 4; i++) {
     const type = form[`doc${i}Type`]
     const expiration = form[`doc${i}Expiration`]
+    const docId = existingRow?.[`doc${i}Id`] // ← leer del editingRow, no del form
 
     if (type) {
       documents.push({
+        ...(docId && { id: docId }),
         documentTypeId: type,
         expirationDate: expiration || undefined
       })
@@ -141,7 +197,6 @@ function mapVehiclePayload(form: any) {
   }
 
   return {
-    companyId: 'a12364b6-c47b-4baa-b4a1-4188b8003433',
     type: form.type,
     plate: form.plate,
     brand: form.brand,
@@ -152,6 +207,17 @@ function mapVehiclePayload(form: any) {
     refrigeration: form.refrigeration,
     documents
   }
+}
+
+function mapCreateVehiclePayload(form: any): CreateVehicleInput {
+  return {
+    companyId: COMPANY_ID,
+    ...mapVehicleBase(form)
+  }
+}
+
+function mapUpdateVehiclePayload(form: any): UpdateVehicleInput {
+  return mapVehicleBase(form, editingRow.value) // ← pasar editingRow
 }
 </script>
 

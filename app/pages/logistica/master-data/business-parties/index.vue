@@ -3,9 +3,9 @@ definePageMeta({
   layout: 'logistica',
   middleware: ['auth']
 })
-import { useBusinessPartiesStore } from '@/stores/logistica/meta-data/bussines-parties.store'
-import { businessPartyFormFields } from '~/form/businessPartyFormFields'
-import { columns } from './columns'
+import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
+import { businessPartyFormFields } from '~/modulos/logistica/master-data/bussiness-parties/businessPartyFormFields'
+import { BusinessPartyColumns } from '~/modulos/logistica/master-data/bussiness-parties/columns'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 const store = useBusinessPartiesStore()
@@ -21,7 +21,6 @@ onMounted(async () => {
 })
 
 const saveLocation = async (data: any) => {
-  console.log(data)
   const payload = {
     company_id: 'a12364b6-c47b-4baa-b4a1-4188b8003433',
     type: data.type,
@@ -31,8 +30,9 @@ const saveLocation = async (data: any) => {
     email: data.email,
     active: true
   }
-  console.log(payload)
+
   await store.create(payload)
+  await store.fetchAll('a060f7ff-0281-4df4-b5b3-cbdf940be31e')
   open.value = false
 }
 </script>
