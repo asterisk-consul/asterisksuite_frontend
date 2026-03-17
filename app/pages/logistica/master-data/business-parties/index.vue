@@ -46,8 +46,8 @@ const links: ButtonProps[] = [
     label: 'Nueva Parte Interesada',
     icon: 'i-heroicons-plus',
     color: 'primary',
-    variant: 'solid',
-    onClick: openCreate
+    variant: 'solid'
+    // onClick: openCreate
   }
 ]
 </script>

@@ -12,9 +12,7 @@ const router = useRouter()
 const store = useCorridorsStore()
 
 const submit = async (dto: CreateCorridorDto) => {
-  console.log(dto)
   const corridor = await store.createCorridor(dto)
-  console.log(corridor)
   router.push(`logistica/transport/corridors/${corridor.id}`)
 }
 </script>

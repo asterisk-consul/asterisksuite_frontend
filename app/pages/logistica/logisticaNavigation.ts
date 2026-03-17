@@ -59,7 +59,14 @@ export const links: NavigationMenuItem[][] = [
     {
       label: 'Clientes',
       icon: 'i-heroicons-building-office-2',
-      to: '/logistica/master-data/business-parties/'
+      to: '/logistica/master-data/business-parties/',
+      children: [
+        {
+          label: 'Contactos',
+          icon: 'i-heroicons-users',
+          to: '/logistica/master-data/contacts/'
+        }
+      ]
     },
     { label: 'Reportes', icon: 'i-heroicons-chart-bar', to: '/' },
     {

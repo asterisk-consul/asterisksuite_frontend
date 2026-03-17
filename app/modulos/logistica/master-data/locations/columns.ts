@@ -8,6 +8,7 @@ import { useIdColumn } from '@/composables/table/useIdColumn'
 
 type Row = Location
 type EditableField = 'city' | 'province' | 'country' | 'postalCode'
+type EditableValue = string | null | undefined
 
 const { editableCell } = useInlineEdit<Location, EditableField>()
 const createdDate = useDateColumn('es-AR')
