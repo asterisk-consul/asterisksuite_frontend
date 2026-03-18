@@ -82,8 +82,8 @@ export const vehiclesColumns = (actions: {
   },
 
   {
-    accessorKey: 'type',
-    header: 'Tipo',
+    accessorKey: 'refrigeration',
+    header: 'Refrigeración',
     cell: ({ row }: { row: { original: Vehicle } }) =>
       h(StatusToggle, {
         modelValue: row.original.refrigeration,

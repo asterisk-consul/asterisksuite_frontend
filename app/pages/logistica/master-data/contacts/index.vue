@@ -44,13 +44,7 @@ function openCreate() {
 }
 
 function openEdit(row: any) {
-  modalMode.value = 'edit'
-
-  editingRow.value = {
-    ...row,
-    locationId: row.locationId ?? row.locations?.id ?? null
-  }
-  modalOpen.value = true
+  router.push(`/logistica/master-data/contacts/${row.id}/edit`)
 }
 
 /* ---------------------------------------
@@ -85,35 +79,6 @@ onMounted(async () => {
   loading.value = store.loading
 })
 
-// /* ---------------------------------------
-//    SUBMIT HANDLER
-// --------------------------------------- */
-
-// async function handleSubmit(data: any) {
-//   if (modalMode.value === 'create') {
-//     const payload: CreateLocationInput = {
-//       city: data.city,
-//       province: data.province,
-//       country: data.country,
-//       postalCode: data.postal_code
-//     }
-
-//     await store.create(payload)
-//   } else {
-//     const payload: UpdateLocationInput = {
-//       city: data.city,
-//       province: data.province,
-//       country: data.country,
-//       postalCode: data.postal_code
-//     }
-
-//     await store.update(editingRow.value.id, payload)
-//   }
-
-//   await store.fetchAll() // 🔥 FALTA ESTO
-
-//   modalOpen.value = false
-// }
 const links: ButtonProps[] = [
   {
     label: 'Nuevo Contacto',

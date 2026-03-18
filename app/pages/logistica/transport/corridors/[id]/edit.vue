@@ -33,7 +33,6 @@ const submit = async (dto: CreateCorridorDto) => {
   router.push(`/logistica/transport/corridors/${id}`)
 }
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
-import type { ButtonProps } from '@nuxt/ui'
 
 function toggleModuleSidebar() {
   moduleCollapsed.value = !moduleCollapsed.value

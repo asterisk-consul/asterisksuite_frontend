@@ -23,6 +23,11 @@ export const PartyContactColumns = (actions: {
   useSelectColumn<Row>(),
 
   useIdColumn<Row>(actions.onEdit),
+  {
+    id: 'business_party_name',
+    header: 'Empresa',
+    cell: ({ row }) => row.original.business_parties?.name ?? '—'
+  },
 
   {
     accessorKey: 'first_name',

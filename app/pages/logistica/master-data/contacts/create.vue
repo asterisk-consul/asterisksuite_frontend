@@ -18,7 +18,7 @@ const submit = async (contacts: CreatePartyContactDto[]) => {
   const created = await Promise.all(contacts.map((c) => store.create(c)))
 
   // 👉 redirigir al primero (o podrías ir a lista)
-  await router.push(`/logistica/master-data/contacts/${created[0]?.id}`)
+  await router.push(`/logistica/master-data/contacts/`)
 
   return created
 }
