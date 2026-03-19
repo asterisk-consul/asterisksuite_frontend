@@ -7,24 +7,14 @@ import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 //stores
 import { useTripsStore } from '~/modulos/logistica/transport/trips/trips.store'
-import { useVehicleCombinationsStore } from '~/modulos/logistica/transport/vehicles-combinations/vehicle-combinations.store'
-import { useLocationsStore } from '~/modulos/logistica/master-data/locations/locations.store'
-import { useTransferRatesStore } from '~/modulos/logistica/transport/transfer-rates/transfer-rates.store'
-import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
+
 //types
 import type {
   Trip,
   CreateTripInput,
   UpdateTripInput
-} from '~/modulos/logistica/transport/trips/trips.types'
-//form
-import { tripsFormFields } from '~/modulos/logistica/transport/trips/tripFormFields'
-import ModalForm from '~/components/ModalForm.vue'
-//composables
-import { useLocations } from '~/modulos/logistica/master-data/locations/useLocations'
-import { useVehiclesCombinations } from '~/modulos/logistica/transport/vehicles-combinations/useVehicleCombinations'
-import { useTransferRate } from '~/modulos/logistica/transport/transfer-rates/useTransferRate'
-import { useBusinessParties } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessParties'
+} from '~/modulos/logistica/transport/trips/types/trips.types'
+
 //tabla columns
 import { tripsColumns } from '~/modulos/logistica/transport/trips/columns'
 
@@ -37,25 +27,7 @@ function toggleModuleSidebar() {
 }
 const loading = ref(true)
 const store = useTripsStore()
-const vehiculoStore = useVehicleCombinationsStore()
-const locationsStore = useLocationsStore()
-const tableRenderers = useTransferRatesStore()
-const businessPartiesStore = useBusinessPartiesStore()
-
 const { items } = storeToRefs(store)
-const { items: vehicleCombinations } = storeToRefs(vehiculoStore)
-const { items: locations } = storeToRefs(locationsStore)
-const { items: rates } = storeToRefs(tableRenderers)
-const { items: businessParties } = storeToRefs(businessPartiesStore)
-
-const { items: combinationOptions } =
-  useVehiclesCombinations(vehicleCombinations)
-
-const { items: locationsItems } = useLocations(locations)
-
-const { items: ratesItems } = useTransferRate(rates)
-
-const { items: businessPartiesItems } = useBusinessParties(businessParties)
 
 /* ---------------------------------------
    MODAL CONTROL
@@ -85,8 +57,8 @@ const columns = tripsColumns({
   onEdit: openEdit,
   onInlineSave: async <K extends EditableField>(
     row: Trip,
-    field: K,
-    value: Trip[K]
+    field: EditableField,
+    value: EditableValue
   ) => {
     const prev = row[field]
 
@@ -114,41 +86,13 @@ const columns = tripsColumns({
 })
 
 // ========================================
-// COMPUTED
-// ========================================
-
-const fields = computed(() =>
-  tripsFormFields.map((field) => {
-    if (field.name === 'vehicle_combination_id') {
-      return { ...field, options: combinationOptions.value }
-    }
-    if (field.name === 'origin_location_id') {
-      return { ...field, options: locationsItems.value }
-    }
-    if (field.name === 'destination_location_id') {
-      return { ...field, options: locationsItems.value }
-    }
-    if (field.name === 'rate_id') {
-      return { ...field, options: ratesItems.value }
-    }
-    if (field.name === 'business_party_id') {
-      return { ...field, options: businessPartiesItems.value }
-    }
-    return field
-  })
-)
-
-// ========================================
 // ACTIONS
 // ========================================
 
 onMounted(async () => {
   const companyId = 'a060f7ff-0281-4df4-b5b3-cbdf940be31e'
   await store.fetchAll(companyId)
-  await vehiculoStore.fetchAll(companyId)
-  await locationsStore.fetchAll()
-  await tableRenderers.fetchAll(companyId)
-  await businessPartiesStore.fetchAll(companyId)
+
   loading.value = store.loading
 })
 
@@ -218,11 +162,4 @@ const links = ref<ButtonProps[]>([
     </div>
     <LogisticaTable :loading="loading" :data="items" :columns="columns" />
   </UPage>
-  <ModalForm
-    v-model:open="modalOpen"
-    :fields="fields"
-    :title="modalMode === 'create' ? 'Nuevo Viaje' : 'Editar Viaje'"
-    :initial-values="editingRow"
-    @submit="handleSubmit"
-  />
 </template>

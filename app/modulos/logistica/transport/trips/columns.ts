@@ -1,16 +1,18 @@
 import { h } from 'vue'
 import { UBadge, UCheckbox } from '#components'
 import type { TableColumn } from '@nuxt/ui'
-import type { Trip } from '~/modulos/logistica/transport/trips/trips.types'
+import type { Trip } from '~/modulos/logistica/transport/trips/types/trips.types'
 import StatusToggle from '@/components/ui/PopoverTableActive.vue'
 type OptionValue = string | boolean
 
 import { useInlineEdit } from '~/composables/table/useInlineEdit'
+import type { EditableValue } from '~/composables/table/useInlineEdit'
 import { useDateColumn } from '~/composables/table/useDateColumn'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 
 const { editableCell } = useInlineEdit<Trip, EditableField>()
+
 const createdDate = useDateColumn('es-AR')
 
 type TripStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
@@ -32,10 +34,10 @@ const tripStatusConfig: Record<
   COMPLETED: { label: 'Completado', color: 'success' },
   CANCELLED: { label: 'Cancelado', color: 'error' }
 }
+
 type Row = Trip
 type EditableField = 'reference_number' | 'kilometers'
 
-type EditableValue = string | number | boolean
 export const tripsColumns = (actions: {
   onToggleStatus?: (row: Row, value: TripStatus) => void
   onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void

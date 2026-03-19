@@ -68,7 +68,18 @@ export const links: NavigationMenuItem[][] = [
         }
       ]
     },
-    { label: 'Reportes', icon: 'i-heroicons-chart-bar', to: '/' },
+    {
+      label: 'Reportes',
+      icon: 'i-heroicons-chart-bar',
+      to: '/logistica/master-data/ReporteBipages/',
+      children: [
+        {
+          label: 'Logistica trips BI',
+          icon: 'i-heroicons-chart-bar',
+          to: '/logistica/master-data/ReporteBipages/'
+        }
+      ]
+    },
     {
       label: 'Configuraciones',
       icon: 'i-heroicons-cog-6-tooth',
