@@ -2,7 +2,7 @@ import { h } from 'vue'
 import { UBadge } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 
-import type { CorridorWithRelations } from './types/corridors.types'
+import type { Corridor } from './types/corridors.types'
 
 import { useDateColumn } from '~/composables/table/useDateColumn'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
@@ -10,7 +10,7 @@ import { useIdColumn } from '@/composables/table/useIdColumn'
 
 const createdDate = useDateColumn('es-AR')
 
-type Row = CorridorWithRelations
+type Row = Corridor
 
 export const corridorsColumns = (actions: {
   onEdit?: (row: Row) => void
@@ -37,13 +37,13 @@ export const corridorsColumns = (actions: {
         h(
           'span',
           { class: 'font-medium' },
-          c.origin_location?.name ?? 'Origen'
+          c.origin_location?.city ?? 'Origen'
         ),
         h('span', { class: 'text-gray-400' }, '→'),
         h(
           'span',
           { class: 'font-medium' },
-          c.destination_location?.name ?? 'Destino'
+          c.destination_location?.city ?? 'Destino'
         )
       ])
     }

@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.types'
+import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 
 export interface SelectMenuItem {
   label: string

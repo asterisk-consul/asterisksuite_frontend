@@ -104,7 +104,10 @@ export const tripsColumns = (actions: {
   {
     accessorKey: 'kilometers',
     header: 'Km',
-    cell: ({ row }) => row.original.corridors?.total_distance_km
+    cell: ({ row }) =>
+      row.original.corridors?.total_distance_km
+        ? `${row.original.corridors?.total_distance_km} km`
+        : '—'
   },
   {
     id: 'trip_rates',
