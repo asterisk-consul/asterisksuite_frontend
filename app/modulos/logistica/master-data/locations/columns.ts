@@ -7,7 +7,7 @@ import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 
 type Row = Location
-type EditableField = 'city' | 'province' | 'country' | 'postalCode'
+type EditableField = 'city' | 'province' | 'country' | 'postalCode' | 'address'
 type EditableValue = string | null | undefined
 
 const { editableCell } = useInlineEdit<Location, EditableField>()
@@ -20,6 +20,11 @@ export const LocationColumns = (actions: {
 }): TableColumn<Row>[] => [
   useSelectColumn<Row>(),
   useIdColumn<Row>(actions.onEdit),
+  {
+    accessorKey: 'address',
+    header: 'Dirección',
+    cell: ({ row }) => editableCell('address', row.original, actions)
+  },
 
   {
     accessorKey: 'city',

@@ -1,26 +1,15 @@
 <script setup lang="ts">
 import { links as logistica } from '~/pages/logistica/logisticaNavigation'
 import SidebarModules from '~/components/ui/SidebarModules.vue'
-import MainSidebar from '~/components/ui/MainSidebar.vue'
+
 const { mainCollapsed } = useSidebarState()
-
 const moduleCollapsed = ref(false)
-
-watchEffect(() => {
-  mainCollapsed.value = true
-})
 
 provide('moduleSidebarCollapsed', moduleCollapsed)
 </script>
 
 <template>
-  <UDashboardGroup unit="rem">
-    <!-- SIDEBAR PRINCIPAL -->
-    <MainSidebar v-model:collapsed="mainCollapsed" with-footer />
-
-    <NotificationsSlideover />
-
-    <!-- PANEL PRINCIPAL -->
+  <NuxtLayout name="default">
     <UDashboardPanel :ui="{ body: '!p-0' }">
       <!-- NAVBAR -->
       <template #header>
@@ -54,5 +43,5 @@ provide('moduleSidebarCollapsed', moduleCollapsed)
         </div>
       </template>
     </UDashboardPanel>
-  </UDashboardGroup>
+  </NuxtLayout>
 </template>

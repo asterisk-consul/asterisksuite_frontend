@@ -367,7 +367,7 @@ const isLockedByDate = computed(() => !form.departure_time)
       </UFormField>
 
       <!-- Km -->
-      <UFormField label="Kilómetros">
+      <!-- <UFormField label="Kilómetros">
         <UInput
           type="number"
           :model-value="form.kilometers ?? undefined"
@@ -376,7 +376,7 @@ const isLockedByDate = computed(() => !form.departure_time)
           "
           class="w-full"
         />
-      </UFormField>
+      </UFormField> -->
     </UCard>
 
     <!-- Actions -->
