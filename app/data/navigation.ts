@@ -68,7 +68,7 @@ export const navigationLinks = [
     {
       label: 'Ayuda',
       icon: 'i-lucide-info',
-      to: 'https://github.com/nuxt-ui-templates/dashboard',
+      to: '/changelog/',
       target: '_blank'
     }
   ]
