@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { FileService } from '../../services/fileApiNc'
+import { FileService } from '`~/services/fileApi'
 
 const file = ref<File | null>(null)
 const loading = ref(false)
