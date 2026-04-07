@@ -4,7 +4,12 @@ definePageMeta({
   layout: 'changelog'
 })
 
-import type { ChangelogVersion } from '~~/server/api/changelog'
+type ChangelogVersion = {
+  tag: string
+  title: string
+  date: string
+  body: any // MDCRoot
+}
 
 const { data: versions } = await useFetch<ChangelogVersion[]>('/api/changelog')
 const safeVersions = computed(() => versions.value || [])
