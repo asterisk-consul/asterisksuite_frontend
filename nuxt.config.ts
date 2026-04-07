@@ -2,6 +2,7 @@
 export default defineNuxtConfig({
   modules: [
     '@nuxt/ui',
+    '@nuxtjs/mdc',
     '@vueuse/nuxt',
     ['@pinia/nuxt', { autoImports: ['defineStore', 'storeToRefs'] }] // 👈 así se pasan las opciones
   ],
@@ -18,7 +19,10 @@ export default defineNuxtConfig({
   },
   vite: {
     optimizeDeps: {
-      include: ['leaflet']
+      include: ['leaflet', 'date-fns', '@unovis/vue', 'zod']
+    },
+    ssr: {
+      noExternal: ['@unovis/vue']
     }
   },
   ssr: true,

@@ -32,7 +32,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     await navigateTo('/')
   } catch (err: any) {
     errorMessage.value =
-      err?.data?.message || 'Usuario o contraseña incorrectos'
+      err?.message || err?.data?.message || 'Usuario o contraseña incorrectos'
+
     showError.value = true
   }
 }
@@ -54,8 +55,19 @@ function closeAlert() {
         icon="i-lucide-user"
         @submit="onSubmit"
       >
+        <template #description>
+          No tienes una cuenta?
+          <ULink to="/register" class="text-primary font-medium">
+            Registrate
+          </ULink>
+          .
+        </template>
         <template #password-hint>
-          <ULink to="#" class="text-primary font-medium" tabindex="-1">
+          <ULink
+            to="/change-password"
+            class="text-primary font-medium"
+            tabindex="-1"
+          >
             Olvidaste tu contraseña?
           </ULink>
         </template>
