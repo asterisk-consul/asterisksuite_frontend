@@ -70,6 +70,26 @@ async function fetchData() {
   }
 }
 
+function goToProduct(p: any) {
+  const id = p.productId || p.id
+
+  console.log('ID QUE SE ENVÍA:', id, p)
+
+  if (!id || id === '[id].vue') {
+    console.error('ID inválido', id, p)
+    return
+  }
+
+  navigateTo({
+    path: `/erp/purchases/products/${id}`,
+    query: {
+      startDate: filters.value.startDate,
+      endDate: filters.value.endDate,
+      supplierId: filters.value.supplierId
+    }
+  })
+}
+
 // --- Métricas ---
 const metrics = computed(() => {
   if (!data.value) return []
@@ -78,9 +98,7 @@ const metrics = computed(() => {
   const positiveTotal = prods
     .filter((p) => p.totalPurchases > 0)
     .reduce((a, b) => a + b.totalPurchases, 0)
-  const negTotal = prods
-    .filter((p) => p.totalPurchases < 0)
-    .reduce((a, b) => a + b.totalPurchases, 0)
+  const negTotal = d.negTotal ?? 0
   const taxRate =
     d.globalTotal > 0 ? ((d.globalTaxes / d.globalTotal) * 100).toFixed(1) : '0'
   return [
@@ -656,12 +674,20 @@ onMounted(fetchData)
                   v-for="p in filtered"
                   :key="p.productCode"
                   class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
+                  @click="goToProduct(p)"
                 >
                   <td class="td font-mono text-[10px] text-gray-400">
                     {{ p.productCode }}
+                    <
                   </td>
+
                   <td class="td truncate" :title="p.productName">
-                    {{ p.productName }}
+                    <span
+                      class="text-primary-600 hover:underline cursor-pointer"
+                      @click.stop="goToProduct(p)"
+                    >
+                      {{ p.productName }}
+                    </span>
                   </td>
                   <td
                     class="td tr tabular-nums"

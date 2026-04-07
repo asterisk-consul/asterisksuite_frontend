@@ -1,7 +1,7 @@
 import type {
   PurchaseSummaryResponse,
   PurchaseMovement,
-  SummaryFilters,
+  SummaryFilters
 } from '../purchases/types/purchases.types'
 
 export const PurchasesService = {
@@ -14,7 +14,9 @@ export const PurchasesService = {
     return $fetch(`/api/erp/purchases/summary${qs}`)
   },
 
-  async getMovements(filters?: Pick<SummaryFilters, 'startDate' | 'endDate'>): Promise<PurchaseMovement[]> {
+  async getMovements(
+    filters?: Pick<SummaryFilters, 'startDate' | 'endDate'>
+  ): Promise<PurchaseMovement[]> {
     const params = new URLSearchParams()
     if (filters?.startDate) params.set('startDate', filters.startDate)
     if (filters?.endDate) params.set('endDate', filters.endDate)
@@ -28,5 +30,5 @@ export const PurchasesService = {
 
   async getProductById(id: number | string) {
     return $fetch(`/api/erp/purchases/products/${id}`)
-  },
+  }
 }
