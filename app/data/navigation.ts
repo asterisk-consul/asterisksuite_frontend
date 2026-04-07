@@ -26,8 +26,11 @@ export const navigationLinks = [
         },
         {
           label: 'Importador',
-          to: 'https://maxipedano.github.io/Asterisk_truck/',
-          target: '_blank'
+          to: '/importadores'
+        },
+        {
+          label: 'Productos',
+          to: '/productdash'
         }
       ]
     },
