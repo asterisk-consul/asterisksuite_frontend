@@ -36,6 +36,22 @@ const emit = defineEmits<{
 const showBusinessPartiesModal = ref(false)
 const selectedBusinessParty = ref<BusinessParty | undefined>(undefined)
 
+import { useDispatchOrdersStore } from '~/modulos/logistica/documents/dispatch-orders/store/dispatch-orders.store'
+const dispatchOrdersStore = useDispatchOrdersStore()
+const { dispatchOrders } = storeToRefs(dispatchOrdersStore)
+
+const nextOrderNumber = computed(() => {
+  if (dispatchOrders.value.length === 0) return 'ORD-001'
+
+  const numbers = dispatchOrders.value.map((o) => {
+    const match = o.order_number?.match(/ORD-(\d+)/)
+    return match?.[1] ? parseInt(match[1]) : 0
+  })
+
+  const last = Math.max(...numbers)
+  return `ORD-${String(last + 1).padStart(3, '0')}`
+})
+
 // STORES
 const businessPartiesStore = useBusinessPartiesStore()
 const locationsStore = useLocationsStore()
@@ -303,11 +319,21 @@ watch(
       </template>
       <div class="grid grid-cols-2 gap-4">
         <UFormField label="Numero de orden" class="w-full">
-          <UInput
-            v-model="form.order_number"
-            placeholder="ORD-001"
-            class="w-full"
-          />
+          <div class="flex gap-2 w-full">
+            <UInput
+              v-model="form.order_number"
+              placeholder="ORD-001"
+              class="w-full"
+            />
+            <UButton
+              v-if="!isEdit && !form.order_number"
+              icon="i-lucide-sparkles"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="form.order_number = nextOrderNumber"
+            />
+          </div>
         </UFormField>
 
         <UFormField label="Fecha planificada" class="w-full">

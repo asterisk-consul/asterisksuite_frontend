@@ -20,12 +20,17 @@ export const useTripPlannerStore = defineStore('trip-planner', () => {
 
   const tripsStore = useTripsStore()
 
+  const clear = () => {
+    stops.value = []
+    selectedOrders.value = []
+  }
+
   // =============================
   // INIT
   // =============================
   const init = (id: string) => {
     tripId.value = id
-    stops.value = []
+    clear()
   }
 
   // =============================
@@ -126,7 +131,9 @@ export const useTripPlannerStore = defineStore('trip-planner', () => {
   const save = async () => {
     if (!tripId.value) return
 
-    return tripsStore.assignOrders(tripId.value, buildPayload.value)
+    await tripsStore.assignOrders(tripId.value, buildPayload.value)
+
+    clear()
   }
   const toggleOrder = (order: any) => {
     const exists = selectedOrders.value.find((o) => o.id === order.id)

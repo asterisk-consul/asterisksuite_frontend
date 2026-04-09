@@ -94,6 +94,45 @@ const form = reactive<TripForm>({
 
 const isHydrating = ref(true)
 
+// =============================
+// AUTO ARRIVAL (+1 día)
+// =============================
+
+// helper para evitar problemas de timezone
+const formatLocalDateTime = (date: Date) => {
+  const pad = (n: number) => n.toString().padStart(2, '0')
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+// flag para no pisar si el usuario cambia manualmente arrival
+const userModifiedArrival = ref(false)
+
+// detectar si el usuario modifica arrival manualmente
+watch(
+  () => form.arrival_time,
+  (val, oldVal) => {
+    if (!isHydrating.value && val !== oldVal) {
+      userModifiedArrival.value = true
+    }
+  }
+)
+
+// setear arrival automáticamente cuando cambia departure
+watch(
+  () => form.departure_time,
+  (date) => {
+    if (!date || userModifiedArrival.value) return
+
+    const departure = new Date(date)
+    const arrival = new Date(departure)
+
+    arrival.setDate(arrival.getDate() + 1)
+
+    form.arrival_time = formatLocalDateTime(arrival)
+  }
+)
+
 watch(
   () => form.departure_time,
   async (date, prevDate) => {
