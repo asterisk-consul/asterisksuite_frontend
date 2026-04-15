@@ -10,8 +10,12 @@ export interface InlineEditActions<T, F extends string> {
 export function useInlineEdit<T extends { id: string }, F extends string>() {
   const editing = ref<{ id: string; field: F } | null>(null)
 
-  const startEdit = (id: string, field: F) => {
+  // 👉 estado LOCAL del input
+  const localValue = ref<EditableValue>('')
+
+  const startEdit = (id: string, field: F, value: EditableValue) => {
     editing.value = { id, field }
+    localValue.value = value ?? ''
   }
 
   const stopEdit = () => {
@@ -24,25 +28,30 @@ export function useInlineEdit<T extends { id: string }, F extends string>() {
   function editableCell(field: F, row: T, actions: InlineEditActions<T, F>) {
     const id = row.id
     const originalValue = (row as any)[field]
-    const value = originalValue ?? ''
+    const displayValue = originalValue ?? ''
 
     const save = () => {
-      actions.onInlineSave?.(row, field, (row as any)[field])
+      if (localValue.value !== originalValue) {
+        actions.onInlineSave?.(row, field, localValue.value)
+      }
       stopEdit()
     }
 
     const cancel = () => {
-      ;(row as any)[field] = originalValue
+      localValue.value = originalValue
       stopEdit()
     }
 
     if (isEditing(id, field)) {
       return h(UInput as unknown as Component, {
-        modelValue: value,
+        modelValue: localValue.value,
         size: 'lg',
         autofocus: true,
 
-        'onUpdate:modelValue': (v: string) => ((row as any)[field] = v),
+        // 🔥 SOLO estado local
+        'onUpdate:modelValue': (v: string) => {
+          localValue.value = v
+        },
 
         onBlur: save,
 
@@ -64,9 +73,9 @@ export function useInlineEdit<T extends { id: string }, F extends string>() {
       {
         class:
           'cursor-pointer hover:bg-primary/5 hover:text-primary px-2 py-1 rounded',
-        onClick: () => startEdit(id, field)
+        onClick: () => startEdit(id, field, displayValue)
       },
-      value || '—'
+      displayValue || '—'
     )
   }
 

@@ -30,12 +30,17 @@ const tripStatusConfig: Record<
   CANCELLED: { label: 'Cancelado', color: 'error' }
 }
 
+export type EditableField = 'reference_number' | 'week'
+
 export const tripsColumns = (actions: {
   onToggleStatus?: (row: Row, value: TripStatus) => void
   onInlineSave?: (row: Row, field: any, value: any) => void
   onEdit?: (row: Row) => void
 }): TableColumn<Row>[] => {
-  const build = createTableBuilder<Row>({ locale: 'es-AR' })
+  const build = createTableBuilder<Row, EditableField>({
+    locale: 'es-AR',
+    onInlineSave: actions.onInlineSave
+  })
 
   return [
     useSelectColumn<Row>(),

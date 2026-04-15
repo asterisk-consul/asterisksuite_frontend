@@ -39,7 +39,10 @@ export const dispatchOrdersColumns = (actions: {
   onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void
   onEdit?: (row: Row) => void
 }): TableColumn<Row>[] => {
-  const build = createTableBuilder<Row>({ locale: 'es-AR' })
+  const build = createTableBuilder<Row, EditableField>({
+    locale: 'es-AR',
+    onInlineSave: actions.onInlineSave
+  })
 
   return [
     useSelectColumn<Row>(),
@@ -58,7 +61,6 @@ export const dispatchOrdersColumns = (actions: {
         key: 'status',
         label: 'Estado',
         sortable: true,
-
         enum: {
           options: Object.entries(dispatchStatusConfig).map(
             ([value, config]) => ({
@@ -73,17 +75,6 @@ export const dispatchOrdersColumns = (actions: {
             onChange: (row, value) =>
               actions.onToggleStatus?.(row, value as DispatchStatus)
           }
-        }
-      },
-
-      {
-        key: 'requires_stock',
-        label: 'Stock',
-        badge: {
-          resolve: (row) => ({
-            label: row.requires_stock ? 'Requiere' : 'No requiere',
-            color: row.requires_stock ? 'warning' : 'neutral'
-          })
         }
       },
 
@@ -110,6 +101,28 @@ export const dispatchOrdersColumns = (actions: {
         label: 'Fecha planificada',
         sortable: true,
         date: true
+      },
+      {
+        id: 'rates',
+        label: 'Tarifas',
+        multiBadge: {
+          resolve: (row) =>
+            row.dispatch_rates?.map((r) => ({
+              label: `${r.transfer_rates?.name ?? '—'}: $${r.value ?? '0'}`,
+              color: 'primary'
+            })) || []
+        }
+      },
+
+      {
+        key: 'requires_stock',
+        label: 'Stock',
+        badge: {
+          resolve: (row) => ({
+            label: row.requires_stock ? 'Requiere' : 'No requiere',
+            color: row.requires_stock ? 'warning' : 'neutral'
+          })
+        }
       },
 
       {

@@ -65,6 +65,7 @@ const { dispatchOrders } = storeToRefs(store)
 
 onMounted(async () => {
   await store.fetchAll()
+  console.log(store.dispatchOrders)
   loading.value = store.loading
 })
 
@@ -96,12 +97,13 @@ const links = ref<ButtonProps[]>([
         />
       </div>
       <UPageHeader
-        title="Documentos de Transporte"
-        description="Listado de Documentos de Transporte"
+        title="Ordenes de despacho"
+        description="Listado de ordenes de despacho"
         :links="links"
         class="mb-4 w-full"
       />
     </div>
+
     <LogisticaTable
       :loading="loading"
       :data="dispatchOrders"

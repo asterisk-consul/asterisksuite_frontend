@@ -35,6 +35,7 @@ const loading = ref(true)
 const store = useTripsStore()
 const { items } = storeToRefs(store)
 
+const tableRef = ref<any>(null)
 /* ---------------------------------------
    MODAL CONTROL
 --------------------------------------- */
@@ -55,18 +56,22 @@ const columns = tripsColumns({
     field: K,
     value: EditableValue<K>
   ) => {
-    const prev = row[field]
+    // ✅ Capturá ANTES de cualquier mutación
+    const tableApi = tableRef.value?.table?.tableApi
+    const pageIndex = tableApi?.getState().pagination.pageIndex
 
+    const prev = row[field]
     row[field] = value ?? prev
 
     try {
-      const updateData: UpdateTripInput = {
-        [field]: value ?? undefined
-      }
-
-      await store.update(row.id, updateData)
+      await store.update(row.id, { [field]: value ?? undefined })
     } catch {
       row[field] = prev
+    } finally {
+      nextTick(() => {
+        // ✅ Re-accedé al api después del render
+        tableRef.value?.table?.tableApi?.setPageIndex(pageIndex ?? 0)
+      })
     }
   },
   onToggleStatus: async (row, value) => {
@@ -153,6 +158,7 @@ const links = ref<ButtonProps[]>([
     <!-- 🔥 Contenido dinámico -->
     <LogisticaTable
       v-if="activeTab === 'viajes'"
+      ref="tableRef"
       :loading="loading"
       :data="items"
       :columns="columns"

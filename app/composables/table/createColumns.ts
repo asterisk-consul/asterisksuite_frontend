@@ -6,7 +6,7 @@ import { useInlineEdit } from '@/composables/table/useInlineEdit'
 import { useDateColumn } from '@/composables/table/useDateColumn'
 
 /* ========================
-   Badge Colors (TIPADO CORRECTO)
+   Badge Colors
 ======================== */
 export type BadgeColor =
   | 'error'
@@ -40,11 +40,12 @@ type EnumOption<T = any> = {
   color?: BadgeColor
 }
 
-type BuilderConfig<T> = {
+type BuilderConfig<T, K extends keyof T = keyof T> = {
   locale?: string
+  onInlineSave?: (row: T, field: K, value: any) => void | Promise<void>
 }
 
-type ColumnConfig<T> = {
+type ColumnConfig<T, K extends keyof T = keyof T> = {
   key?: keyof T | string
   id?: string
 
@@ -53,7 +54,7 @@ type ColumnConfig<T> = {
 
   /* ===== behaviors ===== */
   editable?: boolean
-  editField?: keyof T
+  editField?: K
 
   date?: boolean
 
@@ -68,6 +69,10 @@ type ColumnConfig<T> = {
 
   badge?: {
     resolve: (row: T) => { label: string; color?: BadgeColor }
+  }
+
+  multiBadge?: {
+    resolve: (row: T) => { label: string; color?: BadgeColor }[]
   }
 
   component?: {
@@ -87,18 +92,19 @@ type ColumnConfig<T> = {
 /* ========================
    Builder
 ======================== */
-export function createTableBuilder<T extends { id: string }>(
-  config?: BuilderConfig<T>
-) {
+export function createTableBuilder<
+  T extends { id: string },
+  K extends keyof T = keyof T
+>(config?: BuilderConfig<T, K>) {
   const { editableCell } = useInlineEdit<T, any>()
   const dateCol = useDateColumn(config?.locale || 'es-AR')
 
-  return function build(cols: ColumnConfig<T>[]): TableColumn<T>[] {
+  return function build(cols: ColumnConfig<T, K>[]): TableColumn<T>[] {
     return cols.map((col) => {
       const accessorKey = col.key as string | undefined
 
       /* ========================
-         HEADER (sortable)
+         HEADER
       ======================== */
       let header: TableColumn<T>['header']
 
@@ -133,7 +139,9 @@ export function createTableBuilder<T extends { id: string }>(
       // editable
       if (!cell && col.editable && col.editField) {
         cell = ({ row }) =>
-          editableCell(col.editField as any, row.original, (row as any).actions)
+          editableCell(col.editField as any, row.original, {
+            onInlineSave: config?.onInlineSave
+          })
       }
 
       // date
@@ -180,13 +188,34 @@ export function createTableBuilder<T extends { id: string }>(
         }
       }
 
+      // multi badge
+      if (!cell && col.multiBadge) {
+        cell = ({ row }) => {
+          const badges = col.multiBadge!.resolve(row.original)
+
+          if (!badges?.length) return '—'
+
+          return h(
+            'div',
+            { class: 'flex gap-1 flex-wrap' },
+            badges.map((b) =>
+              h(
+                UBadge,
+                {
+                  variant: 'subtle',
+                  color: isBadgeColor(b.color) ? b.color : 'neutral'
+                },
+                () => b.label
+              )
+            )
+          )
+        }
+      }
+
       // custom component
       if (col.component) {
-        const componentDef = col.component
-
-        const Comp = componentDef.is
-
-        cell = ({ row }) => h(Comp, componentDef.props?.(row.original) || {})
+        const Comp = col.component.is
+        cell = ({ row }) => h(Comp, col.component?.props?.(row.original) || {})
       }
 
       /* ========================
@@ -203,13 +232,10 @@ export function createTableBuilder<T extends { id: string }>(
       return {
         id: col.id,
         accessorKey,
-
         header,
         cell,
-
         meta,
         filterFn,
-
         ...(col.column || {})
       } as TableColumn<T>
     })

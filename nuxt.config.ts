@@ -1,7 +1,12 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@nuxt/ui', '@nuxtjs/mdc', '@vueuse/nuxt', // 👈 así se pasan las opciones
-  ['@pinia/nuxt', { autoImports: ['defineStore', 'storeToRefs'] }], 'nuxt-auth-utils'],
+  modules: [
+    '@nuxt/ui',
+    '@nuxtjs/mdc',
+    '@vueuse/nuxt', // 👈 así se pasan las opciones
+    ['@pinia/nuxt', { autoImports: ['defineStore', 'storeToRefs'] }],
+    'nuxt-auth-utils'
+  ],
   devServer: {
     host: '0.0.0.0', // <- debe estar así
     port: 3008
@@ -54,11 +59,9 @@ export default defineNuxtConfig({
     '@server/utils': './server/utils'
   },
 
- 
-
   compatibilityDate: '2024-07-11',
 
- nitro: {
+  nitro: {
     preset: 'node-server',
     // ✅ CORS va acá
     routeRules: {

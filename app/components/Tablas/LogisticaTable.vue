@@ -1,7 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { ref, computed, watch, onMounted } from 'vue'
 import { getPaginationRowModel } from '@tanstack/vue-table'
-import type { TableColumn } from '@nuxt/ui'
 import type { ComponentPublicInstance } from 'vue'
 
 import { useColumnVisibility } from '@/composables/table/useColumnVisibility'
@@ -15,54 +14,7 @@ import DateRangePicker, {
    Tipos
 ======================== */
 
-type FilterType = 'text' | 'date-range'
-
-type ExtendedColumn<T> = TableColumn<T> & {
-  accessorKey?: string
-  meta?: {
-    filterType?: FilterType
-  }
-}
-interface TableApi<T> {
-  getState: () => {
-    pagination: {
-      pageIndex: number
-      pageSize: number
-    }
-  }
-
-  setPageIndex: (index: number) => void
-
-  getFilteredSelectedRowModel: () => {
-    rows: Array<{ original: T }>
-  }
-
-  getFilteredRowModel: () => {
-    rows: Array<{ original: T }>
-  }
-
-  getColumn: (id: string) =>
-    | {
-        setFilterValue: (v: unknown) => void
-        toggleVisibility?: (value?: boolean) => void
-        getIsVisible?: () => boolean
-        getCanHide?: () => boolean
-      }
-    | undefined
-
-  setGlobalFilter: (v: unknown) => void
-
-  // 👇 🔥 ESTO ES LO QUE FALTA
-  getAllColumns: () => Array<{
-    id: string
-    getIsVisible: () => boolean
-    getCanHide: () => boolean
-    toggleVisibility: (value?: boolean) => void
-  }>
-}
-interface UTableInstance<T> extends ComponentPublicInstance {
-  tableApi: TableApi<T> | null
-}
+import type { UTableInstance, ExtendedColumn } from './tablas.types'
 
 /* ========================
    Props / Emits
@@ -87,6 +39,10 @@ const { columnVisibility, columnVisibilityItems } = useColumnVisibility(table)
 /* ========================
    Filtros dinámicos
 ======================== */
+
+defineExpose({
+  table
+})
 const selectedColumn = ref<string>('__global__')
 
 const searchText = ref<string>('')
@@ -214,6 +170,7 @@ watch(
   { immediate: true }
 )
 
+// ✅ Solo reacciona si cambia la referencia del array, no el contenido
 watch(
   () => props.data,
   () => applyTextFilter('', selectedColumn.value)
@@ -237,7 +194,7 @@ const totalCount = computed<number>(
 
 const pagination = ref({
   pageIndex: 0,
-  pageSize: 5
+  pageSize: 15
 })
 
 /* ========================
@@ -253,9 +210,7 @@ function confirmDelete(): void {
 <template>
   <div class="flex-1 w-full pb-20">
     <!-- Buscador dinámico -->
-    <div
-      class="flex items-center justify-between gap-2 py-3.5 border-b border-accented"
-    >
+    <div class="flex items-center justify-between gap-2 py-3.5">
       <div class="flex items-center gap-2">
         <USelect v-model="selectedColumn" :items="columnOptions" class="w-44" />
 
@@ -282,6 +237,7 @@ function confirmDelete(): void {
     </div>
 
     <!-- Tabla -->
+
     <UTable
       ref="table"
       v-model:pagination="pagination"
@@ -290,14 +246,24 @@ function confirmDelete(): void {
       v-model:column-filters="columnFilters"
       v-model:global-filter="globalFilter"
       sticky
+      :get-row-id="(row: T) => (row as any).id"
       :data="props.data"
       :columns="props.columns"
       :loading="props.loading"
       :pagination-options="{
-        getPaginationRowModel: getPaginationRowModel()
+        getPaginationRowModel: getPaginationRowModel(),
+        autoResetPageIndex: false
+      }"
+      :ui="{
+        base: 'table-fixed border-separate border-spacing-0',
+        thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
+        tbody: '[&>tr]:last:[&>td]:border-b-0',
+        th: 'first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r',
+        td: 'border-b border-default'
       }"
       :class="[
-        'border border-default',
+        'max-h-screen',
+
         selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg'
       ]"
     />

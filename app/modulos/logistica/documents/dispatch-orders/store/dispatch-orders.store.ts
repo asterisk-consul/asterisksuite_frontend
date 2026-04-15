@@ -39,6 +39,7 @@ export const useDispatchOrdersStore = defineStore('dispatch-orders', () => {
   // 🔹 UPDATE
   const update = async (id: string, data: UpdateDispatchOrderDto) => {
     const updated = await service.update(id, data)
+    console.log('update', update)
 
     const index = dispatchOrders.value.findIndex((o) => o.id === id)
     if (index !== -1) {
