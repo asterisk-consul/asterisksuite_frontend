@@ -179,5 +179,49 @@
         "version": "2.1.2-alpha"
       }
     ]
+  },
+  {
+    "version": "0.7.4-alpha",
+    "date": "2026-04-14",
+    "stage": "alpha",
+    "notes": "Mejoras en tablas, edición inline y consistencia de datos en backend",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "ui",
+        "title": "Corrección en edición inline de tablas evitando re-render masivo"
+      },
+      {
+        "type": "fix",
+        "scope": "ui",
+        "title": "Implementación de sticky header en tablas"
+      },
+      {
+        "type": "fix",
+        "scope": "ui",
+        "title": "Ajuste de paginación de 5 a 15 filas sin reset de página"
+      },
+      {
+        "type": "fix",
+        "scope": "dispatch",
+        "title": "Corrección de render y consistencia en tabla de dispatch orders"
+      },
+      {
+        "type": "fix",
+        "scope": "trips",
+        "title": "Corrección en update de trips retornando datos completos mediante findOne"
+      },
+      {
+        "type": "feat",
+        "scope": "dispatch",
+        "title": "Se agrega información de tarifas (dispatch_rates con transfer_rates y valores)"
+      }
+    ],
+    "modules": [
+      {
+        "name": "transporte",
+        "version": "2.1.3-alpha"
+      }
+    ]
   }
 ]
