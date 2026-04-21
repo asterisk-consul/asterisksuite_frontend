@@ -1,4 +1,5 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
+import { sub } from 'date-fns'
 import { ref, computed, watch, onMounted } from 'vue'
 import { getPaginationRowModel } from '@tanstack/vue-table'
 import type { ComponentPublicInstance } from 'vue'
@@ -47,8 +48,8 @@ const selectedColumn = ref<string>('__global__')
 
 const searchText = ref<string>('')
 
-const searchRange = ref<DateRange>({
-  start: new Date(),
+const searchRange = shallowRef<DateRange>({
+  start: sub(new Date(), { days: 14 }),
   end: new Date()
 })
 

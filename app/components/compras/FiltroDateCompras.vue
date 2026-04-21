@@ -16,6 +16,7 @@ export type DateRange = {
 }
 
 const selected = defineModel<DateRange>({ required: true })
+const isPresetSelection = ref(false)
 
 const ranges = [
   { label: 'Ultimos 7 dias', days: 7 },
@@ -41,16 +42,17 @@ const calendarRange = computed({
       : undefined,
     end: selected.value.end ? toCalendarDate(selected.value.end) : undefined
   }),
-  set: (newValue: { start: CalendarDate | null; end: CalendarDate | null }) => {
+  set: (newValue) => {
+    isPresetSelection.value = false // 👈 viene del calendario
+
     selected.value = {
       start: newValue.start
         ? newValue.start.toDate(getLocalTimeZone())
-        : new Date(),
-      end: newValue.end ? newValue.end.toDate(getLocalTimeZone()) : new Date()
-    }
+        : undefined,
+      end: newValue.end ? newValue.end.toDate(getLocalTimeZone()) : undefined
+    } as DateRange
   }
 })
-
 const isRangeSelected = (range: {
   days?: number
   months?: number
@@ -83,6 +85,8 @@ const selectRange = (range: {
   months?: number
   years?: number
 }) => {
+  isPresetSelection.value = true
+
   const endDate = today(getLocalTimeZone())
   let startDate = endDate.copy()
 
