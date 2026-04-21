@@ -48,11 +48,11 @@ type BuilderConfig<T, K extends keyof T = keyof T> = {
 type ColumnConfig<T, K extends keyof T = keyof T> = {
   key?: keyof T | string
   id?: string
+  accessorFn?: (row: T) => any
 
   label: string
   sortable?: boolean
 
-  /* ===== behaviors ===== */
   editable?: boolean
   editField?: K
 
@@ -102,6 +102,7 @@ export function createTableBuilder<
   return function build(cols: ColumnConfig<T, K>[]): TableColumn<T>[] {
     return cols.map((col) => {
       const accessorKey = col.key as string | undefined
+      const accessorFn = col.accessorFn
 
       /* ========================
          HEADER
@@ -221,17 +222,33 @@ export function createTableBuilder<
       /* ========================
          META / FILTER
       ======================== */
+
       const meta = {
         label: col.label,
         ...(col.date ? dateCol.meta : {}),
         ...(col.meta || {})
       }
 
-      const filterFn = col.date ? dateCol.filterFn : col.filterFn
+      // ✅ DEFAULT FILTER STRING (CLAVE)
+      const defaultStringFilter: TableColumn<T>['filterFn'] = (
+        row,
+        columnId,
+        value
+      ) => {
+        const v = row.getValue(columnId)
+        if (v == null) return false
+
+        return String(v).toLowerCase().includes(String(value).toLowerCase())
+      }
+
+      const filterFn = col.date
+        ? dateCol.filterFn
+        : (col.filterFn ?? defaultStringFilter)
 
       return {
-        id: col.id,
+        id: col.id ?? accessorKey,
         accessorKey,
+        accessorFn,
         header,
         cell,
         meta,
