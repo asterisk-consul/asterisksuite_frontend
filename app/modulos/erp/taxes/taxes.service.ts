@@ -10,10 +10,6 @@ export interface Tax {
   calculation_level: string
 }
 
-export interface TaxFilters {
-  company_id?: string
-}
-
 export interface CreateTaxDto {
   company_id: string
   code: string
@@ -27,17 +23,17 @@ export interface CreateTaxDto {
 
 export type UpdateTaxDto = Partial<Omit<CreateTaxDto, 'company_id'>>
 
+const COMPANY_ID = '9af6e716-d26a-45f3-9afa-68c346e1628f'
+
 export const TaxesService = {
-  async getAll(filters?: TaxFilters): Promise<Tax[]> {
-    const params = new URLSearchParams()
-    const qs = params.toString() ? `?${params.toString()}` : ''
-    return $fetch(`/api/erp/taxes${qs}`)
+  async getAll(): Promise<Tax[]> {
+    return $fetch(`/api/erp/taxes?company_id=${COMPANY_ID}`)
   },
 
-  async create(dto: CreateTaxDto): Promise<Tax> {
+  async create(dto: Omit<CreateTaxDto, 'company_id'>): Promise<Tax> {
     return $fetch('/api/erp/taxes', {
       method: 'POST',
-      body: dto
+      body: { ...dto, company_id: COMPANY_ID }
     })
   },
 
@@ -46,5 +42,8 @@ export const TaxesService = {
       method: 'PATCH',
       body: dto
     })
+  },
+  async remove(id: string): Promise<void> {
+    return $fetch(`/api/erp/taxes/${id}`, { method: 'DELETE' })
   }
 }

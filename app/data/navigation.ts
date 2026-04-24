@@ -14,6 +14,15 @@ export const navigationLinks = [
       to: '/VKilomentros'
     },
     {
+      label: 'Ventas',
+      icon: 'i-lucide-receipt',
+      defaultOpen: false,
+      children: [
+        { label: 'Facturas', to: '/erp/sales' },
+        { label: 'Nueva factura', to: '/erp/sales/new' }
+      ]
+    },
+    {
       label: 'Compras',
       icon: 'i-lucide-folder-closed',
       defaultOpen: false,

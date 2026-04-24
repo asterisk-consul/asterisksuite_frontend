@@ -4,14 +4,7 @@ definePageMeta({
   middleware: ['auth']
 })
 
-import {
-  TaxesService,
-  type Tax,
-  type UpdateTaxDto
-} from '~/modulos/erp/taxes/taxes.service'
-
-// TODO: reemplazá con el company_id real de tu store de auth
-const COMPANY_ID = '9af6e716-d26a-45f3-9afa-68c346e1628f'
+import { TaxesService, type Tax } from '~/modulos/erp/taxes/taxes.service'
 
 const TAX_TYPES = ['IVA', 'IIBB', 'Percepción', 'Retención', 'Otro']
 const CALC_LEVELS = ['LINE', 'TOTAL', 'HEADER']
@@ -22,7 +15,7 @@ const {
   pending,
   error,
   refresh
-} = await useAsyncData('taxes', () => TaxesService.getAll())
+} = await useAsyncData('taxes', () => TaxesService.getAll(), { server: false })
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 const isModalOpen = ref(false)
@@ -76,10 +69,15 @@ async function saveTax() {
   saving.value = true
   saveError.value = null
   try {
+    const payload = {
+      ...form,
+      rate: Number(form.rate) // ← forzar número siempre
+    }
+
     if (isEditing.value && selectedTax.value) {
-      await TaxesService.update(selectedTax.value.id, { ...form })
+      await TaxesService.update(selectedTax.value.id, payload)
     } else {
-      await TaxesService.create({ ...form })
+      await TaxesService.create(payload)
     }
     await refresh()
     closeModal()
@@ -87,6 +85,16 @@ async function saveTax() {
     saveError.value = e?.data?.message ?? e?.message ?? 'Error al guardar'
   } finally {
     saving.value = false
+  }
+}
+
+async function deleteTax(tax: Tax) {
+  if (!confirm(`¿Eliminár "${tax.name}"?`)) return
+  try {
+    await TaxesService.remove(tax.id)
+    await refresh()
+  } catch (e: any) {
+    console.error('Error al eliminar:', e)
   }
 }
 
@@ -99,15 +107,15 @@ async function toggleActive(tax: Tax) {
   }
 }
 
-// ─── Tabla ────────────────────────────────────────────────────────────────────
+// ─── Columnas (Nuxt UI v3) ────────────────────────────────────────────────────
 const columns = [
-  { key: 'code', label: 'Código' },
-  { key: 'name', label: 'Nombre' },
-  { key: 'tax_type', label: 'Tipo' },
-  { key: 'rate', label: 'Tasa' },
-  { key: 'calculation_level', label: 'Nivel de cálculo' },
-  { key: 'active', label: 'Activo' },
-  { key: 'actions', label: '' }
+  { id: 'code', header: 'Código' },
+  { id: 'name', header: 'Nombre' },
+  { id: 'tax_type', header: 'Tipo' },
+  { id: 'rate', header: 'Tasa' },
+  { id: 'calculation_level', header: 'Nivel de cálculo' },
+  { id: 'active', header: 'Activo' },
+  { id: 'actions', header: '' }
 ]
 </script>
 
@@ -128,7 +136,6 @@ const columns = [
 
     <template #body>
       <div class="p-4 space-y-4">
-        <!-- Error de carga -->
         <UAlert
           v-if="error"
           color="error"
@@ -137,48 +144,61 @@ const columns = [
           title="Error al cargar impuestos"
         />
 
-        <!-- Tabla -->
         <UPageCard variant="subtle">
-          <UTable
-            :rows="taxes ?? []"
-            :columns="columns"
-            :loading="pending"
-            :empty-state="{
-              icon: 'i-lucide-receipt',
-              label: 'No hay impuestos configurados.'
-            }"
-          >
-            <template #rate-data="{ row }">
-              {{ row.rate }}{{ row.is_percentage ? '%' : ' $' }}
+          <UTable :data="taxes ?? []" :columns="columns" :loading="pending">
+            <template #code-cell="{ row }">
+              {{ row.original.code }}
             </template>
 
-            <template #tax_type-data="{ row }">
-              <UBadge :label="row.tax_type" variant="subtle" color="primary" />
+            <template #name-cell="{ row }">
+              {{ row.original.name }}
             </template>
 
-            <template #calculation_level-data="{ row }">
+            <template #rate-cell="{ row }">
+              {{ row.original.rate
+              }}{{ row.original.is_percentage ? '%' : ' $' }}
+            </template>
+
+            <template #tax_type-cell="{ row }">
               <UBadge
-                :label="row.calculation_level"
+                :label="row.original.tax_type"
+                variant="subtle"
+                color="primary"
+              />
+            </template>
+
+            <template #calculation_level-cell="{ row }">
+              <UBadge
+                :label="row.original.calculation_level"
                 variant="outline"
                 color="neutral"
               />
             </template>
 
-            <template #active-data="{ row }">
+            <template #active-cell="{ row }">
               <USwitch
-                :model-value="row.active"
-                @update:model-value="toggleActive(row)"
+                :model-value="row.original.active"
+                @update:model-value="toggleActive(row.original)"
               />
             </template>
 
-            <template #actions-data="{ row }">
-              <UButton
-                icon="i-lucide-pencil"
-                variant="ghost"
-                color="neutral"
-                size="sm"
-                @click="openEdit(row)"
-              />
+            <template #actions-cell="{ row }">
+              <div class="flex gap-1">
+                <UButton
+                  icon="i-lucide-pencil"
+                  variant="ghost"
+                  color="neutral"
+                  size="sm"
+                  @click="openEdit(row.original)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  variant="ghost"
+                  color="error"
+                  size="sm"
+                  @click="deleteTax(row.original)"
+                />
+              </div>
             </template>
           </UTable>
         </UPageCard>
