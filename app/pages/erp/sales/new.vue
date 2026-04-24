@@ -6,44 +6,31 @@ definePageMeta({
 })
 
 import { DocumentsSalesService } from '~/modulos/erp/sales/sales.service'
-import { useBusinessPartiesService } from '~/modulos/logistica/master-data/business-parties.service'
+import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
+import { useBusinessParties } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessParties'
 import type {
-  SalesDocumentItem,
-  SalesTax,
-  SalesDocumentTax
+  DocumentItem,
+  DocumentItemTax,
+  DocumentTax
 } from '~/modulos/erp/sales/types/sales.types'
 
 const router = useRouter()
 const toast = useToast()
 
 // ✅ instanciar servicio
-const salesService = useSalesService()
+const salesService = DocumentsSalesService
 
-// ── Clientes ──────────────────────────────────────────────────────
-const { data: parties } = useBusinessPartiesService.findAll()
-console.log(parties)
-// debug
-watch(partiesError, (e) => {
-  if (e) console.error('ERROR PARTIES:', e)
-})
+const store = useBusinessPartiesStore()
+const { loading, items: parties } = storeToRefs(store)
 
-const partyOptions = computed(() =>
-  (parties.value ?? []).map((p: any) => ({
-    label: p.name,
-    value: p.id
-  }))
-)
+const partyOptions = useBusinessParties(parties)
+console.log(partyOptions)
 
 // ── Productos ─────────────────────────────────────────────────────
 // ✔ Productos
 const { data: products } = await useAsyncData('products-list', () =>
   $fetch('/api/master-data/products')
 )
-
-// debug
-watch(productsError, (e) => {
-  if (e) console.error('ERROR PRODUCTS:', e)
-})
 
 const productOptions = computed(() =>
   (products.value ?? []).map((p: any) => ({
@@ -229,6 +216,10 @@ async function submit() {
     saving.value = false
   }
 }
+
+onMounted(() => {
+  await store.fetchAll()
+})
 </script>
 
 <template>
@@ -254,7 +245,7 @@ async function submit() {
       <div class="p-4 space-y-5 max-w-4xl mx-auto">
         <!-- ERROR DEBUG -->
         <UAlert
-          v-if="partiesError || productsError"
+          v-if="partiesError"
           color="error"
           title="Error cargando datos"
         />

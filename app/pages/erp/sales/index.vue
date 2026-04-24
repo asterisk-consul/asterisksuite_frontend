@@ -9,7 +9,7 @@ import {
   STATUS_LABELS,
   STATUS_COLORS
 } from '~/modulos/erp/sales/types/sales.types'
-import type { SaleDocument } from '~/modulos/erp/sales/types'
+import type { SaleDocument } from '~/modulos/erp/sales/types/sales.types'
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 const statusFilter = ref<number | undefined>(undefined)

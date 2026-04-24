@@ -5,12 +5,9 @@ export const DocumentsSalesService = {
     documentTypeId?: string
     status?: number
   }): Promise<SaleDocument[]> {
-    const query = new URLSearchParams()
-    if (params?.documentTypeId)
-      query.set('documentTypeId', params.documentTypeId)
-    if (params?.status !== undefined) query.set('status', String(params.status))
-    const qs = query.toString() ? `?${query.toString()}` : ''
-    return $fetch(`/api/erp/documents/sales${qs}`)
+    return $fetch('/api/erp/documents/sales', {
+      query: params
+    })
   },
 
   async getOne(id: string): Promise<SaleDocument> {
