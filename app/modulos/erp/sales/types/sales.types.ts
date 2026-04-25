@@ -79,7 +79,16 @@ export const STATUS_LABELS: Record<number, string> = {
   3: 'Anulado'
 }
 
-export const STATUS_COLORS: Record<number, string> = {
+type BadgeColor =
+  | 'primary'
+  | 'neutral'
+  | 'secondary'
+  | 'success'
+  | 'info'
+  | 'warning'
+  | 'error'
+
+export const STATUS_COLORS: Record<number, BadgeColor> = {
   0: 'neutral',
   1: 'warning',
   2: 'success',

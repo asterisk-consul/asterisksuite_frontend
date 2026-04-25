@@ -15,17 +15,42 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-// ✅ instanciar composable
+// ✅ instanciar correctamente
 const salesService = DocumentsSalesService
 
-// ── ID seguro ─────────────────────────────────────────────────────
+// ── ID ────────────────────────────────────────────────────────────
+const docId = computed(() => route.params.id as string)
 
-const docId = route.params.id as string
+// ── STATE ─────────────────────────────────────────────────────────
+const doc = ref<SaleDocument | null>(null)
+const pending = ref(false)
+const error = ref<any>(null)
 
-console.log(docId)
+// ── FETCH ─────────────────────────────────────────────────────────
+async function fetchDoc() {
+  if (!docId.value) return
 
-// ── FETCH SEGURO ──────────────────────────────────────────────────
-const doc = await salesService.getOne(docId)
+  try {
+    pending.value = true
+    error.value = null
+
+    doc.value = await salesService.getOne(docId.value)
+  } catch (e) {
+    console.error(e)
+    error.value = e
+    toast.add({ title: 'Error al cargar documento', color: 'error' })
+  } finally {
+    pending.value = false
+  }
+}
+
+// cargar inicial
+await fetchDoc()
+
+// recargar si cambia la ruta
+watch(docId, async () => {
+  await fetchDoc()
+})
 
 // ── Helpers ───────────────────────────────────────────────────────
 function fmt(n: number) {
@@ -44,15 +69,16 @@ const confirming = ref(false)
 const cancelling = ref(false)
 const deleting = ref(false)
 
-// Confirmar
 async function confirmDoc() {
   if (!docId.value) return
 
   try {
     confirming.value = true
     await salesService.confirm(docId.value)
+
     toast.add({ title: 'Documento confirmado', color: 'success' })
-    await refresh()
+
+    await fetchDoc() // ✅ reemplazo de refresh
   } catch (e) {
     console.error(e)
     toast.add({ title: 'Error al confirmar', color: 'error' })
@@ -61,15 +87,16 @@ async function confirmDoc() {
   }
 }
 
-// Anular
 async function cancelDoc() {
   if (!docId.value) return
 
   try {
     cancelling.value = true
     await salesService.cancel(docId.value)
+
     toast.add({ title: 'Documento anulado', color: 'warning' })
-    await refresh()
+
+    await fetchDoc() // ✅
   } catch (e) {
     console.error(e)
     toast.add({ title: 'Error al anular', color: 'error' })
@@ -78,13 +105,13 @@ async function cancelDoc() {
   }
 }
 
-// Eliminar
 async function deleteDoc() {
   if (!docId.value) return
 
   try {
     deleting.value = true
     await salesService.remove(docId.value)
+
     toast.add({ title: 'Borrador eliminado', color: 'success' })
     router.push('/erp/sales')
   } catch (e) {
@@ -125,7 +152,7 @@ async function deleteDoc() {
             v-if="doc?.status === 1"
             icon="i-heroicons-check-circle"
             size="sm"
-            color="green"
+            color="success"
             :loading="confirming"
             @click="confirmDoc"
           >
@@ -137,7 +164,7 @@ async function deleteDoc() {
             v-if="doc?.status === 1 || doc?.status === 2"
             icon="i-heroicons-x-circle"
             size="sm"
-            color="red"
+            color="error"
             variant="soft"
             :loading="cancelling"
             @click="cancelDoc"
@@ -172,29 +199,14 @@ async function deleteDoc() {
 
     <!-- BODY -->
     <template #body>
-      <!-- LOADING -->
-      <div v-if="pending" class="p-8 text-center text-gray-400">
-        Cargando...
-      </div>
-
-      <!-- ERROR -->
-      <UAlert
-        v-else-if="error"
-        color="error"
-        title="Error al cargar el documento"
-        class="m-4"
-      />
-
       <!-- SIN ID -->
-      <div v-else-if="!docId" class="p-8 text-center text-gray-400">
-        ID inválido
-      </div>
+      <div v-if="!docId" class="p-8 text-center text-gray-400">ID inválido</div>
 
       <!-- DATA -->
       <div v-else-if="doc" class="p-4 space-y-5">
         <!-- INFO -->
         <div
-          class="bg-white rounded-xl border p-5 grid grid-cols-2 md:grid-cols-4 gap-4"
+          class="border-primary-400 rounded-xl border p-5 grid grid-cols-2 md:grid-cols-4 gap-4"
         >
           <div>
             <span class="text-xs text-gray-400">Fecha</span>
@@ -203,12 +215,14 @@ async function deleteDoc() {
 
           <div>
             <span class="text-xs text-gray-400">Cliente</span>
-            <div>{{ doc.party_name || doc.party_id }}</div>
+            <div>{{ doc.business_parties?.name || doc.party_id }}</div>
           </div>
 
           <div>
             <span class="text-xs text-gray-400">Tipo</span>
-            <div>{{ doc.document_type_name || doc.document_type_id }}</div>
+            <div>
+              {{ doc.document_types.description || doc.document_type_id }}
+            </div>
           </div>
 
           <div>
@@ -218,11 +232,11 @@ async function deleteDoc() {
         </div>
 
         <!-- ITEMS -->
-        <div class="bg-white rounded-xl border overflow-hidden">
+        <div class="border-primary-400 rounded-xl border overflow-hidden">
           <div class="px-4 py-3 border-b">Ítems</div>
 
           <table class="w-full text-sm">
-            <thead class="bg-gray-50">
+            <thead>
               <tr>
                 <th class="px-4 py-2 text-left">Producto</th>
                 <th class="px-4 py-2 text-right">Cant.</th>
@@ -232,9 +246,12 @@ async function deleteDoc() {
             </thead>
 
             <tbody>
-              <tr v-for="item in doc.items" :key="item.id || item.product_id">
+              <tr
+                v-for="(item, index) in doc.document_items"
+                :key="item.id ?? item.product_id ?? `tmp-${index}`"
+              >
                 <td class="px-4 py-2">
-                  {{ item.product_name || item.product_id }}
+                  {{ item.products || item.product_id }}
                 </td>
                 <td class="px-4 py-2 text-right">
                   {{ item.quantity }}
@@ -252,14 +269,14 @@ async function deleteDoc() {
 
         <!-- TOTALES -->
         <div class="flex justify-end">
-          <div class="bg-white rounded-xl border p-5 w-80 space-y-2">
+          <div class="border-primary-400 rounded-xl border p-5 w-80 space-y-2">
             <div class="flex justify-between">
               <span>Subtotal</span>
               <span>{{ fmt(doc.subtotal) }}</span>
             </div>
 
             <div
-              v-for="t in doc.taxes"
+              v-for="t in doc.document_taxes"
               :key="t.tax_id"
               class="flex justify-between"
             >
