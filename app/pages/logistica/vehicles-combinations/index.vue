@@ -6,7 +6,7 @@ definePageMeta({
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 //stores
-import { useVehiclesStore } from '~/modulos/logistica/transport/vehicles/vehicles.store'
+import { useVehiclesStore } from '~/modulos/logistica/transport/vehicles/store/vehicles.store'
 import { useVehicleCombinationsStore } from '~/modulos/logistica/transport/vehicles-combinations/vehicle-combinations.store'
 import { useChoferesStore } from '~/modulos/logistica/transport/drivers/choferes.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
@@ -16,7 +16,7 @@ import ModalForm from '~/components/ModalForm.vue'
 //composables
 
 import { useDriverMetrics } from '~/modulos/logistica/transport/drivers/useDriverMetrics'
-import { useVehicles } from '~/modulos/logistica/transport/vehicles/useVehicles'
+import { useVehicles } from '~/modulos/logistica/transport/vehicles/composable/useVehicles'
 //tabla columns
 import { VehicleCombinationColumns } from '~/modulos/logistica/transport/vehicles-combinations/columns'
 import type {
