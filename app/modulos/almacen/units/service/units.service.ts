@@ -4,7 +4,7 @@ import type {
   UpdateUnitInput
 } from '~/modulos/almacen/units/types/units.types'
 
-const urlBase = '/api/erp/units'
+const urlBase = '/api/almacen/units'
 
 export const useUnitsService = () => {
   const findAll = () => {
@@ -24,10 +24,7 @@ export const useUnitsService = () => {
     })
   }
 
-  const update = (
-    id: string,
-    data: UpdateUnitInput
-  ) => {
+  const update = (id: string, data: UpdateUnitInput) => {
     return $fetch<Unit>(`${urlBase}/${id}`, {
       method: 'PATCH',
       body: data

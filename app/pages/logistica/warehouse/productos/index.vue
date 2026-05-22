@@ -23,12 +23,11 @@ const open = ref(false)
 const loading = ref(true)
 
 onMounted(async () => {
-  await store.fetchAll('a060f7ff-0281-4df4-b5b3-cbdf940be31e')
+  await store.fetchAll()
   loading.value = store.loading
 })
 const saveLocation = async (data: any) => {
   const payload = {
-    company_id: 'a060f7ff-0281-4df4-b5b3-cbdf940be31e',
     name: data.name,
     requires_refrigeration: data.requires_refrigeration,
     sku: data.sku

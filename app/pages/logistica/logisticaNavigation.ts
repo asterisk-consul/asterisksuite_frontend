@@ -40,6 +40,11 @@ export const links: NavigationMenuItem[][] = [
           label: 'Productos',
           icon: 'i-heroicons-cube',
           to: '/logistica/warehouse/productos/'
+        },
+        {
+          label: 'Configuraciones',
+          icon: 'i-heroicons-cog-6-tooth',
+          to: '/logistica/warehouse/productos/settings/'
         }
       ]
     },
