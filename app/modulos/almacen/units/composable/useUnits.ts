@@ -11,23 +11,12 @@ export enum UnitType {
   WEIGHT = 'WEIGHT',
   LENGTH = 'LENGTH',
   VOLUME = 'VOLUME',
-  QUANTITY = 'QUANTITY',
   AREA = 'AREA',
-  TIME = 'TIME'
+  TIME = 'TIME',
+  UNIT = 'UNIT'
 }
 
 export function useUnits(units?: Ref<Unit[]>) {
-  // =========================
-  // UNIDADES
-  // =========================
-
-  const items = computed<SelectMenuItem[]>(() =>
-    units.value.map((unit) => ({
-      label: unit.name,
-      value: unit.id
-    }))
-  )
-
   // =========================
   // TIPOS DE UNIDAD
   // =========================
@@ -46,8 +35,8 @@ export function useUnits(units?: Ref<Unit[]>) {
       value: UnitType.VOLUME
     },
     {
-      label: 'Cantidad',
-      value: UnitType.QUANTITY
+      label: 'Unidad',
+      value: UnitType.UNIT
     },
     {
       label: 'Área',
@@ -74,19 +63,33 @@ export function useUnits(units?: Ref<Unit[]>) {
       case UnitType.VOLUME:
         return 'Volumen'
 
-      case UnitType.QUANTITY:
-        return 'Cantidad'
-
       case UnitType.AREA:
         return 'Área'
 
       case UnitType.TIME:
         return 'Tiempo'
+      case UnitType.UNIT:
+        return 'Unidad'
 
       default:
         return '-'
     }
   }
+
+  // =========================
+  // UNIDADES
+  // =========================
+
+  const activeItems = computed(() =>
+    (units?.value ?? []).filter((i) => i.active !== false)
+  )
+
+  const items = computed<SelectMenuItem[]>(() =>
+    activeItems.value.map((unit) => ({
+      label: unit.name,
+      value: unit.id
+    }))
+  )
 
   return {
     items,

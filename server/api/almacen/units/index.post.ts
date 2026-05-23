@@ -1,5 +1,9 @@
 import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
-  return apiProxy(event, '/erp/units')
+  const body = await readBody(event)
+  return apiProxy(event, '/erp/units', {
+    method: 'POST',
+    body
+  })
 })

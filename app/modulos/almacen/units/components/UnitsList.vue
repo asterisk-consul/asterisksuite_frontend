@@ -1,43 +1,45 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { Unit } from '~/modulos/almacen/units/types/units.types'
-import { useUnitsStore } from '~/modulos/almacen/units/store/units.store'
 
-const store = useUnitsStore()
-const { items } = storeToRefs(store)
-const loading = computed(() => store.loading)
-console.log(loading)
-const currencies = computed(() => items.value)
-console.log(currencies)
+import type { Unit } from '~/modulos/almacen/units/types/units.types'
+import { useUnits } from '~/modulos/almacen/units/composable/useUnits'
+
+const { getUnitTypeLabel } = useUnits()
+
+interface Props {
+  units: Unit[]
+  loading?: boolean
+}
+
+defineProps<Props>()
 
 const emit = defineEmits<{
-  toggle: [currency: Unit]
-  edit: [currency: Unit]
+  toggle: [unit: Unit]
+  edit: [unit: Unit]
 }>()
 
-const getItems = (currency: Unit): DropdownMenuItem[] => [
+const getItems = (unit: Unit): DropdownMenuItem[] => [
   {
     label: 'Editar Unidad',
     icon: 'i-lucide-pencil',
-    onSelect: () => emit('edit', currency)
+    onSelect: () => emit('edit', unit)
   },
   {
-    label: currency.active ? 'Desactivar' : 'Activar',
-    icon: currency.active ? 'i-lucide-circle-off' : 'i-lucide-circle-check',
-    color: currency.active ? ('error' as const) : ('success' as const),
-    onSelect: () => emit('toggle', currency)
+    label: unit.active ? 'Desactivar' : 'Activar',
+    icon: unit.active ? 'i-lucide-circle-off' : 'i-lucide-circle-check',
+
+    color: unit.active ? ('error' as const) : ('success' as const),
+
+    onSelect: () => emit('toggle', unit)
   }
 ]
-onMounted(() => {
-  store.fetchAll()
-})
 </script>
 
 <template>
   <ul role="list" class="divide-y divide-default">
     <li
-      v-for="currency in currencies"
-      :key="currency.id"
+      v-for="unit in units"
+      :key="unit.id"
       class="flex items-center justify-between gap-4 px-4 py-4"
     >
       <!-- Left -->
@@ -45,31 +47,38 @@ onMounted(() => {
         <div
           class="flex items-center justify-center size-10 rounded-lg bg-warning/10 text-warning font-bold"
         >
-          {{ currency.symbol }}
+          {{ unit.symbol }}
         </div>
+
         <div class="flex flex-col flex-1 min-w-0">
           <p class="font-medium truncate">
-            {{ currency.name }}
+            {{ unit.name }}
           </p>
-          <UBadge
-            v-if="currency.active"
-            color="primary"
-            variant="soft"
-            size="sm"
-            class="w-fit"
-          >
-            Activo
-          </UBadge>
+
+          <div class="flex items-center gap-2 mt-1">
+            <UBadge color="neutral" variant="subtle" size="sm">
+              {{ getUnitTypeLabel(unit.unit_type) }}
+            </UBadge>
+
+            <UBadge
+              :color="unit.active ? 'success' : 'error'"
+              variant="soft"
+              size="sm"
+            >
+              {{ unit.active ? 'Activo' : 'Inactivo' }}
+            </UBadge>
+          </div>
         </div>
       </div>
+
       <!-- Right -->
       <div class="flex items-center gap-3">
         <UToggle
-          :model-value="currency.active"
-          @update:model-value="emit('toggle', currency)"
+          :model-value="unit.active"
+          @update:model-value="emit('toggle', unit)"
         />
 
-        <UDropdownMenu :items="getItems(currency)" :content="{ align: 'end' }">
+        <UDropdownMenu :items="getItems(unit)" :content="{ align: 'end' }">
           <UButton
             icon="i-lucide-ellipsis-vertical"
             color="neutral"

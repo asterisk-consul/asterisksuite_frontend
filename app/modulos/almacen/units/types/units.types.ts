@@ -2,7 +2,7 @@ export enum UnitType {
   WEIGHT = 'WEIGHT',
   LENGTH = 'LENGTH',
   VOLUME = 'VOLUME',
-  QUANTITY = 'QUANTITY',
+  UNIT = 'UNIT',
   AREA = 'AREA',
   TIME = 'TIME'
 }
@@ -32,5 +32,4 @@ export interface CreateUnitInput {
   active?: boolean
 }
 
-export interface UpdateUnitInput
-  extends Partial<CreateUnitInput> {}
+export interface UpdateUnitInput extends Partial<CreateUnitInput> {}
