@@ -16,7 +16,7 @@ importers:
         version: 1.2.83
       '@nuxt/ui':
         specifier: ^4.6.1
-        version: 4.8.0(@internationalized/date@3.12.1)(@internationalized/number@3.6.6)(@tiptap/extensions@3.23.6(@tiptap/core@3.23.6(@tiptap/pm@3.23.6))(@tiptap/pm@3.23.6))(@tiptap/y-tiptap@3.0.3(prosemirror-model@1.25.7)(prosemirror-state@1.4.4)(prosemirror-view@1.41.8)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30))(change-case@5.4.4)(db0@0.3.4)(embla-carousel@8.6.0)(ioredis@5.10.1)(magicast@0.5.3)(sortablejs@1.14.0)(tailwindcss@4.3.0)(typescript@5.9.3)(vite@7.3.3(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.48.0)(yaml@2.9.0))(vue-router@5.0.7(@vue/compiler-sfc@3.5.34)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.34(typescript@5.9.3)))(vue@3.5.34(typescript@5.9.3)))(vue@3.5.34(typescript@5.9.3))(yjs@13.6.30)(zod@3.25.76)
+        version: 4.8.0(@internationalized/date@3.12.1)(@internationalized/number@3.6.6)(@tiptap/extensions@3.23.6(@tiptap/core@3.23.6(@tiptap/pm@3.23.6))(@tiptap/pm@3.23.6))(@tiptap/y-tiptap@3.0.3(prosemirror-model@1.25.7)(prosemirror-state@1.4.4)(prosemirror-view@1.41.8)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30))(change-case@5.4.4)(db0@0.3.4)(embla-carousel@8.6.0)(ioredis@5.10.1)(magicast@0.5.3)(sortablejs@1.15.7)(tailwindcss@4.3.0)(typescript@5.9.3)(vite@7.3.3(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.48.0)(yaml@2.9.0))(vue-router@5.0.7(@vue/compiler-sfc@3.5.34)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.34(typescript@5.9.3)))(vue@3.5.34(typescript@5.9.3)))(vue@3.5.34(typescript@5.9.3))(yjs@13.6.30)(zod@3.25.76)
       '@nuxtjs/mdc':
         specifier: ^0.20.2
         version: 0.20.2(magicast@0.5.3)
@@ -32,6 +32,9 @@ importers:
       '@unovis/vue':
         specifier: ^1.6.4
         version: 1.6.5(@unovis/ts@1.6.5)(vue@3.5.34(typescript@5.9.3))
+      '@vueuse/integrations':
+        specifier: ^14.3.0
+        version: 14.3.0(change-case@5.4.4)(fuse.js@7.3.0)(sortablejs@1.15.7)(vue@3.5.34(typescript@5.9.3))
       '@vueuse/nuxt':
         specifier: ^13.9.0
         version: 13.9.0(magicast@0.5.3)(nuxt@4.4.6(@babel/plugin-syntax-jsx@7.28.6(@babel/core@7.29.0))(@babel/plugin-syntax-typescript@7.28.6(@babel/core@7.29.0))(@parcel/watcher@2.5.6)(@types/node@25.9.1)(@vue/compiler-sfc@3.5.34)(cac@6.7.14)(db0@0.3.4)(eslint@9.39.4(jiti@2.7.0))(ioredis@5.10.1)(lightningcss@1.32.0)(magicast@0.5.3)(optionator@0.9.4)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.34(typescript@5.9.3)))(rollup-plugin-visualizer@7.0.1(rollup@4.60.4))(rollup@4.60.4)(srvx@0.11.15)(terser@5.48.0)(typescript@5.9.3)(vite@7.3.3(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.48.0)(yaml@2.9.0))(vue-tsc@3.3.1(typescript@5.9.3))(yaml@2.9.0))(vue@3.5.34(typescript@5.9.3))
@@ -59,6 +62,9 @@ importers:
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.34(typescript@5.9.3))
+      sortablejs:
+        specifier: ^1.15.7
+        version: 1.15.7
       vue-draggable-plus:
         specifier: ^0.6.1
         version: 0.6.1(@types/sortablejs@1.15.9)
@@ -84,6 +90,9 @@ importers:
       '@types/papaparse':
         specifier: ^5.5.2
         version: 5.5.2
+      '@types/sortablejs':
+        specifier: ^1.15.9
+        version: 1.15.9
       eslint:
         specifier: ^9.39.4
         version: 9.39.4(jiti@2.7.0)
@@ -5680,6 +5689,9 @@ packages:
   sortablejs@1.14.0:
     resolution: {integrity: sha512-pBXvQCs5/33fdN1/39pPL0NZF20LeRbLQ5jtnheIPN9JQAaufGjKdWduZn4U7wCtVuzKhmRkI0DFYHYRbB2H1w==}
 
+  sortablejs@1.15.7:
+    resolution: {integrity: sha512-Kk8wLQPlS+yi1ZEf48a4+fzHa4yxjC30M/Sr2AnQu+f/MPwvvX9XjZ6OWejiz8crBsLwSq8GHqaxaET7u6ux0A==}
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
@@ -6424,7 +6436,7 @@ packages:
     engines: {node: '>=20'}
 
   xlsx@https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz:
-    resolution: {integrity: sha512-oLDq3jw7AcLqKWH2AhCpVTZl8mf6X2YReP+Neh0SJUzV/BdZYjth94tG5toiMB1PPrYtxOCfaoUCkvtuH+3AJA==, tarball: https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz}
+    resolution: {tarball: https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz}
     version: 0.20.3
     engines: {node: '>=0.8'}
     hasBin: true
@@ -7595,7 +7607,7 @@ snapshots:
       rc9: 3.0.1
       std-env: 4.1.0
 
-  '@nuxt/ui@4.8.0(@internationalized/date@3.12.1)(@internationalized/number@3.6.6)(@tiptap/extensions@3.23.6(@tiptap/core@3.23.6(@tiptap/pm@3.23.6))(@tiptap/pm@3.23.6))(@tiptap/y-tiptap@3.0.3(prosemirror-model@1.25.7)(prosemirror-state@1.4.4)(prosemirror-view@1.41.8)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30))(change-case@5.4.4)(db0@0.3.4)(embla-carousel@8.6.0)(ioredis@5.10.1)(magicast@0.5.3)(sortablejs@1.14.0)(tailwindcss@4.3.0)(typescript@5.9.3)(vite@7.3.3(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.48.0)(yaml@2.9.0))(vue-router@5.0.7(@vue/compiler-sfc@3.5.34)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.34(typescript@5.9.3)))(vue@3.5.34(typescript@5.9.3)))(vue@3.5.34(typescript@5.9.3))(yjs@13.6.30)(zod@3.25.76)':
+  '@nuxt/ui@4.8.0(@internationalized/date@3.12.1)(@internationalized/number@3.6.6)(@tiptap/extensions@3.23.6(@tiptap/core@3.23.6(@tiptap/pm@3.23.6))(@tiptap/pm@3.23.6))(@tiptap/y-tiptap@3.0.3(prosemirror-model@1.25.7)(prosemirror-state@1.4.4)(prosemirror-view@1.41.8)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30))(change-case@5.4.4)(db0@0.3.4)(embla-carousel@8.6.0)(ioredis@5.10.1)(magicast@0.5.3)(sortablejs@1.15.7)(tailwindcss@4.3.0)(typescript@5.9.3)(vite@7.3.3(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.48.0)(yaml@2.9.0))(vue-router@5.0.7(@vue/compiler-sfc@3.5.34)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.34(typescript@5.9.3)))(vue@3.5.34(typescript@5.9.3)))(vue@3.5.34(typescript@5.9.3))(yjs@13.6.30)(zod@3.25.76)':
     dependencies:
       '@floating-ui/dom': 1.7.6
       '@iconify/vue': 5.0.1(vue@3.5.34(typescript@5.9.3))
@@ -7628,7 +7640,7 @@ snapshots:
       '@tiptap/vue-3': 3.23.6(@floating-ui/dom@1.7.6)(@tiptap/core@3.23.6(@tiptap/pm@3.23.6))(@tiptap/pm@3.23.6)(vue@3.5.34(typescript@5.9.3))
       '@unhead/vue': 2.1.15(vue@3.5.34(typescript@5.9.3))
       '@vueuse/core': 14.3.0(vue@3.5.34(typescript@5.9.3))
-      '@vueuse/integrations': 14.3.0(change-case@5.4.4)(fuse.js@7.3.0)(sortablejs@1.14.0)(vue@3.5.34(typescript@5.9.3))
+      '@vueuse/integrations': 14.3.0(change-case@5.4.4)(fuse.js@7.3.0)(sortablejs@1.15.7)(vue@3.5.34(typescript@5.9.3))
       '@vueuse/shared': 14.3.0(vue@3.5.34(typescript@5.9.3))
       colortranslator: 5.0.0
       consola: 3.4.2
@@ -9368,7 +9380,7 @@ snapshots:
       '@vueuse/shared': 14.3.0(vue@3.5.34(typescript@5.9.3))
       vue: 3.5.34(typescript@5.9.3)
 
-  '@vueuse/integrations@14.3.0(change-case@5.4.4)(fuse.js@7.3.0)(sortablejs@1.14.0)(vue@3.5.34(typescript@5.9.3))':
+  '@vueuse/integrations@14.3.0(change-case@5.4.4)(fuse.js@7.3.0)(sortablejs@1.15.7)(vue@3.5.34(typescript@5.9.3))':
     dependencies:
       '@vueuse/core': 14.3.0(vue@3.5.34(typescript@5.9.3))
       '@vueuse/shared': 14.3.0(vue@3.5.34(typescript@5.9.3))
@@ -9376,7 +9388,7 @@ snapshots:
     optionalDependencies:
       change-case: 5.4.4
       fuse.js: 7.3.0
-      sortablejs: 1.14.0
+      sortablejs: 1.15.7
 
   '@vueuse/metadata@10.11.1': {}
 
@@ -12923,6 +12935,8 @@ snapshots:
   smob@1.6.2: {}
 
   sortablejs@1.14.0: {}
+
+  sortablejs@1.15.7: {}
 
   source-map-js@1.2.1: {}
 

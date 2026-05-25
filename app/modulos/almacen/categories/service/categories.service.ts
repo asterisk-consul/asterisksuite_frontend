@@ -5,8 +5,7 @@ import type {
   UpdateCategoryInput
 } from '~/modulos/almacen/categories/types/categories.types'
 
-const urlBase =
-  '/api/almacen/categories'
+const urlBase = '/api/almacen/categories'
 
 export const useCategoriesService = () => {
   const findAll = () => {
@@ -16,46 +15,40 @@ export const useCategoriesService = () => {
   }
 
   const findTree = () => {
-    return $fetch<CategoryTreeNode[]>(
-      `${urlBase}/tree`
-    )
+    return $fetch<CategoryTreeNode[]>(`${urlBase}/tree`)
   }
 
   const findOne = (id: string) => {
-    return $fetch<Category>(
-      `${urlBase}/${id}`
-    )
+    return $fetch<Category>(`${urlBase}/${id}`)
   }
 
-  const create = (
-    data: CreateCategoryInput
-  ) => {
+  const create = (data: CreateCategoryInput) => {
     return $fetch<Category>(urlBase, {
       method: 'POST',
       body: data
     })
   }
 
-  const update = (
+  const update = (id: string, data: UpdateCategoryInput) => {
+    return $fetch<Category>(`${urlBase}/${id}`, {
+      method: 'PATCH',
+      body: data
+    })
+  }
+  const reorder = async (
     id: string,
-    data: UpdateCategoryInput
+    payload: { parent_id: string | null; sort_order: number }
   ) => {
-    return $fetch<Category>(
-      `${urlBase}/${id}`,
-      {
-        method: 'PATCH',
-        body: data
-      }
-    )
+    return await $fetch(`/api/categories/${id}/reorder`, {
+      method: 'PATCH',
+      body: payload
+    })
   }
 
   const remove = (id: string) => {
-    return $fetch<void>(
-      `${urlBase}/${id}`,
-      {
-        method: 'DELETE'
-      }
-    )
+    return $fetch<void>(`${urlBase}/${id}`, {
+      method: 'DELETE'
+    })
   }
 
   return {
@@ -64,6 +57,7 @@ export const useCategoriesService = () => {
     findOne,
     create,
     update,
+    reorder,
     remove
   }
 }

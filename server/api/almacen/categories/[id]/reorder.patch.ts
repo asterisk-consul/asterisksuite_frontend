@@ -2,6 +2,10 @@ import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
   const id = event.context.params?.id
+  const body = await readBody(event)
 
-  return apiProxy(event, `/categories/${id}`)
+  return apiProxy(event, `/categories/${id}`, {
+    method: 'PATCH',
+    body
+  })
 })

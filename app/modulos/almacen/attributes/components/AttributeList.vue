@@ -1,36 +1,53 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 
-import type { Unit } from '~/modulos/almacen/units/types/units.types'
-import { useUnits } from '~/modulos/almacen/units/composable/useUnits'
+import type { Attribute } from '~/modulos/almacen/attributes/types/attributes.types'
 
-const { getUnitTypeLabel } = useUnits()
+import { AttributeType } from '~/modulos/almacen/attributes/types/attributes.types'
 
 interface Props {
-  units: Unit[]
+  attributes: Attribute[]
   loading?: boolean
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  toggle: [unit: Unit]
-  edit: [unit: Unit]
+  toggle: [attribute: Attribute]
+  edit: [attribute: Attribute]
 }>()
 
-const getItems = (unit: Unit): DropdownMenuItem[] => [
+function getAttributeTypeLabel(type: AttributeType) {
+  switch (type) {
+    case AttributeType.TEXT:
+      return 'Texto'
+
+    case AttributeType.NUMBER:
+      return 'Número'
+
+    case AttributeType.BOOLEAN:
+      return 'Booleano'
+
+    default:
+      return type
+  }
+}
+
+const getItems = (attribute: Attribute): DropdownMenuItem[] => [
   {
-    label: 'Editar Unidad',
+    label: 'Editar atributo',
     icon: 'i-lucide-pencil',
-    onSelect: () => emit('edit', unit)
+
+    onSelect: () => emit('edit', attribute)
   },
   {
-    label: unit.active ? 'Desactivar' : 'Activar',
-    icon: unit.active ? 'i-lucide-circle-off' : 'i-lucide-circle-check',
+    label: attribute.active ? 'Desactivar' : 'Activar',
 
-    color: unit.active ? ('error' as const) : ('success' as const),
+    icon: attribute.active ? 'i-lucide-circle-off' : 'i-lucide-circle-check',
 
-    onSelect: () => emit('toggle', unit)
+    color: attribute.active ? ('error' as const) : ('success' as const),
+
+    onSelect: () => emit('toggle', attribute)
   }
 ]
 </script>
@@ -70,46 +87,47 @@ const getItems = (unit: Unit): DropdownMenuItem[] => [
 
   <!-- Empty -->
   <div
-    v-else-if="!props.units.length"
+    v-else-if="!props.attributes.length"
     class="flex flex-col items-center justify-center py-16 text-center"
   >
     <UIcon name="i-lucide-box" class="size-10 text-muted mb-3" />
 
-    <h3 class="text-sm font-semibold">No se han creado unidades</h3>
+    <h3 class="text-sm font-semibold">No se han creado atributos</h3>
 
-    <p class="text-sm text-muted mt-1">Crea una nueva unidad para comenzar.</p>
+    <p class="text-sm text-muted mt-1">Crea un nuevo atributo para comenzar.</p>
   </div>
 
+  <!-- List -->
   <ul v-else role="list" class="divide-y divide-default">
     <li
-      v-for="unit in units"
-      :key="unit.id"
+      v-for="attribute in attributes"
+      :key="attribute.id"
       class="flex items-center justify-between gap-4 px-4 py-4"
     >
       <!-- Left -->
       <div class="flex items-center gap-3 min-w-0">
         <div
-          class="flex items-center justify-center size-10 rounded-lg bg-warning/10 text-warning font-bold"
+          class="flex items-center justify-center size-10 rounded-lg bg-primary/10 text-primary font-bold"
         >
-          {{ unit.symbol }}
+          {{ attribute.code }}
         </div>
 
         <div class="flex flex-col flex-1 min-w-0">
           <p class="font-medium truncate">
-            {{ unit.name }}
+            {{ attribute.name }}
           </p>
 
           <div class="flex items-center gap-2 mt-1">
             <UBadge color="neutral" variant="subtle" size="sm">
-              {{ getUnitTypeLabel(unit.unit_type) }}
+              {{ getAttributeTypeLabel(attribute.type) }}
             </UBadge>
 
             <UBadge
-              :color="unit.active ? 'success' : 'error'"
+              :color="attribute.active ? 'success' : 'error'"
               variant="soft"
               size="sm"
             >
-              {{ unit.active ? 'Activo' : 'Inactivo' }}
+              {{ attribute.active ? 'Activo' : 'Inactivo' }}
             </UBadge>
           </div>
         </div>
@@ -118,11 +136,11 @@ const getItems = (unit: Unit): DropdownMenuItem[] => [
       <!-- Right -->
       <div class="flex items-center gap-3">
         <UToggle
-          :model-value="unit.active"
-          @update:model-value="emit('toggle', unit)"
+          :model-value="attribute.active"
+          @update:model-value="emit('toggle', attribute)"
         />
 
-        <UDropdownMenu :items="getItems(unit)" :content="{ align: 'end' }">
+        <UDropdownMenu :items="getItems(attribute)" :content="{ align: 'end' }">
           <UButton
             icon="i-lucide-ellipsis-vertical"
             color="neutral"

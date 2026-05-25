@@ -9,141 +9,181 @@ import type {
   UpdateTagInput
 } from '~/modulos/almacen/tags/types/tags.types'
 
-export const useTagsStore = defineStore(
-  'tags',
-  () => {
-    const service = useTagsService()
+export const useTagsStore = defineStore('tags', () => {
+  const service = useTagsService()
 
-    const items = ref<Tag[]>([])
-    const current = ref<Tag | null>(null)
+  const items = ref<Tag[]>([])
+  const current = ref<Tag | null>(null)
 
-    const loading = ref(false)
+  const loading = ref(false)
 
-    // =========================
-    // COMPUTEDS
-    // =========================
+  const error = ref<string | null>(null)
 
-    const activeItems = computed(() =>
-      items.value.filter((i) => i.active !== false)
-    )
+  // =========================
+  // COMPUTEDS
+  // =========================
 
-    // =========================
-    // LOAD ALL
-    // =========================
+  const activeItems = computed(() =>
+    items.value.filter((i) => i.active !== false)
+  )
 
-    const fetchAll = async () => {
-      try {
-        loading.value = true
+  // =========================
+  // HELPERS
+  // =========================
 
-        items.value = await service.findAll()
+  const handleError = (err: any) => {
+    console.error(err)
 
-        return items.value
-      } finally {
-        loading.value = false
-      }
+    error.value =
+      err?.data?.message || err?.message || 'Ocurrió un error inesperado'
+
+    throw err
+  }
+
+  const clearError = () => {
+    error.value = null
+  }
+
+  // =========================
+  // LOAD ALL
+  // =========================
+
+  const fetchAll = async () => {
+    try {
+      loading.value = true
+
+      clearError()
+
+      items.value = await service.findAll()
+
+      return items.value
+    } catch (err) {
+      handleError(err)
+    } finally {
+      loading.value = false
     }
+  }
 
-    // =========================
-    // LOAD ONE
-    // =========================
+  // =========================
+  // LOAD ONE
+  // =========================
 
-    const fetchOne = async (id: string) => {
-      try {
-        loading.value = true
+  const fetchOne = async (id: string) => {
+    try {
+      loading.value = true
 
-        const data = await service.findOne(id)
+      clearError()
 
-        current.value = data
+      const data = await service.findOne(id)
 
-        return data
-      } finally {
-        loading.value = false
-      }
+      current.value = data
+
+      return data
+    } catch (err) {
+      handleError(err)
+    } finally {
+      loading.value = false
     }
+  }
 
-    // =========================
-    // CREATE
-    // =========================
+  // =========================
+  // CREATE
+  // =========================
 
-    const create = async (
-      payload: CreateTagInput
-    ) => {
-      const created = await service.create(
-        payload
-      )
+  const create = async (payload: CreateTagInput) => {
+    try {
+      loading.value = true
+
+      clearError()
+
+      const created = await service.create(payload)
 
       items.value.push(created)
 
-      items.value.sort((a, b) =>
-        a.name.localeCompare(b.name)
-      )
+      items.value.sort((a, b) => a.name.localeCompare(b.name))
 
       return created
+    } catch (err) {
+      handleError(err)
+    } finally {
+      loading.value = false
     }
+  }
 
-    // =========================
-    // UPDATE
-    // =========================
+  // =========================
+  // UPDATE
+  // =========================
 
-    const update = async (
-      id: string,
-      payload: UpdateTagInput
-    ) => {
-      const updated = await service.update(
-        id,
-        payload
-      )
+  const update = async (id: string, payload: UpdateTagInput) => {
+    try {
+      loading.value = true
 
-      const index = items.value.findIndex(
-        (i) => i.id === id
-      )
+      clearError()
+
+      const updated = await service.update(id, payload)
+
+      const index = items.value.findIndex((i) => i.id === id)
 
       if (index !== -1) {
         items.value[index] = updated
       }
 
-      items.value.sort((a, b) =>
-        a.name.localeCompare(b.name)
-      )
+      items.value.sort((a, b) => a.name.localeCompare(b.name))
 
       if (current.value?.id === id) {
         current.value = updated
       }
 
       return updated
+    } catch (err) {
+      handleError(err)
+    } finally {
+      loading.value = false
     }
+  }
 
-    // =========================
-    // DELETE
-    // =========================
+  // =========================
+  // DELETE
+  // =========================
 
-    const remove = async (id: string) => {
+  const remove = async (id: string) => {
+    try {
+      loading.value = true
+
+      clearError()
+
       await service.remove(id)
 
-      items.value = items.value.filter(
-        (i) => i.id !== id
-      )
+      items.value = items.value.filter((i) => i.id !== id)
 
       if (current.value?.id === id) {
         current.value = null
       }
-    }
-
-    return {
-      // state
-      items,
-      current,
-      loading,
-
-      // computed
-      activeItems,
-
-      // actions
-      fetchAll,
-      fetchOne,
-      create,
-      update,
-      remove
+    } catch (err) {
+      handleError(err)
+    } finally {
+      loading.value = false
     }
   }
-)
+
+  return {
+    // state
+    items,
+    current,
+    loading,
+    error,
+
+    // computed
+    activeItems,
+
+    // helpers
+    clearError,
+
+    // actions
+    fetchAll,
+    fetchOne,
+    create,
+    update,
+    remove
+  }
+})

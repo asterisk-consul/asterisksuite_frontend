@@ -6,110 +6,135 @@ import { useAttributesService } from '~/modulos/almacen/attributes/service/attri
 import type {
   Attribute,
   CreateAttributeInput,
-  UpdateAttributeInput,
-  AttributeType
+  UpdateAttributeInput
 } from '~/modulos/almacen/attributes/types/attributes.types'
 
-export const useAttributesStore = defineStore(
-  'attributes',
-  () => {
-    const service = useAttributesService()
+import { AttributeType } from '~/modulos/almacen/attributes/types/attributes.types'
 
-    const items = ref<Attribute[]>([])
-    const current = ref<Attribute | null>(null)
+export const useAttributesStore = defineStore('attributes', () => {
+  const service = useAttributesService()
 
-    const loading = ref(false)
+  const items = ref<Attribute[]>([])
+  const current = ref<Attribute | null>(null)
 
-    // =========================
-    // COMPUTEDS
-    // =========================
+  const loading = ref(false)
 
-    const activeItems = computed(() =>
-      items.value.filter((i) => i.active !== false)
-    )
+  const error = ref<string | null>(null)
 
-    const textAttributes = computed(() =>
-      items.value.filter(
-        (i) => i.type === 'TEXT'
-      )
-    )
+  // =========================
+  // COMPUTEDS
+  // =========================
 
-    const numericAttributes = computed(() =>
-      items.value.filter(
-        (i) => i.type === 'NUMBER'
-      )
-    )
+  const activeItems = computed(() =>
+    items.value.filter((i) => i.active !== false)
+  )
 
-    const booleanAttributes = computed(() =>
-      items.value.filter(
-        (i) => i.type === 'BOOLEAN'
-      )
-    )
+  const textAttributes = computed(() =>
+    items.value.filter((i) => i.type === AttributeType.TEXT)
+  )
 
-    // =========================
-    // LOAD ALL
-    // =========================
+  const numericAttributes = computed(() =>
+    items.value.filter((i) => i.type === AttributeType.NUMBER)
+  )
 
-    const fetchAll = async () => {
-      try {
-        loading.value = true
+  const booleanAttributes = computed(() =>
+    items.value.filter((i) => i.type === AttributeType.BOOLEAN)
+  )
 
-        items.value = await service.findAll()
+  // =========================
+  // HELPERS
+  // =========================
 
-        return items.value
-      } finally {
-        loading.value = false
-      }
+  const handleError = (err: any) => {
+    console.error(err)
+
+    error.value =
+      err?.data?.message || err?.message || 'Ocurrió un error inesperado'
+
+    throw err
+  }
+
+  const clearError = () => {
+    error.value = null
+  }
+
+  // =========================
+  // LOAD ALL
+  // =========================
+
+  const fetchAll = async () => {
+    try {
+      loading.value = true
+
+      clearError()
+
+      items.value = await service.findAll()
+
+      return items.value
+    } catch (err) {
+      handleError(err)
+    } finally {
+      loading.value = false
     }
+  }
 
-    // =========================
-    // LOAD ONE
-    // =========================
+  // =========================
+  // LOAD ONE
+  // =========================
 
-    const fetchOne = async (id: string) => {
-      try {
-        loading.value = true
+  const fetchOne = async (id: string) => {
+    try {
+      loading.value = true
 
-        const data = await service.findOne(id)
+      clearError()
 
-        current.value = data
+      const data = await service.findOne(id)
 
-        return data
-      } finally {
-        loading.value = false
-      }
+      current.value = data
+
+      return data
+    } catch (err) {
+      handleError(err)
+    } finally {
+      loading.value = false
     }
+  }
 
-    // =========================
-    // CREATE
-    // =========================
+  // =========================
+  // CREATE
+  // =========================
 
-    const create = async (
-      payload: CreateAttributeInput
-    ) => {
+  const create = async (payload: CreateAttributeInput) => {
+    try {
+      loading.value = true
+
+      clearError()
+
       const created = await service.create(payload)
 
       items.value.unshift(created)
 
       return created
+    } catch (err) {
+      handleError(err)
+    } finally {
+      loading.value = false
     }
+  }
 
-    // =========================
-    // UPDATE
-    // =========================
+  // =========================
+  // UPDATE
+  // =========================
 
-    const update = async (
-      id: string,
-      payload: UpdateAttributeInput
-    ) => {
-      const updated = await service.update(
-        id,
-        payload
-      )
+  const update = async (id: string, payload: UpdateAttributeInput) => {
+    try {
+      loading.value = true
 
-      const index = items.value.findIndex(
-        (i) => i.id === id
-      )
+      clearError()
+
+      const updated = await service.update(id, payload)
+
+      const index = items.value.findIndex((i) => i.id === id)
 
       if (index !== -1) {
         items.value[index] = updated
@@ -120,42 +145,58 @@ export const useAttributesStore = defineStore(
       }
 
       return updated
+    } catch (err) {
+      handleError(err)
+    } finally {
+      loading.value = false
     }
+  }
 
-    // =========================
-    // DELETE
-    // =========================
+  // =========================
+  // DELETE
+  // =========================
 
-    const remove = async (id: string) => {
+  const remove = async (id: string) => {
+    try {
+      loading.value = true
+
+      clearError()
+
       await service.remove(id)
 
-      items.value = items.value.filter(
-        (i) => i.id !== id
-      )
+      items.value = items.value.filter((i) => i.id !== id)
 
       if (current.value?.id === id) {
         current.value = null
       }
-    }
-
-    return {
-      // state
-      items,
-      current,
-      loading,
-
-      // computed
-      activeItems,
-      textAttributes,
-      numericAttributes,
-      booleanAttributes,
-
-      // actions
-      fetchAll,
-      fetchOne,
-      create,
-      update,
-      remove
+    } catch (err) {
+      handleError(err)
+    } finally {
+      loading.value = false
     }
   }
-)
+
+  return {
+    // state
+    items,
+    current,
+    loading,
+    error,
+
+    // computed
+    activeItems,
+    textAttributes,
+    numericAttributes,
+    booleanAttributes,
+
+    // helpers
+    clearError,
+
+    // actions
+    fetchAll,
+    fetchOne,
+    create,
+    update,
+    remove
+  }
+})
