@@ -30,6 +30,12 @@ const links = [
       icon: 'i-lucide-hash',
       to: '/logistica/warehouse/productos/settings/tags',
       exact: true
+    },
+    {
+      label: 'Pureba',
+      icon: 'i-lucide-hash',
+      to: '/logistica/warehouse/productos/settings/pureba',
+      exact: true
     }
   ]
 ] satisfies NavigationMenuItem[][]
