@@ -1,38 +1,48 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { useProductsService } from '~/modulos/logistica/master-data/product/product.service'
+import { useProductsService } from '~/modulos/logistica/master-data/product/service/product.service'
 
 import type {
   Product,
   ProductRoot,
   CreateProductInput,
   UpdateProductInput
-} from '~/modulos/logistica/master-data/product/product.types'
+} from '~/modulos/logistica/master-data/product/types/product.types'
 
 export const useProductsStore = defineStore('products', () => {
   const service = useProductsService()
 
+  // =========================
+  // STATE
+  // =========================
+
   const items = ref<Product[]>([])
+
   const current = ref<Product | null>(null)
 
-  // ACA ESTABA MAL
-  // porque el endpoint devuelve MUCHOS root products
   const roots = ref<ProductRoot[]>([])
 
   const loading = ref(false)
+
   const error = ref<string | null>(null)
 
   // =========================
   // LOAD ALL
   // =========================
+
   const fetchAll = async () => {
     try {
       loading.value = true
+      error.value = null
 
       items.value = await service.findAll()
+
+      return items.value
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al cargar productos'
+
+      throw err
     } finally {
       loading.value = false
     }
@@ -41,9 +51,11 @@ export const useProductsStore = defineStore('products', () => {
   // =========================
   // LOAD ONE
   // =========================
+
   const fetchOne = async (id: string) => {
     try {
       loading.value = true
+      error.value = null
 
       const data = await service.findOne(id)
 
@@ -52,6 +64,7 @@ export const useProductsStore = defineStore('products', () => {
       return data
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al cargar producto'
+
       throw err
     } finally {
       loading.value = false
@@ -61,9 +74,11 @@ export const useProductsStore = defineStore('products', () => {
   // =========================
   // CREATE
   // =========================
+
   const create = async (payload: CreateProductInput) => {
     try {
       loading.value = true
+      error.value = null
 
       const created = await service.create(payload)
 
@@ -72,6 +87,7 @@ export const useProductsStore = defineStore('products', () => {
       return created
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al crear producto'
+
       throw err
     } finally {
       loading.value = false
@@ -81,9 +97,11 @@ export const useProductsStore = defineStore('products', () => {
   // =========================
   // UPDATE
   // =========================
+
   const update = async (id: string, payload: UpdateProductInput) => {
     try {
       loading.value = true
+      error.value = null
 
       const updated = await service.update(id, payload)
 
@@ -100,6 +118,7 @@ export const useProductsStore = defineStore('products', () => {
       return updated
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al actualizar producto'
+
       throw err
     } finally {
       loading.value = false
@@ -109,9 +128,11 @@ export const useProductsStore = defineStore('products', () => {
   // =========================
   // DELETE
   // =========================
+
   const remove = async (id: string) => {
     try {
       loading.value = true
+      error.value = null
 
       await service.remove(id)
 
@@ -122,6 +143,7 @@ export const useProductsStore = defineStore('products', () => {
       }
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al eliminar producto'
+
       throw err
     } finally {
       loading.value = false
@@ -131,9 +153,11 @@ export const useProductsStore = defineStore('products', () => {
   // =========================
   // ROOT PRODUCTS
   // =========================
+
   const fetchRootProducts = async (id: string) => {
     try {
       loading.value = true
+      error.value = null
 
       const data = await service.getRootProducts(id)
 
@@ -142,6 +166,7 @@ export const useProductsStore = defineStore('products', () => {
       return data
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al cargar root products'
+
       throw err
     } finally {
       loading.value = false
@@ -149,6 +174,7 @@ export const useProductsStore = defineStore('products', () => {
   }
 
   return {
+    // state
     items,
     current,
     roots,
@@ -156,8 +182,10 @@ export const useProductsStore = defineStore('products', () => {
     loading,
     error,
 
+    // actions
     fetchAll,
     fetchOne,
+
     create,
     update,
     remove,

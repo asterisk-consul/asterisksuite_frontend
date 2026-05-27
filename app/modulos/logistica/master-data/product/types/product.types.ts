@@ -3,12 +3,18 @@
 export type ProductType =
   | 'RAW_MATERIAL'
   | 'FINISHED_PRODUCT'
+  | 'SEMI_FINISHED'
   | 'SERVICE'
   | 'CONSUMABLE'
 
-export type ProductCostSource = 'MANUAL' | 'PURCHASE' | 'ENGINEERING' | 'BOM'
+export type ProductCostSource =
+  | 'MANUAL'
+  | 'PURCHASE'
+  | 'ENGINEERING'
+  | 'BOM'
+  | 'RATE'
 
-export type CalculationType = 'UNIT' | 'AREA' | 'VOLUME' | 'WEIGHT' | 'LENGTH'
+export type CalculationType = 'UNIT' | 'SURFASE' | 'VOLUME' | 'LINEAR'
 
 import type { Account } from '~/modulos/contabilidad/types/accounts.types'
 import type { Category } from '~/modulos/almacen/categories/types/categories.types'
@@ -17,18 +23,8 @@ import type { ProductTag } from '~/modulos/logistica/master-data/product-tags/ty
 import type { ProductAttributeValue } from '~/modulos/logistica/master-data/product-attribute-values/types/product-attribute-values.types'
 import type { ProductComponent } from '~/modulos/logistica/master-data/product-components/types/product-components.types'
 import type { TransferRate } from '~/modulos/logistica/transport/transfer-rates/transfer-rates.types'
+import type { ProductPrice } from '~/modulos/logistica/master-data/product-price/types/product-price.types'
 
-export interface ProductPrice {
-  id: string
-  product_id: string
-  price: number
-
-  // opcional pero recomendable si lo tenés
-  is_default?: boolean
-
-  created_at?: string
-  updated_at?: string
-}
 export interface ProductRoot {
   id: string
   name: string
@@ -125,15 +121,10 @@ export interface Product {
 }
 
 export interface RootProductReference {
-  root_product_id: string
-
+  id: string
+  name: string
+  sku: string
   level: number
-
-  root_product: {
-    id: string
-    name: string
-    sku?: string | null
-  }
 }
 
 export interface CreateProductDto {

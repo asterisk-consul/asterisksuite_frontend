@@ -1,4 +1,4 @@
-import type { Product } from '~/modulos/logistica/master-data/product/product.types'
+import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
 
 import type { ProductVariant } from '~/modulos/logistica/master-data/product-variants/types/product-variants.types'
 

@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { Product } from '~/modulos/logistica/master-data/product/product.types'
+import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
 
 export interface ProductSelectItem {
   label: string
@@ -30,6 +30,7 @@ export function useProducts(products: Ref<Product[]>) {
       }
     })
   )
+  const total = computed(() => items.value.length)
 
-  return { items }
+  return { items, total }
 }

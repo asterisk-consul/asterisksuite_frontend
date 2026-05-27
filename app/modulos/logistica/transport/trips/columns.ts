@@ -70,7 +70,6 @@ export const tripsColumns = (actions: {
 
   return [
     useSelectColumn<Row>(),
-
     useIdColumn<Row>(actions.onEdit),
 
     ...build([

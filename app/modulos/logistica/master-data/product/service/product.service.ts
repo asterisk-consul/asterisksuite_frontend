@@ -3,14 +3,26 @@ import type {
   ProductRoot,
   CreateProductInput,
   UpdateProductInput
-} from '~/modulos/logistica/master-data/product/product.types'
+} from '~/modulos/logistica/master-data/product/types/product.types'
 
 const baseUrl = '/api/logistica/master-data/products'
 
 export const useProductsService = () => {
+  // =========================
+  // FIND ALL
+  // =========================
+
   const findAll = () => $fetch<Product[]>(baseUrl)
 
+  // =========================
+  // FIND ONE
+  // =========================
+
   const findOne = (id: string) => $fetch<Product>(`${baseUrl}/${id}`)
+
+  // =========================
+  // CREATE
+  // =========================
 
   const create = (payload: CreateProductInput) =>
     $fetch<Product>(baseUrl, {
@@ -18,20 +30,31 @@ export const useProductsService = () => {
       body: payload
     })
 
+  // =========================
+  // UPDATE
+  // =========================
+
   const update = (id: string, payload: UpdateProductInput) =>
     $fetch<Product>(`${baseUrl}/${id}`, {
       method: 'PATCH',
       body: payload
     })
 
+  // =========================
+  // DELETE
+  // =========================
+
   const remove = (id: string) =>
     $fetch<void>(`${baseUrl}/${id}`, {
       method: 'DELETE'
     })
 
-  const getRootProducts = async (id: string) => {
-    return await $fetch<ProductRoot[]>(`${baseUrl}/${id}/root-products`)
-  }
+  // =========================
+  // ROOT PRODUCTS
+  // =========================
+
+  const getRootProducts = (id: string) =>
+    $fetch<ProductRoot[]>(`${baseUrl}/${id}/root-products`)
 
   return {
     findAll,

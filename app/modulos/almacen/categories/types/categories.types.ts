@@ -16,8 +16,7 @@ export interface Category {
   deleted_at?: string | null
 }
 
-export interface CategoryTreeNode
-  extends Category {
+export interface CategoryTreeNode extends Category {
   children: CategoryTreeNode[]
   level?: number
 }
@@ -32,5 +31,4 @@ export interface CreateCategoryInput {
   active?: boolean
 }
 
-export interface UpdateCategoryInput
-  extends Partial<CreateCategoryInput> {}
+export interface UpdateCategoryInput extends Partial<CreateCategoryInput> {}

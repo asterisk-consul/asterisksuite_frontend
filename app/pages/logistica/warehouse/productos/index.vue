@@ -3,14 +3,13 @@ definePageMeta({
   layout: 'logistica',
   middleware: ['auth']
 })
-import { useProductsStore } from '~/modulos/logistica/master-data/product/products.store'
-import { columns } from '../../../../modulos/logistica/master-data/product/columns'
+import type { ButtonProps } from '@nuxt/ui'
+import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
+import { productColumns } from '~/modulos/logistica/master-data/product/columns'
 import { productFormFields } from '~/modulos/logistica/master-data/product/productFormFields'
-import { useProductsMetrics } from '~/modulos/logistica/master-data/product/useProductsMetrics'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
-import type { ButtonProps } from '@nuxt/ui'
 function toggleModuleSidebar() {
   moduleCollapsed.value = !moduleCollapsed.value
 }
@@ -18,9 +17,17 @@ function toggleModuleSidebar() {
 const store = useProductsStore()
 
 const { items } = storeToRefs(store)
-const metrics = useProductsMetrics(items)
 const open = ref(false)
 const loading = ref(true)
+const router = useRouter()
+
+const openEdit = (row: any) => {
+  router.push(`/logistica/warehouse/productos/${row.id}/edit`)
+}
+
+const columns = productColumns({
+  onEdit: openEdit
+})
 
 onMounted(async () => {
   await store.fetchAll()
