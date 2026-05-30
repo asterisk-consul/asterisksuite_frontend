@@ -70,20 +70,10 @@ const links: ButtonProps[] = [
           @click="toggleModuleSidebar"
         />
       </div>
-      <UPageHeader
-        title="Productos"
-        description="Listado de Productos"
-        :links="links"
-        class="mb-4 w-full"
-      />
+      <UPageHeader title="Productos" description="Listado de Productos" :links="links" class="mb-4 w-full" />
     </div>
     <LogisticaTable :loading="loading" :data="items" :columns="columns" />
   </UPage>
 
-  <ModalForm
-    v-model:open="open"
-    :fields="productFormFields"
-    title="Nueva Locacion"
-    @submit="saveLocation"
-  />
+  <ModalForm v-model:open="open" :fields="productFormFields" title="Nueva Locacion" @submit="saveLocation" />
 </template>

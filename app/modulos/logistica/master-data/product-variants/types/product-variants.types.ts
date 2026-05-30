@@ -31,12 +31,7 @@ export interface ProductVariantPrice {
  * VARIANT COST
  * ========================================= */
 
-export type VariantCostSource =
-  | 'MANUAL'
-  | 'PURCHASE'
-  | 'IMPORT'
-  | 'ENGINEERING'
-  | 'SUPPLIER'
+export type VariantCostSource = 'MANUAL' | 'PURCHASE' | 'IMPORT' | 'ENGINEERING' | 'SUPPLIER'
 
 export interface ProductVariantCost {
   id: string
@@ -72,55 +67,36 @@ export interface ProductVariantCost {
 
 export interface ProductVariant {
   id: string
-
   product_id: string
-
   name?: string | null
-
   sku?: string | null
-
   thickness_mm?: number | null
-
   density_kg_m3?: number | null
-
   weight_kg?: number | null
-
+  weight_per_m2_kg?: number | null
+  weight_per_meter_kg?: number | null
   active?: boolean
-
   // RELATIONS
   products?: Product
-
   product_attribute_values?: ProductAttributeValue[]
-
   productVariantPrices?: ProductVariantPrice[]
-
   productVariantCosts?: ProductVariantCost[]
-
   // AUDIT
   created_at?: string
-
   updated_at?: string | null
-
   deleted_at?: string | null
 }
-
 /* =========================================
  * CREATE INPUT
  * ========================================= */
 
 export interface CreateProductVariantInput {
   product_id: string
-
   name?: string
-
   sku?: string
-
   thickness_mm?: number
-
   density_kg_m3?: number
-
   weight_kg?: number
-
   active?: boolean
 }
 

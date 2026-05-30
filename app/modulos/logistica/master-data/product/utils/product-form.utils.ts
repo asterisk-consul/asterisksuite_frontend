@@ -1,8 +1,9 @@
-import type { CreateProductDto } from '~/modulos/logistica/master-data/product/types/product.types'
+import type { ProductFormState } from '~/modulos/logistica/master-data/product/types/product-form.types'
 
-export function createDefaultProductForm(): CreateProductDto {
+export function createDefaultProductForm(): ProductFormState {
   return {
     name: '',
+
     sku: '',
 
     requires_refrigeration: false,
@@ -10,10 +11,6 @@ export function createDefaultProductForm(): CreateProductDto {
     price_enabled: true,
 
     is_rate_type: false,
-
-    rate_id: undefined,
-
-    taxId: undefined,
 
     active: true,
 
@@ -27,12 +24,15 @@ export function createDefaultProductForm(): CreateProductDto {
 
     manages_stock: true,
 
-    income_account_id: undefined,
-    expense_account_id: undefined,
-    inventory_account_id: undefined,
-
     calculation_type: 'UNIT',
 
-    cost_source: 'MANUAL'
+    cost_source: 'MANUAL',
+
+    // =========================
+    // RELATIONS
+    // =========================
+
+    category_ids: [],
+    tag_ids: []
   }
 }

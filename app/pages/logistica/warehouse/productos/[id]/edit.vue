@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import ProductForm from '~/modulos/logistica/master-data/product/components/ProductForm.vue'
-import type {
-  Product,
-  CreateProductDto
-} from '~/modulos/logistica/master-data/product/types/product.types'
+import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
+import type { ProductFormState } from '~/modulos/logistica/master-data/product/types/product-form.types'
 import { createDefaultProductForm } from '~/modulos/logistica/master-data/product/utils/product-form.utils'
 
 const productStore = useProductsStore()
@@ -12,28 +10,53 @@ const route = useRoute()
 const id = route.params.id as string
 const loading = ref(false)
 const product = ref<Product | null>(null)
-const form = ref<CreateProductDto>(createDefaultProductForm())
+const form = ref<ProductFormState>(createDefaultProductForm())
 
-function mapProductToForm(product: Product): CreateProductDto {
+function mapProductToForm(product: Product): ProductFormState {
   return {
     name: product.name,
+
     sku: product.sku ?? '',
+
     requires_refrigeration: product.requires_refrigeration ?? false,
+
     price_enabled: product.price_enabled,
+
     is_rate_type: product.is_rate_type,
+
     rate_id: product.rate_id ?? undefined,
+
     taxId: product.taxId ?? undefined,
+
     active: product.active ?? true,
+
     product_type: product.product_type,
+
     is_composed: product.is_composed,
+
     auto_calculate_cost: product.auto_calculate_cost,
+
     has_engineering: product.has_engineering,
+
     manages_stock: product.manages_stock,
+
     income_account_id: product.income_account_id ?? undefined,
+
     expense_account_id: product.expense_account_id ?? undefined,
+
     inventory_account_id: product.inventory_account_id ?? undefined,
+
     calculation_type: product.calculation_type ?? 'UNIT',
-    cost_source: product.cost_source
+
+    cost_source: product.cost_source,
+
+    // =========================
+    // CATEGORIES
+    // =========================
+
+    category_ids:
+      product.product_categories?.map((item) => item.category_id) || [],
+    tag_ids: product.product_tags?.map((item) => item.tag_id) || []
   }
 }
 

@@ -5,5 +5,7 @@ export default defineEventHandler(async (event) => {
 
   const tagId = event.context.params?.tagId
 
-  return apiProxy(event, `/erp/product-tags/${productId}/${tagId}`)
+  return apiProxy(event, `/erp/product-tags/${productId}/${tagId}`, {
+    method: 'DELETE'
+  })
 })

@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import type { CreateProductDto } from '~/modulos/logistica/master-data/product/types/product.types'
+import type { ProductFormState } from '~/modulos/logistica/master-data/product/types/product-form.types'
+import ProductCategorySelect from '~/modulos/logistica/master-data/product-categories/components/ProductCategorySelect.vue'
+import ProductTagsSelect from '~/modulos/logistica/master-data/product-tags/components/ProductTagSelect.vue'
+import type { Category } from '~/modulos/almacen/categories/types/categories.types'
+import type { ProductTag } from '~/modulos/logistica/master-data/product-tags/types/product-tags.types'
 
-const form = defineModel<CreateProductDto>({
+defineProps<{
+  categories: Category[]
+  tags: ProductTag[]
+}>()
+
+const form = defineModel<ProductFormState>({
   required: true
 })
 
@@ -72,6 +81,16 @@ const calculationTypeOptions = [
         :items="calculationTypeOptions"
         class="w-full"
       />
+    </UFormField>
+
+    <UFormField label="Categorías">
+      <ProductCategorySelect
+        v-model="form.category_ids"
+        :categories="categories"
+      />
+    </UFormField>
+    <UFormField label="Tags">
+      <ProductTagsSelect v-model="form.tag_ids" :tags="tags" />
     </UFormField>
 
     <div class="md:col-span-2">

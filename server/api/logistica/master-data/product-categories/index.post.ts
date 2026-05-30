@@ -1,5 +1,9 @@
 import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
-  return apiProxy(event, '/product-categories')
+  const body = await readBody(event)
+  return apiProxy(event, '/product-categories', {
+    method: 'POST',
+    body
+  })
 })

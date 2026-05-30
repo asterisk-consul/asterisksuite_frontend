@@ -1,18 +1,8 @@
 // types/products.ts
 
-export type ProductType =
-  | 'RAW_MATERIAL'
-  | 'FINISHED_PRODUCT'
-  | 'SEMI_FINISHED'
-  | 'SERVICE'
-  | 'CONSUMABLE'
+export type ProductType = 'RAW_MATERIAL' | 'FINISHED_PRODUCT' | 'SEMI_FINISHED' | 'SERVICE' | 'CONSUMABLE'
 
-export type ProductCostSource =
-  | 'MANUAL'
-  | 'PURCHASE'
-  | 'ENGINEERING'
-  | 'BOM'
-  | 'RATE'
+export type ProductCostSource = 'MANUAL' | 'PURCHASE' | 'ENGINEERING' | 'BOM' | 'RATE'
 
 export type CalculationType = 'UNIT' | 'SURFASE' | 'VOLUME' | 'LINEAR'
 
@@ -164,9 +154,6 @@ export interface CreateProductDto {
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}
 
-export type CreateProductInput = Omit<
-  Product,
-  'id' | 'created_at' | 'updated_at'
->
+export type CreateProductInput = Omit<Product, 'id' | 'created_at' | 'updated_at'>
 
 export type UpdateProductInput = Partial<CreateProductInput>

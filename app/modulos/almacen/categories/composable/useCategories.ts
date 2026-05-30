@@ -11,9 +11,7 @@ export function useCategories(categories?: Ref<Category[]>) {
   // TAGS
   // =========================
 
-  const activeItems = computed(() =>
-    (categories?.value ?? []).filter((i) => i.active !== false)
-  )
+  const activeItems = computed(() => (categories?.value ?? []).filter((i) => i.active !== false))
 
   const items = computed<SelectMenuItem[]>(() =>
     activeItems.value.map((unit) => ({

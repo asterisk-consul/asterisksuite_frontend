@@ -20,5 +20,4 @@ export interface CreateTagInput {
   active?: boolean
 }
 
-export interface UpdateTagInput
-  extends Partial<CreateTagInput> {}
+export interface UpdateTagInput extends Partial<CreateTagInput> {}

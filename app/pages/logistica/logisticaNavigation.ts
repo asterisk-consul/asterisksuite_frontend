@@ -42,6 +42,11 @@ export const links: NavigationMenuItem[][] = [
           to: '/logistica/warehouse/productos/'
         },
         {
+          label: 'Costos',
+          icon: 'i-heroicons-location-marker',
+          to: '/logistica/warehouse/productos/costos'
+        },
+        {
           label: 'Configuraciones',
           icon: 'i-heroicons-cog-6-tooth',
           to: '/logistica/warehouse/productos/settings/'

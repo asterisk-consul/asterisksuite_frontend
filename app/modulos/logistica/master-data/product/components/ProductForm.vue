@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CreateProductDto } from '~/modulos/logistica/master-data/product/types/product.types'
+import type { ProductFormState } from '~/modulos/logistica/master-data/product/types/product-form.types'
 
 import ProductGeneralTab from '~/modulos/logistica/master-data/product/components/tabs/ProductGeneralTab.vue'
 import ProductInventoryTab from '~/modulos/logistica/master-data/product/components/tabs/ProductInventoryTab.vue'
@@ -7,12 +7,13 @@ import ProductAccountingTab from '~/modulos/logistica/master-data/product/compon
 import ProductAdvancedTab from '~/modulos/logistica/master-data/product/components/tabs/ProductAdvancedTab.vue'
 import RootCard from '~/modulos/logistica/master-data/product/components/tabs/RootCard.vue'
 import ProductPriceTab from '~/modulos/logistica/master-data/product/components/tabs/ProductPriceTab.vue'
+import ProductVariantTable from '~/modulos/logistica/master-data/product-variants/components/ProductVariantTable.vue'
 
 import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
 
 type Mode = 'create' | 'edit'
 
-const form = defineModel<CreateProductDto>({
+const form = defineModel<ProductFormState>({
   required: true
 })
 
@@ -42,6 +43,7 @@ const submitText = computed(() => {
 })
 
 const tabs = [
+  { label: 'Variables', slot: 'variables', icon: 'i-lucide-settings-2' },
   {
     label: 'Productos relacionados',
     slot: 'relaciones',
@@ -79,6 +81,14 @@ const tabs = [
     <!-- ========================= -->
 
     <UTabs :items="tabs" variant="link" class="w-full">
+      <template #accounting>
+        <ProductAccountingTab v-model="form" />
+      </template>
+
+      <template #variables>
+        <ProductVariantTable :product="props.product" />
+      </template>
+
       <template #relaciones>
         <RootCard :product="props.product" />
       </template>
@@ -89,10 +99,6 @@ const tabs = [
 
       <template #inventory>
         <ProductInventoryTab v-model="form" />
-      </template>
-
-      <template #accounting>
-        <ProductAccountingTab v-model="form" />
       </template>
 
       <template #advanced>
