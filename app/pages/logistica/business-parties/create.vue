@@ -39,6 +39,11 @@ const handleSubmit = async (form: FormType) => {
   <div class="p-4 max-w-3xl mx-auto">
     <h1 class="text-xl font-semibold mb-4">Crear Cliente / Proveedor</h1>
 
-    <BusinessPartyForm @submit="handleSubmit" />
+    <BusinessPartyForm
+      :loading="saving"
+      :error="store.error"
+      :errors="store.errors"
+      @submit="handleSubmit"
+    />
   </div>
 </template>

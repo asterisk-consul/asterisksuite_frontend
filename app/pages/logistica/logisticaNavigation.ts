@@ -61,7 +61,7 @@ export const links: NavigationMenuItem[][] = [
       ]
     },
     {
-      label: 'Clientes',
+      label: 'Partes interesadas',
       icon: 'i-heroicons-building-office-2',
       to: '/logistica/business-parties/',
       children: [

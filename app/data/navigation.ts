@@ -18,8 +18,8 @@ export const navigationLinks = [
       icon: 'i-lucide-receipt',
       defaultOpen: false,
       children: [
-        { label: 'Facturas', to: '/erp/sales' },
-        { label: 'Nueva factura', to: '/erp/sales/new' },
+        { label: 'Comprobantes', to: '/erp/sales' },
+        { label: 'Clientes', to: '/erp/sales/customers' },
         {
           label: 'Resumen de productos vendidos',
           to: '/erp/sales/sales-reports/salesProducts'

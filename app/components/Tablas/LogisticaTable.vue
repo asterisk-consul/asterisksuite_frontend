@@ -1,6 +1,11 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
+<<<<<<< Updated upstream
 import { sub } from 'date-fns'
 import { ref, computed, watch, onMounted } from 'vue'
+=======
+import { ref, computed, watch, onErrorCaptured } from 'vue'
+
+>>>>>>> Stashed changes
 import { getPaginationRowModel } from '@tanstack/vue-table'
 import type { ComponentPublicInstance } from 'vue'
 
@@ -108,6 +113,7 @@ function applyTextFilter(value: string, column: string) {
   api.getColumn(column)?.setFilterValue(value || undefined)
 }
 
+<<<<<<< Updated upstream
 /* ========================
    Aplicar filtros fecha rango
 ======================== */
@@ -180,6 +186,8 @@ watch(
   () => applyTextFilter('', selectedColumn.value)
 )
 
+=======
+>>>>>>> Stashed changes
 /* ========================
    Selección
 ======================== */
@@ -209,6 +217,17 @@ function confirmDelete(): void {
   rowSelection.value = {}
   showDeleteModal.value = false
 }
+
+/* ========================
+   Debug temporal
+======================== */
+
+onErrorCaptured((err, instance, info) => {
+  console.error('🔴 Componente:', instance?.$options.__name)
+  console.error('🔴 Info:', info)
+  console.error('🔴 Error:', err)
+  return false
+})
 </script>
 
 <template>
@@ -281,8 +300,10 @@ function confirmDelete(): void {
       </div>
       <UPagination
         size="sm"
-        :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
-        :items-per-page="table?.tableApi?.getState().pagination.pageSize"
+        :page="(table?.tableApi?.getState().pagination.pageIndex ?? 0) + 1"
+        :items-per-page="
+          table?.tableApi?.getState().pagination.pageSize ?? pagination.pageSize
+        "
         :total="totalCount"
         @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
       />
@@ -295,6 +316,7 @@ function confirmDelete(): void {
 
     <!-- Modal eliminar -->
     <DeleteConfirmModal
+      v-if="showDeleteModal"
       :open="showDeleteModal"
       :count="selectedCount"
       @confirm="confirmDelete"
