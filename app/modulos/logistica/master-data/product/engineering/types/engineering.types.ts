@@ -56,11 +56,11 @@ export interface EngineeringCalculationResult {
 export interface CreateEngineeringComponentDto {
   parent_product_id: string
   child_product_id: string
-  child_variant_id?: string
+  child_variant_id?: string | null
   quantity: number
-  unit_id?: string
-  length_mm?: number
-  width_mm?: number
-  height_mm?: number
-  waste_percentage?: number
+  unit_id?: string | null
+  length_mm?: number | null
+  width_mm?: number | null
+  height_mm?: number | null
+  waste_percentage?: number | null
 }

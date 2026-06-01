@@ -4,39 +4,57 @@ import type {
   CreateEngineeringComponentDto
 } from '~/modulos/logistica/master-data/product/engineering/types/engineering.types'
 
-const urlBase = '/api/engineering'
+// engineering/services/engineering.service.ts
+const urlBase = '/api/logistica/master-data/engineering'
 
 export const useEngineeringService = () => {
-  // =========================
-  // TREE
-  // =========================
+  const getTree = (productId: string) => $fetch<EngineeringTreeNode[]>(`${urlBase}/${productId}/tree`)
 
-  const getTree = (productId: string) => {
-    return $fetch<EngineeringTreeNode[]>(`${urlBase}/${productId}/tree`)
-  }
+  const calculate = (productId: string) =>
+    $fetch<EngineeringCalculationResult>(`${urlBase}/${productId}/calculate`, {
+      method: 'POST'
+    })
 
-  // =========================
-  // CALCULATE
-  // =========================
-
-  const calculate = (productId: string) => {
-    return $fetch<EngineeringCalculationResult>(`${urlBase}/${productId}/calculate`, { method: 'POST' })
-  }
-
-  // =========================
-  // CREATE COMPONENT
-  // =========================
-
-  const createComponent = (dto: CreateEngineeringComponentDto) => {
-    return $fetch<EngineeringTreeNode>(`${urlBase}/components`, {
+  const createComponent = (dto: CreateEngineeringComponentDto) =>
+    $fetch<EngineeringTreeNode>(`${urlBase}/components`, {
       method: 'POST',
       body: dto
+    })
+
+  const updateComponent = (id: string, dto: Partial<CreateEngineeringComponentDto>) =>
+    $fetch<EngineeringTreeNode>(`${urlBase}/components/${id}`, {
+      method: 'PATCH',
+      body: dto
+    })
+
+  const deleteComponent = (id: string) =>
+    $fetch<void>(`${urlBase}/components/${id}`, {
+      method: 'DELETE'
+    })
+
+  const reorderComponents = (items: { id: string; order: number }[]) =>
+    $fetch(`${urlBase}/components/reorder`, {
+      method: 'PATCH',
+      body: { items }
+    })
+
+  const moveComponent = (componentId: string, newParentProductId: string | null, productRootId: string) => {
+    return $fetch(`${urlBase}/components/${componentId}/move`, {
+      method: 'PATCH',
+      body: {
+        new_parent_product_id: newParentProductId,
+        product_root_id: productRootId
+      }
     })
   }
 
   return {
     getTree,
     calculate,
-    createComponent
+    createComponent,
+    updateComponent,
+    deleteComponent,
+    reorderComponents,
+    moveComponent
   }
 }

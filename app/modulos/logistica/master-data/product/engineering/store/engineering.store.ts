@@ -85,6 +85,63 @@ export const useEngineeringStore = defineStore('engineering', () => {
     }
   }
 
+  const reorder = async (items: { id: string; order: number }[]) => {
+    try {
+      loading.value = true
+      error.value = null
+      return await service.reorderComponents(items)
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al reordenar'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const moveComponent = async (componentId: string, newParentProductId: string | null, productRootId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      const result = await service.moveComponent(componentId, newParentProductId, productRootId)
+      await fetchTree(productRootId)
+      return result
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al mover componente'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const updateComponent = async (id: string, dto: Partial<CreateEngineeringComponentDto>, parentProductId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      const updated = await service.updateComponent(id, dto)
+      await fetchTree(parentProductId) // refrescar árbol
+      return updated
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al actualizar componente'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const deleteComponent = async (id: string, parentProductId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      await service.deleteComponent(id)
+      await fetchTree(parentProductId) // refrescar árbol
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al eliminar componente'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   // =========================
   // RESET
   // =========================
@@ -104,6 +161,10 @@ export const useEngineeringStore = defineStore('engineering', () => {
     error,
 
     // actions
+    moveComponent,
+    updateComponent,
+    deleteComponent,
+    reorder,
     fetchTree,
     calculate,
     createComponent,

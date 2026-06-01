@@ -22,9 +22,7 @@ export const useProductVariantsStore = defineStore('productVariants', () => {
   // COMPUTEDS
   // =========================
 
-  const activeItems = computed(() =>
-    items.value.filter((i) => i.active !== false)
-  )
+  const activeItems = computed(() => items.value.filter((i) => i.active !== false))
 
   const variantsWithSku = computed(() => items.value.filter((i) => !!i.sku))
 

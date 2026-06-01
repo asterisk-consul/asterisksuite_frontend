@@ -1,4 +1,7 @@
+import { computed } from 'vue'
+
 import { useEngineeringStore } from '../store/engineering.store'
+
 import type { CreateEngineeringComponentDto } from '../types/engineering.types'
 
 export const useEngineering = (productId: string) => {
@@ -29,7 +32,7 @@ export const useEngineering = (productId: string) => {
   }
 
   // =========================
-  // CREATE COMPONENT
+  // CREATE
   // =========================
 
   const addComponent = async (dto: Omit<CreateEngineeringComponentDto, 'parent_product_id'>) => {
@@ -40,18 +43,54 @@ export const useEngineering = (productId: string) => {
   }
 
   // =========================
+  // UPDATE
+  // =========================
+
+  const updateComponent = async (componentId: string, dto: Partial<CreateEngineeringComponentDto>) => {
+    return store.updateComponent(componentId, dto, productId)
+  }
+
+  // =========================
+  // DELETE
+  // =========================
+
+  const deleteComponent = async (componentId: string) => {
+    return store.deleteComponent(componentId, productId)
+  }
+
+  // =========================
+  // MOVE
+  // =========================
+
+  const moveComponent = async (componentId: string, newParentProductId: string | null) => {
+    return store.moveComponent(componentId, newParentProductId, productId)
+  }
+
+  // =========================
+  // REORDER
+  // =========================
+
+  const reorderComponents = async (items: { id: string; order: number }[]) => {
+    return store.reorder(items)
+  }
+
+  // =========================
   // HELPERS UI
   // =========================
 
-  const getTotalMaterials = computed(() => store.calculation?.total_items ?? 0)
+  const totalMaterials = computed(() => store.calculation?.total_items ?? 0)
 
   const hasTree = computed(() => store.tree.length > 0)
 
   const flattenTree = (nodes = store.tree, depth = 0): Array<{ node: (typeof nodes)[0]; depth: number }> => {
-    const result: Array<{ node: (typeof nodes)[0]; depth: number }> = []
+    const result: Array<{
+      node: (typeof nodes)[0]
+      depth: number
+    }> = []
 
     for (const node of nodes) {
       result.push({ node, depth })
+
       if (node.children?.length) {
         result.push(...flattenTree(node.children, depth + 1))
       }
@@ -61,7 +100,7 @@ export const useEngineering = (productId: string) => {
   }
 
   return {
-    // store state
+    // state
     tree: computed(() => store.tree),
     calculation: computed(() => store.calculation),
     loading: computed(() => store.loading),
@@ -70,13 +109,17 @@ export const useEngineering = (productId: string) => {
 
     // computed
     hasTree,
-    getTotalMaterials,
+    totalMaterials,
 
     // actions
     init,
     loadTree,
     calculate,
     addComponent,
+    updateComponent,
+    deleteComponent,
+    moveComponent,
+    reorderComponents,
 
     // utils
     flattenTree

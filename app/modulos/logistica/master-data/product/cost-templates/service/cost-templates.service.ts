@@ -8,7 +8,7 @@ import type {
   AddTemplateComponentDto
 } from '~/modulos/logistica/master-data/product/cost-templates/types/cost-template.types'
 
-const urlBase = '/api/cost-templates'
+const urlBase = '/api/logistica/master-data/cost-templates'
 
 export const useCostTemplatesService = () => {
   // =========================

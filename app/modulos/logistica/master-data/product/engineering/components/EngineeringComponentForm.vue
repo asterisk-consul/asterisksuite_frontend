@@ -1,9 +1,18 @@
 <script setup lang="ts">
+import { reactive, computed, watch, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
+
 import { useEngineering } from '../composables/useEngineering'
-import type { CreateEngineeringComponentDto } from '../types/engineering.types'
+import type { CreateEngineeringComponentDto, EngineeringTreeNode } from '../types/engineering.types'
+
+import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
+import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
+
+import { useProductVariantsStore } from '~/modulos/logistica/master-data/product-variants/store/product-variants.store'
 
 const props = defineProps<{
   productId: string
+  component?: EngineeringTreeNode
 }>()
 
 const emit = defineEmits<{
@@ -12,8 +21,25 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const { addComponent, loading } = useEngineering(props.productId)
+const isEditing = computed(() => !!props.component)
+const { addComponent, updateComponent, loading } = useEngineering(props.productId)
 
+const productsStore = useProductsStore()
+const variantsStore = useProductVariantsStore()
+
+const { items: productItems } = storeToRefs(productsStore)
+const { items: variantItems } = storeToRefs(variantsStore)
+
+const { items: products } = useProducts(productItems)
+
+const variantOptions = computed(() =>
+  variantItems.value.map((variant) => ({
+    label: variant.name ?? variant.sku ?? variant.id,
+    value: variant.id
+  }))
+)
+
+// ✅ form declarado ANTES de los watchers que lo usan
 const form = reactive<Omit<CreateEngineeringComponentDto, 'parent_product_id'>>({
   child_product_id: '',
   child_variant_id: undefined,
@@ -25,33 +51,97 @@ const form = reactive<Omit<CreateEngineeringComponentDto, 'parent_product_id'>>(
   waste_percentage: undefined
 })
 
+watch(
+  () => props.component,
+  async (component) => {
+    form.child_product_id = component?.child_product_id ?? ''
+    form.child_variant_id = component?.child_variant_id
+    form.quantity = component?.quantity ?? 1
+    form.unit_id = component?.unit_id
+    form.length_mm = component?.length_mm ?? undefined
+    form.width_mm = component?.width_mm ?? undefined
+    form.height_mm = component?.height_mm ?? undefined
+    form.waste_percentage = component?.waste_percentage ?? undefined
+
+    if (component?.child_product_id) {
+      await variantsStore.fetchByProduct(component.child_product_id)
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => form.child_product_id,
+  async (productId) => {
+    form.child_variant_id = undefined
+
+    if (!productId) return
+
+    await variantsStore.fetchByProduct(productId)
+  }
+)
+
 const handleSubmit = async () => {
   try {
-    await addComponent(form)
-    toast.add({
-      title: 'Componente agregado',
-      description: 'El componente fue agregado al árbol de ingeniería.',
-      color: 'success'
-    })
+    if (isEditing.value) {
+      await updateComponent(props.component!.id, form)
+      toast.add({
+        title: 'Componente actualizado',
+        description: 'Los cambios fueron guardados correctamente.',
+        color: 'success'
+      })
+    } else {
+      await addComponent(form)
+      toast.add({
+        title: 'Componente agregado',
+        description: 'El componente fue agregado al árbol de ingeniería.',
+        color: 'success'
+      })
+    }
     emit('saved')
   } catch (err: any) {
     toast.add({
       title: 'Error',
-      description: err?.data?.message ?? 'No se pudo agregar el componente.',
+      description:
+        err?.data?.message ??
+        (isEditing.value ? 'No se pudo actualizar el componente.' : 'No se pudo agregar el componente.'),
       color: 'error'
     })
   }
 }
+
+onMounted(async () => {
+  await productsStore.fetchAll()
+
+  if (form.child_product_id) {
+    await variantsStore.fetchByProduct(form.child_product_id)
+  }
+})
 </script>
 
 <template>
   <div class="space-y-4">
     <UFormField label="Producto hijo" required>
-      <UInput v-model="form.child_product_id" placeholder="ID del producto componente" />
+      <USelectMenu
+        v-model="form.child_product_id"
+        :items="products"
+        value-key="value"
+        placeholder="Seleccionar producto"
+        class="w-full"
+        searchable
+      />
     </UFormField>
 
     <UFormField label="Variante (opcional)">
-      <UInput v-model="form.child_variant_id" placeholder="ID de la variante" />
+      <USelectMenu
+        v-model="form.child_variant_id"
+        :items="variantOptions"
+        value-key="value"
+        placeholder="Seleccionar variante"
+        class="w-full"
+        searchable
+        :disabled="!form.child_product_id"
+      />
     </UFormField>
 
     <div class="grid grid-cols-2 gap-4">
@@ -68,9 +158,11 @@ const handleSubmit = async () => {
       <UFormField label="Largo (mm)">
         <UInput v-model.number="form.length_mm" type="number" placeholder="0" />
       </UFormField>
+
       <UFormField label="Ancho (mm)">
         <UInput v-model.number="form.width_mm" type="number" placeholder="0" />
       </UFormField>
+
       <UFormField label="Alto (mm)">
         <UInput v-model.number="form.height_mm" type="number" placeholder="0" />
       </UFormField>
@@ -78,8 +170,9 @@ const handleSubmit = async () => {
 
     <div class="flex justify-end gap-2 pt-2 border-t border-default">
       <UButton variant="ghost" color="neutral" @click="emit('cancelled')">Cancelar</UButton>
+
       <UButton :loading="loading" :disabled="!form.child_product_id || !form.quantity" @click="handleSubmit">
-        Agregar componente
+        {{ isEditing ? 'Guardar cambios' : 'Agregar componente' }}
       </UButton>
     </div>
   </div>

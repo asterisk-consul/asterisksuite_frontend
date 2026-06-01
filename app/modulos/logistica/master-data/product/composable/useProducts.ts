@@ -11,6 +11,11 @@ export interface ProductSelectItem {
   }
 }
 
+export interface SelectItem {
+  label: string
+  value: string
+}
+
 export function useProducts(products: Ref<Product[]>) {
   const items = computed<ProductSelectItem[]>(() =>
     products.value.map((product) => {
@@ -32,5 +37,17 @@ export function useProducts(products: Ref<Product[]>) {
   )
   const total = computed(() => items.value.length)
 
-  return { items, total }
+  const productos = computed<SelectItem[]>(() =>
+    products.value.map((product) => {
+      const price = product.product_price?.[0]?.price ?? 0
+      const tax = product.product_taxes?.[0]
+
+      return {
+        label: `${product.sku} - ${product.name}`,
+        value: product.id
+      }
+    })
+  )
+
+  return { items, total, productos }
 }
