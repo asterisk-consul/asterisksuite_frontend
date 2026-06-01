@@ -67,6 +67,12 @@ export const navigationLinks = [
       // children: [{ label: 'Demostracion', to: '/logistica/operaciones' }]
     },
     {
+      label: 'Fabricacion',
+      to: '/fabricacion',
+      icon: 'i-lucide-factory',
+      defaultOpen: false
+    },
+    {
       label: 'Ajustes',
       to: '/settings',
       icon: 'i-lucide-settings',
