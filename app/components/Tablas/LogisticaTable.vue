@@ -135,17 +135,12 @@ const filterFns = {
 ======================== */
 
 const selectedRows = computed<T[]>(
-  () =>
-    table.value?.tableApi
-      ?.getFilteredSelectedRowModel()
-      .rows.map((r) => r.original) ?? []
+  () => table.value?.tableApi?.getFilteredSelectedRowModel().rows.map((r) => r.original) ?? []
 )
 
 const selectedCount = computed<number>(() => selectedRows.value.length)
 
-const totalCount = computed<number>(
-  () => table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0
-)
+const totalCount = computed<number>(() => table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0)
 
 /* ========================
    Pagination
@@ -178,24 +173,12 @@ function confirmDelete(): void {
     <div class="flex items-center justify-between gap-4 py-3.5">
       <!-- Filters -->
 
-      <TableFiltersPopover
-        :filters="filters"
-        :columns="props.columns"
-        @add="addFilter"
-        @remove="removeFilter"
-      />
+      <TableFiltersPopover :filters="filters" :columns="props.columns" @add="addFilter" @remove="removeFilter" />
 
       <!-- Right Actions -->
 
       <div class="flex items-center gap-2">
-        <UButton
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-x"
-          @click="clearFilters"
-        >
-          Limpiar
-        </UButton>
+        <UButton color="neutral" variant="outline" icon="i-lucide-x" @click="clearFilters">Limpiar</UButton>
 
         <UDropdownMenu
           :items="columnVisibilityItems"
@@ -203,12 +186,7 @@ function confirmDelete(): void {
             align: 'end'
           }"
         >
-          <UButton
-            label="Display"
-            color="neutral"
-            variant="outline"
-            trailing-icon="i-lucide-settings-2"
-          />
+          <UButton label="Display" color="neutral" variant="outline" trailing-icon="i-lucide-settings-2" />
         </UDropdownMenu>
       </div>
     </div>
@@ -245,20 +223,14 @@ function confirmDelete(): void {
 
         td: 'border-b border-default'
       }"
-      :class="[
-        'max-h-[75vh] overflow-y-auto',
-
-        selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg'
-      ]"
+      :class="['max-h-[75vh] overflow-y-auto', selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg']"
     />
 
     <!-- ========================
          Footer
     ========================= -->
 
-    <div
-      class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2"
-    >
+    <div class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2">
       <div class="text-xs text-muted">
         {{ selectedCount }}
         seleccionadas •
@@ -279,10 +251,7 @@ function confirmDelete(): void {
          Selection Bar
     ========================= -->
 
-    <TableSelectionBar
-      :count="selectedCount"
-      @open-delete="showDeleteModal = true"
-    />
+    <TableSelectionBar :count="selectedCount" @open-delete="showDeleteModal = true" />
 
     <!-- ========================
          Delete Modal

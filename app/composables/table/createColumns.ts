@@ -11,24 +11,9 @@ import { useDateColumn } from '@/composables/table/useDateColumn'
    Badge Colors
 ======================== */
 
-export type BadgeColor =
-  | 'error'
-  | 'primary'
-  | 'warning'
-  | 'secondary'
-  | 'success'
-  | 'info'
-  | 'neutral'
+export type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
-const VALID_COLORS = [
-  'error',
-  'primary',
-  'warning',
-  'secondary',
-  'success',
-  'info',
-  'neutral'
-] as const
+const VALID_COLORS = ['error', 'primary', 'warning', 'secondary', 'success', 'info', 'neutral'] as const
 
 function isBadgeColor(v: any): v is BadgeColor {
   return VALID_COLORS.includes(v)
@@ -48,6 +33,7 @@ type BuilderConfig<T, K extends keyof T = keyof T> = {
   locale?: string
 
   onInlineSave?: (row: T, field: K, value: any) => void | Promise<void>
+  onSortFieldSelect?: (columnId: string) => void
 }
 
 type ColumnConfig<T, K extends keyof T = keyof T> = {
@@ -114,10 +100,9 @@ type ColumnConfig<T, K extends keyof T = keyof T> = {
    Builder
 ======================== */
 
-export function createTableBuilder<
-  T extends { id: string },
-  K extends keyof T = keyof T
->(config?: BuilderConfig<T, K>) {
+export function createTableBuilder<T extends { id: string }, K extends keyof T = keyof T>(
+  config?: BuilderConfig<T, K>
+) {
   const { editableCell } = useInlineEdit<T, any>()
 
   const dateCol = useDateColumn(config?.locale || 'es-AR')
@@ -142,20 +127,11 @@ export function createTableBuilder<
 
           return h(UButton, {
             color: 'neutral',
-
             variant: 'ghost',
-
             label: col.label,
-
-            icon: isSorted
-              ? isSorted === 'asc'
-                ? 'i-lucide-arrow-up-narrow-wide'
-                : 'i-lucide-arrow-down-wide-narrow'
-              : 'i-lucide-arrow-up-down',
-
-            class: '-mx-2.5',
-
-            onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+            class: '-mx-2.5 group/sort',
+            ui: { label: 'group-hover/sort:underline underline-offset-2' }, // ✅ underline hover
+            onClick: () => config?.onSortFieldSelect?.(column.id) // ✅ notifica al toolbar
           })
         }
       } else {
@@ -202,16 +178,13 @@ export function createTableBuilder<
 
         cell = ({ row }) =>
           h(Comp, {
-            modelValue: col.accessorFn
-              ? col.accessorFn(row.original)
-              : row.original[accessorKey as keyof T],
+            modelValue: col.accessorFn ? col.accessorFn(row.original) : row.original[accessorKey as keyof T],
 
             title: col.enum!.toggle?.title,
 
             options: col.enum!.options,
 
-            'onUpdate:modelValue': (value: unknown) =>
-              col.enum!.toggle?.onChange?.(row.original, value)
+            'onUpdate:modelValue': (value: unknown) => col.enum!.toggle?.onChange?.(row.original, value)
           })
       }
 
@@ -304,10 +277,7 @@ export function createTableBuilder<
 
         // NUMBER
 
-        if (
-          typeof accessorKey === 'string' &&
-          accessorKey.toLowerCase().includes('id')
-        ) {
+        if (typeof accessorKey === 'string' && accessorKey.toLowerCase().includes('id')) {
           return {
             type: 'number',
 
@@ -347,19 +317,15 @@ export function createTableBuilder<
       const defaultStringFilter: TableColumn<T>['filterFn'] = (
         row,
         columnId,
-        value
+        value,
+        addMeta // ✅ agregar el 4to parámetro requerido
       ) => {
         const v = row.getValue(columnId)
-
-        if (v == null) {
-          return false
-        }
-
+        if (v == null) return false
         return String(v)
           .toLowerCase()
           .includes(String(value || '').toLowerCase())
       }
-
       /* ========================
          ADVANCED FILTER
       ========================= */
@@ -367,19 +333,12 @@ export function createTableBuilder<
       const advancedFilter: TableColumn<T>['filterFn'] = (
         row,
         columnId,
-        filter
+        filter,
+        addMeta // ✅ agregar el 4to parámetro requerido
       ) => {
         const value = row.getValue(columnId)
 
-        console.log('FILTER RUN =>', {
-          columnId,
-          rowValue: value,
-          filter
-        })
-
-        if (!filter) {
-          return true
-        }
+        if (!filter) return true
 
         switch (filter.operator) {
           case 'contains':
@@ -402,25 +361,18 @@ export function createTableBuilder<
             return Number(value) < Number(filter.value)
 
           case 'between': {
-            if (!filter.value?.start || !filter.value?.end) {
-              return true
-            }
+            if (!filter.value?.start || !filter.value?.end) return true
 
-            const rowDate = new Date(value)
-
+            const rowDate = new Date(value as string) // ✅ cast a string
             const start = new Date(filter.value.start)
-
             const end = new Date(filter.value.end)
-
-            // incluir fin del día
-
             end.setHours(23, 59, 59, 999)
 
             return rowDate >= start && rowDate <= end
           }
 
           default:
-            return defaultStringFilter(row, columnId, filter?.value)
+            return defaultStringFilter(row, columnId, filter?.value, addMeta) // ✅ pasar addMeta
         }
       }
 

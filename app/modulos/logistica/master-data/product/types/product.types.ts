@@ -48,7 +48,7 @@ export interface Product {
   active?: boolean | null
 
   product_type: ProductType
-
+  cost_template_id?: string | null
   is_composed: boolean
   auto_calculate_cost: boolean
   has_engineering: boolean
