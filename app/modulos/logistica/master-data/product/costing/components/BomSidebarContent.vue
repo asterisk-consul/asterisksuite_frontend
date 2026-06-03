@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
+import type { Product, ProductType } from '~/modulos/logistica/master-data/product/types/product.types'
+
+import { PRODUCT_TYPE_LABELS } from '~/modulos/logistica/master-data/product/composable/product-labels'
 
 defineProps<{
   product: Product | null
@@ -7,7 +9,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div class="h-full w-full flex flex-col p-4">
     <!-- Imagen -->
 
     <div class="aspect-square rounded-xl border border-default overflow-hidden bg-elevated">
@@ -38,7 +40,7 @@ defineProps<{
         <p class="text-xs text-muted">Tipo</p>
 
         <p class="text-sm font-medium">
-          {{ product?.product_type }}
+          {{ product?.product_type ? PRODUCT_TYPE_LABELS[product.product_type as ProductType] : '—' }}
         </p>
       </div>
     </div>

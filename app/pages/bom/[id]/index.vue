@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import type { TabsItem } from '@nuxt/ui'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
+
+import BomSidebar from '~/modulos/logistica/master-data/product/costing/components/BomSidebar.vue'
+import BomTabsCard from '~/modulos/logistica/master-data/product/costing/components/BomTabsCard.vue'
+
+import EngineeringTree from '~/modulos/logistica/master-data/product/engineering/components/EngineeringTree.vue'
 
 definePageMeta({
   middleware: ['auth'],
@@ -8,54 +12,112 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { loading, findById } = useProducts()
+
+const { moduleCollapsed } = useModuleSidebarState()
+
+const mobileOpen = ref(false)
+
+watch(moduleCollapsed, (collapsed) => {
+  if (!collapsed && window.innerWidth < 1024) {
+    mobileOpen.value = true
+    moduleCollapsed.value = true
+  }
+})
+
+watch(mobileOpen, (open) => {
+  if (!open) {
+    moduleCollapsed.value = true
+  }
+})
+
 const productId = route.params.id as string
+
+const { loading, findById } = useProducts()
+
 const product = computed(() => findById(productId))
 
 onMounted(async () => {
-  if (!product.value) await findById(productId)
+  if (!product.value) {
+    await findById(productId)
+  }
 })
 
-useHead({ title: computed(() => product.value?.name ?? 'BOM') })
+useHead({
+  title: computed(() => product.value?.name ?? 'BOM')
+})
 
 watch(
   product,
   (value) => {
     if (!value) return
+
     route.meta.breadcrumb = [
-      { label: 'Fabricación', to: '/fabricacion' },
-      { label: 'BOM', to: '/bom' },
-      { label: value.name, to: `/bom/${value.id}` }
+      {
+        label: 'Fabricación',
+        to: '/fabricacion'
+      },
+      {
+        label: 'BOM',
+        to: '/bom'
+      },
+      {
+        label: value.name,
+        to: `/bom/${value.id}`
+      }
     ]
   },
-  { immediate: true }
+  {
+    immediate: true
+  }
 )
-
-const tabs = ref<TabsItem[]>([
-  { label: 'General', value: 'general', slot: 'general' },
-  { label: 'Ingeniería', value: 'ingenieria', slot: 'ingenieria' },
-  { label: 'Costos', value: 'costos', slot: 'costos' }
-])
 
 const activeTab = ref('general')
 
 const saving = ref(false)
+
 async function handleSave() {
   saving.value = true
+
   try {
-    // lógica de guardado
+    //
   } finally {
     saving.value = false
   }
+}
+
+const showTemplateSelector = ref(false)
+const showAddComponent = ref(false)
+const showDeleteModal = ref(false)
+
+const selectedParent = ref<any | null>(null)
+const editingNode = ref<any | null>(null)
+const nodeToDelete = ref<any | null>(null)
+
+const handleAddComponent = (parentNode: any | null) => {
+  selectedParent.value = parentNode
+  editingNode.value = null
+
+  showAddComponent.value = true
+}
+
+const handleEditComponent = (node: any) => {
+  editingNode.value = node
+
+  showAddComponent.value = true
+}
+
+const handleDeleteComponent = (node: any) => {
+  nodeToDelete.value = node
+  showDeleteModal.value = true
 }
 </script>
 
 <template>
   <div class="flex flex-col h-full">
-    <!-- HEADER -->
     <AppPageHeader
       :title="product?.name ?? 'BOM'"
-      :description="product?.sku ?? 'SKU'"
+      :description="product?.sku ?? ''"
+      :loading="loading"
       show-module-toggle
       class="sticky top-0 z-20 px-4 border-b border-default bg-default"
     >
@@ -70,69 +132,40 @@ async function handleSave() {
       </template>
     </AppPageHeader>
 
-    <!-- CONTENT -->
-    <div class="flex flex-1 overflow-hidden">
-      <!-- SIDEBAR -->
-      <aside class="w-72 shrink-0 border-r border-default bg-default p-4 overflow-y-auto">
-        <div class="space-y-5">
-          <div class="aspect-square rounded-lg border border-default overflow-hidden bg-elevated">
-            <img v-if="product?.image" :src="product.image" :alt="product.name" class="h-full w-full object-cover" />
+    <UPage>
+      <template v-if="!moduleCollapsed" #left>
+        <BomSidebar :product="product ?? null" :mobile-open="mobileOpen" @update:mobile-open="mobileOpen = $event" />
+      </template>
 
-            <div v-else class="h-full flex items-center justify-center">
-              <UIcon name="i-lucide-package" class="size-12 text-muted" />
-            </div>
-          </div>
+      <div class="h-full p-4">
+        <BomTabsCard v-model:active-tab="activeTab">
+          <template #default="{ activeTab }">
+            <template v-if="activeTab === 'general'">Generala</template>
 
-          <div class="space-y-3">
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-medium">Etiquetas</span>
+            <template v-else-if="activeTab === 'ingenieria'">
+              <div class="mt-4 space-y-4">
+                <div class="flex items-center justify-between">
+                  <h2 class="text-xl font-semibold">Árbol de ingeniería</h2>
+                  <UButton size="sm" variant="outline" icon="i-heroicons-plus" @click="showAddComponent = true">
+                    Agregar componente
+                  </UButton>
+                </div>
 
-              <UButton icon="i-lucide-plus" variant="ghost" color="neutral" size="xs" />
-            </div>
-
-            <div class="flex flex-wrap gap-1">
-              <UBadge v-for="tag in product?.product_tags ?? []" :key="tag" :label="tag" size="sm" />
-            </div>
-          </div>
-
-          <USeparator />
-
-          <div class="space-y-2 text-sm">
-            <div>
-              <span class="text-muted">SKU</span>
-              <div class="font-medium">
-                {{ product?.sku }}
+                <UCard>
+                  <EngineeringTree
+                    :product-id="productId"
+                    @add-child="handleAddComponent"
+                    @edit-node="handleEditComponent"
+                    @delete-node="handleDeleteComponent"
+                  />
+                </UCard>
               </div>
-            </div>
-
-            <div>
-              <span class="text-muted">Tipo</span>
-              <div class="font-medium">
-                {{ product?.product_type }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <!-- MAIN -->
-      <main class="flex-1 overflow-auto p-4">
-        <div class="rounded-xl border border-default bg-default overflow-hidden">
-          <!-- TABS -->
-          <div class="border-b border-default px-4">
-            <UTabs v-model="activeTab" :items="tabs" :content="false" variant="link" class="w-full" />
-          </div>
-
-          <!-- BODY -->
-          <div class="p-6 min-h-[600px]">
-            <template v-if="activeTab === 'general'">General</template>
-
-            <template v-else-if="activeTab === 'ingenieria'">Ingeniería</template>
+            </template>
 
             <template v-else-if="activeTab === 'costos'">Costos</template>
-          </div>
-        </div>
-      </main>
-    </div>
+          </template>
+        </BomTabsCard>
+      </div>
+    </UPage>
   </div>
 </template>

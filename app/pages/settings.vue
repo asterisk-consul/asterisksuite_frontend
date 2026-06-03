@@ -39,7 +39,6 @@ const links = [
       to: '/settings/monedas'
     }
   ],
-
   [
     {
       label: 'Documentation',
