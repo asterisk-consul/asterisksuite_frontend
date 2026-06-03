@@ -1,4 +1,3 @@
-<!-- components/AppPageHeader.vue -->
 <script setup lang="ts">
 defineProps<{
   title: string
@@ -20,10 +19,11 @@ function toggleModule() {
 </script>
 
 <template>
-  <UPageHeader :description="description" :ui="ui">
+  <UPageHeader :description="description || undefined" :ui="ui">
     <template #title>
       <div class="flex items-center gap-2">
         <AppSidebarToggle v-if="!showModuleToggle" :collapsed="mainCollapsed" @click="toggleMain" />
+
         <AppSidebarToggle v-else :collapsed="moduleCollapsed" @click="toggleModule" />
 
         <span>{{ title }}</span>

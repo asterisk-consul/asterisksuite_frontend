@@ -10,7 +10,6 @@ definePageMeta({
 
 const { moduleCollapsed } = useModuleSidebarState()
 const mobileOpen = ref(false)
-const route = useRoute()
 
 // Cuando el toggle abre el módulo en móvil, abre el slideover
 watch(moduleCollapsed, (collapsed) => {
@@ -53,7 +52,7 @@ const items: NavigationMenuItem[] = [
       </template>
 
       <div class="space-y-4 p-4">
-        <BomTable></BomTable>
+        <BomTable />
       </div>
     </UPage>
   </div>

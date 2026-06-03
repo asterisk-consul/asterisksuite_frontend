@@ -10,6 +10,8 @@ const { init, withCostTemplate, loading } = useProducts()
 const sorting = ref<SortingState>([])
 const tableRef = ref()
 
+const router = useRouter()
+
 const filterFields: FilterField[] = [
   { id: 'sku', label: 'Filtrar por SKU...', class: 'w-40' },
   { id: 'name', label: 'Filtrar por nombre...', class: 'w-56' }
@@ -35,8 +37,11 @@ function onSortFieldSelect(columnId: string) {
     }
   ]
 }
+const openEdit = (row: any) => {
+  router.push(`/bom/${row.id}`)
+}
 
-const columns = bomColumns({ onSortFieldSelect })
+const columns = bomColumns({ onSortFieldSelect, onEdit: openEdit })
 
 onMounted(async () => {
   await init()
@@ -52,7 +57,6 @@ onMounted(async () => {
       :filter-fields="filterFields"
       :sort-fields="sortFields"
     />
-
     <UTable ref="tableRef" :data="withCostTemplate" :columns="columns" :loading="loading" :sorting="sorting" />
   </div>
 </template>

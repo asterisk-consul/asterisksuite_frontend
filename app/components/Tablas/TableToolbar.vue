@@ -70,7 +70,7 @@ watch(
 
     if (first) {
       selectedSortField.value = first.id
-      sortDesc.value = first.desc
+      sortDesc.value = first.descw
     } else {
       selectedSortField.value = undefined
       sortDesc.value = false
