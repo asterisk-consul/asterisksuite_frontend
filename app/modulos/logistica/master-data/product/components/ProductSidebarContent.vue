@@ -48,41 +48,6 @@ defineProps<{
 
     <USeparator />
 
-    <!-- Tags -->
-    <div>
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-medium">Etiquetas</span>
-        <UButton v-if="!addingTag" size="xs" variant="ghost" icon="i-lucide-plus" @click="addingTag = true" />
-      </div>
-      <div class="flex flex-wrap gap-1 mb-2">
-        <UBadge
-          v-for="tag in product?.product_tags ?? []"
-          :key="tag.tag_id"
-          :label="tag.tags?.name"
-          size="sm"
-          variant="subtle"
-        >
-          <template #trailing>
-            <span
-              class="ml-1 cursor-pointer opacity-50 hover:opacity-100 leading-none"
-              @click="productTagsStore.remove(product!.id, tag.tag_id)"
-            >
-              ×
-            </span>
-          </template>
-        </UBadge>
-      </div>
-      <ProductTagsSelect
-        v-if="addingTag"
-        :productId="product?.id"
-        :tags="product?.product_tags ?? []"
-        @selected="addingTag = false"
-        @cancel="addingTag = false"
-      />
-    </div>
-
-    <USeparator />
-
     <!-- Categorías -->
     <div>
       <div class="flex items-center justify-between mb-2">
@@ -115,6 +80,41 @@ defineProps<{
         :productCategories="product?.product_categories ?? []"
         @selected="addingCategory = false"
         @cancel="addingCategory = false"
+      />
+    </div>
+
+    <USeparator />
+
+    <!-- Tags -->
+    <div>
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium">Etiquetas</span>
+        <UButton v-if="!addingTag" size="xs" variant="ghost" icon="i-lucide-plus" @click="addingTag = true" />
+      </div>
+      <div class="flex flex-wrap gap-1 mb-2">
+        <UBadge
+          v-for="tag in product?.product_tags ?? []"
+          :key="tag.tag_id"
+          :label="tag.tags?.name"
+          size="sm"
+          variant="subtle"
+        >
+          <template #trailing>
+            <span
+              class="ml-1 cursor-pointer opacity-50 hover:opacity-100 leading-none"
+              @click="productTagsStore.remove(product!.id, tag.tag_id)"
+            >
+              ×
+            </span>
+          </template>
+        </UBadge>
+      </div>
+      <ProductTagsSelect
+        v-if="addingTag"
+        :productId="product?.id"
+        :tags="product?.product_tags ?? []"
+        @selected="addingTag = false"
+        @cancel="addingTag = false"
       />
     </div>
   </div>

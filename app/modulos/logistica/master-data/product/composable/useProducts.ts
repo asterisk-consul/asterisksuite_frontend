@@ -1,5 +1,9 @@
 import { computed } from 'vue'
 import { useProductsStore } from '../store/products.store'
+import type {
+  CreateProductInput,
+  UpdateProductInput
+} from '~/modulos/logistica/master-data/product/types/product.types'
 
 export interface ProductSelectItem {
   label: string
@@ -27,6 +31,16 @@ export function useProducts() {
   const init = async () => {
     await store.fetchAll()
   }
+
+  // =========================
+  // ACTIONS
+  // =========================
+
+  const create = async (payload: CreateProductInput) => store.create(payload)
+
+  const update = async (id: string, payload: UpdateProductInput) => store.update(id, payload)
+
+  const remove = async (id: string) => store.remove(id) // ✅ store.delete → store.remove
 
   // =========================
   // COMPUTED
@@ -71,7 +85,6 @@ export function useProducts() {
 
   const formatLabel = (productId: string) => {
     const product = store.items.find((p) => p.id === productId)
-
     return product ? `${product.sku} - ${product.name}` : ''
   }
 
@@ -81,11 +94,7 @@ export function useProducts() {
 
   const getProduct = async (id: string) => {
     const local = findById(id)
-
-    if (local) {
-      return local
-    }
-
+    if (local) return local
     return await store.fetchOne(id)
   }
 
@@ -98,7 +107,6 @@ export function useProducts() {
     products: computed(() => store.items),
     current: computed(() => store.current),
     roots: computed(() => store.roots),
-
     loading: computed(() => store.loading),
     error: computed(() => store.error),
     total: computed(() => store.items.length),
@@ -117,6 +125,12 @@ export function useProducts() {
     getProduct,
 
     // actions
-    init
+    init,
+    create,
+    update,
+    remove,
+    patchTags: store.patchTags,
+    patchCategories: store.patchCategories,
+    fetchRootProducts: (id: string) => store.fetchRootProducts(id)
   }
 }

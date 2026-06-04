@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import type { ButtonProps } from '@nuxt/ui'
+
 defineProps<{
   title: string
   description?: string
   showModuleToggle?: boolean
+  links?: ButtonProps[]
   ui?: Record<string, string>
 }>()
 
@@ -19,7 +22,7 @@ function toggleModule() {
 </script>
 
 <template>
-  <UPageHeader :description="description || undefined" :ui="ui">
+  <UPageHeader :description="description || undefined" :ui="ui" :links="links">
     <template #title>
       <div class="flex items-center gap-2">
         <AppSidebarToggle v-if="!showModuleToggle" :collapsed="mainCollapsed" @click="toggleMain" />

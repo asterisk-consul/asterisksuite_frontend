@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
 
-import BomSidebarContent from './BomSidebarContent.vue'
+import BomSidebarContent from '~/modulos/logistica/master-data/product/components/ProductSidebarContent.vue'
 
 defineProps<{
   product: Product | null

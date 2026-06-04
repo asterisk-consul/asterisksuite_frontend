@@ -48,12 +48,12 @@ const handleSaved = async () => {
     </div>
 
     <UCard>
-      <EngineeringTree :product-id="productId" @add-child="handleAdd" @edit-node="handleEdit" />
+      <EngineeringTree :productId="productId" @add-child="handleAdd" @edit-node="handleEdit" />
     </UCard>
 
     <EngineeringComponentModal
       v-model:open="showModal"
-      :product-id="productId"
+      :productId="productId"
       :component="editingNode"
       @saved="handleSaved"
     />

@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
+import type { ProductFormState } from '~/modulos/logistica/master-data/product/types/product-form.types'
 
-import BomSidebar from '~/modulos/logistica/master-data/product/costing/components/BomSidebar.vue'
+import BomSidebar from '~/modulos/logistica/master-data/product/components/ProductSidebar.vue'
 import BomTabsCard from '~/modulos/logistica/master-data/product/costing/components/BomTabsCard.vue'
 
 import EngineeringSection from '~/modulos/logistica/master-data/product/engineering/sections/EngineeringSection.vue'
 import CostingSection from '~/modulos/logistica/master-data/product/costing/sections/CostingSection.vue'
+import GeneralSection from '~/modulos/logistica/master-data/product/components/sections/GeneralSection.vue'
+
+import { createDefaultProductForm } from '~/modulos/logistica/master-data/product/utils/product-form.utils'
 
 definePageMeta({
   middleware: ['auth'],
@@ -33,7 +37,7 @@ watch(mobileOpen, (open) => {
 
 const productId = route.params.id as string
 
-const { current, loading, loadOne } = useProducts()
+const { current, loading, loadOne, update } = useProducts()
 
 onMounted(async () => {
   await loadOne(productId)
@@ -70,17 +74,35 @@ watch(
   }
 )
 
+const form = reactive(createDefaultProductForm())
+
 const activeTab = ref('general')
 
 const saving = ref(false)
 
 const currencyId = '839c208c-744d-4321-a375-2a747c911fa2'
 
-async function handleSave() {
-  saving.value = true
+// Cuando carga el producto, llenás el form
+watch(
+  product,
+  (p) => {
+    if (!p) return
+    Object.assign(form, p)
+  },
+  { immediate: true }
+)
 
+async function handleSave() {
   try {
-    //
+    saving.value = true
+
+    // CREATE
+    // await productsStore.create(form)
+
+    // UPDATE
+    // await productsStore.update(productId, form)
+
+    console.log(form)
   } finally {
     saving.value = false
   }
@@ -90,6 +112,14 @@ const pageUi = computed(() => ({
   left: 'lg:col-start-1',
   center: moduleCollapsed.value ? '' : 'lg:col-start-2'
 }))
+const links = computed(() => [
+  {
+    label: 'Guardar',
+    icon: 'i-lucide-save',
+    loading: saving.value,
+    onClick: handleSave
+  }
+])
 </script>
 
 <template>
@@ -99,6 +129,7 @@ const pageUi = computed(() => ({
       :description="product?.sku ?? ''"
       :loading="loading"
       show-module-toggle
+      :links="links"
       class="sticky top-0 z-20 px-4 border-b border-default bg-default"
     >
       <template #right>
@@ -124,7 +155,7 @@ const pageUi = computed(() => ({
 
             <CostingSection v-else-if="activeTab === 'costos'" :product-id="productId" :currency-id="currencyId" />
 
-            <div v-else>General</div>
+            <GeneralSection v-else :form="form" />
           </template>
         </BomTabsCard>
       </UPageBody>

@@ -1,38 +1,67 @@
 import type { ProductFormState } from '~/modulos/logistica/master-data/product/types/product-form.types'
 
-export function createDefaultProductForm(): ProductFormState {
+import type {
+  ProductType,
+  CalculationType,
+  ProductCostSource
+} from '~/modulos/logistica/master-data/product/types/product.types'
+
+export interface ProductGeneralFormState {
+  name: string
+  sku: string
+  product_type?: ProductType
+  calculation_type?: CalculationType
+  active: boolean
+}
+
+export function createDefaultProductGeneral() {
   return {
     name: '',
-
     sku: '',
-
-    requires_refrigeration: false,
-
-    price_enabled: true,
-
-    is_rate_type: false,
-
     active: true,
 
-    product_type: 'FINISHED_PRODUCT',
+    product_type: 'FINISHED_PRODUCT' as ProductType,
+    calculation_type: 'UNIT' as CalculationType
+  }
+}
 
-    is_composed: false,
-
+export function createDefaultProductCosting() {
+  return {
+    price_enabled: true,
     auto_calculate_cost: false,
 
-    has_engineering: false,
+    cost_source: 'MANUAL' as ProductCostSource
+  }
+}
 
+export function createDefaultProductInventory() {
+  return {
     manages_stock: true,
+    requires_refrigeration: false
+  }
+}
 
-    calculation_type: 'UNIT',
+export function createDefaultProductEngineering() {
+  return {
+    is_composed: false,
+    has_engineering: false,
+    is_rate_type: false
+  }
+}
 
-    cost_source: 'MANUAL',
-
-    // =========================
-    // RELATIONS
-    // =========================
-
+export function createDefaultProductRelations() {
+  return {
     category_ids: [],
     tag_ids: []
+  }
+}
+
+export function createDefaultProductForm(): ProductFormState {
+  return {
+    ...createDefaultProductGeneral(),
+    ...createDefaultProductInventory(),
+    ...createDefaultProductCosting(),
+    ...createDefaultProductEngineering(),
+    ...createDefaultProductRelations()
   }
 }
