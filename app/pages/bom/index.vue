@@ -30,6 +30,11 @@ const items: NavigationMenuItem[] = [
   { label: 'Materiales', icon: 'i-lucide-package', to: '/fabricacion/bom/materiales' },
   { label: 'Operaciones', icon: 'i-lucide-settings', to: '/fabricacion/bom/operaciones' }
 ]
+const pageUi = computed(() => ({
+  root: moduleCollapsed.value ? 'flex flex-col' : 'flex flex-col lg:grid lg:grid-cols-[200px_1fr] lg:gap-2',
+  left: 'lg:col-span-1 min-w-0',
+  center: moduleCollapsed.value ? 'lg:col-span-full' : 'lg:col-span-1 min-w-0'
+}))
 </script>
 
 <template>
@@ -43,17 +48,21 @@ const items: NavigationMenuItem[] = [
       </template>
     </USlideover>
 
-    <UPage>
+    <UPage :ui="pageUi">
       <!-- Sidebar solo en desktop -->
       <template v-if="!moduleCollapsed" #left>
-        <UPageAside class="hidden lg:flex">
+        <UPageAside
+          :ui="{
+            root: 'hidden overflow-y-auto lg:block lg:sticky lg:top-(--ui-header-height) lg:max-h-[calc(100vh-var(--ui-header-height))]'
+          }"
+        >
           <UNavigationMenu :items="items" orientation="vertical" :ui="{ link: 'p-1.5 overflow-hidden' }" />
         </UPageAside>
       </template>
 
-      <div class="space-y-4 p-4">
+      <UPageBody>
         <BomTable />
-      </div>
+      </UPageBody>
     </UPage>
   </div>
 </template>

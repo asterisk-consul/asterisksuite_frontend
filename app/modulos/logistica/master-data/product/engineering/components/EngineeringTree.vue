@@ -3,11 +3,6 @@ import { getCoreRowModel, getExpandedRowModel, getSortedRowModel, useVueTable } 
 import type { ColumnDef, SortingState, ExpandedState } from '@tanstack/vue-table'
 import { h, resolveComponent } from 'vue'
 import { useSortable } from '@vueuse/integrations/useSortable'
-import type { ProductType } from '~/modulos/logistica/master-data/product/types/product.types'
-
-import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
-
-import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 import { useEngineering } from '../composables/useEngineering'
 import { useEngineeringStore } from '../store/engineering.store'
 import EngineeringMoveModal from './EngineeringMoveModal.vue'

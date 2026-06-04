@@ -3,7 +3,10 @@ import { computed, ref } from 'vue'
 
 import { useProductTagsService } from '~/modulos/logistica/master-data/product-tags/service/product-tags.service'
 
+import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
+
 import type { ProductTag } from '~/modulos/logistica/master-data/product-tags/types/product-tags.types'
+import { useTagsStore } from '~/modulos/almacen/tags/store/tags.store'
 
 export const useProductTagsStore = defineStore('productTags', () => {
   const service = useProductTagsService()
@@ -43,7 +46,15 @@ export const useProductTagsStore = defineStore('productTags', () => {
   const assign = async (productId: string, tagId: string) => {
     const created = await service.assign(productId, tagId)
 
-    items.value.push(created)
+    const productsStore = useProductsStore()
+    const tagsStore = useTagsStore()
+
+    const tagData = tagsStore.items.find((t) => t.id === tagId)
+
+    if (tagData) {
+      const currentTags = productsStore.current?.product_tags ?? []
+      productsStore.patchTags([...currentTags, { ...created, tags: tagData }])
+    }
 
     return created
   }
@@ -54,10 +65,10 @@ export const useProductTagsStore = defineStore('productTags', () => {
 
   const remove = async (productId: string, tagId: string) => {
     await service.remove(productId, tagId)
-
-    items.value = items.value.filter(
-      (i) => !(i.product_id === productId && i.tag_id === tagId)
-    )
+    console.log('items antes del patch:', JSON.stringify(items.value))
+    const productsStore = useProductsStore()
+    const currentTags = productsStore.current?.product_tags ?? []
+    productsStore.patchTags(currentTags.filter((t) => !(t.product_id === productId && t.tag_id === tagId)))
   }
 
   return {

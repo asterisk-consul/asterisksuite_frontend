@@ -4,7 +4,8 @@ import { useProducts } from '~/modulos/logistica/master-data/product/composable/
 import BomSidebar from '~/modulos/logistica/master-data/product/costing/components/BomSidebar.vue'
 import BomTabsCard from '~/modulos/logistica/master-data/product/costing/components/BomTabsCard.vue'
 
-import EngineeringTree from '~/modulos/logistica/master-data/product/engineering/components/EngineeringTree.vue'
+import EngineeringSection from '~/modulos/logistica/master-data/product/engineering/sections/EngineeringSection.vue'
+import CostingSection from '~/modulos/logistica/master-data/product/costing/sections/CostingSection.vue'
 
 definePageMeta({
   middleware: ['auth'],
@@ -32,15 +33,13 @@ watch(mobileOpen, (open) => {
 
 const productId = route.params.id as string
 
-const { loading, findById } = useProducts()
-
-const product = computed(() => findById(productId))
+const { current, loading, loadOne } = useProducts()
 
 onMounted(async () => {
-  if (!product.value) {
-    await findById(productId)
-  }
+  await loadOne(productId)
 })
+
+const product = current
 
 useHead({
   title: computed(() => product.value?.name ?? 'BOM')
@@ -75,6 +74,8 @@ const activeTab = ref('general')
 
 const saving = ref(false)
 
+const currencyId = '839c208c-744d-4321-a375-2a747c911fa2'
+
 async function handleSave() {
   saving.value = true
 
@@ -84,32 +85,11 @@ async function handleSave() {
     saving.value = false
   }
 }
-
-const showTemplateSelector = ref(false)
-const showAddComponent = ref(false)
-const showDeleteModal = ref(false)
-
-const selectedParent = ref<any | null>(null)
-const editingNode = ref<any | null>(null)
-const nodeToDelete = ref<any | null>(null)
-
-const handleAddComponent = (parentNode: any | null) => {
-  selectedParent.value = parentNode
-  editingNode.value = null
-
-  showAddComponent.value = true
-}
-
-const handleEditComponent = (node: any) => {
-  editingNode.value = node
-
-  showAddComponent.value = true
-}
-
-const handleDeleteComponent = (node: any) => {
-  nodeToDelete.value = node
-  showDeleteModal.value = true
-}
+const pageUi = computed(() => ({
+  root: moduleCollapsed.value ? 'flex flex-col' : 'flex flex-col lg:grid lg:grid-cols-[200px_1fr] lg:gap-2',
+  left: 'lg:col-start-1',
+  center: moduleCollapsed.value ? '' : 'lg:col-start-2'
+}))
 </script>
 
 <template>
@@ -132,40 +112,22 @@ const handleDeleteComponent = (node: any) => {
       </template>
     </AppPageHeader>
 
-    <UPage>
+    <UPage :ui="pageUi">
       <template v-if="!moduleCollapsed" #left>
         <BomSidebar :product="product ?? null" :mobile-open="mobileOpen" @update:mobile-open="mobileOpen = $event" />
       </template>
 
-      <div class="h-full p-4">
+      <UPageBody>
         <BomTabsCard v-model:active-tab="activeTab">
           <template #default="{ activeTab }">
-            <template v-if="activeTab === 'general'">Generala</template>
+            <EngineeringSection v-if="activeTab === 'ingenieria'" :product-id="productId" />
 
-            <template v-else-if="activeTab === 'ingenieria'">
-              <div class="mt-4 space-y-4">
-                <div class="flex items-center justify-between">
-                  <h2 class="text-xl font-semibold">Árbol de ingeniería</h2>
-                  <UButton size="sm" variant="outline" icon="i-heroicons-plus" @click="showAddComponent = true">
-                    Agregar componente
-                  </UButton>
-                </div>
+            <CostingSection v-else-if="activeTab === 'costos'" :product-id="productId" :currency-id="currencyId" />
 
-                <UCard>
-                  <EngineeringTree
-                    :product-id="productId"
-                    @add-child="handleAddComponent"
-                    @edit-node="handleEditComponent"
-                    @delete-node="handleDeleteComponent"
-                  />
-                </UCard>
-              </div>
-            </template>
-
-            <template v-else-if="activeTab === 'costos'">Costos</template>
+            <div v-else>General</div>
           </template>
         </BomTabsCard>
-      </div>
+      </UPageBody>
     </UPage>
   </div>
 </template>

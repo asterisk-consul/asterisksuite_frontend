@@ -22,7 +22,7 @@ const tabs: TabsItem[] = [
 </script>
 
 <template>
-  <div class="rounded-xl border border-default bg-default overflow-hidden">
+  <div class="rounded-xl border border-default bg-default overflow-hidden ml-4">
     <div class="border-b border-default px-4">
       <UTabs v-model="activeTab" :items="tabs" :content="false" variant="link" />
     </div>

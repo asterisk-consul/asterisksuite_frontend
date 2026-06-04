@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import type { ProductTag } from '~/modulos/logistica/master-data/product-tags/types/product-tags.types'
+import type { Category } from '~/modulos/almacen/categories/types/categories.types'
 import { useProductsService } from '~/modulos/logistica/master-data/product/service/product.service'
 
 import type {
@@ -173,6 +175,16 @@ export const useProductsStore = defineStore('products', () => {
     }
   }
 
+  const patchTags = (tags: ProductTag[]) => {
+    if (!current.value) return
+    current.value = { ...current.value, product_tags: tags }
+  }
+
+  const patchCategories = (categories: { category_id: string; categories: Category }[]) => {
+    if (!current.value) return
+    current.value = { ...current.value, product_categories: categories }
+  }
+
   return {
     // state
     items,
@@ -190,6 +202,8 @@ export const useProductsStore = defineStore('products', () => {
     update,
     remove,
 
+    patchTags,
+    patchCategories,
     fetchRootProducts
   }
 })

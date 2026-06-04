@@ -6,14 +6,16 @@ import { useCategoriesStore } from '~/modulos/almacen/categories/store/categorie
 import { useCategories } from '~/modulos/almacen/categories/composable/useCategories'
 import CategoryUpsertModal from '~/modulos/almacen/categories/components/CategoryUpsertModal.vue'
 
-const props = withDefaults(
-  defineProps<{
-    categories?: Category[]
-  }>(),
-  {
-    categories: () => []
-  }
-)
+const props = defineProps<{
+  productId?: string
+  productCategories?: { category_id: string; categories: Category }[]
+  categories?: Category[]
+}>()
+
+const emit = defineEmits<{
+  selected: []
+  cancel: []
+}>()
 
 const model = defineModel<string[]>({ default: [] })
 
@@ -23,27 +25,34 @@ const categoriesStore = useCategoriesStore()
 
 const isModalOpen = ref(false)
 
-const isEdit = computed(() => !!productsStore.current)
+const currentProductId = computed(() => props.productId ?? productsStore.current?.id)
+const isEdit = computed(() => !!currentProductId.value)
 
-const categoriesSource = computed(() =>
-  props.categories.length ? props.categories : categoriesStore.items
-)
-
+const categoriesSource = computed(() => (props.categories?.length ? props.categories : categoriesStore.items))
 const { items: options } = useCategories(categoriesSource)
 
 onMounted(async () => {
-  if (!props.categories.length) {
+  if (!props.categories?.length) {
     await categoriesStore.fetchAll()
   }
 })
 
+watch(
+  () => props.productCategories,
+  (newCats) => {
+    model.value = (newCats ?? []).map((c) => c.category_id)
+  },
+  { immediate: true }
+)
+
 async function handleChange(newIds: string[]) {
-  if (!isEdit.value || !productsStore.current) {
+  if (!isEdit.value || !currentProductId.value) {
     model.value = newIds
+    emit('selected')
     return
   }
 
-  const productId = productsStore.current.id
+  const productId = currentProductId.value
   const previous = new Set(model.value)
   const next = new Set(newIds)
 
@@ -51,18 +60,12 @@ async function handleChange(newIds: string[]) {
   const toRemove = model.value.filter((id) => !next.has(id))
 
   await Promise.all([
-    ...toAssign.map((categoryId) =>
-      productCategoriesStore.assign({
-        product_id: productId,
-        category_id: categoryId
-      })
-    ),
-    ...toRemove.map((categoryId) =>
-      productCategoriesStore.remove(productId, categoryId)
-    )
+    ...toAssign.map((categoryId) => productCategoriesStore.assign({ product_id: productId, category_id: categoryId })),
+    ...toRemove.map((categoryId) => productCategoriesStore.remove(productId, categoryId))
   ])
 
   model.value = newIds
+  emit('selected')
 }
 </script>
 
@@ -77,7 +80,16 @@ async function handleChange(newIds: string[]) {
     @update:model-value="handleChange"
   >
     <template #content-bottom>
-      <div class="border-t border-(--ui-border) p-1">
+      <div class="border-t border-neutral p-1 space-y-1">
+        <UButton
+          label="Cancelar"
+          icon="i-lucide-x"
+          variant="ghost"
+          color="neutral"
+          size="sm"
+          block
+          @click="emit('cancel')"
+        />
         <UButton
           label="Nueva categoría"
           icon="i-lucide-plus"

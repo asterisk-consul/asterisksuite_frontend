@@ -30,7 +30,11 @@ const emit = defineEmits<{
 
   <!-- DESKTOP -->
 
-  <UPageAside class="hidden lg:flex min-w-100 max-w-100">
-    <BomSidebarContent :product="product" />
+  <UPageAside
+    :ui="{
+      root: 'hidden overflow-y-auto lg:block lg:sticky lg:top-(--ui-header-height) lg:max-h-[calc(100vh-var(--ui-header-height))]'
+    }"
+  >
+    <BomSidebarContent :product="product" class="w-full" />
   </UPageAside>
 </template>
