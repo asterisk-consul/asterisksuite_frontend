@@ -7,6 +7,7 @@ import { PRODUCT_TYPE_LABELS } from '~/modulos/logistica/master-data/product/com
 import { useProductTagsStore } from '~/modulos/logistica/master-data/product-tags/store/product-tags.store'
 import { useProductCategoriesStore } from '~/modulos/logistica/master-data/product-categories/store/product-categories.store'
 
+const toast = useToast()
 const productTagsStore = useProductTagsStore()
 const productCategoriesStore = useProductCategoriesStore()
 const addingTag = ref(false)
@@ -15,6 +16,58 @@ const addingCategory = ref(false)
 defineProps<{
   product: Product | null
 }>()
+
+const selectCategory = () => {
+  toast.add({
+    title: 'Categorías modificadas',
+    description: 'Se actualizaron las categorías del producto.',
+    color: 'success'
+  })
+  addingCategory.value = false
+}
+
+const selectTag = () => {
+  toast.add({
+    title: 'Etiquetas modificadas',
+    description: 'Se actualizaron las etiquetas del producto.',
+    color: 'success'
+  })
+  addingTag.value = false
+}
+const handleRemoveCategory = (categoryId: string, productId: string, categoryName?: string) => {
+  try {
+    productCategoriesStore.remove(productId, categoryId)
+
+    toast.add({
+      title: 'Categoría eliminada',
+      description: `"${categoryName}" fue removida correctamente.`,
+      color: 'success'
+    })
+  } catch {
+    toast.add({
+      title: 'Error',
+      description: `No se pudo eliminar "${categoryName}".`,
+      color: 'error'
+    })
+  }
+}
+const handleRemoveTag = async (tagId: string, productId: string, tagName?: string) => {
+  try {
+    productTagsStore.remove(productId, tagId)
+
+    toast.add({
+      title: 'Etiqueta eliminada',
+      description: `"${tagName}" fue removida correctamente.`,
+      color: 'success'
+    })
+  } catch {
+    toast.add({
+      title: 'Error',
+      description: `No se pudo eliminar "${tagName}".`,
+      color: 'error'
+    })
+  }
+}
 </script>
 
 <template>
@@ -67,7 +120,7 @@ defineProps<{
           <template #trailing>
             <span
               class="ml-1 cursor-pointer opacity-50 hover:opacity-100 leading-none"
-              @click="productCategoriesStore.remove(product!.id, cat.category_id)"
+              @click="handleRemoveCategory(cat.category_id, product!.id, cat.categories?.name)"
             >
               ×
             </span>
@@ -78,7 +131,7 @@ defineProps<{
         v-if="addingCategory"
         :productId="product?.id"
         :productCategories="product?.product_categories ?? []"
-        @selected="addingCategory = false"
+        @selected="selectCategory"
         @cancel="addingCategory = false"
       />
     </div>
@@ -102,7 +155,7 @@ defineProps<{
           <template #trailing>
             <span
               class="ml-1 cursor-pointer opacity-50 hover:opacity-100 leading-none"
-              @click="productTagsStore.remove(product!.id, tag.tag_id)"
+              @click="handleRemoveTag(tag.tag_id, tag.tags?.name, product!.id)"
             >
               ×
             </span>
@@ -113,7 +166,7 @@ defineProps<{
         v-if="addingTag"
         :productId="product?.id"
         :tags="product?.product_tags ?? []"
-        @selected="addingTag = false"
+        @selected="selectTag"
         @cancel="addingTag = false"
       />
     </div>

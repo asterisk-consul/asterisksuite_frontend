@@ -107,26 +107,30 @@ export const useProductsStore = defineStore('products', () => {
 
       const updated = await service.update(id, payload)
 
-      const index = items.value.findIndex((i) => i.id === id)
+      // Preservar relaciones que el backend no devuelve en el PATCH
+      const merged = {
+        ...updated,
+        product_tags: current.value?.id === id ? current.value.product_tags : updated.product_tags,
+        product_categories: current.value?.id === id ? current.value.product_categories : updated.product_categories
+      }
 
+      const index = items.value.findIndex((i) => i.id === id)
       if (index !== -1) {
-        items.value[index] = updated
+        items.value[index] = merged
       }
 
       if (current.value?.id === id) {
-        current.value = updated
+        current.value = merged
       }
 
-      return updated
+      return merged
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al actualizar producto'
-
       throw err
     } finally {
       loading.value = false
     }
   }
-
   // =========================
   // DELETE
   // =========================

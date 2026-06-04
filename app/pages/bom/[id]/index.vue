@@ -9,12 +9,17 @@ import EngineeringSection from '~/modulos/logistica/master-data/product/engineer
 import CostingSection from '~/modulos/logistica/master-data/product/costing/sections/CostingSection.vue'
 import GeneralSection from '~/modulos/logistica/master-data/product/components/sections/GeneralSection.vue'
 
-import { createDefaultProductForm } from '~/modulos/logistica/master-data/product/utils/product-form.utils'
+import {
+  createDefaultProductForm,
+  toUpdateProductPayload
+} from '~/modulos/logistica/master-data/product/utils/product-form.utils'
 
 definePageMeta({
   middleware: ['auth'],
   layout: 'modulofabricacion'
 })
+
+const toast = useToast()
 
 const route = useRoute()
 
@@ -96,17 +101,24 @@ async function handleSave() {
   try {
     saving.value = true
 
-    // CREATE
-    // await productsStore.create(form)
+    const payload = toUpdateProductPayload(form) // ← sanitizás acá
+    await update(productId, payload)
 
-    // UPDATE
-    // await productsStore.update(productId, form)
-
-    console.log(form)
+    toast.add({ title: 'BOM actualizado', color: 'success' })
+  } catch (error) {
+    toast.add({
+      title: 'Error al actualizar BOM',
+      color: 'error',
+      description: error?.message,
+      icon: 'i-lucide-alert-circle'
+    })
+    if (error?.message) console.error('BACKEND RESPONSE', error?.message)
+    throw error
   } finally {
     saving.value = false
   }
 }
+
 const pageUi = computed(() => ({
   root: moduleCollapsed.value ? 'flex flex-col' : 'flex flex-col lg:grid lg:grid-cols-[200px_1fr] lg:gap-2',
   left: 'lg:col-start-1',
