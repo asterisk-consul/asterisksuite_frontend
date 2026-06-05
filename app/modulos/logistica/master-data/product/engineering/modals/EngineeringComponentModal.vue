@@ -22,7 +22,7 @@ const handleSaved = () => {
   <UModal :open="open" title="Componente de ingeniería" @update:open="emit('update:open', $event)">
     <template #body>
       <EngineeringComponentForm
-        :product-id="productId"
+        :productId="productId"
         :component="component"
         @saved="handleSaved"
         @cancelled="emit('update:open', false)"

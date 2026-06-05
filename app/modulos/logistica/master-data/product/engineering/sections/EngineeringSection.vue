@@ -9,11 +9,8 @@ const props = defineProps<{
 }>()
 
 const engineering = useEngineering(props.productId)
-
 const showModal = ref(false)
-
 const selectedParent = ref<any | null>(null)
-
 const editingNode = ref<any | null>(null)
 
 const handleAdd = (parent: any | null) => {
@@ -37,6 +34,9 @@ const handleSaved = async () => {
   selectedParent.value = null
   editingNode.value = null
 }
+onMounted(async () => {
+  await engineering.loadTree()
+})
 </script>
 
 <template>

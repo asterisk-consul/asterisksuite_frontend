@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useCosting } from '../composables/useCosting'
 
-import CostTemplateSelectorModal from '~/modulos/logistica/master-data/product/costing/modals/CostTemplateSelectorModal.vue'
+import CostTemplateSelectorModal from '~/modulos/logistica/master-data/product/cost-templates/modal/CostTemplateSelectorModal.vue'
 
 import CostingHistoryTable from '~/modulos/logistica/master-data/product/costing/components/CostingHistoryTable.vue'
 import CostingParetoTable from '~/modulos/logistica/master-data/product/costing/components/CostingParetoTable.vue'
@@ -31,6 +31,10 @@ const activeTab = ref('history')
 const handleAssigned = async () => {
   await costing.init()
 }
+
+onMounted(async () => {
+  await costing.init()
+})
 </script>
 
 <template>

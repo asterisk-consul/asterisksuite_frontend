@@ -49,6 +49,7 @@ export const useCostingStore = defineStore('costing', () => {
       error.value = null
 
       history.value = await service.getHistory(productId)
+      console.log('history:', history.value)
 
       return history.value
     } catch (err: any) {

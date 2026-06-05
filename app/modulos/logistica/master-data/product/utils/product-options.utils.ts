@@ -1,4 +1,8 @@
-import type { ProductType, CalculationType } from '~/modulos/logistica/master-data/product/types/product.types'
+import type {
+  ProductType,
+  CalculationType,
+  ProductCostSource
+} from '~/modulos/logistica/master-data/product/types/product.types'
 
 export const productTypeOptions: {
   label: string
@@ -45,5 +49,31 @@ export const calculationTypeOptions: {
   {
     label: 'Lineal',
     value: 'LINEAR'
+  }
+]
+
+export const ProductCostSourceOptions: {
+  label: string
+  value: ProductCostSource
+}[] = [
+  {
+    label: 'Manual',
+    value: 'MANUAL'
+  },
+  {
+    label: 'BOM',
+    value: 'BOM'
+  },
+  {
+    label: 'Ingeniería',
+    value: 'ENGINEERING'
+  },
+  {
+    label: 'Compra',
+    value: 'PURCHASE'
+  },
+  {
+    label: 'Tasa',
+    value: 'RATE'
   }
 ]

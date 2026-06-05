@@ -350,6 +350,7 @@ const handleMoved = async () => {
   movingNode.value = null
   await loadTree()
 }
+onMounted(() => loadTree())
 </script>
 
 <template>
