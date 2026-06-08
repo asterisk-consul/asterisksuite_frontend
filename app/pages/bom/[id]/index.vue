@@ -86,7 +86,7 @@ const activeTab = ref('general')
 const saving = ref(false)
 
 // Cuando carga el producto, llenás el form
-const currencyId = ref<string | undefined>(undefined) // ← sacalo del watch, hacelo ref
+const currencyId = ref<string>('839c208c-744d-4321-a375-2a747c911fa2') // ← sacalo del watch, hacelo ref
 
 watch(
   product,

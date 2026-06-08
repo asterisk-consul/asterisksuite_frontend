@@ -6,7 +6,8 @@ defineProps<{ collapsed?: boolean }>()
 const teams = [
   {
     label: 'Don Andres',
-    avatar: { src: '/img/donandres.webp', alt: 'Don Andres' }
+    avatar: { src: '/img/donandres.webp', alt: 'Don Andres' },
+    to: '/'
   },
   {
     label: 'Flowid',
@@ -18,7 +19,7 @@ const teams = [
 const selectedTeam = useState('selectedTeam', () => teams[0])
 
 const items = computed<DropdownMenuItem[][]>(() => [
-  teams.map(team => ({
+  teams.map((team) => ({
     ...team,
     onSelect() {
       selectedTeam.value = team
@@ -28,10 +29,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
 </script>
 
 <template>
-  <UDropdownMenu
-    :items="items"
-    :content="{ align: 'center', collisionPadding: 12 }"
-  >
+  <UDropdownMenu :items="items" :content="{ align: 'center', collisionPadding: 12 }">
     <UButton
       v-bind="{
         ...selectedTeam,

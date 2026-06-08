@@ -34,24 +34,7 @@ export const links: NavigationMenuItem[][] = [
       label: 'Depósitos',
       icon: 'i-heroicons-building-storefront',
       to: '/logistica/warehouse/',
-      defaultOpen: false,
-      children: [
-        {
-          label: 'Productos',
-          icon: 'i-heroicons-cube',
-          to: '/logistica/warehouse/productos/'
-        },
-        {
-          label: 'Costos',
-          icon: 'i-heroicons-location-marker',
-          to: '/logistica/warehouse/productos/costos'
-        },
-        {
-          label: 'Configuraciones',
-          icon: 'i-heroicons-cog-6-tooth',
-          to: '/logistica/warehouse/productos/settings/'
-        }
-      ]
+      defaultOpen: false
     },
     // {
     //   label: 'Picking',

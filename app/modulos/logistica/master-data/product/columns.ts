@@ -1,8 +1,4 @@
-import type {
-  Product,
-  ProductType,
-  ProductCostSource
-} from '~/modulos/logistica/master-data/product/types/product.types'
+import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
 
 import type { TableColumn } from '@nuxt/ui'
 
@@ -10,86 +6,20 @@ import { createTableBuilder } from '@/composables/table/createColumns'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 
 type Row = Product
+import type { BadgeItem } from '~/modulos/logistica/master-data/product/utils/product-options.utils'
 
-type BadgeColor =
-  | 'error'
-  | 'primary'
-  | 'warning'
-  | 'secondary'
-  | 'success'
-  | 'info'
-  | 'neutral'
-
-type BadgeItem = {
-  label: string
-  color: BadgeColor
-}
-
-const productTypeConfig: Record<
-  ProductType,
-  {
-    label: string
-    color: BadgeColor
-  }
-> = {
-  RAW_MATERIAL: {
-    label: 'Materia Prima',
-    color: 'warning'
-  },
-
-  FINISHED_PRODUCT: {
-    label: 'Producto Final',
-    color: 'success'
-  },
-
-  SERVICE: {
-    label: 'Servicio',
-    color: 'secondary'
-  },
-
-  CONSUMABLE: {
-    label: 'Consumible',
-    color: 'primary'
-  }
-}
-
-const costSourceConfig: Record<
-  ProductCostSource,
-  {
-    label: string
-    color: BadgeColor
-  }
-> = {
-  MANUAL: {
-    label: 'Manual',
-    color: 'neutral'
-  },
-
-  PURCHASE: {
-    label: 'Compra',
-    color: 'primary'
-  },
-
-  ENGINEERING: {
-    label: 'Ingeniería',
-    color: 'success'
-  },
-
-  BOM: {
-    label: 'BOM',
-    color: 'warning'
-  },
-  RATE: {
-    label: 'Tarifa',
-    color: 'secondary'
-  }
-}
+import {
+  costSourceConfig,
+  productTypeConfig
+} from '~/modulos/logistica/master-data/product/utils/product-options.utils'
 
 export const productColumns = (actions: {
   onEdit?: (row: Row) => void
+  onSortFieldSelect?: (columnId: string) => void
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({
-    locale: 'es-AR'
+    locale: 'es-AR',
+    onSortFieldSelect: actions?.onSortFieldSelect
   })
 
   return [
@@ -151,13 +81,11 @@ export const productColumns = (actions: {
 
             operators: ['equals'],
 
-            options: Object.entries(productTypeConfig).map(
-              ([value, config]) => ({
-                label: config.label,
+            options: Object.entries(productTypeConfig).map(([value, config]) => ({
+              label: config.label,
 
-                value
-              })
-            )
+              value
+            }))
           }
         }
       },

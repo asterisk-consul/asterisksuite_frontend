@@ -2,7 +2,8 @@ import { computed } from 'vue'
 import { useProductsStore } from '../store/products.store'
 import type {
   CreateProductInput,
-  UpdateProductInput
+  UpdateProductInput,
+  ProductCostCard
 } from '~/modulos/logistica/master-data/product/types/product.types'
 
 export interface ProductSelectItem {
@@ -77,6 +78,18 @@ export function useProducts() {
 
   const withCostTemplateIds = computed(() => new Set(withCostTemplate.value.map((p) => p.id)))
 
+  const costCards = computed<ProductCostCard[]>(() =>
+    store.items
+      .filter((p) => p.cost_template_id)
+      .map((product) => ({
+        id: product.id,
+        sku: product.sku ?? '',
+        name: product.name,
+        current_cost: product.current_cost,
+        currency: product.product_costs?.[0]?.currencies
+      }))
+  )
+
   // =========================
   // HELPERS
   // =========================
@@ -97,6 +110,20 @@ export function useProducts() {
     if (local) return local
     return await store.fetchOne(id)
   }
+
+  // =========================
+  // STATS
+  // =========================
+
+  const totalProducts = computed(() => store.items.length)
+
+  const activeProducts = computed(() => store.items.filter((p) => p.active !== false).length)
+
+  const inactiveProducts = computed(() => store.items.filter((p) => p.active === false).length)
+
+  const productsWithCostTemplate = computed(() => store.items.filter((p) => !!p.cost_template_id).length)
+
+  const productsWithoutCostTemplate = computed(() => store.items.filter((p) => !p.cost_template_id).length)
 
   // =========================
   // RETURN
@@ -123,6 +150,16 @@ export function useProducts() {
     findById,
     loadOne,
     getProduct,
+
+    // stats
+    totalProducts,
+    activeProducts,
+    inactiveProducts,
+    productsWithCostTemplate,
+    productsWithoutCostTemplate,
+
+    //costos
+    costCards,
 
     // actions
     init,

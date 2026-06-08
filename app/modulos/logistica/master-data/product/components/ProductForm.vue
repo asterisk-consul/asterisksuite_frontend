@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { ProductFormState } from '~/modulos/logistica/master-data/product/types/product-form.types'
 
-import ProductGeneralTab from '~/modulos/logistica/master-data/product/components/form/ProductGeneralTab.vue'
-import ProductInventoryTab from '~/modulos/logistica/master-data/product/components/form/ProductInventoryTab.vue'
-import ProductAccountingTab from '~/modulos/logistica/master-data/product/components/form/ProductAccountingTab.vue'
-import ProductAdvancedTab from '~/modulos/logistica/master-data/product/components/form/ProductAdvancedTab.vue'
-import RootCard from '~/modulos/logistica/master-data/product/components/form/RootCard.vue'
-import ProductPriceTab from '~/modulos/logistica/master-data/product/components/form/ProductPriceTab.vue'
+import ProductGeneralTab from '~/modulos/logistica/master-data/product/components/forms/ProductGeneralForm.vue'
+import ProductInventoryTab from '~/modulos/logistica/master-data/product/components/forms/ProductInventoryTab.vue'
+import ProductAccountingTab from '~/modulos/logistica/master-data/product/components/forms/ProductAccountingTab.vue'
+import ProductAdvancedTab from '~/modulos/logistica/master-data/product/components/forms/ProductAdvancedTab.vue'
+import RootCard from '~/modulos/logistica/master-data/product/components/forms/RootCard.vue'
+import ProductPriceTab from '~/modulos/logistica/master-data/product/components/forms/ProductPriceTab.vue'
 import ProductVariantTable from '~/modulos/logistica/master-data/product-variants/components/ProductVariantTable.vue'
 
 import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
@@ -42,7 +42,7 @@ const submitText = computed(() => {
   return props.mode === 'edit' ? 'Guardar cambios' : 'Crear producto'
 })
 
-const form = [
+const tabs = [
   { label: 'Variables', slot: 'variables', icon: 'i-lucide-settings-2' },
   {
     label: 'Productos relacionados',
@@ -74,13 +74,13 @@ const form = [
     <!-- HEADER -->
     <!-- ========================= -->
 
-    <ProductGeneralTab v-model="form" />
+    <ProductGeneralTab :form="form" />
 
     <!-- ========================= -->
     <!-- form -->
     <!-- ========================= -->
 
-    <Uform :items="form" variant="link" class="w-full">
+    <UTabs :items="tabs" variant="link" class="w-full">
       <template #accounting>
         <ProductAccountingTab v-model="form" />
       </template>
@@ -104,7 +104,7 @@ const form = [
       <template #advanced>
         <ProductAdvancedTab v-model="form" />
       </template>
-    </Uform>
+    </UTabs>
 
     <!-- ========================= -->
     <!-- ACTIONS -->

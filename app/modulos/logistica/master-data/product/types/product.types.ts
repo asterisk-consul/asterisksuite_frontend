@@ -1,6 +1,6 @@
 // types/products.ts
 
-export type ProductType = 'RAW_MATERIAL' | 'FINISHED_PRODUCT' | 'SEMI_FINISHED' | 'SERVICE' | 'CONSUMABLE'
+export type ProductType = 'RAW_MATERIAL' | 'FINISHED_PRODUCT' | 'SEMI_FINISHED' | 'SERVICE' | 'RATES'
 
 export type ProductCostSource = 'MANUAL' | 'PURCHASE' | 'ENGINEERING' | 'BOM' | 'RATE'
 
@@ -49,6 +49,7 @@ export interface Product {
 
   product_type: ProductType
   cost_template_id?: string | null
+
   is_composed: boolean
   auto_calculate_cost: boolean
   has_engineering: boolean
@@ -75,11 +76,9 @@ export interface Product {
 
   last_cost_calculated_at?: string | null
 
-  current_cost?: number | null
+  current_cost?: number | string | null
 
-  // ─────────────────────────────
-  // Relaciones
-  // ─────────────────────────────
+  // relaciones
 
   product_variants?: ProductVariant[]
 
@@ -97,8 +96,9 @@ export interface Product {
 
   product_price?: ProductPrice[]
 
-  // ESTO ES LO QUE TE FALTABA
   product_taxes?: ProductTax[]
+
+  product_costs?: ProductCost[] // 👈 NUEVO
 
   income_account?: Account | null
   expense_account?: Account | null
@@ -106,8 +106,22 @@ export interface Product {
 
   transfer_rate?: TransferRate | null
 
-  // custom backend
   root_products?: RootProductReference[]
+}
+
+export interface ProductCostCard {
+  id: string
+  sku: string
+  name: string
+
+  current_cost?: number | string | null
+
+  currency?: {
+    id: string
+    code: string
+    name: string
+    symbol: string
+  }
 }
 
 export interface RootProductReference {
@@ -115,6 +129,21 @@ export interface RootProductReference {
   name: string
   sku: string
   level: number
+}
+export interface Currency {
+  id: string
+  code: string
+  name: string
+  symbol: string
+}
+
+export interface ProductCost {
+  id?: string
+
+  currency_id?: string
+  total_cost?: number | string
+
+  currencies?: Currency
 }
 
 export interface CreateProductDto {
