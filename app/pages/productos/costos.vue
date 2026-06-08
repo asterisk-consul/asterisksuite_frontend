@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import CostingTable from '~/modulos/logistica/master-data/costing/components/CostingTable.vue'
+import CostingTable from '~/modulos/logistica/master-data/product/costing/components/CostingTable.vue'
 </script>
 
 <template>
