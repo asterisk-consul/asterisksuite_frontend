@@ -1,11 +1,7 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-<<<<<<< Updated upstream
 import { sub } from 'date-fns'
-import { ref, computed, watch, onMounted } from 'vue'
-=======
-import { ref, computed, watch, onErrorCaptured } from 'vue'
 
->>>>>>> Stashed changes
+import { ref, computed, watch, onMounted, onErrorCaptured } from 'vue'
 import { getPaginationRowModel } from '@tanstack/vue-table'
 import type { ComponentPublicInstance } from 'vue'
 
@@ -113,7 +109,6 @@ function applyTextFilter(value: string, column: string) {
   api.getColumn(column)?.setFilterValue(value || undefined)
 }
 
-<<<<<<< Updated upstream
 /* ========================
    Aplicar filtros fecha rango
 ======================== */
@@ -186,8 +181,6 @@ watch(
   () => applyTextFilter('', selectedColumn.value)
 )
 
-=======
->>>>>>> Stashed changes
 /* ========================
    Selección
 ======================== */
