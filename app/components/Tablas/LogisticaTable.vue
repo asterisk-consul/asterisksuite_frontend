@@ -1,18 +1,16 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { sub } from 'date-fns'
-
-import { ref, computed, watch, onMounted, onErrorCaptured } from 'vue'
+import { ref, computed } from 'vue'
 import { getPaginationRowModel } from '@tanstack/vue-table'
+import type { SortingState } from '@tanstack/vue-table'
 
 import type { UTableInstance, ExtendedColumn } from './types/tablas.types'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 import { useColumnVisibility } from '@/composables/table/useColumnVisibility'
-import { useTableFilters } from '@/components/Tablas/composable/useTableFilters'
 
 import DeleteConfirmModal from './DeleteConfirmModal.vue'
 import TableSelectionBar from './TableSelectionBar.vue'
-
-import TableFiltersPopover from '@/components/Tablas/filters/TableFiltersPopover.vue'
+import TableToolbar from '~/components/Tablas/TableToolbar.vue'
 
 /* ========================
    Props / Emits
@@ -22,7 +20,12 @@ const props = defineProps<{
   data: T[]
   columns: ExtendedColumn<T>[]
   loading?: boolean
+  filterFields?: FilterField[]
+  sortFields?: SortField[]
 }>()
+const sorting = defineModel<SortingState>('sorting', {
+  default: () => []
+})
 
 const emit = defineEmits<{
   'delete:rows': [rows: T[]]
@@ -34,128 +37,28 @@ const emit = defineEmits<{
 
 const table = useTemplateRef<UTableInstance<T>>('table')
 
-defineExpose({
-  table
-})
+defineExpose({ table })
 
 const rowSelection = ref<Record<string, boolean>>({})
-
 const showDeleteModal = ref(false)
 
 const { columnVisibility, columnVisibilityItems } = useColumnVisibility(table)
-
-/* ========================
-   Filters
-======================== */
-
-const { filters, addFilter, removeFilter, clearFilters } = useTableFilters(
-  table,
-  computed(() => props.columns)
-)
-
-/* ========================
-   FilterFns
-======================== */
-
-const filterFns = {
-  advancedFilter: (row: any, columnId: string, filter: any) => {
-    const value = row.getValue(columnId)
-
-    if (!filter) {
-      return true
-    }
-
-    switch (filter.operator) {
-      case 'contains':
-        return String(value || '')
-          .toLowerCase()
-          .includes(String(filter.value || '').toLowerCase())
-
-      case 'equals':
-        return String(value) === String(filter.value)
-
-      case 'startsWith':
-        return String(value || '')
-          .toLowerCase()
-          .startsWith(String(filter.value || '').toLowerCase())
-
-      case 'gt':
-        return Number(value) > Number(filter.value)
-
-      case 'lt':
-        return Number(value) < Number(filter.value)
-
-      case 'between':
-        if (!filter.value?.start || !filter.value?.end) {
-          return true
-        }
-
-        const rowDate = new Date(value)
-
-        const start = new Date(filter.value.start)
-
-        const end = new Date(filter.value.end)
-
-        return rowDate >= start && rowDate <= end
-
-      default:
-        return true
-    }
-  }
-}
-
-// /* ========================
-//    Sync Filters
-// ======================== */
-
-// watch(
-//   filters,
-//   () => {
-//     console.log('FILTERS =>', filters.value)
-
-//     const api = table.value?.tableApi
-
-//     if (!api) return
-
-//     filters.value.forEach((filter) => {
-//       console.log('APPLY FILTER =>', filter)
-
-//       api.getColumn(filter.column)?.setFilterValue({
-//         operator: filter.operator,
-//         value: filter.value
-//       })
-//     })
-//   },
-//   {
-//     deep: true
-//   }
-// )
 
 /* ========================
    Selección
 ======================== */
 
 const selectedRows = computed<T[]>(
-  () =>
-    table.value?.tableApi
-      ?.getFilteredSelectedRowModel()
-      .rows.map((r) => r.original) ?? []
+  () => table.value?.tableApi?.getFilteredSelectedRowModel().rows.map((r) => r.original) ?? []
 )
-
 const selectedCount = computed<number>(() => selectedRows.value.length)
-
-const totalCount = computed<number>(
-  () => table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0
-)
+const totalCount = computed<number>(() => table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0)
 
 /* ========================
    Pagination
 ======================== */
 
-const pagination = ref({
-  pageIndex: 0,
-  pageSize: 15
-})
+const pagination = ref({ pageIndex: 0, pageSize: 15 })
 
 /* ========================
    Acciones
@@ -163,67 +66,25 @@ const pagination = ref({
 
 function confirmDelete(): void {
   emit('delete:rows', selectedRows.value)
-
   rowSelection.value = {}
-
   showDeleteModal.value = false
 }
-
-/* ========================
-   Debug temporal
-======================== */
-
-onErrorCaptured((err, instance, info) => {
-  console.error('🔴 Componente:', instance?.$options.__name)
-  console.error('🔴 Info:', info)
-  console.error('🔴 Error:', err)
-  return false
-})
 </script>
 
 <template>
   <div class="flex-1 w-full pb-20">
     <!-- ========================
-         Topbar
+         Toolbar (si hay filterFields o sortFields)
     ========================= -->
 
-    <div class="flex items-center justify-between gap-4 py-3.5">
-      <!-- Filters -->
-
-      <TableFiltersPopover
-        :filters="filters"
-        :columns="props.columns"
-        @add="addFilter"
-        @remove="removeFilter"
-      />
-
-      <!-- Right Actions -->
-
-      <div class="flex items-center gap-2">
-        <UButton
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-x"
-          @click="clearFilters"
-        >
-          Limpiar
-        </UButton>
-
-        <UDropdownMenu
-          :items="columnVisibilityItems"
-          :content="{
-            align: 'end'
-          }"
-        >
-          <UButton
-            label="Display"
-            color="neutral"
-            variant="outline"
-            trailing-icon="i-lucide-settings-2"
-          />
-        </UDropdownMenu>
-      </div>
-    </div>
+    <TableToolbar
+      v-if="filterFields?.length || sortFields?.length"
+      :table="table"
+      :columns="columns"
+      v-model:sorting="sorting"
+      :filter-fields="filterFields ?? []"
+      :sort-fields="sortFields ?? []"
+    />
 
     <!-- ========================
          Tabla
@@ -234,9 +95,7 @@ onErrorCaptured((err, instance, info) => {
       v-model:pagination="pagination"
       v-model:row-selection="rowSelection"
       v-model:column-visibility="columnVisibility"
-      :table-options="{
-        filterFns
-      }"
+      v-model:sorting="sorting"
       sticky
       :get-row-id="(row: T) => (row as any).id"
       :data="props.data"
@@ -248,42 +107,25 @@ onErrorCaptured((err, instance, info) => {
       }"
       :ui="{
         base: 'table-fixed border-separate border-spacing-0',
-
         thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
-
         tbody: '[&>tr]:last:[&>td]:border-b-0',
-
-        th: 'first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r',
-
+        th: 'first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r py-0.5',
         td: 'border-b border-default'
       }"
-      :class="[
-        'max-h-[75vh] overflow-y-auto',
-
-        selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg'
-      ]"
+      :class="['max-h-[75vh] overflow-y-auto', selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg']"
     />
 
     <!-- ========================
          Footer
     ========================= -->
 
-    <div
-      class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2"
-    >
-      <div class="text-xs text-muted">
-        {{ selectedCount }}
-        seleccionadas •
-        {{ totalCount }}
-        totales
-      </div>
+    <div class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2">
+      <div class="text-xs text-muted">{{ selectedCount }} seleccionadas • {{ totalCount }} totales</div>
 
       <UPagination
         size="sm"
-        :page="(table?.tableApi?.getState().pagination.pageIndex ?? 0) + 1"
-        :items-per-page="
-          table?.tableApi?.getState().pagination.pageSize ?? pagination.pageSize
-        "
+        :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
+        :items-per-page="table?.tableApi?.getState().pagination.pageSize"
         :total="totalCount"
         @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
       />
@@ -293,17 +135,13 @@ onErrorCaptured((err, instance, info) => {
          Selection Bar
     ========================= -->
 
-    <TableSelectionBar
-      :count="selectedCount"
-      @open-delete="showDeleteModal = true"
-    />
+    <TableSelectionBar :count="selectedCount" @open-delete="showDeleteModal = true" />
 
     <!-- ========================
          Delete Modal
     ========================= -->
 
     <DeleteConfirmModal
-      v-if="showDeleteModal"
       :open="showDeleteModal"
       :count="selectedCount"
       @confirm="confirmDelete"

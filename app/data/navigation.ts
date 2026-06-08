@@ -58,6 +58,18 @@ export const navigationLinks = [
       // children: [{ label: 'Demostracion', to: '/logistica/operaciones' }]
     },
     {
+      label: 'Stock',
+      to: '/stock',
+      icon: 'i-lucide-box',
+      defaultOpen: false
+    },
+    {
+      label: 'Fabricacion',
+      to: '/fabricacion',
+      icon: 'i-lucide-factory',
+      defaultOpen: false
+    },
+    {
       label: 'Ajustes',
       to: '/settings',
       icon: 'i-lucide-settings',
@@ -68,11 +80,8 @@ export const navigationLinks = [
         { label: 'Miembros', to: '/settings/members' },
         { label: 'Notificaciones', to: '/settings/notifications' },
         { label: 'Seguridad', to: '/settings/security' },
-        {
-          label: 'Importador',
-          to: '/importadores'
-        },
-        { label: 'Impuestos', to: '/settings/taxes' }
+        { label: 'Impuestos', to: '/settings/taxes' },
+        { label: 'Monedas', to: '/settings/monedas' }
       ]
     }
   ],

@@ -5,12 +5,20 @@ export default defineNuxtConfig({
     '@nuxtjs/mdc',
     '@vueuse/nuxt', // 👈 así se pasan las opciones
     ['@pinia/nuxt', { autoImports: ['defineStore', 'storeToRefs'] }],
-    'nuxt-auth-utils'
+    'nuxt-auth-utils',
+    [
+      'nuxt-echarts',
+      {
+        charts: ['BarChart'],
+        components: ['GridComponent', 'TooltipComponent', 'LegendComponent']
+      }
+    ]
   ],
   devServer: {
     host: '0.0.0.0', // <- debe estar así
     port: 3008
   },
+
   experimental: {
     watcher: 'chokidar',
     componentIslands: false

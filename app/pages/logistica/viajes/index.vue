@@ -11,14 +11,12 @@ import TripPlanner from '~/modulos/logistica/transport/trips/planners/TripPlanne
 import { useTripsStore } from '~/modulos/logistica/transport/trips/trips.store'
 
 //types
-import type {
-  Trip,
-  CreateTripInput,
-  UpdateTripInput
-} from '~/modulos/logistica/transport/trips/types/trips.types'
+import type { Trip } from '~/modulos/logistica/transport/trips/types/trips.types'
 
 //tabla columns
 import { tripsColumns } from '~/modulos/logistica/transport/trips/columns'
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 type EditableField = 'reference_number' | 'kilometers' | 'week'
 
@@ -34,6 +32,7 @@ const router = useRouter()
 const loading = ref(true)
 const store = useTripsStore()
 const { items } = storeToRefs(store)
+const sorting = ref<SortingState>([])
 
 const tableRef = ref<any>(null)
 /* ---------------------------------------
@@ -49,13 +48,19 @@ function openEdit(row: any) {
   router.push(`/logistica/viajes/${row.id}`)
 }
 
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [
+    {
+      id: columnId,
+      desc: current?.id === columnId ? !current.desc : false
+    }
+  ]
+}
 const columns = tripsColumns({
   onEdit: openEdit,
-  onInlineSave: async <K extends EditableField>(
-    row: Trip,
-    field: K,
-    value: EditableValue<K>
-  ) => {
+  onSortFieldSelect,
+  onInlineSave: async <K extends EditableField>(row: Trip, field: K, value: EditableValue<K>) => {
     // ✅ Capturá ANTES de cualquier mutación
     const tableApi = tableRef.value?.table?.tableApi
     const pageIndex = tableApi?.getState().pagination.pageIndex
@@ -102,15 +107,9 @@ const itemsTabs: TabsItem[] = [
   { label: 'Otro', value: 'otro' }
 ]
 
-const title = computed(() =>
-  activeTab.value === 'viajes' ? 'Viajes' : 'Otro módulo'
-)
+const title = computed(() => (activeTab.value === 'viajes' ? 'Viajes' : 'Otro módulo'))
 
-const description = computed(() =>
-  activeTab.value === 'viajes'
-    ? 'Listado de Viajes'
-    : 'Otra funcionalidad distinta'
-)
+const description = computed(() => (activeTab.value === 'viajes' ? 'Listado de Viajes' : 'Otra funcionalidad distinta'))
 
 const links = ref<ButtonProps[]>([
   {
@@ -121,39 +120,85 @@ const links = ref<ButtonProps[]>([
     variant: 'solid'
   }
 ])
+const filterFields: FilterField[] = [
+  {
+    id: 'reference_number',
+    label: 'Filtrar por referencia...',
+    class: 'w-48'
+  },
+  {
+    id: 'week',
+    label: 'Filtrar por semana...',
+    class: 'w-32'
+  },
+  {
+    id: 'origin',
+    label: 'Filtrar por origen...',
+    class: 'w-40'
+  },
+  {
+    id: 'destination',
+    label: 'Filtrar por destino...',
+    class: 'w-40'
+  },
+  {
+    id: 'orders',
+    label: 'Filtrar por orden o cliente...',
+    class: 'w-64'
+  },
+  {
+    id: 'vehicle_combination',
+    label: 'Filtrar por unidad, patente o chofer...',
+    class: 'w-72'
+  }
+]
+const sortFields: SortField[] = [
+  {
+    label: 'Referencia',
+    value: 'reference_number'
+  },
+  {
+    label: 'Semana',
+    value: 'week'
+  },
+  {
+    label: 'Estado',
+    value: 'status'
+  },
+  {
+    label: 'Origen',
+    value: 'origin'
+  },
+  {
+    label: 'Destino',
+    value: 'destination'
+  },
+  {
+    label: 'Órdenes / Clientes',
+    value: 'orders'
+  },
+  {
+    label: 'Combinación',
+    value: 'vehicle_combination'
+  },
+  {
+    label: 'Salida',
+    value: 'departure_time'
+  },
+  {
+    label: 'Llegada',
+    value: 'arrival_time'
+  },
+  {
+    label: 'Fecha Creación',
+    value: 'created_at'
+  }
+]
 </script>
 
 <template>
   <UPage class="space-y-4">
-    <div class="flex flex-col gap-2">
-      <div>
-        <UButton
-          icon="i-lucide-layout-panel-left"
-          variant="ghost"
-          color="neutral"
-          label="Menu"
-          @click="toggleModuleSidebar"
-        />
-      </div>
-
-      <!-- 🔥 Tabs controlados -->
-      <!-- <UTabs
-        v-model="activeTab"
-        :items="itemsTabs"
-        color="neutral"
-        variant="link"
-        :content="false"
-        class="w-full"
-      /> -->
-
-      <!-- 🔥 Header dinámico -->
-      <UPageHeader
-        :title="title"
-        :description="description"
-        :links="links"
-        class="mb-4 w-full"
-      />
-    </div>
+    <AppPageHeader :title="title" :description="description" :links="links" />
 
     <!-- 🔥 Contenido dinámico -->
     <LogisticaTable
@@ -162,6 +207,9 @@ const links = ref<ButtonProps[]>([
       :loading="loading"
       :data="items"
       :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
     />
 
     <TripPlanner :tripId="'12'" v-else />

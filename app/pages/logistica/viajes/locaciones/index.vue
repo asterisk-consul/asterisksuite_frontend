@@ -15,6 +15,9 @@ function toggleModuleSidebar() {
 }
 const store = useLocationsStore()
 
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
+
 /* ---------------------------------------
    TIPOS
 --------------------------------------- */
@@ -41,6 +44,7 @@ const loading = ref(true)
 const modalOpen = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const editingRow = ref<any>(null)
+const sorting = ref<SortingState>([])
 
 function openCreate() {
   modalMode.value = 'create'
@@ -61,14 +65,20 @@ function openEdit(row: any) {
 /* ---------------------------------------
    TABLE COLUMNS
 --------------------------------------- */
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [
+    {
+      id: columnId,
+      desc: current?.id === columnId ? !current.desc : false
+    }
+  ]
+}
 
 const columns = LocationColumns({
   onEdit: openEdit,
-  onInlineSave: async (
-    row: Location,
-    field: EditableField,
-    value: EditableValue
-  ) => {
+  onSortFieldSelect,
+  onInlineSave: async (row: Location, field: EditableField, value: EditableValue) => {
     const prev = row[field]
     row[field] = value ?? ''
 
@@ -129,29 +139,68 @@ const links: ButtonProps[] = [
     onClick: openCreate
   }
 ]
+const filterFields: FilterField[] = [
+  {
+    id: 'city',
+    label: 'Filtrar por ciudad...',
+    class: 'w-40'
+  },
+  {
+    id: 'province',
+    label: 'Filtrar por provincia...',
+    class: 'w-40'
+  },
+  {
+    id: 'country',
+    label: 'Filtrar por país...',
+    class: 'w-40'
+  }
+]
+
+const sortFields: SortField[] = [
+  {
+    label: 'Dirección',
+    value: 'address'
+  },
+  {
+    label: 'Ciudad',
+    value: 'city'
+  },
+  {
+    label: 'Provincia',
+    value: 'province'
+  },
+  {
+    label: 'País',
+    value: 'country'
+  },
+  {
+    label: 'Código Postal',
+    value: 'postalCode'
+  },
+  {
+    label: 'Coordenadas',
+    value: 'coordinates'
+  },
+  {
+    label: 'Fecha Creación',
+    value: 'created_at'
+  }
+]
 </script>
 
 <template>
   <UPage class="space-y-4">
-    <div class="flex flex-col">
-      <div>
-        <UButton
-          icon="i-lucide-layout-panel-left"
-          variant="ghost"
-          color="neutral"
-          label="Menu"
-          @click="toggleModuleSidebar"
-        />
-      </div>
-      <UPageHeader
-        title="Locaciones"
-        description="Listado de Locaciones"
-        :links="links"
-        class="mb-4 w-full"
-      />
-    </div>
+    <AppPageHeader title="Locaciones" description="Listado de Locaciones" :links="links" />
 
-    <LogisticaTable :loading="loading" :data="items" :columns="columns" />
+    <LogisticaTable
+      :loading="loading"
+      :data="items"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+    />
   </UPage>
 
   <ModalForm

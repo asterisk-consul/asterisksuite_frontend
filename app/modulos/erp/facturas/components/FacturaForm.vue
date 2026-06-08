@@ -9,7 +9,7 @@ import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussine
 
 import BusinessPartyModal from '~/modulos/logistica/master-data/bussiness-parties/components/BusinnesPartyModal.vue'
 
-import { useProductsStore } from '~/modulos/logistica/master-data/product/products.store'
+import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 
 import { useBusinessParties } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessParties'
 

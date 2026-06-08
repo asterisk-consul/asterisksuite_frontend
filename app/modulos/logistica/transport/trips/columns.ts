@@ -16,14 +16,7 @@ type Row = Trip
 
 export type TripStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 
-type BadgeColor =
-  | 'error'
-  | 'primary'
-  | 'warning'
-  | 'secondary'
-  | 'success'
-  | 'info'
-  | 'neutral'
+type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
 const tripStatusConfig: Record<
   TripStatus,
@@ -61,16 +54,16 @@ export const tripsColumns = (actions: {
   onInlineSave?: (row: Row, field: any, value: any) => void
 
   onEdit?: (row: Row) => void
+  onSortFieldSelect?: (columnId: string) => void
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row, EditableField>({
     locale: 'es-AR',
-
+    onSortFieldSelect: actions.onSortFieldSelect,
     onInlineSave: actions.onInlineSave
   })
 
   return [
     useSelectColumn<Row>(),
-
     useIdColumn<Row>(actions.onEdit),
 
     ...build([
@@ -131,8 +124,7 @@ export const tripsColumns = (actions: {
 
             title: 'Cambiar estado',
 
-            onChange: (row, value) =>
-              actions.onToggleStatus?.(row, value as TripStatus)
+            onChange: (row, value) => actions.onToggleStatus?.(row, value as TripStatus)
           }
         }
       },
@@ -146,8 +138,7 @@ export const tripsColumns = (actions: {
 
         label: 'Origen',
 
-        accessorFn: (row) =>
-          row.locations_trips_origin_location_idTolocations?.city ?? ''
+        accessorFn: (row) => row.locations_trips_origin_location_idTolocations?.city ?? ''
       },
 
       /* ========================
@@ -159,8 +150,7 @@ export const tripsColumns = (actions: {
 
         label: 'Destino',
 
-        accessorFn: (row) =>
-          row.locations_trips_destination_location_idTolocations?.city ?? ''
+        accessorFn: (row) => row.locations_trips_destination_location_idTolocations?.city ?? ''
       },
 
       /* ========================
@@ -172,10 +162,7 @@ export const tripsColumns = (actions: {
 
         label: 'Órdenes / Clientes',
 
-        accessorFn: (row) =>
-          (row.unique_orders ?? [])
-            .map((o) => `${o.order_number} ${o.customer_name}`)
-            .join(' '),
+        accessorFn: (row) => (row.unique_orders ?? []).map((o) => `${o.order_number} ${o.customer_name}`).join(' '),
 
         cell: ({ row }) => {
           const ordersList = row.original.unique_orders ?? []
@@ -208,15 +195,12 @@ export const tripsColumns = (actions: {
                     {
                       variant: 'subtle',
 
-                      class:
-                        'text-xs cursor-pointer hover:opacity-75 transition-opacity',
+                      class: 'text-xs cursor-pointer hover:opacity-75 transition-opacity',
 
                       onClick: (e: MouseEvent) => {
                         e.stopPropagation()
 
-                        router.push(
-                          `/logistica/viajes/dispatch-orders/${o.dispatch_order_id}/edit`
-                        )
+                        router.push(`/logistica/viajes/dispatch-orders/${o.dispatch_order_id}/edit`)
                       }
                     },
 
@@ -244,17 +228,7 @@ export const tripsColumns = (actions: {
             return ''
           }
 
-          return [
-            vc.unit_number,
-
-            vc.tractor?.plate,
-
-            vc.trailer?.plate,
-
-            vc.drivers?.first_name,
-
-            vc.drivers?.last_name
-          ]
+          return [vc.unit_number, vc.tractor?.plate, vc.trailer?.plate, vc.drivers?.first_name, vc.drivers?.last_name]
             .filter(Boolean)
             .join(' ')
         },
@@ -272,9 +246,7 @@ export const tripsColumns = (actions: {
 
           const trailer = vc.trailer?.plate
 
-          const driver = vc.drivers
-            ? `${vc.drivers.first_name} ${vc.drivers.last_name}`
-            : null
+          const driver = vc.drivers ? `${vc.drivers.first_name} ${vc.drivers.last_name}` : null
 
           if (!unit && !tractor && !trailer && !driver) {
             return `VC-${vc.id.slice(0, 8)}`

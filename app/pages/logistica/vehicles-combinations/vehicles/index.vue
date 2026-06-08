@@ -22,11 +22,10 @@ import type {
   UpdateVehicleInput
 } from '~/modulos/logistica/transport/vehicles/types/vehicles.types'
 
-const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
+
 import type { ButtonProps } from '@nuxt/ui'
-function toggleModuleSidebar() {
-  moduleCollapsed.value = !moduleCollapsed.value
-}
 
 type EditableField = 'plate'
 
@@ -50,6 +49,7 @@ const { vehicleItems } = useDocuments(documentTypes)
 const modalOpen = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const editingRow = ref<any>(null)
+const sorting = ref<SortingState>([])
 
 function openCreate() {
   modalMode.value = 'create'
@@ -75,14 +75,20 @@ function openEdit(row: Vehicle) {
 /* ---------------------------------------
    TABLE COLUMNS
 --------------------------------------- */
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [
+    {
+      id: columnId,
+      desc: current?.id === columnId ? !current.desc : false
+    }
+  ]
+}
 
 const columns = vehiclesColumns({
   onEdit: openEdit,
-  onInlineSave: async (
-    row: Vehicle,
-    field: EditableField,
-    value: EditableValue
-  ) => {
+  onSortFieldSelect,
+  onInlineSave: async (row: Vehicle, field: EditableField, value: EditableValue) => {
     const prev = row[field]
     row[field] = value ?? ''
 
@@ -231,28 +237,58 @@ const links = ref<ButtonProps[]>([
     variant: 'solid'
   }
 ])
+const filterFields: FilterField[] = [
+  {
+    id: 'plate',
+    label: 'Filtrar por patente...',
+    class: 'w-40'
+  },
+  {
+    id: 'vehicle',
+    label: 'Filtrar por vehículo...',
+    class: 'w-56'
+  }
+]
+
+const sortFields: SortField[] = [
+  {
+    label: 'Patente',
+    value: 'plate'
+  },
+  {
+    label: 'Tipo',
+    value: 'type'
+  },
+  {
+    label: 'Vehículo',
+    value: 'vehicle'
+  },
+  {
+    label: 'Refrigeración',
+    value: 'refrigeration'
+  },
+  {
+    label: 'Estado',
+    value: 'active'
+  },
+  {
+    label: 'Fecha Creación',
+    value: 'created_at'
+  }
+]
 </script>
 
 <template>
   <UPage class="space-y-4">
-    <div class="flex flex-col">
-      <div>
-        <UButton
-          icon="i-lucide-layout-panel-left"
-          variant="ghost"
-          color="neutral"
-          label="Menu"
-          @click="toggleModuleSidebar"
-        />
-      </div>
-      <UPageHeader
-        title="Vehiculos"
-        description="Listado de Vehiculos"
-        :links="links"
-        class="mb-4 w-full"
-      />
-    </div>
-    <LogisticaTable :loading="loading" :data="items" :columns="columns" />
+    <AppPageHeader title="Vehiculos" description="Listado de Vehiculos" :links="links" />
+    <LogisticaTable
+      :loading="loading"
+      :data="items"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+    />
   </UPage>
   <ModalForm
     v-model:open="modalOpen"

@@ -1,90 +1,106 @@
-import { h } from 'vue'
-import { UBadge } from '#components'
 import type { TableColumn } from '@nuxt/ui'
+
+import { createTableBuilder } from '@/composables/table/createColumns'
+import { useIdColumn } from '@/composables/table/useIdColumn'
+import { useSelectColumn } from '@/composables/table/useSelectColumn'
+
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 
-import { useInlineEdit } from '~/composables/table/useInlineEdit'
-import type { EditableValue } from '~/composables/table/useInlineEdit'
-import { useDateColumn } from '~/composables/table/useDateColumn'
-import { useSelectColumn } from '@/composables/table/useSelectColumn'
-import { useIdColumn } from '@/composables/table/useIdColumn'
-
 type Row = BusinessParty
-type EditableField = 'city' | 'province' | 'country' | 'postalCode'
-
-const { editableCell } = useInlineEdit<BusinessParty, EditableField>()
-const createdDate = useDateColumn('es-AR')
 
 export const BusinessPartyColumns = (actions: {
-  // onToggleActive?: (row: Row, value: boolean) => void
-  // onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void
+  onSortFieldSelect?: (columnId: string) => void
   onEdit?: (row: Row) => void
-}): TableColumn<Row>[] => [
-  useSelectColumn<Row>(),
-  useIdColumn<Row>(actions.onEdit),
+}): TableColumn<Row>[] => {
+  const build = createTableBuilder<Row>({
+    locale: 'es-AR',
+    onSortFieldSelect: actions.onSortFieldSelect
+  })
 
-  {
-    accessorKey: 'name',
-    header: 'Razón Social'
-  },
+  return [
+    useSelectColumn(),
+    useIdColumn(actions.onEdit),
 
-  {
-    accessorKey: 'tax_id',
-    header: 'CUIT'
-  },
+    ...build([
+      {
+        key: 'name',
+        label: 'Razón Social',
+        sortable: true
+      },
 
-  {
-    accessorKey: 'type',
-    header: 'Tipo',
-    cell: ({ row }) => {
-      const type = row.getValue('type') as 'client' | 'supplier'
+      {
+        key: 'tax_id',
+        label: 'CUIT',
+        sortable: true
+      },
 
-      const config = {
-        client: { label: 'Cliente', color: 'primary' },
-        supplier: { label: 'Proveedor', color: 'warning' }
-      } as const
+      {
+        key: 'type',
+        label: 'Tipo',
+        sortable: true,
 
-      const cfg = config[type]
-
-      return h(
-        UBadge,
-        {
-          variant: 'subtle',
-          color: cfg.color
+        badge: {
+          resolve: (row) => ({
+            label: row.type === 'client' ? 'Cliente' : 'Proveedor',
+            color: row.type === 'client' ? 'primary' : 'warning'
+          })
         },
-        () => cfg.label
-      )
-    }
-  },
 
-  {
-    accessorKey: 'active',
-    header: 'Estado',
-    cell: ({ row }) => {
-      const active = row.getValue('active') as boolean
+        meta: {
+          filter: {
+            type: 'select',
+            operators: ['equals'],
+            options: [
+              {
+                label: 'Cliente',
+                value: 'client'
+              },
+              {
+                label: 'Proveedor',
+                value: 'supplier'
+              }
+            ]
+          }
+        }
+      },
 
-      return h(
-        UBadge,
-        {
-          variant: 'subtle',
-          color: active ? 'success' : 'error'
+      {
+        key: 'active',
+        label: 'Estado',
+
+        sortable: true,
+
+        badge: {
+          resolve: (row) => ({
+            label: row.active ? 'Activo' : 'Inactivo',
+            color: row.active ? 'success' : 'error'
+          })
         },
-        () => (active ? 'Activo' : 'Inactivo')
-      )
-    }
-  },
 
-  {
-    accessorKey: 'created_at',
-    header: 'Creado',
-    cell: ({ row }) => {
-      const date = row.getValue('created_at') as string
+        meta: {
+          filter: {
+            type: 'select',
+            operators: ['equals'],
+            options: [
+              {
+                label: 'Activo',
+                value: true
+              },
+              {
+                label: 'Inactivo',
+                value: false
+              }
+            ]
+          }
+        }
+      },
 
-      return new Date(date).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      })
-    }
-  }
-]
+      {
+        key: 'created_at',
+        label: 'Creado',
+        sortable: true,
+        date: true
+      }
+    ])
+  ]
+}
