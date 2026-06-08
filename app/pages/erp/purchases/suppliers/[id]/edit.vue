@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'default', middleware: ['auth'] })
 
-import { useBusinessPartiesByType } from '~/composables/useBusinessPartiesByType'
+import { useBusinessPartiesByType } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessPartiesByType'
 import BusinessPartyForm from '~/modulos/logistica/master-data/bussiness-parties/components/BusinessPartyForm.vue'
 
 const route = useRoute()
