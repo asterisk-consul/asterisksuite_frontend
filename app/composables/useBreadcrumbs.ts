@@ -44,6 +44,7 @@ const breadcrumbMap: Record<
 > = {
   // módulos
   logistica: { label: 'Logística', to: '/logistica' },
+  erp: { label: 'ERP', to: '/erp' },
 
   // agrupadores
   transport: { label: 'Transporte', clickable: false },
@@ -67,7 +68,16 @@ const breadcrumbMap: Record<
 
   // acciones
   create: { label: 'Crear', clickable: false },
-  edit: { label: 'Editar', clickable: false }
+  edit: { label: 'Editar', clickable: false },
+  // ERP - ventas
+  sales: { label: 'Ventas', to: '/erp/sales' },
+  customers: { label: 'Clientes', to: '/erp/sales/customers' },
+  purchases: { label: 'Compras', to: '/erp/purchases' },
+  'purchases-documents': {
+    label: 'Facturas de Compra',
+    to: '/erp/purchases/purchases-documents'
+  },
+  new: { label: 'Nuevo', clickable: false }
 }
 
 //

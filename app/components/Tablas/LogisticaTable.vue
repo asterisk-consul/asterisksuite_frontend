@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { ref, computed, watch } from 'vue'
+import { sub } from 'date-fns'
 
+import { ref, computed, watch, onMounted, onErrorCaptured } from 'vue'
 import { getPaginationRowModel } from '@tanstack/vue-table'
 
 import type { UTableInstance, ExtendedColumn } from './types/tablas.types'
@@ -167,6 +168,17 @@ function confirmDelete(): void {
 
   showDeleteModal.value = false
 }
+
+/* ========================
+   Debug temporal
+======================== */
+
+onErrorCaptured((err, instance, info) => {
+  console.error('🔴 Componente:', instance?.$options.__name)
+  console.error('🔴 Info:', info)
+  console.error('🔴 Error:', err)
+  return false
+})
 </script>
 
 <template>
@@ -268,8 +280,10 @@ function confirmDelete(): void {
 
       <UPagination
         size="sm"
-        :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
-        :items-per-page="table?.tableApi?.getState().pagination.pageSize"
+        :page="(table?.tableApi?.getState().pagination.pageIndex ?? 0) + 1"
+        :items-per-page="
+          table?.tableApi?.getState().pagination.pageSize ?? pagination.pageSize
+        "
         :total="totalCount"
         @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
       />
@@ -289,6 +303,7 @@ function confirmDelete(): void {
     ========================= -->
 
     <DeleteConfirmModal
+      v-if="showDeleteModal"
       :open="showDeleteModal"
       :count="selectedCount"
       @confirm="confirmDelete"
