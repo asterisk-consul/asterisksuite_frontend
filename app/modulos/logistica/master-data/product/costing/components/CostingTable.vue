@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { useCostingStore } from '~/modulos/logistica/master-data/costing/store/costing.store'
+import { useCostingStore } from '~/modulos/logistica/master-data/product/costing/store/costing.store'
 
 const UButton = resolveComponent('UButton')
 const UBadge = resolveComponent('UBadge')
