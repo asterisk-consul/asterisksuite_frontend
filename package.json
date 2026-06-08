@@ -56,14 +56,5 @@
   "packageManager": "pnpm@11.2.2",
   "optionalDependencies": {
     "@oxc-parser/binding-linux-x64-gnu": "^0.99.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "esbuild",
-      "maplibre-gl",
-      "unrs-resolver",
-      "vue-demi"
-    ]
   }
 }
