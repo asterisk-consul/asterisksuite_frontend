@@ -10,7 +10,7 @@ ARG NUXT_API_BASE
 ENV NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE
 ENV NUXT_API_BASE=$NUXT_API_BASE
 
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV CI=true
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
