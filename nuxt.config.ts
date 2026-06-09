@@ -18,7 +18,7 @@ export default defineNuxtConfig({
     host: '0.0.0.0', // <- debe estar así
     port: 3008
   },
-
+  sourcemap: false,
   experimental: {
     watcher: 'chokidar',
     componentIslands: false
@@ -27,9 +27,14 @@ export default defineNuxtConfig({
     typeCheck: false // Desactivar temporalmente durante build
   },
   vite: {
+    build: {
+      sourcemap: false
+    },
+
     optimizeDeps: {
       include: ['leaflet', 'date-fns', '@unovis/vue', 'zod']
     },
+
     ssr: {
       noExternal: ['@unovis/vue']
     }
@@ -45,7 +50,7 @@ export default defineNuxtConfig({
   },
 
   devtools: {
-    enabled: true
+    enabled: false
   },
   app: {
     baseURL: '/', // Relative paths for filesystem routing in Capacitor
