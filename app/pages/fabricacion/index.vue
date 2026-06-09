@@ -13,9 +13,10 @@ definePageMeta({
   layout: 'fabricacion'
 })
 const shortcuts = [
-  { label: 'BOM Creator', to: '/bom/create' },
+  { label: 'Crear BOM ', to: '/bom/create' },
   { label: 'BOM', to: '/bom', badge: productsWithCostTemplate.value },
-  { label: 'Production Plan', to: '/fabricacion/production-plans' },
+  { label: 'Templates', to: '/cost-templates' },
+  { label: 'Crear Templates', to: '/cost-templates/create' },
   { label: 'Work Order', to: '/fabricacion/work-orders' }
 ]
 
