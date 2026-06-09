@@ -1,7 +1,7 @@
 import type {
   Product,
   ProductRoot,
-  CreateProductInput,
+  CreateProductDto,
   UpdateProductInput
 } from '~/modulos/logistica/master-data/product/types/product.types'
 
@@ -24,7 +24,7 @@ export const useProductsService = () => {
   // CREATE
   // =========================
 
-  const create = (payload: CreateProductInput) =>
+  const create = (payload: CreateProductDto) =>
     $fetch<Product>(baseUrl, {
       method: 'POST',
       body: payload
@@ -53,8 +53,7 @@ export const useProductsService = () => {
   // ROOT PRODUCTS
   // =========================
 
-  const getRootProducts = (id: string) =>
-    $fetch<ProductRoot[]>(`${baseUrl}/${id}/root-products`)
+  const getRootProducts = (id: string) => $fetch<ProductRoot[]>(`${baseUrl}/${id}/root-products`)
 
   return {
     findAll,

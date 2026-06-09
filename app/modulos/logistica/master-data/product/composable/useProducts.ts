@@ -3,7 +3,8 @@ import { useProductsStore } from '../store/products.store'
 import type {
   CreateProductInput,
   UpdateProductInput,
-  ProductCostCard
+  ProductCostCard,
+  CreateProductDto
 } from '~/modulos/logistica/master-data/product/types/product.types'
 
 export interface ProductSelectItem {
@@ -37,7 +38,7 @@ export function useProducts() {
   // ACTIONS
   // =========================
 
-  const create = async (payload: CreateProductInput) => store.create(payload)
+  const create = async (payload: CreateProductDto) => store.create(payload)
 
   const update = async (id: string, payload: UpdateProductInput) => store.update(id, payload)
 

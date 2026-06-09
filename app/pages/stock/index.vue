@@ -26,6 +26,10 @@ const shortcuts = [
     label: 'Costos',
     to: '/fabricacion/costing',
     badge: 16
+  },
+  {
+    label: 'Configuraciones',
+    to: '/productos/settings'
   }
 ]
 

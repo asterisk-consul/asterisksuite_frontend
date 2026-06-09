@@ -9,6 +9,7 @@ import type {
   Product,
   ProductRoot,
   CreateProductInput,
+  CreateProductDto,
   UpdateProductInput
 } from '~/modulos/logistica/master-data/product/types/product.types'
 
@@ -77,7 +78,7 @@ export const useProductsStore = defineStore('products', () => {
   // CREATE
   // =========================
 
-  const create = async (payload: CreateProductInput) => {
+  const create = async (payload: CreateProductDto) => {
     try {
       loading.value = true
       error.value = null

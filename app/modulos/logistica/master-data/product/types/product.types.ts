@@ -150,9 +150,7 @@ export interface CreateProductDto {
   name: string
 
   sku?: string
-
   requires_refrigeration?: boolean
-
   price_enabled?: boolean
 
   is_rate_type?: boolean
@@ -165,11 +163,8 @@ export interface CreateProductDto {
   product_type?: ProductType
 
   is_composed?: boolean
-
   auto_calculate_cost?: boolean
-
   has_engineering?: boolean
-
   manages_stock?: boolean
 
   income_account_id?: string
@@ -177,7 +172,6 @@ export interface CreateProductDto {
   inventory_account_id?: string
 
   calculation_type?: CalculationType
-
   cost_source?: ProductCostSource
 }
 
