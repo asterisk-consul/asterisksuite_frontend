@@ -118,14 +118,24 @@ export const costComponentColumns = (actions: {
         label: 'Valor',
         cell: ({ row }) => {
           const v = row.original.value
-          if (v === null || v === undefined) return '—'
+
+          if (v === null || v === undefined) {
+            return '—'
+          }
+
+          const numericValue = Number(v)
+
           if (
             row.original.value_type === 'PERCENTAGE_OF_MATERIAL' ||
             row.original.value_type === 'PERCENTAGE_OF_TOTAL'
           ) {
-            return `${(v * 100).toFixed(0)}%`
+            return `${numericValue.toFixed(2)}%`
           }
-          return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2 }).format(v)
+
+          return new Intl.NumberFormat('es-AR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }).format(numericValue)
         }
       },
       {

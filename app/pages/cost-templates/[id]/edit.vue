@@ -1,5 +1,8 @@
 <script setup lang="ts">
-definePageMeta({ middleware: ['auth'] })
+definePageMeta({
+  middleware: ['auth'],
+  layout: 'modulofabricacion'
+})
 
 import { useCostTemplates } from '~/modulos/logistica/master-data/product/cost-templates/composables/useCostTemplates'
 import type {

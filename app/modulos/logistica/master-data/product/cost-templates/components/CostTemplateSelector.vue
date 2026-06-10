@@ -12,7 +12,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const { activeTemplates, loading, assignTemplateToProduct, getTypeLabel, getTypeColor, formatComponentValue } =
+const { init, activeTemplates, loading, assignTemplateToProduct, getTypeLabel, getTypeColor, formatComponentValue } =
   useCostTemplates()
 
 const selected = ref<string | null>(props.currentTemplateId)
@@ -36,6 +36,10 @@ const handleAssign = async () => {
     })
   }
 }
+
+onMounted(() => {
+  init()
+})
 </script>
 
 <template>

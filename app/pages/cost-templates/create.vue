@@ -13,7 +13,8 @@ import {
 } from '~/modulos/logistica/master-data/product/cost-templates/types/cost-template.types'
 
 definePageMeta({
-  middleware: ['auth']
+  middleware: ['auth'],
+  layout: 'modulofabricacion'
 })
 
 useHead({ title: 'Nuevo template de costo' })

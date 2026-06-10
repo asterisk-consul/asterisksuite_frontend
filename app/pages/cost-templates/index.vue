@@ -1,5 +1,9 @@
 <script setup lang="ts">
-definePageMeta({ middleware: ['auth'] })
+definePageMeta({
+  middleware: ['auth'],
+  layout: 'modulofabricacion',
+  breadcrumb: [{ label: 'Fabricación', to: '/fabricacion' }, { label: 'Templates de Costos' }]
+})
 
 import { storeToRefs } from 'pinia'
 import { useCostTemplatesStore } from '~/modulos/logistica/master-data/product/cost-templates/store/cost-templates.store'
@@ -34,8 +38,8 @@ onMounted(() => init())
 const activeTab = ref('templates')
 
 const tabs = [
-  { label: 'Templates', slot: 'templates', icon: 'i-lucide-layout-template' },
-  { label: 'Componentes', slot: 'components', icon: 'i-lucide-puzzle' }
+  { label: 'Templates', slot: 'templates', icon: 'i-lucide-layout-template', value: 'templates' },
+  { label: 'Componentes', slot: 'components', icon: 'i-lucide-puzzle', value: 'components' }
 ]
 
 // =========================
