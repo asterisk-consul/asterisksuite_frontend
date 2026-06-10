@@ -18,11 +18,13 @@ const showTemplateModal = ref(false)
 const costingTabs = [
   {
     label: 'Historial',
-    slot: 'history'
+    slot: 'history',
+    value: 'history'
   },
   {
     label: 'Pareto',
-    slot: 'pareto'
+    slot: 'pareto',
+    value: 'pareto'
   }
 ]
 

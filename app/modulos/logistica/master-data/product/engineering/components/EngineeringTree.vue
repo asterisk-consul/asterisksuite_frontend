@@ -216,19 +216,19 @@ const columns: ColumnDef<any>[] = [
     }
   },
 
-  // Costo
-  {
-    id: 'cost',
-    accessorFn: (row) => row.child_product?.current_cost,
-    header: 'Costo',
-    enableSorting: true,
-    meta: { class: { th: 'text-right', td: 'text-right' } },
-    cell: ({ getValue }) => {
-      const val = getValue() as number | null
-      if (!val) return h('span', { class: 'text-muted text-sm' }, '—')
-      return h('span', { class: 'text-sm tabular-nums text-muted' }, `$${Number(val).toLocaleString('es-AR')}`)
-    }
-  },
+  // // Costo
+  // {
+  //   id: 'cost',
+  //   accessorFn: (row) => row.child_product?.current_cost,
+  //   header: 'Costo',
+  //   enableSorting: true,
+  //   meta: { class: { th: 'text-right', td: 'text-right' } },
+  //   cell: ({ getValue }) => {
+  //     const val = getValue() as number | null
+  //     if (!val) return h('span', { class: 'text-muted text-sm' }, '—')
+  //     return h('span', { class: 'text-sm tabular-nums text-muted' }, `$${Number(val).toLocaleString('es-AR')}`)
+  //   }
+  // },
 
   // Acciones
   {
@@ -379,12 +379,12 @@ onMounted(() => loadTree())
         :table="table"
         :loading="loading"
         :get-sub-rows="(row: any) => row.children"
-        :ui="{
-          tbody: 'engineering-tree-tbody',
-          tr: 'group/row hover:bg-elevated transition-colors',
-          td: 'py-2'
-        }"
         class="w-full"
+        :ui="{
+          tr: 'border-0',
+          td: 'px-4 py-2',
+          th: 'px-4 py-2.5'
+        }"
       />
     </template>
   </div>

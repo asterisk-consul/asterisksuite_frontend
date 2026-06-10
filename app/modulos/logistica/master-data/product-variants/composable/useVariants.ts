@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { useProductVariantsStore } from '../store/product-variants.store'
 export interface SelectMenuItem {
-  label: string | null | undefined
+  label: string
   value: string
 }
 
