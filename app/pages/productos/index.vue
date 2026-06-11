@@ -5,13 +5,13 @@ definePageMeta({
   breadcrumb: [{ label: 'Stock', to: '/stock' }, { label: 'Productos' }]
 })
 import type { ButtonProps } from '@nuxt/ui'
-import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
+
+import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 import { productColumns } from '~/modulos/logistica/master-data/product/columns'
 import {
   createDefaultProductForm,
-  toUpdateProductPayload
+  toCreateProductPayload
 } from '~/modulos/logistica/master-data/product/utils/product-form.utils'
-const form = reactive(createDefaultProductForm())
 
 import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
@@ -19,15 +19,16 @@ import ProductModalForm from '~/modulos/logistica/master-data/product/components
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
-const store = useProductsStore()
+const { init, products, create, loading } = useProducts()
+const form = reactive(createDefaultProductForm())
 
 const sorting = ref<SortingState>([])
-
-const { items } = storeToRefs(store)
 const open = ref(false)
-const loading = ref(true)
 const router = useRouter()
 
+const openCreate = () => {
+  open.value = true
+}
 const openEdit = (row: any) => {
   router.push(`/productos/${row.id}/edit`)
 }
@@ -48,17 +49,13 @@ const columns = productColumns({
 })
 
 onMounted(async () => {
-  await store.fetchAll()
-  loading.value = store.loading
+  await init()
 })
-const saveLocation = async (data: any) => {
-  await store.create(data)
+const saveLocation = async () => {
+  await create(toCreateProductPayload(form))
   open.value = false
 }
 
-const openCreate = () => {
-  open.value = true
-}
 const links: ButtonProps[] = [
   {
     label: 'Nueva Producto',
@@ -89,7 +86,7 @@ const sortFields: SortField[] = [
     <AppPageHeader title="Productos" description="Listado de Productos" :links="links" />
     <LogisticaTable
       :loading="loading"
-      :data="items"
+      :data="products"
       :columns="columns"
       :filter-fields="filterFields"
       :sort-fields="sortFields"

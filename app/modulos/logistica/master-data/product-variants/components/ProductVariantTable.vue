@@ -1,74 +1,67 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
-
 import type { ProductVariant, CreateProductVariantInput } from '../types/product-variants.types'
 
 import ProductVariantModal from './ProductVariantModal.vue'
 
-// =========================
-// PROPS
-// =========================
+import { useProductVariants } from '~/modulos/logistica/master-data/product-variants/composable/useVariants'
+
+const { create, update } = useProductVariants()
 
 const props = defineProps<{
   product?: Product | null
 }>()
 
-// =========================
-// EMITS
-// =========================
-
 const emit = defineEmits<{
-  create: [payload: CreateProductVariantInput]
-
-  update: [id: string, payload: CreateProductVariantInput]
+  created: [variant: ProductVariant] // 👈 nuevo
+  updated: [variant: ProductVariant] // 👈 nuevo
 }>()
 
-// =========================
-// MODAL
-// =========================
-
 const open = ref(false)
-
 const selected = ref<ProductVariant | null>(null)
-
 const loading = ref(false)
-
-// =========================
-// CREATE
-// =========================
+const toast = useToast()
 
 const openCreate = () => {
   selected.value = null
-
   open.value = true
 }
-
-// =========================
-// EDIT
-// =========================
 
 const openEdit = (variant: ProductVariant) => {
   selected.value = variant
-
   open.value = true
 }
-
-// =========================
-// SUBMIT
-// =========================
 
 const onSubmit = async (payload: CreateProductVariantInput) => {
   try {
     loading.value = true
 
     if (selected.value) {
-      await emit('update', selected.value.id, payload)
+      const updated = await update(selected.value.id, payload)
+      emit('updated', updated) // 👈
+      toast.add({ title: 'Variante actualizada', color: 'success' })
     } else {
-      await emit('create', payload)
+      const created = await create(payload)
+      emit('created', created) // 👈
+      toast.add({ title: 'Variante creada', color: 'success' })
     }
 
     open.value = false
+  } catch (err: any) {
+    let message = 'Error desconocido'
+
+    if (typeof err === 'object' && err !== null && 'data' in err) {
+      const data = (err as any).data
+      message = Array.isArray(data?.message) ? data.message.join(', ') : data?.message || message
+    }
+
+    toast.add({
+      title: 'Error al guardar variante',
+      color: 'error',
+      description: message,
+      icon: 'i-lucide-alert-circle'
+    })
   } finally {
     loading.value = false
   }
@@ -81,11 +74,33 @@ const onSubmit = async (payload: CreateProductVariantInput) => {
     <div class="flex items-center justify-between">
       <div>
         <h3 class="text-lg font-semibold">Variantes</h3>
-
         <p class="text-sm text-gray-500">Configuración de variantes del producto</p>
       </div>
 
-      <UButton icon="i-lucide-plus" @click="openCreate">Nueva variante</UButton>
+      <div class="flex items-center gap-2">
+        <!-- HELP POPUP -->
+        <UPopover mode="hover" :open-delay="300" :close-delay="300">
+          <UButton icon="i-lucide-help-circle" color="neutral" variant="ghost" size="sm" />
+
+          <template #content>
+            <div class="p-3 max-w-xs space-y-2 text-sm">
+              <p class="font-medium">¿Qué es una variante?</p>
+
+              <p class="text-gray-600">
+                Una variante representa una versión específica del producto con atributos propios como SKU, peso,
+                dimensiones o densidad.
+              </p>
+
+              <p class="text-gray-600">
+                Se utiliza cuando un mismo producto tiene diferentes configuraciones físicas o técnicas.
+              </p>
+            </div>
+          </template>
+        </UPopover>
+
+        <!-- CREATE BUTTON -->
+        <UButton icon="i-lucide-plus" @click="openCreate">Nueva variante</UButton>
+      </div>
     </div>
 
     <!-- EMPTY -->

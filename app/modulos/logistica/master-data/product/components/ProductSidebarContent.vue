@@ -155,7 +155,7 @@ const handleRemoveTag = async (tagId: string, productId: string, tagName?: strin
           <template #trailing>
             <span
               class="ml-1 cursor-pointer opacity-50 hover:opacity-100 leading-none"
-              @click="handleRemoveTag(tag.tag_id, tag.tags?.name, product!.id)"
+              @click="handleRemoveTag(tag.tag_id, product!.id, tag.tags?.name)"
             >
               ×
             </span>

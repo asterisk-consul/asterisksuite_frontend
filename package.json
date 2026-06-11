@@ -53,7 +53,7 @@
     "typescript": "^5.9.3",
     "vue-tsc": "^3.2.6"
   },
-  "packageManager": "pnpm@11.2.2",
+  "packageManager": "pnpm@11.5.2",
   "optionalDependencies": {
     "@oxc-parser/binding-linux-x64-gnu": "^0.99.0"
   },

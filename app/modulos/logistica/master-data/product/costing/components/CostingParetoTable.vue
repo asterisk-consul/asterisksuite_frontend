@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import type { Row } from '@tanstack/vue-table'
 import { useCosting } from '../composables/useCosting'
 import type { ParetoItem, ParetoMode } from '../types/costing.types'
+import ParetoBarChart from './ParetoBarChart.vue'
+import ParetoPieChart from './ParetoPieChart.vue'
 
 const props = defineProps<{
   productId: string
@@ -10,11 +13,12 @@ const props = defineProps<{
 
 const { pareto, loading, loadPareto, formatCurrency, formatPercentage } = useCosting(props.productId, props.currencyId)
 
-const mode = ref<ParetoMode>('materials')
+const mode = ref<ParetoMode>('full')
 
-const modeOptions = [
+const modeOptions: { label: string; value: ParetoMode }[] = [
   { label: 'Solo materiales', value: 'materials' },
-  { label: 'Completo (con MO y OH)', value: 'full' }
+  { label: 'Completo (con MO y OH)', value: 'full' },
+  { label: 'Solo conjuntos', value: 'assemblies' }
 ]
 
 watch(
@@ -25,7 +29,9 @@ watch(
   { immediate: true }
 )
 
-const columns: TableColumn<ParetoItem>[] = [
+const isAssemblies = computed(() => mode.value === 'assemblies')
+
+const allColumns: TableColumn<ParetoItem>[] = [
   {
     accessorKey: 'product_name',
     header: 'Componente',
@@ -71,7 +77,9 @@ const columns: TableColumn<ParetoItem>[] = [
     meta: { class: { th: 'text-right', td: 'text-right' } },
     cell: ({ row }) => h('span', { class: 'tabular-nums text-sm' }, formatPercentage(row.original.percentage))
   },
+  // Columnas solo para materials/full
   {
+    id: 'cumulative',
     accessorKey: 'cumulative',
     header: '% acumulado',
     meta: { class: { th: 'text-right', td: 'text-right' } },
@@ -98,43 +106,98 @@ const columns: TableColumn<ParetoItem>[] = [
         : h(resolveComponent('UBadge'), { label: 'Trivial', color: 'neutral', variant: 'subtle', size: 'xs' })
   }
 ]
+
+// En modo assemblies ocultar columnas de pareto que no aplican
+const columns = computed(() =>
+  isAssemblies.value ? allColumns.filter((c) => c.id !== 'cumulative' && c.id !== 'vital') : allColumns
+)
+
+const view = ref<'table' | 'charts'>('table')
+
+const viewOptions: { label: string; value: 'table' | 'charts'; icon: string }[] = [
+  { label: 'Tabla', value: 'table', icon: 'i-lucide-table' },
+  { label: 'Gráficos', value: 'charts', icon: 'i-lucide-bar-chart-2' }
+]
 </script>
 
 <template>
   <div class="space-y-4">
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm text-muted">
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+      <p class="text-sm text-muted">
+        <template v-if="isAssemblies">
+          Mostrando costo por conjunto —
+          <span class="font-semibold text-highlighted">{{ pareto?.items?.length ?? 0 }}</span>
+          conjuntos analizados
+        </template>
+        <template v-else>
           Mostrando
-          <span class="font-semibold text-highlighted">
-            {{ pareto?.vital_items_count ?? 0 }}
-          </span>
+          <span class="font-semibold text-highlighted">{{ pareto?.vital_items_count ?? 0 }}</span>
           ítems vitales ({{ pareto?.vital_items_percentage ?? 0 }}% del total) que representan el 80% del costo
-        </p>
+        </template>
+      </p>
+      <div class="flex items-center gap-2">
+        <USelectMenu v-model="mode" :items="modeOptions" value-key="value" size="sm" />
+        <UButtonGroup size="sm">
+          <UButton
+            v-for="opt in viewOptions"
+            :key="opt.value"
+            :icon="opt.icon"
+            :label="opt.label"
+            :color="view === opt.value ? 'primary' : 'neutral'"
+            :variant="view === opt.value ? 'solid' : 'ghost'"
+            @click="view = opt.value"
+          />
+        </UButtonGroup>
       </div>
-      <USelectMenu v-model="mode" :options="modeOptions" value-attribute="value" option-attribute="label" size="sm" />
     </div>
 
     <!-- Resumen total -->
     <div v-if="pareto" class="flex items-center justify-between rounded-lg border border-default bg-elevated px-4 py-3">
       <span class="text-sm text-muted">Costo total analizado</span>
-      <span class="text-lg font-bold tabular-nums">
-        {{ formatCurrency(pareto.total_cost) }}
-      </span>
+      <span class="text-lg font-bold tabular-nums">{{ formatCurrency(pareto.total_cost) }}</span>
     </div>
 
-    <!-- Tabla -->
-    <UTable
-      :data="pareto?.items ?? []"
-      :columns="columns"
-      :loading="loading"
-      :ui="{
-        tr: 'group',
-        td: 'border-b border-default'
-      }"
-      :row-class="(row) => (row.original.is_vital ? 'bg-primary-50/30 dark:bg-primary-950/20' : '')"
-    />
+    <!-- Vista tabla -->
+    <template v-if="view === 'table'">
+      <UTable
+        :data="pareto?.items ?? []"
+        :columns="columns"
+        :loading="loading"
+        :ui="{ tr: 'group', td: 'border-b border-default' }"
+        :row-class="
+          (row: Row<ParetoItem>) =>
+            !isAssemblies && row.original.is_vital ? 'bg-primary-50/30 dark:bg-primary-950/20' : ''
+        "
+      />
+    </template>
+
+    <!-- Vista gráficos -->
+    <template v-else-if="pareto?.items?.length">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="rounded-lg border border-default bg-default p-4">
+          <p class="text-sm font-medium text-highlighted mb-3">
+            {{ isAssemblies ? 'Costo por conjunto' : 'Análisis de Pareto' }}
+          </p>
+          <ParetoBarChart
+            :items="pareto.items"
+            :format-currency="formatCurrency"
+            :format-percentage="formatPercentage"
+            :mode="mode"
+          />
+        </div>
+        <div class="rounded-lg border border-default bg-default p-4">
+          <p class="text-sm font-medium text-highlighted mb-3">Distribución de costos</p>
+          <ParetoPieChart
+            :items="pareto.items"
+            :total-cost="pareto.total_cost"
+            :format-currency="formatCurrency"
+            :format-percentage="formatPercentage"
+            :mode="mode"
+          />
+        </div>
+      </div>
+    </template>
 
     <p v-if="!loading && !pareto?.items?.length" class="text-center text-sm text-muted py-8">
       No hay datos de pareto disponibles. Calculá el costo primero.

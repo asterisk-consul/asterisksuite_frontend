@@ -1,9 +1,9 @@
 import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
+  const templateId = getRouterParam(event, 'templateId')
   const productId = getRouterParam(event, 'productId')
-  return apiProxy(event, `/cost-templates/${id}/products/${productId}`, {
+  return apiProxy(event, `/cost-templates/${templateId}/products/${productId}`, {
     method: 'POST'
   })
 })

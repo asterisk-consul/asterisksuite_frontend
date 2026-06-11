@@ -10,25 +10,25 @@ const links = [
     {
       label: 'Unidades',
       icon: 'i-lucide-ruler',
-      to: '/logistica/warehouse/productos/settings/unidades',
+      to: '/productos/settings/unidades',
       exact: true
     },
     {
       label: 'Atributos',
       icon: 'i-lucide-tag',
-      to: '/logistica/warehouse/productos/settings/attributes',
+      to: '/productos/settings/attributes',
       exact: true
     },
     {
       label: 'Categorías',
       icon: 'i-lucide-folder-tree',
-      to: '/logistica/warehouse/productos/settings/categorias',
+      to: '/productos/settings/categorias',
       exact: true
     },
     {
       label: 'Tags',
       icon: 'i-lucide-hash',
-      to: '/logistica/warehouse/productos/settings/tags',
+      to: '/productos/settings/tags',
       exact: true
     }
   ]

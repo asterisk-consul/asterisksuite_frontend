@@ -1,108 +1,175 @@
 <script setup lang="ts">
-import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
+definePageMeta({
+  middleware: ['auth'],
+  layout: 'modulofabricacion'
+})
+import BomSidebar from '~/modulos/logistica/master-data/product/components/ProductSidebar.vue'
 import ProductForm from '~/modulos/logistica/master-data/product/components/ProductForm.vue'
-import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
-import type { ProductFormState } from '~/modulos/logistica/master-data/product/types/product-form.types'
-import { createDefaultProductForm } from '~/modulos/logistica/master-data/product/utils/product-form.utils'
 
-const productStore = useProductsStore()
+import {
+  createDefaultProductForm,
+  toUpdateProductPayload
+} from '~/modulos/logistica/master-data/product/utils/product-form.utils'
+import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
+
+import type { ProductVariant } from '~/modulos/logistica/master-data/product-variants/types/product-variants.types'
+import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
+
+const productsStore = useProductsStore()
+
+const { moduleCollapsed } = useModuleSidebarState()
+const toast = useToast()
+const mobileOpen = ref(false)
+
+watch(moduleCollapsed, (collapsed) => {
+  if (!collapsed && window.innerWidth < 1024) {
+    mobileOpen.value = true
+    moduleCollapsed.value = true
+  }
+})
+
+watch(mobileOpen, (open) => {
+  if (!open) {
+    moduleCollapsed.value = true
+  }
+})
+
 const route = useRoute()
-const id = route.params.id as string
-const loading = ref(false)
-const product = ref<Product | null>(null)
-const form = ref<ProductFormState>(createDefaultProductForm())
+const productId = route.params.id as string
+const saving = ref(false)
 
-function mapProductToForm(product: Product): ProductFormState {
-  return {
-    name: product.name,
+const { current, loading, loadOne, update } = useProducts()
 
-    sku: product.sku ?? '',
+onMounted(async () => {
+  await loadOne(productId)
+})
 
-    requires_refrigeration: product.requires_refrigeration ?? false,
+const product = current
+const form = reactive(createDefaultProductForm())
 
-    price_enabled: product.price_enabled,
+watch(
+  product,
+  (p) => {
+    if (!p) return
+    Object.assign(form, p)
+  },
+  { immediate: true }
+)
 
-    is_rate_type: product.is_rate_type,
+useHead({
+  title: computed(() => product.value?.name ?? 'Productos')
+})
 
-    rate_id: product.rate_id ?? undefined,
+watch(
+  product,
+  (value) => {
+    if (!value) return
 
-    taxId: product.taxId ?? undefined,
+    route.meta.breadcrumb = [
+      {
+        label: 'Stock',
+        to: '/stock'
+      },
+      {
+        label: 'Productos',
+        to: '/productos'
+      },
+      {
+        label: value.name,
+        to: `/productos/${value.id}/edit`
+      }
+    ]
+  },
+  {
+    immediate: true
+  }
+)
 
-    active: product.active ?? true,
-
-    product_type: product.product_type,
-
-    is_composed: product.is_composed,
-
-    auto_calculate_cost: product.auto_calculate_cost,
-
-    has_engineering: product.has_engineering,
-
-    manages_stock: product.manages_stock,
-
-    income_account_id: product.income_account_id ?? undefined,
-
-    expense_account_id: product.expense_account_id ?? undefined,
-
-    inventory_account_id: product.inventory_account_id ?? undefined,
-
-    calculation_type: product.calculation_type ?? 'UNIT',
-
-    cost_source: product.cost_source,
-
-    // =========================
-    // CATEGORIES
-    // =========================
-
-    category_ids:
-      product.product_categories?.map((item) => item.category_id) || [],
-    tag_ids: product.product_tags?.map((item) => item.tag_id) || []
+const onVariantCreated = (variant: ProductVariant) => {
+  if (!productsStore.current) return
+  productsStore.current = {
+    ...productsStore.current,
+    product_variants: [variant, ...(productsStore.current.product_variants ?? [])]
   }
 }
 
-async function fetchProduct() {
+const onVariantUpdated = (variant: ProductVariant) => {
+  if (!productsStore.current?.product_variants) return
+  const idx = productsStore.current.product_variants.findIndex((v) => v.id === variant.id)
+  if (idx !== -1) productsStore.current.product_variants[idx] = variant
+}
+
+async function handleSave() {
   try {
-    loading.value = true
-    const response = await productStore.fetchOne(id)
-    product.value = response
-    form.value = mapProductToForm(response)
+    saving.value = true
+
+    const payload = toUpdateProductPayload(form)
+    await update(productId, payload)
+
+    toast.add({ title: 'Producto actualizado', color: 'success' })
+  } catch (err: unknown) {
+    let message = 'Error desconocido'
+
+    if (typeof err === 'object' && err !== null && 'data' in err) {
+      const data = (err as any).data
+
+      message = Array.isArray(data?.message) ? data.message.join(', ') : data?.message || message
+    }
+
+    toast.add({
+      title: 'Error al actualizar Producto',
+      color: 'error',
+      description: message,
+      icon: 'i-lucide-alert-circle'
+    })
+
+    throw err
   } finally {
-    loading.value = false
+    saving.value = false
   }
 }
 
-async function handleSubmit() {
-  try {
-    loading.value = true
-    await productStore.update(id, form.value)
-  } finally {
-    loading.value = false
+const links = computed(() => [
+  {
+    label: 'Guardar',
+    icon: 'i-lucide-save',
+    loading: saving.value,
+    onClick: handleSave
   }
-}
+])
 
-console.log('Page edit Product', product)
-console.log('Page edit  Form', form)
-
-onMounted(fetchProduct)
+const pageUi = computed(() => ({
+  root: moduleCollapsed.value ? 'flex flex-col' : 'flex flex-col lg:grid lg:grid-cols-[200px_1fr] lg:gap-2',
+  left: 'lg:col-start-1',
+  center: moduleCollapsed.value ? '' : 'lg:col-start-2'
+}))
 </script>
 
 <template>
-  <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar title="Editar producto" />
-    </template>
+  <div class="flex flex-col h-full">
+    <AppPageHeader
+      :title="product?.name ?? 'BOM'"
+      :description="product?.sku ?? ''"
+      :loading="loading"
+      show-module-toggle
+      :links="links"
+      class="sticky top-0 z-20 px-4 border-b border-default bg-default"
+    />
+    <UPage :ui="pageUi">
+      <template v-if="!moduleCollapsed" #left>
+        <BomSidebar :product="product ?? null" :mobile-open="mobileOpen" @update:mobile-open="mobileOpen = $event" />
+      </template>
 
-    <!-- El body ya tiene overflow-y-auto, aquí vive el scroll -->
-    <template #body>
-      <UPageCard class="w-full lg:max-w-5xl mx-auto">
+      <UPageBody>
         <ProductForm
           v-model="form"
           :product="product"
           mode="edit"
           :loading="loading"
-          @submit="handleSubmit"
+          @variant-created="onVariantCreated"
+          @variant-updated="onVariantUpdated"
         />
-      </UPageCard>
-    </template>
-  </UDashboardPanel>
+      </UPageBody>
+    </UPage>
+  </div>
 </template>

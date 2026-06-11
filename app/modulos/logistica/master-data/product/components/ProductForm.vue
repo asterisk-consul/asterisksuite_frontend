@@ -8,6 +8,7 @@ import ProductAdvancedTab from '~/modulos/logistica/master-data/product/componen
 import RootCard from '~/modulos/logistica/master-data/product/components/forms/RootCard.vue'
 import ProductPriceTab from '~/modulos/logistica/master-data/product/components/forms/ProductPriceTab.vue'
 import ProductVariantTable from '~/modulos/logistica/master-data/product-variants/components/ProductVariantTable.vue'
+import type { ProductVariant } from '~/modulos/logistica/master-data/product-variants/types/product-variants.types'
 
 import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
 
@@ -34,6 +35,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   submit: []
+  variantCreated: [variant: ProductVariant] // 👈
+  variantUpdated: [variant: ProductVariant] // 👈
 }>()
 
 const submitText = computed(() => {
@@ -70,15 +73,7 @@ const tabs = [
 
 <template>
   <UForm :state="form" class="space-y-6 pb-6" @submit.prevent="emit('submit')">
-    <!-- ========================= -->
-    <!-- HEADER -->
-    <!-- ========================= -->
-
     <ProductGeneralTab :form="form" />
-
-    <!-- ========================= -->
-    <!-- form -->
-    <!-- ========================= -->
 
     <UTabs :items="tabs" variant="link" class="w-full">
       <template #accounting>
@@ -86,7 +81,11 @@ const tabs = [
       </template>
 
       <template #variables>
-        <ProductVariantTable :product="props.product" />
+        <ProductVariantTable
+          :product="props.product"
+          @created="emit('variantCreated', $event)"
+          @updated="emit('variantUpdated', $event)"
+        />
       </template>
 
       <template #relaciones>
@@ -105,15 +104,5 @@ const tabs = [
         <ProductAdvancedTab v-model="form" />
       </template>
     </UTabs>
-
-    <!-- ========================= -->
-    <!-- ACTIONS -->
-    <!-- ========================= -->
-
-    <div v-if="showActions" class="flex justify-end">
-      <UButton type="submit" :loading="loading">
-        {{ submitText }}
-      </UButton>
-    </div>
   </UForm>
 </template>

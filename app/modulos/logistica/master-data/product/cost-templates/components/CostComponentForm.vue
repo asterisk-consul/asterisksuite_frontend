@@ -14,7 +14,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const { createComponent, updateComponent, loading } = useCostTemplates()
+const { createComponent, updateComponent, loading, costComponentTypeItems, costValueTypeItems } = useCostTemplates()
 
 const form = reactive({
   name: props.component?.name ?? '',
@@ -25,10 +25,6 @@ const form = reactive({
 })
 
 const isEditing = computed(() => !!props.component)
-
-const typeOptions = Object.entries(COST_COMPONENT_TYPE_LABELS).map(([value, label]) => ({ value, label }))
-
-const valueTypeOptions = Object.entries(COST_VALUE_TYPE_LABELS).map(([value, label]) => ({ value, label }))
 
 const showValueInput = computed(() => form.value_type !== 'FROM_BOM')
 
@@ -46,18 +42,18 @@ const valueLabel = computed(() => {
 
 const handleSubmit = async () => {
   try {
-    const dto: CreateCostComponentDto = {
+    const payload: CreateCostComponentDto = {
       name: form.name,
-      type: form.type,
-      value_type: form.value_type,
+      type: (form.type as any)?.value ?? form.type,
+      value_type: (form.value_type as any)?.value ?? form.value_type,
       value: form.value ?? undefined,
-      order: form.order
+      order: form.order || 0
     }
 
     if (isEditing.value && props.component) {
-      await updateComponent(props.component.id, dto)
+      await updateComponent(props.component.id, payload)
     } else {
-      await createComponent(dto)
+      await createComponent(payload)
     }
 
     toast.add({
@@ -79,30 +75,43 @@ const handleSubmit = async () => {
 <template>
   <div class="space-y-4">
     <UFormField label="Nombre" required>
-      <UInput v-model="form.name" placeholder="Ej: Mano de obra directa" />
+      <UInput v-model="form.name" placeholder="Ej: Mano de obra directa" class="w-full" />
     </UFormField>
 
     <div class="grid grid-cols-2 gap-4">
       <UFormField label="Tipo" required>
-        <USelectMenu v-model="form.type" :options="typeOptions" value-attribute="value" option-attribute="label" />
+        <USelectMenu
+          v-model="form.type"
+          :items="costComponentTypeItems"
+          value-key="value"
+          value-attribute="value"
+          option-attribute="label"
+          class="w-full"
+          clear
+          search
+        />
       </UFormField>
 
       <UFormField label="Forma de cálculo" required>
         <USelectMenu
           v-model="form.value_type"
-          :options="valueTypeOptions"
+          :items="costValueTypeItems"
+          value-key="value"
           value-attribute="value"
           option-attribute="label"
+          class="w-full"
+          clear
+          search
         />
       </UFormField>
     </div>
 
     <UFormField v-if="showValueInput" :label="valueLabel" required>
-      <UInput v-model.number="form.value" type="number" step="0.01" placeholder="0.00" />
+      <UInput v-model.number="form.value" type="number" placeholder="0.00" class="w-full" />
     </UFormField>
 
     <UFormField label="Orden">
-      <UInput v-model.number="form.order" type="number" placeholder="0" />
+      <UInput v-model.number="form.order" type="number" placeholder="0" class="w-full" />
     </UFormField>
 
     <div class="flex justify-end gap-2 pt-2 border-t border-default">

@@ -35,10 +35,13 @@ export const useEngineering = (productId: string) => {
   // CREATE
   // =========================
 
-  const addComponent = async (dto: Omit<CreateEngineeringComponentDto, 'parent_product_id'>) => {
+  const addComponent = async (
+    dto: Omit<CreateEngineeringComponentDto, 'parent_product_id'>,
+    parentId?: string | null // ← agregar
+  ) => {
     return store.createComponent({
       ...dto,
-      parent_product_id: productId
+      parent_product_id: parentId ?? productId // ← si no hay padre, usa la raíz
     })
   }
 

@@ -5,6 +5,7 @@ defineProps<{
   open: boolean
   productId: string
   component?: any | null
+  parentId?: string | null // ← agregar
 }>()
 
 const emit = defineEmits<{
@@ -24,6 +25,7 @@ const handleSaved = () => {
       <EngineeringComponentForm
         :productId="productId"
         :component="component"
+        :parentId="parentId"
         @saved="handleSaved"
         @cancelled="emit('update:open', false)"
       />

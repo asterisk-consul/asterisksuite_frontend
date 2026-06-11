@@ -4,7 +4,8 @@ import type {
   ProductType,
   CalculationType,
   ProductCostSource,
-  UpdateProductDto
+  UpdateProductDto,
+  CreateProductDto
 } from '~/modulos/logistica/master-data/product/types/product.types'
 
 export function createDefaultProductGeneral() {
@@ -85,5 +86,32 @@ export function toUpdateProductPayload(form: ProductFormState): UpdateProductDto
     income_account_id: form.income_account_id,
     expense_account_id: form.expense_account_id,
     inventory_account_id: form.inventory_account_id
+  }
+}
+
+export function toCreateProductPayload(form: ProductFormState): CreateProductDto {
+  return {
+    name: form.name,
+    sku: form.sku,
+    active: form.active,
+
+    product_type: form.product_type,
+    calculation_type: form.calculation_type,
+
+    price_enabled: form.price_enabled,
+    auto_calculate_cost: form.auto_calculate_cost,
+    cost_source: form.cost_source,
+
+    manages_stock: form.manages_stock,
+    requires_refrigeration: form.requires_refrigeration,
+
+    is_composed: form.is_composed,
+    has_engineering: form.has_engineering,
+    is_rate_type: form.is_rate_type,
+
+    income_account_id: form.income_account_id,
+    expense_account_id: form.expense_account_id,
+    inventory_account_id: form.inventory_account_id,
+    taxId: form.taxId
   }
 }

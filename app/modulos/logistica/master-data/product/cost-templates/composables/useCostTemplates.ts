@@ -16,6 +16,11 @@ import {
   COST_COMPONENT_TYPE_COLORS
 } from '../types/cost-template.types'
 
+export interface SelectItem {
+  label: string
+  value: string
+}
+
 export const useCostTemplates = () => {
   const store = useCostTemplatesStore()
 
@@ -27,6 +32,15 @@ export const useCostTemplates = () => {
     await Promise.all([store.fetchAll(), store.fetchComponents()])
   }
 
+  const costComponentTypeItems: SelectItem[] = Object.entries(COST_COMPONENT_TYPE_LABELS).map(([value, label]) => ({
+    label,
+    value
+  }))
+
+  const costValueTypeItems: SelectItem[] = Object.entries(COST_VALUE_TYPE_LABELS).map(([value, label]) => ({
+    label,
+    value
+  }))
   // =========================
   // TEMPLATE ACTIONS
   // =========================
@@ -110,15 +124,19 @@ export const useCostTemplates = () => {
     value: number | null,
     override: number | null = null
   ): string => {
-    const effectiveValue = override ?? value
-    if (effectiveValue === null) return '—'
+    const raw = override ?? value
+    if (raw === null || raw === undefined) return '—'
+
+    const effectiveValue = Number(raw) // ← fix: castear siempre
+
+    if (isNaN(effectiveValue)) return '—'
 
     switch (valueType) {
       case 'FROM_BOM':
         return 'Desde BOM'
       case 'PERCENTAGE_OF_MATERIAL':
       case 'PERCENTAGE_OF_TOTAL':
-        return `${(effectiveValue * 100).toFixed(0)}%`
+        return `${effectiveValue.toFixed(2)}%`
       case 'FIXED_PER_UNIT':
         return new Intl.NumberFormat('es-AR', {
           minimumFractionDigits: 2
@@ -127,7 +145,6 @@ export const useCostTemplates = () => {
         return String(effectiveValue)
     }
   }
-
   const getTemplateById = (id: string): CostTemplate | undefined => store.templates.find((t) => t.id === id)
 
   return {
@@ -139,6 +156,10 @@ export const useCostTemplates = () => {
     error: computed(() => store.error),
     defaultTemplate: computed(() => store.defaultTemplate),
     activeTemplates: computed(() => store.activeTemplates),
+
+    // computed
+    costComponentTypeItems,
+    costValueTypeItems,
 
     // template actions
     init,

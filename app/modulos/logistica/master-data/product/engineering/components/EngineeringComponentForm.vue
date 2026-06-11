@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { reactive, computed, watch, onMounted } from 'vue'
-import { storeToRefs } from 'pinia'
+import { reactive, computed, watch, onMounted, toRef } from 'vue'
 
 import { useEngineering } from '../composables/useEngineering'
 import type { CreateEngineeringComponentDto, EngineeringTreeNode } from '../types/engineering.types'
 
-import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
-
-import { useProductVariantsStore } from '~/modulos/logistica/master-data/product-variants/store/product-variants.store'
+import { useProductVariants } from '~/modulos/logistica/master-data/product-variants/composable/useVariants'
 
 const props = defineProps<{
   productId: string
   component?: EngineeringTreeNode
+  parentId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -24,22 +22,8 @@ const toast = useToast()
 const isEditing = computed(() => !!props.component)
 const { addComponent, updateComponent, loading } = useEngineering(props.productId)
 
-const productsStore = useProductsStore()
-const variantsStore = useProductVariantsStore()
+const { init, selectItems: productOptions } = useProducts()
 
-const { items: productItems } = storeToRefs(productsStore)
-const { items: variantItems } = storeToRefs(variantsStore)
-
-const { items: products } = useProducts(productItems)
-
-const variantOptions = computed(() =>
-  variantItems.value.map((variant) => ({
-    label: variant.name ?? variant.sku ?? variant.id,
-    value: variant.id
-  }))
-)
-
-// ✅ form declarado ANTES de los watchers que lo usan
 const form = reactive<Omit<CreateEngineeringComponentDto, 'parent_product_id'>>({
   child_product_id: '',
   child_variant_id: undefined,
@@ -51,9 +35,11 @@ const form = reactive<Omit<CreateEngineeringComponentDto, 'parent_product_id'>>(
   waste_percentage: undefined
 })
 
+const { selectItems: variantOptions, loadByProduct: initVariants } = useProductVariants()
+
 watch(
   () => props.component,
-  async (component) => {
+  (component) => {
     form.child_product_id = component?.child_product_id ?? ''
     form.child_variant_id = component?.child_variant_id
     form.quantity = component?.quantity ?? 1
@@ -62,10 +48,6 @@ watch(
     form.width_mm = component?.width_mm ?? undefined
     form.height_mm = component?.height_mm ?? undefined
     form.waste_percentage = component?.waste_percentage ?? undefined
-
-    if (component?.child_product_id) {
-      await variantsStore.fetchByProduct(component.child_product_id)
-    }
   },
   { immediate: true }
 )
@@ -74,10 +56,8 @@ watch(
   () => form.child_product_id,
   async (productId) => {
     form.child_variant_id = undefined
-
     if (!productId) return
-
-    await variantsStore.fetchByProduct(productId)
+    await initVariants(form.child_product_id)
   }
 )
 
@@ -91,7 +71,7 @@ const handleSubmit = async () => {
         color: 'success'
       })
     } else {
-      await addComponent(form)
+      await addComponent(form, props.parentId ?? null)
       toast.add({
         title: 'Componente agregado',
         description: 'El componente fue agregado al árbol de ingeniería.',
@@ -111,11 +91,8 @@ const handleSubmit = async () => {
 }
 
 onMounted(async () => {
-  await productsStore.fetchAll()
-
-  if (form.child_product_id) {
-    await variantsStore.fetchByProduct(form.child_product_id)
-  }
+  await init()
+  if (form.child_product_id) await initVariants(form.child_product_id)
 })
 </script>
 
@@ -124,7 +101,7 @@ onMounted(async () => {
     <UFormField label="Producto hijo" required>
       <USelectMenu
         v-model="form.child_product_id"
-        :items="products"
+        :items="productOptions"
         value-key="value"
         placeholder="Seleccionar producto"
         class="w-full"
