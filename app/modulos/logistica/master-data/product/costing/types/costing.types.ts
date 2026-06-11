@@ -95,4 +95,4 @@ export interface CalculateProductCostDto {
 
 export type ProductCostSource = 'MANUAL' | 'BOM' | 'ENGINEERING' | 'PURCHASE' | 'RATE'
 
-export type ParetoMode = 'materials' | 'full'
+export type ParetoMode = 'materials' | 'full' | 'assemblies'

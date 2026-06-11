@@ -31,9 +31,7 @@ const emit = defineEmits<{
 
 const isEdit = computed(() => props.mode === 'edit')
 
-const title = computed(() =>
-  isEdit.value ? 'Editar producto' : 'Nuevo producto'
-)
+const title = computed(() => (isEdit.value ? 'Editar producto' : 'Nuevo producto'))
 
 function handleClose() {
   open.value = false
@@ -54,23 +52,12 @@ function handleSubmit() {
     }"
   >
     <template #body>
-      <ProductForm
-        v-model="form"
-        :loading="loading"
-        :mode="mode"
-        :show-actions="false"
-        @submit="handleSubmit"
-      />
+      <ProductForm v-model="form" :loading="loading" :mode="mode" :show-actions="false" @submit="handleSubmit" />
     </template>
 
     <template #footer>
       <div class="flex items-center justify-end gap-2 w-full">
-        <UButton
-          label="Cancelar"
-          color="neutral"
-          variant="ghost"
-          @click="handleClose"
-        />
+        <UButton label="Cancelar" color="neutral" variant="ghost" @click="handleClose" />
 
         <UButton
           :label="isEdit ? 'Guardar cambios' : 'Crear producto'"

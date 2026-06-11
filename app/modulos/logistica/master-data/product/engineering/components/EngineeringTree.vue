@@ -381,9 +381,10 @@ onMounted(() => loadTree())
         :get-sub-rows="(row: any) => row.children"
         class="w-full"
         :ui="{
-          tr: 'border-0',
-          td: 'px-4 py-2',
-          th: 'px-4 py-2.5'
+          base: 'border-separate border-spacing-0',
+          tbody: '[&>tr]:last:[&>td]:border-b-0',
+          tr: 'group',
+          td: 'empty:p-0 group-has-[td:not(:empty)]:border-b border-default'
         }"
       />
     </template>

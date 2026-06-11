@@ -9,8 +9,9 @@ export default defineNuxtConfig({
     [
       'nuxt-echarts',
       {
-        charts: ['BarChart'],
-        components: ['GridComponent', 'TooltipComponent', 'LegendComponent']
+        charts: ['BarChart', 'LineChart', 'PieChart'],
+        components: ['GridComponent', 'TooltipComponent', 'LegendComponent', 'DataZoomComponent'],
+        renderer: 'svg' // recomendado para SSR
       }
     ]
   ],
