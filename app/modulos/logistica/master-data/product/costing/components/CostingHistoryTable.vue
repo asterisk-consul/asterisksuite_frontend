@@ -24,12 +24,11 @@ const COST_SOURCE_COLORS: Record<string, string> = {
 
 // El backend ya devuelve breakdowns anidados (solo raíces con children)
 const tableData = computed(() =>
-  history.value.map((item) => ({
+  (history.value ?? []).map((item) => ({
     ...item,
     children: item.breakdowns?.length ? item.breakdowns : undefined
   }))
 )
-
 // Helper: un nodo es "breakdown" si tiene component_product_id
 const isBreakdown = (original: any) => 'component_product_id' in original
 

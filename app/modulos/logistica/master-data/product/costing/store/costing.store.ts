@@ -26,8 +26,11 @@ export const useCostingStore = defineStore('costing', () => {
   // =========================
   // COMPUTED
   // =========================
+  const latestSnapshot = computed(() => {
+    if (!history.value.length) return null
 
-  const latestSnapshot = computed(() => history.value[0] ?? null)
+    return [...history.value].sort((a, b) => b.version - a.version)[0]
+  })
 
   const latestCost = computed(() => (latestSnapshot.value ? Number(latestSnapshot.value.total_cost) : 0))
 
@@ -49,7 +52,20 @@ export const useCostingStore = defineStore('costing', () => {
       error.value = null
 
       history.value = await service.getHistory(productId)
-      console.log('history:', history.value)
+
+      console.log('=== COST HISTORY ===')
+      console.log(history.value)
+
+      console.log('=== LATEST SNAPSHOT ===')
+      console.log(latestSnapshot.value)
+
+      console.log('=== COSTS ===')
+      console.log({
+        total: latestCost.value,
+        material: latestMaterialCost.value,
+        labor: latestLaborCost.value,
+        overhead: latestOverheadCost.value
+      })
 
       return history.value
     } catch (err: any) {
