@@ -67,19 +67,19 @@ export const useCosting = (productId: string, currencyId: string) => {
     history: computed(() => costingStore.history),
     pareto: computed(() => costingStore.pareto),
     lastCalculated: computed(() => costingStore.lastCalculated),
-    loading: computed(() => costingStore.loading),
-    calculating: computed(() => costingStore.calculating),
-    error: computed(() => costingStore.error),
-    hasHistory: computed(() => costingStore.hasHistory),
 
-    latestSnapshot: computed(() => costingStore.latestSnapshot),
+    loading: costingStore.loading,
+    calculating: costingStore.calculating,
+    error: costingStore.error,
 
-    // computed costos
-    latestCost: computed(() => costingStore.latestCost),
-    latestMaterialCost: computed(() => costingStore.latestMaterialCost),
-    latestLaborCost: computed(() => costingStore.latestLaborCost),
-    latestOverheadCost: computed(() => costingStore.latestOverheadCost),
+    latestSnapshot: costingStore.latestSnapshot,
 
+    latestCost: costingStore.latestCost,
+    latestMaterialCost: costingStore.latestMaterialCost,
+    latestLaborCost: costingStore.latestLaborCost,
+    latestOverheadCost: costingStore.latestOverheadCost,
+
+    hasHistory: costingStore.hasHistory,
     // template
     assignedTemplate,
 
