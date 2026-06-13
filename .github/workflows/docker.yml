@@ -7,6 +7,7 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    environment: nuxt
     permissions:
       contents: read
       packages: write
@@ -28,3 +29,6 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/asterisk-consul/asterisksuite-frontend:dev
+          build-args: |
+            NUXT_PUBLIC_API_BASE=${{ secrets.NUXT_PUBLIC_API_BASE }}
+            NUXT_API_BASE=${{ secrets.NUXT_API_BASE }}
