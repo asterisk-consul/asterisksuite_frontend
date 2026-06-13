@@ -60,10 +60,10 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
-    apiBase: process.env.API_BASE,
+    apiBase: '',
 
     public: {
-      apiBase: process.env.PUBLIC_API_BASE
+      apiBase: ''
     }
   },
 
