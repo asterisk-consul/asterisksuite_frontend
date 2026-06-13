@@ -7,7 +7,6 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    environment: nuxt
     permissions:
       contents: read
       packages: write
