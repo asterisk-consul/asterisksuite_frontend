@@ -61,6 +61,14 @@ export interface DocumentsType {
 
   document_sequence_id?: string | null
 
+  module_id?: string | null
+
+  system_modules?: {
+    id: string
+    code: string
+    name: string
+  } | null
+
   created_at?: string
 
   updated_at?: string | null

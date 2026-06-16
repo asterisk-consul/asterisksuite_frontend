@@ -67,11 +67,7 @@ async function handleSubmit(payload: any) {
         />
 
         <UPageBody>
-          <SalesDocumentForm
-            ref="formRef"
-            :loading="saving"
-            @submit="handleSubmit"
-          />
+          <SalesDocumentForm ref="formRef" :loading="saving" module-code="SALES" @submit="handleSubmit" />
         </UPageBody>
       </UPage>
     </template>
