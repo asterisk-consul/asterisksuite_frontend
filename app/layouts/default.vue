@@ -65,13 +65,7 @@ onMounted(async () => {
 
 <template>
   <UDashboardGroup unit="rem">
-    <MainSidebar
-      id="default"
-      v-model:open="open"
-      v-model:collapsed="mainCollapsed"
-      resizable
-      with-footer
-    />
+    <MainSidebar id="default" v-model:open="open" v-model:collapsed="mainCollapsed" resizable with-footer />
 
     <UDashboardSearch :groups="groups" />
     <slot />

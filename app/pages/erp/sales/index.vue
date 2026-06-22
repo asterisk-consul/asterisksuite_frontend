@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'default',
+  layout: 'erp',
   middleware: ['auth']
 })
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
@@ -101,9 +101,9 @@ const statusOptions = [
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar title="Facturas de Venta">
+      <UDashboardNavbar title="Comprobantes de venta">
         <template #trailing>
-          <div class="flex gap-2">
+          <VTooltip>
             <UButton
               icon="i-lucide-refresh-cw"
               variant="ghost"
@@ -112,13 +112,27 @@ const statusOptions = [
               label="Generar desde viajes"
               @click="generateFromTrips"
             />
-            <UButton
-              icon="i-lucide-plus"
-              color="primary"
-              label="Nueva factura"
-              :to="'/erp/sales/new'"
-            />
-          </div>
+
+            <template #popper>
+              <div class="max-w-xs space-y-2">
+                <div class="font-bold text-blue-400">Generación automática</div>
+
+                <p class="text-sm">
+                  Este proceso tomará los viajes en estado
+                  <span class="font-bold text-green-400">COMPLETADO</span>
+                  y generará facturas en estado
+                  <span class="font-bold text-yellow-300">PENDIENTE</span>
+                  .
+                </p>
+
+                <ul class="text-xs space-y-1 opacity-80">
+                  <li>• Solo procesa viajes no facturados</li>
+                  <li>• No impacta stock</li>
+                  <li>• Puede tardar algunos segundos</li>
+                </ul>
+              </div>
+            </template>
+          </VTooltip>
         </template>
       </UDashboardNavbar>
     </template>

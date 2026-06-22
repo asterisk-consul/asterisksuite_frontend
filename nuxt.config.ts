@@ -5,12 +5,21 @@ export default defineNuxtConfig({
     '@nuxtjs/mdc',
     '@vueuse/nuxt', // 👈 así se pasan las opciones
     ['@pinia/nuxt', { autoImports: ['defineStore', 'storeToRefs'] }],
-    'nuxt-auth-utils'
+    'nuxt-auth-utils',
+    [
+      'nuxt-echarts',
+      {
+        charts: ['BarChart', 'LineChart', 'PieChart'],
+        components: ['GridComponent', 'TooltipComponent', 'LegendComponent', 'DataZoomComponent'],
+        renderer: 'svg' // recomendado para SSR
+      }
+    ]
   ],
   devServer: {
     host: '0.0.0.0', // <- debe estar así
     port: 3008
   },
+  sourcemap: false,
   experimental: {
     watcher: 'chokidar',
     componentIslands: false
@@ -19,9 +28,14 @@ export default defineNuxtConfig({
     typeCheck: false // Desactivar temporalmente durante build
   },
   vite: {
+    build: {
+      sourcemap: false
+    },
+
     optimizeDeps: {
       include: ['leaflet', 'date-fns', '@unovis/vue', 'zod']
     },
+
     ssr: {
       noExternal: ['@unovis/vue']
     }
@@ -37,7 +51,7 @@ export default defineNuxtConfig({
   },
 
   devtools: {
-    enabled: true
+    enabled: false
   },
   app: {
     baseURL: '/', // Relative paths for filesystem routing in Capacitor
@@ -46,10 +60,10 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
-    apiBase: process.env.API_BASE,
+    apiBase: '',
 
     public: {
-      apiBase: process.env.PUBLIC_API_BASE
+      apiBase: ''
     }
   },
 

@@ -1,61 +1,91 @@
 import type { TableColumn } from '@nuxt/ui'
+
 import type { Location } from '~/modulos/logistica/master-data/locations/types/locations.types'
 
-import { useInlineEdit } from '~/composables/table/useInlineEdit'
-import { useDateColumn } from '~/composables/table/useDateColumn'
+import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 
 type Row = Location
-type EditableField = 'city' | 'province' | 'country' | 'postalCode' | 'address'
-type EditableValue = string | null | undefined
 
-const { editableCell } = useInlineEdit<Location, EditableField>()
-const createdDate = useDateColumn('es-AR')
+export type EditableField = 'city' | 'province' | 'country' | 'postalCode' | 'address'
+
+type EditableValue = string | null | undefined
 
 export const LocationColumns = (actions: {
   onToggleActive?: (row: Row, value: boolean) => void
   onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void
   onEdit?: (row: Row) => void
-}): TableColumn<Row>[] => [
-  useSelectColumn<Row>(),
-  useIdColumn<Row>(actions.onEdit),
-  {
-    accessorKey: 'address',
-    header: 'Dirección',
-    cell: ({ row }) => editableCell('address', row.original, actions)
-  },
+  onSortFieldSelect?: (columnId: string) => void
+}): TableColumn<Row>[] => {
+  const build = createTableBuilder<Row, EditableField>({
+    locale: 'es-AR',
+    onInlineSave: actions.onInlineSave,
+    onSortFieldSelect: actions.onSortFieldSelect
+  })
 
-  {
-    accessorKey: 'city',
-    header: 'Ciudad',
-    cell: ({ row }) => editableCell('city', row.original, actions)
-  },
-  {
-    accessorKey: 'province',
-    header: 'Provincia',
-    cell: ({ row }) => editableCell('province', row.original, actions)
-  },
-  {
-    accessorKey: 'country',
-    header: 'País',
-    cell: ({ row }) => editableCell('country', row.original, actions)
-  },
-  {
-    accessorKey: 'postalCode',
-    header: 'CP',
-    cell: ({ row }) => editableCell('postalCode', row.original, actions)
-  },
-  {
-    id: 'coordinates',
-    header: 'Coordenadas',
-    cell: ({ row }) => `${row.original.latitude}, ${row.original.longitude}`
-  },
-  {
-    accessorKey: 'created_at',
-    header: 'Creado',
-    meta: createdDate.meta,
-    filterFn: createdDate.filterFn,
-    cell: ({ row }) => createdDate.format(row.getValue<string>('created_at'))
-  }
-]
+  return [
+    useSelectColumn(),
+
+    useIdColumn(actions.onEdit),
+
+    ...build([
+      {
+        key: 'address',
+        label: 'Dirección',
+        sortable: true,
+        editable: true,
+        editField: 'address'
+      },
+
+      {
+        key: 'city',
+        label: 'Ciudad',
+        sortable: true,
+        editable: true,
+        editField: 'city'
+      },
+
+      {
+        key: 'province',
+        label: 'Provincia',
+        sortable: true,
+        editable: true,
+        editField: 'province'
+      },
+
+      {
+        key: 'country',
+        label: 'País',
+        sortable: true,
+        editable: true,
+        editField: 'country'
+      },
+
+      {
+        key: 'postalCode',
+        label: 'CP',
+        sortable: true,
+        editable: true,
+        editField: 'postalCode'
+      },
+
+      {
+        id: 'coordinates',
+
+        label: 'Coordenadas',
+
+        accessorFn: (row) => `${row.latitude ?? ''}, ${row.longitude ?? ''}`,
+
+        cell: ({ row }) => `${row.original.latitude}, ${row.original.longitude}`
+      },
+
+      {
+        key: 'created_at',
+        label: 'Creado',
+        sortable: true,
+        date: true
+      }
+    ])
+  ]
+}

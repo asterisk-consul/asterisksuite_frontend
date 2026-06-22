@@ -355,5 +355,108 @@
         "version": "2.2.2-alpha"
       }
     ]
+  },
+  {
+    "version": "0.10.0-alpha",
+    "date": "2026-06-11",
+    "stage": "alpha",
+    "notes": "Incorporación de manufactura, ingeniería, costeo, precios y mejoras de multimoneda.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Nuevo módulo de productos con soporte para materias primas, productos terminados y servicios."
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Soporte para variantes y configuraciones de productos."
+      },
+      {
+        "type": "feat",
+        "scope": "ingenieria",
+        "title": "Creación del módulo de ingeniería con estructuras multinivel (BOM)."
+      },
+      {
+        "type": "feat",
+        "scope": "ingenieria",
+        "title": "Versionado y trazabilidad de estructuras de producto."
+      },
+      {
+        "type": "feat",
+        "scope": "costeo",
+        "title": "Implementación del motor de cálculo de costos basado en estructuras de ingeniería."
+      },
+      {
+        "type": "feat",
+        "scope": "costeo",
+        "title": "Historial de costos con snapshots versionados."
+      },
+      {
+        "type": "feat",
+        "scope": "costeo",
+        "title": "Desglose de materiales, mano de obra y costos indirectos."
+      },
+      {
+        "type": "feat",
+        "scope": "costeo",
+        "title": "Plantillas de costos y aplicación de tasas configurables."
+      },
+      {
+        "type": "feat",
+        "scope": "costeo",
+        "title": "Análisis Pareto para identificación de componentes críticos."
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Nuevo módulo de listas de precios basado en costos calculados."
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Versionado e historial de precios."
+      },
+      {
+        "type": "feat",
+        "scope": "currencies",
+        "title": "Actualización integral del módulo de monedas y tipos de cambio."
+      },
+      {
+        "type": "feat",
+        "scope": "currencies",
+        "title": "Soporte multicurrency para costos y precios."
+      },
+      {
+        "type": "feat",
+        "scope": "frontend",
+        "title": "Nuevas vistas y componentes para ingeniería, costeo y gestión de precios."
+      },
+      {
+        "type": "refactor",
+        "scope": "backend",
+        "title": "Reestructuración de servicios y modelos para soportar manufactura y costeo."
+      },
+      {
+        "type": "refactor",
+        "scope": "frontend",
+        "title": "Estandarización de stores, composables y formularios."
+      },
+      {
+        "type": "refactor",
+        "scope": "frontend",
+        "title": "Reemplazo del sistema de filtros por una arquitectura unificada basada en filtros dinámicos y reutilizables."
+      }
+    ],
+    "modules": [
+      {
+        "name": "transporte",
+        "version": "2.2.2-alpha"
+      },
+      {
+        "name": "manufactura",
+        "version": "0.9.0-alpha"
+      }
+    ]
   }
 ]

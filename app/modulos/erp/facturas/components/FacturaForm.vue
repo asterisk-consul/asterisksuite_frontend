@@ -1,22 +1,20 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from 'vue'
 
-import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
-
 import { storeToRefs } from 'pinia'
 
+//BusinessParties
+import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
-
 import BusinessPartyModal from '~/modulos/logistica/master-data/bussiness-parties/components/BusinnesPartyModal.vue'
-
-import { useProductsStore } from '~/modulos/logistica/master-data/product/products.store'
-
 import { useBusinessParties } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessParties'
 
+//Procuts
+import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 
+//Docuemnts_types
 import { useDocumentsTypesStore } from '~/modulos/erp/documents/documents-types/store/documents-types.store'
-
 import { useDocumentsTypes } from '~/modulos/erp/documents/documents-types/composables/useDocumentsTypes'
 
 import FacturaItemsTable from './FacturaItemsTable.vue'
@@ -28,6 +26,7 @@ import type { Document, FacturaItem, FacturaTax } from '../types/factura.types'
 interface Props {
   loading?: boolean
   initialValues?: Partial<Document>
+  moduleCode?: string
 }
 
 const props = defineProps<Props>()
@@ -46,14 +45,19 @@ const { items: products } = storeToRefs(productsStore)
 const { items: documentsTypes } = storeToRefs(documentsTypesStore)
 const { items: partyOptions } = useBusinessParties(parties)
 const { items: productOptions } = useProducts(products)
-const { items: documentTypeOptions } = useDocumentsTypes(documentsTypes)
+//documentTypeOptions : Define las opciones del desplegable// aca hay un cambio importamte
+
+const documentTypeOptions = computed(() => {
+  return documentsTypes.value
+    .filter((d) => {
+      if (!props.moduleCode) return true
+      return d.system_modules?.code === props.moduleCode
+    })
+    .map((d) => ({ label: d.description, value: d.id }))
+})
 
 onMounted(async () => {
-  await Promise.all([
-    partiesStore.fetchAll(),
-    productsStore.fetchAll(),
-    documentsTypesStore.fetchAll()
-  ])
+  await Promise.all([partiesStore.fetchAll(), productsStore.fetchAll(), documentsTypesStore.fetchAll()])
 })
 
 const form = reactive({
@@ -61,7 +65,8 @@ const form = reactive({
   party_id: '',
   date: '',
   descrip: '',
-  ref: ''
+  ref: '',
+  currency_code: 'ARS'
 })
 
 const items = ref<FacturaItem[]>([])
@@ -73,9 +78,7 @@ watch(
 
     form.document_type_id = value.document_type_id ?? ''
     form.party_id = value.party_id ?? ''
-    form.date = value.date
-      ? new Date(value.date).toISOString().split('T')[0]
-      : ''
+    form.date = value.date ? new Date(value.date).toISOString().split('T')[0] : ''
     form.descrip = value.descrip ?? ''
     form.ref = value.ref ?? ''
 
@@ -86,8 +89,7 @@ watch(
       code: tax.taxes?.code ?? '',
       tax_rate: Number(tax.tax_rate ?? 0),
       tax_amount: 0, // se recalcula por item abajo
-      calculation_level:
-        tax.taxes?.calculation_level?.toLowerCase() ?? 'document',
+      calculation_level: tax.taxes?.calculation_level?.toLowerCase() ?? 'document',
       is_included_in_price: false
     }))
 
@@ -101,8 +103,7 @@ watch(
         code: tax.taxes?.code ?? '',
         tax_rate: Number(tax.tax_rate ?? 0),
         tax_amount: Number(tax.tax_amount ?? 0),
-        calculation_level:
-          tax.taxes?.calculation_level?.toLowerCase() ?? 'line',
+        calculation_level: tax.taxes?.calculation_level?.toLowerCase() ?? 'line',
         is_included_in_price: false
       }))
 
@@ -114,15 +115,11 @@ watch(
 
       const taxes = [...lineTaxes, ...docTaxesForItem]
 
-      const totalTaxes = taxes.reduce(
-        (acc: number, tax: any) => acc + Number(tax.tax_amount || 0),
-        0
-      )
+      const totalTaxes = taxes.reduce((acc: number, tax: any) => acc + Number(tax.tax_amount || 0), 0)
 
       return {
         product_id: item.product_id,
-        product_name:
-          item.products?.name || item.products?.description || 'Producto',
+        product_name: item.products?.name || item.products?.description || 'Producto',
         quantity: Number(item.quantity ?? 0),
         unit_price: Number(item.unit_price ?? 0),
         price: subtotal,
@@ -147,16 +144,13 @@ const selectedCustomer = computed({
 })
 
 const selectedDocumentType = computed({
-  get: () =>
-    documentTypeOptions.value.find((i) => i.value === form.document_type_id),
+  get: () => documentTypeOptions.value.find((i) => i.value === form.document_type_id),
   set: (option) => {
     form.document_type_id = option?.value ?? ''
   }
 })
 
-const currentDocumentType = computed(() =>
-  documentsTypes.value.find((d) => d.id === form.document_type_id)
-)
+const currentDocumentType = computed(() => documentsTypes.value.find((d) => d.id === form.document_type_id))
 
 function addItem(prod: any) {
   const unitPrice = Number(prod.price ?? prod.data?.price ?? 0)
@@ -173,39 +167,30 @@ function addItem(prod: any) {
       code: t.taxes?.code ?? '',
       tax_rate: rate,
       tax_amount: taxAmount,
-      calculation_level: String(
-        t.taxes?.calculation_level ?? 'LINE'
-      ).toLowerCase(),
+      calculation_level: String(t.taxes?.calculation_level ?? 'LINE').toLowerCase(),
       is_included_in_price: Boolean(t.is_included_in_price)
     }
   })
 
   // Taxes del tipo de documento (nivel DOCUMENT)
   // Nota: verificá que fetchAll() traiga la relación document_type_taxes(*, taxes(*))
-  const docTaxes = (currentDocumentType.value?.document_type_taxes ?? []).map(
-    (t: any) => {
-      const rate = Number(t.taxes?.rate ?? 0)
-      const taxAmount = Number(((subtotal * rate) / 100).toFixed(2))
-      return {
-        tax_id: t.tax_id,
-        name: t.taxes?.name ?? '',
-        code: t.taxes?.code ?? '',
-        tax_rate: rate,
-        tax_amount: taxAmount,
-        calculation_level: String(
-          t.taxes?.calculation_level ?? 'DOCUMENT'
-        ).toLowerCase(),
-        is_included_in_price: false
-      }
+  const docTaxes = (currentDocumentType.value?.document_type_taxes ?? []).map((t: any) => {
+    const rate = Number(t.taxes?.rate ?? 0)
+    const taxAmount = Number(((subtotal * rate) / 100).toFixed(2))
+    return {
+      tax_id: t.tax_id,
+      name: t.taxes?.name ?? '',
+      code: t.taxes?.code ?? '',
+      tax_rate: rate,
+      tax_amount: taxAmount,
+      calculation_level: String(t.taxes?.calculation_level ?? 'DOCUMENT').toLowerCase(),
+      is_included_in_price: false
     }
-  )
+  })
 
   const taxes = [...productTaxes, ...docTaxes]
 
-  const totalTaxes = taxes.reduce(
-    (acc, tax) => acc + Number(tax.tax_amount || 0),
-    0
-  )
+  const totalTaxes = taxes.reduce((acc, tax) => acc + Number(tax.tax_amount || 0), 0)
 
   const total = subtotal + totalTaxes
 
@@ -226,19 +211,13 @@ function removeItem(index: number) {
   items.value.splice(index, 1)
 }
 
-const subtotal = computed(() =>
-  items.value.reduce((acc, item) => acc + Number(item.subtotal || 0), 0)
-)
+const subtotal = computed(() => items.value.reduce((acc, item) => acc + Number(item.subtotal || 0), 0))
 
 const allTaxes = computed(() => items.value.flatMap((i) => i.taxes ?? []))
 
-const totalTaxes = computed(() =>
-  allTaxes.value.reduce((acc, tax) => acc + Number(tax.tax_amount || 0), 0)
-)
+const totalTaxes = computed(() => allTaxes.value.reduce((acc, tax) => acc + Number(tax.tax_amount || 0), 0))
 
-const total = computed(
-  () => Number(subtotal.value || 0) + Number(totalTaxes.value || 0)
-)
+const total = computed(() => Number(subtotal.value || 0) + Number(totalTaxes.value || 0))
 
 function submit() {
   emit('submit', {
@@ -247,6 +226,7 @@ function submit() {
     date: form.date,
     descrip: form.descrip,
     ref: form.ref,
+    currency_code: form.currency_code,
     items: items.value.map((i) => ({
       product_id: i.product_id,
       quantity: Number(i.quantity),
@@ -263,9 +243,7 @@ function submit() {
 const onEditBussinessParty = () => {
   if (!selectedCustomer.value?.value) return
 
-  const customer = parties.value.find(
-    (c) => c.id === selectedCustomer.value?.value
-  )
+  const customer = parties.value.find((c) => c.id === selectedCustomer.value?.value)
 
   if (!customer) return
 
@@ -289,11 +267,7 @@ defineExpose({ submit })
             class="w-full"
           />
 
-          <UButton
-            icon="i-lucide-plus"
-            variant="outline"
-            @click="showBusinessPartiesModal = true"
-          />
+          <UButton icon="i-lucide-plus" variant="outline" @click="showBusinessPartiesModal = true" />
 
           <UButton
             icon="i-lucide-pencil"
@@ -314,20 +288,12 @@ defineExpose({ submit })
       </div>
     </template>
 
-    <FacturaItemsTable
-      :items="items"
-      :product-options="productOptions"
-      @remove="removeItem"
-      @add="addItem"
-    />
+    <FacturaItemsTable :items="items" :product-options="productOptions" @remove="removeItem" @add="addItem" />
 
     <template #footer>
       <FacturaTotals :subtotal="subtotal" :taxes="allTaxes" :total="total" />
     </template>
   </UCard>
 
-  <BusinessPartyModal
-    v-model:open="showBusinessPartiesModal"
-    v-model:business-party="selectedBusinessParty"
-  />
+  <BusinessPartyModal v-model:open="showBusinessPartiesModal" v-model:business-party="selectedBusinessParty" />
 </template>

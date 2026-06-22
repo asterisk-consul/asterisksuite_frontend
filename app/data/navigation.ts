@@ -18,8 +18,8 @@ export const navigationLinks = [
       icon: 'i-lucide-receipt',
       defaultOpen: false,
       children: [
-        { label: 'Facturas', to: '/erp/sales' },
-        { label: 'Nueva factura', to: '/erp/sales/new' },
+        { label: 'Comprobantes', to: '/erp/sales' },
+        { label: 'Clientes', to: '/erp/sales/customers' },
         {
           label: 'Resumen de productos vendidos',
           to: '/erp/sales/sales-reports/salesProducts'
@@ -32,21 +32,12 @@ export const navigationLinks = [
       icon: 'i-lucide-folder-closed',
       defaultOpen: false,
       children: [
-        { label: 'Compras', to: '/Vcompras' },
-        { label: 'Facturas', to: '/erp/purchases/purchases-documents' },
+        { label: 'Comprobantes', to: '/erp/purchases/purchases-documents' },
         {
           label: 'Nueva factura',
           to: '/erp/purchases/purchases-documents/new'
         },
-        {
-          label: 'Clasificaciones',
-          to: 'https://reportes.flowsma.com/reportes/flow.html?reportUnit=%2F2_DON_ANDRES%2Fclasificador_compras&_flowId=viewReportFlow&decorate=no&j_username=donandres&j_password=donandres',
-          target: '_blank'
-        },
-        {
-          label: 'Importador',
-          to: '/importadores'
-        },
+        { label: 'Proveedores', to: '/erp/purchases/suppliers' },
         {
           label: 'Resumen de productos comprados',
           to: '/productdash'
@@ -67,6 +58,18 @@ export const navigationLinks = [
       // children: [{ label: 'Demostracion', to: '/logistica/operaciones' }]
     },
     {
+      label: 'Stock',
+      to: '/stock',
+      icon: 'i-lucide-box',
+      defaultOpen: false
+    },
+    {
+      label: 'Fabricacion',
+      to: '/fabricacion',
+      icon: 'i-lucide-factory',
+      defaultOpen: false
+    },
+    {
       label: 'Ajustes',
       to: '/settings',
       icon: 'i-lucide-settings',
@@ -77,7 +80,8 @@ export const navigationLinks = [
         { label: 'Miembros', to: '/settings/members' },
         { label: 'Notificaciones', to: '/settings/notifications' },
         { label: 'Seguridad', to: '/settings/security' },
-        { label: 'Impuestos', to: '/settings/taxes' }
+        { label: 'Impuestos', to: '/settings/taxes' },
+        { label: 'Monedas', to: '/settings/monedas' }
       ]
     }
   ],

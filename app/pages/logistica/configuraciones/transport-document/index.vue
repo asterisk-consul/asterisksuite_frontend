@@ -18,12 +18,11 @@ type EditableValue = string | null | undefined
 
 import ModalForm from '~/components/ModalForm.vue'
 import { transportDocumentTypeColumns } from '~/modulos/logistica/documents/transport-documents-types/columns'
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
-const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 import type { ButtonProps } from '@nuxt/ui'
-function toggleModuleSidebar() {
-  moduleCollapsed.value = !moduleCollapsed.value
-}
+
 /* ---------------------------------------
    MODAL CONTROL
 --------------------------------------- */
@@ -31,6 +30,7 @@ function toggleModuleSidebar() {
 const modalOpen = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const editingRow = ref<any>(null)
+const sorting = ref<SortingState>([])
 
 function openCreate() {
   modalMode.value = 'create'
@@ -48,8 +48,19 @@ function openEdit(row: any) {
   modalOpen.value = true
 }
 
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [
+    {
+      id: columnId,
+      desc: current?.id === columnId ? !current.desc : false
+    }
+  ]
+}
+
 const columns = transportDocumentTypeColumns({
   onEdit: openEdit,
+  onSortFieldSelect,
   onToggleActive: async (row, value) => {
     const prev = row.active
     row.active = value
@@ -131,28 +142,27 @@ const links = ref<ButtonProps[]>([
     variant: 'solid'
   }
 ])
+
+const filterFields: FilterField[] = [{ id: 'name', label: 'Filtrar por nombre...', class: 'w-56' }]
+
+const sortFields: SortField[] = [
+  { label: 'Nombre', value: 'name' },
+  { label: 'Entidad', value: 'entity' },
+  { label: 'Fecha Creación', value: 'created_at' }
+]
 </script>
 
 <template>
   <UPage class="space-y-4">
-    <div class="flex flex-col">
-      <div>
-        <UButton
-          icon="i-lucide-layout-panel-left"
-          variant="ghost"
-          color="neutral"
-          label="Menu"
-          @click="toggleModuleSidebar"
-        />
-      </div>
-      <UPageHeader
-        title="Documentos de Transporte"
-        description="Listado de Documentos de Transporte"
-        :links="links"
-        class="mb-4 w-full"
-      />
-    </div>
-    <LogisticaTable :loading="loading" :data="items" :columns="columns" />
+    <AppPageHeader title="Documentos de Transporte" description="Listado de Documentos de Transporte" :links="links" />
+    <LogisticaTable
+      :loading="loading"
+      :data="items"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+    />
   </UPage>
   <ModalForm
     v-model:open="modalOpen"

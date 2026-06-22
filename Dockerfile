@@ -1,5 +1,5 @@
 # ==== Build ====
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 RUN npm install -g pnpm
@@ -10,17 +10,21 @@ ARG NUXT_API_BASE
 ENV NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE
 ENV NUXT_API_BASE=$NUXT_API_BASE
 
-# 👇 Aumentar memoria disponible para Node durante el build
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+# 👇 Debug - verificar que los ARGs llegaron
+RUN echo "NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE" && \
+    echo "NUXT_API_BASE=$NUXT_API_BASE"
 
-COPY package.json pnpm-lock.yaml ./
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV CI=true
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm run build
 
 # ==== Runtime ====
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 COPY --from=builder /app/.output ./.output

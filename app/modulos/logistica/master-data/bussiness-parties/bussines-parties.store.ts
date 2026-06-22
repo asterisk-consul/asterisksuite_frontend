@@ -13,6 +13,8 @@ export const useBusinessPartiesStore = defineStore('businessParties', () => {
   const items = ref<BusinessParty[]>([])
   const current = ref<BusinessParty | null>(null)
   const loading = ref(false)
+  const error = ref<string | null>(null)
+  const errors = ref<Record<string, string>>({})
 
   const currentCompanyId = ref<string | null>(null)
 
@@ -59,27 +61,64 @@ export const useBusinessPartiesStore = defineStore('businessParties', () => {
   // CREATE
   // =========================
   const create = async (payload: CreateBusinessPartyInput) => {
-    const created = await service.create(payload)
+    try {
+      loading.value = true
 
-    return created
+      error.value = null
+      errors.value = {}
+
+      const created = await service.create(payload)
+
+      return created
+    } catch (err: any) {
+      errors.value = err?.data?.data?.errors || err?.data?.errors || {}
+
+      error.value =
+        err?.data?.data?.message ||
+        err?.data?.message ||
+        err?.response?.data.message ||
+        'Error parte interesada'
+
+      throw err
+    } finally {
+      loading.value = false
+    }
   }
 
   // =========================
   // UPDATEW
   // =========================
   const update = async (id: string, payload: UpdateBusinessPartyInput) => {
-    const updated = await service.update(id, payload)
+    try {
+      loading.value = true
+      error.value = null
+      errors.value = {}
 
-    const index = items.value.findIndex((i) => i.id === id)
-    if (index !== -1) {
-      items.value[index] = updated
+      const updated = await service.update(id, payload)
+
+      const index = items.value.findIndex((i) => i.id === id)
+      if (index !== -1) {
+        items.value[index] = updated
+      }
+
+      if (current.value?.id === id) {
+        current.value = updated
+      }
+
+      return updated
+    } catch (err: any) {
+      errors.value = err?.data?.data?.errors || err?.data?.errors || {}
+
+      error.value =
+        err?.data?.data?.message ||
+        err?.data?.message ||
+        err?.response?.data?.message ||
+        'Error al actualizar'
+
+      throw err
+    } finally {
+      loading.value = false
     }
-
-    if (current.value?.id === id) {
-      current.value = updated
-    }
-
-    return updated
   }
 
   // =========================
@@ -100,6 +139,8 @@ export const useBusinessPartiesStore = defineStore('businessParties', () => {
     items,
     current,
     loading,
+    error,
+    errors,
 
     // computed
     activeItems,

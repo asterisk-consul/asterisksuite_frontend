@@ -1,81 +1,69 @@
 <script setup lang="ts">
-import { navigationLinks } from '~/data/navigation'
-import { useVersion } from '~/composables/useVersion'
-import MainSidebar from '~/components/ui/MainSidebar.vue'
-
 const { mainCollapsed } = useSidebarState()
-const open = ref(false)
+const { items: breadcrumbs } = useBreadcrumbs()
 
-const versions = useVersion()
-const route = useRoute()
-const toast = useToast()
-
-const links = navigationLinks
-
-const groups = computed(() => [
+const items = [
   {
-    id: 'links',
-    label: 'Go to',
-    items: links.flat()
+    label: 'Crear comprobante de venta',
+    icon: 'i-lucide-file-plus',
+    kbds: ['meta', 'f'],
+    onSelect() {
+      navigateTo('/erp/sales/new')
+    }
   },
   {
-    id: 'code',
-    label: 'Code',
-    items: [
-      {
-        id: 'source',
-        label: 'View page source',
-        icon: 'i-simple-icons-github',
-        to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${
-          route.path === '/' ? '/index' : route.path
-        }.vue`,
-        target: '_blank'
-      }
-    ]
+    label: 'Crear comprobante de compra',
+    icon: 'i-lucide-file-text',
+    kbds: ['meta', 'r'],
+    onSelect() {
+      navigateTo('/erp/purchases/purchases-documents/new')
+    }
   }
-])
+]
 
-onMounted(async () => {
-  const cookie = useCookie('cookie-consent')
-  if (cookie.value === 'accepted') return
-
-  toast.add({
-    title: 'Este sitio utiliza cookies',
-    duration: 0,
-    close: false,
-    actions: [
-      {
-        label: 'Aceptar',
-        color: 'neutral',
-        variant: 'outline',
-        onClick: () => { cookie.value = 'accepted' }
-      },
-      {
-        label: 'Rechazar',
-        color: 'neutral',
-        variant: 'ghost'
-      }
-    ]
-  })
-})
+defineShortcuts(extractShortcuts(items))
 </script>
 
 <template>
-  <UDashboardGroup unit="rem">
-    <MainSidebar
-      id="default"
-      v-model:open="open"
-      v-model:collapsed="mainCollapsed"
-      resizable
-      with-footer
-    />
+  <NuxtLayout name="default">
+    <UDashboardPanel :ui="{ body: '!p-0' }">
+      <template #header>
+        <UDashboardNavbar title="ERP">
+          <template #leading>
+            <UButton
+              icon="i-lucide-panel-left-close"
+              variant="ghost"
+              color="neutral"
+              @click="mainCollapsed = !mainCollapsed"
+            />
+          </template>
 
-    <UDashboardSearch :groups="groups" />
+          <template #right>
+            <UDropdownMenu
+              :items="items"
+              :content="{
+                align: 'start',
+                side: 'left',
+                sideOffset: 8
+              }"
+            >
+              <UTooltip text="Crear">
+                <UButton icon="i-lucide-plus" size="md" class="rounded-full" />
+              </UTooltip>
+            </UDropdownMenu>
+          </template>
+        </UDashboardNavbar>
+      </template>
 
-    <UDashboardPanel grow scroll>
-      <slot />
+      <template #body>
+        <main class="flex-1 flex flex-col">
+          <UBreadcrumb :items="breadcrumbs" class="pl-6 pt-6" />
+
+          <div class="flex-1 overflow-y-auto p-6">
+            <slot />
+          </div>
+        </main>
+      </template>
     </UDashboardPanel>
-
-    <NotificationsSlideover />
-  </UDashboardGroup>
+  </NuxtLayout>
 </template>

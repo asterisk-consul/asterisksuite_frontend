@@ -34,14 +34,7 @@ export const links: NavigationMenuItem[][] = [
       label: 'Depósitos',
       icon: 'i-heroicons-building-storefront',
       to: '/logistica/warehouse/',
-      defaultOpen: false,
-      children: [
-        {
-          label: 'Productos',
-          icon: 'i-heroicons-cube',
-          to: '/logistica/warehouse/productos/'
-        }
-      ]
+      defaultOpen: false
     },
     // {
     //   label: 'Picking',
@@ -61,7 +54,7 @@ export const links: NavigationMenuItem[][] = [
       ]
     },
     {
-      label: 'Clientes',
+      label: 'Partes interesadas',
       icon: 'i-heroicons-building-office-2',
       to: '/logistica/business-parties/',
       children: [
