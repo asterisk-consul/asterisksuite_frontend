@@ -1,29 +1,25 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'default',
+  layout: 'erp',
   middleware: ['auth']
 })
-
-import { PurchasesService } from '~/modulos/erp/purchases/purchases.service'
-import {
-  STATUS_LABELS,
-  STATUS_COLORS
-} from '~/modulos/erp/purchases/types/purchases-documents'
-import type { PurchasesDocument } from '~/modulos/erp/purchases/types/purchases-documents'
+import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
+import { STATUS_LABELS, STATUS_COLORS } from '~/modulos/erp/purchases/types/purchases-documents'
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 const statusFilter = ref<number | undefined>(undefined)
-const generating = ref(false)
-const generateResult = ref<{ total_trips: number; results: any[] } | null>(null)
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
-const {
-  data: documents,
-  pending,
-  error,
-  refresh
-} = await useAsyncData('documents-sales', () => PurchasesService.getSummary(), {
-  server: false
+const documentsPurchasesStore = useDocumentsPurchasesStore()
+
+const documents = computed(() => documentsPurchasesStore.items)
+const pending = computed(() => documentsPurchasesStore.loading)
+const error = computed(() => documentsPurchasesStore.error)
+
+const refresh = () => documentsPurchasesStore.fetchAll({ status: statusFilter.value })
+
+onMounted(async () => {
+  await documentsPurchasesStore.fetchAll({ status: statusFilter.value })
 })
 
 watch(statusFilter, () => refresh())
@@ -36,12 +32,8 @@ const stats = computed(() => {
     pendiente: docs.filter((d) => d.status === 1).length,
     confirmado: docs.filter((d) => d.status === 2).length,
     anulado: docs.filter((d) => d.status === 3).length,
-    totalPendiente: docs
-      .filter((d) => d.status === 1)
-      .reduce((a, d) => a + Number(d.total), 0),
-    totalConfirmado: docs
-      .filter((d) => d.status === 2)
-      .reduce((a, d) => a + Number(d.total), 0)
+    totalPendiente: docs.filter((d) => d.status === 1).reduce((a, d) => a + Number(d.total), 0),
+    totalConfirmado: docs.filter((d) => d.status === 2).reduce((a, d) => a + Number(d.total), 0)
   }
 })
 
@@ -57,25 +49,11 @@ function fmtDate(d?: string) {
   return d ? d.slice(0, 10) : '-'
 }
 
-// ─── Acciones ─────────────────────────────────────────────────────────────────
-async function generateFromTrips() {
-  generating.value = true
-  try {
-    generateResult.value =
-      await DocumentsPurchasesService.generateFromAllTrips()
-    await refresh()
-  } catch (e) {
-    console.error(e)
-  } finally {
-    generating.value = false
-  }
-}
-
 // ─── Columnas ─────────────────────────────────────────────────────────────────
 const columns = [
   { id: 'number', header: 'Nº' },
   { id: 'date', header: 'Fecha' },
-  { id: 'client', header: 'Cliente' },
+  { id: 'supplier', header: 'Proveedor' },
   { id: 'descrip', header: 'Descripción' },
   { id: 'total', header: 'Total' },
   { id: 'status', header: 'Estado' },
@@ -94,41 +72,21 @@ const statusOptions = [
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar title="Facturas de Venta">
+      <UDashboardNavbar title="Comprobantes de compra">
         <template #trailing>
-          <div class="flex gap-2">
-            <UButton
-              icon="i-lucide-refresh-cw"
-              variant="ghost"
-              color="neutral"
-              :loading="generating"
-              label="Generar desde viajes"
-              @click="generateFromTrips"
-            />
-            <UButton
-              icon="i-lucide-plus"
-              color="primary"
-              label="Nueva factura"
-              :to="'/erp/sales/new'"
-            />
-          </div>
+          <UButton
+            icon="i-lucide-plus"
+            variant="ghost"
+            color="neutral"
+            label="Nueva factura"
+            to="/erp/purchases/purchases-documents/new"
+          />
         </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
       <div class="p-4 space-y-5">
-        <!-- Resultado de generación -->
-        <UAlert
-          v-if="generateResult"
-          color="success"
-          variant="subtle"
-          icon="i-lucide-check-circle"
-          :title="`Generados: ${generateResult.results.reduce((a, r) => a + r.created, 0)} — Existentes: ${generateResult.results.reduce((a, r) => a + r.skipped, 0)}`"
-          closable
-          @close="generateResult = null"
-        />
-
         <UAlert
           v-if="error"
           color="error"
@@ -194,9 +152,7 @@ const statusOptions = [
           <UTable :data="documents ?? []" :columns="columns" :loading="pending">
             <template #number-cell="{ row }">
               <span class="font-mono font-medium">
-                {{ row.original.document_types?.code }}-{{
-                  String(row.original.number).padStart(8, '0')
-                }}
+                {{ row.original.document_types?.code }}-{{ String(row.original.number).padStart(8, '0') }}
               </span>
             </template>
 
@@ -204,7 +160,7 @@ const statusOptions = [
               {{ fmtDate(row.original.date) }}
             </template>
 
-            <template #client-cell="{ row }">
+            <template #supplier-cell="{ row }">
               {{ row.original.business_parties?.name ?? '-' }}
             </template>
 
@@ -234,7 +190,7 @@ const statusOptions = [
                 variant="ghost"
                 color="neutral"
                 size="sm"
-                :to="`/erp/sales/${row.original.id}`"
+                :to="`/erp/purchases/purchases-documents/${row.original.id}`"
               />
             </template>
           </UTable>

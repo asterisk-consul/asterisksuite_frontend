@@ -4,15 +4,7 @@ const { items: breadcrumbs } = useBreadcrumbs()
 
 const items = [
   {
-    label: 'Crear Orden de Venta',
-    icon: 'i-lucide-shopping-cart',
-    kbds: ['meta', 'o'],
-    onSelect() {
-      navigateTo('/erp/sales/orders/new')
-    }
-  },
-  {
-    label: 'Crear Factura',
+    label: 'Crear comprobante de venta',
     icon: 'i-lucide-file-plus',
     kbds: ['meta', 'f'],
     onSelect() {
@@ -20,11 +12,11 @@ const items = [
     }
   },
   {
-    label: 'Crear Remito',
+    label: 'Crear comprobante de compra',
     icon: 'i-lucide-file-text',
     kbds: ['meta', 'r'],
     onSelect() {
-      navigateTo('/erp/sales/remitos/new')
+      navigateTo('/erp/purchases/purchases-documents/new')
     }
   }
 ]

@@ -32,7 +32,7 @@ export const navigationLinks = [
       icon: 'i-lucide-folder-closed',
       defaultOpen: false,
       children: [
-        { label: 'Facturas', to: '/erp/purchases/purchases-documents' },
+        { label: 'Comprobantes', to: '/erp/purchases/purchases-documents' },
         {
           label: 'Nueva factura',
           to: '/erp/purchases/purchases-documents/new'

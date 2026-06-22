@@ -1,18 +1,109 @@
 <script setup lang="ts">
-import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
-import { createDefaultProductForm } from '~/modulos/logistica/master-data/product/utils/product-form.utils'
+definePageMeta({
+  middleware: ['auth'],
+  layout: 'modulofabricacion'
+})
+
+import BomSidebar from '~/modulos/logistica/master-data/product/components/ProductSidebar.vue'
 import ProductForm from '~/modulos/logistica/master-data/product/components/ProductForm.vue'
+import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
+import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
+import type { ProductVariant } from '~/modulos/logistica/master-data/product/types/product.types'
+import {
+  createDefaultProductForm,
+  toCreateProductPayload
+} from '~/modulos/logistica/master-data/product/utils/product-form.utils'
 
-const productStore = useProductsStore()
-const form = ref(createDefaultProductForm())
+const productsStore = useProductsStore()
+const { moduleCollapsed } = useModuleSidebarState()
+const toast = useToast()
+const mobileOpen = ref(false)
 
-async function handleSubmit() {
-  await productStore.create(form.value)
+watch(moduleCollapsed, (collapsed) => {
+  if (!collapsed && window.innerWidth < 1024) {
+    mobileOpen.value = true
+    moduleCollapsed.value = true
+  }
+})
+
+watch(mobileOpen, (open) => {
+  if (!open) {
+    moduleCollapsed.value = true
+  }
+})
+
+const { create, loading } = useProducts()
+const saving = ref(false)
+const form = reactive(createDefaultProductForm())
+
+useHead({ title: 'Nuevo producto' })
+
+const onVariantCreated = (variant: ProductVariant) => {
+  if (!productsStore.current) return
+  productsStore.current = {
+    ...productsStore.current,
+    product_variants: [variant, ...(productsStore.current.product_variants ?? [])]
+  }
 }
+
+async function handleSave() {
+  try {
+    saving.value = true
+    const payload = toCreateProductPayload(form)
+    const created = await create(payload)
+    productsStore.current = created
+    toast.add({ title: 'Producto creado', color: 'success' })
+    await navigateTo(`/productos/${created.id}/edit`)
+  } catch (err: unknown) {
+    let message = 'Error desconocido'
+    if (typeof err === 'object' && err !== null && 'data' in err) {
+      const data = (err as any).data
+      message = Array.isArray(data?.message) ? data.message.join(', ') : data?.message || message
+    }
+    toast.add({
+      title: 'Error al crear Producto',
+      color: 'error',
+      description: message,
+      icon: 'i-lucide-alert-circle'
+    })
+    throw err
+  } finally {
+    saving.value = false
+  }
+}
+const links = computed(() => [
+  {
+    label: 'Guardar',
+    icon: 'i-lucide-save',
+    loading: saving.value,
+    onClick: handleSave
+  }
+])
+
+const pageUi = computed(() => ({
+  root: moduleCollapsed.value ? 'flex flex-col' : 'flex flex-col lg:grid lg:grid-cols-[200px_1fr] lg:gap-2',
+  left: 'lg:col-start-1',
+  center: moduleCollapsed.value ? '' : 'lg:col-start-2'
+}))
 </script>
 
 <template>
-  <UPageCard title="Nuevo producto">
-    <ProductForm v-model="form" mode="create" @submit="handleSubmit" />
-  </UPageCard>
+  <div class="flex flex-col h-full">
+    <AppPageHeader
+      title="Nuevo producto"
+      :loading="loading"
+      show-module-toggle
+      :links="links"
+      class="sticky top-0 z-20 px-4 border-b border-default bg-default"
+    />
+    <UPage :ui="pageUi">
+      <template v-if="!moduleCollapsed" #left>
+        <BomSidebar :product="null" :mobile-open="mobileOpen" @update:mobile-open="mobileOpen = $event" />
+      </template>
+
+      <UPageBody>
+        <ProductForm v-model="form" mode="create" :loading="loading" @variant-created="onVariantCreated" />
+      </UPageBody>
+    </UPage>
+  </div>
 </template>
