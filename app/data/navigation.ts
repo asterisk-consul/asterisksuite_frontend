@@ -33,10 +33,7 @@ export const navigationLinks = [
       defaultOpen: false,
       children: [
         { label: 'Comprobantes', to: '/erp/purchases/purchases-documents' },
-        {
-          label: 'Nueva factura',
-          to: '/erp/purchases/purchases-documents/new'
-        },
+
         { label: 'Proveedores', to: '/erp/purchases/suppliers' },
         {
           label: 'Resumen de productos comprados',
