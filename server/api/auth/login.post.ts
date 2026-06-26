@@ -3,6 +3,8 @@ import { getCookieOptions } from '~~/server/utils/cookies'
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const config = useRuntimeConfig()
+
+  console.log('apiBase:', config.apiBase)
   try {
     const api = await $fetch<ApiLoginResponse>(`${config.apiBase}/auth/login`, {
       method: 'POST',
