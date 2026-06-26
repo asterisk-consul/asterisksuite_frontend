@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
       maxAge: 60 * 60 * 24 * 7
     })
 
-    return { user: api.user }
+    return { user: api.user, companies: api.companies }
   } catch (e: any) {
     throw createError({
       statusCode: e?.status || 500,

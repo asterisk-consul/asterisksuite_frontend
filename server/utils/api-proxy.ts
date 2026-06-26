@@ -92,10 +92,12 @@ export async function apiProxy(
   // console.log('[TOKEN] using accessToken:', accessToken?.slice(0, 10))
 
   const doFetch = async (token?: string) => {
-    // console.log('[FETCH] →', `${config.apiBase}${path}`)
-    // console.log('[FETCH] token:', token?.slice(0, 10))
+    const url = `${config.apiBase}${path}`
+    console.log('[FETCH] →', method, url)
+    console.log('[FETCH] x-tenant:', tenant)
+    console.log('[FETCH] token:', token?.slice(0, 20))
 
-    return await $fetch(`${config.apiBase}${path}`, {
+    return await $fetch(url, {
       method,
       body: options.body,
       query: options.query,
@@ -115,7 +117,9 @@ export async function apiProxy(
       // console.log('================ API PROXY END ================\n')
       return res
     } catch (err: any) {
-      // console.log('[FETCH] error status:', err?.response?.status)
+      console.log('[FETCH] error status:', err?.response?.status)
+      console.log('[FETCH] error data:', JSON.stringify(err?.data || err?.response?._data))
+      console.log('[FETCH] error message:', err?.message)
 
       if (err?.response?.status !== 401) {
         throw err

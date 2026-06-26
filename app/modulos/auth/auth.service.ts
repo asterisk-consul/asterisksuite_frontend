@@ -1,6 +1,8 @@
 import type {
   ApiLoginResponse,
   AuthUser,
+  CompanyMembership,
+  ApiMeResponse,
   ApiRegisterDto,
   ApiChangePasswordDto,
   ApiMessageResponse
@@ -52,6 +54,6 @@ export const authService = {
   },
 
   me() {
-    return this.getFetch()<AuthUser>('/api/auth/me')
+    return this.getFetch()<ApiMeResponse>('/api/auth/me')
   }
 }

@@ -1,9 +1,11 @@
 import { defineStore } from 'pinia'
 import { authService } from './auth.service'
-import type { AuthUser } from './auth.types'
+import type { AuthUser, CompanyMembership } from './auth.types'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
+  const companies = ref<CompanyMembership[]>([])
+  const selectedCompany = ref<CompanyMembership | null>(null)
   const initialized = ref(false)
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -17,6 +19,10 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res = await authService.login(email, password)
       user.value = res.user
+      companies.value = res.companies ?? []
+      if (companies.value.length === 1) {
+        selectedCompany.value = companies.value[0]
+      }
     } catch (e: any) {
       error.value =
         e?.data?.message || e?.statusMessage || 'Error al iniciar sesión'
@@ -38,6 +44,10 @@ export const useAuthStore = defineStore('auth', () => {
       console.log(data)
       const res = await authService.register(data)
       user.value = res.user
+      companies.value = res.companies ?? []
+      if (companies.value.length === 1) {
+        selectedCompany.value = companies.value[0]
+      }
     } catch (e: any) {
       error.value =
         e?.data?.message || e?.statusMessage || 'Error al registrarse'
@@ -50,7 +60,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchMe() {
     const me = await authService.me()
-    user.value = me
+    user.value = { id: me.id, name: me.name, email: me.email, role: me.role ?? null }
+    companies.value = me.companies ?? []
   }
 
   async function init() {
@@ -60,13 +71,11 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchMe()
     } catch {
       try {
-        // 🔥 intentar refresh
         await $fetch('/api/auth/refresh', { method: 'POST' })
-
-        // 🔥 reintentar
         await fetchMe()
       } catch {
         user.value = null
+        companies.value = []
       }
     }
 
@@ -94,10 +103,18 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     await authService.logout()
     user.value = null
+    companies.value = []
+    selectedCompany.value = null
+  }
+
+  function selectCompany(company: CompanyMembership) {
+    selectedCompany.value = company
   }
 
   return {
     user,
+    companies,
+    selectedCompany,
     loading,
     register,
     changePassword,
@@ -107,6 +124,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     fetchMe,
     init,
-    logout
+    logout,
+    selectCompany
   }
 })
