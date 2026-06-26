@@ -5,7 +5,6 @@ export default defineNuxtConfig({
     '@nuxtjs/mdc',
     '@vueuse/nuxt', // 👈 así se pasan las opciones
     ['@pinia/nuxt', { autoImports: ['defineStore', 'storeToRefs'] }],
-    'nuxt-auth-utils',
     [
       'nuxt-echarts',
       {
