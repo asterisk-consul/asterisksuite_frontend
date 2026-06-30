@@ -464,8 +464,443 @@ if (accessToken) {
 
 ---
 
+## 8. `app/components/TeamsMenu.vue`
+
+### ANTES (hardcodeado)
+```vue
+<script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui'
+
+defineProps<{ collapsed?: boolean }>()
+
+const teams = [
+  {
+    label: 'Don Andres',
+    avatar: { src: '/img/donandres.webp', alt: 'Don Andres' },
+    to: '/'
+  },
+  {
+    label: 'Flowid',
+    avatar: { src: '/img/LogoFlows.png', alt: 'flows' },
+    url: 'https://flowsma.com/donandres/#/workspace'
+  }
+]
+
+const selectedTeam = useState('selectedTeam', () => teams[0])
+
+const items = computed<DropdownMenuItem[][]>(() => [
+  teams.map((team) => ({
+    ...team,
+    onSelect() {
+      selectedTeam.value = team
+    }
+  }))
+])
+</script>
+
+<template>
+  <UDropdownMenu :items="items" :content="{ align: 'center', collisionPadding: 12 }">
+    <UButton
+      v-bind="{
+        ...selectedTeam,
+        label: collapsed ? undefined : selectedTeam?.label,
+        trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down'
+      }"
+      color="neutral"
+      variant="ghost"
+      block
+      :square="collapsed"
+      class="data-[state=open]:bg-elevated"
+      :class="[!collapsed && 'py-2']"
+      :ui="{ trailingIcon: 'text-dimmed' }"
+    />
+  </UDropdownMenu>
+</template>
+```
+
+### AHORA (usa auth store + lógica condicional)
+```vue
+<script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui'
+import { useAuthStore } from '~/modulos/auth/auth.store'
+
+defineProps<{ collapsed?: boolean }>()
+
+const auth = useAuthStore()
+const router = useRouter()
+
+const selectedCompany = computed(() => auth.selectedCompany)
+const hasMultipleCompanies = computed(() => auth.companies.length > 1)
+
+const items = computed<DropdownMenuItem[]>(() =>
+  auth.companies.map((company) => ({
+    label: company.name,
+    icon: company.role === 'OWNER' ? 'i-lucide-crown' : 'i-lucide-building',
+    description: company.subdomain,
+    onSelect() {
+      auth.selectCompany(company)
+      router.push('/')
+    }
+  }))
+)
+
+function goToHome() {
+  router.push('/')
+}
+</script>
+
+<template>
+  <!-- 1 empresa → botón directo, click = ir al inicio -->
+  <template v-if="hasMultipleCompanies">
+    <UDropdownMenu :items="items" :content="{ align: 'center', collisionPadding: 12 }">
+      <UButton
+        v-bind="{
+          icon: selectedCompany?.role === 'OWNER' ? 'i-lucide-crown' : 'i-lucide-building',
+          label: collapsed ? undefined : selectedCompany?.name,
+          trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down'
+        }"
+        color="neutral"
+        variant="ghost"
+        block
+        :square="collapsed"
+        class="data-[state=open]:bg-elevated"
+        :class="[!collapsed && 'py-2']"
+        :ui="{ trailingIcon: 'text-dimmed' }"
+      />
+    </UDropdownMenu>
+  </template>
+
+  <!-- 1 empresa → botón directo, click = ir al inicio -->
+  <template v-else>
+    <UButton
+      v-bind="{
+        icon: selectedCompany?.role === 'OWNER' ? 'i-lucide-crown' : 'i-lucide-building',
+        label: collapsed ? undefined : selectedCompany?.name
+      }"
+      color="neutral"
+      variant="ghost"
+      block
+      :square="collapsed"
+      class="data-[state=open]:bg-elevated"
+      :class="[!collapsed && 'py-2']"
+      :ui="{ trailingIcon: 'text-dimmed' }"
+      @click="goToHome"
+    />
+  </template>
+</template>
+```
+
+**Cambios clave:**
+- Eliminó array hardcodeado `teams` → ahora usa `auth.companies` del store
+- Eliminó `useState('selectedTeam')` → ahora usa `auth.selectedCompany`
+- Íconos dinámicos: corona si es OWNER, edificio si es USER/ADMIN
+- **1 empresa**: botón simple → click navega a `/` (sin dropdown)
+- **Múltiples empresas**: dropdown para seleccionar + click también navega a `/`
+- Al seleccionar empresa → `auth.selectCompany()` setea cookie `selected_tenant` + `router.push('/')`
+
+---
+
+## 9. `server/utils/tenant.ts`
+
+### ANTES
+```ts
+import type { H3Event } from 'h3'
+import { getRequestHost } from 'h3'
+
+export function getTenant(event: H3Event): string {
+  const host = getRequestHost(event)
+
+  if (!host) {
+    return 'dev'
+  }
+
+  const hostname = host.split(':')[0] ?? ''
+
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+  ) {
+    return 'dev'
+  }
+
+  if (hostname.endsWith('.localhost')) {
+    return hostname.replace('.localhost', '')
+  }
+
+  const [subdomain] = hostname.split('.')
+
+  return subdomain ?? 'dev'
+}
+```
+
+### AHORA
+```ts
+import type { H3Event } from 'h3'
+import { getRequestHost, getCookie } from 'h3'
+
+export function getTenant(event: H3Event): string {
+  const cookieTenant = getCookie(event, 'selected_tenant')
+  if (cookieTenant) {
+    return cookieTenant
+  }
+
+  const host = getRequestHost(event)
+
+  if (!host) {
+    return 'dev'
+  }
+
+  const hostname = host.split(':')[0] ?? ''
+
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+  ) {
+    return 'dev'
+  }
+
+  if (hostname.endsWith('.localhost')) {
+    return hostname.replace('.localhost', '')
+  }
+
+  const [subdomain] = hostname.split('.')
+
+  return subdomain ?? 'dev'
+}
+```
+
+**Cambios clave:**
+- Primero busca cookie `selected_tenant` → si existe, la usa como tenant
+- Si no existe, usa la lógica anterior (host → subdomain → dev)
+
+---
+
+## Flujo de selección de empresa
+
+```
+1. Usuario hace click en TeamsMenu → selecciona "Empresa B"
+   ↓
+2. auth.selectCompany(company) se ejecuta
+   ↓
+3. selectedCompany.value = company         (Pinia store)
+4. localStorage.selectedCompanyId = id     (persistencia client-side)
+5. cookie selected_tenant = "empresab"     (persistencia server-side)
+   ↓
+6. Siguiente request → apiProxy lee cookie selected_tenant = "empresab"
+   ↓
+7. getTenant() retorna "empresab" en vez de "dev"
+   ↓
+8. Backend recibe header x-tenant: empresab → usa schema de Empresa B
+```
+
+---
+
+## 10. `app/pages/select-company.vue` (NUEVO)
+
+```vue
+<script setup lang="ts">
+import { useAuthStore } from '~/modulos/auth/auth.store'
+
+definePageMeta({
+  layout: 'public',
+  auth: false
+})
+
+const auth = useAuthStore()
+const router = useRouter()
+
+const companies = computed(() => auth.companies)
+
+if (!auth.isLogged) {
+  navigateTo('/login')
+}
+
+if (auth.companies.length <= 1 || auth.selectedCompany) {
+  navigateTo('/')
+}
+
+function selectCompany(company: (typeof auth.companies)[number]) {
+  auth.selectCompany(company)
+  router.push('/')
+}
+</script>
+
+<template>
+  <div class="flex flex-col items-center justify-center mx-auto h-screen px-4">
+    <UPageCard class="w-full max-w-lg">
+      <div class="text-center mb-6">
+        <h1 class="text-xl font-bold">Seleccioná tu empresa</h1>
+        <p class="text-muted text-sm mt-1">
+          Tenés acceso a múltiples empresas. Elegí con cuál querés trabajar.
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <button
+          v-for="company in companies"
+          :key="company.id"
+          class="flex items-center gap-3 p-4 rounded-lg border border-default
+                 hover:bg-elevated transition-colors cursor-pointer text-left"
+          @click="selectCompany(company)"
+        >
+          <UIcon
+            :name="company.role === 'OWNER' ? 'i-lucide-crown' : 'i-lucide-building'"
+            class="size-6 text-muted shrink-0"
+          />
+          <div class="flex-1 min-w-0">
+            <p class="font-medium truncate">{{ company.name }}</p>
+            <p class="text-xs text-muted truncate">{{ company.subdomain }}</p>
+          </div>
+          <UBadge size="xs" variant="soft" color="neutral">{{ company.role }}</UBadge>
+        </button>
+      </div>
+    </UPageCard>
+  </div>
+</template>
+```
+
+**Funcionamiento:**
+- Guardas: si no está logueado → `/login`, si tiene ≤1 empresa o ya seleccionó → `/`
+- Muestra tarjetas con nombre, subdomain y rol de cada empresa
+- Click en empresa → `auth.selectCompany()` + navigate a `/`
+
+---
+
+## 11. `app/middleware/auth.ts`
+
+### ANTES
+```ts
+import { useAuthStore } from '~/modulos/auth/auth.store'
+export default defineNuxtRouteMiddleware(async () => {
+  const auth = useAuthStore()
+
+  await auth.init()
+
+  if (!auth.isLogged) {
+    return navigateTo('/login')
+  }
+})
+```
+
+### AHORA
+```ts
+import { useAuthStore } from '~/modulos/auth/auth.store'
+export default defineNuxtRouteMiddleware(async () => {
+  const auth = useAuthStore()
+
+  await auth.init()
+
+  if (!auth.isLogged) {
+    return navigateTo('/login')
+  }
+
+  if (auth.needsCompanySelection) {
+    return navigateTo('/select-company')
+  }
+})
+```
+
+**Cambios clave:**
+- Si el usuario está logueado pero tiene múltiples empresas y ninguna seleccionada → redirect a `/select-company`
+
+---
+
+## 12. `app/pages/login/index.vue`
+
+### ANTES
+```ts
+await navigateTo('/')
+```
+
+### AHORA
+```ts
+if (auth.needsCompanySelection) {
+  await navigateTo('/select-company')
+} else {
+  await navigateTo('/')
+}
+```
+
+---
+
+## 13. `app/pages/register/index.vue`
+
+### ANTES
+```ts
+await navigateTo('/')
+```
+
+### AHORA
+```ts
+if (auth.needsCompanySelection) {
+  await navigateTo('/select-company')
+} else {
+  await navigateTo('/')
+}
+```
+
+---
+
+## 14. `app/modulos/auth/auth.store.ts` (nuevos computed)
+
+### ANTES
+```ts
+const isLogged = computed(() => !!user.value)
+```
+
+### AHORA
+```ts
+const isLogged = computed(() => !!user.value)
+const hasMultipleCompanies = computed(() => companies.value.length > 1)
+const needsCompanySelection = computed(() =>
+  isLogged.value && hasMultipleCompanies.value && !selectedCompany.value
+)
+```
+
+**Exportados:** `isLogged`, `hasMultipleCompanies`, `needsCompanySelection`
+
+---
+
+## Flujo completo post-login
+
+```
+LOGIN EXITOSO
+    │
+    ├── 1 empresa → auto-select → navigateTo('/')
+    │
+    └── Múltiples empresas → navigateTo('/select-company')
+                                    │
+                                    ├── Click en empresa → selectCompany() → navigateTo('/')
+                                    │
+                                    └── Si accede a ruta protegida sin seleccionar
+                                        → middleware redirige a /select-company
+
+PAGE RELOAD (middleware auth)
+    │
+    ├── No logueado → /login
+    │
+    ├── Logueado + ≤1 empresa → pasa normal
+    │
+    ├── Logueado + múltiples empresas + selectedCompany en localStorage → pasa normal
+    │
+    └── Logueado + múltiples empresas + NO selectedCompany → /select-company
+```
+
+---
+
 ## Errores encontrados y resueltos
 
 1. **Backend: columna `users.role` no existe** → Ejecutar `npx prisma db push` en el backend
 2. **Frontend: `/auth/me` retornaba undefined** → El store esperaba `me.user` pero el backend retorna flat; se ajustó `fetchMe()` para construir el user desde los campos planos
 3. **Frontend: `me.user` era undefined** → `isLogged = false` → redirect a `/login` → página index nunca se mostraba
+4. **TeamsMenu hardcodeado** → Reemplazado por datos reales del auth store + persistencia con cookie `selected_tenant`
+5. **TeamsMenu: 1 empresa muestra dropdown innecesario** → Ahora si solo hay 1 empresa, muestra botón simple que navega a `/`
+6. **Multi-empresa: no había selección post-login** → Nueva página `/select-company` + redirect automático desde login/register/middleware

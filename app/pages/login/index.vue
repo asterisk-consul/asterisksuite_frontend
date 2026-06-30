@@ -29,7 +29,11 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       color: 'success'
     })
 
-    await navigateTo('/')
+    if (auth.needsCompanySelection) {
+      await navigateTo('/select-company')
+    } else {
+      await navigateTo('/')
+    }
   } catch (err: any) {
     errorMessage.value =
       err?.message || err?.data?.message || 'Usuario o contraseña incorrectos'

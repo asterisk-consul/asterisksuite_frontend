@@ -7,4 +7,8 @@ export default defineNuxtRouteMiddleware(async () => {
   if (!auth.isLogged) {
     return navigateTo('/login')
   }
+
+  if (auth.needsCompanySelection) {
+    return navigateTo('/select-company')
+  }
 })
