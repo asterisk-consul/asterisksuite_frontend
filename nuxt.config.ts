@@ -50,7 +50,7 @@ export default defineNuxtConfig({
   },
 
   devtools: {
-    enabled: false
+    enabled: true
   },
   app: {
     baseURL: '/', // Relative paths for filesystem routing in Capacitor
