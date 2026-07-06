@@ -35,6 +35,7 @@ export default defineEventHandler(async (event) => {
     return {
       ok: true,
       user: api.user,
+      companies: (api as any).companies,
       accessToken: api.accessToken,
       refreshToken: api.refreshToken
     }

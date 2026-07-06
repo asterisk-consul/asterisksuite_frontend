@@ -5,7 +5,6 @@ export default defineNuxtConfig({
     '@nuxtjs/mdc',
     '@vueuse/nuxt', // 👈 así se pasan las opciones
     ['@pinia/nuxt', { autoImports: ['defineStore', 'storeToRefs'] }],
-    'nuxt-auth-utils',
     [
       'nuxt-echarts',
       {
@@ -51,7 +50,7 @@ export default defineNuxtConfig({
   },
 
   devtools: {
-    enabled: false
+    enabled: true
   },
   app: {
     baseURL: '/', // Relative paths for filesystem routing in Capacitor

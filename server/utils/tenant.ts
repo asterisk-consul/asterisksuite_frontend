@@ -1,7 +1,12 @@
 import type { H3Event } from 'h3'
-import { getRequestHost } from 'h3'
+import { getRequestHost, getCookie } from 'h3'
 
 export function getTenant(event: H3Event): string {
+  const cookieTenant = getCookie(event, 'selected_tenant')
+  if (cookieTenant) {
+    return cookieTenant
+  }
+
   const host = getRequestHost(event)
 
   if (!host) {
@@ -10,7 +15,6 @@ export function getTenant(event: H3Event): string {
 
   const hostname = host.split(':')[0] ?? ''
 
-  // Desarrollo local
   if (
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
