@@ -1,11 +1,15 @@
+import { getTenant } from '~~/server/utils/tenant'
+
 export default defineEventHandler(async (event) => {
   const refreshToken = getCookie(event, 'api_refresh')
 
   if (refreshToken) {
     const config = useRuntimeConfig()
+    const tenant = getTenant(event)
     await $fetch(`${config.apiBase}/auth/logout`, {
       method: 'POST',
-      body: { refreshToken } // ✅ revocar en BD
+      body: { refreshToken },
+      headers: { 'x-tenant': tenant }
     }).catch(() => {})
   }
 

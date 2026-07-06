@@ -12,18 +12,10 @@ export const authService = {
   },
 
   async login(email: string, password: string) {
-    console.log('[AUTH-SERVICE] login attempt for:', email)
-    try {
-      const result = await this.getFetch()<ApiLoginResponse>('/api/auth/login', {
-        method: 'POST',
-        body: { email, password }
-      })
-      console.log('[AUTH-SERVICE] login OK, user:', result.user?.email)
-      return result
-    } catch (e: any) {
-      console.error('[AUTH-SERVICE] login FAILED:', e?.status, e?.statusMessage, e?.data?.message)
-      throw e
-    }
+    return await this.getFetch()<ApiLoginResponse>('/api/auth/login', {
+      method: 'POST',
+      body: { email, password }
+    })
   },
 
   register(data: ApiRegisterDto) {

@@ -1,15 +1,18 @@
 import type { ApiLoginResponse } from '~/modulos/auth/auth.types'
+import { getTenant } from '~~/server/utils/tenant'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const config = useRuntimeConfig()
+  const tenant = getTenant(event)
 
   try {
     const api = await $fetch<ApiLoginResponse>(
       `${config.apiBase}/auth/register`,
       {
         method: 'POST',
-        body
+        body,
+        headers: { 'x-tenant': tenant }
       }
     )
 
