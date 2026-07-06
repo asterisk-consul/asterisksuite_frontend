@@ -14,10 +14,15 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
     error.value = null
 
+    console.log('[AUTH-STORE] login init, email:', email)
     try {
       const res = await authService.login(email, password)
+      console.log('[AUTH-STORE] login success, user:', res.user)
       user.value = res.user
     } catch (e: any) {
+      console.error('[AUTH-STORE] login catch error:', e?.message)
+      console.error('[AUTH-STORE] error data:', e?.data)
+      console.error('[AUTH-STORE] error status:', e?.status)
       error.value =
         e?.data?.message || e?.statusMessage || 'Error al iniciar sesión'
 
