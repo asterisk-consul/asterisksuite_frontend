@@ -1,3 +1,4 @@
+import { getCookieOptions } from '~~/server/utils/cookies'
 import { getTenant } from '~~/server/utils/tenant'
 
 export default defineEventHandler(async (event) => {
@@ -14,8 +15,9 @@ export default defineEventHandler(async (event) => {
   }
 
   // Limpiar cookies siempre
-  deleteCookie(event, 'api_access')
-  deleteCookie(event, 'api_refresh')
+  const cookieOpts = getCookieOptions()
+  deleteCookie(event, 'api_access', { path: cookieOpts.path, domain: cookieOpts.domain })
+  deleteCookie(event, 'api_refresh', { path: cookieOpts.path, domain: cookieOpts.domain })
 
   return { ok: true }
 })

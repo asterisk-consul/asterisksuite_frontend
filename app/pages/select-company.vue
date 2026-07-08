@@ -11,6 +11,9 @@ const router = useRouter()
 
 const companies = computed(() => auth.companies)
 
+const loading = ref(false)
+const loadingCompanyName = ref('')
+
 if (!auth.isLogged) {
   navigateTo('/login')
 }
@@ -20,12 +23,26 @@ if (auth.companies.length <= 1 || auth.selectedCompany) {
 }
 
 function selectCompany(company: (typeof auth.companies)[number]) {
+  loadingCompanyName.value = company.name
+  loading.value = true
+
   auth.selectCompany(company)
-  router.push('/')
+
+  const config = useRuntimeConfig()
+  const baseDomain = config.public.baseDomain
+  if (baseDomain) {
+    const { protocol, port } = window.location
+    const portSuffix = port ? `:${port}` : ''
+    window.location.href = `${protocol}//${company.subdomain}.${baseDomain}${portSuffix}`
+  } else {
+    router.push('/')
+  }
 }
 </script>
 
 <template>
+  <LoadingOverlay v-if="loading" :company-name="loadingCompanyName" />
+
   <div class="flex flex-col items-center justify-center mx-auto h-screen px-4">
     <UPageCard class="w-full max-w-lg">
       <div class="text-center mb-6">

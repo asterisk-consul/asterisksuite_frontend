@@ -40,8 +40,9 @@ export default defineEventHandler(async (event) => {
       refreshToken: api.refreshToken
     }
   } catch (e: any) {
-    deleteCookie(event, 'api_access', { path: '/' })
-    deleteCookie(event, 'api_refresh', { path: '/' })
+    const cookieOpts = getCookieOptions()
+    deleteCookie(event, 'api_access', { path: cookieOpts.path, domain: cookieOpts.domain })
+    deleteCookie(event, 'api_refresh', { path: cookieOpts.path, domain: cookieOpts.domain })
 
     throw createError({
       statusCode: 401,

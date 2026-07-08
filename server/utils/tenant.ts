@@ -26,6 +26,13 @@ export function getTenant(event: H3Event): string {
     return 'dev'
   }
 
+  const config = useRuntimeConfig()
+  const baseDomain = config.public.baseDomain
+
+  if (baseDomain && hostname.endsWith('.' + baseDomain)) {
+    return hostname.replace('.' + baseDomain, '')
+  }
+
   if (hostname.endsWith('.localhost')) {
     return hostname.replace('.localhost', '')
   }

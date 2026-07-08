@@ -62,7 +62,8 @@ export default defineNuxtConfig({
     apiBase: '',
 
     public: {
-      apiBase: ''
+      apiBase: '',
+      baseDomain: ''
     }
   },
 

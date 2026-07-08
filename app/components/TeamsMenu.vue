@@ -10,14 +10,33 @@ const router = useRouter()
 const selectedCompany = computed(() => auth.selectedCompany)
 const hasMultipleCompanies = computed(() => auth.companies.length > 1)
 
+const loading = ref(false)
+const loadingCompanyName = ref('')
+
+function redirectToSubdomain(company: (typeof auth.companies)[number]) {
+  loadingCompanyName.value = company.name
+  loading.value = true
+
+  auth.selectCompany(company)
+
+  const config = useRuntimeConfig()
+  const baseDomain = config.public.baseDomain
+  if (baseDomain) {
+    const { protocol, port } = window.location
+    const portSuffix = port ? `:${port}` : ''
+    window.location.href = `${protocol}//${company.subdomain}.${baseDomain}${portSuffix}`
+  } else {
+    router.push('/')
+  }
+}
+
 const items = computed<DropdownMenuItem[]>(() =>
   auth.companies.map((company) => ({
     label: company.name,
     icon: company.role === 'OWNER' ? 'i-lucide-crown' : 'i-lucide-building',
     description: company.subdomain,
     onSelect() {
-      auth.selectCompany(company)
-      router.push('/')
+      redirectToSubdomain(company)
     }
   }))
 )
@@ -28,6 +47,8 @@ function goToHome() {
 </script>
 
 <template>
+  <LoadingOverlay v-if="loading" :company-name="loadingCompanyName" />
+
   <template v-if="hasMultipleCompanies">
     <UDropdownMenu :items="items" :content="{ align: 'center', collisionPadding: 12 }">
       <UButton

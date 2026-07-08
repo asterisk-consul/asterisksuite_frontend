@@ -14,10 +14,65 @@ export const useAuthStore = defineStore('auth', () => {
   const hasMultipleCompanies = computed(() => companies.value.length > 1)
   const needsCompanySelection = computed(() => isLogged.value && hasMultipleCompanies.value && !selectedCompany.value)
 
+  function getCurrentSubdomain(): string | null {
+    if (!import.meta.client) return null
+    const config = useRuntimeConfig()
+    const baseDomain = config.public.baseDomain
+    const hostname = window.location.hostname
+
+    if (baseDomain && hostname.endsWith('.' + baseDomain)) {
+      return hostname.replace('.' + baseDomain, '')
+    }
+
+    if (hostname.endsWith('.localhost')) {
+      return hostname.replace('.localhost', '')
+    }
+
+    return null
+  }
+
+  function autoSelectCompanyBySubdomain(): boolean {
+    const subdomain = getCurrentSubdomain()
+    if (!subdomain || companies.value.length === 0) return false
+
+    const match = companies.value.find((c) => c.subdomain === subdomain)
+    if (match) {
+      selectedCompany.value = match
+      persistSelectedCompany(match)
+      return true
+    }
+    return false
+  }
+
+  function autoSelectByHostname(hostname: string): boolean {
+    const config = useRuntimeConfig()
+    const baseDomain = config.public.baseDomain
+    let subdomain: string | null = null
+
+    if (baseDomain && hostname.endsWith('.' + baseDomain)) {
+      subdomain = hostname.replace('.' + baseDomain, '')
+    } else if (hostname.endsWith('.localhost')) {
+      subdomain = hostname.replace('.localhost', '')
+    }
+
+    if (!subdomain || companies.value.length === 0) return false
+
+    const match = companies.value.find((c) => c.subdomain === subdomain)
+    if (match) {
+      selectedCompany.value = match
+      persistSelectedCompany(match)
+      return true
+    }
+    return false
+  }
+
   if (import.meta.client) {
     watch(companies, () => {
       if (companies.value.length > 0 && !selectedCompany.value) {
         restoreSelectedCompany()
+        if (!selectedCompany.value) {
+          autoSelectCompanyBySubdomain()
+        }
       }
     })
   }
@@ -59,6 +114,8 @@ export const useAuthStore = defineStore('auth', () => {
       if (companies.value.length === 1) {
         selectedCompany.value = companies.value[0]
         persistSelectedCompany(selectedCompany.value)
+      } else {
+        autoSelectCompanyBySubdomain()
       }
     } catch (e: any) {
       error.value =
@@ -85,6 +142,8 @@ export const useAuthStore = defineStore('auth', () => {
       if (companies.value.length === 1) {
         selectedCompany.value = companies.value[0]
         persistSelectedCompany(selectedCompany.value)
+      } else {
+        autoSelectCompanyBySubdomain()
       }
     } catch (e: any) {
       error.value =
@@ -101,6 +160,9 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = { id: me.id, name: me.name, email: me.email, role: me.role ?? null }
     companies.value = me.companies ?? []
     restoreSelectedCompany()
+    if (!selectedCompany.value) {
+      autoSelectCompanyBySubdomain()
+    }
   }
 
   async function init() {
@@ -147,7 +209,9 @@ export const useAuthStore = defineStore('auth', () => {
     selectedCompany.value = null
     persistSelectedCompany(null)
     if (import.meta.client) {
-      const tenantCookie = useCookie('selected_tenant')
+      const config = useRuntimeConfig()
+      const domain = config.public.baseDomain || undefined
+      const tenantCookie = useCookie('selected_tenant', { domain })
       tenantCookie.value = null
     }
   }
@@ -156,7 +220,9 @@ export const useAuthStore = defineStore('auth', () => {
     selectedCompany.value = company
     persistSelectedCompany(company)
     if (import.meta.client) {
-      const tenantCookie = useCookie('selected_tenant', { maxAge: 60 * 60 * 24 * 30 })
+      const config = useRuntimeConfig()
+      const domain = config.public.baseDomain || undefined
+      const tenantCookie = useCookie('selected_tenant', { maxAge: 60 * 60 * 24 * 30, domain })
       tenantCookie.value = company.subdomain
     }
   }
@@ -177,6 +243,7 @@ export const useAuthStore = defineStore('auth', () => {
     fetchMe,
     init,
     logout,
-    selectCompany
+    selectCompany,
+    autoSelectByHostname
   }
 })

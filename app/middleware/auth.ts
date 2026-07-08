@@ -8,6 +8,11 @@ export default defineNuxtRouteMiddleware(async () => {
     return navigateTo('/login')
   }
 
+  if (!auth.selectedCompany) {
+    const url = useRequestURL()
+    auth.autoSelectByHostname(url.hostname)
+  }
+
   if (auth.needsCompanySelection) {
     return navigateTo('/select-company')
   }
