@@ -3,15 +3,19 @@ import { useRoute } from 'vue-router'
 export const useBreadcrumbs = () => {
   const route = useRoute()
 
+  const homeItem = { icon: 'i-lucide-house', to: '/' }
+
   const items = computed(() => {
+    const base = [homeItem]
+
     // 👉 override manual desde páginas (edit, create, etc.)
     if (route.meta.breadcrumb) {
-      return route.meta.breadcrumb as any[]
+      return [...base, ...(route.meta.breadcrumb as any[])]
     }
 
     const segments = route.path.split('/').filter(Boolean)
 
-    return segments
+    const dynamic = segments
       .map((segment, index) => {
         const config = breadcrumbMap[segment]
 
@@ -30,6 +34,8 @@ export const useBreadcrumbs = () => {
         }
       })
       .filter(Boolean)
+
+    return [...base, ...dynamic]
   })
 
   return { items }

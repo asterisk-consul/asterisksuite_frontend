@@ -49,7 +49,7 @@ defineShortcuts(extractShortcuts(items))
     <template #header>
       <UDashboardNavbar title="Logística">
         <template #left>
-          <div class="flex items-center gap-2 min-w-0 w-full">
+          <div class="flex items-center gap-2 min-w-0">
             <TeamsMenu :collapsed="true" class="max-w-8 cursor-pointer" />
             <UBreadcrumb :items="breadcrumbs" />
           </div>

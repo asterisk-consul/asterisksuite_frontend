@@ -59,7 +59,7 @@ function goToHome() {
         }"
         color="neutral"
         variant="ghost"
-        block
+        :block="!collapsed"
         :square="collapsed"
         class="data-[state=open]:bg-elevated"
         :class="[!collapsed && 'py-2']"
@@ -76,7 +76,7 @@ function goToHome() {
       }"
       color="neutral"
       variant="ghost"
-      block
+      :block="!collapsed"
       :square="collapsed"
       class="data-[state=open]:bg-elevated"
       :class="[!collapsed && 'py-2']"

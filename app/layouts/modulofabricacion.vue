@@ -12,7 +12,7 @@ provide('mainCollapsed', mainCollapsed)
     <template #header>
       <UDashboardNavbar :ui="{ left: 'flex items-center gap-2 min-w-0 flex-1' }">
         <template #left>
-          <div class="flex items-center gap-2 min-w-0 w-full">
+          <div class="flex items-center gap-2 min-w-0">
             <TeamsMenu :collapsed="true" class="max-w-8 cursor-pointer" />
             <UBreadcrumb :items="breadcrumbs" />
           </div>
