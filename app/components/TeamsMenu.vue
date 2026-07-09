@@ -22,11 +22,11 @@ function redirectToSubdomain(company: (typeof auth.companies)[number]) {
   const config = useRuntimeConfig()
   const baseDomain = config.public.baseDomain
   if (baseDomain) {
-    const { protocol, port } = window.location
+    const { protocol, port, pathname } = window.location
     const portSuffix = port ? `:${port}` : ''
-    window.location.href = `${protocol}//${company.subdomain}.${baseDomain}${portSuffix}`
+    window.location.href = `${protocol}//${company.subdomain}.${baseDomain}${portSuffix}${pathname}`
   } else {
-    router.push('/')
+    router.push(window.location.pathname)
   }
 }
 
@@ -59,7 +59,6 @@ function goToHome() {
         }"
         color="neutral"
         variant="ghost"
-        :block="!collapsed"
         :square="collapsed"
         class="data-[state=open]:bg-elevated"
         :class="[!collapsed && 'py-2']"
@@ -76,7 +75,6 @@ function goToHome() {
       }"
       color="neutral"
       variant="ghost"
-      :block="!collapsed"
       :square="collapsed"
       class="data-[state=open]:bg-elevated"
       :class="[!collapsed && 'py-2']"

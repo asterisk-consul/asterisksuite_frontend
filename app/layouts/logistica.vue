@@ -50,8 +50,8 @@ defineShortcuts(extractShortcuts(items))
       <UDashboardNavbar title="Logística">
         <template #left>
           <div class="flex items-center gap-2 min-w-0">
-            <TeamsMenu :collapsed="true" class="max-w-8 cursor-pointer" />
-            <UBreadcrumb :items="breadcrumbs" />
+            <TeamsMenu class="cursor-pointer" />
+            <UBreadcrumb :items="breadcrumbs" class="min-w-0 truncate" />
           </div>
         </template>
         <template #right>
