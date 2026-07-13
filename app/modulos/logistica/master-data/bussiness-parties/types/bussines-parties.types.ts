@@ -1,6 +1,6 @@
 // business-parties.types.ts
 
-export type BusinessPartyType = 'client' | 'supplier'
+export type BusinessPartyType = 'CUSTOMER' | 'SUPPLIER' | 'EMPLOYEE' | 'PARTNER'
 
 // ------------------
 // LOCATION

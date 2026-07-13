@@ -6,7 +6,7 @@ import { BusinessPartyColumns } from '~/modulos/logistica/master-data/bussiness-
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 const { filteredItems, loading, fetchAll, goToCreate, goToEdit } =
-  useBusinessPartiesByType('supplier', '/erp/purchases/suppliers')
+  useBusinessPartiesByType('SUPPLIER', '/erp/purchases/suppliers')
 
 const columns = BusinessPartyColumns({ onEdit: goToEdit })
 

@@ -8,7 +8,7 @@ import {
   mapFormToBusinessPartyDto
 } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
 
-type PartyType = 'client' | 'supplier'
+type PartyType = 'CUSTOMER' | 'SUPPLIER' | 'EMPLOYEE' | 'PARTNER'
 
 export function useBusinessPartiesByType(type: PartyType, basePath: string) {
   const store = useBusinessPartiesStore()
@@ -16,9 +16,7 @@ export function useBusinessPartiesByType(type: PartyType, basePath: string) {
   const { items, loading, error, errors } = storeToRefs(store)
 
   // ✅ filtra por tipo
-  const filteredItems = computed(() =>
-    items.value.filter((i) => i.type === type)
-  )
+  const filteredItems = computed(() => items.value.filter((i) => i.type === type))
 
   const initialForm: Partial<FormType> = { type }
 
@@ -59,8 +57,7 @@ export function useBusinessPartiesByType(type: PartyType, basePath: string) {
   // NAV helpers
   // =========================
   const goToCreate = () => router.push(`${basePath}/create`)
-  const goToEdit = (row: { id: string }) =>
-    router.push(`${basePath}/${row.id}/edit`)
+  const goToEdit = (row: { id: string }) => router.push(`${basePath}/${row.id}/edit`)
 
   return {
     // state

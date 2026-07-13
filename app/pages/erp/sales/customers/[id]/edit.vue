@@ -8,7 +8,7 @@ const route = useRoute()
 const id = route.params.id as string
 
 const { loading, error, errors, fetchOne, handleUpdate } =
-  useBusinessPartiesByType('client', '/erp/sales/customers')
+  useBusinessPartiesByType('CUSTOMER', '/erp/sales/customers')
 
 const saving = ref(false)
 const formData = ref(null)

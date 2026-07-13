@@ -8,8 +8,10 @@ export const businessPartyFormFields: BaseField[] = [
     name: 'type',
     type: 'select',
     options: [
-      { label: 'Cliente', value: 'client' },
-      { label: 'Proveedor', value: 'supplier' }
+      { label: 'Cliente', value: 'CUSTOMER' },
+      { label: 'Proveedor', value: 'SUPPLIER' },
+      { label: 'Empleado', value: 'EMPLOYEE' },
+      { label: 'Socio', value: 'PARTNER' }
     ]
     // required: true
   },

@@ -4,9 +4,7 @@ import type {
   BusinessParty
 } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 
-export const mapFormToBusinessPartyDto = (
-  form: BusinessPartyForm
-): CreateBusinessPartyInput => {
+export const mapFormToBusinessPartyDto = (form: BusinessPartyForm): CreateBusinessPartyInput => {
   return {
     active: form.active ?? true,
 
@@ -53,15 +51,13 @@ export const mapFormToBusinessPartyDto = (
   }
 }
 
-export const mapBusinessPartyToForm = (
-  party: BusinessParty
-): BusinessPartyForm => {
+export const mapBusinessPartyToForm = (party: BusinessParty): BusinessPartyForm => {
   return {
     id: party.id,
 
     active: party.active ?? true,
 
-    type: party.type?.toLowerCase() as 'client' | 'supplier',
+    type: party.type as 'CUSTOMER' | 'SUPPLIER' | 'EMPLOYEE' | 'PARTNER',
 
     name: party.name ?? '',
 

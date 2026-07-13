@@ -8,7 +8,7 @@ const route = useRoute()
 const id = route.params.id as string
 
 const { loading, error, errors, fetchOne, handleUpdate } =
-  useBusinessPartiesByType('supplier', '/erp/purchases/suppliers')
+  useBusinessPartiesByType('SUPPLIER', '/erp/purchases/suppliers')
 
 const saving = ref(false)
 const formData = ref(null)

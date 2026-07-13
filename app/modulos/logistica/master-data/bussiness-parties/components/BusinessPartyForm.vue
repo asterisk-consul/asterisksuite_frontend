@@ -21,7 +21,7 @@ const emit = defineEmits<{
 const form = reactive<BusinessPartyForm>({
   id: undefined,
 
-  type: 'client',
+  type: 'CUSTOMER',
 
   name: '',
   business_names: '',
@@ -80,8 +80,10 @@ watch(
 )
 
 const typeOptions: SelectMenuItem[] = [
-  { label: 'Cliente', value: 'client' },
-  { label: 'Proveedor', value: 'supplier' }
+  { label: 'Cliente', value: 'CUSTOMER' },
+  { label: 'Proveedor', value: 'SUPPLIER' },
+  { label: 'Empleado', value: 'EMPLOYEE' },
+  { label: 'Socio', value: 'PARTNER' }
 ]
 
 const documentTypeOptions: SelectMenuItem[] = [

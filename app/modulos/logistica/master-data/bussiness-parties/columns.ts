@@ -40,10 +40,15 @@ export const BusinessPartyColumns = (actions: {
         sortable: true,
 
         badge: {
-          resolve: (row) => ({
-            label: row.type === 'client' ? 'Cliente' : 'Proveedor',
-            color: row.type === 'client' ? 'primary' : 'warning'
-          })
+          resolve: (row) => {
+            const map: Record<string, { label: string; color: 'primary' | 'warning' | 'info' | 'success' | 'neutral' }> = {
+              CUSTOMER: { label: 'Cliente', color: 'primary' },
+              SUPPLIER: { label: 'Proveedor', color: 'warning' },
+              EMPLOYEE: { label: 'Empleado', color: 'info' },
+              PARTNER: { label: 'Socio', color: 'success' }
+            }
+            return map[row.type] ?? { label: row.type, color: 'neutral' }
+          }
         },
 
         meta: {
@@ -51,14 +56,10 @@ export const BusinessPartyColumns = (actions: {
             type: 'select',
             operators: ['equals'],
             options: [
-              {
-                label: 'Cliente',
-                value: 'client'
-              },
-              {
-                label: 'Proveedor',
-                value: 'supplier'
-              }
+              { label: 'Cliente', value: 'CUSTOMER' },
+              { label: 'Proveedor', value: 'SUPPLIER' },
+              { label: 'Empleado', value: 'EMPLOYEE' },
+              { label: 'Socio', value: 'PARTNER' }
             ]
           }
         }

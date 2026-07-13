@@ -5,7 +5,7 @@ import { useBusinessPartiesByType } from '~/modulos/logistica/master-data/bussin
 import BusinessPartyForm from '~/modulos/logistica/master-data/bussiness-parties/components/BusinessPartyForm.vue'
 
 const { initialForm, loading, error, errors, handleCreate } =
-  useBusinessPartiesByType('supplier', '/erp/purchases/suppliers')
+  useBusinessPartiesByType('SUPPLIER', '/erp/purchases/suppliers')
 
 const saving = ref(false)
 
