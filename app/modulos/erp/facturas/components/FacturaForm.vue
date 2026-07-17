@@ -51,7 +51,8 @@ const documentTypeOptions = computed(() => {
   return documentsTypes.value
     .filter((d) => {
       if (!props.moduleCode) return true
-      return d.system_modules?.code === props.moduleCode
+      if (!d.system_modules) return true
+      return d.system_modules.code === props.moduleCode
     })
     .map((d) => ({ label: d.description, value: d.id }))
 })

@@ -48,6 +48,11 @@ export const navigationLinks = [
       defaultOpen: false
     },
     {
+      label: 'Tesorería',
+      to: '/erp/treasury/dashboard',
+      icon: 'i-lucide-wallet'
+    },
+    {
       label: 'logistica',
       to: '/logistica',
       icon: 'i-lucide-truck'
@@ -75,6 +80,8 @@ export const navigationLinks = [
       children: [
         { label: 'General', to: '/settings', exact: true },
         { label: 'Miembros', to: '/settings/members' },
+        { label: 'Usuarios', to: '/settings/users' },
+        { label: 'Roles y permisos', to: '/settings/roles' },
         { label: 'Notificaciones', to: '/settings/notifications' },
         { label: 'Seguridad', to: '/settings/security' },
         { label: 'Impuestos', to: '/settings/taxes' },

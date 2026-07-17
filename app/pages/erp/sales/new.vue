@@ -17,14 +17,10 @@ const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
 async function handleSubmit(payload: any) {
   try {
     saving.value = true
-    console.log('payload', payload)
     const created = await DocumentsSalesService.create(payload)
     toast.add({ title: 'Factura creada', color: 'success' })
     router.push(`/erp/sales/${created.id}`)
   } catch (e: any) {
-    console.log('BACKEND ERROR')
-    console.log(e?.data)
-    console.log(e)
     toast.add({
       title: 'Error al crear factura',
       description: e?.data?.message,

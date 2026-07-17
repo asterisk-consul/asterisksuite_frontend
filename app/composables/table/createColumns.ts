@@ -382,11 +382,6 @@ export function createTableBuilder<T extends { id: string }, K extends keyof T =
 
       const filterFn = col.filterFn ?? advancedFilter
 
-      console.log('COLUMN FILTER FN', {
-        column: accessorKey,
-        filterFn
-      })
-
       return {
         id: col.id ?? accessorKey,
 

@@ -1,8 +1,10 @@
 export interface Role {
   id: string
   name: string
+  code: string
   description?: string
   permissions: string[]
+  is_system?: boolean
   active?: boolean
   created_at?: string
   updated_at?: string
@@ -18,12 +20,14 @@ export interface Permission {
 
 export interface CreateRoleDto {
   name: string
+  code: string
   description?: string
   permissions?: string[]
 }
 
 export interface UpdateRoleDto {
   name?: string
+  code?: string
   description?: string
   permissions?: string[]
 }
