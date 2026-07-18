@@ -7,8 +7,10 @@ definePageMeta({
 import type { ButtonProps } from '@nuxt/ui'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
 import type { BankAccount, CreateBankAccountInput } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
+import { useExcelExport } from '~/composables/useExcelExport'
 
 const { bankAccounts, loading, init, create, update, remove } = useBankAccounts()
+const { exportToExcel } = useExcelExport()
 const router = useRouter()
 
 const modalOpen = ref(false)
@@ -145,7 +147,32 @@ const handleDelete = async () => {
   deletingAccount.value = null
 }
 
+const handleExport = () => {
+  exportToExcel({
+    filename: 'cuentas_bancarias',
+    sheetName: 'Cuentas Bancarias',
+    columns: [
+      { key: 'name', label: 'Nombre', width: 25 },
+      { key: 'bank_name', label: 'Banco', width: 20 },
+      { key: 'account_type', label: 'Tipo', width: 20 },
+      { key: 'currency_code', label: 'Moneda', width: 10 },
+      { key: 'balance', label: 'Saldo', width: 15, format: (v) => Number(v || 0).toLocaleString('es-AR') },
+      { key: 'cbu', label: 'CBU', width: 25 },
+      { key: 'alias', label: 'Alias', width: 20 },
+      { key: 'account_number', label: 'N° Cuenta', width: 20 },
+      { key: 'active', label: 'Activa', width: 10, format: (v) => v ? 'Sí' : 'No' }
+    ],
+    data: filteredAccounts.value
+  })
+}
+
 const links: ButtonProps[] = [
+  {
+    label: 'Exportar',
+    icon: 'i-lucide-download',
+    variant: 'ghost',
+    onClick: handleExport
+  },
   { label: 'Nueva cuenta', icon: 'i-heroicons-plus', color: 'primary', variant: 'solid', onClick: openCreate }
 ]
 
