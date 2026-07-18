@@ -48,9 +48,7 @@ const transferSaving = ref(false)
 
 const availableTargetBoxes = computed(() => {
   if (!transferSourceBox.value) return []
-  return cashBoxes.value.filter(
-    b => b.id !== transferSourceBox.value?.id && b.active && b.status === 'OPEN'
-  )
+  return cashBoxes.value.filter((b) => b.id !== transferSourceBox.value?.id && b.active && b.status === 'OPEN')
 })
 
 onMounted(() => init())
@@ -591,7 +589,12 @@ const goToEdit = (box: CashBox) => {
           <UFormField label="Caja destino" name="target_box_id" required>
             <USelectMenu
               v-model="transferForm.target_box_id"
-              :items="availableTargetBoxes.map(b => ({ label: `${b.name} (${formatCurrency(b.opening_balance)})`, value: b.id }))"
+              :items="
+                availableTargetBoxes.map((b) => ({
+                  label: `${b.name} (${formatCurrency(b.opening_balance)})`,
+                  value: b.id
+                }))
+              "
               placeholder="Seleccionar caja destino"
             />
           </UFormField>

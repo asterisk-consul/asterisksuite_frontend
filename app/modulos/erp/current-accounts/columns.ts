@@ -70,7 +70,7 @@ export const currentAccountEntryColumns = (actions: {
       },
       {
         key: 'debit',
-        label: 'Debe',
+        label: 'Debito',
         cell: ({ row }) => {
           const config = ENTRY_TYPE_CONFIG[row.original.type]
           if (config?.side !== 'debit') return '—'
@@ -85,7 +85,7 @@ export const currentAccountEntryColumns = (actions: {
       },
       {
         key: 'credit',
-        label: 'Haber',
+        label: 'Credito',
         cell: ({ row }) => {
           const config = ENTRY_TYPE_CONFIG[row.original.type]
           if (config?.side !== 'credit') return '—'

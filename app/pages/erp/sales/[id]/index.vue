@@ -8,12 +8,14 @@ import FacturaView from '~/modulos/erp/facturas/components/FacturaView.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { STATUS_LABELS, STATUS_COLORS } from '~/modulos/erp/sales/types/sales.types'
 import type { ButtonProps } from '@nuxt/ui'
+import { usePrint } from '~/composables/usePrint'
 
 const documentsSalesStore = useDocumentsSalesStore()
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const { mainCollapsed } = useSidebarState()
+const { printElement } = usePrint()
 
 const loading = ref(true)
 const confirmModalOpen = ref(false)
@@ -47,6 +49,12 @@ const isConfirmed = computed(() => factura.value?.status === 2)
 
 const links = computed(() => {
   const items: ButtonProps[] = [
+    {
+      label: 'Imprimir',
+      icon: 'i-lucide-printer',
+      variant: 'outline',
+      onClick: () => printElement('printable-document')
+    },
     {
       label: 'Editar',
       icon: 'i-lucide-pencil',
@@ -173,7 +181,9 @@ const handleCancel = async () => {
         </UPageHeader>
 
         <UPageBody>
-          <FacturaView v-if="factura" :document="factura" />
+          <div v-if="factura" id="printable-document">
+            <FacturaView :document="factura" mode="sale" />
+          </div>
           <div v-else-if="loading" class="p-10 text-center">Cargando...</div>
         </UPageBody>
       </UPage>

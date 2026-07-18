@@ -234,8 +234,12 @@ const entryTypes = [
   { label: 'Nota de débito', value: 'DEBIT_NOTE' }
 ]
 
-const goBack = () => { router.push('/erp/treasury/current-accounts') }
-const closeModal = () => { modalOpen.value = false }
+const goBack = () => {
+  router.push('/erp/treasury/current-accounts')
+}
+const closeModal = () => {
+  modalOpen.value = false
+}
 
 const links = computed(() => [
   {

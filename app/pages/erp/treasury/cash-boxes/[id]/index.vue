@@ -151,7 +151,7 @@ const balanceDifference = ref(0)
 const openSessionModal = (action: 'open' | 'close') => {
   sessionAction.value = action
   if (action === 'open') {
-    sessionForm.opening_balance = box.value?.opening_balance ?? 0
+    sessionForm.opening_balance = Number(box.value?.opening_balance) || 0
   } else {
     sessionForm.notes = ''
     const session = currentSession.value
@@ -171,7 +171,9 @@ const handleSession = async () => {
   sessionSaving.value = true
   try {
     if (sessionAction.value === 'open') {
-      await openSession(boxId, { opening_balance: sessionForm.opening_balance })
+      const payload = { opening_balance: Number(sessionForm.opening_balance) || 0 }
+      console.log('[CashBox] Opening session with:', payload)
+      await openSession(boxId, payload)
       toast.add({ title: 'Sesión abierta', color: 'success' })
     } else {
       await closeSession(boxId, { actual_balance: sessionForm.actual_balance })
@@ -180,7 +182,13 @@ const handleSession = async () => {
     sessionModalOpen.value = false
     await Promise.all([fetchOne(boxId), fetchCurrentSession(boxId), fetchSessions(boxId)])
   } catch (e: any) {
-    toast.add({ title: 'Error', description: e?.data?.message, color: 'error', icon: 'i-lucide-alert-circle' })
+    console.error('[CashBox] Error:', JSON.stringify(e?.data || e?.response?._data || e, null, 2))
+    toast.add({
+      title: 'Error',
+      description: e?.data?.message || e?.response?._data?.message || e?.message,
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
   } finally {
     sessionSaving.value = false
   }
@@ -335,7 +343,9 @@ const links = computed(() => [
     <div v-if="boxHasActiveSession" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 py-4">
       <div class="p-4 rounded-xl border border-default bg-default">
         <p class="text-xs text-muted font-medium uppercase">Saldo apertura</p>
-        <p class="text-xl font-bold mt-1">{{ formatCurrency(currentSession?.opening_balance ?? box.opening_balance ?? 0) }}</p>
+        <p class="text-xl font-bold mt-1">
+          {{ formatCurrency(currentSession?.opening_balance ?? box.opening_balance ?? 0) }}
+        </p>
       </div>
       <div class="p-4 rounded-xl border border-default bg-default">
         <p class="text-xs text-muted font-medium uppercase">Ingresos sesión</p>
@@ -348,11 +358,13 @@ const links = computed(() => [
       <div class="p-4 rounded-xl border border-default bg-default">
         <p class="text-xs text-muted font-medium uppercase">Saldo sesión</p>
         <p class="text-xl font-bold mt-1 text-primary">
-          {{ formatCurrency(
-            (Number(currentSession?.opening_balance ?? box.opening_balance ?? 0))
-            + (Number(currentSession?.total_income ?? 0))
-            - (Number(currentSession?.total_expenses ?? 0))
-          ) }}
+          {{
+            formatCurrency(
+              Number(currentSession?.opening_balance ?? box.opening_balance ?? 0) +
+                Number(currentSession?.total_income ?? 0) -
+                Number(currentSession?.total_expenses ?? 0)
+            )
+          }}
         </p>
       </div>
     </div>

@@ -43,7 +43,7 @@ const CURRENCY_CONFIG: Record<string, { label: string; color: string; icon: stri
   ARS: { label: 'Peso argentino', color: 'text-primary', icon: '🟢', bg: 'bg-primary/10' },
   USD: { label: 'Dólar', color: 'text-success', icon: '💵', bg: 'bg-success/10' },
   EUR: { label: 'Euro', color: 'text-info', icon: '💶', bg: 'bg-info/10' },
-  BRL: { label: 'Real', color: 'text-warning', icon: '🇧🇷', bg: 'bg-warning/10' },
+  BRL: { label: 'Real', color: 'text-warning', icon: '🇧🇷', bg: 'bg-warning/10' }
 }
 
 const ACCOUNT_TYPE_CONFIG: Record<string, { label: string; icon: string }> = {
@@ -53,18 +53,19 @@ const ACCOUNT_TYPE_CONFIG: Record<string, { label: string; icon: string }> = {
   OTHER: { label: 'Otra', icon: 'i-lucide-circle-dot' }
 }
 
-const getCurrencyConfig = (code: string) => CURRENCY_CONFIG[code] ?? { label: code, color: 'text-muted', icon: '💰', bg: 'bg-muted/10' }
+const getCurrencyConfig = (code: string) =>
+  CURRENCY_CONFIG[code] ?? { label: code, color: 'text-muted', icon: '💰', bg: 'bg-muted/10' }
 const getAccountTypeConfig = (type: string) => ACCOUNT_TYPE_CONFIG[type] ?? { label: type, icon: 'i-lucide-circle-dot' }
 
 const totalIn = computed(() =>
   movements.value
-    .filter(m => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'in')
+    .filter((m) => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'in')
     .reduce((sum, m) => sum + (Number(m.amount) || 0), 0)
 )
 
 const totalOut = computed(() =>
   movements.value
-    .filter(m => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'out')
+    .filter((m) => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'out')
     .reduce((sum, m) => sum + (Number(m.amount) || 0), 0)
 )
 
@@ -82,8 +83,17 @@ const sortFields: SortField[] = [
   { label: 'Saldo', value: 'balance_after' }
 ]
 
+const goBack = () => {
+  router.push('/erp/treasury/bank-accounts')
+}
+
 const links = computed(() => [
-  { label: 'Volver', icon: 'i-lucide-arrow-left', variant: 'ghost' as const, onClick: () => router.push('/erp/treasury/bank-accounts') }
+  {
+    label: 'Volver',
+    icon: 'i-lucide-arrow-left',
+    variant: 'ghost' as const,
+    onClick: goBack
+  }
 ])
 </script>
 
@@ -96,7 +106,7 @@ const links = computed(() => [
     />
 
     <!-- ACCOUNT INFO -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4">
       <UPageCard variant="subtle">
         <div class="text-center">
           <p class="text-xs text-muted font-medium uppercase">Saldo actual</p>
@@ -104,7 +114,9 @@ const links = computed(() => [
             {{ formatCurrency(account.balance, account.currency_code) }}
           </p>
           <p class="text-xs text-muted mt-1">
-            <span :class="getCurrencyConfig(account.currency_code).color">{{ getCurrencyConfig(account.currency_code).icon }}</span>
+            <span :class="getCurrencyConfig(account.currency_code).color">
+              {{ getCurrencyConfig(account.currency_code).icon }}
+            </span>
             {{ getCurrencyConfig(account.currency_code).label }}
           </p>
         </div>
@@ -113,23 +125,36 @@ const links = computed(() => [
         <div class="text-center">
           <p class="text-xs text-muted font-medium uppercase">Total ingresos</p>
           <p class="text-xl font-bold mt-1 text-success">{{ formatCurrency(totalIn, account.currency_code) }}</p>
-          <p class="text-xs text-muted mt-1">{{ movements.filter(m => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'in').length }} movimientos</p>
+          <p class="text-xs text-muted mt-1">
+            {{ movements.filter((m) => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'in').length }} movimientos
+          </p>
         </div>
       </UPageCard>
       <UPageCard variant="subtle">
         <div class="text-center">
           <p class="text-xs text-muted font-medium uppercase">Total egresos</p>
           <p class="text-xl font-bold mt-1 text-error">{{ formatCurrency(totalOut, account.currency_code) }}</p>
-          <p class="text-xs text-muted mt-1">{{ movements.filter(m => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'out').length }} movimientos</p>
+          <p class="text-xs text-muted mt-1">
+            {{ movements.filter((m) => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'out').length }} movimientos
+          </p>
         </div>
       </UPageCard>
       <UPageCard variant="subtle">
         <div class="text-center">
           <p class="text-xs text-muted font-medium uppercase">Datos cuenta</p>
           <div class="mt-2 space-y-1">
-            <p v-if="account.cbu" class="text-xs"><span class="text-muted">CBU:</span> <span class="font-mono font-medium">{{ account.cbu }}</span></p>
-            <p v-if="account.alias" class="text-xs"><span class="text-muted">Alias:</span> <span class="font-medium">{{ account.alias }}</span></p>
-            <p v-if="account.account_number" class="text-xs"><span class="text-muted">N°:</span> <span class="font-mono font-medium">{{ account.account_number }}</span></p>
+            <p v-if="account.cbu" class="text-xs">
+              <span class="text-muted">CBU:</span>
+              <span class="font-mono font-medium">{{ account.cbu }}</span>
+            </p>
+            <p v-if="account.alias" class="text-xs">
+              <span class="text-muted">Alias:</span>
+              <span class="font-medium">{{ account.alias }}</span>
+            </p>
+            <p v-if="account.account_number" class="text-xs">
+              <span class="text-muted">N°:</span>
+              <span class="font-mono font-medium">{{ account.account_number }}</span>
+            </p>
           </div>
         </div>
       </UPageCard>
