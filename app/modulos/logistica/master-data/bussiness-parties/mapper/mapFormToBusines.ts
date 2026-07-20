@@ -7,30 +7,14 @@ import type {
 export const mapFormToBusinessPartyDto = (form: BusinessPartyForm): CreateBusinessPartyInput => {
   return {
     active: form.active ?? true,
-
     type: form.type,
-
     name: form.name,
-
-    businness_names: form.businness_names || undefined,
-
+    business_names: form.business_names || undefined,
     document_type: form.document_type || undefined,
-
-    document_number: form.document_number || undefined,
-
-    address: form.address || undefined,
-
-    vat_condition: form.vat_condition,
-
-    exemption_rate: Number(form.exemption_rate ?? 0),
-
     email: form.email || undefined,
-
-    alias: form.alias,
-
-    cbu: form.cbu || undefined,
-
     tax_id: form.tax_id || undefined,
+    vat_condition: form.vat_condition || undefined,
+    exemption_rate: Number(form.exemption_rate ?? 0),
 
     locations: form.locations
       .filter((l) => l.location_id)
@@ -47,6 +31,19 @@ export const mapFormToBusinessPartyDto = (form: BusinessPartyForm): CreateBusine
         role: c.role,
         phone: c.phone,
         email: c.email
+      })),
+
+    bank_accounts: form.bank_accounts
+      .filter((b) => b.cbu)
+      .map((b) => ({
+        cbu: b.cbu,
+        alias: b.alias || undefined,
+        bank_name: b.bank_name || undefined,
+        account_type: b.account_type || undefined,
+        currency: b.currency || undefined,
+        description: b.description || undefined,
+        holder_name: b.holder_name || undefined,
+        is_default: b.is_default ?? false
       }))
   }
 }
@@ -54,32 +51,15 @@ export const mapFormToBusinessPartyDto = (form: BusinessPartyForm): CreateBusine
 export const mapBusinessPartyToForm = (party: BusinessParty): BusinessPartyForm => {
   return {
     id: party.id,
-
     active: party.active ?? true,
-
     type: party.type as 'CUSTOMER' | 'SUPPLIER' | 'EMPLOYEE' | 'PARTNER',
-
     name: party.name ?? '',
-
     business_names: party.business_names ?? '',
-
     document_type: party.document_type ?? '',
-
-    document_number: party.document_number ?? '',
-
-    address: party.address ?? '',
-
-    tax_id: party.tax_id ?? '',
-
-    vat_condition: party.vat_condition ?? '',
-
-    exemption_rate: Number(party.exemption_rate ?? 0),
-
     email: party.email ?? '',
-
-    alias: party.alias ?? '',
-
-    cbu: party.cbu ?? '',
+    tax_id: party.tax_id ?? '',
+    vat_condition: party.vat_condition ?? '',
+    exemption_rate: Number(party.exemption_rate ?? 0),
 
     locations:
       party.party_locations?.map((l) => ({
@@ -94,6 +74,18 @@ export const mapBusinessPartyToForm = (party: BusinessParty): BusinessPartyForm 
         role: c.role ?? '',
         phone: c.phone ?? '',
         email: c.email ?? ''
+      })) ?? [],
+
+    bank_accounts:
+      party.party_bank_accounts?.map((b) => ({
+        cbu: b.cbu ?? '',
+        alias: b.alias ?? '',
+        bank_name: b.bank_name ?? '',
+        account_type: b.account_type ?? '',
+        currency: b.currency ?? '',
+        description: b.description ?? '',
+        holder_name: b.holder_name ?? '',
+        is_default: b.is_default ?? false
       })) ?? []
   }
 }

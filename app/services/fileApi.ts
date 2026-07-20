@@ -19,5 +19,20 @@ export const FileService = {
   },
   async importNotaDebito(file: File) {
     return await postData('/data-import/nota-debito', buildForm(file))
+  },
+  async importParties(file: File) {
+    return await postData('/logistica/master-data/business-parties/import', buildForm(file))
+  },
+  async exportParties(format: string = 'xlsx', type?: string) {
+    const params = new URLSearchParams({ format })
+    if (type) params.append('type', type)
+    return await $fetch(`/api/logistica/master-data/business-parties/export?${params.toString()}`, {
+      responseType: 'blob'
+    })
+  },
+  async downloadTemplateParties() {
+    return await $fetch('/api/logistica/master-data/business-parties/export/template', {
+      responseType: 'blob'
+    })
   }
 }

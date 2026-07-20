@@ -2,7 +2,7 @@ import { h } from 'vue'
 
 import { UBadge, UTooltip } from '#components'
 
-import type { TableColumn } from '@nuxt/ui'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 
 import type { Trip } from '~/modulos/logistica/transport/trips/types/trips.types'
 
@@ -55,7 +55,7 @@ export const tripsColumns = (actions: {
 
   onEdit?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
-}): TableColumn<Row>[] => {
+}): ExtendedColumn<Row>[] => {
   const build = createTableBuilder<Row, EditableField>({
     locale: 'es-AR',
     onSortFieldSelect: actions.onSortFieldSelect,

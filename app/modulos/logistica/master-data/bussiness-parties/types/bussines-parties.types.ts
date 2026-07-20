@@ -11,6 +11,22 @@ export type BusinessPartyType =
   | 'SERVICE_PROVIDER'
 
 // ------------------
+// BANK ACCOUNT
+// ------------------
+export interface PartyBankAccount {
+  id?: string
+  cbu: string
+  alias?: string
+  bank_name?: string
+  account_type?: string
+  currency?: string
+  description?: string
+  holder_name?: string
+  is_default?: boolean
+  active?: boolean
+}
+
+// ------------------
 // LOCATION
 // ------------------
 export interface PartyLocation {
@@ -23,6 +39,7 @@ export interface PartyLocation {
     id: string
     address?: string
     city?: string
+    province?: string
   }
 }
 
@@ -48,45 +65,30 @@ export interface BusinessParty {
   name: string
   business_names?: string
   document_type?: string
-  document_number?: string
-  address?: string
+  email?: string
   tax_id?: string
   vat_condition: string
-  province?: string
-  iibb_registered?: boolean
-  iibb_jurisdiction?: string
-  retention_agent?: boolean
-  operation_type?: string
   exemption_rate: number
-
-  email?: string
-  alias: string
-  cbu: string
   active?: boolean
   created_at?: string
 
   party_locations?: PartyLocation[]
   party_contacts?: PartyContact[]
+  party_bank_accounts?: PartyBankAccount[]
 }
 
 // ------------------
-// INPUTS (API)
+// INPUTS (API) - must match backend CreateBusinessPartyDto
 // ------------------
 export type CreateBusinessPartyInput = {
   type: BusinessPartyType
   name: string
   business_names?: string
   document_type?: string
-  document_number?: string
-  address?: string
-  tax_id?: string
-  vat_condition: string
-  province?: string
-  exemption_rate: number
-
   email?: string
-  alias: string
-  cbu: string
+  tax_id?: string
+  vat_condition?: string
+  exemption_rate?: number
 
   active?: boolean
 
@@ -102,6 +104,17 @@ export type CreateBusinessPartyInput = {
     phone?: string
     email?: string
   }[]
+
+  bank_accounts?: {
+    cbu: string
+    alias?: string
+    bank_name?: string
+    account_type?: string
+    currency?: string
+    description?: string
+    holder_name?: string
+    is_default?: boolean
+  }[]
 }
 
 export type UpdateBusinessPartyInput = Partial<CreateBusinessPartyInput>
@@ -115,16 +128,10 @@ export interface BusinessPartyForm {
   name: string
   business_names?: string
   document_type?: string
-  document_number?: string
-  address?: string
+  email?: string
   tax_id?: string
   vat_condition: string
-  province?: string
   exemption_rate: number
-
-  email?: string
-  alias: string
-  cbu: string
   active?: boolean
 
   locations: {
@@ -138,5 +145,16 @@ export interface BusinessPartyForm {
     role?: string
     phone?: string
     email?: string
+  }[]
+
+  bank_accounts: {
+    cbu: string
+    alias?: string
+    bank_name?: string
+    account_type?: string
+    currency?: string
+    description?: string
+    holder_name?: string
+    is_default?: boolean
   }[]
 }

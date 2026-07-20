@@ -9,6 +9,7 @@ import { useRouter } from 'vue-router'
 import BusinessPartyForm from '~/modulos/logistica/master-data/bussiness-parties/components/BusinessPartyForm.vue'
 import type { BusinessPartyForm as FormType } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
+import { mapFormToBusinessPartyDto } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
 
 const router = useRouter()
 const store = useBusinessPartiesStore()
@@ -18,7 +19,8 @@ const saving = ref(false)
 const handleSubmit = async (form: FormType) => {
   try {
     saving.value = true
-    await store.create(form as any)
+    const payload = mapFormToBusinessPartyDto(form)
+    await store.create(payload)
     await router.push('/erp/stakeholders')
   } catch (error) {
     console.error(error)

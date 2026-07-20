@@ -3,6 +3,7 @@ import { h } from 'vue'
 import { UButton, UBadge } from '#components'
 
 import type { TableColumn } from '@nuxt/ui'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 
 import { useInlineEdit } from '@/composables/table/useInlineEdit'
 import { useDateColumn } from '@/composables/table/useDateColumn'
@@ -107,7 +108,7 @@ export function createTableBuilder<T extends { id: string }, K extends keyof T =
 
   const dateCol = useDateColumn(config?.locale || 'es-AR')
 
-  return function build(cols: ColumnConfig<T, K>[]): TableColumn<T>[] {
+  return function build(cols: ColumnConfig<T, K>[]): ExtendedColumn<T>[] {
     return cols.map((col) => {
       const accessorKey = col.key as string | undefined
 
@@ -398,7 +399,7 @@ export function createTableBuilder<T extends { id: string }, K extends keyof T =
         filterFn,
 
         ...(col.column || {})
-      } as TableColumn<T>
+      } as ExtendedColumn<T>
     })
   }
 }

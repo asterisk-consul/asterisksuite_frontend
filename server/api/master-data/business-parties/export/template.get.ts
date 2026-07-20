@@ -1,9 +1,5 @@
 import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  return apiProxy(event, '/master-data/business-parties/export/template', {
-    method: 'GET',
-    query,
-  })
+  return apiProxy(event, '/master-data/business-parties/export/template', { method: 'GET' })
 })
