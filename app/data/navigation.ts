@@ -8,11 +8,11 @@ export const navigationLinks = [
       to: '/'
     },
 
-    {
-      label: 'Kilometros',
-      icon: 'i-lucide-truck',
-      to: '/VKilomentros'
-    },
+    // {
+    //   label: 'Kilometros',
+    //   icon: 'i-lucide-truck',
+    //   to: '/VKilomentros'
+    // },
     {
       label: 'Ventas',
       icon: 'i-lucide-receipt',
@@ -41,12 +41,12 @@ export const navigationLinks = [
         }
       ]
     },
-    {
-      label: 'Combustible',
-      to: '/combustible',
-      icon: 'i-lucide-fuel',
-      defaultOpen: false
-    },
+    // {
+    //   label: 'Combustible',
+    //   to: '/combustible',
+    //   icon: 'i-lucide-fuel',
+    //   defaultOpen: false
+    // },
     {
       label: 'Tesorería',
       to: '/erp/treasury/dashboard',
