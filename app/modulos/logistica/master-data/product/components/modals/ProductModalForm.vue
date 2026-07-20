@@ -38,13 +38,14 @@ const openCreate = () => {
     <template #footer>
       <div class="flex items-center justify-between gap-2 w-full">
         <UTooltip text="Abrir el formulario completo de productos">
-          <UButton
-            label="Crear producto Completo"
-            color="neutral"
-            variant="soft"
-            @click="openCreate"
-            class="cursor-pointer"
-          />
+         <UButton
+        icon="i-lucide-settings"
+        label="Configuración avanzada"
+        color="neutral"
+        variant="soft"
+        @click="openCreate"
+        class="cursor-pointer"
+      />
         </UTooltip>
         <div class="flex justify-end">
           <UButton type="submit" class="cursor-pointer" @click="emit('submit')">Guardar</UButton>
