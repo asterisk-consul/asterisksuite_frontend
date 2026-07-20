@@ -14,6 +14,7 @@ import type { Payment } from '~/modulos/erp/payments/types/payments.types'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 
 const { payments, loading, init, confirm: confirmPayment, markAsPaid, reject, reverse, remove } = usePayments()
 const authStore = useAuthStore()
@@ -24,6 +25,7 @@ const showCreator = computed(() => {
 
 const router = useRouter()
 const sorting = ref<SortingState>([])
+const importOpen = ref(false)
 
 // Modals
 const actionModalOpen = ref(false)
@@ -114,6 +116,32 @@ const sortFields: SortField[] = [
   { label: 'Estado', value: 'status' },
   { label: 'Fecha Creación', value: 'created_at' }
 ]
+
+const handleExport = (format: string) => {
+  window.open(`/api/erp/payments/export?format=${format}`, '_blank')
+}
+
+const handleDownloadTemplate = () => {
+  window.open('/api/erp/payments/export/template', '_blank')
+}
+
+const importColumns = [
+  { key: 'fecha', label: 'fecha', required: true },
+  { key: 'tipo', label: 'tipo', required: true },
+  { key: 'tercero_nombre', label: 'tercero_nombre', required: false },
+  { key: 'tercero_cuit', label: 'tercero_cuit', required: false },
+  { key: 'metodo', label: 'metodo', required: true },
+  { key: 'monto', label: 'monto', required: true },
+  { key: 'moneda', label: 'moneda', required: false },
+  { key: 'descripcion', label: 'descripcion', required: false }
+]
+
+const dataActions = [
+  { label: 'Exportar Excel (.xlsx)', icon: 'i-lucide-file-spreadsheet', onSelect: () => handleExport('xlsx') },
+  { label: 'Exportar CSV', icon: 'i-lucide-file-text', onSelect: () => handleExport('csv') },
+  { label: 'Descargar plantilla', icon: 'i-lucide-file-down', onSelect: handleDownloadTemplate },
+  { label: 'Importar datos', icon: 'i-lucide-upload', onSelect: () => { importOpen.value = true } }
+]
 </script>
 
 <template>
@@ -121,8 +149,23 @@ const sortFields: SortField[] = [
     <AppPageHeader
       title="Pagos y Cobros"
       description="Gestión de pagos realizados y cobros recibidos"
-      :links="links"
-    />
+    >
+      <template #links>
+        <UFieldGroup>
+          <UButton color="neutral" variant="subtle" label="Exportar" icon="i-lucide-download" />
+          <UDropdownMenu :items="dataActions">
+            <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" />
+          </UDropdownMenu>
+        </UFieldGroup>
+        <UButton
+          label="Nuevo pago/cobro"
+          icon="i-heroicons-plus"
+          color="primary"
+          variant="solid"
+          @click="router.push('/erp/treasury/payments/create')"
+        />
+      </template>
+    </AppPageHeader>
 
     <LogisticaTable
       :loading="loading"
@@ -148,5 +191,14 @@ const sortFields: SortField[] = [
         </div>
       </template>
     </UModal>
+
+    <ExcelImportDialog
+      v-model:open="importOpen"
+      title="Importar Pagos y Cobros"
+      description="Selecciona un archivo Excel con los pagos a importar"
+      :columns="importColumns"
+      endpoint="/api/erp/payments/import"
+      @success="init"
+    />
   </UPage>
 </template>

@@ -53,6 +53,16 @@ export const navigationLinks = [
       icon: 'i-lucide-wallet'
     },
     {
+      label: 'RRHH',
+      to: '/erp/rrhh',
+      icon: 'i-lucide-users'
+    },
+    {
+      label: 'Partes interesadas',
+      to: '/erp/stakeholders',
+      icon: 'i-lucide-building-2'
+    },
+    {
       label: 'logistica',
       to: '/logistica',
       icon: 'i-lucide-truck'

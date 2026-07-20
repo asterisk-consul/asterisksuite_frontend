@@ -32,6 +32,7 @@ const form = reactive<BusinessPartyForm>({
   address: '',
 
   vat_condition: '',
+  province: '',
 
   alias: '',
 
@@ -83,7 +84,11 @@ const typeOptions: SelectMenuItem[] = [
   { label: 'Cliente', value: 'CUSTOMER' },
   { label: 'Proveedor', value: 'SUPPLIER' },
   { label: 'Empleado', value: 'EMPLOYEE' },
-  { label: 'Socio', value: 'PARTNER' }
+  { label: 'Socio', value: 'PARTNER' },
+  { label: 'Ente Impositivo', value: 'TAX_AUTHORITY' },
+  { label: 'Servicio Público', value: 'UTILITY' },
+  { label: 'Entidad Financiera', value: 'FINANCIAL' },
+  { label: 'Proveedor de Servicios', value: 'SERVICE_PROVIDER' }
 ]
 
 const documentTypeOptions: SelectMenuItem[] = [
@@ -97,6 +102,33 @@ const vatConditionOptions: SelectMenuItem[] = [
   { label: 'Monotributista', value: 'MONO' },
   { label: 'Consumidor Final', value: 'CF' },
   { label: 'Exento', value: 'EX' }
+]
+
+const provinceOptions: SelectMenuItem[] = [
+  { label: 'Buenos Aires', value: 'BUENOS_AIRES' },
+  { label: 'CABA', value: 'CABA' },
+  { label: 'Catamarca', value: 'CATAMARCA' },
+  { label: 'Chaco', value: 'CHACO' },
+  { label: 'Chubut', value: 'CHUBUT' },
+  { label: 'Córdoba', value: 'CORDOBA' },
+  { label: 'Corrientes', value: 'CORRIENTES' },
+  { label: 'Entre Ríos', value: 'ENTRE_RIOS' },
+  { label: 'Formosa', value: 'FORMOSA' },
+  { label: 'Jujuy', value: 'JUJUY' },
+  { label: 'La Pampa', value: 'LA_PAMPA' },
+  { label: 'La Rioja', value: 'LA_RIOJA' },
+  { label: 'Mendoza', value: 'MENDOZA' },
+  { label: 'Misiones', value: 'MISIONES' },
+  { label: 'Neuquén', value: 'NEUQUEN' },
+  { label: 'Río Negro', value: 'RIO_NEGRO' },
+  { label: 'Salta', value: 'SALTA' },
+  { label: 'San Juan', value: 'SAN_JUAN' },
+  { label: 'San Luis', value: 'SAN_LUIS' },
+  { label: 'Santa Cruz', value: 'SANTA_CRUZ' },
+  { label: 'Santa Fe', value: 'SANTA_FE' },
+  { label: 'Santiago del Estero', value: 'SANTIAGO_DEL_ESTERO' },
+  { label: 'Tierra del Fuego', value: 'TIERRA_DEL_FUEGO' },
+  { label: 'Tucumán', value: 'TUCUMAN' }
 ]
 
 // 🔥 helpers dinámicos
@@ -226,6 +258,26 @@ const tabs = [
               value-key="value"
               class="w-full"
             />
+          </UFormField>
+
+          <!-- PROVINCIA (para IIBB) -->
+          <UFormField label="Provincia (IIBB)" name="province">
+            <USelectMenu
+              v-model="form.province"
+              :items="provinceOptions"
+              value-key="value"
+              placeholder="Seleccionar..."
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- IIBB Y RETENCIONES -->
+          <UFormField label="Inscripto en IIBB" name="iibb_registered">
+            <UCheckbox v-model="form.iibb_registered" label="Sí, inscripto" />
+          </UFormField>
+
+          <UFormField label="Agente de Retención" name="retention_agent">
+            <UCheckbox v-model="form.retention_agent" label="Es agente de retención" />
           </UFormField>
 
           <!-- ALIAS -->

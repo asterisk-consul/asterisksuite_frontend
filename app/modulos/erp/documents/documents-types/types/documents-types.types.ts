@@ -42,6 +42,18 @@ export interface DocumentSequence {
   range_end?: number | null
 }
 
+export interface CustomFieldConfig {
+  key: string
+  label: string
+  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox'
+  required?: boolean
+  options?: string[]
+  default_value?: any
+  placeholder?: string
+}
+
+export type DocumentCategory = 'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'ORDER' | 'QUOTE' | 'RECEIPT' | 'REMITO'
+
 export interface DocumentsType {
   id: string
 
@@ -62,6 +74,18 @@ export interface DocumentsType {
   document_sequence_id?: string | null
 
   module_id?: string | null
+
+  category?: DocumentCategory | null
+
+  letter_type?: string | null
+
+  afip_code?: string | null
+
+  requires_cae?: boolean
+
+  is_electronic?: boolean
+
+  custom_fields_config?: CustomFieldConfig[] | null
 
   system_modules?: {
     id: string
@@ -102,6 +126,18 @@ export interface CreateDocumentsTypeDto {
   affects_tax_book?: boolean
 
   document_sequence_id?: string
+
+  category?: DocumentCategory
+
+  letter_type?: string
+
+  afip_code?: string
+
+  requires_cae?: boolean
+
+  is_electronic?: boolean
+
+  custom_fields_config?: CustomFieldConfig[]
 }
 
 export interface UpdateDocumentsTypeDto extends Partial<CreateDocumentsTypeDto> {}

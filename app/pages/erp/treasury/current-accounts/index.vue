@@ -68,7 +68,17 @@ const balanceColor = (balance: number) => {
   return 'text-muted'
 }
 
-const partyTypeLabel = (type: string) => (type === 'CUSTOMER' ? 'Cliente' : 'Proveedor')
+const partyTypeLabel = (type: string) => {
+  const labels: Record<string, string> = {
+    CUSTOMER: 'Cliente',
+    SUPPLIER: 'Proveedor',
+    EMPLOYEE: 'Empleado',
+    PARTNER: 'Socio',
+    TAX_AUTHORITY: 'Ente impositivo',
+    UTILITY: 'Servicio',
+  }
+  return labels[type] ?? type
+}
 
 const goToAccount = (account: CurrentAccount) => {
   router.push(`/erp/treasury/current-accounts/${account.party_id}?currency=${account.currency_code}`)

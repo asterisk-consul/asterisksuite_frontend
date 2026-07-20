@@ -1,6 +1,14 @@
 // business-parties.types.ts
 
-export type BusinessPartyType = 'CUSTOMER' | 'SUPPLIER' | 'EMPLOYEE' | 'PARTNER'
+export type BusinessPartyType =
+  | 'CUSTOMER'
+  | 'SUPPLIER'
+  | 'EMPLOYEE'
+  | 'PARTNER'
+  | 'TAX_AUTHORITY'
+  | 'UTILITY'
+  | 'FINANCIAL'
+  | 'SERVICE_PROVIDER'
 
 // ------------------
 // LOCATION
@@ -44,6 +52,11 @@ export interface BusinessParty {
   address?: string
   tax_id?: string
   vat_condition: string
+  province?: string
+  iibb_registered?: boolean
+  iibb_jurisdiction?: string
+  retention_agent?: boolean
+  operation_type?: string
   exemption_rate: number
 
   email?: string
@@ -68,6 +81,7 @@ export type CreateBusinessPartyInput = {
   address?: string
   tax_id?: string
   vat_condition: string
+  province?: string
   exemption_rate: number
 
   email?: string
@@ -105,6 +119,7 @@ export interface BusinessPartyForm {
   address?: string
   tax_id?: string
   vat_condition: string
+  province?: string
   exemption_rate: number
 
   email?: string

@@ -86,30 +86,15 @@ const statCards = computed(() => {
 const quickActions = [
   { label: 'Nuevo pago', icon: 'i-lucide-send', to: '/erp/treasury/payments/create', color: 'primary' as const },
   { label: 'Nuevo cheque', icon: 'i-lucide-square-plus', to: '/erp/treasury/checks/create', color: 'warning' as const },
-  {
-    label: 'Transferencia caja',
-    icon: 'i-lucide-arrow-left-right',
-    to: '/erp/treasury/cash-box-transfers',
-    color: 'info' as const
-  },
-  {
-    label: 'Cuentas corrientes',
-    icon: 'i-lucide-file-text',
-    to: '/erp/treasury/current-accounts',
-    color: 'warning' as const
-  },
-  {
-    label: 'Reporte movimientos',
-    icon: 'i-lucide-bar-chart-3',
-    to: '/erp/treasury/reports/movements',
-    color: 'success' as const
-  },
-  {
-    label: 'Cuentas contables',
-    icon: 'i-lucide-calculator',
-    to: '/erp/contabilidad/accounts',
-    color: 'info' as const
-  }
+  { label: 'Transferencia caja', icon: 'i-lucide-arrow-left-right', to: '/erp/treasury/cash-box-transfers', color: 'info' as const },
+  { label: 'Cuentas corrientes', icon: 'i-lucide-file-text', to: '/erp/treasury/current-accounts', color: 'warning' as const },
+  { label: 'Cuentas bancarias', icon: 'i-lucide-landmark', to: '/erp/treasury/bank-accounts', color: 'primary' as const },
+  { label: 'Cajas', icon: 'i-lucide-wallet', to: '/erp/treasury/cash-boxes', color: 'success' as const },
+  { label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', color: 'info' as const },
+  { label: 'Pagos y cobros', icon: 'i-lucide-hand-coins', to: '/erp/treasury/payments', color: 'secondary' as const },
+  { label: 'Cuentas contables', icon: 'i-lucide-calculator', to: '/erp/contabilidad/accounts', color: 'primary' as const },
+  { label: 'Conceptos bancarios', icon: 'i-lucide-receipt', to: '/erp/treasury/bank-concepts', color: 'info' as const },
+  { label: 'Reportes', icon: 'i-lucide-bar-chart-3', to: '/erp/treasury/reports', color: 'success' as const },
 ]
 </script>
 
@@ -147,7 +132,7 @@ const quickActions = [
     </div>
 
     <!-- QUICK ACTIONS -->
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center gap-2">
       <NuxtLink v-for="action in quickActions" :key="action.label" :to="action.to">
         <UButton :label="action.label" :icon="action.icon" :color="action.color" variant="outline" size="sm" />
       </NuxtLink>

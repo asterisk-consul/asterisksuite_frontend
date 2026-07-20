@@ -6,6 +6,7 @@ import type { PendingDocument, AvailableCheck } from '~/modulos/erp/payments/ser
 import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckModal from '~/modulos/erp/checks/components/CheckModal.vue'
+import { calculateRetentions, calculateTotalRetentions, calculateNetAmount } from '~/modulos/erp/payments/utils/retentionLogic'
 
 export interface PaymentFormData {
   type: 'PAYMENT' | 'COLLECTION'
@@ -261,11 +262,38 @@ const handleCheckCreated = async (checkData: CheckFormData) => {
 }
 
 const handleSubmit = async () => {
+  const paymentAmount = totalApplied.value > 0 ? totalApplied.value : totalChecksAmount.value > 0 ? totalChecksAmount.value : form.amount
+  
+  // Calculate retentions if it's a payment to a supplier
+  let retentions: { code: string; name: string; amount: number }[] = []
+  if (form.type === 'PAYMENT' && form.party_id) {
+    try {
+      // Fetch supplier info for retention calculation
+      const supplier = await $fetch<any>(`/api/logistica/master-data/business-parties/${form.party_id}`)
+      if (supplier?.retention_agent) {
+        retentions = calculateRetentions(paymentAmount, {
+          retention_agent: supplier.retention_agent || false,
+          iibb_registered: supplier.iibb_registered || false,
+          province: supplier.province,
+          operation_type: supplier.operation_type
+        })
+      }
+    } catch (e) {
+      console.error('Error fetching supplier for retentions:', e)
+    }
+  }
+
+  const totalRetentions = calculateTotalRetentions(retentions)
+  const netAmount = calculateNetAmount(paymentAmount, totalRetentions)
+
   emit('submit', {
     ...form,
-    amount: totalApplied.value > 0 ? totalApplied.value : totalChecksAmount.value > 0 ? totalChecksAmount.value : form.amount,
+    amount: paymentAmount,
     check_ids: form.check_ids.length > 0 ? form.check_ids : undefined,
-  } as PaymentFormData)
+    retentions: retentions.length > 0 ? retentions : undefined,
+    total_retentions: totalRetentions,
+    net_amount: netAmount
+  } as any)
 }
 
 const formatCurrency = (amount: number, currency: string | null | undefined = 'ARS') => {

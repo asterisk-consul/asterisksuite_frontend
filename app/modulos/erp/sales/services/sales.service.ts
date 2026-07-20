@@ -50,5 +50,24 @@ export const DocumentsSalesService = {
     return $fetch('/api/erp/documents/sales/generate', {
       method: 'POST' as any
     })
+  },
+
+  async getCompletedTripsPending(): Promise<{
+    id: string
+    reference_number: string | null
+    total_orders: number
+    total_amount: number
+  }[]> {
+    return $fetch('/api/erp/documents/sales/completed-trips-pending')
+  },
+
+  async generateFromTrips(payload: {
+    tripIds: string[]
+    documentTypeId: string
+  }): Promise<{ results: { tripId: string; created: number; skipped: number }[] }> {
+    return $fetch('/api/erp/documents/sales/generate-from-trips', {
+      method: 'POST' as any,
+      body: payload
+    })
   }
 }

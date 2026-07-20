@@ -33,6 +33,16 @@ const links = computed<NavigationMenuItem[][]>(() => {
               label: 'Roles',
               icon: 'i-lucide-shield',
               to: '/settings/roles'
+            },
+            {
+              label: 'Tipos de Documento',
+              icon: 'i-lucide-file-text',
+              to: '/erp/settings/document-types'
+            },
+            {
+              label: 'Secuencias',
+              icon: 'i-lucide-hash',
+              to: '/erp/settings/document-sequences'
             }
           ]
         : []),

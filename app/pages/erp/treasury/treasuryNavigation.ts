@@ -54,6 +54,16 @@ export const links: NavigationMenuItem[][] = [
           label: 'Pagos por usuario',
           icon: 'i-lucide-users',
           to: '/erp/treasury/reports/by-user'
+        },
+        {
+          label: 'Entes reguladores',
+          icon: 'i-lucide-building-2',
+          to: '/erp/treasury/reports/regulatory-payments'
+        },
+        {
+          label: 'Servicios mensuales',
+          icon: 'i-lucide-zap',
+          to: '/erp/treasury/reports/utility-payments'
         }
       ]
     },
@@ -66,6 +76,36 @@ export const links: NavigationMenuItem[][] = [
           label: 'Plan de cuentas',
           icon: 'i-lucide-list-tree',
           to: '/erp/contabilidad/accounts'
+        },
+        {
+          label: 'Tipos de documento',
+          icon: 'i-lucide-file-text',
+          to: '/erp/settings/document-types'
+        },
+        {
+          label: 'Secuencias',
+          icon: 'i-lucide-hash',
+          to: '/erp/settings/document-sequences'
+        },
+        {
+          label: 'Conceptos bancarios',
+          icon: 'i-lucide-receipt',
+          to: '/erp/treasury/bank-concepts'
+        },
+        {
+          label: 'Libro IVA',
+          icon: 'i-lucide-book-open',
+          to: '/erp/treasury/reports/libro-iva'
+        },
+        {
+          label: 'Reportes contables',
+          icon: 'i-lucide-bar-chart-3',
+          to: '/erp/treasury/reports/accounting'
+        },
+        {
+          label: 'Informe consolidado',
+          icon: 'i-lucide-file-text',
+          to: '/erp/treasury/reports/consolidated'
         }
       ]
     }
