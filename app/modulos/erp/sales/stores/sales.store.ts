@@ -248,11 +248,42 @@ export const useDocumentsSalesStore = defineStore(
       try {
         return await DocumentsSalesService.generateFromAllTrips()
       } catch (err: any) {
-        // console.error(err)
-
         error.value =
           err?.data?.message || err?.message || 'Error generating documents'
 
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Get completed trips pending invoicing
+    // ─────────────────────────────────────
+    const getCompletedTripsPending = async () => {
+      try {
+        return await DocumentsSalesService.getCompletedTripsPending()
+      } catch (err: any) {
+        error.value =
+          err?.data?.message || err?.message || 'Error loading trips'
+        throw err
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Generate from selected trips
+    // ─────────────────────────────────────
+    const generateFromTrips = async (payload: {
+      tripIds: string[]
+      documentTypeId: string
+    }) => {
+      loading.value = true
+      error.value = null
+      try {
+        return await DocumentsSalesService.generateFromTrips(payload)
+      } catch (err: any) {
+        error.value =
+          err?.data?.message || err?.message || 'Error generating documents'
         throw err
       } finally {
         loading.value = false
@@ -286,6 +317,8 @@ export const useDocumentsSalesStore = defineStore(
       cancel,
       remove,
       generateFromAllTrips,
+      getCompletedTripsPending,
+      generateFromTrips,
 
       // helpers
       clearCurrent,

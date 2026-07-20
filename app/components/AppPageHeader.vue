@@ -32,5 +32,8 @@ function toggleModule() {
         <span>{{ title }}</span>
       </div>
     </template>
+    <template v-if="$slots.links" #links>
+      <slot name="links" />
+    </template>
   </UPageHeader>
 </template>

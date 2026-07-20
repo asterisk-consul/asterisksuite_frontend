@@ -87,6 +87,10 @@ export default defineNuxtConfig({
           'Access-Control-Allow-Headers': 'Authorization,Content-Type'
         }
       }
+    },
+    // ✅ Aumentar límite de body para uploads
+    h3: {
+      maxBodySize: '50mb'
     }
   }
 })

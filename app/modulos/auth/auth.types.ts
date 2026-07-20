@@ -1,9 +1,11 @@
+export type CompanyRole = 'OWNER' | 'ADMIN' | 'USER'
+
 export interface CompanyMembership {
   id: string
   name: string
   subdomain: string
   schemaName: string
-  role: string
+  role: CompanyRole
 }
 
 export interface AuthUser {

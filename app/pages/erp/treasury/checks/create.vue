@@ -1,0 +1,66 @@
+<script setup lang="ts">
+definePageMeta({
+  layout: 'treasury',
+  middleware: ['auth']
+})
+
+import { useChecks } from '~/modulos/erp/checks/composables/useChecks'
+import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
+import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vue'
+import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
+
+const router = useRouter()
+const toast = useToast()
+
+const { create } = useChecks()
+const { selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
+
+const saving = ref(false)
+
+const handleSubmit = async (formData: CheckFormData) => {
+  saving.value = true
+  try {
+    await create({
+      check_number: formData.check_number,
+      bank_name: formData.bank_name,
+      bank_branch: formData.bank_branch || undefined,
+      account_number: formData.account_number || undefined,
+      bank_account_id: formData.bank_account_id || undefined,
+      issuer_name: formData.issuer_name,
+      issuer_id: formData.issuer_id || undefined,
+      amount: formData.amount,
+      currency_code: formData.currency_code,
+      issue_date: formData.issue_date,
+      due_date: formData.due_date,
+      is_own: formData.is_own,
+      notes: formData.notes || undefined,
+    })
+    toast.add({ title: 'Cheque creado', color: 'success' })
+    router.push('/erp/treasury/checks')
+  } catch (error: any) {
+    toast.add({ title: 'Error al crear cheque', description: error?.data?.message, color: 'error', icon: 'i-lucide-alert-circle' })
+  } finally {
+    saving.value = false
+  }
+}
+
+onMounted(() => initBankAccounts())
+</script>
+
+<template>
+  <UPage class="space-y-4 max-w-2xl">
+    <AppPageHeader
+      title="Nuevo cheque"
+      description="Crear un nuevo cheque propio o de terceros"
+    />
+
+    <UPageCard>
+      <CheckForm
+        :loading="saving"
+        :bank-account-items="bankAccountItems"
+        @submit="handleSubmit"
+        @cancel="router.push('/erp/treasury/checks')"
+      />
+    </UPageCard>
+  </UPage>
+</template>

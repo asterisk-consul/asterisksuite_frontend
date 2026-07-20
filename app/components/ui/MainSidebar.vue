@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { navigationLinks } from '~/data/navigation'
 import { useVersion } from '~/composables/useVersion'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 const props = defineProps<{
   open?: boolean
@@ -15,6 +16,23 @@ const emit = defineEmits<{
 }>()
 
 const versions = useVersion()
+const { isOwnerOrAdmin } = useCompanyRole()
+
+const filteredLinks = computed(() => {
+  const links = JSON.parse(JSON.stringify(navigationLinks))
+
+  const ajustes = links[0]?.find((l: any) => l.label === 'Ajustes')
+  if (ajustes?.children) {
+    ajustes.children = ajustes.children.filter((c: any) => {
+      if (c.to === '/settings/users' || c.to === '/settings/roles') {
+        return isOwnerOrAdmin.value
+      }
+      return true
+    })
+  }
+
+  return links
+})
 </script>
 
 <template>
@@ -39,7 +57,7 @@ const versions = useVersion()
 
       <UNavigationMenu
         :collapsed="collapsed"
-        :items="navigationLinks[0]"
+        :items="filteredLinks[0]"
         orientation="vertical"
         tooltip
         popover
@@ -47,7 +65,7 @@ const versions = useVersion()
 
       <UNavigationMenu
         :collapsed="collapsed"
-        :items="navigationLinks[1]"
+        :items="filteredLinks[1]"
         orientation="vertical"
         tooltip
         class="mt-auto"

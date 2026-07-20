@@ -9,11 +9,12 @@ import {
   STATUS_COLORS
 } from '~/modulos/erp/sales/types/sales.types'
 import type { SaleDocument } from '~/modulos/erp/sales/types/sales.types'
+import GenerateFromTripsModal from '~/components/sales/GenerateFromTripsModal.vue'
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 const statusFilter = ref<number | undefined>(undefined)
-const generating = ref(false)
 const generateResult = ref<{ total_trips: number; results: any[] } | null>(null)
+const showGenerateModal = ref(false)
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 const documentsSalesStore = useDocumentsSalesStore()
@@ -66,16 +67,8 @@ function fmtDate(d?: string) {
 }
 
 // ─── Acciones ─────────────────────────────────────────────────────────────────
-async function generateFromTrips() {
-  generating.value = true
-  try {
-    generateResult.value = await documentsSalesStore.generateFromAllTrips()
-    await refresh()
-  } catch (e) {
-    console.error(e)
-  } finally {
-    generating.value = false
-  }
+async function onGenerateSaved() {
+  await refresh()
 }
 
 // ─── Columnas ─────────────────────────────────────────────────────────────────
@@ -103,36 +96,11 @@ const statusOptions = [
     <template #header>
       <UDashboardNavbar title="Comprobantes de venta">
         <template #trailing>
-          <VTooltip>
-            <UButton
-              icon="i-lucide-refresh-cw"
-              variant="ghost"
-              color="neutral"
-              :loading="generating"
-              label="Generar desde viajes"
-              @click="generateFromTrips"
-            />
-
-            <template #popper>
-              <div class="max-w-xs space-y-2">
-                <div class="font-bold text-blue-400">Generación automática</div>
-
-                <p class="text-sm">
-                  Este proceso tomará los viajes en estado
-                  <span class="font-bold text-green-400">COMPLETADO</span>
-                  y generará facturas en estado
-                  <span class="font-bold text-yellow-300">PENDIENTE</span>
-                  .
-                </p>
-
-                <ul class="text-xs space-y-1 opacity-80">
-                  <li>• Solo procesa viajes no facturados</li>
-                  <li>• No impacta stock</li>
-                  <li>• Puede tardar algunos segundos</li>
-                </ul>
-              </div>
-            </template>
-          </VTooltip>
+          <UButton
+            icon="i-lucide-file-plus"
+            label="Generar desde viajes"
+            @click="showGenerateModal = true"
+          />
         </template>
       </UDashboardNavbar>
     </template>
@@ -263,4 +231,9 @@ const statusOptions = [
       </div>
     </template>
   </UDashboardPanel>
+
+  <GenerateFromTripsModal
+    v-model="showGenerateModal"
+    @saved="onGenerateSaved"
+  />
 </template>
