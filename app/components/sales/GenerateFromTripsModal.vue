@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
-import { useDocumentsTypes } from '~/modulos/erp/documents/documents-types/composable/useDocumentTypes'
+import { useDocumentTypes } from '~/modulos/erp/documents/documents-types/composable/useDocumentTypes'
 
 const emit = defineEmits<{
   saved: []
 }>()
 
 const store = useDocumentsSalesStore()
-const { items: documentTypes, init: initDocTypes } = useDocumentsTypes()
+const { items: documentTypes, init: initDocTypes } = useDocumentTypes()
 
 const open = defineModel<boolean>({ default: false })
 const loading = ref(false)
