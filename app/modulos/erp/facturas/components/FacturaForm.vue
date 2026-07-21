@@ -1,27 +1,28 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from 'vue'
-
 import { storeToRefs } from 'pinia'
 
-//BusinessParties
+// BusinessParties
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import BusinessPartyModal from '~/modulos/logistica/master-data/bussiness-parties/components/BusinnesPartyModal.vue'
 import { useBusinessParties } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessParties'
 
-//Procuts
+// Products
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 
-//Docuemnts_types
+// Document Types
 import { useDocumentsTypesStore } from '~/modulos/erp/documents/documents-types/store/documents-types.store'
 import { useDocumentsTypes } from '~/modulos/erp/documents/documents-types/composables/useDocumentsTypes'
 
+// Invoice
 import FacturaItemsTable from './FacturaItemsTable.vue'
-
 import FacturaTotals from './FacturaTotals.vue'
+import { useInvoiceCalculation } from '../composable/useInvoiceCalculation'
+import { getDocumentTypeForVatCondition, type VatCondition } from '~/modulos/erp/invoices/utils/vatConditionMap'
 
-import type { Document, FacturaItem, FacturaTax } from '../types/factura.types'
+import type { Document, FacturaItem } from '../types/factura.types'
 
 interface Props {
   loading?: boolean
@@ -35,6 +36,7 @@ const emit = defineEmits<{
   submit: [payload: any]
 }>()
 
+// ─── Stores ──────────────────────────────────────────
 const selectedBusinessParty = ref<BusinessParty | undefined>(undefined)
 const showBusinessPartiesModal = ref(false)
 const partiesStore = useBusinessPartiesStore()
@@ -43,28 +45,28 @@ const documentsTypesStore = useDocumentsTypesStore()
 const { items: parties } = storeToRefs(partiesStore)
 const { items: products } = storeToRefs(productsStore)
 const { items: documentsTypes } = storeToRefs(documentsTypesStore)
-const { items: partyOptions } = useBusinessParties(parties)
-const { items: productOptions } = useProducts(products)
-//documentTypeOptions : Define las opciones del desplegable// aca hay un cambio importamte
 
+// Filtrar parties por tipo según módulo
+const partyType = computed(() => props.moduleCode === 'SALES' ? 'CUSTOMER' : 'SUPPLIER')
+const { items: partyOptions } = useBusinessParties(parties, partyType.value)
+const { items: productOptions } = useProducts(products)
+
+// Filtrar tipos de documento por dirección (1=venta, -1=compra)
 const documentTypeOptions = computed(() => {
+  const direction = props.moduleCode === 'SALES' ? 1 : -1
   return documentsTypes.value
     .filter((d) => {
       if (!props.moduleCode) return true
-      if (!d.system_modules) return true
-      return d.system_modules.code === props.moduleCode
+      return d.direction === direction
     })
-    .map((d) => ({ label: d.description, value: d.id }))
+    .map((d) => ({ label: d.description, value: d.id, code: d.code, direction: d.direction }))
 })
 
-onMounted(async () => {
-  await Promise.all([partiesStore.fetchAll(), productsStore.fetchAll(), documentsTypesStore.fetchAll()])
-})
-
+// ─── Form State ──────────────────────────────────────
 const form = reactive({
   document_type_id: '',
   party_id: '',
-  date: '',
+  date: new Date().toISOString().split('T')[0],
   descrip: '',
   ref: '',
   currency_code: 'ARS'
@@ -72,93 +74,70 @@ const form = reactive({
 
 const items = ref<FacturaItem[]>([])
 
-watch(
-  () => props.initialValues,
-  (value) => {
-    if (!value) return
+// ─── Invoice Calculation Composable ───────────────────
+const currentDocumentType = computed(() => documentsTypes.value.find((d) => d.id === form.document_type_id))
+const docTypeTaxes = computed(() => currentDocumentType.value?.document_type_taxes ?? [])
 
-    form.document_type_id = value.document_type_id ?? ''
-    form.party_id = value.party_id ?? ''
-    form.date = value.date ? new Date(value.date).toISOString().split('T')[0] : ''
-    form.descrip = value.descrip ?? ''
-    form.ref = value.ref ?? ''
+const { subtotal, totalTaxes, total, taxesSummary, recalculateItem } = useInvoiceCalculation(items, docTypeTaxes)
 
-    // Taxes de nivel DOCUMENT (se aplican a todos los items)
-    const documentTaxes = (value.document_taxes ?? []).map((tax: any) => ({
-      tax_id: tax.tax_id,
-      name: tax.taxes?.name ?? '',
-      code: tax.taxes?.code ?? '',
-      tax_rate: Number(tax.tax_rate ?? 0),
-      tax_amount: 0, // se recalcula por item abajo
-      calculation_level: tax.taxes?.calculation_level?.toLowerCase() ?? 'document',
-      is_included_in_price: false
-    }))
+// ─── Auto-select Document Type by VAT Condition ───────
+const selectedParty = computed(() => parties.value.find((p) => p.id === form.party_id))
 
-    items.value = (value.document_items ?? []).map((item: any) => {
-      const subtotal = Number(item.quantity ?? 0) * Number(item.unit_price ?? 0)
+watch(selectedParty, (party) => {
+  if (!party || !props.moduleCode) return
+  const vatCondition = party.vat_condition as VatCondition | undefined
+  if (!vatCondition) return
 
-      // Taxes de nivel LINE (vienen del item)
-      const lineTaxes = (item.document_item_taxes ?? []).map((tax: any) => ({
-        tax_id: tax.tax_id,
-        name: tax.taxes?.name ?? '',
-        code: tax.taxes?.code ?? '',
-        tax_rate: Number(tax.tax_rate ?? 0),
-        tax_amount: Number(tax.tax_amount ?? 0),
-        calculation_level: tax.taxes?.calculation_level?.toLowerCase() ?? 'line',
-        is_included_in_price: false
-      }))
+  const direction = props.moduleCode === 'SALES' ? 'sale' : 'purchase'
+  const suggestedCode = getDocumentTypeForVatCondition(vatCondition, direction)
 
-      // Taxes de nivel DOCUMENT: recalcular tax_amount en base al subtotal del item
-      const docTaxesForItem = documentTaxes.map((tax: any) => ({
-        ...tax,
-        tax_amount: Number(((subtotal * tax.tax_rate) / 100).toFixed(2))
-      }))
+  // Match exacto por código (ej: "FA-A", "FB-A", "FC-A")
+  const match = documentsTypes.value.find((d) => {
+    if (!d.code) return false
+    return d.code.toUpperCase() === suggestedCode.toUpperCase()
+  })
 
-      const taxes = [...lineTaxes, ...docTaxesForItem]
-
-      const totalTaxes = taxes.reduce((acc: number, tax: any) => acc + Number(tax.tax_amount || 0), 0)
-
-      return {
-        product_id: item.product_id,
-        product_name: item.products?.name || item.products?.description || 'Producto',
-        quantity: Number(item.quantity ?? 0),
-        unit_price: Number(item.unit_price ?? 0),
-        price: subtotal,
-        subtotal,
-        taxes,
-        total_taxes: totalTaxes,
-        total: subtotal + totalTaxes
-      }
-    })
-  },
-  {
-    immediate: true,
-    deep: true
+  if (match && !form.document_type_id) {
+    form.document_type_id = match.id
   }
-)
+})
+
+onMounted(async () => {
+  await Promise.all([partiesStore.fetchAll(), productsStore.fetchAll(), documentsTypesStore.fetchAll()])
+})
 
 const selectedCustomer = computed({
   get: () => partyOptions.value.find((i) => i.value === form.party_id),
-  set: (option) => {
-    form.party_id = option?.value ?? ''
-  }
+  set: (option) => { form.party_id = option?.value ?? '' }
 })
 
 const selectedDocumentType = computed({
   get: () => documentTypeOptions.value.find((i) => i.value === form.document_type_id),
-  set: (option) => {
-    form.document_type_id = option?.value ?? ''
-  }
+  set: (option) => { form.document_type_id = option?.value ?? '' }
 })
 
-const currentDocumentType = computed(() => documentsTypes.value.find((d) => d.id === form.document_type_id))
+const partyInfo = computed(() => {
+  if (!selectedParty.value) return null
+  const p = selectedParty.value
+  return {
+    name: p.name,
+    tax_id: p.tax_id || '—',
+    vat_condition: p.vat_condition || '—',
+    email: p.email || '—'
+  }
+})
 
 function addItem(prod: any) {
   const unitPrice = Number(prod.price ?? prod.data?.price ?? 0)
   const quantity = 1
   const subtotal = quantity * unitPrice
 
-  // Taxes del producto (nivel LINE)
+  console.log('[addItem] prod:', prod)
+  console.log('[addItem] prod.taxes:', prod.taxes)
+  console.log('[addItem] prod.tax:', prod.tax)
+  console.log('[addItem] currentDocumentType:', currentDocumentType.value)
+  console.log('[addItem] docTypeTaxes:', currentDocumentType.value?.document_type_taxes)
+
   const productTaxes = (prod.taxes ?? []).map((t: any) => {
     const rate = Number(t.taxes?.rate ?? 0)
     const taxAmount = Number(((subtotal * rate) / 100).toFixed(2))
@@ -173,8 +152,8 @@ function addItem(prod: any) {
     }
   })
 
-  // Taxes del tipo de documento (nivel DOCUMENT)
-  // Nota: verificá que fetchAll() traiga la relación document_type_taxes(*, taxes(*))
+  console.log('[addItem] productTaxes:', productTaxes)
+
   const docTaxes = (currentDocumentType.value?.document_type_taxes ?? []).map((t: any) => {
     const rate = Number(t.taxes?.rate ?? 0)
     const taxAmount = Number(((subtotal * rate) / 100).toFixed(2))
@@ -189,11 +168,13 @@ function addItem(prod: any) {
     }
   })
 
+  console.log('[addItem] docTaxes:', docTaxes)
+
   const taxes = [...productTaxes, ...docTaxes]
+  const totalTaxesItem = taxes.reduce((acc, tax) => acc + Number(tax.tax_amount || 0), 0)
 
-  const totalTaxes = taxes.reduce((acc, tax) => acc + Number(tax.tax_amount || 0), 0)
-
-  const total = subtotal + totalTaxes
+  console.log('[addItem] taxes finales:', taxes)
+  console.log('[addItem] totalTaxesItem:', totalTaxesItem)
 
   items.value.push({
     product_id: prod.value ?? prod.id ?? '',
@@ -203,22 +184,14 @@ function addItem(prod: any) {
     price: subtotal,
     subtotal,
     taxes,
-    total_taxes: totalTaxes,
-    total
+    total_taxes: totalTaxesItem,
+    total: subtotal + totalTaxesItem
   })
 }
 
 function removeItem(index: number) {
   items.value.splice(index, 1)
 }
-
-const subtotal = computed(() => items.value.reduce((acc, item) => acc + Number(item.subtotal || 0), 0))
-
-const allTaxes = computed(() => items.value.flatMap((i) => i.taxes ?? []))
-
-const totalTaxes = computed(() => allTaxes.value.reduce((acc, tax) => acc + Number(tax.tax_amount || 0), 0))
-
-const total = computed(() => Number(subtotal.value || 0) + Number(totalTaxes.value || 0))
 
 function submit() {
   emit('submit', {
@@ -243,11 +216,8 @@ function submit() {
 
 const onEditBussinessParty = () => {
   if (!selectedCustomer.value?.value) return
-
   const customer = parties.value.find((c) => c.id === selectedCustomer.value?.value)
-
   if (!customer) return
-
   selectedBusinessParty.value = customer
   showBusinessPartiesModal.value = true
 }
@@ -256,20 +226,19 @@ defineExpose({ submit })
 </script>
 
 <template>
-  <UCard>
-    <template #header>
-      <div class="grid grid-cols-2 gap-4">
+  <div class="space-y-4">
+    <!-- Header: Party + Document Type + Date -->
+    <UCard>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="flex gap-2">
           <USelectMenu
             v-model="selectedCustomer"
             :items="partyOptions"
-            placeholder="Cliente"
+            placeholder="Cliente / Proveedor"
             searchable
             class="w-full"
           />
-
           <UButton icon="i-lucide-plus" variant="outline" @click="showBusinessPartiesModal = true" />
-
           <UButton
             icon="i-lucide-pencil"
             variant="outline"
@@ -285,16 +254,43 @@ defineExpose({ submit })
           class="w-full"
         />
 
-        <UInput v-model="form.date" type="date" />
+        <UInput v-model="form.date" type="date" label="Fecha" />
       </div>
-    </template>
 
-    <FacturaItemsTable :items="items" :product-options="productOptions" @remove="removeItem" @add="addItem" />
+      <!-- Party info card -->
+      <div v-if="partyInfo" class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg flex gap-6 text-sm">
+        <div>
+          <span class="text-gray-500">CUIT: </span>
+          <span class="font-mono">{{ partyInfo.tax_id }}</span>
+        </div>
+        <div>
+          <span class="text-gray-500">IVA: </span>
+          <span>{{ partyInfo.vat_condition }}</span>
+        </div>
+        <div v-if="partyInfo.email !== '—'">
+          <span class="text-gray-500">Email: </span>
+          <span>{{ partyInfo.email }}</span>
+        </div>
+      </div>
+    </UCard>
 
-    <template #footer>
-      <FacturaTotals :subtotal="subtotal" :taxes="allTaxes" :total="total" />
-    </template>
-  </UCard>
+    <!-- Items Table -->
+    <UCard>
+      <FacturaItemsTable
+        :items="items"
+        :product-options="productOptions"
+        @remove="removeItem"
+        @add="addItem"
+      />
+    </UCard>
+
+    <!-- Totals -->
+    <div class="sticky bottom-0 z-10">
+      <UCard class="shadow-lg border-t-2 border-primary">
+        <FacturaTotals :subtotal="subtotal" :taxes="taxesSummary" :total="total" />
+      </UCard>
+    </div>
+  </div>
 
   <BusinessPartyModal v-model:open="showBusinessPartiesModal" v-model:business-party="selectedBusinessParty" />
 </template>

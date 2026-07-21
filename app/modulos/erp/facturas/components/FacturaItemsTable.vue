@@ -214,7 +214,23 @@ const columns = [
       }
     },
 
-    cell: ({ row }: any) => fmt(Number(row.original.total_taxes || 0))
+    cell: ({ row }: any) => {
+      const item = row.original
+      const taxes = (item.taxes ?? []).filter((t: any) => Number(t.tax_amount || 0) > 0)
+
+      if (taxes.length === 0) {
+        return h('span', { class: 'text-gray-400 text-xs' }, '—')
+      }
+
+      return h('div', { class: 'text-xs space-y-0.5' },
+        taxes.map((t: any) =>
+          h('div', { class: 'flex justify-end gap-1' },
+            h('span', { class: 'text-gray-500' }, `${t.name || t.code || 'Imp'}`),
+            h('span', {}, fmt(Number(t.tax_amount)))
+          )
+        )
+      )
+    }
   },
 
   {

@@ -20,7 +20,7 @@ async function handleSubmit(payload: any) {
     console.log('payload', payload)
     const created = await DocumentsPurchasesService.create(payload)
     toast.add({ title: 'Factura creada', color: 'success' })
-    router.push(`/erp/purchases/${created.id}`)
+    router.push(`/erp/purchases/purchases-documents/${created.id}`)
   } catch (e: any) {
     console.log('BACKEND ERROR')
     console.log(e?.data)
