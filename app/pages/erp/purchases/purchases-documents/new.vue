@@ -8,23 +8,22 @@ import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 
 const { mainCollapsed } = useSidebarState()
+const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
 
+const partyId = computed(() => (route.query.party_id as string) || undefined)
+
 async function handleSubmit(payload: any) {
   try {
     saving.value = true
-    console.log('payload', payload)
     const created = await DocumentsPurchasesService.create(payload)
     toast.add({ title: 'Factura creada', color: 'success' })
     router.push(`/erp/purchases/purchases-documents/${created.id}`)
   } catch (e: any) {
-    console.log('BACKEND ERROR')
-    console.log(e?.data)
-    console.log(e)
     toast.add({
       title: 'Error al crear factura',
       description: e?.data?.message,
@@ -67,7 +66,7 @@ async function handleSubmit(payload: any) {
         />
 
         <UPageBody>
-          <SalesDocumentForm ref="formRef" :loading="saving" module-code="PURCHASES" @submit="handleSubmit" />
+          <SalesDocumentForm ref="formRef" :loading="saving" module-code="PURCHASES" :initial-values="partyId ? { party_id: partyId } : undefined" @submit="handleSubmit" />
         </UPageBody>
       </UPage>
     </template>

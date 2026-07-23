@@ -57,15 +57,15 @@ const links: ButtonProps[] = [
   }
 ]
 const filterFields: FilterField[] = [
-  { id: 'name', label: 'Filtrar por Razon Social...', class: 'w-40' },
+  { id: 'name', label: 'Filtrar por Razón Social...', class: 'w-40' },
   { id: 'tax_id', label: 'Filtrar por CUIT...', class: 'w-56' }
 ]
 
 const sortFields: SortField[] = [
-  { value: 'name', label: 'Razon Scocial' },
+  { value: 'name', label: 'Razón Social' },
   { value: 'tax_id', label: 'CUIT' },
   { value: 'type', label: 'Tipo' },
-  { value: 'Fecha Creación', label: 'created_at' }
+  { value: 'created_at', label: 'Fecha Creación' }
 ]
 </script>
 

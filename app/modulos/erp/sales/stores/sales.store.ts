@@ -164,8 +164,6 @@ export const useDocumentsSalesStore = defineStore(
 
         return response
       } catch (err: any) {
-        console.error(err)
-
         error.value =
           err?.data?.message || err?.message || 'Error confirming document'
 

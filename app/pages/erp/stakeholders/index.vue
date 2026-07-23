@@ -5,6 +5,7 @@ definePageMeta({
 })
 
 import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
@@ -30,6 +31,18 @@ function onSortFieldSelect(columnId: string) {
 }
 
 const columns = stakeholdersColumns({ onEdit: openEdit, onSortFieldSelect })
+
+const filterFields: FilterField[] = [
+  { id: 'name', label: 'Filtrar por Razón Social...', class: 'w-40' },
+  { id: 'tax_id', label: 'Filtrar por CUIT...', class: 'w-56' }
+]
+
+const sortFields: SortField[] = [
+  { value: 'name', label: 'Razón Social' },
+  { value: 'tax_id', label: 'CUIT' },
+  { value: 'type', label: 'Tipo' },
+  { value: 'created_at', label: 'Fecha Creación' }
+]
 
 const importColumns = [
   { key: 'id', label: 'id', required: false },
@@ -72,7 +85,14 @@ const importColumns = [
       </template>
     </AppPageHeader>
 
-    <LogisticaTable :loading="loading" :data="parties" :columns="columns" v-model:sorting="sorting" />
+    <LogisticaTable
+      :loading="loading"
+      :data="parties"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+    />
   </UPage>
 
   <ExcelImportDialog

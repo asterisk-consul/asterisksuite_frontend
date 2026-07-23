@@ -8,11 +8,14 @@ import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 
 const { mainCollapsed } = useSidebarState()
+const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
+
+const partyId = computed(() => (route.query.party_id as string) || undefined)
 
 async function handleSubmit(payload: any) {
   try {
@@ -63,7 +66,7 @@ async function handleSubmit(payload: any) {
         />
 
         <UPageBody>
-          <SalesDocumentForm ref="formRef" :loading="saving" module-code="SALES" @submit="handleSubmit" />
+          <SalesDocumentForm ref="formRef" :loading="saving" module-code="SALES" :initial-values="partyId ? { party_id: partyId } : undefined" @submit="handleSubmit" />
         </UPageBody>
       </UPage>
     </template>

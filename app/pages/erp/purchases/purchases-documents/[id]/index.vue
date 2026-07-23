@@ -53,20 +53,26 @@ const links = computed(() => {
       icon: 'i-lucide-printer',
       variant: 'outline',
       onClick: () => printElement('printable-document')
-    },
-    {
+    }
+  ]
+
+  if (isDraft.value || isPending.value) {
+    items.push({
       label: 'Editar',
       icon: 'i-lucide-pencil',
       onClick: () => router.push(`/erp/purchases/purchases-documents/${route.params.id}/edit`)
-    }
-  ]
+    })
+  }
 
   if (isDraft.value) {
     items.push({
       label: 'Cambiar estado',
       icon: 'i-lucide-arrow-right-circle',
       color: 'primary',
-      onClick: () => { pendingStatus.value = 1; statusModalOpen.value = true }
+      onClick: () => {
+        pendingStatus.value = 1
+        statusModalOpen.value = true
+      }
     })
   }
 
@@ -75,7 +81,9 @@ const links = computed(() => {
       label: 'Confirmar',
       icon: 'i-lucide-check-circle',
       color: 'success',
-      onClick: () => { confirmModalOpen.value = true }
+      onClick: () => {
+        confirmModalOpen.value = true
+      }
     })
   }
 
@@ -84,7 +92,9 @@ const links = computed(() => {
       label: 'Anular',
       icon: 'i-lucide-x-circle',
       color: 'error',
-      onClick: () => { cancelModalOpen.value = true }
+      onClick: () => {
+        cancelModalOpen.value = true
+      }
     })
   }
 
@@ -129,6 +139,15 @@ const handleConfirm = async () => {
   }
 }
 
+const handleStatusOption = (opt: { value: number }) => {
+  pendingStatus.value = opt.value
+  if (opt.value === 2) {
+    handleConfirm()
+  } else {
+    handleStatusChange()
+  }
+}
+
 const handleCancel = async () => {
   try {
     await documentsPurchasesStore.cancel(route.params.id as string)
@@ -161,18 +180,9 @@ const handleCancel = async () => {
 
     <template #body>
       <UPage>
-        <UPageHeader
-          :title="factura ? `Factura #${factura.number}` : ''"
-          :description="statusLabel"
-          :links="links"
-        >
+        <UPageHeader :title="factura ? `Factura #${factura.number}` : ''" :description="statusLabel" :links="links">
           <template #headline>
-            <UBadge
-              :label="statusLabel"
-              :color="statusColor"
-              variant="subtle"
-              size="lg"
-            />
+            <UBadge :label="statusLabel" :color="statusColor" variant="subtle" size="lg" />
           </template>
         </UPageHeader>
 
@@ -189,7 +199,11 @@ const handleCancel = async () => {
   <!-- STATUS CHANGE MODAL -->
   <UModal v-model:open="statusModalOpen" title="Cambiar estado">
     <template #body>
-      <p class="mb-4">Seleccioná el nuevo estado para la factura <strong>#{{ factura?.number }}</strong>:</p>
+      <p class="mb-4">
+        Seleccioná el nuevo estado para la factura
+        <strong>#{{ factura?.number }}</strong>
+        :
+      </p>
       <div class="flex flex-col gap-2">
         <UButton
           v-for="opt in statusOptions"
@@ -198,7 +212,7 @@ const handleCancel = async () => {
           :color="opt.color as any"
           variant="outline"
           class="justify-start"
-          @click="pendingStatus = opt.value; handleStatusChange()"
+          @click="handleStatusOption(opt)"
         />
       </div>
       <div class="flex justify-end gap-2 pt-4">
@@ -210,7 +224,11 @@ const handleCancel = async () => {
   <!-- CONFIRM MODAL -->
   <UModal v-model:open="confirmModalOpen" title="Confirmar factura">
     <template #body>
-      <p>¿Estás seguro de que deseas confirmar la factura <strong>#{{ factura?.number }}</strong>?</p>
+      <p>
+        ¿Estás seguro de que deseas confirmar la factura
+        <strong>#{{ factura?.number }}</strong>
+        ?
+      </p>
       <p class="text-sm text-muted mt-2">Una vez confirmada, no podrá ser editada.</p>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
@@ -222,7 +240,11 @@ const handleCancel = async () => {
   <!-- CANCEL MODAL -->
   <UModal v-model:open="cancelModalOpen" title="Anular factura">
     <template #body>
-      <p>¿Estás seguro de que deseas anular la factura <strong>#{{ factura?.number }}</strong>?</p>
+      <p>
+        ¿Estás seguro de que deseas anular la factura
+        <strong>#{{ factura?.number }}</strong>
+        ?
+      </p>
       <p class="text-sm text-muted mt-2">Esta acción no se puede deshacer.</p>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="cancelModalOpen = false" />

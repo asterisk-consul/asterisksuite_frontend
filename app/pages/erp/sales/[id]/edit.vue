@@ -24,8 +24,10 @@ const saving = ref(false)
 
 const loading = ref(true)
 
-const factura = computed(() => documentsSalesStore.current)
-console.log(factura)
+const factura = computed(() => {
+  const doc = documentsSalesStore.current
+  return doc ? mapDocumentToFacturaForm(doc) : null
+})
 
 const formRef = ref<InstanceType<typeof FacturaForm> | null>(null)
 

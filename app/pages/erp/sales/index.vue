@@ -218,13 +218,23 @@ const statusOptions = [
             </template>
 
             <template #actions-cell="{ row }">
-              <UButton
-                icon="i-lucide-eye"
-                variant="ghost"
-                color="neutral"
-                size="sm"
-                :to="`/erp/sales/${row.original.id}`"
-              />
+              <div class="flex gap-1">
+                <UButton
+                  icon="i-lucide-eye"
+                  variant="ghost"
+                  color="neutral"
+                  size="sm"
+                  :to="`/erp/sales/${row.original.id}`"
+                />
+                <UButton
+                  v-if="row.original.status <= 1"
+                  icon="i-lucide-pencil"
+                  variant="ghost"
+                  color="neutral"
+                  size="sm"
+                  :to="`/erp/sales/${row.original.id}/edit`"
+                />
+              </div>
             </template>
           </UTable>
         </UPageCard>

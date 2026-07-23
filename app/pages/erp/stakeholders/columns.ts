@@ -118,6 +118,12 @@ export const stakeholdersColumns = (actions: {
             ]
           }
         }
+      },
+      {
+        key: 'created_at',
+        label: 'Creado',
+        sortable: true,
+        date: true
       }
     ])
   ]

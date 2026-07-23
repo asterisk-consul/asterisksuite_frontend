@@ -54,13 +54,16 @@ const links = computed(() => {
       icon: 'i-lucide-printer',
       variant: 'outline',
       onClick: () => printElement('printable-document')
-    },
-    {
+    }
+  ]
+
+  if (isDraft.value || isPending.value) {
+    items.push({
       label: 'Editar',
       icon: 'i-lucide-pencil',
       onClick: () => router.push(`/erp/sales/${route.params.id}/edit`)
-    }
-  ]
+    })
+  }
 
   // Borrador → Pendiente o Confirmado
   if (isDraft.value) {
@@ -140,6 +143,15 @@ const handleConfirm = async () => {
   }
 }
 
+const handleStatusOption = (opt: { value: number }) => {
+  pendingStatus.value = opt.value
+  if (opt.value === 2) {
+    handleConfirm()
+  } else {
+    handleStatusChange()
+  }
+}
+
 const handleCancel = async () => {
   try {
     await documentsSalesStore.cancel(route.params.id as string)
@@ -204,7 +216,7 @@ const handleCancel = async () => {
           :color="opt.color as any"
           variant="outline"
           class="justify-start"
-          @click="pendingStatus = opt.value; handleStatusChange()"
+          @click="handleStatusOption(opt)"
         />
       </div>
       <div class="flex justify-end gap-2 pt-4">

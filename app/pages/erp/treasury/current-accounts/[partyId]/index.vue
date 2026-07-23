@@ -9,10 +9,7 @@ import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vu
 
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
 import { currentAccountEntryColumns, ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
-import type {
-  CurrentAccount,
-  CreateCurrentAccountEntryInput
-} from '~/modulos/erp/current-accounts/types/current-accounts.types'
+import type { CurrentAccount } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -20,24 +17,13 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-const { statement, entries: storeEntries, loading, fetchStatement, fetchEntries, addEntry } = useCurrentAccounts()
+const { statement, entries: storeEntries, loading, fetchStatement, fetchEntries } = useCurrentAccounts()
 
 const partyId = route.params.partyId as string
 const currencyCode = (route.query.currency as string) || 'ARS'
 
 const account = ref<CurrentAccount | null>(null)
 const sorting = ref<SortingState>([])
-const modalOpen = ref(false)
-const saving = ref(false)
-
-const form = reactive<CreateCurrentAccountEntryInput>({
-  party_id: partyId,
-  party_type: 'customer',
-  currency_code: currencyCode,
-  type: 'PAYMENT',
-  amount: 0,
-  description: ''
-})
 
 const entries = computed(() => {
   const fromStatement = statement.value?.entries ?? []
@@ -65,7 +51,6 @@ onMounted(async () => {
     await Promise.all([fetchStatement(partyId, currencyCode), fetchEntries(partyId, currencyCode)])
     if (statement.value?.account) {
       account.value = statement.value.account
-      form.party_type = account.value.party_type
     }
   } catch (e: any) {
     toast.add({ title: 'Error al cargar cuenta', color: 'error', icon: 'i-lucide-alert-circle' })
@@ -116,36 +101,42 @@ const balanceLabel = computed(() => {
 
 const partyTypeLabel = computed(() => (account.value?.party_type === 'CUSTOMER' ? 'Cliente' : 'Proveedor'))
 
-const openCreateEntry = () => {
-  Object.assign(form, {
-    party_id: partyId,
-    party_type: account.value?.party_type ?? 'customer',
-    currency_code: currencyCode,
-    type: 'PAYMENT',
-    amount: 0,
-    description: ''
-  })
-  modalOpen.value = true
+const goBack = () => {
+  router.push('/erp/treasury/current-accounts')
 }
 
-const handleCreateEntry = async () => {
-  saving.value = true
-  try {
-    await addEntry({ ...form })
-    toast.add({ title: 'Movimiento creado', color: 'success' })
-    modalOpen.value = false
-    await fetchStatement(partyId, currencyCode)
-  } catch (e: any) {
-    toast.add({
-      title: 'Error al crear movimiento',
-      description: e?.data?.message,
-      color: 'error',
-      icon: 'i-lucide-alert-circle'
-    })
-  } finally {
-    saving.value = false
+const nuevoMovimientoItems = [
+  {
+    label: 'Compra',
+    icon: 'i-lucide-shopping-cart',
+    onSelect() {
+      router.push(`/erp/purchases/purchases-documents/new?party_id=${partyId}`)
+    }
+  },
+  {
+    label: 'Venta',
+    icon: 'i-lucide-receipt',
+    onSelect() {
+      router.push(`/erp/sales/new?party_id=${partyId}`)
+    }
+  },
+  {
+    label: 'Pago / Cobro',
+    icon: 'i-lucide-wallet',
+    onSelect() {
+      router.push(`/erp/treasury/payments/create?party_id=${partyId}`)
+    }
   }
-}
+]
+
+const links = computed(() => [
+  {
+    label: 'Volver',
+    icon: 'i-lucide-arrow-left',
+    variant: 'ghost' as const,
+    onClick: goBack
+  }
+])
 
 const balanceChartData = computed(() => {
   const sorted = [...entries.value].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -218,51 +209,6 @@ const entryTypePieData = computed(() => {
     ]
   }
 })
-
-const entryTypes = [
-  { label: 'Pago', value: 'PAYMENT' },
-  { label: 'Cobro', value: 'COLLECTION' },
-  { label: 'Anticipo', value: 'ADVANCE' },
-  { label: 'Préstamo', value: 'LOAN' },
-  { label: 'Pago préstamo', value: 'LOAN_PAYMENT' },
-  { label: 'Ajuste', value: 'ADJUSTMENT' },
-  { label: 'Transferencia', value: 'TRANSFER' },
-  { label: 'Cheque emitido', value: 'CHECK_ISSUED' },
-  { label: 'Cheque recibido', value: 'CHECK_RECEIVED' },
-  { label: 'Factura', value: 'INVOICE' },
-  { label: 'Nota de crédito', value: 'CREDIT_NOTE' },
-  { label: 'Nota de débito', value: 'DEBIT_NOTE' }
-]
-
-const goBack = () => {
-  router.push('/erp/treasury/current-accounts')
-}
-const closeModal = () => {
-  modalOpen.value = false
-}
-
-const links = computed(() => [
-  {
-    label: 'Volver',
-    icon: 'i-lucide-arrow-left',
-    variant: 'ghost' as const,
-    onClick: goBack
-  },
-  {
-    label: 'Nuevo movimiento',
-    icon: 'i-heroicons-plus',
-    color: 'primary' as const,
-    variant: 'solid' as const,
-    onClick: openCreateEntry
-  }
-])
-
-const selectedType = computed({
-  get: () => entryTypes.find((t) => t.value === form.type) ?? entryTypes[0],
-  set: (val) => {
-    form.type = (val?.value as any) ?? 'PAYMENT'
-  }
-})
 </script>
 
 <template>
@@ -271,7 +217,26 @@ const selectedType = computed({
       :title="account?.party?.name ?? 'Cuenta corriente'"
       :description="`${partyTypeLabel} · ${currencyCode}`"
       :links="links"
-    />
+    >
+      <template #links>
+        <div class="flex gap-2">
+          <UButton
+            label="Volver"
+            icon="i-lucide-arrow-left"
+            variant="ghost"
+            @click="goBack"
+          />
+          <UDropdownMenu :items="nuevoMovimientoItems">
+            <UButton
+              label="Nuevo movimiento"
+              icon="i-heroicons-plus"
+              color="primary"
+              variant="solid"
+            />
+          </UDropdownMenu>
+        </div>
+      </template>
+    </AppPageHeader>
 
     <!-- BALANCE SUMMARY -->
     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 py-4">
@@ -375,26 +340,5 @@ const selectedType = computed({
         />
       </div>
     </UPageCard>
-
-    <!-- CREATE ENTRY MODAL -->
-    <UModal v-model:open="modalOpen" title="Nuevo movimiento">
-      <template #body>
-        <UForm :state="form" class="space-y-4" @submit="handleCreateEntry">
-          <UFormField label="Tipo" name="type" required>
-            <USelectMenu v-model="selectedType" :items="entryTypes" />
-          </UFormField>
-          <UFormField label="Monto" name="amount" required>
-            <UInput v-model.number="form.amount" type="number" />
-          </UFormField>
-          <UFormField label="Descripción" name="description">
-            <UInput v-model="form.description" />
-          </UFormField>
-          <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="closeModal" />
-            <UButton label="Crear" type="submit" :loading="saving" />
-          </div>
-        </UForm>
-      </template>
-    </UModal>
   </UPage>
 </template>

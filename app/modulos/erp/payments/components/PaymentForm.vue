@@ -20,6 +20,7 @@ export interface PaymentFormData {
   bank_account_id: string
   cash_box_id: string
   check_ids: string[]
+  documents?: { document_id: string; amount_applied: number }[]
 }
 
 const props = defineProps<{
@@ -219,8 +220,27 @@ const toggleDoc = (doc: PendingDocument) => {
   if (selectedDocs.value.has(doc.id)) {
     selectedDocs.value.delete(doc.id)
   } else {
+    // Validar: no mezclar documentos de diferentes partes
+    if (selectedDocs.value.size > 0) {
+      const firstDoc = selectedDocs.value.values().next().value?.doc
+      if (firstDoc?.party_id && doc.party_id && firstDoc.party_id !== doc.party_id) {
+        return
+      }
+    }
     selectedDocs.value.set(doc.id, { doc, amount: doc.pending_amount })
   }
+
+  // Auto-set party_id del primer documento seleccionado
+  if (selectedDocs.value.size > 0) {
+    const firstDoc = selectedDocs.value.values().next().value?.doc
+    if (firstDoc?.party_id) {
+      form.party_id = firstDoc.party_id
+      form.party_type = isPayment.value ? 'SUPPLIER' : 'CUSTOMER'
+    }
+  } else {
+    form.party_id = ''
+  }
+
   form.amount = totalApplied.value
 }
 
@@ -263,6 +283,8 @@ const handleCheckCreated = async (checkData: CheckFormData) => {
 
 const handleSubmit = async () => {
   const paymentAmount = totalApplied.value > 0 ? totalApplied.value : totalChecksAmount.value > 0 ? totalChecksAmount.value : form.amount
+  console.log('[PaymentForm] paymentAmount:', paymentAmount)
+  console.log('[PaymentForm] selectedDocs:', Array.from(selectedDocs.value.entries()))
   
   // Calculate retentions if it's a payment to a supplier
   let retentions: { code: string; name: string; amount: number }[] = []
@@ -286,14 +308,25 @@ const handleSubmit = async () => {
   const totalRetentions = calculateTotalRetentions(retentions)
   const netAmount = calculateNetAmount(paymentAmount, totalRetentions)
 
-  emit('submit', {
+  const documentsData = Array.from(selectedDocs.value.values()).map(d => ({
+    document_id: d.doc.id,
+    amount_applied: d.amount
+  }))
+
+  console.log('[PaymentForm] documentsData:', documentsData)
+
+  const payload = {
     ...form,
     amount: paymentAmount,
     check_ids: form.check_ids.length > 0 ? form.check_ids : undefined,
     retentions: retentions.length > 0 ? retentions : undefined,
     total_retentions: totalRetentions,
-    net_amount: netAmount
-  } as any)
+    net_amount: netAmount,
+    documents: documentsData.length > 0 ? documentsData : undefined
+  }
+  console.log('[PaymentForm] EMIT payload:', payload)
+
+  emit('submit', payload as any)
 }
 
 const formatCurrency = (amount: number, currency: string | null | undefined = 'ARS') => {

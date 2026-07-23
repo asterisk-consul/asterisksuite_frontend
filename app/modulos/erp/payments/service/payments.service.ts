@@ -115,6 +115,7 @@ export const usePaymentsService = () => {
   }
 
   const create = (data: CreatePaymentInput) => {
+    console.log('[service] POST', urlBase, 'body:', data)
     return $fetch<Payment>(urlBase, {
       method: 'POST',
       body: data

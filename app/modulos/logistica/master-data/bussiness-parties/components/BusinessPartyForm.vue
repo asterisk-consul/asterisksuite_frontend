@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { reactive, watch, computed, onMounted, nextTick } from 'vue'
 import type { SelectMenuItem } from '@nuxt/ui'
 
 import type { BusinessPartyForm } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
+import type { Location } from '~/modulos/logistica/master-data/locations/types/locations.types'
 
 import { mapBusinessPartyToForm } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
+import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
+import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
+import LocationModal from '~/modulos/logistica/master-data/locations/components/LocationModal.vue'
 
 const props = defineProps<{
   modelValue?: BusinessPartyForm
@@ -70,6 +74,26 @@ const vatConditionOptions: SelectMenuItem[] = [
   { label: 'Consumidor Final', value: 'CF' },
   { label: 'Exento', value: 'EX' }
 ]
+
+// ─── Locations ──────────────────────────────────────────
+const locationsStore = useLocationsStore()
+const showLocationModal = ref(false)
+
+onMounted(async () => {
+  await locationsStore.fetchAll()
+})
+
+const { items: locationOptions } = useLocations(computed(() => locationsStore.items))
+
+function onLocationCreated(location: Location) {
+  // Esperar a que el store actualice locationOptions antes de crear la entrada
+  nextTick(() => {
+    form.locations.push({
+      location_id: location.id,
+      label: [location.address, location.city].filter(Boolean).join(' - ')
+    })
+  })
+}
 
 const addLocation = () => {
   form.locations.push({ location_id: '', label: '' })
@@ -223,9 +247,14 @@ const tabs = [
           <template #header>
             <div class="flex items-center justify-between">
               <h3 class="font-semibold">Direcciones</h3>
-              <UButton size="sm" icon="i-heroicons-plus" @click="addLocation">
-                Agregar
-              </UButton>
+              <div class="flex gap-2">
+                <UButton size="sm" icon="i-heroicons-plus" @click="addLocation">
+                  Agregar
+                </UButton>
+                <UButton size="sm" icon="i-lucide-map-pin-plus" variant="outline" @click="showLocationModal = true">
+                  Crear nueva
+                </UButton>
+              </div>
             </div>
           </template>
 
@@ -235,9 +264,12 @@ const tabs = [
               :key="i"
               class="flex items-center gap-3"
             >
-              <UInput
+              <USelectMenu
                 v-model="l.location_id"
-                placeholder="ID ubicación"
+                :items="locationOptions"
+                value-key="value"
+                placeholder="Seleccionar ubicación"
+                searchable
                 class="flex-1"
               />
               <UInput v-model="l.label" placeholder="Etiqueta" class="flex-1" />
@@ -254,9 +286,12 @@ const tabs = [
               color="neutral"
               variant="soft"
               title="Sin direcciones"
+              description="Aggregá una ubicación existente o creá una nueva"
             />
           </div>
         </UCard>
+
+        <LocationModal v-model:open="showLocationModal" @success="onLocationCreated" />
       </template>
 
       <!-- CONTACTS -->

@@ -80,6 +80,73 @@ const docTypeTaxes = computed(() => currentDocumentType.value?.document_type_tax
 
 const { subtotal, totalTaxes, total, taxesSummary, recalculateItem } = useInvoiceCalculation(items, docTypeTaxes)
 
+// ─── Watch initialValues ──────────────────────────────────
+watch(
+  () => props.initialValues,
+  (val) => {
+    if (!val) return
+
+    form.document_type_id = val.document_type_id ?? ''
+    form.party_id = val.party_id ?? ''
+    form.date = val.date ? new Date(val.date).toISOString().split('T')[0] : ''
+    form.descrip = val.descrip ?? ''
+    form.ref = val.ref ?? ''
+    form.currency_code = val.currency_code ?? 'ARS'
+
+    // Mapear items del documento
+    // Si vienen del mapper (items), usarlos directamente
+    // Si vienen raw del backend (document_items), mapearlos
+    if (val.items?.length) {
+      items.value = val.items
+    } else {
+      const documentTaxes = (val.document_taxes ?? []).map((tax: any) => ({
+        tax_id: tax.tax_id,
+        name: tax.taxes?.name ?? '',
+        code: tax.taxes?.code ?? '',
+        tax_rate: Number(tax.tax_rate ?? 0),
+        tax_amount: 0,
+        calculation_level: tax.taxes?.calculation_level?.toLowerCase() ?? 'document',
+        is_included_in_price: false
+      }))
+
+      items.value = (val.document_items ?? []).map((item: any) => {
+        const subtotal = Number(item.quantity ?? 0) * Number(item.unit_price ?? 0)
+
+        const lineTaxes = (item.document_item_taxes ?? []).map((tax: any) => ({
+          tax_id: tax.tax_id,
+          name: tax.taxes?.name ?? '',
+          code: tax.taxes?.code ?? '',
+          tax_rate: Number(tax.tax_rate ?? 0),
+          tax_amount: Number(tax.tax_amount ?? 0),
+          calculation_level: tax.taxes?.calculation_level?.toLowerCase() ?? 'line',
+          is_included_in_price: false
+        }))
+
+        const docTaxesForItem = documentTaxes.map((tax: any) => ({
+          ...tax,
+          tax_amount: Number(((subtotal * tax.tax_rate) / 100).toFixed(2))
+        }))
+
+        const taxes = [...lineTaxes, ...docTaxesForItem]
+        const totalTaxes = taxes.reduce((acc: number, tax: any) => acc + Number(tax.tax_amount || 0), 0)
+
+        return {
+          product_id: item.product_id,
+          product_name: item.products?.name || item.products?.description || 'Producto',
+          quantity: Number(item.quantity ?? 0),
+          unit_price: Number(item.unit_price ?? 0),
+          price: subtotal,
+          subtotal,
+          taxes,
+          total_taxes: totalTaxes,
+          total: subtotal + totalTaxes
+        }
+      })
+    }
+  },
+  { immediate: true, deep: true }
+)
+
 // ─── Auto-select Document Type by VAT Condition ───────
 const selectedParty = computed(() => parties.value.find((p) => p.id === form.party_id))
 
@@ -132,12 +199,6 @@ function addItem(prod: any) {
   const quantity = 1
   const subtotal = quantity * unitPrice
 
-  console.log('[addItem] prod:', prod)
-  console.log('[addItem] prod.taxes:', prod.taxes)
-  console.log('[addItem] prod.tax:', prod.tax)
-  console.log('[addItem] currentDocumentType:', currentDocumentType.value)
-  console.log('[addItem] docTypeTaxes:', currentDocumentType.value?.document_type_taxes)
-
   const productTaxes = (prod.taxes ?? []).map((t: any) => {
     const rate = Number(t.taxes?.rate ?? 0)
     const taxAmount = Number(((subtotal * rate) / 100).toFixed(2))
@@ -151,8 +212,6 @@ function addItem(prod: any) {
       is_included_in_price: Boolean(t.is_included_in_price)
     }
   })
-
-  console.log('[addItem] productTaxes:', productTaxes)
 
   const docTaxes = (currentDocumentType.value?.document_type_taxes ?? []).map((t: any) => {
     const rate = Number(t.taxes?.rate ?? 0)
@@ -168,13 +227,8 @@ function addItem(prod: any) {
     }
   })
 
-  console.log('[addItem] docTaxes:', docTaxes)
-
   const taxes = [...productTaxes, ...docTaxes]
   const totalTaxesItem = taxes.reduce((acc, tax) => acc + Number(tax.tax_amount || 0), 0)
-
-  console.log('[addItem] taxes finales:', taxes)
-  console.log('[addItem] totalTaxesItem:', totalTaxesItem)
 
   items.value.push({
     product_id: prod.value ?? prod.id ?? '',
