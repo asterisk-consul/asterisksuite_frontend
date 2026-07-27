@@ -83,6 +83,7 @@ export function toUpdateProductPayload(form: ProductFormState): UpdateProductDto
     rate_id: form.rate_id,
 
     taxId: form.taxId,
+    tax_category_id: form.tax_category_id,
     income_account_id: form.income_account_id,
     expense_account_id: form.expense_account_id,
     inventory_account_id: form.inventory_account_id
@@ -112,6 +113,7 @@ export function toCreateProductPayload(form: ProductFormState): CreateProductDto
     income_account_id: form.income_account_id,
     expense_account_id: form.expense_account_id,
     inventory_account_id: form.inventory_account_id,
-    taxId: form.taxId
+    taxId: form.taxId,
+    tax_category_id: form.tax_category_id
   }
 }

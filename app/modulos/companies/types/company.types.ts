@@ -1,7 +1,8 @@
 export interface Company {
   id: string
   name: string
-  taxId?: string
+  tax_id?: string
+  vat_condition?: string
   address?: string
   phone?: string
   email?: string
@@ -37,9 +38,15 @@ export interface CreateCompanyUserDto {
   role: string
 }
 
-export type CreateCompanyInput = Omit<
-  Company,
-  'id' | 'active' | 'created_at' | 'updated_at'
->
+export type CreateCompanyInput = {
+  name: string
+  taxId?: string
+  vat_condition?: string
+  address?: string
+  phone?: string
+  email?: string
+  subdomain?: string
+  schemaName?: string
+}
 
 export type UpdateCompanyInput = Partial<CreateCompanyInput>

@@ -60,19 +60,10 @@ const subtotalTotal = computed(() =>
 )
 
 function taxesForItem(item: any): { name: string; amount: number }[] {
-  const result: { name: string; amount: number }[] = []
-  for (const t of item.document_item_taxes ?? []) {
-    result.push({ name: t.taxes?.name ?? t.tax_id, amount: Number(t.tax_amount ?? 0) })
-  }
-  const itemPrice = Number(item.price ?? 0)
-  const total = subtotalTotal.value
-  if (total > 0) {
-    for (const docTax of documentTaxesSummary.value) {
-      const proportional = Math.round((itemPrice / total) * docTax.amount * 100) / 100
-      result.push({ name: docTax.name, amount: proportional })
-    }
-  }
-  return result
+  return (item.document_item_taxes ?? []).map((t: any) => ({
+    name: t.taxes?.name ?? t.tax_id,
+    amount: Number(t.tax_amount ?? 0)
+  }))
 }
 
 const enrichedItems = computed(() =>
@@ -92,20 +83,15 @@ const statusLabel: Record<number, { label: string; color: string }> = {
 
 const statusInfo = computed(() => statusLabel[props.document.status] ?? { label: 'Desconocido', color: 'neutral' })
 
-const allTaxes = computed(() => {
-  const map = new Map<string, { name: string; amount: number }>()
-  for (const t of lineTaxesSummary.value) {
-    const existing = map.get(t.name)
-    if (existing) existing.amount += t.amount
-    else map.set(t.name, { name: t.name, amount: t.amount })
-  }
-  for (const t of documentTaxesSummary.value) {
-    const existing = map.get(t.name)
-    if (existing) existing.amount += t.amount
-    else map.set(t.name, { name: t.name, amount: t.amount })
-  }
-  return [...map.values()]
-})
+const allTaxes = computed(() =>
+  (props.document.document_taxes ?? []).map((t: any) => ({
+    name: t.taxes?.name ?? t.tax_id,
+    code: t.taxes?.code ?? '',
+    rate: Number(t.tax_rate ?? 0),
+    taxableBase: Number(t.taxable_base ?? 0),
+    amount: Number(t.tax_amount ?? 0)
+  }))
+)
 
 // SALE: header=mi empresa, customer=cliente
 // PURCHASE: header=proveedor, customer=mi empresa
@@ -161,7 +147,7 @@ const printItems = computed(() =>
 
 const printTotals = computed(() => ({
   subtotal: Number(props.document.subtotal),
-  taxes: allTaxes.value,
+  taxes: allTaxes.value.map(t => ({ name: t.name, amount: t.amount })),
   total: Number(props.document.total)
 }))
 </script>
@@ -235,7 +221,7 @@ const printTotals = computed(() => ({
         <div class="space-y-2 max-w-sm ml-auto">
           <div class="flex justify-between"><span class="text-gray-500">Subtotal</span><span>{{ fmt(document.subtotal) }}</span></div>
           <div v-for="tax in allTaxes" :key="tax.name" class="flex justify-between text-sm">
-            <span class="text-gray-500">{{ tax.name }}</span><span>{{ fmt(tax.amount) }}</span>
+            <span class="text-gray-500">{{ tax.name }} ({{ tax.rate }}%)</span><span>{{ fmt(tax.amount) }}</span>
           </div>
           <hr class="my-2">
           <div class="flex justify-between text-lg font-bold"><span>Total</span><span>{{ fmt(document.total) }}</span></div>

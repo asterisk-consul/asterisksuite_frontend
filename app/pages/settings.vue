@@ -25,6 +25,11 @@ const links = computed<NavigationMenuItem[][]>(() => {
       ...(isOwnerOrAdmin.value
         ? [
             {
+              label: 'Empresa',
+              icon: 'i-lucide-building',
+              to: '/settings/company'
+            },
+            {
               label: 'Usuarios',
               icon: 'i-lucide-user-cog',
               to: '/settings/users'

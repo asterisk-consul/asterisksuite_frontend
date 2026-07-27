@@ -2,6 +2,12 @@
 import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 
+// Auth
+import { useAuthStore } from '~/modulos/auth/auth.store'
+
+// Companies
+import { useCompaniesStore } from '~/modulos/companies/store/company.store'
+
 // BusinessParties
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
@@ -15,11 +21,11 @@ import { useProducts } from '~/modulos/logistica/master-data/product/composable/
 // Document Types
 import { useDocumentsTypesStore } from '~/modulos/erp/documents/documents-types/store/documents-types.store'
 import { useDocumentsTypes } from '~/modulos/erp/documents/documents-types/composables/useDocumentsTypes'
+import { useDocumentTypesForModule } from '~/modulos/erp/documents/documents-types/composables/useDocumentTypesForModule'
 
 // Invoice
 import FacturaItemsTable from './FacturaItemsTable.vue'
 import FacturaTotals from './FacturaTotals.vue'
-import { useInvoiceCalculation } from '../composable/useInvoiceCalculation'
 import { getDocumentTypeForVatCondition, type VatCondition } from '~/modulos/erp/invoices/utils/vatConditionMap'
 
 import type { Document, FacturaItem } from '../types/factura.types'
@@ -51,16 +57,8 @@ const partyType = computed(() => props.moduleCode === 'SALES' ? 'CUSTOMER' : 'SU
 const { items: partyOptions } = useBusinessParties(parties, partyType.value)
 const { items: productOptions } = useProducts(products)
 
-// Filtrar tipos de documento por dirección (1=venta, -1=compra)
-const documentTypeOptions = computed(() => {
-  const direction = props.moduleCode === 'SALES' ? 1 : -1
-  return documentsTypes.value
-    .filter((d) => {
-      if (!props.moduleCode) return true
-      return d.direction === direction
-    })
-    .map((d) => ({ label: d.description, value: d.id, code: d.code, direction: d.direction }))
-})
+// Usar composable para filtrar tipos de documento por dirección + condición del emisor/receptor
+const moduleCode = computed(() => (props.moduleCode === 'SALES' ? 'SALES' : 'PURCHASES') as 'SALES' | 'PURCHASES')
 
 // ─── Form State ──────────────────────────────────────
 const form = reactive({
@@ -72,13 +70,90 @@ const form = reactive({
   currency_code: 'ARS'
 })
 
+const selectedParty = computed(() => parties.value.find((p) => p.id === form.party_id))
+const partnerCondition = computed(() => (selectedParty.value?.vat_condition as string) ?? null)
+
+const {
+  filteredDocumentTypes: documentTypeOptions,
+  isDocumentTypeValid,
+  getValidationMessage,
+  fetchIssuerCondition
+} = useDocumentTypesForModule(moduleCode.value, partnerCondition)
+
 const items = ref<FacturaItem[]>([])
 
-// ─── Invoice Calculation Composable ───────────────────
-const currentDocumentType = computed(() => documentsTypes.value.find((d) => d.id === form.document_type_id))
-const docTypeTaxes = computed(() => currentDocumentType.value?.document_type_taxes ?? [])
+// ─── Validación de comprobante ─────────────────────────
+const documentTypeValidation = ref<string | null>(null)
 
-const { subtotal, totalTaxes, total, taxesSummary, recalculateItem } = useInvoiceCalculation(items, docTypeTaxes)
+// ─── Tax Engine Preview ───────────────────────────────
+const lastPreview = ref<any>(null)
+const previewLoading = ref(false)
+let isRecalculating = false
+let previewDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+async function fetchPreview() {
+  if (!items.value.length || !form.document_type_id) {
+    lastPreview.value = null
+    return
+  }
+
+  previewLoading.value = true
+  isRecalculating = true
+  try {
+    const authStore = useAuthStore()
+    const currentDocType = documentsTypes.value.find((d) => d.id === form.document_type_id)
+    const result = await $fetch('/api/erp/tax-engine/calculate-preview', {
+      method: 'POST',
+      body: {
+        issuerCompanyId: authStore.selectedCompany?.id ?? '',
+        partnerId: form.party_id || undefined,
+        partnerVatCondition: selectedParty.value?.vat_condition,
+        documentTypeId: form.document_type_id,
+        documentLetterType: currentDocType?.letter_type,
+        currency: form.currency_code,
+        date: form.date,
+        operationType: props.moduleCode === 'SALES' ? 'SALE' : 'PURCHASE',
+        items: items.value.map((i) => ({
+          productId: i.product_id || undefined,
+          quantity: Number(i.quantity),
+          unitPrice: Number(i.unit_price)
+        }))
+      }
+    })
+    lastPreview.value = result
+  } catch (e) {
+    console.error('Preview error:', e)
+    lastPreview.value = null
+  } finally {
+    previewLoading.value = false
+    isRecalculating = false
+  }
+}
+
+function debouncedFetchPreview() {
+  if (previewDebounceTimer) clearTimeout(previewDebounceTimer)
+  previewDebounceTimer = setTimeout(() => {
+    fetchPreview()
+  }, 300)
+}
+
+// Totales del preview
+const subtotal = computed(() => lastPreview.value?.document?.subtotal ?? 0)
+const totalTaxes = computed(() => lastPreview.value?.document?.totalTaxes ?? 0)
+const total = computed(() => lastPreview.value?.document?.total ?? 0)
+const taxesSummary = computed(() => lastPreview.value?.document?.documentTaxes ?? [])
+
+// Watch para recalcular cuando cambien precios o cantidades
+watch(
+  items,
+  () => {
+    if (isRecalculating) return
+    if (items.value.length > 0 && form.document_type_id) {
+      debouncedFetchPreview()
+    }
+  },
+  { deep: true }
+)
 
 // ─── Watch initialValues ──────────────────────────────────
 watch(
@@ -148,15 +223,18 @@ watch(
 )
 
 // ─── Auto-select Document Type by VAT Condition ───────
-const selectedParty = computed(() => parties.value.find((p) => p.id === form.party_id))
-
 watch(selectedParty, (party) => {
   if (!party || !props.moduleCode) return
   const vatCondition = party.vat_condition as VatCondition | undefined
   if (!vatCondition) return
 
   const direction = props.moduleCode === 'SALES' ? 'sale' : 'purchase'
-  const suggestedCode = getDocumentTypeForVatCondition(vatCondition, direction)
+
+  // Obtener condición del emisor desde el store de companies
+  const companiesStore = useCompaniesStore()
+  const issuerVat = companiesStore.current?.vat_condition ?? null
+
+  const suggestedCode = getDocumentTypeForVatCondition(vatCondition, direction, issuerVat)
 
   // Match exacto por código (ej: "FA-A", "FB-A", "FC-A")
   const match = documentsTypes.value.find((d) => {
@@ -164,13 +242,35 @@ watch(selectedParty, (party) => {
     return d.code.toUpperCase() === suggestedCode.toUpperCase()
   })
 
-  if (match && !form.document_type_id) {
+  if (match) {
+    // Siempre actualizar cuando cambia el partner (auto-select)
     form.document_type_id = match.id
   }
 })
 
+// Recalcular preview cuando cambia el tipo de documento
+watch(() => form.document_type_id, (newId) => {
+  // Validar compatibilidad emisor ↔ comprobante
+  const selectedDoc = documentsTypes.value.find((d) => d.id === newId)
+  if (selectedDoc) {
+    const msg = getValidationMessage(selectedDoc.code, selectedDoc.letter_type)
+    documentTypeValidation.value = msg
+  } else {
+    documentTypeValidation.value = null
+  }
+
+  if (items.value.length > 0) {
+    fetchPreview()
+  }
+})
+
 onMounted(async () => {
-  await Promise.all([partiesStore.fetchAll(), productsStore.fetchAll(), documentsTypesStore.fetchAll()])
+  await Promise.all([
+    partiesStore.fetchAll(),
+    productsStore.fetchAll(),
+    documentsTypesStore.fetchAll(),
+    fetchIssuerCondition()
+  ])
 })
 
 const selectedCustomer = computed({
@@ -197,57 +297,32 @@ const partyInfo = computed(() => {
 function addItem(prod: any) {
   const unitPrice = Number(prod.price ?? prod.data?.price ?? 0)
   const quantity = 1
-  const subtotal = quantity * unitPrice
-
-  const productTaxes = (prod.taxes ?? []).map((t: any) => {
-    const rate = Number(t.taxes?.rate ?? 0)
-    const taxAmount = Number(((subtotal * rate) / 100).toFixed(2))
-    return {
-      tax_id: t.tax_id,
-      name: t.taxes?.name ?? '',
-      code: t.taxes?.code ?? '',
-      tax_rate: rate,
-      tax_amount: taxAmount,
-      calculation_level: String(t.taxes?.calculation_level ?? 'LINE').toLowerCase(),
-      is_included_in_price: Boolean(t.is_included_in_price)
-    }
-  })
-
-  const docTaxes = (currentDocumentType.value?.document_type_taxes ?? []).map((t: any) => {
-    const rate = Number(t.taxes?.rate ?? 0)
-    const taxAmount = Number(((subtotal * rate) / 100).toFixed(2))
-    return {
-      tax_id: t.tax_id,
-      name: t.taxes?.name ?? '',
-      code: t.taxes?.code ?? '',
-      tax_rate: rate,
-      tax_amount: taxAmount,
-      calculation_level: String(t.taxes?.calculation_level ?? 'DOCUMENT').toLowerCase(),
-      is_included_in_price: false
-    }
-  })
-
-  const taxes = [...productTaxes, ...docTaxes]
-  const totalTaxesItem = taxes.reduce((acc, tax) => acc + Number(tax.tax_amount || 0), 0)
 
   items.value.push({
     product_id: prod.value ?? prod.id ?? '',
     product_name: prod.label ?? prod.name ?? 'Producto',
     quantity,
     unit_price: unitPrice,
-    price: subtotal,
-    subtotal,
-    taxes,
-    total_taxes: totalTaxesItem,
-    total: subtotal + totalTaxesItem
+    price: quantity * unitPrice,
+    subtotal: quantity * unitPrice,
+    taxes: [],
+    total_taxes: 0,
+    total: quantity * unitPrice
   })
+
+  // Recalcular con el backend
+  fetchPreview()
 }
 
 function removeItem(index: number) {
   items.value.splice(index, 1)
+  fetchPreview()
 }
 
 function submit() {
+  // Usar el payload del último preview para enviar al backend
+  const previewPayload = lastPreview.value?.document
+
   emit('submit', {
     document_type_id: form.document_type_id,
     party_id: form.party_id,
@@ -255,15 +330,15 @@ function submit() {
     descrip: form.descrip,
     ref: form.ref,
     currency_code: form.currency_code,
-    items: items.value.map((i) => ({
+    items: items.value.map((i, idx) => ({
       product_id: i.product_id,
       quantity: Number(i.quantity),
       unit_price: Number(i.unit_price),
-      taxes: i.taxes.map((t) => ({
+      taxes: previewPayload?.items?.[idx]?.taxes?.map((t: any) => ({
         tax_id: t.tax_id,
-        tax_rate: Number(t.tax_rate || 0),
-        tax_amount: Number(t.tax_amount || 0)
-      }))
+        tax_rate: t.rate,
+        tax_amount: t.amount
+      })) ?? []
     }))
   })
 }
@@ -309,6 +384,11 @@ defineExpose({ submit })
         />
 
         <UInput v-model="form.date" type="date" label="Fecha" />
+      </div>
+
+      <!-- Validación de comprobante -->
+      <div v-if="documentTypeValidation" class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
+        {{ documentTypeValidation }}
       </div>
 
       <!-- Party info card -->

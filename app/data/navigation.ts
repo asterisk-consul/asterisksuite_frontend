@@ -95,6 +95,7 @@ export const navigationLinks = [
         { label: 'Notificaciones', to: '/settings/notifications' },
         { label: 'Seguridad', to: '/settings/security' },
         { label: 'Impuestos', to: '/settings/taxes' },
+        { label: 'Configuración Fiscal', to: '/settings/fiscal-config' },
         { label: 'Monedas', to: '/settings/monedas' }
       ]
     }

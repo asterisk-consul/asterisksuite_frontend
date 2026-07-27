@@ -63,7 +63,10 @@ function onSortFieldSelect(columnId: string) {
   sorting.value = [{ id: columnId, desc: current?.id === columnId ? !current.desc : false }]
 }
 
-const columns = currentAccountEntryColumns({ onSortFieldSelect })
+const columns = computed(() => currentAccountEntryColumns({
+  onSortFieldSelect,
+  partyType: account.value?.party_type
+}))
 
 const filterFields: FilterField[] = [
   { id: 'type', label: 'Filtrar por tipo...', class: 'w-40' },

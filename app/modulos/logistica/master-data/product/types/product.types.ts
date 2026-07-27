@@ -44,6 +44,12 @@ export interface Product {
   rate_id?: string | null
 
   taxId?: string | null
+  tax_category_id?: string | null
+  tax_category?: {
+    id: string
+    code: string
+    name: string
+  } | null
 
   active?: boolean | null
 
@@ -157,6 +163,7 @@ export interface CreateProductDto {
   rate_id?: string
 
   taxId?: string
+  tax_category_id?: string
 
   active?: boolean
 

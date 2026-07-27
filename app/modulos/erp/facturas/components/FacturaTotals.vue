@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import type { TaxSummary } from '../composable/useInvoiceCalculation'
+interface TaxSummary {
+  tax_id: string
+  name?: string
+  code?: string
+  rate?: number
+  amount: number
+  taxableBase?: number
+}
 
 interface Props {
   subtotal: number

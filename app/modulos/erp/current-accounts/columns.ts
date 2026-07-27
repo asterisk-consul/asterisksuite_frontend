@@ -1,3 +1,5 @@
+import { h } from 'vue'
+import { NuxtLink } from '#components'
 import type { CurrentAccountEntry } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
@@ -22,8 +24,24 @@ export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; 
   CREDIT: { label: 'Crédito', color: 'success', side: 'credit' }
 }
 
+function resolveReferenceLink(entry: CurrentAccountEntry, partyType?: string): { to: string; label: string } | null {
+  if (entry.payment_id || entry.reference_type === 'payment') {
+    const id = entry.payment_id ?? entry.reference_id
+    if (id) return { to: `/erp/treasury/payments/${id}`, label: 'Pago' }
+  }
+  if (entry.reference_type === 'document' || entry.reference_type === 'document_reversal') {
+    if (!entry.reference_id) return null
+    if (partyType === 'CUSTOMER') {
+      return { to: `/erp/sales/${entry.reference_id}`, label: 'Factura' }
+    }
+    return { to: `/erp/purchases/purchases-documents/${entry.reference_id}`, label: 'Factura' }
+  }
+  return null
+}
+
 export const currentAccountEntryColumns = (actions: {
   onSortFieldSelect?: (columnId: string) => void
+  partyType?: string
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({
     locale: 'es-AR',
@@ -60,6 +78,26 @@ export const currentAccountEntryColumns = (actions: {
               value
             }))
           }
+        }
+      },
+      {
+        key: 'reference',
+        label: 'Comprobante',
+        cell: ({ row }) => {
+          const link = resolveReferenceLink(row.original, actions?.partyType)
+          if (!link) return '—'
+          const text = row.original.description || link.label
+          return h(
+            NuxtLink,
+            {
+              to: link.to,
+              class: 'inline-flex items-center gap-1 text-primary hover:underline text-sm font-medium'
+            },
+            () => [
+              h('span', text),
+              h('i', { class: 'i-lucide-external-link text-xs' })
+            ]
+          )
         }
       },
       {
