@@ -18,6 +18,9 @@ import { useBusinessParties } from '~/modulos/logistica/master-data/bussiness-pa
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 
+// Currencies
+import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+
 // Document Types
 import { useDocumentsTypesStore } from '~/modulos/erp/documents/documents-types/store/documents-types.store'
 import { useDocumentsTypes } from '~/modulos/erp/documents/documents-types/composables/useDocumentsTypes'
@@ -42,6 +45,8 @@ const emit = defineEmits<{
   submit: [payload: any]
 }>()
 
+const toast = useToast()
+
 // ─── Stores ──────────────────────────────────────────
 const selectedBusinessParty = ref<BusinessParty | undefined>(undefined)
 const showBusinessPartiesModal = ref(false)
@@ -56,6 +61,7 @@ const { items: documentsTypes } = storeToRefs(documentsTypesStore)
 const partyType = computed(() => props.moduleCode === 'SALES' ? 'CUSTOMER' : 'SUPPLIER')
 const { items: partyOptions } = useBusinessParties(parties, partyType.value)
 const { items: productOptions } = useProducts(products)
+const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
 
 // Usar composable para filtrar tipos de documento por dirección + condición del emisor/receptor
 const moduleCode = computed(() => (props.moduleCode === 'SALES' ? 'SALES' : 'PURCHASES') as 'SALES' | 'PURCHASES')
@@ -121,6 +127,25 @@ async function fetchPreview() {
       }
     })
     lastPreview.value = result
+
+    // Escribir impuestos por línea del backend de vuelta a items
+    const previewItems = result.document?.items ?? []
+    previewItems.forEach((previewItem: any, idx: number) => {
+      if (items.value[idx]) {
+        items.value[idx].taxes = (previewItem.taxes ?? []).map((t: any) => ({
+          tax_id: t.tax_id,
+          name: t.name,
+          code: t.code,
+          tax_rate: t.rate,
+          tax_amount: t.amount,
+          is_included_in_price: t.isIncludedInPrice ?? false,
+          calculation_level: 'line'
+        }))
+        items.value[idx].total_taxes = previewItem.totalTaxes ?? 0
+        items.value[idx].subtotal = previewItem.price ?? items.value[idx].subtotal
+        items.value[idx].total = previewItem.total ?? items.value[idx].total
+      }
+    })
   } catch (e) {
     console.error('Preview error:', e)
     lastPreview.value = null
@@ -142,6 +167,7 @@ const subtotal = computed(() => lastPreview.value?.document?.subtotal ?? 0)
 const totalTaxes = computed(() => lastPreview.value?.document?.totalTaxes ?? 0)
 const total = computed(() => lastPreview.value?.document?.total ?? 0)
 const taxesSummary = computed(() => lastPreview.value?.document?.documentTaxes ?? [])
+const showTaxBreakdown = computed(() => lastPreview.value?.document?.settings?.showTaxBreakdown ?? true)
 
 // Watch para recalcular cuando cambien precios o cantidades
 watch(
@@ -153,6 +179,41 @@ watch(
     }
   },
   { deep: true }
+)
+
+// Watch para re-resolver precios cuando cambie la currency del documento
+watch(
+  () => form.currency_code,
+  (newCurrency, oldCurrency) => {
+    if (!newCurrency || !oldCurrency || newCurrency === oldCurrency) return
+    if (!items.value.length) return
+
+    items.value.forEach((item) => {
+      // Buscar el producto en el store
+      const product = products.value.find(p => p.id === item.product_id)
+      if (!product) return
+
+      // Buscar precio que coincida con la nueva currency
+      const priceRecord = (product.product_price ?? []).find(
+        (pp: any) => pp.currencies?.code === newCurrency
+      )
+
+      if (priceRecord) {
+        item.unit_price = Number(priceRecord.price ?? 0)
+      } else {
+        // No hay precio para esa currency → precio 0
+        item.unit_price = 0
+        toast.add({
+          title: 'Precio no disponible',
+          description: `El producto "${item.product_name}" no tiene precio en ${newCurrency}. Ingresá el precio manualmente.`,
+          color: 'warning'
+        })
+      }
+    })
+
+    // Re-calcular totales con el backend
+    fetchPreview()
+  }
 )
 
 // ─── Watch initialValues ──────────────────────────────────
@@ -269,6 +330,7 @@ onMounted(async () => {
     partiesStore.fetchAll(),
     productsStore.fetchAll(),
     documentsTypesStore.fetchAll(),
+    initCurrencies(),
     fetchIssuerCondition()
   ])
 })
@@ -295,8 +357,24 @@ const partyInfo = computed(() => {
 })
 
 function addItem(prod: any) {
-  const unitPrice = Number(prod.price ?? prod.data?.price ?? 0)
   const quantity = 1
+
+  // La currency del documento es la fuente de verdad
+  // Buscar precio que coincida con la currency del documento
+  const matchingPrice = prod.prices?.find(
+    (p: any) => p.code === form.currency_code
+  )
+
+  const unitPrice = matchingPrice?.amount ?? 0
+
+  // Warning si no hay precio para esa currency
+  if (!matchingPrice && prod.prices?.length > 0) {
+    toast.add({
+      title: 'Precio no disponible',
+      description: `El producto no tiene precio en ${form.currency_code}. Ingresá el precio manualmente.`,
+      color: 'warning'
+    })
+  }
 
   items.value.push({
     product_id: prod.value ?? prod.id ?? '',
@@ -356,9 +434,9 @@ defineExpose({ submit })
 
 <template>
   <div class="space-y-4">
-    <!-- Header: Party + Document Type + Date -->
+    <!-- Header: Party + Document Type + Currency + Date -->
     <UCard>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div class="flex gap-2">
           <USelectMenu
             v-model="selectedCustomer"
@@ -381,6 +459,12 @@ defineExpose({ submit })
           :items="documentTypeOptions"
           placeholder="Tipo de documento"
           class="w-full"
+        />
+
+        <USelect
+          v-model="form.currency_code"
+          :items="currencyOptions"
+          placeholder="Moneda"
         />
 
         <UInput v-model="form.date" type="date" label="Fecha" />
@@ -421,7 +505,7 @@ defineExpose({ submit })
     <!-- Totals -->
     <div class="sticky bottom-0 z-10">
       <UCard class="shadow-lg border-t-2 border-primary">
-        <FacturaTotals :subtotal="subtotal" :taxes="taxesSummary" :total="total" />
+        <FacturaTotals :subtotal="subtotal" :taxes="taxesSummary" :total="total" :show-breakdown="showTaxBreakdown" />
       </UCard>
     </div>
   </div>

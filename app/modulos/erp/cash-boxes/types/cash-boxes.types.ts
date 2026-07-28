@@ -43,6 +43,7 @@ export interface CashBox {
   id: string
   name: string
   type: CashBoxType
+  currency_code?: string | null
   responsible_id?: string | null
   opening_balance: number
   max_limit?: number | null
@@ -62,6 +63,7 @@ export interface CashBox {
 
 export interface CreateCashBoxInput {
   name: string
+  currency_code: string
   type?: CashBoxType
   responsible_id?: string
   opening_balance?: number

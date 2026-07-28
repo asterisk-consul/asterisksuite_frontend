@@ -18,6 +18,7 @@ const { mainCollapsed } = useSidebarState()
 const { printElement } = usePrint()
 
 const loading = ref(true)
+const isProcessing = ref(false)
 const confirmModalOpen = ref(false)
 const cancelModalOpen = ref(false)
 const statusModalOpen = ref(false)
@@ -102,6 +103,19 @@ const links = computed(() => {
     })
   }
 
+  // Confirmado → Ver cuenta corriente
+  if (isConfirmed.value && factura.value?.party_id) {
+    items.push({
+      label: 'Cuenta corriente',
+      icon: 'i-lucide-arrow-right-circle',
+      color: 'primary',
+      onClick: () => {
+        const currency = factura.value!.currency_code ?? 'ARS'
+        router.push(`/erp/treasury/current-accounts/${factura.value!.party_id}?currency=${currency}`)
+      }
+    })
+  }
+
   return items
 })
 
@@ -115,6 +129,8 @@ const statusOptions = computed(() => {
 })
 
 const handleStatusChange = async () => {
+  if (isProcessing.value) return
+  isProcessing.value = true
   try {
     await documentsSalesStore.update(route.params.id as string, { status: pendingStatus.value })
     const label = STATUS_LABELS[pendingStatus.value] ?? `Status ${pendingStatus.value}`
@@ -126,20 +142,27 @@ const handleStatusChange = async () => {
       description: e?.data?.message || e?.message,
       color: 'error'
     })
+  } finally {
+    isProcessing.value = false
   }
 }
 
 const handleConfirm = async () => {
+  if (isProcessing.value) return
+  isProcessing.value = true
   try {
     await documentsSalesStore.confirm(route.params.id as string)
     toast.add({ title: 'Factura confirmada', color: 'success' })
     confirmModalOpen.value = false
+    statusModalOpen.value = false
   } catch (e: any) {
     toast.add({
       title: 'Error al confirmar',
       description: e?.data?.message || e?.message,
       color: 'error'
     })
+  } finally {
+    isProcessing.value = false
   }
 }
 
@@ -153,16 +176,21 @@ const handleStatusOption = (opt: { value: number }) => {
 }
 
 const handleCancel = async () => {
+  if (isProcessing.value) return
+  isProcessing.value = true
   try {
     await documentsSalesStore.cancel(route.params.id as string)
     toast.add({ title: 'Factura anulada', color: 'success' })
     cancelModalOpen.value = false
+    statusModalOpen.value = false
   } catch (e: any) {
     toast.add({
       title: 'Error al anular',
       description: e?.data?.message || e?.message,
       color: 'error'
     })
+  } finally {
+    isProcessing.value = false
   }
 }
 </script>
@@ -216,6 +244,8 @@ const handleCancel = async () => {
           :color="opt.color as any"
           variant="outline"
           class="justify-start"
+          :loading="isProcessing"
+          :disabled="isProcessing"
           @click="handleStatusOption(opt)"
         />
       </div>
@@ -236,7 +266,7 @@ const handleCancel = async () => {
       <p class="text-sm text-muted mt-2">Una vez confirmada, no podrá ser editada.</p>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
-        <UButton label="Confirmar" color="success" @click="handleConfirm" />
+        <UButton label="Confirmar" color="success" :loading="isProcessing" :disabled="isProcessing" @click="handleConfirm" />
       </div>
     </template>
   </UModal>
@@ -252,7 +282,7 @@ const handleCancel = async () => {
       <p class="text-sm text-muted mt-2">Esta acción no se puede deshacer.</p>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="cancelModalOpen = false" />
-        <UButton label="Anular" color="error" @click="handleCancel" />
+        <UButton label="Anular" color="error" :loading="isProcessing" :disabled="isProcessing" @click="handleCancel" />
       </div>
     </template>
   </UModal>

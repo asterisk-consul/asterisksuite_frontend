@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
+import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import type { CreateCashBoxInput, CashBoxUserRole } from '~/modulos/erp/cash-boxes/types/cash-boxes.types'
 
 export interface CashBoxFormData {
   name: string
+  currency_code: string
   type: string
   opening_balance: number
   is_main: boolean
@@ -30,10 +32,12 @@ const emit = defineEmits<{
 }>()
 
 const { addUserRole, removeUserRole } = useCashBoxes()
+const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
 const toast = useToast()
 
 const defaultForm: CashBoxFormData = {
   name: '',
+  currency_code: 'ARS',
   type: 'FIXED',
   opening_balance: 0,
   is_main: false,
@@ -91,6 +95,10 @@ watch(
 watch(form, (val) => {
   emit('update:modelValue', { ...val })
 }, { deep: true })
+
+onMounted(() => {
+  initCurrencies()
+})
 
 const searchUsers = () => {
   if (userSearchTimeout.value) clearTimeout(userSearchTimeout.value)
@@ -252,9 +260,19 @@ const handleSubmit = () => {
       </UFormField>
     </div>
     <div class="grid grid-cols-2 gap-4">
+      <UFormField label="Moneda" name="currency_code" required>
+        <USelect
+          v-model="form.currency_code"
+          :items="currencyOptions"
+          placeholder="Seleccioná una moneda"
+          :disabled="isEdit"
+        />
+      </UFormField>
       <UFormField label="Saldo de apertura" name="opening_balance">
         <UInput v-model.number="form.opening_balance" type="number" />
       </UFormField>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
       <div class="flex items-end gap-4 pb-1">
         <UCheckbox v-model="form.is_main" label="Caja principal" />
         <UCheckbox v-model="form.active" label="Activa" />

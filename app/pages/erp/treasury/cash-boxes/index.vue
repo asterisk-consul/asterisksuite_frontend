@@ -62,6 +62,13 @@ const formatCurrency = (amount: number | string | null | undefined, currency = '
   }).format(num)
 }
 
+const getCurrencySymbol = (code: string): string => {
+  const symbols: Record<string, string> = {
+    ARS: '$', USD: 'US$', EUR: '€', BRL: 'R$', CLP: '$', UYU: '$U'
+  }
+  return symbols[code] ?? code
+}
+
 const formatDate = (date: string | null | undefined) => {
   if (!date) return '—'
   return new Date(date).toLocaleDateString('es-AR', {
@@ -95,18 +102,24 @@ const filteredBoxes = computed(() => {
 const openBoxes = computed(() => filteredBoxes.value.filter((b) => b.status === 'OPEN'))
 const closedBoxes = computed(() => filteredBoxes.value.filter((b) => b.status === 'CLOSED'))
 
-const totalBalance = computed(() => cashBoxes.value.reduce((sum, b) => sum + (Number(b.opening_balance) || 0), 0))
+const getCashBoxBalance = (box: any): number => {
+  if (!box.balances || box.balances.length === 0) return 0
+  const currencyBalance = box.balances.find((b: any) => b.currency_code === box.currency_code)
+  return Number(currencyBalance?.balance ?? 0)
+}
+
+const totalBalance = computed(() => cashBoxes.value.reduce((sum, b) => sum + getCashBoxBalance(b), 0))
 
 const openSessionsCount = computed(() => openBoxes.value.length)
 const needAttention = computed(() => openBoxes.value.filter((b) => isSessionFromDifferentDay(b)))
 
 const confirmDelete = (box: CashBox) => {
-  const balance = Number(box.opening_balance) || 0
+  const balance = getCashBoxBalance(box)
   if (balance !== 0) {
     // Has balance - show transfer modal first
     transferSourceBox.value = box
     transferForm.target_box_id = ''
-    transferForm.amount = balance
+    transferForm.amount = getCashBoxBalance(box)
     transferForm.notes = ''
     transferModalOpen.value = true
     return
@@ -191,7 +204,7 @@ const closeSessionModal = async (box: CashBox) => {
     expectedBalance.value =
       Number(session.opening_balance || 0) + Number(session.total_income || 0) - Number(session.total_expenses || 0)
   } else {
-    expectedBalance.value = Number(box.opening_balance || 0)
+    expectedBalance.value = getCashBoxBalance(box)
   }
   balanceDifference.value = 0
 
@@ -360,6 +373,13 @@ const goToEdit = (box: CashBox) => {
           <div class="flex items-center gap-2">
             <UBadge v-if="box.is_main" label="Principal" color="warning" variant="soft" size="xs" />
             <UBadge
+              v-if="box.currency_code"
+              :label="getCurrencySymbol(box.currency_code)"
+              color="info"
+              variant="soft"
+              size="xs"
+            />
+            <UBadge
               :label="box.status === 'OPEN' ? 'Abierta' : 'Cerrada'"
               :color="box.status === 'OPEN' ? 'success' : 'neutral'"
               variant="soft"
@@ -389,14 +409,14 @@ const goToEdit = (box: CashBox) => {
             <span class="text-xs text-success font-medium">Sesión activa</span>
           </div>
           <p class="text-xs text-muted">Abrió: {{ formatDate(box.current_session.opened_at) }}</p>
-          <p class="text-xs text-muted">Saldo apertura: {{ formatCurrency(box.current_session.opening_balance) }}</p>
+          <p class="text-xs text-muted">Saldo apertura: {{ formatCurrency(box.current_session.opening_balance, box.currency_code) }}</p>
         </div>
 
         <!-- Balance -->
         <div class="mb-4">
           <p class="text-xs text-muted font-medium uppercase mb-1">Saldo</p>
-          <p class="text-2xl font-bold" :class="Number(box.opening_balance) >= 0 ? 'text-foreground' : 'text-error'">
-            {{ formatCurrency(box.opening_balance) }}
+          <p class="text-2xl font-bold" :class="getCashBoxBalance(box) >= 0 ? 'text-foreground' : 'text-error'">
+            {{ formatCurrency(getCashBoxBalance(box), box.currency_code) }}
           </p>
         </div>
 
@@ -463,22 +483,22 @@ const goToEdit = (box: CashBox) => {
             <!-- EXPECTED BALANCE -->
             <div class="p-4 rounded-lg border border-default bg-muted/30">
               <p class="text-xs text-muted font-medium uppercase mb-2">Saldo esperado (según movimientos)</p>
-              <p class="text-2xl font-bold text-primary">{{ formatCurrency(expectedBalance) }}</p>
+              <p class="text-2xl font-bold text-primary">{{ formatCurrency(expectedBalance, sessionBox?.currency_code) }}</p>
               <div class="mt-2 space-y-1 text-xs text-muted">
                 <p>
                   Saldo apertura:
-                  {{ formatCurrency(sessionBox?.current_session?.opening_balance ?? sessionBox?.opening_balance ?? 0) }}
+                  {{ formatCurrency(sessionBox?.current_session?.opening_balance ?? sessionBox?.opening_balance ?? 0, sessionBox?.currency_code) }}
                 </p>
                 <p>
                   Ingresos:
                   <span class="text-success">
-                    +{{ formatCurrency(sessionBox?.current_session?.total_income ?? 0) }}
+                    +{{ formatCurrency(sessionBox?.current_session?.total_income ?? 0, sessionBox?.currency_code) }}
                   </span>
                 </p>
                 <p>
                   Egresos:
                   <span class="text-error">
-                    -{{ formatCurrency(sessionBox?.current_session?.total_expenses ?? 0) }}
+                    -{{ formatCurrency(sessionBox?.current_session?.total_expenses ?? 0, sessionBox?.currency_code) }}
                   </span>
                 </p>
               </div>
@@ -505,7 +525,7 @@ const goToEdit = (box: CashBox) => {
                   <span class="text-sm font-medium">Diferencia</span>
                 </div>
                 <span class="text-lg font-bold" :class="balanceDifference > 0 ? 'text-success' : 'text-error'">
-                  {{ balanceDifference > 0 ? '+' : '' }}{{ formatCurrency(balanceDifference) }}
+                  {{ balanceDifference > 0 ? '+' : '' }}{{ formatCurrency(balanceDifference, sessionBox?.currency_code) }}
                 </span>
               </div>
               <p class="text-xs mt-2" :class="balanceDifference > 0 ? 'text-success' : 'text-error'">
@@ -578,12 +598,12 @@ const goToEdit = (box: CashBox) => {
             color="warning"
             variant="subtle"
             title="La caja tiene saldo"
-            :description="`La caja ${transferSourceBox?.name} tiene un saldo de ${formatCurrency(transferSourceBox?.opening_balance ?? 0)}. Debe transferir este saldo a otra caja antes de eliminar.`"
+            :description="`La caja ${transferSourceBox?.name} tiene un saldo de ${formatCurrency(getCashBoxBalance(transferSourceBox), transferSourceBox?.currency_code)}. Debe transferir este saldo a otra caja antes de eliminar.`"
           />
 
           <div class="p-4 rounded-lg border border-default bg-muted/30">
             <p class="text-xs text-muted font-medium uppercase">Saldo a transferir</p>
-            <p class="text-xl font-bold text-primary">{{ formatCurrency(transferForm.amount) }}</p>
+            <p class="text-xl font-bold text-primary">{{ formatCurrency(transferForm.amount, transferSourceBox?.currency_code) }}</p>
           </div>
 
           <UFormField label="Caja destino" name="target_box_id" required>
@@ -591,7 +611,7 @@ const goToEdit = (box: CashBox) => {
               v-model="transferForm.target_box_id"
               :items="
                 availableTargetBoxes.map((b) => ({
-                  label: `${b.name} (${formatCurrency(b.opening_balance)})`,
+                    label: `${b.name} (${formatCurrency(getCashBoxBalance(b), b.currency_code)})`,
                   value: b.id
                 }))
               "

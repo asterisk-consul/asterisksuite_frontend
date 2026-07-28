@@ -44,6 +44,13 @@ export function useCurrencies() {
     }))
   )
 
+  const codeSelectItems = computed<SelectItem[]>(() =>
+    store.activeItems.map((currency) => ({
+      label: `${currency.symbol} ${currency.name}`,
+      value: currency.code
+    }))
+  )
+
   // =========================
   // HELPERS
   // =========================
@@ -72,6 +79,7 @@ export function useCurrencies() {
     // computed
     activeCurrencies: computed(() => store.activeItems),
     selectItems,
+    codeSelectItems,
 
     // helpers
     findById,

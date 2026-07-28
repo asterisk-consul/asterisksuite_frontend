@@ -12,9 +12,12 @@ interface Props {
   subtotal: number
   taxes: TaxSummary[]
   total: number
+  showBreakdown?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  showBreakdown: true
+})
 
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -37,26 +40,28 @@ const totalTaxes = computed(() =>
     </div>
 
     <!-- Taxes -->
-    <div
-      v-for="tax in taxes"
-      :key="tax.tax_id"
-      class="flex justify-between text-sm"
-    >
-      <span class="text-gray-500">
-        {{ tax.name }}
-        <span class="text-xs text-gray-400">({{ tax.rate }}%)</span>
-      </span>
-      <span class="text-gray-600 dark:text-gray-400">{{ fmt(tax.amount) }}</span>
-    </div>
+    <template v-if="showBreakdown">
+      <div
+        v-for="tax in taxes"
+        :key="tax.tax_id"
+        class="flex justify-between text-sm"
+      >
+        <span class="text-gray-500">
+          {{ tax.name }}
+          <span class="text-xs text-gray-400">({{ tax.rate }}%)</span>
+        </span>
+        <span class="text-gray-600 dark:text-gray-400">{{ fmt(tax.amount) }}</span>
+      </div>
 
-    <!-- Total impuestos -->
-    <div
-      v-if="taxes.length"
-      class="flex justify-between text-sm border-t pt-2"
-    >
-      <span class="text-gray-500">Total impuestos</span>
-      <span class="font-medium">{{ fmt(totalTaxes) }}</span>
-    </div>
+      <!-- Total impuestos -->
+      <div
+        v-if="taxes.length"
+        class="flex justify-between text-sm border-t pt-2"
+      >
+        <span class="text-gray-500">Total impuestos</span>
+        <span class="font-medium">{{ fmt(totalTaxes) }}</span>
+      </div>
+    </template>
 
     <!-- Total -->
     <div class="flex justify-between text-xl font-bold border-t-2 pt-3">

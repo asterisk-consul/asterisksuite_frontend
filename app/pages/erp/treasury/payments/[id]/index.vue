@@ -34,6 +34,7 @@ const {
 
 const paymentData = ref<PaymentFormData | null>(null)
 const currentPayment = ref<Payment | null>(null)
+const isProcessing = ref(false)
 const actionModalOpen = ref(false)
 const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse'>('confirm')
 
@@ -102,26 +103,32 @@ const openAction = (type: typeof actionType.value) => {
 }
 
 const handleAction = async () => {
+  if (isProcessing.value) return
   if (!currentPayment.value) return
 
-  switch (actionType.value) {
-    case 'confirm':
-      await confirmPayment(paymentId)
-      break
-    case 'pay':
-      await markAsPaid(paymentId)
-      break
-    case 'reject':
-      await reject(paymentId)
-      break
-    case 'reverse':
-      await reverse(paymentId)
-      break
-  }
+  isProcessing.value = true
+  try {
+    switch (actionType.value) {
+      case 'confirm':
+        await confirmPayment(paymentId)
+        break
+      case 'pay':
+        await markAsPaid(paymentId)
+        break
+      case 'reject':
+        await reject(paymentId)
+        break
+      case 'reverse':
+        await reverse(paymentId)
+        break
+    }
 
-  const updated = await fetchOne(paymentId)
-  if (updated) currentPayment.value = updated as Payment
-  actionModalOpen.value = false
+    const updated = await fetchOne(paymentId)
+    if (updated) currentPayment.value = updated as Payment
+    actionModalOpen.value = false
+  } finally {
+    isProcessing.value = false
+  }
 }
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -161,10 +168,10 @@ const statusConfig: Record<string, { label: string; color: string }> = {
           </span>
         </div>
         <div class="flex items-center gap-2">
-          <UButton v-if="isDraft" label="Confirmar" icon="i-lucide-check-circle" size="sm" color="info" @click="openAction('confirm')" />
-          <UButton v-if="isConfirmed" label="Marcar pagado" icon="i-lucide-check" size="sm" color="success" @click="openAction('pay')" />
-          <UButton v-if="isConfirmed" label="Rechazar" icon="i-lucide-x-circle" size="sm" color="warning" @click="openAction('reject')" />
-          <UButton v-if="isConfirmed || isPaid" label="Anular" icon="i-lucide-undo-2" size="sm" color="error" @click="openAction('reverse')" />
+          <UButton v-if="isDraft" label="Confirmar" icon="i-lucide-check-circle" size="sm" color="info" :loading="isProcessing" :disabled="isProcessing" @click="openAction('confirm')" />
+          <UButton v-if="isConfirmed" label="Marcar pagado" icon="i-lucide-check" size="sm" color="success" :loading="isProcessing" :disabled="isProcessing" @click="openAction('pay')" />
+          <UButton v-if="isConfirmed" label="Rechazar" icon="i-lucide-x-circle" size="sm" color="warning" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reject')" />
+          <UButton v-if="isConfirmed || isPaid" label="Anular" icon="i-lucide-undo-2" size="sm" color="error" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reverse')" />
         </div>
       </div>
 
@@ -192,6 +199,8 @@ const statusConfig: Record<string, { label: string; color: string }> = {
           <UButton
             :label="actionLabels[actionType]?.button"
             :color="(actionLabels[actionType]?.color as any)"
+            :loading="isProcessing"
+            :disabled="isProcessing"
             @click="handleAction"
           />
         </div>

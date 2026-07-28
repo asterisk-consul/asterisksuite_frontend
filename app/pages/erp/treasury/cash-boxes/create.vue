@@ -17,6 +17,7 @@ const handleSubmit = async (formData: CashBoxFormData) => {
   try {
     const created = await create({
       name: formData.name,
+      currency_code: formData.currency_code,
       type: formData.type as any,
       opening_balance: formData.opening_balance,
       is_main: formData.is_main,

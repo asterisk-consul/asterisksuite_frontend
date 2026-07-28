@@ -59,6 +59,8 @@ export interface Document {
 
   party_id: string | null
 
+  currency_code?: string | null
+
   date: string
 
   status: number
@@ -129,6 +131,8 @@ export interface FacturaFormValues {
   document_type_id: string
 
   party_id: string | null
+
+  currency_code?: string
 
   date: string
 

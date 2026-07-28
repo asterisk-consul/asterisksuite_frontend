@@ -11,6 +11,11 @@ export interface ProductSelectItem {
   label: string
   value: string
   price: number
+  currencyCode: string
+  prices: {
+    code: string
+    amount: number
+  }[]
   hasCostTemplate: boolean
   tax?: {
     id: string
@@ -50,13 +55,22 @@ export function useProducts() {
 
   const items = computed<ProductSelectItem[]>(() =>
     store.items.map((product) => {
-      const price = product.product_price?.[0]?.price ?? 0
+      const prices = (product.product_price ?? [])
+        .filter((pp: any) => pp.currencies?.code)
+        .map((pp: any) => ({
+          code: pp.currencies!.code as string,
+          amount: Number(pp.price ?? 0)
+        }))
+
+      const defaultPrice = prices[0]
       const tax = product.product_taxes?.[0]
 
       return {
         label: `${product.sku} - ${product.name}`,
         value: product.id,
-        price,
+        price: defaultPrice?.amount ?? 0,
+        currencyCode: defaultPrice?.code ?? 'ARS',
+        prices,
         hasCostTemplate: !!product.cost_template_id,
         tax: tax
           ? {

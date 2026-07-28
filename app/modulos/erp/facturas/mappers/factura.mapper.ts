@@ -85,6 +85,8 @@ export function mapDocumentToFacturaForm(
 
     party_id: document.party_id,
 
+    currency_code: document.currency_code ?? 'ARS',
+
     date: document.date
       ? new Date(document.date as string).toISOString().split('T')[0]
       : '',

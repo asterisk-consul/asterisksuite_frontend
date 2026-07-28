@@ -29,6 +29,7 @@ onMounted(async () => {
   if (data) {
     formData.value = {
       name: data.name,
+      currency_code: data.currency_code ?? 'ARS',
       type: data.type,
       opening_balance: Number(data.opening_balance),
       is_main: data.is_main,
