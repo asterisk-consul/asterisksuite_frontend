@@ -18,6 +18,7 @@ import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 
 const { payments, loading, init, confirm: confirmPayment, markAsPaid, reject, reverse, remove } = usePayments()
 const authStore = useAuthStore()
+const toast = useToast()
 const showCreator = computed(() => {
   const role = authStore.selectedCompany?.role
   return role === 'OWNER' || role === 'ADMIN'
@@ -58,25 +59,39 @@ const openAction = (type: typeof actionType.value, payment: Payment) => {
 const handleAction = async () => {
   if (!actionPayment.value) return
 
-  switch (actionType.value) {
-    case 'confirm':
-      await confirmPayment(actionPayment.value.id)
-      break
-    case 'pay':
-      await markAsPaid(actionPayment.value.id)
-      break
-    case 'reject':
-      await reject(actionPayment.value.id)
-      break
-    case 'reverse':
-      await reverse(actionPayment.value.id)
-      break
-    case 'delete':
-      await remove(actionPayment.value.id)
-      break
-  }
+  try {
+    switch (actionType.value) {
+      case 'confirm':
+        await confirmPayment(actionPayment.value.id)
+        break
+      case 'pay':
+        await markAsPaid(actionPayment.value.id)
+        break
+      case 'reject':
+        await reject(actionPayment.value.id)
+        break
+      case 'reverse':
+        await reverse(actionPayment.value.id)
+        break
+      case 'delete':
+        await remove(actionPayment.value.id)
+        break
+    }
 
-  actionModalOpen.value = false
+    actionModalOpen.value = false
+
+    toast.add({
+      title: actionLabels[actionType.value]?.title ?? 'Acción completada',
+      color: actionType.value === 'delete' ? 'warning' : 'success'
+    })
+  } catch (e: any) {
+    toast.add({
+      title: 'Error',
+      description: e?.data?.message || e?.message,
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  }
 }
 
 onMounted(() => init())

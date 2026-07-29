@@ -401,7 +401,7 @@ function submit() {
   // Usar el payload del último preview para enviar al backend
   const previewPayload = lastPreview.value?.document
 
-  emit('submit', {
+  const payload = {
     document_type_id: form.document_type_id,
     party_id: form.party_id,
     date: form.date,
@@ -418,7 +418,10 @@ function submit() {
         tax_amount: t.amount
       })) ?? []
     }))
-  })
+  }
+
+  console.log('[DEBUG] Purchase payload:', JSON.stringify(payload, null, 2))
+  emit('submit', payload)
 }
 
 const onEditBussinessParty = () => {

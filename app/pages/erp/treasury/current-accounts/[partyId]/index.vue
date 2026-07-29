@@ -10,6 +10,7 @@ import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vu
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
 import { currentAccountEntryColumns, ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
 import type { CurrentAccount } from '~/modulos/erp/current-accounts/types/current-accounts.types'
+import { useExcelExport } from '~/composables/useExcelExport'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -18,6 +19,7 @@ const router = useRouter()
 const toast = useToast()
 
 const { statement, entries: storeEntries, loading, fetchStatement, fetchEntries } = useCurrentAccounts()
+const { exportToExcel } = useExcelExport()
 
 const partyId = route.params.partyId as string
 const currencyCode = (route.query.currency as string) || 'ARS'
@@ -32,17 +34,40 @@ const entries = computed(() => {
   return [...list].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 })
 
+const entriesChronological = computed(() => {
+  const typePriority: Record<string, number> = {
+    INVOICE: 1, DEBIT_NOTE: 2, CREDIT_NOTE: 3,
+    PAYMENT: 10, COLLECTION: 10
+  }
+  return [...entries.value].sort((a, b) => {
+    const dateA = new Date(a.date).getTime()
+    const dateB = new Date(b.date).getTime()
+    if (dateA !== dateB) return dateA - dateB
+    return (typePriority[a.type] ?? 10) - (typePriority[b.type] ?? 10)
+  })
+})
+
 const balance = computed(() => Number(statement.value?.balance ?? 0))
+
+const resolveSide = (type: string, partyType: string): 'debit' | 'credit' => {
+  // Convención CONTABLE para mostrar en columnas:
+  // CLIENTE: Factura = Débito (nos deben), Cobro = Crédito (nos pagaron)
+  // PROVEEDOR: Factura = Crédito (les debemos), Pago = Débito (les pagamos)
+  if (type === 'INVOICE') return partyType === 'SUPPLIER' ? 'credit' : 'debit'
+  if (type === 'CREDIT_NOTE') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
+  if (type === 'PAYMENT' || type === 'COLLECTION') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
+  return ENTRY_TYPE_CONFIG[type]?.side ?? 'debit'
+}
 
 const totalDebit = computed(() =>
   entries.value
-    .filter((e) => ENTRY_TYPE_CONFIG[e.type]?.side === 'debit')
+    .filter((e) => resolveSide(e.type, account.value?.party_type ?? '') === 'debit')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
 )
 
 const totalCredit = computed(() =>
   entries.value
-    .filter((e) => ENTRY_TYPE_CONFIG[e.type]?.side === 'credit')
+    .filter((e) => resolveSide(e.type, account.value?.party_type ?? '') === 'credit')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
 )
 
@@ -104,8 +129,61 @@ const balanceLabel = computed(() => {
 
 const partyTypeLabel = computed(() => (account.value?.party_type === 'CUSTOMER' ? 'Cliente' : 'Proveedor'))
 
+const exportEntries = () => {
+  const partyName = account.value?.party?.name ?? 'tercero'
+  exportToExcel({
+    filename: `movimientos_${partyName.replace(/\s+/g, '_')}_${currencyCode}`,
+    sheetName: 'Movimientos',
+    columns: [
+      { key: 'date', label: 'Fecha', width: 18, format: (v) => v ? new Date(v).toLocaleDateString('es-AR') : '' },
+      { key: 'type_label', label: 'Tipo', width: 20 },
+      { key: 'debit', label: 'Débito', width: 15, format: (v) => v ? formatCurrency(v) : '' },
+      { key: 'credit', label: 'Crédito', width: 15, format: (v) => v ? formatCurrency(v) : '' },
+      { key: 'balance_after', label: 'Saldo', width: 15, format: (v) => formatCurrency(v) },
+      { key: 'description', label: 'Descripción', width: 30 },
+    ],
+    data: entriesChronological.value.map(e => ({
+      ...e,
+      type_label: ENTRY_TYPE_CONFIG[e.type]?.label ?? e.type,
+      debit: resolveSide(e.type, account.value?.party_type ?? '') === 'debit' ? Number(e.amount) : null,
+      credit: resolveSide(e.type, account.value?.party_type ?? '') === 'credit' ? Number(e.amount) : null,
+    }))
+  })
+}
+
 const goBack = () => {
   router.push('/erp/treasury/current-accounts')
+}
+
+const printStatement = () => {
+  const partyName = account.value?.party?.name ?? 'Tercero'
+  const entriesHtml = entriesChronological.value.map(e => {
+    const config = ENTRY_TYPE_CONFIG[e.type]
+    const isDebit = resolveSide(e.type, account.value?.party_type ?? '') === 'debit'
+    return `<tr>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee">${new Date(e.date).toLocaleDateString('es-AR')}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee">${config?.label ?? e.type}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${isDebit ? formatCurrency(e.amount) : ''}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${!isDebit ? formatCurrency(e.amount) : ''}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold">${formatCurrency(e.balance_after)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee">${e.description || ''}</td>
+    </tr>`
+  }).join('')
+
+  const html = `<!DOCTYPE html><html><head><title>Estado de Cuenta - ${partyName}</title>
+    <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#f5f5f5;padding:6px 8px;border-bottom:2px solid #ddd;text-align:left}.header{display:flex;justify-content:space-between;margin-bottom:20px}.balance{font-size:18px;font-weight:bold}</style>
+  </head><body>
+    <div class="header">
+      <div><h2>Estado de Cuenta</h2><p>${partyName} — ${currencyCode}</p><p>${partyTypeLabel.value}</p></div>
+      <div style="text-align:right"><p>Fecha: ${new Date().toLocaleDateString('es-AR')}</p><p class="balance ${balanceColor.value}">Saldo: ${formatCurrency(balance.value)}</p></div>
+    </div>
+    <table><thead><tr><th>Fecha</th><th>Tipo</th><th style="text-align:right">Débito</th><th style="text-align:right">Crédito</th><th style="text-align:right">Saldo</th><th>Descripción</th></tr></thead><tbody>${entriesHtml}</tbody></table>
+  </body></html>`
+
+  const printWindow = window.open('', '_blank')
+  printWindow?.document.write(html)
+  printWindow?.document.close()
+  printWindow?.print()
 }
 
 const nuevoMovimientoItems = [
@@ -228,6 +306,18 @@ const entryTypePieData = computed(() => {
             icon="i-lucide-arrow-left"
             variant="ghost"
             @click="goBack"
+          />
+          <UButton
+            label="Exportar Excel"
+            icon="i-lucide-download"
+            variant="outline"
+            @click="exportEntries"
+          />
+          <UButton
+            label="Imprimir"
+            icon="i-lucide-printer"
+            variant="outline"
+            @click="printStatement"
           />
           <UDropdownMenu :items="nuevoMovimientoItems">
             <UButton

@@ -103,6 +103,22 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
     }
   }
 
+  // =========================
+  // ALL (with filters)
+  // =========================
+
+  const allAccounts = ref<CurrentAccount[]>([])
+
+  const fetchAll = async (params?: { party_type?: string; currency_code?: string; balance_filter?: string }) => {
+    try {
+      loading.value = true
+      allAccounts.value = await service.findAll(params)
+      return allAccounts.value
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     // state
     accounts,
@@ -110,6 +126,7 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
     statement,
     currentBalance,
     activeAccounts,
+    allAccounts,
     loading,
 
     // actions
@@ -118,6 +135,7 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
     fetchStatement,
     fetchBalance,
     addEntry,
-    fetchActive
+    fetchActive,
+    fetchAll
   }
 })

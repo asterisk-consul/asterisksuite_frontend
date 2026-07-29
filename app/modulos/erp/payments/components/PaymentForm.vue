@@ -2,6 +2,8 @@
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
 import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
+import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import DataPicker from '~/components/ui/DataPicker.vue'
 import type { PendingDocument, AvailableCheck } from '~/modulos/erp/payments/service/payments.service'
 import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
@@ -38,9 +40,11 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const { cashBoxes, init: initCashBoxes } = useCashBoxes()
+const { cashBoxes, init: initCashBoxes, openSession, getSessions } = useCashBoxes()
 const { bankAccounts, selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
 const { createLightCheck, fetchAvailableOwnChecks, fetchAvailableCustomerChecks } = usePayments()
+const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
+const toast = useToast()
 
 const defaultForm: PaymentFormData = {
   type: 'PAYMENT',
@@ -62,6 +66,16 @@ const selectedDocs = ref<Map<string, { doc: PendingDocument; amount: number }>>(
 const selectedChecks = ref<Map<string, AvailableCheck>>(new Map())
 const docSearch = ref('')
 const checkModalOpen = ref(false)
+
+// Session open modal
+const openSessionModalOpen = ref(false)
+const openingBox = ref<any>(null)
+const openingBalance = ref(0)
+const openingSaving = ref(false)
+
+onMounted(() => {
+  initCurrencies()
+})
 
 watch(
   () => props.modelValue,
@@ -111,6 +125,11 @@ const selectedPaymentMethod = computed({
   set: (val: any) => { form.payment_method = val?.value ?? 'CASH' }
 })
 
+const selectedCurrency = computed({
+  get: () => currencyOptions.value.find(o => o.value === form.currency_code) ?? currencyOptions.value[0],
+  set: (val: any) => { form.currency_code = val?.value ?? 'ARS' }
+})
+
 const isCollection = computed(() => form.type === 'COLLECTION')
 const isPayment = computed(() => form.type === 'PAYMENT')
 const isCheck = computed(() => form.payment_method === 'CHECK')
@@ -133,9 +152,23 @@ const filteredDocs = computed(() => {
 })
 
 const availableChecks = computed(() => {
-  return isCollection.value
+  const checks = isCollection.value
     ? (props.availableCustomerChecks ?? [])
     : (props.availableOwnChecks ?? [])
+  if (!form.currency_code) return checks
+  return checks.filter(c => c.currency_code === form.currency_code)
+})
+
+const filteredCashBoxes = computed(() => {
+  if (!form.currency_code) return cashBoxes.value
+  return cashBoxes.value.filter(cb =>
+    cb.balances?.some(b => b.currency_code === form.currency_code)
+  )
+})
+
+const filteredBankAccounts = computed(() => {
+  if (!form.currency_code) return bankAccounts.value
+  return bankAccounts.value.filter(ba => ba.currency_code === form.currency_code)
 })
 
 const totalApplied = computed(() => {
@@ -175,6 +208,13 @@ watch(selectedPaymentMethod, async (val) => {
   form.bank_account_id = ''
 })
 
+watch(() => form.currency_code, () => {
+  form.cash_box_id = ''
+  form.bank_account_id = ''
+  selectedChecks.value.clear()
+  form.check_ids = []
+})
+
 watch(selectedType, async (val) => {
   selectedDocs.value.clear()
   docSearch.value = ''
@@ -204,12 +244,57 @@ const selectCheck = (check: AvailableCheck) => {
 const isCheckSelected = (id: string) => selectedChecks.value.has(id)
 
 const selectCashBox = (id: string) => {
+  const box = cashBoxes.value.find(b => b.id === id)
+  if (box?.status === 'CLOSED') return
   form.cash_box_id = id
 }
 
-const getCashBoxBalance = (cb: any): number => {
-  if (!cb.balances || cb.balances.length === 0) return 0
-  return cb.balances.reduce((sum: number, b: any) => sum + Number(b.balance), 0)
+const openBoxSession = async (box: any) => {
+  openingBox.value = box
+  try {
+    const sessions = await getSessions(box.id)
+    const lastSession = sessions.length > 0 ? sessions[0] : null
+    openingBalance.value = lastSession?.closing_balance ?? 0
+  } catch {
+    openingBalance.value = 0
+  }
+  openSessionModalOpen.value = true
+}
+
+const handleOpenSession = async () => {
+  if (!openingBox.value) return
+  openingSaving.value = true
+  try {
+    await openSession(openingBox.value.id, { opening_balance: openingBalance.value })
+    toast.add({ title: 'Sesión abierta', color: 'success' })
+    await initCashBoxes()
+    openSessionModalOpen.value = false
+    form.cash_box_id = openingBox.value.id
+  } catch (e: any) {
+    toast.add({
+      title: 'Error al abrir sesión',
+      description: e?.data?.message || e?.message,
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  } finally {
+    openingSaving.value = false
+  }
+}
+
+const getCashBoxBalances = (cb: any): { currency_code: string; balance: number }[] => {
+  if (!cb.balances || cb.balances.length === 0) return []
+  return cb.balances.map((b: any) => ({
+    currency_code: b.currency_code,
+    balance: Number(b.balance)
+  }))
+}
+
+const getCurrencySymbol = (code: string): string => {
+  const symbols: Record<string, string> = {
+    ARS: '$', USD: 'US$', EUR: '€', BRL: 'R$', CLP: '$', UYU: '$U'
+  }
+  return symbols[code] ?? code
 }
 
 const selectBankAccount = (id: string) => {
@@ -345,7 +430,7 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
         <USelectMenu v-model="selectedType" :items="typeOptions" />
       </UFormField>
       <UFormField label="Fecha" name="date" required>
-        <UInput v-model="form.date" type="date" />
+        <DataPicker v-model="form.date" />
       </UFormField>
     </div>
     <div class="grid grid-cols-2 gap-4">
@@ -353,19 +438,19 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
         <USelectMenu v-model="selectedPaymentMethod" :items="paymentMethods" />
       </UFormField>
       <UFormField label="Moneda" name="currency_code">
-        <UInput v-model="form.currency_code" />
+        <USelectMenu v-model="selectedCurrency" :items="currencyOptions" placeholder="Seleccionar moneda" />
       </UFormField>
     </div>
 
     <!-- SELECTOR DE CAJA (EFECTIVO) -->
     <div v-if="selectedPaymentMethod?.value === 'CASH'" class="border border-default rounded-lg p-4 space-y-3">
       <h4 class="text-sm font-medium">Seleccionar caja</h4>
-      <div v-if="cashBoxes.length === 0" class="text-center py-4 text-muted text-sm">
-        No hay cajas disponibles
+      <div v-if="filteredCashBoxes.length === 0" class="text-center py-4 text-muted text-sm">
+        {{ form.currency_code ? `No hay cajas con saldo en ${form.currency_code}` : 'No hay cajas disponibles' }}
       </div>
       <div v-else class="max-h-48 overflow-y-auto space-y-2">
         <div
-          v-for="cb in cashBoxes"
+          v-for="cb in filteredCashBoxes"
           :key="cb.id"
           class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
           :class="form.cash_box_id === cb.id ? 'border-primary bg-primary/5' : 'border-default hover:border-muted'"
@@ -379,9 +464,33 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
                 :color="cb.is_main ? 'primary' : 'gray'"
                 size="xs"
               />
+              <UBadge
+                :label="cb.status === 'OPEN' ? 'Abierta' : 'Cerrada'"
+                :color="cb.status === 'OPEN' ? 'success' : 'warning'"
+                size="xs"
+              />
             </div>
             <div class="text-xs text-muted mt-1">
-              Saldo: <span class="font-semibold text-primary">{{ formatCurrency(getCashBoxBalance(cb), form.currency_code) }}</span>
+              <div v-if="getCashBoxBalances(cb).length === 0" class="font-semibold text-primary">
+                Sin saldo
+              </div>
+              <div v-else class="flex flex-wrap gap-x-3 gap-y-0.5">
+                <span v-for="bal in getCashBoxBalances(cb)" :key="bal.currency_code" class="inline-flex items-center gap-1.5 font-semibold text-primary">
+                  <UBadge :label="bal.currency_code" size="xs" variant="soft" color="info" />
+                  {{ formatCurrency(bal.balance, bal.currency_code) }}
+                </span>
+              </div>
+            </div>
+            <div v-if="cb.status === 'CLOSED'" class="mt-2">
+              <p class="text-xs text-warning mb-1">La caja está cerrada. Debe abrirla antes de usar.</p>
+              <UButton
+                label="Abrir sesión"
+                icon="i-lucide-lock-open"
+                color="success"
+                variant="outline"
+                size="xs"
+                @click.stop="openBoxSession(cb)"
+              />
             </div>
           </div>
           <div v-if="form.cash_box_id === cb.id" class="text-primary">
@@ -405,7 +514,7 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
         </div>
       </div>
       <div v-if="availableChecks.length === 0" class="text-center py-4 text-muted text-sm">
-        No hay cheques disponibles. Cree uno nuevo con el botón de arriba.
+        {{ form.currency_code ? `No hay cheques en ${form.currency_code}. Cree uno nuevo con el botón de arriba.` : 'No hay cheques disponibles. Cree uno nuevo con el botón de arriba.' }}
       </div>
       <div v-else class="max-h-64 overflow-y-auto space-y-2">
         <div
@@ -438,12 +547,12 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
     <!-- SELECTOR DE CUENTA BANCARIA (TRANSFERENCIA) -->
     <div v-if="selectedPaymentMethod?.value === 'BANK_TRANSFER'" class="border border-default rounded-lg p-4 space-y-3">
       <h4 class="text-sm font-medium">Seleccionar cuenta bancaria</h4>
-      <div v-if="bankAccounts.length === 0" class="text-center py-4 text-muted text-sm">
-        No hay cuentas bancarias disponibles
+      <div v-if="filteredBankAccounts.length === 0" class="text-center py-4 text-muted text-sm">
+        {{ form.currency_code ? `No hay cuentas bancarias en ${form.currency_code}` : 'No hay cuentas bancarias disponibles' }}
       </div>
       <div v-else class="max-h-48 overflow-y-auto space-y-2">
         <div
-          v-for="ba in bankAccounts"
+          v-for="ba in filteredBankAccounts"
           :key="ba.id"
           class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
           :class="form.bank_account_id === ba.id ? 'border-primary bg-primary/5' : 'border-default hover:border-muted'"
@@ -548,5 +657,23 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       :bank-account-items="bankAccountItems"
       @success="handleCheckCreated"
     />
+
+    <!-- SESSION OPEN MODAL -->
+    <UModal v-model:open="openSessionModalOpen" title="Abrir sesión de caja">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-muted">
+            Caja: <strong>{{ openingBox?.name }}</strong>
+          </p>
+          <UFormField label="Saldo de apertura" name="opening_balance" required>
+            <UInput v-model.number="openingBalance" type="number" />
+          </UFormField>
+          <div class="flex justify-end gap-2 pt-4">
+            <UButton label="Cancelar" variant="ghost" @click="openSessionModalOpen = false" />
+            <UButton label="Abrir sesión" color="success" :loading="openingSaving" @click="handleOpenSession" />
+          </div>
+        </div>
+      </template>
+    </UModal>
   </form>
 </template>

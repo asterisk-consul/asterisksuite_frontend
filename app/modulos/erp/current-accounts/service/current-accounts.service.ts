@@ -46,12 +46,20 @@ export const useCurrentAccountsService = () => {
     })
   }
 
+  const findAll = (params?: { party_type?: string; currency_code?: string; balance_filter?: string }) => {
+    return $fetch<CurrentAccount[]>(urlBase, {
+      method: 'GET',
+      query: params,
+    })
+  }
+
   return {
     addEntry,
     findByParty,
     getEntries,
     getStatement,
     getBalance,
-    findActive
+    findActive,
+    findAll
   }
 }

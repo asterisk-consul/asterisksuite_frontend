@@ -24,6 +24,16 @@ export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; 
   CREDIT: { label: 'Crédito', color: 'success', side: 'credit' }
 }
 
+function resolveSide(type: string, partyType?: string): 'debit' | 'credit' {
+  // Convención CONTABLE para mostrar en columnas:
+  // CLIENTE: Factura = Débito (nos deben), Cobro = Crédito (nos pagaron)
+  // PROVEEDOR: Factura = Crédito (les debemos), Pago = Débito (les pagamos)
+  if (type === 'INVOICE') return partyType === 'SUPPLIER' ? 'credit' : 'debit'
+  if (type === 'CREDIT_NOTE') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
+  if (type === 'PAYMENT' || type === 'COLLECTION') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
+  return ENTRY_TYPE_CONFIG[type]?.side ?? 'debit'
+}
+
 function resolveReferenceLink(entry: CurrentAccountEntry, partyType?: string): { to: string; label: string } | null {
   if (entry.payment_id || entry.reference_type === 'payment') {
     const id = entry.payment_id ?? entry.reference_id
@@ -110,8 +120,7 @@ export const currentAccountEntryColumns = (actions: {
         key: 'debit',
         label: 'Debito',
         cell: ({ row }) => {
-          const config = ENTRY_TYPE_CONFIG[row.original.type]
-          if (config?.side !== 'debit') return '—'
+          if (resolveSide(row.original.type, actions?.partyType) !== 'debit') return '—'
           const value = row.original.amount
           if (value == null) return '—'
           return new Intl.NumberFormat('es-AR', {
@@ -125,8 +134,7 @@ export const currentAccountEntryColumns = (actions: {
         key: 'credit',
         label: 'Credito',
         cell: ({ row }) => {
-          const config = ENTRY_TYPE_CONFIG[row.original.type]
-          if (config?.side !== 'credit') return '—'
+          if (resolveSide(row.original.type, actions?.partyType) !== 'credit') return '—'
           const value = row.original.amount
           if (value == null) return '—'
           return new Intl.NumberFormat('es-AR', {

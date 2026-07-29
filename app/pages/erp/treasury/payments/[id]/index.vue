@@ -11,6 +11,7 @@ import type { Payment } from '~/modulos/erp/payments/types/payments.types'
 
 const route = useRoute()
 const router = useRouter()
+const toast = useToast()
 const paymentId = route.params.id as string
 
 const {
@@ -92,8 +93,14 @@ const handleSubmit = async (formData: PaymentFormData) => {
       documents: formData.documents?.length ? formData.documents : undefined,
     })
     currentPayment.value = updated as Payment
-  } catch (error) {
-    console.error(error)
+    toast.add({ title: 'Pago actualizado', color: 'success' })
+  } catch (error: any) {
+    toast.add({
+      title: 'Error al guardar',
+      description: error?.data?.message || error?.message,
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
   }
 }
 
@@ -126,6 +133,18 @@ const handleAction = async () => {
     const updated = await fetchOne(paymentId)
     if (updated) currentPayment.value = updated as Payment
     actionModalOpen.value = false
+
+    toast.add({
+      title: actionLabels[actionType.value]?.title ?? 'Acción completada',
+      color: 'success'
+    })
+  } catch (e: any) {
+    toast.add({
+      title: 'Error',
+      description: e?.data?.message || e?.message,
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
   } finally {
     isProcessing.value = false
   }
@@ -160,6 +179,36 @@ const statusConfig: Record<string, { label: string; color: string }> = {
             :label="statusConfig[currentPayment.status]?.label ?? currentPayment.status"
             :color="(statusConfig[currentPayment.status]?.color as any) ?? 'neutral'"
           />
+          <UPopover mode="hover" :open-delay="300" :close-delay="300">
+            <UButton icon="i-lucide-help-circle" color="neutral" variant="ghost" size="xs" class="px-1" />
+            <template #content>
+              <div class="p-3 max-w-xs space-y-2 text-sm">
+                <p class="font-medium">Estados del pago</p>
+                <div class="space-y-1.5 text-xs">
+                  <p class="flex items-start gap-1.5">
+                    <UBadge label="Borrador" color="neutral" size="xs" class="mt-0.5 shrink-0" />
+                    <span>Pago creado, editable. Aún no se aplicaron efectos.</span>
+                  </p>
+                  <p class="flex items-start gap-1.5">
+                    <UBadge label="Confirmado" color="info" size="xs" class="mt-0.5 shrink-0" />
+                    <span>Efectos aplicados: documentos saldados, caja/banco movido, cuenta corriente actualizada.</span>
+                  </p>
+                  <p class="flex items-start gap-1.5">
+                    <UBadge label="Pagado" color="success" size="xs" class="mt-0.5 shrink-0" />
+                    <span>Confirmación de que el dinero fue efectivamente entregado/recibido.</span>
+                  </p>
+                  <p class="flex items-start gap-1.5">
+                    <UBadge label="Rechazado" color="warning" size="xs" class="mt-0.5 shrink-0" />
+                    <span>Se revertirán todos los efectos aplicados.</span>
+                  </p>
+                  <p class="flex items-start gap-1.5">
+                    <UBadge label="Anulado" color="error" size="xs" class="mt-0.5 shrink-0" />
+                    <span>Pago cancelado definitivamente. Todos los efectos revertidos.</span>
+                  </p>
+                </div>
+              </div>
+            </template>
+          </UPopover>
           <span v-if="currentPayment.confirmed_at" class="text-xs text-muted">
             Confirmado el {{ new Date(currentPayment.confirmed_at).toLocaleDateString('es-AR') }}
           </span>

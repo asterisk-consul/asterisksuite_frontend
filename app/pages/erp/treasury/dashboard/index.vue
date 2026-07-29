@@ -47,7 +47,13 @@ const statCards = computed(() => {
   if (!d) return []
 
   const totalBankBalance = (d.bank_accounts ?? []).reduce((sum, a) => (Number(a.balance) || 0) + sum, 0)
-  const totalCashBalance = (d.cash_boxes ?? []).reduce((sum, c) => (Number(c.balance) || 0) + sum, 0)
+
+  const cashBoxesByCurrency: Record<string, number> = {}
+  for (const cb of (d.cash_boxes ?? [])) {
+    const code = cb.currency_code || 'ARS'
+    cashBoxesByCurrency[code] = (cashBoxesByCurrency[code] || 0) + (Number(cb.balance) || 0)
+  }
+  const cashBoxesTotal = Object.values(cashBoxesByCurrency).reduce((s, v) => s + v, 0)
 
   return [
     {
@@ -59,7 +65,10 @@ const statCards = computed(() => {
     },
     {
       label: 'Saldo cajas',
-      value: formatCurrency(totalCashBalance),
+      value: Object.entries(cashBoxesByCurrency)
+        .map(([c, a]) => formatCurrency(a, c))
+        .join(' | '),
+      sub: cashBoxesTotal > 0 ? `${Object.keys(cashBoxesByCurrency).length} moneda(s)` : 'Sin saldos',
       icon: 'i-lucide-wallet',
       color: 'success' as const,
       to: '/erp/treasury/cash-boxes'

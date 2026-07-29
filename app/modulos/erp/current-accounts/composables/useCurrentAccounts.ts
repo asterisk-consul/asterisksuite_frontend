@@ -28,6 +28,9 @@ export function useCurrentAccounts() {
 
   const fetchActive = async () => store.fetchActive()
 
+  const fetchAll = async (params?: { party_type?: string; currency_code?: string; balance_filter?: string }) =>
+    store.fetchAll(params)
+
   // =========================
   // RETURN
   // =========================
@@ -39,6 +42,7 @@ export function useCurrentAccounts() {
     statement: computed(() => store.statement),
     currentBalance: computed(() => store.currentBalance),
     activeAccounts: computed(() => store.activeAccounts),
+    allAccounts: computed(() => store.allAccounts),
     loading: computed(() => store.loading),
 
     // actions
@@ -47,6 +51,7 @@ export function useCurrentAccounts() {
     fetchStatement,
     fetchBalance,
     addEntry,
-    fetchActive
+    fetchActive,
+    fetchAll
   }
 }

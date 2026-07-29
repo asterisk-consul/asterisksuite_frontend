@@ -8,9 +8,11 @@ import type { ButtonProps } from '@nuxt/ui'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
 import type { BankAccount, CreateBankAccountInput } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 import { useExcelExport } from '~/composables/useExcelExport'
+import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 
 const { bankAccounts, loading, init, create, update, remove } = useBankAccounts()
 const { exportToExcel } = useExcelExport()
+const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
 const router = useRouter()
 
 const modalOpen = ref(false)
@@ -31,7 +33,10 @@ const form = reactive<CreateBankAccountInput>({
   active: true
 })
 
-onMounted(() => init())
+onMounted(() => {
+  init()
+  initCurrencies()
+})
 
 const formatCurrency = (amount: number | string | null | undefined, currency = 'ARS') => {
   const num = Number(amount) || 0
@@ -124,10 +129,14 @@ const goToDetail = (account: BankAccount) => {
 
 const handleSubmit = async () => {
   try {
+    const payload = {
+      ...form,
+      balance: Number(form.balance) || 0,
+    }
     if (editingAccount.value) {
-      await update(editingAccount.value.id, { ...form })
+      await update(editingAccount.value.id, payload)
     } else {
-      await create({ ...form })
+      await create(payload)
     }
     modalOpen.value = false
   } catch (error) {
@@ -182,6 +191,16 @@ const accountTypes = [
   { label: 'Cuenta sueldo', value: 'SALARY' },
   { label: 'Otra', value: 'OTHER' }
 ]
+
+const selectedCurrency = computed({
+  get: () => currencyOptions.value.find(o => o.value === form.currency_code) ?? currencyOptions.value[0],
+  set: (val: any) => { form.currency_code = val?.value ?? 'ARS' }
+})
+
+const selectedAccountType = computed({
+  get: () => accountTypes.find(o => o.value === form.account_type) ?? accountTypes[0],
+  set: (val: any) => { form.account_type = val?.value ?? 'SAVINGS' }
+})
 </script>
 
 <template>
@@ -324,10 +343,10 @@ const accountTypes = [
           </UFormField>
           <div class="grid grid-cols-2 gap-4">
             <UFormField label="Tipo" name="account_type">
-              <USelectMenu v-model="form.account_type" :items="accountTypes" />
+              <USelectMenu v-model="selectedAccountType" :items="accountTypes" />
             </UFormField>
             <UFormField label="Moneda" name="currency_code">
-              <UInput v-model="form.currency_code" placeholder="ARS" />
+              <USelectMenu v-model="selectedCurrency" :items="currencyOptions" placeholder="Seleccionar moneda" />
             </UFormField>
           </div>
           <div class="grid grid-cols-2 gap-4">

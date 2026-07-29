@@ -96,6 +96,7 @@ export async function apiProxy(
     console.log('[FETCH] →', method, url)
     console.log('[FETCH] x-tenant:', tenant)
     console.log('[FETCH] token:', token?.slice(0, 20))
+    console.log('[FETCH] body:', JSON.stringify(options.body)?.substring(0, 500))
 
     return await $fetch(url, {
       method,

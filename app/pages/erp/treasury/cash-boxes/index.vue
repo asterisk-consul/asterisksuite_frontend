@@ -108,7 +108,16 @@ const getCashBoxBalance = (box: any): number => {
   return Number(currencyBalance?.balance ?? 0)
 }
 
-const totalBalance = computed(() => cashBoxes.value.reduce((sum, b) => sum + getCashBoxBalance(b), 0))
+const totalsByCurrency = computed(() => {
+  const map: Record<string, number> = {}
+  for (const box of cashBoxes.value) {
+    if (!box.balances || box.balances.length === 0) continue
+    for (const bal of box.balances) {
+      map[bal.currency_code] = (map[bal.currency_code] || 0) + Number(bal.balance)
+    }
+  }
+  return map
+})
 
 const openSessionsCount = computed(() => openBoxes.value.length)
 const needAttention = computed(() => openBoxes.value.filter((b) => isSessionFromDifferentDay(b)))
@@ -322,7 +331,13 @@ const goToEdit = (box: CashBox) => {
         </div>
         <div>
           <p class="text-xs text-muted font-medium uppercase">Saldo total</p>
-          <p class="text-2xl font-bold">{{ formatCurrency(totalBalance) }}</p>
+          <div v-if="Object.keys(totalsByCurrency).length === 0" class="text-2xl font-bold">{{ formatCurrency(0) }}</div>
+          <div v-else class="space-y-1">
+            <div v-for="(amount, currency) in totalsByCurrency" :key="currency" class="flex items-center justify-between">
+              <span class="text-xs text-muted uppercase font-medium">{{ getCurrencySymbol(currency as string) }} {{ currency }}</span>
+              <span class="text-lg font-bold">{{ formatCurrency(amount, currency as string) }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

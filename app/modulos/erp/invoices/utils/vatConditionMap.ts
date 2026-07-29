@@ -54,7 +54,18 @@ export function getDocumentTypeForVatCondition(
   direction: 'sale' | 'purchase',
   issuerCondition?: string | null
 ): string {
-  const issuer = (issuerCondition ?? 'RI').toUpperCase()
+  let issuer: string
+  let partner: string
+
+  if (direction === 'purchase') {
+    // Compras: partner = empresa (receptor), issuerCondition = proveedor (emisor)
+    issuer = (partnerCondition ?? 'RI').toUpperCase()
+    partner = (issuerCondition ?? 'RI').toUpperCase()
+  } else {
+    // Ventas: partner = cliente (receptor), issuerCondition = empresa (emisor)
+    issuer = (issuerCondition ?? 'RI').toUpperCase()
+    partner = (partnerCondition ?? 'RI').toUpperCase()
+  }
 
   // Emisor Monotributo o Exento → siempre Factura C
   if (issuer === 'MONOTRIBUTO' || issuer === 'EXENTO') {
@@ -63,7 +74,7 @@ export function getDocumentTypeForVatCondition(
 
   // Emisor RI → mapear según receptor
   const map = direction === 'sale' ? PARTNER_VAT_TO_SALE_MAP : PARTNER_VAT_TO_PURCHASE_MAP
-  return map[partnerCondition.toUpperCase()] ?? (direction === 'sale' ? 'FB-A' : 'FB-C')
+  return map[partner] ?? (direction === 'sale' ? 'FB-A' : 'FB-C')
 }
 
 /**

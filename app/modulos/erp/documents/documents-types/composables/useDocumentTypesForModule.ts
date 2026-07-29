@@ -62,6 +62,11 @@ export function useDocumentTypesForModule(
   const direction = computed(() => (moduleCode === 'SALES' ? 1 : -1))
 
   const validLetters = computed(() => {
+    if (moduleCode === 'PURCHASES') {
+      // Compras: proveedor = emisor, empresa = receptor
+      return getValidLetterTypes(partnerCond.value, issuerCondition.value)
+    }
+    // Ventas: empresa = emisor, proveedor = receptor
     return getValidLetterTypes(issuerCondition.value, partnerCond.value)
   })
 
