@@ -463,7 +463,7 @@
     "version": "0.10.1-alpha",
     "date": "2026-07-31",
     "stage": "alpha",
-    "notes": "Correcciones en módulo de precios: rutas proxy, historial y reactivización de price_enabled.",
+    "notes": "Correcciones en módulo de precios: rutas proxy, historial con usuario y variación, reactivización de price_enabled.",
     "changes": [
       {
         "type": "fix",
@@ -478,12 +478,27 @@
       {
         "type": "fix",
         "scope": "precios",
+        "title": "Reestructurar rutas proxy con directorio [id]/ para habilitar /:id/history"
+      },
+      {
+        "type": "fix",
+        "scope": "precios",
         "title": "Reactivizar price_enabled en formulario de producto — toggle en Advanced tab ahora oculta/muestra precios instantáneamente"
       },
       {
         "type": "fix",
         "scope": "precios",
         "title": "History modal re-fetch al abrir — evita mostrar datos desactualizados"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Mostrar usuario que realizó el cambio en el historial de precios (resolución cross-schema via AuditService)"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Mostrar variación porcentual del precio en el historial (verde si sube, rojo si baja)"
       }
     ]
   }

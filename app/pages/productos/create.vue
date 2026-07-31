@@ -35,6 +35,12 @@ watch(mobileOpen, (open) => {
 const { create, loading } = useProducts()
 const saving = ref(false)
 const form = reactive(createDefaultProductForm())
+const route = useRoute()
+
+// Pre-llenar desde el modal rápido de creación
+if (route.query.name) form.name = String(route.query.name)
+if (route.query.sku) form.sku = String(route.query.sku)
+if (route.query.product_type) form.product_type = String(route.query.product_type) as any
 
 useHead({ title: 'Nuevo producto' })
 

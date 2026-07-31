@@ -133,11 +133,11 @@ const downloadTemplate = () => {
   }
 
   const types = [
-    'RAW_MATERIAL = Materia prima',
-    'FINISHED_PRODUCT = Producto terminado',
-    'SEMI_FINISHED = Producto semi-terminado',
+    'RAW_MATERIAL = Materia Prima',
+    'FINISHED_PRODUCT = Producto Terminado',
+    'SEMI_FINISHED = Producto Intermedio',
     'SERVICE = Servicio',
-    'RATES = Tarifas'
+    'RATES = Tarifa'
   ]
 
   const costSources = [

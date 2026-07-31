@@ -2,6 +2,8 @@
 
 export type ProductType = 'RAW_MATERIAL' | 'FINISHED_PRODUCT' | 'SEMI_FINISHED' | 'SERVICE' | 'RATES'
 
+export type UsageType = 'SALE' | 'PURCHASE' | 'BOTH'
+
 export type ProductCostSource = 'MANUAL' | 'PURCHASE' | 'ENGINEERING' | 'BOM' | 'RATE'
 
 export type CalculationType = 'UNIT' | 'SURFASE' | 'VOLUME' | 'LINEAR'
@@ -54,6 +56,7 @@ export interface Product {
   active?: boolean | null
 
   product_type: ProductType
+  usage_type: UsageType
   cost_template_id?: string | null
 
   is_composed: boolean

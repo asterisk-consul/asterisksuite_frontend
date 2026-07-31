@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted, inject } from 'vue'
 
 import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
 import type { Currency } from '~/modulos/erp/currencies/types/currencies.types'
@@ -9,12 +9,15 @@ import { useVariantCostsStore } from '~/modulos/logistica/master-data/variant-co
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import ProductPriceHistory from '~/modulos/logistica/master-data/product-price/components/ProductPriceHistory.vue'
 
-const props = withDefaults(defineProps<{
-  product?: Product | null
-  priceEnabled?: boolean
-}>(), {
-  priceEnabled: true
-})()
+const props = withDefaults(
+  defineProps<{
+    product?: Product | null
+    priceEnabled?: boolean
+  }>(),
+  {
+    priceEnabled: true
+  }
+)
 
 const emit = defineEmits<{
   'update:priceEnabled': [value: boolean]
@@ -83,7 +86,7 @@ const productPriceForm = reactive({
 })
 
 const isEditingPrice = computed(() => !!editingPriceId.value)
-const productPriceModalTitle = computed(() => isEditingPrice.value ? 'Editar precio' : 'Nuevo precio')
+const productPriceModalTitle = computed(() => (isEditingPrice.value ? 'Editar precio' : 'Nuevo precio'))
 
 const resetProductPriceForm = () => {
   productPriceForm.currency_id = ''
@@ -288,7 +291,12 @@ onMounted(async () => {
       </div>
 
       <div class="flex gap-2">
-        <UButton v-if="priceEnabled && canAddProductPrice" icon="i-lucide-plus" size="sm" @click="openCreateProductPriceModal">
+        <UButton
+          v-if="priceEnabled && canAddProductPrice"
+          icon="i-lucide-plus"
+          size="sm"
+          @click="openCreateProductPriceModal"
+        >
           Agregar precio
         </UButton>
 
@@ -305,17 +313,14 @@ onMounted(async () => {
         <div>
           <p class="text-sm font-semibold text-gray-900">Precio inhabilitado</p>
           <p class="text-sm text-gray-500 mt-1">
-            Este producto no tiene precios de venta habilitados.<br>
+            Este producto no tiene precios de venta habilitados.
+            <br />
             Activalo para poder asignar precios y usarlo en facturación.
           </p>
         </div>
         <div class="flex gap-2 justify-center">
-          <UButton size="sm" icon="i-lucide-check" @click="handleEnablePrice">
-            Habilitar precio
-          </UButton>
-          <UButton size="sm" variant="outline" icon="i-lucide-settings-2" @click="goToAdvanced">
-            Ir a Avanzado
-          </UButton>
+          <UButton size="sm" icon="i-lucide-check" @click="handleEnablePrice">Habilitar precio</UButton>
+          <UButton size="sm" variant="outline" icon="i-lucide-settings-2" @click="goToAdvanced">Ir a Avanzado</UButton>
         </div>
       </div>
     </UCard>
@@ -411,12 +416,7 @@ onMounted(async () => {
               />
             </UTooltip>
             <UTooltip text="Historial de cambios">
-              <UButton
-                icon="i-lucide-history"
-                variant="ghost"
-                size="xs"
-                @click="openHistory(row.original.id)"
-              />
+              <UButton icon="i-lucide-history" variant="ghost" size="xs" @click="openHistory(row.original.id)" />
             </UTooltip>
             <UTooltip text="Eliminar precio">
               <UButton
@@ -550,9 +550,7 @@ onMounted(async () => {
           <template #footer>
             <div class="flex justify-end gap-2">
               <UButton color="neutral" variant="ghost" @click="showDeletePriceConfirm = false">Cancelar</UButton>
-              <UButton color="error" :loading="loadingDelete" @click="confirmDeletePrice">
-                Eliminar
-              </UButton>
+              <UButton color="error" :loading="loadingDelete" @click="confirmDeletePrice">Eliminar</UButton>
             </div>
           </template>
         </UCard>

@@ -15,20 +15,17 @@ const service = useProductPriceService()
 const history = ref<any[]>([])
 const loading = ref(false)
 
-watch(
-  [() => props.priceId, () => props.open],
-  async ([id, isOpen]) => {
-    if (!id || !isOpen) return
-    loading.value = true
-    try {
-      history.value = await service.getHistory(id)
-    } catch {
-      history.value = []
-    } finally {
-      loading.value = false
-    }
+watch([() => props.priceId, () => props.open], async ([id, isOpen]) => {
+  if (!id || !isOpen) return
+  loading.value = true
+  try {
+    history.value = await service.getHistory(id)
+  } catch {
+    history.value = []
+  } finally {
+    loading.value = false
   }
-)
+})
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleString('es-AR', {
@@ -63,27 +60,39 @@ const formatPrice = (data: any) => {
   if (data.price !== undefined) return `$ ${Number(data.price).toLocaleString('es-AR')}`
   return '—'
 }
+
+const calcVariation = (oldData: any, newData: any) => {
+  const oldPrice = Number(oldData?.price)
+  const newPrice = Number(newData?.price)
+  if (!oldPrice || !newPrice) return null
+  return ((newPrice - oldPrice) / oldPrice) * 100
+}
+
+const getVariationColor = (pct: number) => {
+  if (pct > 0) return 'text-emerald-600'
+  if (pct < 0) return 'text-red-500'
+  return 'text-muted'
+}
 </script>
 
 <template>
   <UModal
     :open="open"
     title="Historial de precios"
-    :ui="{ width: 'max-w-2xl' }"
+    :ui="{ content: 'max-w-6xl' }"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
       <p class="text-sm text-muted mb-4">
-        Cambios registrados para <strong>{{ productName }}</strong>
+        Cambios registrados para
+        <strong>{{ productName }}</strong>
       </p>
 
       <div v-if="loading" class="flex justify-center py-8">
         <ULoader />
       </div>
 
-      <div v-else-if="history.length === 0" class="text-center py-8 text-muted">
-        No hay cambios registrados
-      </div>
+      <div v-else-if="history.length === 0" class="text-center py-8 text-muted">No hay cambios registrados</div>
 
       <UTable
         v-else
@@ -91,8 +100,10 @@ const formatPrice = (data: any) => {
         :columns="[
           { accessorKey: 'changed_at', header: 'Fecha' },
           { accessorKey: 'action', header: 'Acción' },
-          { accessorKey: 'old_data', header: 'Valor anterior' },
-          { accessorKey: 'new_data', header: 'Valor nuevo' }
+          { accessorKey: 'old_data', header: 'Anterior' },
+          { accessorKey: 'new_data', header: 'Nuevo' },
+          { accessorKey: 'variation', header: 'Variación' },
+          { accessorKey: 'user', header: 'Usuario' }
         ]"
       >
         <template #changed_at-cell="{ row }">
@@ -119,13 +130,34 @@ const formatPrice = (data: any) => {
             {{ formatPrice(row.original.new_data) }}
           </span>
         </template>
+
+        <template #variation-cell="{ row }">
+          <template v-if="row.original.action === 'UPDATE'">
+            <span
+              v-if="calcVariation(row.original.old_data, row.original.new_data) !== null"
+              class="text-sm font-medium"
+              :class="getVariationColor(calcVariation(row.original.old_data, row.original.new_data))"
+            >
+              {{ calcVariation(row.original.old_data, row.original.new_data) > 0 ? '+' : ''
+              }}{{ calcVariation(row.original.old_data, row.original.new_data)?.toFixed(1) }}%
+            </span>
+            <span v-else class="text-sm text-muted">—</span>
+          </template>
+          <span v-else class="text-sm text-muted">—</span>
+        </template>
+
+        <template #user-cell="{ row }">
+          <span class="text-sm">
+            {{ row.original.user?.name ?? 'Sistema' }}
+          </span>
+        </template>
       </UTable>
     </template>
 
-    <template #footer>
+    <!-- <template #footer>
       <div class="flex justify-end">
         <UButton label="Cerrar" variant="ghost" @click="emit('update:open', false)" />
       </div>
-    </template>
+    </template> -->
   </UModal>
 </template>

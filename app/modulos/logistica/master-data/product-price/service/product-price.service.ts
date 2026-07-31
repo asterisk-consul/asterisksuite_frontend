@@ -49,6 +49,13 @@ export const useProductPriceService = () => {
       method: 'DELETE'
     })
 
+  // =========================
+  // HISTORY (audit log)
+  // =========================
+
+  const getHistory = (id: string) =>
+    $fetch<any[]>(`${baseUrl}/${id}/history`)
+
   return {
     findByProduct,
 
@@ -56,6 +63,7 @@ export const useProductPriceService = () => {
 
     create,
     update,
-    remove
+    remove,
+    getHistory
   }
 }

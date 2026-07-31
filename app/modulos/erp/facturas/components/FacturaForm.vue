@@ -60,7 +60,14 @@ const { items: documentsTypes } = storeToRefs(documentsTypesStore)
 // Filtrar parties por tipo según módulo
 const partyType = computed(() => props.moduleCode === 'SALES' ? 'CUSTOMER' : 'SUPPLIER')
 const { items: partyOptions } = useBusinessParties(parties, partyType.value)
-const { items: productOptions } = useProducts(products)
+
+// Filtrar productos según módulo (venta/compra)
+const usageFilter = computed(() => {
+  if (props.moduleCode === 'SALES') return 'sale' as const
+  if (props.moduleCode === 'PURCHASES') return 'purchase' as const
+  return null
+})
+const { items: productOptions } = useProducts(products, usageFilter.value)
 const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
 
 // Usar composable para filtrar tipos de documento por dirección + condición del emisor/receptor
@@ -471,6 +478,10 @@ defineExpose({ submit })
         />
 
         <UInput v-model="form.date" type="date" label="Fecha" />
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <UInput v-model="form.descrip" placeholder="Referencia (opcional)" class="md:col-span-4" />
       </div>
 
       <!-- Validación de comprobante -->

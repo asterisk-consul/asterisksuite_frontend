@@ -15,7 +15,12 @@ const emit = defineEmits<{
 const router = useRouter()
 
 const openCreate = () => {
-  router.push('/productos/create')
+  const params = new URLSearchParams()
+  if (form.value.name) params.set('name', form.value.name)
+  if (form.value.sku) params.set('sku', form.value.sku)
+  if (form.value.product_type) params.set('product_type', form.value.product_type)
+
+  router.push(`/productos/create?${params.toString()}`)
 }
 </script>
 

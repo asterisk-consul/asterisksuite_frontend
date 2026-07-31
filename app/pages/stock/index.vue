@@ -5,9 +5,9 @@ definePageMeta({
   layout: 'fabricacion'
 })
 
-const { init, activeProducts } = useProducts() // {activeProducts}
+const { init, activeProducts } = useProducts()
 
-const shortcuts = [
+const shortcuts = computed(() => [
   {
     label: 'Productos',
     to: '/productos',
@@ -31,7 +31,7 @@ const shortcuts = [
     label: 'Configuraciones',
     to: '/productos/settings'
   }
-]
+])
 
 const sections = [
   {

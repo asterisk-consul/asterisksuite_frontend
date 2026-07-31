@@ -2,6 +2,7 @@ import type { ProductFormState } from '~/modulos/logistica/master-data/product/t
 
 import type {
   ProductType,
+  UsageType,
   CalculationType,
   ProductCostSource,
   UpdateProductDto,
@@ -15,6 +16,7 @@ export function createDefaultProductGeneral() {
     active: true,
 
     product_type: 'FINISHED_PRODUCT' as ProductType,
+    usage_type: 'BOTH' as UsageType,
     calculation_type: 'UNIT' as CalculationType
   }
 }
@@ -68,6 +70,7 @@ export function toUpdateProductPayload(form: ProductFormState): UpdateProductDto
     sku: form.sku,
     active: form.active,
     product_type: form.product_type,
+    usage_type: form.usage_type,
     calculation_type: form.calculation_type,
 
     price_enabled: form.price_enabled,
@@ -97,6 +100,7 @@ export function toCreateProductPayload(form: ProductFormState): CreateProductDto
     active: form.active,
 
     product_type: form.product_type,
+    usage_type: form.usage_type,
     calculation_type: form.calculation_type,
 
     price_enabled: form.price_enabled,

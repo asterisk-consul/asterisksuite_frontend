@@ -72,6 +72,7 @@ export function useDocumentTypesForModule(
 
   const filteredDocumentTypes = computed<DocumentTypeOption[]>(() => {
     return documentsTypes.value
+      .filter((d: DocumentsType) => d.active !== false)
       .filter((d: DocumentsType) => d.direction === direction.value)
       .filter((d: DocumentsType) => {
         if (validLetters.value.length === 0) return true

@@ -12,13 +12,13 @@ definePageMeta({
   middleware: ['auth'],
   layout: 'fabricacion'
 })
-const shortcuts = [
+const shortcuts = computed(() => [
   { label: 'Crear BOM ', to: '/bom/create' },
   { label: 'BOM', to: '/bom', badge: productsWithCostTemplate.value },
   { label: 'Templates', to: '/cost-templates' },
   { label: 'Crear Templates', to: '/cost-templates/create' },
   { label: 'Work Order', to: '/fabricacion/work-orders' }
-]
+])
 
 const sections = [
   {

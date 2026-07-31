@@ -25,6 +25,15 @@ const categoriesStore = useCategoriesStore()
 
 const isModalOpen = ref(false)
 
+const categoryForm = ref<{
+  id?: string
+  name: string
+  parent_id?: string | null
+}>({
+  name: '',
+  parent_id: null
+})
+
 const currentProductId = computed(() => props.productId ?? productsStore.current?.id)
 const isEdit = computed(() => !!currentProductId.value)
 
@@ -67,6 +76,20 @@ async function handleChange(newIds: string[]) {
   model.value = newIds
   emit('selected')
 }
+
+async function handleCreateCategory() {
+  if (!categoryForm.value.name.trim()) return
+
+  await categoriesStore.create({
+    name: categoryForm.value.name.trim(),
+    parent_id: categoryForm.value.parent_id ?? undefined
+  })
+
+  await categoriesStore.fetchAll()
+
+  categoryForm.value = { name: '', parent_id: null }
+  isModalOpen.value = false
+}
 </script>
 
 <template>
@@ -103,5 +126,11 @@ async function handleChange(newIds: string[]) {
     </template>
   </USelectMenu>
 
-  <CategoryUpsertModal v-model:open="isModalOpen" />
+  <CategoryUpsertModal
+    v-model:open="isModalOpen"
+    v-model:form="categoryForm"
+    mode="create"
+    :loading="categoriesStore.loading"
+    @submit="handleCreateCategory"
+  />
 </template>

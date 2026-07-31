@@ -12,11 +12,11 @@ export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
 
   FINISHED_PRODUCT: 'Producto Terminado',
 
-  SEMI_FINISHED: 'Producto Semielaborado',
+  SEMI_FINISHED: 'Producto Intermedio',
 
   SERVICE: 'Servicio',
 
-  CONSUMABLE: 'Consumible'
+  RATES: 'Tarifa'
 }
 
 // =========================

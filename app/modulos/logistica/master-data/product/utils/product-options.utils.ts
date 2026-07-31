@@ -1,23 +1,33 @@
 import type {
   ProductType,
+  UsageType,
   CalculationType,
   ProductCostSource
 } from '~/modulos/logistica/master-data/product/types/product.types'
+
+export const usageTypeOptions: {
+  label: string
+  value: UsageType
+}[] = [
+  { label: 'Venta', value: 'SALE' },
+  { label: 'Compra', value: 'PURCHASE' },
+  { label: 'Ambos', value: 'BOTH' }
+]
 
 export const productTypeOptions: {
   label: string
   value: ProductType
 }[] = [
   {
-    label: 'Materia prima',
+    label: 'Materia Prima',
     value: 'RAW_MATERIAL'
   },
   {
-    label: 'Producto terminado',
+    label: 'Producto Terminado',
     value: 'FINISHED_PRODUCT'
   },
   {
-    label: 'Producto intermedio',
+    label: 'Producto Intermedio',
     value: 'SEMI_FINISHED'
   },
   {
@@ -98,12 +108,12 @@ export const productTypeConfig: Record<
   },
 
   SEMI_FINISHED: {
-    label: 'Producto Semielaborado',
+    label: 'Producto Intermedio',
     color: 'info'
   },
 
   FINISHED_PRODUCT: {
-    label: 'Producto Final',
+    label: 'Producto Terminado',
     color: 'success'
   },
 
@@ -113,8 +123,31 @@ export const productTypeConfig: Record<
   },
 
   RATES: {
-    label: 'Tarifas',
+    label: 'Tarifa',
     color: 'primary'
+  }
+}
+
+export const usageTypeConfig: Record<
+  UsageType,
+  {
+    label: string
+    color: BadgeColor
+  }
+> = {
+  SALE: {
+    label: 'Venta',
+    color: 'success'
+  },
+
+  PURCHASE: {
+    label: 'Compra',
+    color: 'warning'
+  },
+
+  BOTH: {
+    label: 'Ambos',
+    color: 'info'
   }
 }
 

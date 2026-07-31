@@ -4,7 +4,8 @@ import type {
   CreateProductInput,
   UpdateProductInput,
   ProductCostCard,
-  CreateProductDto
+  CreateProductDto,
+  UsageType
 } from '~/modulos/logistica/master-data/product/types/product.types'
 
 export interface ProductSelectItem {
@@ -17,6 +18,7 @@ export interface ProductSelectItem {
     amount: number
   }[]
   hasCostTemplate: boolean
+  usage_type: UsageType
   tax?: {
     id: string
     rate: number
@@ -28,7 +30,7 @@ export interface SelectItem {
   value: string
 }
 
-export function useProducts() {
+export function useProducts(usageFilter?: UsageType | null) {
   const store = useProductsStore()
 
   // =========================
@@ -53,8 +55,18 @@ export function useProducts() {
   // COMPUTED
   // =========================
 
+  const filteredItems = computed(() => {
+    if (!usageFilter) return store.items
+    return store.items.filter((p) => {
+      if (p.usage_type === 'BOTH') return true
+      if (usageFilter === 'sale') return p.usage_type === 'SALE'
+      if (usageFilter === 'purchase') return p.usage_type === 'PURCHASE'
+      return true
+    })
+  })
+
   const items = computed<ProductSelectItem[]>(() =>
-    store.items.map((product) => {
+    filteredItems.value.map((product) => {
       const prices = (product.product_price ?? [])
         .filter((pp: any) => pp.currencies?.code)
         .map((pp: any) => ({
@@ -71,6 +83,7 @@ export function useProducts() {
         price: defaultPrice?.amount ?? 0,
         currencyCode: defaultPrice?.code ?? 'ARS',
         prices,
+        usage_type: product.usage_type ?? 'BOTH',
         hasCostTemplate: !!product.cost_template_id,
         tax: tax
           ? {
@@ -89,12 +102,12 @@ export function useProducts() {
     }))
   )
 
-  const withCostTemplate = computed(() => store.items.filter((p) => !!p.cost_template_id))
+  const withCostTemplate = computed(() => filteredItems.value.filter((p) => !!p.cost_template_id))
 
   const withCostTemplateIds = computed(() => new Set(withCostTemplate.value.map((p) => p.id)))
 
   const costCards = computed<ProductCostCard[]>(() =>
-    store.items
+    filteredItems.value
       .filter((p) => p.cost_template_id)
       .map((product) => ({
         id: product.id,
@@ -130,15 +143,15 @@ export function useProducts() {
   // STATS
   // =========================
 
-  const totalProducts = computed(() => store.items.length)
+  const totalProducts = computed(() => filteredItems.value.length)
 
-  const activeProducts = computed(() => store.items.filter((p) => p.active !== false).length)
+  const activeProducts = computed(() => filteredItems.value.filter((p) => p.active !== false).length)
 
-  const inactiveProducts = computed(() => store.items.filter((p) => p.active === false).length)
+  const inactiveProducts = computed(() => filteredItems.value.filter((p) => p.active === false).length)
 
-  const productsWithCostTemplate = computed(() => store.items.filter((p) => !!p.cost_template_id).length)
+  const productsWithCostTemplate = computed(() => filteredItems.value.filter((p) => !!p.cost_template_id).length)
 
-  const productsWithoutCostTemplate = computed(() => store.items.filter((p) => !p.cost_template_id).length)
+  const productsWithoutCostTemplate = computed(() => filteredItems.value.filter((p) => !p.cost_template_id).length)
 
   // =========================
   // RETURN

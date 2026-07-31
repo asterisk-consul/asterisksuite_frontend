@@ -103,6 +103,7 @@ async function handleSubmit(payload: any) {
             ref="formRef"
             :initial-values="factura"
             :loading="saving"
+            module-code="PURCHASES"
             @submit="handleSubmit"
           />
 
