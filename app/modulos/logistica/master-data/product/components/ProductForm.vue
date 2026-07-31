@@ -45,6 +45,12 @@ const submitText = computed(() => {
   return props.mode === 'edit' ? 'Guardar cambios' : 'Crear producto'
 })
 
+const activeTab = ref(0)
+
+provide('switchToAdvancedTab', () => {
+  activeTab.value = 5
+})
+
 const tabs = [
   { label: 'Variables', slot: 'variables', icon: 'i-lucide-settings-2' },
   {
@@ -75,7 +81,7 @@ const tabs = [
   <UForm :state="form" class="space-y-6 pb-6" @submit.prevent="emit('submit')">
     <ProductGeneralTab :form="form" />
 
-    <UTabs :items="tabs" variant="link" class="w-full">
+    <UTabs v-model="activeTab" :items="tabs" variant="link" class="w-full">
       <template #accounting>
         <ProductAccountingTab v-model="form" />
       </template>
@@ -93,7 +99,7 @@ const tabs = [
       </template>
 
       <template #precios>
-        <ProductPriceTab :product="props.product" />
+        <ProductPriceTab :product="props.product" v-model:price-enabled="form.price_enabled" />
       </template>
 
       <template #inventory>

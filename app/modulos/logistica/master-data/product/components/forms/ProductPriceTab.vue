@@ -7,51 +7,42 @@ import type { Currency } from '~/modulos/erp/currencies/types/currencies.types'
 import { useProductPriceStore } from '~/modulos/logistica/master-data/product-price/store/product-price.store'
 import { useVariantCostsStore } from '~/modulos/logistica/master-data/variant-cost/store/variant-costs.store'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import ProductPriceHistory from '~/modulos/logistica/master-data/product-price/components/ProductPriceHistory.vue'
 
-// =========================
-// PROPS
-// =========================
-
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   product?: Product | null
+  priceEnabled?: boolean
+}>(), {
+  priceEnabled: true
+})()
+
+const emit = defineEmits<{
+  'update:priceEnabled': [value: boolean]
 }>()
 
-// =========================
-// STORES & COMPOSABLES
-// =========================
+const switchToAdvanced = inject<() => void>('switchToAdvancedTab')
 
 const productPriceStore = useProductPriceStore()
 const variantCostsStore = useVariantCostsStore()
 const { selectItems: currencyOptions, init: initCurrencies, findById: findCurrency } = useCurrencies()
 const toast = useToast()
 
-// =========================
-// COMPUTED
-// =========================
-
 const product = computed(() => props.product)
 
 const isFinishedProduct = computed(() => product.value?.product_type === 'FINISHED_PRODUCT')
-
 const hasVariants = computed(() => (product.value?.product_variants?.length ?? 0) > 0)
-
-// Si tiene costo calculado, no se puede ingresar precio manual
 const hasCalculatedCost = computed(() => !!product.value?.current_cost)
 
-// El último product_cost (el más reciente = el que coincide con current_cost)
 const latestProductCost = computed(() => {
   const costs = product.value?.product_costs
   if (!costs?.length) return null
   return costs[costs.length - 1]
 })
 
-// Se puede agregar precio manual solo si: es FINISHED_PRODUCT, sin variantes, y sin costo calculado
 const canAddProductPrice = computed(() => isFinishedProduct.value && !hasVariants.value && !hasCalculatedCost.value)
 
-// Precios existentes del producto
 const existingProductPrices = computed(() => product.value?.product_price ?? [])
 
-// Costos existentes por variante (aplanados)
 const existingVariantCosts = computed(
   () =>
     product.value?.product_variants?.flatMap((variant) =>
@@ -64,10 +55,6 @@ const existingVariantCosts = computed(
 )
 
 const hasAnyData = computed(() => existingProductPrices.value.length > 0 || existingVariantCosts.value.length > 0)
-
-// =========================
-// FORMATTERS
-// =========================
 
 const formatMoney = (value?: string | number | null, currency?: Currency | null) => {
   if (value === null || value === undefined) return '-'
@@ -82,11 +69,12 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 
 // =========================
-// MODAL: PRODUCT PRICE
+// MODAL: PRODUCT PRICE (create + edit)
 // =========================
 
 const showProductPriceModal = ref(false)
 const loadingProductPrice = ref(false)
+const editingPriceId = ref<string | null>(null)
 
 const productPriceForm = reactive({
   currency_id: '',
@@ -94,14 +82,26 @@ const productPriceForm = reactive({
   exemption_rate: 0
 })
 
+const isEditingPrice = computed(() => !!editingPriceId.value)
+const productPriceModalTitle = computed(() => isEditingPrice.value ? 'Editar precio' : 'Nuevo precio')
+
 const resetProductPriceForm = () => {
   productPriceForm.currency_id = ''
   productPriceForm.price = undefined
   productPriceForm.exemption_rate = 0
+  editingPriceId.value = null
 }
 
-const openProductPriceModal = () => {
+const openCreateProductPriceModal = () => {
   resetProductPriceForm()
+  showProductPriceModal.value = true
+}
+
+const openEditProductPriceModal = (price: any) => {
+  editingPriceId.value = price.id
+  productPriceForm.currency_id = price.currency_id ?? ''
+  productPriceForm.price = Number(price.price) ?? undefined
+  productPriceForm.exemption_rate = Number(price.exemption_rate ?? 0)
   showProductPriceModal.value = true
 }
 
@@ -110,26 +110,82 @@ const submitProductPrice = async () => {
 
   try {
     loadingProductPrice.value = true
-    await productPriceStore.create({
-      product_id: product.value.id,
-      currency_id: productPriceForm.currency_id,
-      price: productPriceForm.price,
-      exemption_rate: productPriceForm.exemption_rate
-    })
 
-    // Parchear el product local
-    if (product.value) {
-      product.value.product_price = [...(product.value.product_price ?? []), ...productPriceStore.items.slice(-1)]
+    if (isEditingPrice.value && editingPriceId.value) {
+      await productPriceStore.update(editingPriceId.value, {
+        price: productPriceForm.price,
+        exemption_rate: productPriceForm.exemption_rate
+      })
+      toast.add({ title: 'Precio actualizado', color: 'success' })
+    } else {
+      await productPriceStore.create({
+        product_id: product.value.id,
+        currency_id: productPriceForm.currency_id,
+        price: productPriceForm.price,
+        exemption_rate: productPriceForm.exemption_rate
+      })
+      toast.add({ title: 'Precio creado', color: 'success' })
     }
 
-    toast.add({ title: 'Precio creado', color: 'success' })
+    if (product.value) {
+      await productPriceStore.fetchByProduct(product.value.id)
+      product.value.product_price = productPriceStore.items as any
+    }
+
     showProductPriceModal.value = false
   } catch (err: any) {
     const msg = err?.data?.message ?? 'Error desconocido'
-    toast.add({ title: 'Error al crear precio', description: msg, color: 'error', icon: 'i-lucide-alert-circle' })
+    toast.add({ title: 'Error al guardar precio', description: msg, color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
     loadingProductPrice.value = false
   }
+}
+
+// =========================
+// DELETE: PRODUCT PRICE
+// =========================
+
+const showDeletePriceConfirm = ref(false)
+const deletingPriceId = ref<string | null>(null)
+const loadingDelete = ref(false)
+
+const openDeletePriceConfirm = (priceId: string) => {
+  deletingPriceId.value = priceId
+  showDeletePriceConfirm.value = true
+}
+
+const confirmDeletePrice = async () => {
+  if (!deletingPriceId.value || !product.value?.id) return
+
+  try {
+    loadingDelete.value = true
+    await productPriceStore.remove(deletingPriceId.value)
+
+    if (product.value) {
+      await productPriceStore.fetchByProduct(product.value.id)
+      product.value.product_price = productPriceStore.items as any
+    }
+
+    toast.add({ title: 'Precio eliminado', color: 'success' })
+    showDeletePriceConfirm.value = false
+  } catch (err: any) {
+    const msg = err?.data?.message ?? 'Error desconocido'
+    toast.add({ title: 'Error al eliminar precio', description: msg, color: 'error', icon: 'i-lucide-alert-circle' })
+  } finally {
+    loadingDelete.value = false
+  }
+}
+
+// =========================
+// HISTORY
+// =========================
+
+const showHistoryModal = ref(false)
+const historyPriceId = ref<string | null>(null)
+
+const openHistory = (priceId: string) => {
+  historyPriceId.value = priceId
+  showHistoryModal.value = true
 }
 
 // =========================
@@ -190,7 +246,6 @@ const submitVariantCost = async () => {
       notes: variantCostForm.notes || undefined
     })
 
-    // Parchear la variante dentro del producto local
     if (product.value?.product_variants) {
       const variant = product.value.product_variants.find((v) => v.id === variantCostForm.variant_id)
       if (variant) {
@@ -208,9 +263,13 @@ const submitVariantCost = async () => {
   }
 }
 
-// =========================
-// INIT
-// =========================
+const handleEnablePrice = () => {
+  emit('update:priceEnabled', true)
+}
+
+const goToAdvanced = () => {
+  switchToAdvanced?.()
+}
 
 onMounted(async () => {
   await initCurrencies()
@@ -229,18 +288,40 @@ onMounted(async () => {
       </div>
 
       <div class="flex gap-2">
-        <UButton v-if="canAddProductPrice" icon="i-lucide-plus" size="sm" @click="openProductPriceModal">
+        <UButton v-if="priceEnabled && canAddProductPrice" icon="i-lucide-plus" size="sm" @click="openCreateProductPriceModal">
           Agregar precio
         </UButton>
 
-        <UButton v-if="hasVariants" icon="i-lucide-plus" size="sm" @click="openVariantCostModal">
+        <UButton v-if="priceEnabled && hasVariants" icon="i-lucide-plus" size="sm" @click="openVariantCostModal">
           Agregar costo de variante
         </UButton>
       </div>
     </div>
 
+    <!-- PRICE DISABLED STATE -->
+    <UCard v-if="!priceEnabled">
+      <div class="py-10 text-center space-y-4">
+        <UIcon name="i-lucide-wallet-off" class="mx-auto h-10 w-10 text-amber-400" />
+        <div>
+          <p class="text-sm font-semibold text-gray-900">Precio inhabilitado</p>
+          <p class="text-sm text-gray-500 mt-1">
+            Este producto no tiene precios de venta habilitados.<br>
+            Activalo para poder asignar precios y usarlo en facturación.
+          </p>
+        </div>
+        <div class="flex gap-2 justify-center">
+          <UButton size="sm" icon="i-lucide-check" @click="handleEnablePrice">
+            Habilitar precio
+          </UButton>
+          <UButton size="sm" variant="outline" icon="i-lucide-settings-2" @click="goToAdvanced">
+            Ir a Avanzado
+          </UButton>
+        </div>
+      </div>
+    </UCard>
+
     <!-- EMPTY STATE -->
-    <UCard v-if="!hasAnyData && !hasCalculatedCost">
+    <UCard v-else-if="!hasAnyData && !hasCalculatedCost">
       <div class="py-10 text-center space-y-3">
         <UIcon name="i-lucide-wallet" class="mx-auto h-10 w-10 text-gray-400" />
         <div>
@@ -277,37 +358,82 @@ onMounted(async () => {
     </UCard>
 
     <!-- PRECIOS DEL PRODUCTO -->
-    <UCard v-if="existingProductPrices.length" :ui="{ body: 'p-0' }">
+    <UCard v-if="priceEnabled && existingProductPrices.length" :ui="{ body: 'p-0' }">
       <template #header>
-        <p class="text-sm font-medium px-1">Precios del producto</p>
+        <div class="flex items-center gap-2 px-1">
+          <p class="text-sm font-medium">Precios del producto</p>
+          <UTooltip text="Precios de venta por moneda. Editá, eliminá o consultá el historial de cambios.">
+            <UIcon name="i-lucide-help-circle" class="h-4 w-4 text-gray-400" />
+          </UTooltip>
+        </div>
       </template>
 
       <UTable
         :data="existingProductPrices"
         :columns="[
+          { accessorKey: 'currencies', header: 'Moneda' },
           { accessorKey: 'price', header: 'Precio' },
           { accessorKey: 'exemption_rate', header: 'Exención IVA' },
-          { accessorKey: 'currencies', header: 'Moneda' }
+          { accessorKey: 'updated_at', header: 'Última actualización' },
+          { accessorKey: 'actions', header: '' }
         ]"
       >
+        <template #currencies-cell="{ row }">
+          <UBadge color="primary" variant="soft">
+            {{ row.original.currencies?.code ?? '-' }}
+          </UBadge>
+        </template>
+
         <template #price-cell="{ row }">
           <span class="font-semibold">
             {{ formatMoney(row.original.price, row.original.currencies) }}
           </span>
         </template>
 
-        <template #exemption_rate-cell="{ row }">{{ row.original.exemption_rate ?? 0 }}%</template>
+        <template #exemption_rate-cell="{ row }">
+          <span class="text-sm">{{ row.original.exemption_rate ?? 0 }}%</span>
+        </template>
 
-        <template #currencies-cell="{ row }">
-          <UBadge color="primary" variant="soft">
-            {{ row.original.currencies?.code ?? '-' }}
-          </UBadge>
+        <template #updated_at-cell="{ row }">
+          <span class="text-xs text-muted">
+            {{ row.original.updated_at ? new Date(row.original.updated_at).toLocaleDateString('es-AR') : '—' }}
+          </span>
+        </template>
+
+        <template #actions-cell="{ row }">
+          <div class="flex items-center gap-1 justify-end">
+            <UTooltip text="Editar precio">
+              <UButton
+                icon="i-lucide-pencil"
+                variant="ghost"
+                size="xs"
+                @click="openEditProductPriceModal(row.original)"
+              />
+            </UTooltip>
+            <UTooltip text="Historial de cambios">
+              <UButton
+                icon="i-lucide-history"
+                variant="ghost"
+                size="xs"
+                @click="openHistory(row.original.id)"
+              />
+            </UTooltip>
+            <UTooltip text="Eliminar precio">
+              <UButton
+                icon="i-lucide-trash-2"
+                variant="ghost"
+                color="error"
+                size="xs"
+                @click="openDeletePriceConfirm(row.original.id)"
+              />
+            </UTooltip>
+          </div>
         </template>
       </UTable>
     </UCard>
 
     <!-- COSTOS DE VARIANTES -->
-    <UCard v-if="existingVariantCosts.length" :ui="{ body: 'p-0' }">
+    <UCard v-if="priceEnabled && existingVariantCosts.length" :ui="{ body: 'p-0' }">
       <template #header>
         <p class="text-sm font-medium px-1">Costos por variante</p>
       </template>
@@ -360,24 +486,34 @@ onMounted(async () => {
       <template #content>
         <UCard>
           <template #header>
-            <h3 class="text-lg font-semibold">Nuevo precio</h3>
+            <h3 class="text-lg font-semibold">{{ productPriceModalTitle }}</h3>
           </template>
 
           <div class="space-y-4">
             <UFormField label="Moneda" required>
-              <USelect
-                v-model="productPriceForm.currency_id"
-                :items="currencyOptions"
-                placeholder="Seleccioná una moneda"
-              />
+              <UTooltip text="Moneda en la que se expresa el precio de venta">
+                <template #text>Seleccioná la moneda para este precio</template>
+                <USelect
+                  v-model="productPriceForm.currency_id"
+                  :items="currencyOptions"
+                  placeholder="Seleccioná una moneda"
+                  :disabled="isEditingPrice"
+                />
+              </UTooltip>
             </UFormField>
 
             <UFormField label="Precio" required>
-              <UInputNumber v-model="productPriceForm.price" placeholder="0.00" :min="0" />
+              <UTooltip text="Precio de venta del producto en esta moneda">
+                <template #text>Monto que el cliente paga por unidad</template>
+                <UInputNumber v-model="productPriceForm.price" placeholder="0.00" :min="0" />
+              </UTooltip>
             </UFormField>
 
             <UFormField label="Exención IVA (%)">
-              <UInputNumber v-model="productPriceForm.exemption_rate" :min="0" :max="100" placeholder="0" />
+              <UTooltip text="Porcentaje de exención impositiva">
+                <template #text>0 = sin exención (IVA completo), 100 = exento</template>
+                <UInputNumber v-model="productPriceForm.exemption_rate" :min="0" :max="100" placeholder="0" />
+              </UTooltip>
             </UFormField>
           </div>
 
@@ -389,7 +525,33 @@ onMounted(async () => {
                 :disabled="!productPriceForm.currency_id || !productPriceForm.price"
                 @click="submitProductPrice"
               >
-                Guardar precio
+                {{ isEditingPrice ? 'Guardar cambios' : 'Guardar precio' }}
+              </UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
+
+    <!-- ========================= -->
+    <!-- CONFIRM: ELIMINAR PRECIO  -->
+    <!-- ========================= -->
+    <UModal v-model:open="showDeletePriceConfirm">
+      <template #content>
+        <UCard>
+          <template #header>
+            <h3 class="text-lg font-semibold">Eliminar precio</h3>
+          </template>
+
+          <p class="text-sm text-gray-600">
+            ¿Estás seguro de que deseas eliminar este precio? Esta acción no se puede deshacer.
+          </p>
+
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton color="neutral" variant="ghost" @click="showDeletePriceConfirm = false">Cancelar</UButton>
+              <UButton color="error" :loading="loadingDelete" @click="confirmDeletePrice">
+                Eliminar
               </UButton>
             </div>
           </template>
@@ -454,5 +616,14 @@ onMounted(async () => {
         </UCard>
       </template>
     </UModal>
+
+    <!-- ========================= -->
+    <!-- MODAL: HISTORIAL          -->
+    <!-- ========================= -->
+    <ProductPriceHistory
+      v-model:open="showHistoryModal"
+      :price-id="historyPriceId"
+      :product-name="product?.name ?? ''"
+    />
   </div>
 </template>

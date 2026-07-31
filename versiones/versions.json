@@ -458,5 +458,33 @@
         "version": "0.9.0-alpha"
       }
     ]
+  },
+  {
+    "version": "0.10.1-alpha",
+    "date": "2026-07-31",
+    "stage": "alpha",
+    "notes": "Correcciones en módulo de precios: rutas proxy, historial y reactivización de price_enabled.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "Agregar ruta proxy para findByProduct — precio ahora se muestra después de editar sin refrescar"
+      },
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "Agregar ruta proxy para historial de precios — el modal ahora muestra los cambios registrados"
+      },
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "Reactivizar price_enabled en formulario de producto — toggle en Advanced tab ahora oculta/muestra precios instantáneamente"
+      },
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "History modal re-fetch al abrir — evita mostrar datos desactualizados"
+      }
+    ]
   }
 ]
