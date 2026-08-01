@@ -4,7 +4,7 @@ import {
   HR_VALE_TYPE_LABELS,
   HR_VALE_TYPE_COLORS,
   HR_VALE_STATUS_LABELS,
-  HR_VALE_STATUS_COLORS,
+  HR_VALE_STATUS_COLORS
 } from '~/modulos/erp/hr/types/hr.types'
 import type { HrVale } from '~/modulos/erp/hr/types/hr.types'
 
@@ -17,8 +17,8 @@ const hrStore = useHrStore()
 const vales = computed(() => hrStore.vales)
 const loading = computed(() => hrStore.loading)
 
-const filterType = ref<string>('')
-const filterStatus = ref<string>('')
+const filterType = ref<string | undefined>(undefined)
+const filterStatus = ref<string | undefined>(undefined)
 
 const showCreateModal = ref(false)
 const createForm = ref({
@@ -28,7 +28,7 @@ const createForm = ref({
   amount: 0,
   currency_code: 'ARS',
   date: new Date().toISOString().split('T')[0],
-  description: '',
+  description: ''
 })
 
 const people = ref<any[]>([])
@@ -37,19 +37,19 @@ async function loadPeople() {
   try {
     const [employees, partners] = await Promise.all([
       $fetch<any[]>('/api/erp/employees'),
-      $fetch<any[]>('/api/erp/partners'),
+      $fetch<any[]>('/api/erp/partners')
     ])
     people.value = [
       ...employees.map((e: any) => ({
         id: e.party_id ?? e.id,
         name: `${e.first_name} ${e.last_name}`,
-        type: 'EMPLOYEE',
+        type: 'EMPLOYEE'
       })),
       ...partners.map((p: any) => ({
         id: p.party_id ?? p.id,
         name: `${p.first_name} ${p.last_name}`,
-        type: 'PARTNER',
-      })),
+        type: 'PARTNER'
+      }))
     ]
   } catch (e) {
     console.error(e)
@@ -59,7 +59,7 @@ async function loadPeople() {
 async function loadVales() {
   await hrStore.fetchVales({
     ...(filterType.value ? { type: filterType.value } : {}),
-    ...(filterStatus.value ? { status: filterStatus.value } : {}),
+    ...(filterStatus.value ? { status: filterStatus.value } : {})
   })
 }
 
@@ -88,7 +88,7 @@ async function handleCreate() {
       amount: 0,
       currency_code: 'ARS',
       date: new Date().toISOString().split('T')[0],
-      description: '',
+      description: ''
     }
     await loadVales()
   } catch (e) {
@@ -121,28 +121,26 @@ const columns = [
   { id: 'amount', header: 'Monto' },
   { id: 'date', header: 'Fecha' },
   { id: 'status', header: 'Estado' },
-  { id: 'actions', header: '' },
+  { id: 'actions', header: '' }
 ]
 
 const typeOptions = [
-  { label: 'Todos', value: '' },
   { label: 'Retiro', value: 'RETIRO' },
   { label: 'Adelanto', value: 'ADELANTO' },
   { label: 'Reembolso', value: 'REEMBOLSO' },
-  { label: 'Préstamo', value: 'PRESTAMO' },
+  { label: 'Préstamo', value: 'PRESTAMO' }
 ]
 
 const statusOptions = [
-  { label: 'Todos', value: '' },
   { label: 'Borrador', value: 'DRAFT' },
   { label: 'Confirmado', value: 'CONFIRMED' },
   { label: 'Pagado', value: 'PAID' },
-  { label: 'Anulado', value: 'CANCELLED' },
+  { label: 'Anulado', value: 'CANCELLED' }
 ]
 </script>
 
 <template>
-  <UPage>
+  <UPage class="space-y-6 px-4">
     <AppPageHeader title="Vales RRHH" description="Comprobantes internos de empleados y socios">
       <template #links>
         <UButton label="Nuevo vale" icon="i-lucide-plus" @click="showCreateModal = true" />
@@ -150,7 +148,7 @@ const statusOptions = [
     </AppPageHeader>
 
     <!-- Filtros -->
-    <div class="flex gap-2 flex-wrap">
+    <div class="flex gap-2 flex-wrap py-4">
       <USelect v-model="filterType" :items="typeOptions" placeholder="Tipo" class="w-40" />
       <USelect v-model="filterStatus" :items="statusOptions" placeholder="Estado" class="w-40" />
     </div>
@@ -223,7 +221,12 @@ const statusOptions = [
             <label class="text-sm font-medium">Persona</label>
             <USelect
               v-model="createForm.party_id"
-              :items="people.map(p => ({ label: `${p.name} (${p.type === 'EMPLOYEE' ? 'Empleado' : 'Socio'})`, value: p.id }))"
+              :items="
+                people.map((p) => ({
+                  label: `${p.name} (${p.type === 'EMPLOYEE' ? 'Empleado' : 'Socio'})`,
+                  value: p.id
+                }))
+              "
               placeholder="Seleccionar..."
             />
           </div>
@@ -231,10 +234,7 @@ const statusOptions = [
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-1">
               <label class="text-sm font-medium">Tipo</label>
-              <USelect
-                v-model="createForm.type"
-                :items="typeOptions.filter(o => o.value)"
-              />
+              <USelect v-model="createForm.type" :items="typeOptions.filter((o) => o.value)" />
             </div>
             <div class="space-y-1">
               <label class="text-sm font-medium">Monto</label>
@@ -251,7 +251,10 @@ const statusOptions = [
               <label class="text-sm font-medium">Moneda</label>
               <USelect
                 v-model="createForm.currency_code"
-                :items="[{ label: 'ARS', value: 'ARS' }, { label: 'USD', value: 'USD' }]"
+                :items="[
+                  { label: 'ARS', value: 'ARS' },
+                  { label: 'USD', value: 'USD' }
+                ]"
               />
             </div>
           </div>
@@ -263,7 +266,11 @@ const statusOptions = [
 
           <div class="flex justify-end gap-2 pt-2 border-t border-default">
             <UButton label="Cancelar" variant="ghost" color="neutral" @click="showCreateModal = false" />
-            <UButton label="Crear vale" :disabled="!createForm.party_id || createForm.amount <= 0" @click="handleCreate" />
+            <UButton
+              label="Crear vale"
+              :disabled="!createForm.party_id || createForm.amount <= 0"
+              @click="handleCreate"
+            />
           </div>
         </div>
       </template>

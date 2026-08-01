@@ -1,19 +1,26 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'erp', middleware: ['auth'] })
 
-import { useBusinessPartiesByType } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessPartiesByType'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import BusinessPartyForm from '~/modulos/logistica/master-data/bussiness-parties/components/BusinessPartyForm.vue'
+import type { BusinessPartyForm as FormType } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
+import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
+import { mapFormToBusinessPartyDto } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
 
-const { initialForm, loading, error, errors, handleCreate } =
-  useBusinessPartiesByType('CUSTOMER', '/erp/sales/customers')
+const router = useRouter()
+const store = useBusinessPartiesStore()
 
 const saving = ref(false)
 
-const onSubmit = async (form) => {
+const handleSubmit = async (form: FormType) => {
   try {
     saving.value = true
-    await handleCreate(form)
-  } catch {
+    const payload = mapFormToBusinessPartyDto(form)
+    await store.create(payload)
+    await router.push('/erp/sales/customers')
+  } catch (error) {
+    console.error(error)
   } finally {
     saving.value = false
   }
@@ -23,13 +30,11 @@ const onSubmit = async (form) => {
 <template>
   <div class="p-4 max-w-3xl mx-auto">
     <h1 class="text-xl font-semibold mb-4">Nuevo Cliente</h1>
+
     <BusinessPartyForm
-      :model-value="initialForm"
+      :model-value="{ type: 'CUSTOMER' } as any"
       :loading="saving"
-      :error="error"
-      :errors="errors"
-      lock-type
-      @submit="onSubmit"
+      @submit="handleSubmit"
     />
   </div>
 </template>

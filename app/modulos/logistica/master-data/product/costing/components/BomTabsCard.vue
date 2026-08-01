@@ -11,7 +11,7 @@ const tabs: TabsItem[] = [
     value: 'general'
   },
   {
-    label: 'Ingeniería',
+    label: 'Estructura',
     value: 'ingenieria'
   },
   {

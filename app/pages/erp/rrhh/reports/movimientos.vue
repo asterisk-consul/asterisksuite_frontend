@@ -63,7 +63,7 @@ const columns = [
 </script>
 
 <template>
-  <UPage>
+  <UPage class="space-y-6 px-4">
     <AppPageHeader title="Movimientos por persona" description="Historial de movimientos de cuenta corriente" />
 
     <!-- Selector de persona -->

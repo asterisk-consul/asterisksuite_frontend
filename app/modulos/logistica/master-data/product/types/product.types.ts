@@ -61,7 +61,6 @@ export interface Product {
 
   is_composed: boolean
   auto_calculate_cost: boolean
-  has_engineering: boolean
 
   manages_stock: boolean
 
@@ -174,7 +173,6 @@ export interface CreateProductDto {
 
   is_composed?: boolean
   auto_calculate_cost?: boolean
-  has_engineering?: boolean
   manages_stock?: boolean
 
   income_account_id?: string

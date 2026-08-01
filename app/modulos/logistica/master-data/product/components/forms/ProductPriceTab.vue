@@ -35,6 +35,8 @@ const product = computed(() => props.product)
 const isFinishedProduct = computed(() => product.value?.product_type === 'FINISHED_PRODUCT')
 const hasVariants = computed(() => (product.value?.product_variants?.length ?? 0) > 0)
 const hasCalculatedCost = computed(() => !!product.value?.current_cost)
+const hasCostTemplate = computed(() => !!product.value?.cost_template_id)
+const hasExistingPrices = computed(() => (product.value?.product_price?.length ?? 0) > 0)
 
 const latestProductCost = computed(() => {
   const costs = product.value?.product_costs
@@ -43,6 +45,10 @@ const latestProductCost = computed(() => {
 })
 
 const canAddProductPrice = computed(() => isFinishedProduct.value && !hasVariants.value && !hasCalculatedCost.value)
+
+// auto_calculate_cost: cuando está activo, el costo calculado es el precio de venta
+const autoCalculate = computed(() => product.value?.auto_calculate_cost === true)
+const showCostAsPrice = computed(() => autoCalculate.value && hasCalculatedCost.value)
 
 const existingProductPrices = computed(() => product.value?.product_price ?? [])
 
@@ -58,6 +64,27 @@ const existingVariantCosts = computed(
 )
 
 const hasAnyData = computed(() => existingProductPrices.value.length > 0 || existingVariantCosts.value.length > 0)
+
+// Pricing mode: manual vs from costs
+type PricingMode = 'manual' | 'from_costs'
+
+const pricingMode = ref<PricingMode>('manual')
+
+const defaultPricingMode = computed<PricingMode>(() => {
+  if (hasExistingPrices.value) return 'manual'
+  if (hasCalculatedCost.value || hasCostTemplate.value) return 'from_costs'
+  return 'manual'
+})
+
+const showPricingDecision = computed(() =>
+  isFinishedProduct.value && !hasVariants.value && props.priceEnabled && !hasAnyData.value && !hasCalculatedCost.value
+)
+
+const goToBom = () => {
+  if (product.value?.id) {
+    navigateTo(`/bom/${product.value.id}`)
+  }
+}
 
 const formatMoney = (value?: string | number | null, currency?: Currency | null) => {
   if (value === null || value === undefined) return '-'
@@ -292,7 +319,7 @@ onMounted(async () => {
 
       <div class="flex gap-2">
         <UButton
-          v-if="priceEnabled && canAddProductPrice"
+          v-if="priceEnabled && canAddProductPrice && pricingMode === 'manual'"
           icon="i-lucide-plus"
           size="sm"
           @click="openCreateProductPriceModal"
@@ -325,6 +352,78 @@ onMounted(async () => {
       </div>
     </UCard>
 
+    <!-- COST AS PRICE (auto_calculate_cost activo) -->
+    <UCard v-if="showCostAsPrice">
+      <div class="flex items-center gap-3">
+        <UIcon name="i-lucide-calculator" class="size-5 text-primary" />
+        <div>
+          <p class="text-sm font-semibold">Precio desde costo</p>
+          <p class="text-xs text-muted">Este producto usa el costo calculado como precio de venta.</p>
+        </div>
+        <UBadge label="Automático" color="primary" variant="soft" size="sm" />
+      </div>
+      <div class="mt-3 pt-3 border-t">
+        <p class="text-2xl font-bold">
+          {{ formatMoney(product?.current_cost, latestProductCost?.currencies) }}
+        </p>
+        <p v-if="product?.last_cost_calculated_at" class="text-xs text-muted mt-1">
+          Último cálculo: {{ new Date(product.last_cost_calculated_at).toLocaleString('es-AR') }}
+        </p>
+      </div>
+    </UCard>
+
+    <!-- PRICING DECISION CARD (solo FINISHED_PRODUCT sin variantes) -->
+    <UCard v-if="showPricingDecision">
+      <div class="space-y-4">
+        <div>
+          <p class="text-sm font-semibold text-gray-900">¿Cómo querés definir el precio de venta?</p>
+          <p class="text-sm text-gray-500 mt-1">
+            Elegí si querés ingresar el precio manualmente o calcularlo desde los costos de producción.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            class="flex flex-col items-start p-4 rounded-lg border-2 transition-colors text-left"
+            :class="pricingMode === 'manual' ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-default hover:border-default-hover'"
+            @click="pricingMode = 'manual'"
+          >
+            <div class="flex items-center gap-2 mb-2">
+              <UIcon name="i-lucide-pencil" class="h-4 w-4" :class="pricingMode === 'manual' ? 'text-primary-600' : 'text-gray-400'" />
+              <p class="text-sm font-medium" :class="pricingMode === 'manual' ? 'text-primary-700' : 'text-gray-700'">
+                Precio manual
+              </p>
+            </div>
+            <p class="text-xs text-gray-500">
+              Ingresá el precio de venta directamente por cada moneda.
+            </p>
+          </button>
+
+          <button
+            class="flex flex-col items-start p-4 rounded-lg border-2 transition-colors text-left"
+            :class="pricingMode === 'from_costs' ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-default hover:border-default-hover'"
+            @click="pricingMode = 'from_costs'"
+          >
+            <div class="flex items-center gap-2 mb-2">
+              <UIcon name="i-lucide-calculator" class="h-4 w-4" :class="pricingMode === 'from_costs' ? 'text-primary-600' : 'text-gray-400'" />
+              <p class="text-sm font-medium" :class="pricingMode === 'from_costs' ? 'text-primary-700' : 'text-gray-700'">
+                Desde costos
+              </p>
+            </div>
+            <p class="text-xs text-gray-500">
+              Calculado desde la estructura BOM (ingeniería + costos de materiales).
+            </p>
+          </button>
+        </div>
+
+        <div v-if="pricingMode === 'from_costs'" class="flex justify-end">
+          <UButton size="sm" icon="i-lucide-arrow-right" variant="outline" @click="goToBom">
+            Ir a BOM
+          </UButton>
+        </div>
+      </div>
+    </UCard>
+
     <!-- EMPTY STATE -->
     <UCard v-else-if="!hasAnyData && !hasCalculatedCost">
       <div class="py-10 text-center space-y-3">
@@ -340,8 +439,8 @@ onMounted(async () => {
       </div>
     </UCard>
 
-    <!-- COSTO CALCULADO -->
-    <UCard v-if="hasCalculatedCost">
+    <!-- COSTO CALCULADO (solo modo desde costos) -->
+    <UCard v-if="hasCalculatedCost && pricingMode === 'from_costs'">
       <div class="flex items-center justify-between">
         <div class="space-y-1">
           <div class="flex items-center gap-2">

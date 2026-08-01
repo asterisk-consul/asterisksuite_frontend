@@ -20,7 +20,7 @@ async function loadDashboard() {
       $fetch<any[]>('/api/erp/employees'),
       $fetch<any[]>('/api/erp/partners'),
       hrStore.fetchVales(),
-      hrStore.fetchAccounts(),
+      hrStore.fetchAccounts()
     ])
 
     totalEmployees.value = employees.length
@@ -41,12 +41,12 @@ function fmt(n: number) {
 </script>
 
 <template>
-  <UPage>
+  <UPage class="space-y-6 px-4">
     <AppPageHeader title="RRHH" description="Gestión de recursos humanos" />
 
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <NuxtLink to="/erp/rrhh/employees">
-        <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 py-4">
+      <NuxtLink to="/erp/rrhh/employees" class="h-full">
+        <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer h-full">
           <div class="space-y-1">
             <p class="text-xs text-muted">Empleados</p>
             <p class="text-2xl font-semibold text-info-500">{{ totalEmployees }}</p>
@@ -54,8 +54,8 @@ function fmt(n: number) {
         </UPageCard>
       </NuxtLink>
 
-      <NuxtLink to="/erp/rrhh/partners">
-        <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer">
+      <NuxtLink to="/erp/rrhh/partners" class="h-full">
+        <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer h-full">
           <div class="space-y-1">
             <p class="text-xs text-muted">Socios</p>
             <p class="text-2xl font-semibold text-warning-500">{{ totalPartners }}</p>
@@ -63,8 +63,8 @@ function fmt(n: number) {
         </UPageCard>
       </NuxtLink>
 
-      <NuxtLink to="/erp/rrhh/vales">
-        <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer">
+      <NuxtLink to="/erp/rrhh/vales" class="h-full">
+        <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer h-full">
           <div class="space-y-1">
             <p class="text-xs text-muted">Vales pendientes</p>
             <p class="text-2xl font-semibold text-primary">{{ pendingVales }}</p>
@@ -73,8 +73,8 @@ function fmt(n: number) {
         </UPageCard>
       </NuxtLink>
 
-      <NuxtLink to="/erp/rrhh/current-accounts">
-        <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer">
+      <NuxtLink to="/erp/rrhh/current-accounts" class="h-full">
+        <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer h-full">
           <div class="space-y-1">
             <p class="text-xs text-muted">Saldo total CC</p>
             <p class="text-2xl font-semibold" :class="totalBalance >= 0 ? 'text-success' : 'text-error'">
@@ -93,9 +93,7 @@ function fmt(n: number) {
           <UButton label="Ver todos" variant="ghost" color="neutral" size="sm" to="/erp/rrhh/vales" />
         </div>
       </template>
-      <div v-if="hrStore.vales.length === 0" class="text-center py-8 text-muted text-sm">
-        No hay vales registrados.
-      </div>
+      <div v-if="hrStore.vales.length === 0" class="text-center py-8 text-muted text-sm">No hay vales registrados.</div>
       <div v-else class="space-y-2">
         <div
           v-for="vale in hrStore.vales.slice(0, 5)"

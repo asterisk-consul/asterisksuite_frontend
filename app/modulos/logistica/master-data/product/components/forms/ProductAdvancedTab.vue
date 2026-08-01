@@ -13,9 +13,5 @@ const form = defineModel<CreateProductDto>({
     <USwitch v-model="form.is_rate_type" label="Es tipo tarifa" />
 
     <USwitch v-model="form.is_composed" label="Producto compuesto" />
-
-    <USwitch v-model="form.auto_calculate_cost" label="Auto calcular costo" />
-
-    <USwitch v-model="form.has_engineering" label="Tiene ingeniería" />
   </div>
 </template>

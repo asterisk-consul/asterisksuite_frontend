@@ -1,68 +1,61 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'rrhh',
-  middleware: ['auth']
-})
+definePageMeta({ layout: 'rrhh', middleware: ['auth'] })
 
-const partners = ref<any[]>([])
-const loading = ref(false)
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
+import { storeToRefs } from 'pinia'
+import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { partnerColumns } from './columns'
+import { usePartnersStore } from '~/modulos/erp/partners/store/partners.store'
 
-async function loadPartners() {
-  loading.value = true
-  try {
-    partners.value = await $fetch('/api/erp/partners')
-  } catch (e) {
-    console.error(e)
-  } finally {
-    loading.value = false
-  }
+const router = useRouter()
+const store = usePartnersStore()
+const { items: partners, loading } = storeToRefs(store)
+
+const sorting = ref<SortingState>([])
+
+onMounted(() => store.fetchAll())
+
+const openEdit = (row: any) => router.push(`/erp/rrhh/partners/${row.id}/edit`)
+const openCreate = () => router.push('/erp/rrhh/partners/create')
+
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [{ id: columnId, desc: current?.id === columnId ? !current.desc : false }]
 }
 
-onMounted(() => loadPartners())
+const columns = partnerColumns({ onEdit: openEdit, onSortFieldSelect })
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
-}
+const filterFields: FilterField[] = [
+  { id: 'first_name', label: 'Filtrar por Nombre...', class: 'w-40' },
+  { id: 'last_name', label: 'Filtrar por Apellido...', class: 'w-40' },
+  { id: 'document_number', label: 'Filtrar por Documento...', class: 'w-40' }
+]
 
-const columns = [
-  { id: 'name', header: 'Nombre' },
-  { id: 'document', header: 'Documento' },
-  { id: 'share', header: '% Participación' },
-  { id: 'capital', header: 'Capital' },
-  { id: 'status', header: 'Estado' },
+const sortFields: SortField[] = [
+  { value: 'first_name', label: 'Nombre' },
+  { value: 'last_name', label: 'Apellido' },
+  { value: 'share_percentage', label: '% Participación' },
+  { value: 'capital_contributed', label: 'Capital' },
+  { value: 'created_at', label: 'Fecha Creación' }
 ]
 </script>
 
 <template>
-  <UPage>
-    <AppPageHeader title="Socios" description="Gestión de socios y participaciones" />
+  <UPage class="space-y-6 px-4">
+    <AppPageHeader title="Socios" description="Gestión de socios y participaciones">
+      <template #links>
+        <UButton label="Nuevo socio" icon="i-heroicons-plus" color="primary" @click="openCreate" />
+      </template>
+    </AppPageHeader>
 
-    <UPageCard variant="subtle">
-      <UTable :data="partners" :columns="columns" :loading="loading">
-        <template #name-cell="{ row }">
-          <span class="font-medium">{{ row.original.first_name }} {{ row.original.last_name }}</span>
-        </template>
-
-        <template #document-cell="{ row }">
-          <span class="font-mono text-xs">{{ row.original.document_type }}-{{ row.original.document_number }}</span>
-        </template>
-
-        <template #share-cell="{ row }">
-          {{ row.original.share_percentage ? `${row.original.share_percentage}%` : '-' }}
-        </template>
-
-        <template #capital-cell="{ row }">
-          {{ row.original.capital_contributed ? fmt(Number(row.original.capital_contributed)) : '-' }}
-        </template>
-
-        <template #status-cell="{ row }">
-          <UBadge
-            :label="row.original.is_active ? 'Activo' : 'Inactivo'"
-            :color="row.original.is_active ? 'success' : 'error'"
-            variant="subtle"
-          />
-        </template>
-      </UTable>
-    </UPageCard>
+    <LogisticaTable
+      :loading="loading"
+      :data="partners"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+    />
   </UPage>
 </template>

@@ -13,7 +13,7 @@ const loading = computed(() => hrStore.loading)
 
 const dateFrom = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
 const dateTo = ref(new Date().toISOString().split('T')[0])
-const filterType = ref('')
+const filterType = ref<string | undefined>(undefined)
 
 async function loadReport() {
   await hrStore.fetchVales({
@@ -62,7 +62,6 @@ const columns = [
 ]
 
 const typeOptions = [
-  { label: 'Todos', value: '' },
   { label: 'Retiro', value: 'RETIRO' },
   { label: 'Adelanto', value: 'ADELANTO' },
   { label: 'Reembolso', value: 'REEMBOLSO' },
@@ -71,7 +70,7 @@ const typeOptions = [
 </script>
 
 <template>
-  <UPage>
+  <UPage class="space-y-6 px-4">
     <AppPageHeader title="Vales por período" description="Detalle de vales en un rango de fechas" />
 
     <!-- Filtros -->

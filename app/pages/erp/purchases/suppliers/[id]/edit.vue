@@ -1,28 +1,38 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'default', middleware: ['auth'] })
+definePageMeta({ layout: 'erp', middleware: ['auth'] })
 
-import { useBusinessPartiesByType } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessPartiesByType'
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import BusinessPartyForm from '~/modulos/logistica/master-data/bussiness-parties/components/BusinessPartyForm.vue'
+import type { BusinessPartyForm as FormType } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
+import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
+import { storeToRefs } from 'pinia'
+import { mapBusinessPartyToForm, mapFormToBusinessPartyDto } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
 
 const route = useRoute()
+const router = useRouter()
+
+const store = useBusinessPartiesStore()
+const { loading } = storeToRefs(store)
+
 const id = route.params.id as string
 
-const { loading, error, errors, fetchOne, handleUpdate } =
-  useBusinessPartiesByType('SUPPLIER', '/erp/purchases/suppliers')
-
 const saving = ref(false)
-const formData = ref(null)
+const formData = ref<FormType | null>(null)
 
 onMounted(async () => {
-  formData.value = await fetchOne(id)
+  const data = await store.fetchOne(id)
+  formData.value = mapBusinessPartyToForm(data)
 })
 
-const onSubmit = async (form) => {
+const handleSubmit = async (form: FormType) => {
   try {
     saving.value = true
-    await handleUpdate(id, form)
-  } catch (err) {
-    console.error(err)
+    const payload = mapFormToBusinessPartyDto(form)
+    await store.update(id, payload)
+    await router.push('/erp/purchases/suppliers')
+  } catch (error) {
+    console.error(error)
   } finally {
     saving.value = false
   }
@@ -31,16 +41,15 @@ const onSubmit = async (form) => {
 
 <template>
   <div class="p-4 max-w-3xl mx-auto">
-    <h1 class="text-xl font-semibold mb-4">Editar Cliente</h1>
+    <h1 class="text-xl font-semibold mb-4">Editar Proveedor</h1>
+
     <div v-if="loading">Cargando...</div>
+
     <BusinessPartyForm
       v-else-if="formData"
       :model-value="formData"
       :loading="saving"
-      :error="error"
-      :errors="errors"
-      lock-type
-      @submit="onSubmit"
+      @submit="handleSubmit"
     />
   </div>
 </template>

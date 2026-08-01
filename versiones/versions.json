@@ -501,5 +501,128 @@
         "title": "Mostrar variación porcentual del precio en el historial (verde si sube, rojo si baja)"
       }
     ]
+  },
+  {
+    "version": "0.11.0-alpha",
+    "date": "2026-07-31",
+    "stage": "alpha",
+    "notes": "BOM: auto_calculate_cost, conversión de monedas, UX mejorada. CRUD completo de empleados y socios. Importación de productos corregida.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "auto_calculate_cost: usar costo calculado como precio de factura cuando está activo"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Conversor de monedas en tab Costos — ver equivalencias a otras monedas"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Guardar costo calculado como precio de venta en cualquier moneda"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Selector de fuente de costo (BOM/Ingeniería/Compra/Tasa) en tab Estructura"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Tab Ingeniería renombrada a Estructura"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Consistencia de moneda en BOM — componentes sin variante ahora respetan la moneda del padre"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Botón Nuevo BOM en lista de BOMs"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Card de decisión Manual vs Desde Costos en tab Precios para productos terminados"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Tooltip descriptivo con todos los tipos de costo (UPopover con iconos)"
+      },
+      {
+        "type": "feat",
+        "scope": "empleados",
+        "title": "Módulo completo de empleados: CRUD, filtros, sorting, server proxies"
+      },
+      {
+        "type": "feat",
+        "scope": "socios",
+        "title": "Módulo completo de socios: CRUD, filtros, sorting, server proxies"
+      },
+      {
+        "type": "feat",
+        "scope": "clientes",
+        "title": "Reescribir página de clientes con filtros, sorting e import/export (igual que stakeholders)"
+      },
+      {
+        "type": "feat",
+        "scope": "proveedores",
+        "title": "Reescribir página de proveedores con filtros, sorting e import/export"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Reescribir cuentas corrientes RRHH usando módulo compartido useCurrentAccounts"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Padding uniforme en todas las páginas de RRHH (space-y-6 px-4)"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Tarjetas del dashboard RRHH con misma altura (h-full en NuxtLink y UPageCard)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Importación de Excel: headers unificados en PRODUCT_COLUMNS — template, import y export usan las mismas columnas"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Parser de importación acepta headers alternativos (.Nombre*, Tipo, Activo, etc.)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Tabla se refresca después de importar Excel (evento @success)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Alerta informativa sobre comportamiento del SKU en importación"
+      },
+      {
+        "type": "fix",
+        "scope": "pricing",
+        "title": "Consistencia de moneda en BOM — componentes sin variante ahora buscan costo en product_costs con conversión"
+      },
+      {
+        "type": "fix",
+        "scope": "pricing",
+        "title": "auto_calculate_cost ahora funciona — pricing engine usa product_costs cuando no hay product_price"
+      },
+      {
+        "type": "fix",
+        "scope": "exchange",
+        "title": "Corregir ExchangeScheduler: usar schema_name en vez de db_name"
+      }
+    ]
   }
 ]

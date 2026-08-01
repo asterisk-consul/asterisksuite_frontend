@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
-import type { AccordionItem } from '@nuxt/ui'
 import BomSidebar from '~/modulos/logistica/master-data/product/components/ProductSidebar.vue'
 import BomTabsCard from '~/modulos/logistica/master-data/product/costing/components/BomTabsCard.vue'
 
-import ConfigurationCostForm from '~/modulos/logistica/master-data/product/costing/components/ConfigurationCostForm.vue'
 import EngineeringSection from '~/modulos/logistica/master-data/product/engineering/sections/EngineeringSection.vue'
 import CostingSection from '~/modulos/logistica/master-data/product/costing/sections/CostingSection.vue'
 import GeneralSection from '~/modulos/logistica/master-data/product/components/sections/GeneralSection.vue'
@@ -85,16 +83,16 @@ const activeTab = ref('general')
 
 const saving = ref(false)
 
-// Cuando carga el producto, llenás el form
-const currencyId = ref<string>('839c208c-744d-4321-a375-2a747c911fa2') // ← sacalo del watch, hacelo ref
+// Moneda local (no se guarda en el producto, se carga de product_costs)
+const currencyId = ref<string>('')
 
 watch(
   product,
   (p) => {
     if (!p) return
     Object.assign(form, p)
-    currencyId.value = (p as any).product_costs?.[0]?.currencies?.id
-    form.cost_currency_id = currencyId.value
+    // Cargar moneda del último product_costs
+    currencyId.value = (p as any).product_costs?.[0]?.currency_id ?? ''
   },
   { immediate: true }
 )
@@ -143,8 +141,6 @@ const links = computed(() => [
     onClick: handleSave
   }
 ])
-
-const items = ref<AccordionItem[]>([{ label: 'Configuracion de Costos' }])
 </script>
 
 <template>
@@ -176,18 +172,24 @@ const items = ref<AccordionItem[]>([{ label: 'Configuracion de Costos' }])
       <UPageBody>
         <BomTabsCard v-model:active-tab="activeTab">
           <template #default="{ activeTab }">
-            <EngineeringSection v-if="activeTab === 'ingenieria'" :productId="productId" />
+            <EngineeringSection
+              v-if="activeTab === 'ingenieria'"
+              :product-id="productId"
+              :form="form"
+              :exclude-sources="['MANUAL']"
+              @update:cost-source="form.cost_source = $event"
+            />
 
-            <CostingSection v-else-if="activeTab === 'costos'" :productId="productId" :currency-id="currencyId" />
+            <CostingSection
+              v-else-if="activeTab === 'costos'"
+              :product-id="productId"
+              :form="form"
+              :currency-id="currencyId"
+              @update:currency-id="currencyId = $event"
+              @update:auto-calculate="form.auto_calculate_cost = $event"
+            />
             <div v-else>
               <GeneralSection :form="form" />
-              <UAccordion
-                :items="items"
-                class="mt-4 border-t border-default"
-                :ui="{ header: 'justify-start', label: 'text-xl font-semibold' }"
-              >
-                <template #body="{ item }"><ConfigurationCostForm :form="form" /></template>
-              </UAccordion>
             </div>
           </template>
         </BomTabsCard>

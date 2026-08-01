@@ -1,43 +1,104 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'default', middleware: ['auth'] })
+definePageMeta({ layout: 'erp', middleware: ['auth'] })
 
-import { useBusinessPartiesByType } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessPartiesByType'
-import { BusinessPartyColumns } from '~/modulos/logistica/master-data/bussiness-parties/columns'
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
+import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
+import { customerColumns } from './columns'
+import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
+import { usePartiesImportExport } from '~/modulos/logistica/master-data/bussiness-parties/composable/usePartiesImportExport'
 
-const { filteredItems, loading, fetchAll, goToCreate, goToEdit } =
-  useBusinessPartiesByType('CUSTOMER', '/erp/sales/customers')
+const router = useRouter()
+const store = useBusinessPartiesStore()
+const { items: allParties, loading } = storeToRefs(store)
+const { importOpen, dataActions } = usePartiesImportExport()
 
-const columns = BusinessPartyColumns({ onEdit: goToEdit })
+const sorting = ref<SortingState>([])
 
-onMounted(fetchAll)
+const parties = computed(() => allParties.value.filter(p => p.type === 'CUSTOMER'))
+
+onMounted(() => store.fetchAll())
+
+const openEdit = (row: any) => router.push(`/erp/sales/customers/${row.id}/edit`)
+const openCreate = () => router.push('/erp/sales/customers/create')
+
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [{ id: columnId, desc: current?.id === columnId ? !current.desc : false }]
+}
+
+const columns = customerColumns({ onEdit: openEdit, onSortFieldSelect })
+
+const filterFields: FilterField[] = [
+  { id: 'name', label: 'Filtrar por Razón Social...', class: 'w-40' },
+  { id: 'tax_id', label: 'Filtrar por CUIT...', class: 'w-56' }
+]
+
+const sortFields: SortField[] = [
+  { value: 'name', label: 'Razón Social' },
+  { value: 'tax_id', label: 'CUIT' },
+  { value: 'created_at', label: 'Fecha Creación' }
+]
+
+const importColumns = [
+  { key: 'id', label: 'id', required: false },
+  { key: 'tipo', label: 'tipo', required: true },
+  { key: 'razon_social', label: 'razon_social', required: true },
+  { key: 'nombre_fantasia', label: 'nombre_fantasia', required: false },
+  { key: 'tipo_documento', label: 'tipo_documento', required: false },
+  { key: 'CUIT', label: 'CUIT', required: false },
+  { key: 'email', label: 'email', required: false },
+  { key: 'condicion_iva', label: 'condicion_iva', required: false },
+  { key: 'tasa_exencion', label: 'tasa_exencion', required: false },
+  { key: 'contacto_nombre', label: 'contacto_nombre', required: false },
+  { key: 'contacto_apellido', label: 'contacto_apellido', required: false },
+  { key: 'contacto_cargo', label: 'contacto_cargo', required: false },
+  { key: 'contacto_telefono', label: 'contacto_telefono', required: false },
+  { key: 'contacto_email', label: 'contacto_email', required: false },
+  { key: 'cuenta_bancaria_cbu', label: 'cuenta_bancaria_cbu', required: false },
+  { key: 'cuenta_bancaria_alias', label: 'cuenta_bancaria_alias', required: false },
+  { key: 'cuenta_bancaria_banco', label: 'cuenta_bancaria_banco', required: false },
+  { key: 'cuenta_bancaria_tipo', label: 'cuenta_bancaria_tipo', required: false },
+  { key: 'cuenta_bancaria_moneda', label: 'cuenta_bancaria_moneda', required: false },
+  { key: 'cuenta_bancaria_titular', label: 'cuenta_bancaria_titular', required: false },
+  { key: 'cuenta_bancaria_descripcion', label: 'cuenta_bancaria_descripcion', required: false },
+  { key: 'cuenta_bancaria_principal', label: 'cuenta_bancaria_principal', required: false },
+  { key: 'activo', label: 'activo', required: false }
+]
 </script>
 
 <template>
-  <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar title="Clientes">
-        <template #right>
-          <UButton
-            icon="i-lucide-plus"
-            color="primary"
-            class="rounded-full"
-            @click="goToCreate"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
+  <UPage class="space-y-4">
+    <AppPageHeader title="Clientes" description="Gestión de clientes del sistema">
+      <template #links>
+        <UFieldGroup>
+          <UButton color="neutral" variant="subtle" label="Importar / Exportar" icon="i-lucide-database" />
+          <UDropdownMenu :items="dataActions">
+            <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" />
+          </UDropdownMenu>
+        </UFieldGroup>
+        <UButton label="Nuevo cliente" icon="i-heroicons-plus" color="primary" @click="openCreate" />
+      </template>
+    </AppPageHeader>
 
-    <template #body>
-      <div class="p-4">
-        <UPageCard variant="subtle">
-          <LogisticaTable
-            :loading="loading"
-            :data="filteredItems"
-            :columns="columns"
-          />
-        </UPageCard>
-      </div>
-    </template>
-  </UDashboardPanel>
+    <LogisticaTable
+      :loading="loading"
+      :data="parties"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+    />
+  </UPage>
+
+  <ExcelImportDialog
+    v-model:open="importOpen"
+    title="Importar Clientes"
+    description="Selecciona un archivo Excel con los clientes a importar. Se pueden incluir contactos y cuentas bancarias en la misma fila."
+    :columns="importColumns"
+    endpoint="/api/master-data/business-parties/import"
+    @success="store.fetchAll"
+  />
 </template>

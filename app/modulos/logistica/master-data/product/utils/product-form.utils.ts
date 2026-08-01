@@ -25,7 +25,7 @@ export function createDefaultProductCosting() {
   return {
     price_enabled: true,
     auto_calculate_cost: false,
-    cost_source: 'MANUAL' as ProductCostSource,
+    cost_source: 'BOM' as ProductCostSource,
     cost_currency_id: undefined
   }
 }
@@ -40,7 +40,6 @@ export function createDefaultProductInventory() {
 export function createDefaultProductEngineering() {
   return {
     is_composed: false,
-    has_engineering: false,
     is_rate_type: false
   }
 }
@@ -81,7 +80,6 @@ export function toUpdateProductPayload(form: ProductFormState): UpdateProductDto
     requires_refrigeration: form.requires_refrigeration,
 
     is_composed: form.is_composed,
-    has_engineering: form.has_engineering,
     is_rate_type: form.is_rate_type,
     rate_id: form.rate_id,
 
@@ -111,7 +109,6 @@ export function toCreateProductPayload(form: ProductFormState): CreateProductDto
     requires_refrigeration: form.requires_refrigeration,
 
     is_composed: form.is_composed,
-    has_engineering: form.has_engineering,
     is_rate_type: form.is_rate_type,
 
     income_account_id: form.income_account_id,

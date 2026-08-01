@@ -11,6 +11,14 @@ definePageMeta({
 const { moduleCollapsed } = useModuleSidebarState()
 const mobileOpen = ref(false)
 
+const links = ref([{
+  label: 'Nuevo BOM',
+  icon: 'i-lucide-plus',
+  to: '/bom/create',
+  color: 'primary',
+  variant: 'solid'
+}])
+
 // Cuando el toggle abre el módulo en móvil, abre el slideover
 watch(moduleCollapsed, (collapsed) => {
   if (!collapsed && window.innerWidth < 1024) {
@@ -39,7 +47,7 @@ const pageUi = computed(() => ({
 
 <template>
   <div class="flex flex-col h-full">
-    <AppPageHeader title="BOM" show-module-toggle class="sticky top-0 z-10 px-4" />
+    <AppPageHeader title="BOM" show-module-toggle class="sticky top-0 z-10 px-4" :links="links" />
 
     <!-- Slideover para móvil/tablet -->
     <USlideover v-model:open="mobileOpen" side="left" title="Navegación" :ui="{ content: 'max-w-xs' }">

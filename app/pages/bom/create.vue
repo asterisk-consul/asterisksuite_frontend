@@ -26,7 +26,12 @@ const saving = ref(false)
 const step = ref<1 | 2>(1)
 const createdProductId = ref<string | null>(null)
 
-form.cost_currency_id = '839c208c-744d-4321-a375-2a747c911fa2'
+// Default a BOM para BOM create (MANUAL se resuelve en precio)
+form.cost_source = 'BOM'
+form.auto_calculate_cost = true
+
+// Moneda local (no se guarda en el producto, se usa al calcular costos)
+const currencyId = ref('')
 
 // Paso 1 → crea el producto y avanza al paso 2
 async function handleSave() {
@@ -124,7 +129,7 @@ const pageUi = computed(() => ({
               <template #header>
                 <p class="text-sm font-medium">Configuración de costos</p>
               </template>
-              <ConfigurationCostForm :form="form" />
+              <ConfigurationCostForm :form="form" :exclude-sources="['MANUAL']" v-model="currencyId" />
             </UCard>
 
             <UAlert

@@ -10,7 +10,7 @@ const hrStore = useHrStore()
 const accounts = computed(() => hrStore.accounts)
 const loading = computed(() => hrStore.loading)
 
-const filterType = ref('')
+const filterType = ref<string | undefined>(undefined)
 
 async function loadAccounts() {
   await hrStore.fetchAccounts({
@@ -50,14 +50,13 @@ const columns = [
 ]
 
 const typeOptions = [
-  { label: 'Todos', value: '' },
   { label: 'Empleados', value: 'EMPLOYEE' },
   { label: 'Socios', value: 'PARTNER' },
 ]
 </script>
 
 <template>
-  <UPage>
+  <UPage class="space-y-6 px-4">
     <AppPageHeader title="Saldos CC RRHH" description="Resumen de saldos de cuentas corrientes" />
 
     <!-- Filtros -->

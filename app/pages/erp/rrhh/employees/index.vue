@@ -1,73 +1,61 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'rrhh',
-  middleware: ['auth']
-})
+definePageMeta({ layout: 'rrhh', middleware: ['auth'] })
 
-const employees = ref<any[]>([])
-const loading = ref(false)
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
+import { storeToRefs } from 'pinia'
+import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { employeeColumns } from './columns'
+import { useEmployeesStore } from '~/modulos/erp/employees/store/employees.store'
 
-async function loadEmployees() {
-  loading.value = true
-  try {
-    employees.value = await $fetch('/api/erp/employees')
-  } catch (e) {
-    console.error(e)
-  } finally {
-    loading.value = false
-  }
+const router = useRouter()
+const store = useEmployeesStore()
+const { items: employees, loading } = storeToRefs(store)
+
+const sorting = ref<SortingState>([])
+
+onMounted(() => store.fetchAll())
+
+const openEdit = (row: any) => router.push(`/erp/rrhh/employees/${row.id}/edit`)
+const openCreate = () => router.push('/erp/rrhh/employees/create')
+
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [{ id: columnId, desc: current?.id === columnId ? !current.desc : false }]
 }
 
-onMounted(() => loadEmployees())
+const columns = employeeColumns({ onEdit: openEdit, onSortFieldSelect })
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
-}
+const filterFields: FilterField[] = [
+  { id: 'first_name', label: 'Filtrar por Nombre...', class: 'w-40' },
+  { id: 'last_name', label: 'Filtrar por Apellido...', class: 'w-40' },
+  { id: 'document_number', label: 'Filtrar por Documento...', class: 'w-40' }
+]
 
-const columns = [
-  { id: 'name', header: 'Nombre' },
-  { id: 'document', header: 'Documento' },
-  { id: 'position', header: 'Cargo' },
-  { id: 'department', header: 'Departamento' },
-  { id: 'salary', header: 'Sueldo' },
-  { id: 'status', header: 'Estado' },
+const sortFields: SortField[] = [
+  { value: 'first_name', label: 'Nombre' },
+  { value: 'last_name', label: 'Apellido' },
+  { value: 'position', label: 'Cargo' },
+  { value: 'department', label: 'Departamento' },
+  { value: 'created_at', label: 'Fecha Creación' }
 ]
 </script>
 
 <template>
-  <UPage>
-    <AppPageHeader title="Empleados" description="Gestión de empleados y sueldos" />
+  <UPage class="space-y-6 px-4">
+    <AppPageHeader title="Empleados" description="Gestión de empleados y sueldos">
+      <template #links>
+        <UButton label="Nuevo empleado" icon="i-heroicons-plus" color="primary" @click="openCreate" />
+      </template>
+    </AppPageHeader>
 
-    <UPageCard variant="subtle">
-      <UTable :data="employees" :columns="columns" :loading="loading">
-        <template #name-cell="{ row }">
-          <span class="font-medium">{{ row.original.first_name }} {{ row.original.last_name }}</span>
-        </template>
-
-        <template #document-cell="{ row }">
-          <span class="font-mono text-xs">{{ row.original.document_type }}-{{ row.original.document_number }}</span>
-        </template>
-
-        <template #position-cell="{ row }">
-          {{ row.original.position ?? '-' }}
-        </template>
-
-        <template #department-cell="{ row }">
-          {{ row.original.department ?? '-' }}
-        </template>
-
-        <template #salary-cell="{ row }">
-          {{ row.original.salary ? fmt(Number(row.original.salary)) : '-' }}
-        </template>
-
-        <template #status-cell="{ row }">
-          <UBadge
-            :label="row.original.is_active ? 'Activo' : 'Inactivo'"
-            :color="row.original.is_active ? 'success' : 'error'"
-            variant="subtle"
-          />
-        </template>
-      </UTable>
-    </UPageCard>
+    <LogisticaTable
+      :loading="loading"
+      :data="employees"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+    />
   </UPage>
 </template>
