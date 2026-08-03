@@ -61,6 +61,9 @@ onMounted(async () => {
 
   if (payment) {
     currentPayment.value = payment as Payment
+    console.log('[PaymentDetail] payment:', payment)
+    console.log('[PaymentDetail] payment.documents:', (payment as any).documents)
+    console.log('[PaymentDetail] payment.cash_box_id:', payment.cash_box_id)
     paymentData.value = {
       type: payment.type as 'PAYMENT' | 'COLLECTION',
       date: payment.date?.split('T')[0] ?? new Date().toISOString().split('T')[0],
@@ -73,7 +76,12 @@ onMounted(async () => {
       bank_account_id: payment.bank_account_id ?? '',
       cash_box_id: payment.cash_box_id ?? '',
       check_ids: [],
+      documents: (payment as any).documents?.map((d: any) => ({
+        document_id: d.document_id,
+        amount_applied: Number(d.amount_applied),
+      })) ?? [],
     }
+    console.log('[PaymentDetail] paymentData:', paymentData.value)
   }
 })
 

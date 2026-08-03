@@ -3,47 +3,38 @@ definePageMeta({ layout: 'rrhh', middleware: ['auth'] })
 
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import BusinessPartyForm from '~/modulos/logistica/master-data/bussiness-parties/components/BusinessPartyForm.vue'
+import type { BusinessPartyForm as FormType } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import { usePartnersStore } from '~/modulos/erp/partners/store/partners.store'
-import type { UpdatePartnerInput } from '~/modulos/erp/partners/types/partners.types'
-import { storeToRefs } from 'pinia'
+import { mapPartnerToForm, mapFormToPartnerDto } from '~/modulos/erp/partners/mapper/partner.mapper'
 
 const route = useRoute()
 const router = useRouter()
-
 const store = usePartnersStore()
-const { loading } = storeToRefs(store)
 
 const id = route.params.id as string
-
 const saving = ref(false)
-const form = ref<UpdatePartnerInput | null>(null)
+const loading = ref(true)
+const formData = ref<FormType | null>(null)
 
-const documentTypeOptions = [
-  { label: 'DNI', value: 'DNI' },
-  { label: 'CUIT', value: 'CUIT' },
-  { label: 'LE', value: 'LE' },
-  { label: 'LC', value: 'LC' },
-  { label: 'Pasaporte', value: 'PASAPORTE' }
+const extraTabs = [
+  { label: 'Participación', slot: 'partnerData' }
 ]
 
 onMounted(async () => {
-  const data = await store.fetchOne(id)
-  form.value = {
-    first_name: data.first_name,
-    last_name: data.last_name,
-    document_type: data.document_type ?? '',
-    document_number: data.document_number ?? '',
-    share_percentage: data.share_percentage ?? '',
-    capital_contributed: data.capital_contributed ?? '',
-    is_active: data.is_active
+  try {
+    const data = await store.fetchOne(id)
+    formData.value = mapPartnerToForm(data)
+  } finally {
+    loading.value = false
   }
 })
 
-const handleSubmit = async () => {
-  if (!form.value) return
+const handleSubmit = async (form: FormType) => {
   try {
     saving.value = true
-    await store.update(id, form.value)
+    const payload = mapFormToPartnerDto(form)
+    await store.update(id, payload)
     await router.push('/erp/rrhh/partners')
   } catch (error) {
     console.error(error)
@@ -55,51 +46,35 @@ const handleSubmit = async () => {
 
 <template>
   <div class="p-4 max-w-3xl mx-auto">
-    <h1 class="text-xl font-semibold mb-4">Editar Socio</h1>
+    <div v-if="loading" class="text-center py-8">Cargando...</div>
 
-    <div v-if="loading">Cargando...</div>
+    <BusinessPartyForm
+      v-else-if="formData"
+      :model-value="formData"
+      :loading="saving"
+      :extra-tabs="extraTabs"
+      header-title="Editar Socio"
+      @submit="handleSubmit"
+    >
+      <template #partnerData="{ form }">
+        <UCard>
+          <template #header>
+            <h3 class="font-semibold">Participación</h3>
+          </template>
 
-    <UCard v-else-if="form">
-      <UForm :state="form" class="space-y-4" @submit.prevent="handleSubmit">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <UFormField label="Nombre" required>
-            <UInput v-model="form.first_name" placeholder="Nombre" />
-          </UFormField>
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <UFormField label="% Participación" name="share_percentage">
+                <UInput v-model="form.share_percentage" placeholder="0.00" type="number" class="w-full" />
+              </UFormField>
 
-          <UFormField label="Apellido" required>
-            <UInput v-model="form.last_name" placeholder="Apellido" />
-          </UFormField>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <UFormField label="Tipo Documento">
-            <USelect v-model="form.document_type" :items="documentTypeOptions" placeholder="Seleccionar" />
-          </UFormField>
-
-          <UFormField label="Número Documento">
-            <UInput v-model="form.document_number" placeholder="Número" />
-          </UFormField>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <UFormField label="% Participación">
-            <UInput v-model="form.share_percentage" placeholder="0.00" type="number" />
-          </UFormField>
-
-          <UFormField label="Capital Aportado">
-            <UInput v-model="form.capital_contributed" placeholder="0.00" type="number" />
-          </UFormField>
-        </div>
-
-        <UFormField label="Estado">
-          <USwitch v-model="form.is_active" label="Activo" />
-        </UFormField>
-
-        <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" @click="router.back()">Cancelar</UButton>
-          <UButton type="submit" :loading="saving">Guardar</UButton>
-        </div>
-      </UForm>
-    </UCard>
+              <UFormField label="Capital Aportado" name="capital_contributed">
+                <UInput v-model="form.capital_contributed" placeholder="0.00" type="number" class="w-full" />
+              </UFormField>
+            </div>
+          </div>
+        </UCard>
+      </template>
+    </BusinessPartyForm>
   </div>
 </template>

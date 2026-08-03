@@ -624,5 +624,78 @@
         "title": "Corregir ExchangeScheduler: usar schema_name en vez de db_name"
       }
     ]
+  },
+  {
+    "version": "0.12.0-alpha",
+    "date": "2026-08-02",
+    "stage": "alpha",
+    "notes": "RRHH: vales con tipos SUELDO/EXTRAS/APORTE, dashboard mejorado. Pagos: documentos visibles al editar. Importación: headers unificados.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Nuevos tipos de vale: SUELDO, EXTRAS, APORTE para empleados y socios"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Dashboard RRHH mejorado con saldo desde current_accounts y desglose de empleados/socios"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Reporte vales-por-período con tabs (Todos, Pendientes, Confirmados, Anulados) y composable useRrhhTotals"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Componente RrhhTotalsCards reutilizable para totales de débito/crédito"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "resolveSide corregido para EMPLOYEE/PARTNER en cuentas corrientes"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Badge 'Recibo de sueldo' para INVOICE + EMPLOYEE en tabla de movimientos"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Saldo total CC en dashboard: invertido para HR (positivo = A pagar)"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Documentos visibles al editar pago en borrador"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "PaymentForm popula selectedDocs desde documentos del pago al cargar"
+      },
+      {
+        "type": "fix",
+        "scope": "purchases",
+        "title": "Excluir documentos VALE de findPending para que aparezcan en pagos"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "findAll soporta múltiples party_types separados por coma"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "resolveSide función compartida en utils.ts"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Excluir VALE del selector de tipos de documento"
+      }
+    ]
   }
 ]

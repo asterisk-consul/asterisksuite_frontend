@@ -4,28 +4,26 @@ definePageMeta({
   middleware: ['auth']
 })
 
-import type { SortingState } from '@tanstack/vue-table'
-import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
-
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
-import { currentAccountEntryColumns, ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
+import { ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
 import type { CurrentAccount } from '~/modulos/erp/current-accounts/types/current-accounts.types'
-import { useExcelExport } from '~/composables/useExcelExport'
+import { resolveSide } from '~/modulos/erp/current-accounts/utils'
 
-import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import CurrentAccountSummary from '~/components/current-account/CurrentAccountSummary.vue'
+import CurrentAccountChart from '~/components/current-account/CurrentAccountChart.vue'
+import CurrentAccountEntryTable from '~/components/current-account/CurrentAccountEntryTable.vue'
+import CurrentAccountExport from '~/components/current-account/CurrentAccountExport.vue'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
 const { statement, entries: storeEntries, loading, fetchStatement, fetchEntries } = useCurrentAccounts()
-const { exportToExcel } = useExcelExport()
 
 const partyId = route.params.partyId as string
 const currencyCode = (route.query.currency as string) || 'ARS'
 
 const account = ref<CurrentAccount | null>(null)
-const sorting = ref<SortingState>([])
 
 const entries = computed(() => {
   const fromStatement = statement.value?.entries ?? []
@@ -34,30 +32,7 @@ const entries = computed(() => {
   return [...list].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 })
 
-const entriesChronological = computed(() => {
-  const typePriority: Record<string, number> = {
-    INVOICE: 1, DEBIT_NOTE: 2, CREDIT_NOTE: 3,
-    PAYMENT: 10, COLLECTION: 10
-  }
-  return [...entries.value].sort((a, b) => {
-    const dateA = new Date(a.date).getTime()
-    const dateB = new Date(b.date).getTime()
-    if (dateA !== dateB) return dateA - dateB
-    return (typePriority[a.type] ?? 10) - (typePriority[b.type] ?? 10)
-  })
-})
-
 const balance = computed(() => Number(statement.value?.balance ?? 0))
-
-const resolveSide = (type: string, partyType: string): 'debit' | 'credit' => {
-  // Convención CONTABLE para mostrar en columnas:
-  // CLIENTE: Factura = Débito (nos deben), Cobro = Crédito (nos pagaron)
-  // PROVEEDOR: Factura = Crédito (les debemos), Pago = Débito (les pagamos)
-  if (type === 'INVOICE') return partyType === 'SUPPLIER' ? 'credit' : 'debit'
-  if (type === 'CREDIT_NOTE') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
-  if (type === 'PAYMENT' || type === 'COLLECTION') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
-  return ENTRY_TYPE_CONFIG[type]?.side ?? 'debit'
-}
 
 const totalDebit = computed(() =>
   entries.value
@@ -71,6 +46,8 @@ const totalCredit = computed(() =>
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
 )
 
+const partyTypeLabel = computed(() => (account.value?.party_type === 'CUSTOMER' ? 'Cliente' : 'Proveedor'))
+
 onMounted(async () => {
   try {
     await Promise.all([fetchStatement(partyId, currencyCode), fetchEntries(partyId, currencyCode)])
@@ -83,107 +60,8 @@ onMounted(async () => {
   }
 })
 
-function onSortFieldSelect(columnId: string) {
-  const current = sorting.value[0]
-  sorting.value = [{ id: columnId, desc: current?.id === columnId ? !current.desc : false }]
-}
-
-const columns = computed(() => currentAccountEntryColumns({
-  onSortFieldSelect,
-  partyType: account.value?.party_type
-}))
-
-const filterFields: FilterField[] = [
-  { id: 'type', label: 'Filtrar por tipo...', class: 'w-40' },
-  { id: 'description', label: 'Filtrar por descripción...', class: 'w-56' }
-]
-
-const sortFields: SortField[] = [
-  { label: 'Fecha', value: 'date' },
-  { label: 'Tipo', value: 'type' },
-  { label: 'Monto', value: 'amount' },
-  { label: 'Saldo', value: 'balance_after' }
-]
-
-const formatCurrency = (amount: number | string | null | undefined, currency?: string) => {
-  const num = Number(amount) || 0
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: currency || currencyCode,
-    maximumFractionDigits: 2
-  }).format(num)
-}
-
-const balanceColor = computed(() => {
-  if (balance.value > 0) return 'text-success'
-  if (balance.value < 0) return 'text-error'
-  return 'text-muted'
-})
-
-const balanceLabel = computed(() => {
-  if (!account.value) return ''
-  if (balance.value > 0) return account.value.party_type === 'CUSTOMER' ? 'Nos deben' : 'Debemos'
-  if (balance.value < 0) return account.value.party_type === 'CUSTOMER' ? 'Debemos' : 'Nos deben'
-  return 'Saldo 0'
-})
-
-const partyTypeLabel = computed(() => (account.value?.party_type === 'CUSTOMER' ? 'Cliente' : 'Proveedor'))
-
-const exportEntries = () => {
-  const partyName = account.value?.party?.name ?? 'tercero'
-  exportToExcel({
-    filename: `movimientos_${partyName.replace(/\s+/g, '_')}_${currencyCode}`,
-    sheetName: 'Movimientos',
-    columns: [
-      { key: 'date', label: 'Fecha', width: 18, format: (v) => v ? new Date(v).toLocaleDateString('es-AR') : '' },
-      { key: 'type_label', label: 'Tipo', width: 20 },
-      { key: 'debit', label: 'Débito', width: 15, format: (v) => v ? formatCurrency(v) : '' },
-      { key: 'credit', label: 'Crédito', width: 15, format: (v) => v ? formatCurrency(v) : '' },
-      { key: 'balance_after', label: 'Saldo', width: 15, format: (v) => formatCurrency(v) },
-      { key: 'description', label: 'Descripción', width: 30 },
-    ],
-    data: entriesChronological.value.map(e => ({
-      ...e,
-      type_label: ENTRY_TYPE_CONFIG[e.type]?.label ?? e.type,
-      debit: resolveSide(e.type, account.value?.party_type ?? '') === 'debit' ? Number(e.amount) : null,
-      credit: resolveSide(e.type, account.value?.party_type ?? '') === 'credit' ? Number(e.amount) : null,
-    }))
-  })
-}
-
 const goBack = () => {
   router.push('/erp/treasury/current-accounts')
-}
-
-const printStatement = () => {
-  const partyName = account.value?.party?.name ?? 'Tercero'
-  const entriesHtml = entriesChronological.value.map(e => {
-    const config = ENTRY_TYPE_CONFIG[e.type]
-    const isDebit = resolveSide(e.type, account.value?.party_type ?? '') === 'debit'
-    return `<tr>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee">${new Date(e.date).toLocaleDateString('es-AR')}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee">${config?.label ?? e.type}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${isDebit ? formatCurrency(e.amount) : ''}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${!isDebit ? formatCurrency(e.amount) : ''}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold">${formatCurrency(e.balance_after)}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee">${e.description || ''}</td>
-    </tr>`
-  }).join('')
-
-  const html = `<!DOCTYPE html><html><head><title>Estado de Cuenta - ${partyName}</title>
-    <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#f5f5f5;padding:6px 8px;border-bottom:2px solid #ddd;text-align:left}.header{display:flex;justify-content:space-between;margin-bottom:20px}.balance{font-size:18px;font-weight:bold}</style>
-  </head><body>
-    <div class="header">
-      <div><h2>Estado de Cuenta</h2><p>${partyName} — ${currencyCode}</p><p>${partyTypeLabel.value}</p></div>
-      <div style="text-align:right"><p>Fecha: ${new Date().toLocaleDateString('es-AR')}</p><p class="balance ${balanceColor.value}">Saldo: ${formatCurrency(balance.value)}</p></div>
-    </div>
-    <table><thead><tr><th>Fecha</th><th>Tipo</th><th style="text-align:right">Débito</th><th style="text-align:right">Crédito</th><th style="text-align:right">Saldo</th><th>Descripción</th></tr></thead><tbody>${entriesHtml}</tbody></table>
-  </body></html>`
-
-  const printWindow = window.open('', '_blank')
-  printWindow?.document.write(html)
-  printWindow?.document.close()
-  printWindow?.print()
 }
 
 const nuevoMovimientoItems = [
@@ -209,87 +87,6 @@ const nuevoMovimientoItems = [
     }
   }
 ]
-
-const links = computed(() => [
-  {
-    label: 'Volver',
-    icon: 'i-lucide-arrow-left',
-    variant: 'ghost' as const,
-    onClick: goBack
-  }
-])
-
-const balanceChartData = computed(() => {
-  const sorted = [...entries.value].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-  return {
-    tooltip: {
-      trigger: 'axis',
-      formatter: (params: any) => {
-        const p = params[0]
-        return `${p.axisValue}<br/>Saldo: ${formatCurrency(p.value)}`
-      }
-    },
-    grid: { left: 60, right: 20, top: 10, bottom: 30 },
-    xAxis: {
-      type: 'category',
-      data: sorted.map((e) => e.date.split('T')[0]),
-      axisLabel: { fontSize: 10, rotate: 45 }
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { fontSize: 10, formatter: (v: number) => formatCurrency(v) }
-    },
-    series: [
-      {
-        type: 'line',
-        data: sorted.map((e) => Number(e.balance_after)),
-        smooth: true,
-        lineStyle: { width: 2, color: balance.value >= 0 ? '#22c55e' : '#ef4444' },
-        areaStyle: { color: balance.value >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' },
-        itemStyle: { color: balance.value >= 0 ? '#22c55e' : '#ef4444' }
-      }
-    ]
-  }
-})
-
-const entryTypeSummary = computed(() => {
-  const map = new Map<string, { count: number; total: number; side: string }>()
-  for (const e of entries.value) {
-    const config = ENTRY_TYPE_CONFIG[e.type]
-    const label = config?.label ?? e.type
-    const side = config?.side ?? 'debit'
-    const existing = map.get(label) || { count: 0, total: 0, side }
-    existing.count++
-    existing.total += Number(e.amount) || 0
-    map.set(label, existing)
-  }
-  return Array.from(map.entries())
-    .map(([name, data]) => ({ name, ...data }))
-    .sort((a, b) => b.total - a.total)
-})
-
-const entryTypePieData = computed(() => {
-  const colors = ['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6']
-  return {
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { bottom: 0, textStyle: { fontSize: 11 } },
-    series: [
-      {
-        type: 'pie',
-        radius: ['40%', '70%'],
-        avoidLabelOverlap: false,
-        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
-        label: { show: false },
-        emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
-        data: entryTypeSummary.value.map((d, i) => ({
-          value: d.total,
-          name: d.name,
-          itemStyle: { color: colors[i % colors.length] }
-        }))
-      }
-    ]
-  }
-})
 </script>
 
 <template>
@@ -297,28 +94,16 @@ const entryTypePieData = computed(() => {
     <AppPageHeader
       :title="account?.party?.name ?? 'Cuenta corriente'"
       :description="`${partyTypeLabel} · ${currencyCode}`"
-      :links="links"
     >
       <template #links>
         <div class="flex gap-2">
-          <UButton
-            label="Volver"
-            icon="i-lucide-arrow-left"
-            variant="ghost"
-            @click="goBack"
+          <CurrentAccountExport
+            :entries="entries"
+            :account="account"
+            :currency-code="currencyCode"
+            :party-type-label="partyTypeLabel"
           />
-          <UButton
-            label="Exportar Excel"
-            icon="i-lucide-download"
-            variant="outline"
-            @click="exportEntries"
-          />
-          <UButton
-            label="Imprimir"
-            icon="i-lucide-printer"
-            variant="outline"
-            @click="printStatement"
-          />
+          <UButton label="Volver" icon="i-lucide-arrow-left" variant="ghost" @click="goBack" />
           <UDropdownMenu :items="nuevoMovimientoItems">
             <UButton
               label="Nuevo movimiento"
@@ -331,107 +116,31 @@ const entryTypePieData = computed(() => {
       </template>
     </AppPageHeader>
 
-    <!-- BALANCE SUMMARY -->
-    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 py-4">
-      <UPageCard variant="subtle">
-        <div class="text-center">
-          <p class="text-xs text-muted font-medium uppercase">Saldo actual</p>
-          <p class="text-2xl font-bold mt-1" :class="balanceColor">
-            {{ formatCurrency(balance) }}
-          </p>
-          <p class="text-xs text-muted mt-1">{{ balanceLabel }}</p>
-        </div>
-      </UPageCard>
-      <UPageCard variant="subtle">
-        <div class="text-center">
-          <p class="text-xs text-muted font-medium uppercase">Total débitos</p>
-          <p class="text-xl font-bold mt-1 text-error">{{ formatCurrency(totalDebit) }}</p>
-          <p class="text-xs text-muted mt-1">Pagos y salidas</p>
-        </div>
-      </UPageCard>
-      <UPageCard variant="subtle">
-        <div class="text-center">
-          <p class="text-xs text-muted font-medium uppercase">Total créditos</p>
-          <p class="text-xl font-bold mt-1 text-success">{{ formatCurrency(totalCredit) }}</p>
-          <p class="text-xs text-muted mt-1">Cobros y entradas</p>
-        </div>
-      </UPageCard>
-      <UPageCard variant="subtle">
-        <div class="text-center">
-          <p class="text-xs text-muted font-medium uppercase">Movimientos</p>
-          <p class="text-xl font-bold mt-1">{{ entries.length }}</p>
-          <p class="text-xs text-muted mt-1">Transacciones totales</p>
-        </div>
-      </UPageCard>
-    </div>
+    <!-- SUMMARY -->
+    <CurrentAccountSummary
+      :balance="balance"
+      :total-debit="totalDebit"
+      :total-credit="totalCredit"
+      :currency-code="currencyCode"
+      :party-type="account?.party_type"
+      :party-type-label="partyTypeLabel"
+      :account-count="entries.length"
+    />
 
     <!-- CHARTS -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 py-4">
-      <!-- BALANCE EVOLUTION -->
-      <UPageCard variant="subtle" class="lg:col-span-2">
-        <template #header>
-          <h3 class="text-sm font-semibold">Evolución del saldo</h3>
-        </template>
-        <div v-if="entries.length === 0" class="text-center py-8 text-muted text-sm">
-          No hay movimientos para graficar
-        </div>
-        <ClientOnly v-else>
-          <VChart :option="balanceChartData" :style="{ height: '280px', width: '100%' }" autoresize />
-        </ClientOnly>
-      </UPageCard>
-
-      <!-- ENTRY TYPE DISTRIBUTION -->
-      <UPageCard variant="subtle">
-        <template #header>
-          <h3 class="text-sm font-semibold">Por tipo de movimiento</h3>
-        </template>
-        <div v-if="entryTypeSummary.length === 0" class="text-center py-8 text-muted text-sm">No hay datos</div>
-        <ClientOnly v-else>
-          <VChart :option="entryTypePieData" :style="{ height: '280px', width: '100%' }" autoresize />
-        </ClientOnly>
-      </UPageCard>
-    </div>
-
-    <!-- TYPE SUMMARY TABLE -->
-    <UPageCard variant="subtle" class="mb-4">
-      <template #header>
-        <h3 class="text-sm font-semibold">Resumen por tipo</h3>
-      </template>
-      <div v-if="entryTypeSummary.length === 0" class="text-center py-6 text-muted text-sm">No hay movimientos</div>
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 py-4">
-        <div v-for="item in entryTypeSummary" :key="item.name" class="p-3 rounded-lg border border-default">
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-muted">{{ item.name }}</span>
-            <UBadge
-              :label="item.side === 'credit' ? 'Haber' : 'Debe'"
-              :color="item.side === 'credit' ? 'success' : 'error'"
-              variant="soft"
-              size="xs"
-            />
-          </div>
-          <p class="text-sm font-semibold mt-1" :class="item.side === 'credit' ? 'text-success' : 'text-error'">
-            {{ formatCurrency(item.total) }}
-          </p>
-          <p class="text-xs text-muted">{{ item.count }} movimientos</p>
-        </div>
-      </div>
-    </UPageCard>
+    <CurrentAccountChart
+      :entries="entries"
+      :balance="balance"
+      :currency-code="currencyCode"
+    />
 
     <!-- ENTRIES TABLE -->
-    <UPageCard variant="subtle">
-      <template #header>
-        <h3 class="text-sm font-semibold">Detalle de movimientos</h3>
-      </template>
-      <div class="overflow-x-auto">
-        <LogisticaTable
-          :loading="loading"
-          :data="entries"
-          :columns="columns"
-          :filter-fields="filterFields"
-          :sort-fields="sortFields"
-          v-model:sorting="sorting"
-        />
-      </div>
-    </UPageCard>
+    <CurrentAccountEntryTable
+      v-if="account"
+      :entries="entries"
+      :loading="loading"
+      :party-type="account.party_type"
+      :currency-code="currencyCode"
+    />
   </UPage>
 </template>

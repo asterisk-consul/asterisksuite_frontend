@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
+import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
+import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
 
 definePageMeta({
   layout: 'rrhh',
@@ -7,27 +9,44 @@ definePageMeta({
 })
 
 const hrStore = useHrStore()
+const { allAccounts, fetchAll } = useCurrentAccounts()
 
 const totalEmployees = ref(0)
+const activeEmployees = ref(0)
 const totalPartners = ref(0)
+const activePartners = ref(0)
 const totalVales = ref(0)
 const pendingVales = ref(0)
 const totalBalance = ref(0)
 
 async function loadDashboard() {
   try {
-    const [employees, partners, vales, accounts] = await Promise.all([
+    const [employees, partners, vales] = await Promise.all([
       $fetch<any[]>('/api/erp/employees'),
       $fetch<any[]>('/api/erp/partners'),
       hrStore.fetchVales(),
-      hrStore.fetchAccounts()
     ])
 
+    // Cargar cuentas corrientes de RRHH
+    await fetchAll({ party_type: 'EMPLOYEE,PARTNER' })
+    await nextTick()
+
+    // Empleados
     totalEmployees.value = employees.length
+    activeEmployees.value = employees.filter((e: any) => e.is_active !== false).length
+
+    // Socios
     totalPartners.value = partners.length
+    activePartners.value = partners.filter((p: any) => p.is_active !== false).length
+
+    // Vales
     totalVales.value = vales.length
     pendingVales.value = vales.filter((v: any) => v.status === 'DRAFT').length
-    totalBalance.value = accounts.reduce((sum: number, a: any) => sum + Number(a.balance), 0)
+
+    // Saldo desde current_accounts (una sola fuente de verdad)
+    totalBalance.value = allAccounts.value
+      .filter(a => a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER')
+      .reduce((sum, a) => sum - Number(a.balance), 0)
   } catch (e) {
     console.error(e)
   }
@@ -44,12 +63,14 @@ function fmt(n: number) {
   <UPage class="space-y-6 px-4">
     <AppPageHeader title="RRHH" description="Gestión de recursos humanos" />
 
+    <!-- Resumen principal -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 py-4">
       <NuxtLink to="/erp/rrhh/employees" class="h-full">
         <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer h-full">
           <div class="space-y-1">
             <p class="text-xs text-muted">Empleados</p>
             <p class="text-2xl font-semibold text-info-500">{{ totalEmployees }}</p>
+            <p class="text-xs text-muted">{{ activeEmployees }} activos</p>
           </div>
         </UPageCard>
       </NuxtLink>
@@ -59,6 +80,7 @@ function fmt(n: number) {
           <div class="space-y-1">
             <p class="text-xs text-muted">Socios</p>
             <p class="text-2xl font-semibold text-warning-500">{{ totalPartners }}</p>
+            <p class="text-xs text-muted">{{ activePartners }} activos</p>
           </div>
         </UPageCard>
       </NuxtLink>
@@ -77,9 +99,10 @@ function fmt(n: number) {
         <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer h-full">
           <div class="space-y-1">
             <p class="text-xs text-muted">Saldo total CC</p>
-            <p class="text-2xl font-semibold" :class="totalBalance >= 0 ? 'text-success' : 'text-error'">
-              {{ fmt(totalBalance) }}
+            <p class="text-2xl font-semibold" :class="totalBalance <= 0 ? 'text-error' : 'text-success'">
+              {{ fmt(Math.abs(totalBalance)) }}
             </p>
+            <p class="text-xs text-muted">{{ totalBalance <= 0 ? 'A pagar' : 'A cobrar' }}</p>
           </div>
         </UPageCard>
       </NuxtLink>
@@ -93,7 +116,9 @@ function fmt(n: number) {
           <UButton label="Ver todos" variant="ghost" color="neutral" size="sm" to="/erp/rrhh/vales" />
         </div>
       </template>
-      <div v-if="hrStore.vales.length === 0" class="text-center py-8 text-muted text-sm">No hay vales registrados.</div>
+      <div v-if="hrStore.vales.length === 0" class="text-center py-8 text-muted text-sm">
+        No hay vales registrados.
+      </div>
       <div v-else class="space-y-2">
         <div
           v-for="vale in hrStore.vales.slice(0, 5)"

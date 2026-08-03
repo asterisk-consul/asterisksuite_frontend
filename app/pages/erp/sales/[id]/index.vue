@@ -22,6 +22,8 @@ const isProcessing = ref(false)
 const confirmModalOpen = ref(false)
 const cancelModalOpen = ref(false)
 const statusModalOpen = ref(false)
+const acceptModalOpen = ref(false)
+const deliverModalOpen = ref(false)
 const pendingStatus = ref<number>(0)
 
 const factura = computed(() => documentsSalesStore.current)
@@ -47,6 +49,15 @@ const statusColor = computed(() => {
 const isDraft = computed(() => factura.value?.status === 0)
 const isPending = computed(() => factura.value?.status === 1)
 const isConfirmed = computed(() => factura.value?.status === 2)
+
+const docCategory = computed(() => factura.value?.document_types?.category)
+const isQuote = computed(() => docCategory.value === 'QUOTE')
+const isOrder = computed(() => docCategory.value === 'ORDER')
+const isRemito = computed(() => docCategory.value === 'REMITO')
+const isInvoice = computed(() => docCategory.value === 'INVOICE')
+
+const parentDoc = computed(() => (factura.value as any)?.parent_document)
+const childDocs = computed(() => (factura.value as any)?.child_documents ?? [])
 
 const links = computed(() => {
   const items: ButtonProps[] = [
@@ -103,8 +114,8 @@ const links = computed(() => {
     })
   }
 
-  // Confirmado → Ver cuenta corriente
-  if (isConfirmed.value && factura.value?.party_id) {
+  // Confirmado → Ver cuenta corriente (solo facturas)
+  if (isConfirmed.value && isInvoice.value && factura.value?.party_id) {
     items.push({
       label: 'Cuenta corriente',
       icon: 'i-lucide-arrow-right-circle',
@@ -113,6 +124,26 @@ const links = computed(() => {
         const currency = factura.value!.currency_code ?? 'ARS'
         router.push(`/erp/treasury/current-accounts/${factura.value!.party_id}?currency=${currency}`)
       }
+    })
+  }
+
+  // Presupuesto confirmado → Aceptar (crea OV)
+  if (isQuote.value && isConfirmed.value) {
+    items.push({
+      label: 'Aceptar → Crear OV',
+      icon: 'i-lucide-check-circle',
+      color: 'success',
+      onClick: () => { acceptModalOpen.value = true }
+    })
+  }
+
+  // OV confirmada → Despachar (crea Remito)
+  if (isOrder.value && isConfirmed.value) {
+    items.push({
+      label: 'Despachar → Crear Remito',
+      icon: 'i-lucide-truck',
+      color: 'success',
+      onClick: () => { deliverModalOpen.value = true }
     })
   }
 
@@ -193,6 +224,44 @@ const handleCancel = async () => {
     isProcessing.value = false
   }
 }
+
+const handleAccept = async () => {
+  if (isProcessing.value) return
+  isProcessing.value = true
+  try {
+    const newDoc = await documentsSalesStore.accept(route.params.id as string)
+    toast.add({ title: 'OV creada correctamente', color: 'success' })
+    acceptModalOpen.value = false
+    router.push(`/erp/sales/${newDoc.id}`)
+  } catch (e: any) {
+    toast.add({
+      title: 'Error al aceptar presupuesto',
+      description: e?.data?.message || e?.message,
+      color: 'error'
+    })
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+const handleDeliver = async () => {
+  if (isProcessing.value) return
+  isProcessing.value = true
+  try {
+    const newDoc = await documentsSalesStore.deliver(route.params.id as string)
+    toast.add({ title: 'Remito creado correctamente', color: 'success' })
+    deliverModalOpen.value = false
+    router.push(`/erp/sales/${newDoc.id}`)
+  } catch (e: any) {
+    toast.add({
+      title: 'Error al despachar',
+      description: e?.data?.message || e?.message,
+      color: 'error'
+    })
+  } finally {
+    isProcessing.value = false
+  }
+}
 </script>
 
 <template>
@@ -212,13 +281,37 @@ const handleCancel = async () => {
 
     <template #body>
       <UPage>
-        <UPageHeader :title="factura ? `Factura #${factura.number}` : ''" :description="statusLabel" :links="links">
+        <UPageHeader :title="factura ? `${factura.document_types?.description ?? 'Documento'} #${factura.number}` : ''" :description="statusLabel" :links="links">
           <template #headline>
             <UBadge :label="statusLabel" :color="statusColor" variant="subtle" size="lg" />
           </template>
         </UPageHeader>
 
         <UPageBody>
+          <!-- Documento padre -->
+          <UAlert v-if="parentDoc" color="info" variant="soft" icon="i-lucide-link" class="mb-4">
+            <template #title>
+              <span>Generado desde: </span>
+              <NuxtLink :to="`/erp/sales/${parentDoc.id}`" class="underline font-medium">
+                {{ parentDoc.document_types?.description }} #{{ parentDoc.number }}
+              </NuxtLink>
+            </template>
+          </UAlert>
+
+          <!-- Documentos hijos -->
+          <UAlert v-if="childDocs.length > 0" color="success" variant="soft" icon="i-lucide-arrow-right-circle" class="mb-4">
+            <template #title>
+              <span>Documentos generados ({{ childDocs.length }})</span>
+            </template>
+            <template #description>
+              <div class="flex flex-wrap gap-2 mt-1">
+                <NuxtLink v-for="child in childDocs" :key="child.id" :to="`/erp/sales/${child.id}`" class="underline">
+                  {{ child.document_types?.description }} #{{ child.number }}
+                </NuxtLink>
+              </div>
+            </template>
+          </UAlert>
+
           <div v-if="factura" id="printable-document">
             <FacturaView :document="factura" mode="sale" />
           </div>
@@ -283,6 +376,34 @@ const handleCancel = async () => {
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="cancelModalOpen = false" />
         <UButton label="Anular" color="error" :loading="isProcessing" :disabled="isProcessing" @click="handleCancel" />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- ACCEPT MODAL (QUOTE → ORDER) -->
+  <UModal v-model:open="acceptModalOpen" title="Aceptar presupuesto">
+    <template #body>
+      <p>
+        ¿Aceptar el presupuesto <strong>#{{ factura?.number }}</strong> y crear una Orden de Venta?
+      </p>
+      <p class="text-sm text-muted mt-2">Se creará una nueva OV con los mismos ítems.</p>
+      <div class="flex justify-end gap-2 pt-4">
+        <UButton label="Cancelar" variant="ghost" @click="acceptModalOpen = false" />
+        <UButton label="Aceptar y crear OV" color="success" :loading="isProcessing" :disabled="isProcessing" @click="handleAccept" />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- DELIVER MODAL (ORDER → REMITO) -->
+  <UModal v-model:open="deliverModalOpen" title="Despachar orden">
+    <template #body>
+      <p>
+        ¿Despachar la OV <strong>#{{ factura?.number }}</strong> y crear un Remito?
+      </p>
+      <p class="text-sm text-muted mt-2">Se creará un remito con los mismos ítems.</p>
+      <div class="flex justify-end gap-2 pt-4">
+        <UButton label="Cancelar" variant="ghost" @click="deliverModalOpen = false" />
+        <UButton label="Despachar y crear Remito" color="success" :loading="isProcessing" :disabled="isProcessing" @click="handleDeliver" />
       </div>
     </template>
   </UModal>

@@ -3,6 +3,7 @@ import { NuxtLink } from '#components'
 import type { CurrentAccountEntry } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
+import { resolveSide } from './utils'
 
 type Row = CurrentAccountEntry
 
@@ -17,21 +18,12 @@ export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; 
   CHECK_ISSUED: { label: 'Cheque emitido', color: 'warning', side: 'debit' },
   CHECK_RECEIVED: { label: 'Cheque recibido', color: 'success', side: 'credit' },
   INVOICE: { label: 'Factura', color: 'primary', side: 'debit' },
+  SUELDO: { label: 'Recibo de sueldo', color: 'primary', side: 'credit' },
   CREDIT_NOTE: { label: 'Nota de crédito', color: 'success', side: 'credit' },
   DEBIT_NOTE: { label: 'Nota de débito', color: 'secondary', side: 'debit' },
   NO_DEBIT: { label: 'No débito', color: 'neutral', side: 'credit' },
   DEBIT: { label: 'Débito', color: 'warning', side: 'debit' },
   CREDIT: { label: 'Crédito', color: 'success', side: 'credit' }
-}
-
-function resolveSide(type: string, partyType?: string): 'debit' | 'credit' {
-  // Convención CONTABLE para mostrar en columnas:
-  // CLIENTE: Factura = Débito (nos deben), Cobro = Crédito (nos pagaron)
-  // PROVEEDOR: Factura = Crédito (les debemos), Pago = Débito (les pagamos)
-  if (type === 'INVOICE') return partyType === 'SUPPLIER' ? 'credit' : 'debit'
-  if (type === 'CREDIT_NOTE') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
-  if (type === 'PAYMENT' || type === 'COLLECTION') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
-  return ENTRY_TYPE_CONFIG[type]?.side ?? 'debit'
 }
 
 function resolveReferenceLink(entry: CurrentAccountEntry, partyType?: string): { to: string; label: string } | null {
@@ -73,8 +65,15 @@ export const currentAccountEntryColumns = (actions: {
         badge: {
           resolve: (row) => {
             const config = ENTRY_TYPE_CONFIG[row.type]
+            let label = config?.label ?? row.type
+
+            // Si es INVOICE y EMPLOYEE/PARTNER, mostrar "Recibo de sueldo"
+            if (row.type === 'INVOICE' && (actions?.partyType === 'EMPLOYEE' || actions?.partyType === 'PARTNER')) {
+              label = 'Recibo de sueldo'
+            }
+
             return {
-              label: config?.label ?? row.type,
+              label,
               color: (config?.color as any) ?? 'neutral'
             }
           }

@@ -126,6 +126,8 @@ export interface BusinessPartyForm {
   id?: string
   type: BusinessPartyType
   name: string
+  first_name?: string
+  last_name?: string
   business_names?: string
   document_type?: string
   email?: string
@@ -157,4 +159,15 @@ export interface BusinessPartyForm {
     holder_name?: string
     is_default?: boolean
   }[]
+
+  // ─── Employee fields (optional, shown when type=EMPLOYEE) ──
+  position?: string
+  department?: string
+  hire_date?: string
+  salary?: string
+  currency_code?: string
+
+  // ─── Partner fields (optional, shown when type=PARTNER) ──
+  share_percentage?: string
+  capital_contributed?: string
 }

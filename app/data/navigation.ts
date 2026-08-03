@@ -18,7 +18,10 @@ export const navigationLinks = [
       icon: 'i-lucide-receipt',
       defaultOpen: false,
       children: [
+        { label: 'Presupuestos', to: '/erp/budgets' },
+        { label: 'Órdenes de Venta', to: '/erp/orders' },
         { label: 'Comprobantes', to: '/erp/sales' },
+        { label: 'Remitos', to: '/erp/remitos' },
         { label: 'Clientes', to: '/erp/sales/customers' },
         {
           label: 'Resumen de productos vendidos',
@@ -32,8 +35,8 @@ export const navigationLinks = [
       icon: 'i-lucide-folder-closed',
       defaultOpen: false,
       children: [
+        { label: 'Órdenes de Compra', to: '/erp/orders?direction=-1' },
         { label: 'Comprobantes', to: '/erp/purchases/purchases-documents' },
-
         { label: 'Proveedores', to: '/erp/purchases/suppliers' },
         {
           label: 'Resumen de productos comprados',
@@ -96,7 +99,9 @@ export const navigationLinks = [
         { label: 'Seguridad', to: '/settings/security' },
         { label: 'Impuestos', to: '/settings/taxes' },
         { label: 'Configuración Fiscal', to: '/settings/fiscal-config' },
-        { label: 'Monedas', to: '/settings/monedas' }
+        { label: 'Monedas', to: '/settings/monedas' },
+        { label: 'Tipos de Documento', to: '/erp/settings/document-types' },
+        { label: 'Secuencias', to: '/erp/settings/document-sequences' }
       ]
     }
   ],

@@ -1,6 +1,11 @@
 <script setup lang="ts">
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
-import { HR_VALE_TYPE_LABELS, HR_VALE_TYPE_COLORS } from '~/modulos/erp/hr/types/hr.types'
+import { valePeriodoColumns } from './vales-periodo.columns'
+import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
+import RrhhTotalsCards from '~/components/rrhh/RrhhTotalsCards.vue'
+import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 definePageMeta({
   layout: 'rrhh',
@@ -14,6 +19,8 @@ const loading = computed(() => hrStore.loading)
 const dateFrom = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
 const dateTo = ref(new Date().toISOString().split('T')[0])
 const filterType = ref<string | undefined>(undefined)
+const activeTab = ref('todos')
+const sorting = ref<SortingState>([])
 
 async function loadReport() {
   await hrStore.fetchVales({
@@ -25,47 +32,78 @@ onMounted(() => loadReport())
 
 watch([dateFrom, dateTo, filterType], () => loadReport())
 
+// =========================
+// COLUMNAS
+// =========================
+
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [{ id: columnId, desc: current?.id === columnId ? !current.desc : false }]
+}
+
+const columns = valePeriodoColumns({ onSortFieldSelect })
+
+// =========================
+// FILTROS POR PERÍODO
+// =========================
+
+const filteredVales = computed(() => {
+  const result = vales.value.filter((v) => {
+    const d = v.date?.split('T')[0] ?? v.date
+    return d >= dateFrom.value && d <= dateTo.value
+  })
+  console.log('[vales-periodo] filteredVales:', result.length, 'items')
+  return result
+})
+
+// =========================
+// TOTALES (usando composable con getter)
+// =========================
+
+const allTotals = useRrhhTotals(() => filteredVales.value)
+const pendingTotals = useRrhhTotals(() => filteredVales.value, { status: 'DRAFT' })
+const confirmedTotals = useRrhhTotals(() => filteredVales.value, { status: 'CONFIRMED' })
+const cancelledTotals = useRrhhTotals(() => filteredVales.value, { status: 'CANCELLED' })
+
+// Asegurar que filteredItems siempre sea array
+const safeAllItems = computed(() => Array.isArray(allTotals.filteredItems.value) ? allTotals.filteredItems.value : [])
+const safePendingItems = computed(() => Array.isArray(pendingTotals.filteredItems.value) ? pendingTotals.filteredItems.value : [])
+const safeConfirmedItems = computed(() => Array.isArray(confirmedTotals.filteredItems.value) ? confirmedTotals.filteredItems.value : [])
+const safeCancelledItems = computed(() => Array.isArray(cancelledTotals.filteredItems.value) ? cancelledTotals.filteredItems.value : [])
+
+// =========================
+// FILTROS TABLA
+// =========================
+
+const filterFields: FilterField[] = [
+  { id: 'party_name', label: 'Filtrar por persona...', class: 'w-40' },
+  { id: 'type', label: 'Filtrar por tipo...', class: 'w-40' }
+]
+
+const sortFields: SortField[] = [
+  { label: 'Nº', value: 'number' },
+  { label: 'Persona', value: 'party_name' },
+  { label: 'Tipo', value: 'type' },
+  { label: 'Monto', value: 'amount' },
+  { label: 'Fecha', value: 'date' }
+]
+
+// =========================
+// HELPERS
+// =========================
+
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
 }
 
-function fmtDate(d: string) {
-  return d ? new Date(d).toLocaleDateString('es-AR') : '-'
-}
-
-const filteredVales = computed(() => {
-  return vales.value.filter((v) => {
-    const d = v.date?.split('T')[0] ?? v.date
-    return d >= dateFrom.value && d <= dateTo.value
-  })
-})
-
-const totalRetiros = computed(() =>
-  filteredVales.value
-    .filter((v) => v.type === 'RETIRO' || v.type === 'ADELANTO')
-    .reduce((sum, v) => sum + Number(v.amount), 0)
-)
-
-const totalCreditos = computed(() =>
-  filteredVales.value
-    .filter((v) => v.type === 'REEMBOLSO' || v.type === 'PRESTAMO')
-    .reduce((sum, v) => sum + Number(v.amount), 0)
-)
-
-const columns = [
-  { id: 'number', header: 'Nº' },
-  { id: 'person', header: 'Persona' },
-  { id: 'type', header: 'Tipo' },
-  { id: 'amount', header: 'Monto' },
-  { id: 'date', header: 'Fecha' },
-  { id: 'status', header: 'Estado' },
-]
-
 const typeOptions = [
-  { label: 'Retiro', value: 'RETIRO' },
+  { label: 'Sueldo', value: 'SUELDO' },
   { label: 'Adelanto', value: 'ADELANTO' },
+  { label: 'Extras', value: 'EXTRAS' },
+  { label: 'Retiro', value: 'RETIRO' },
+  { label: 'Aporte', value: 'APORTE' },
   { label: 'Reembolso', value: 'REEMBOLSO' },
-  { label: 'Préstamo', value: 'PRESTAMO' },
+  { label: 'Préstamo', value: 'PRESTAMO' }
 ]
 </script>
 
@@ -89,53 +127,88 @@ const typeOptions = [
       </div>
     </div>
 
-    <!-- Resumen -->
-    <div class="grid grid-cols-2 gap-4">
-      <UPageCard variant="subtle">
-        <div class="space-y-1">
-          <p class="text-xs text-muted">Total débitos (retiros + adelantos)</p>
-          <p class="text-xl font-semibold text-error">{{ fmt(totalRetiros) }}</p>
-        </div>
-      </UPageCard>
-      <UPageCard variant="subtle">
-        <div class="space-y-1">
-          <p class="text-xs text-muted">Total créditos (reembolsos + préstamos)</p>
-          <p class="text-xl font-semibold text-success">{{ fmt(totalCreditos) }}</p>
-        </div>
-      </UPageCard>
-    </div>
+    <!-- Tabs -->
+    <UTabs v-model="activeTab" :items="[
+      { label: 'Todos', value: 'todos', slot: 'todos' },
+      { label: 'Pendientes', value: 'pendientes', slot: 'pendientes' },
+      { label: 'Confirmados', value: 'confirmados', slot: 'confirmados' },
+      { label: 'Anulados', value: 'anulados', slot: 'anulados' }
+    ]" variant="link">
 
-    <!-- Tabla -->
-    <UPageCard variant="subtle">
-      <UTable :data="filteredVales" :columns="columns" :loading="loading">
-        <template #number-cell="{ row }">
-          <span class="font-mono font-medium">#{{ row.original.number }}</span>
-        </template>
-
-        <template #person-cell="{ row }">
-          {{ row.original.party?.name ?? '-' }}
-        </template>
-
-        <template #type-cell="{ row }">
-          <UBadge
-            :label="HR_VALE_TYPE_LABELS[row.original.type as keyof typeof HR_VALE_TYPE_LABELS]"
-            :color="(HR_VALE_TYPE_COLORS[row.original.type as keyof typeof HR_VALE_TYPE_COLORS] ?? 'neutral') as any"
-            variant="subtle"
+      <!-- TAB: TODOS -->
+      <template #todos>
+        <div class="space-y-4 pt-4">
+          <RrhhTotalsCards
+            :total-debit="allTotals.totalDebit.value"
+            :total-credit="allTotals.totalCredit.value"
           />
-        </template>
+          <LogisticaTable
+            :loading="loading"
+            :data="safeAllItems"
+            :columns="columns"
+            :filter-fields="filterFields"
+            :sort-fields="sortFields"
+            v-model:sorting="sorting"
+          />
+        </div>
+      </template>
 
-        <template #amount-cell="{ row }">
-          <span class="font-medium">{{ fmt(Number(row.original.amount)) }}</span>
-        </template>
+      <!-- TAB: PENDIENTES -->
+      <template #pendientes>
+        <div class="space-y-4 pt-4">
+          <RrhhTotalsCards
+            :total-debit="pendingTotals.totalDebit.value"
+            :total-credit="pendingTotals.totalCredit.value"
+            label="Pendientes"
+          />
+          <LogisticaTable
+            :loading="loading"
+            :data="safePendingItems"
+            :columns="columns"
+            :filter-fields="filterFields"
+            :sort-fields="sortFields"
+            v-model:sorting="sorting"
+          />
+        </div>
+      </template>
 
-        <template #date-cell="{ row }">
-          {{ fmtDate(row.original.date) }}
-        </template>
+      <!-- TAB: CONFIRMADOS -->
+      <template #confirmados>
+        <div class="space-y-4 pt-4">
+          <RrhhTotalsCards
+            :total-debit="confirmedTotals.totalDebit.value"
+            :total-credit="confirmedTotals.totalCredit.value"
+            label="Confirmados"
+          />
+          <LogisticaTable
+            :loading="loading"
+            :data="safeConfirmedItems"
+            :columns="columns"
+            :filter-fields="filterFields"
+            :sort-fields="sortFields"
+            v-model:sorting="sorting"
+          />
+        </div>
+      </template>
 
-        <template #status-cell="{ row }">
-          {{ row.original.status }}
-        </template>
-      </UTable>
-    </UPageCard>
+      <!-- TAB: ANULADOS -->
+      <template #anulados>
+        <div class="space-y-4 pt-4">
+          <RrhhTotalsCards
+            :total-debit="cancelledTotals.totalDebit.value"
+            :total-credit="cancelledTotals.totalCredit.value"
+            label="Anulados"
+          />
+          <LogisticaTable
+            :loading="loading"
+            :data="safeCancelledItems"
+            :columns="columns"
+            :filter-fields="filterFields"
+            :sort-fields="sortFields"
+            v-model:sorting="sorting"
+          />
+        </div>
+      </template>
+    </UTabs>
   </UPage>
 </template>

@@ -208,6 +208,42 @@ export const useDocumentsSalesStore = defineStore(
     }
 
     // ─────────────────────────────────────
+    // Accept (QUOTE → ORDER)
+    // ─────────────────────────────────────
+    const accept = async (id: string) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.accept(id)
+        items.value.unshift(response)
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error accepting document'
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Deliver (ORDER → REMITO)
+    // ─────────────────────────────────────
+    const deliver = async (id: string) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.deliver(id)
+        items.value.unshift(response)
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error delivering document'
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
     // Remove
     // ─────────────────────────────────────
     const remove = async (id: string) => {
@@ -313,6 +349,8 @@ export const useDocumentsSalesStore = defineStore(
       update,
       confirm,
       cancel,
+      accept,
+      deliver,
       remove,
       generateFromAllTrips,
       getCompletedTripsPending,

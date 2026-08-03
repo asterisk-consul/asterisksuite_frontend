@@ -49,11 +49,16 @@ export const mapFormToBusinessPartyDto = (form: BusinessPartyForm): CreateBusine
 }
 
 export const mapBusinessPartyToForm = (party: BusinessParty): BusinessPartyForm => {
+  const isPerson = party.type === 'EMPLOYEE' || party.type === 'PARTNER'
+  const nameParts = (party.name ?? '').split(' ')
+
   return {
     id: party.id,
     active: party.active ?? true,
     type: party.type as 'CUSTOMER' | 'SUPPLIER' | 'EMPLOYEE' | 'PARTNER',
     name: party.name ?? '',
+    first_name: isPerson ? nameParts[0] || '' : '',
+    last_name: isPerson ? nameParts.slice(1).join(' ') : '',
     business_names: party.business_names ?? '',
     document_type: party.document_type ?? '',
     email: party.email ?? '',

@@ -15,16 +15,12 @@ export const useHrStore = defineStore('hr', () => {
   // VALES
   // ══════════════════════════════════════════════════════════
 
-  const fetchVales = async (params?: {
-    party_id?: string
-    party_type?: string
-    status?: string
-    type?: string
-  }) => {
+  const fetchVales = async (params?: { party_id?: string; party_type?: string; status?: string; type?: string }) => {
     loading.value = true
     error.value = null
     try {
       vales.value = await HrService.getVales(params)
+      console.log('Fetched vales:', vales.value)
       return vales.value
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al cargar vales'
@@ -135,6 +131,6 @@ export const useHrStore = defineStore('hr', () => {
     confirmVale,
     cancelVale,
     fetchAccounts,
-    fetchAccountEntries,
+    fetchAccountEntries
   }
 })

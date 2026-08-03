@@ -74,6 +74,7 @@ export function useDocumentTypesForModule(
     return documentsTypes.value
       .filter((d: DocumentsType) => d.active !== false)
       .filter((d: DocumentsType) => d.direction === direction.value)
+      .filter((d: DocumentsType) => d.category !== 'VALE')
       .filter((d: DocumentsType) => {
         if (validLetters.value.length === 0) return true
         return !d.letter_type || validLetters.value.includes(d.letter_type)

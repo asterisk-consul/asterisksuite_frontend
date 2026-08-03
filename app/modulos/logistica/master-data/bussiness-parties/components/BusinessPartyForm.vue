@@ -10,11 +10,18 @@ import { useLocationsStore } from '~/modulos/logistica/master-data/locations/sto
 import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
 import LocationModal from '~/modulos/logistica/master-data/locations/components/LocationModal.vue'
 
+export interface ExtraTab {
+  label: string
+  slot: string
+}
+
 const props = defineProps<{
   modelValue?: BusinessPartyForm
   loading?: boolean
   error?: string | null
   errors?: Record<string, string>
+  extraTabs?: ExtraTab[]
+  headerTitle?: string
 }>()
 
 const emit = defineEmits<{
@@ -26,6 +33,8 @@ const form = reactive<BusinessPartyForm>({
   id: undefined,
   type: 'CUSTOMER',
   name: '',
+  first_name: '',
+  last_name: '',
   business_names: '',
   document_type: '',
   vat_condition: '',
@@ -35,8 +44,50 @@ const form = reactive<BusinessPartyForm>({
   locations: [],
   contacts: [],
   bank_accounts: [],
-  active: true
+  active: true,
+  position: '',
+  department: '',
+  hire_date: '',
+  salary: '',
+  currency_code: 'ARS',
+  share_percentage: '',
+  capital_contributed: ''
 })
+
+// Expose form state to slot content via slot props
+// (provide/inject doesn't work parent→child, only ancestor→descendant)
+
+const isPerson = computed(() => form.type === 'EMPLOYEE' || form.type === 'PARTNER')
+
+// Sync name ↔ first_name/last_name for person types
+watch(() => form.type, (newType, oldType) => {
+  const becamePerson = newType === 'EMPLOYEE' || newType === 'PARTNER'
+  const wasPerson = oldType === 'EMPLOYEE' || oldType === 'PARTNER'
+
+  // When switching TO person type, split name into first/last
+  if (becamePerson && !wasPerson && form.name && !form.first_name) {
+    const parts = form.name.split(' ')
+    form.first_name = parts[0] || ''
+    form.last_name = parts.slice(1).join(' ')
+  }
+
+  // When switching FROM person type, merge first/last into name
+  if (!becamePerson && wasPerson && form.first_name) {
+    form.name = [form.first_name, form.last_name].filter(Boolean).join(' ')
+  }
+
+  // Default document type for person types
+  if (becamePerson && !form.document_type) {
+    form.document_type = 'DNI'
+  }
+})
+
+// Merge first_name/last_name into name before submit for person types
+const mergePersonName = () => {
+  if (isPerson.value && form.first_name) {
+    form.name = [form.first_name, form.last_name].filter(Boolean).join(' ')
+  }
+}
 
 watch(
   () => props.modelValue,
@@ -46,6 +97,12 @@ watch(
       Object.assign(form, val)
     } else {
       Object.assign(form, mapBusinessPartyToForm(val))
+    }
+    // If loading a person type, split name into first/last
+    if (isPerson.value && form.name && !form.first_name) {
+      const parts = form.name.split(' ')
+      form.first_name = parts[0] || ''
+      form.last_name = parts.slice(1).join(' ')
     }
   },
   { immediate: true }
@@ -65,8 +122,65 @@ const typeOptions: SelectMenuItem[] = [
 const documentTypeOptions: SelectMenuItem[] = [
   { label: 'CUIT', value: 'CUIT' },
   { label: 'DNI', value: 'DNI' },
-  { label: 'CUIL', value: 'CUIL' }
+  { label: 'CUIL', value: 'CUIL' },
+  { label: 'LE', value: 'LE' },
+  { label: 'LC', value: 'LC' },
+  { label: 'Pasaporte', value: 'PASAPORTE' }
 ]
+
+// ─── Document validation ──────────────────────────────────
+const toast = useToast()
+
+const documentPattern: Record<string, { regex: RegExp; length: string; placeholder: string }> = {
+  CUIT:      { regex: /^\d{11}$/,  length: '11 dígitos',  placeholder: '20123456789' },
+  CUIL:      { regex: /^\d{11}$/,  length: '11 dígitos',  placeholder: '20123456789' },
+  DNI:       { regex: /^\d{7,8}$/, length: '7 u 8 dígitos', placeholder: '12345678' },
+  LE:        { regex: /^\d{7,8}$/, length: '7 u 8 dígitos', placeholder: '12345678' },
+  LC:        { regex: /^\d{7,8}$/, length: '7 u 8 dígitos', placeholder: '12345678' },
+  PASAPORTE: { regex: /^[A-Za-z0-9]{5,20}$/, length: '5-20 caracteres', placeholder: 'AB123456' }
+}
+
+const docPlaceholder = computed(() => {
+  const rule = documentPattern[form.document_type]
+  return rule?.placeholder || 'Número de documento'
+})
+
+const docMaxLength = computed(() => {
+  const rule = documentPattern[form.document_type]
+  if (!rule) return 20
+  if (rule.length.includes('11')) return 11
+  if (rule.length.includes('8')) return 8
+  return 20
+})
+
+const isPassport = computed(() => form.document_type === 'PASAPORTE')
+
+function sanitizeDocumentInput(e: Event) {
+  if (isPassport.value) return // Allow alphanumeric for passport
+  const input = e.target as HTMLInputElement
+  input.value = input.value.replace(/\D/g, '')
+  form.tax_id = input.value
+}
+
+function validateDocument(): boolean {
+  if (!form.document_type) {
+    toast.add({ title: 'Seleccioná un tipo de documento primero', color: 'warning', icon: 'i-lucide-alert-circle' })
+    return false
+  }
+  if (!form.tax_id) return true // Optional field, skip if empty
+  const rule = documentPattern[form.document_type]
+  if (!rule) return true
+  if (!rule.regex.test(form.tax_id)) {
+    toast.add({
+      title: `El ${form.document_type} debe tener ${rule.length}`,
+      description: `Ejemplo: ${rule.placeholder}`,
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return false
+  }
+  return true
+}
 
 const vatConditionOptions: SelectMenuItem[] = [
   { label: 'Responsable Inscripto', value: 'RI' },
@@ -123,6 +237,8 @@ const removeBankAccount = (i: number) => {
 }
 
 const submit = () => {
+  mergePersonName()
+  if (!validateDocument()) return
   emit('submit', { ...form })
 }
 
@@ -130,19 +246,40 @@ const cancel = () => {
   emit('cancel')
 }
 
-const tabs = [
+const baseTabs = [
   { label: 'Impuestos', slot: 'taxes' },
   { label: 'Direcciones', slot: 'locations' },
   { label: 'Contactos', slot: 'contacts' },
   { label: 'Cuentas Bancarias', slot: 'bankAccounts' }
 ]
+
+const tabs = computed(() => {
+  const hideTaxes = form.type === 'EMPLOYEE' || form.type === 'PARTNER'
+  const filtered = hideTaxes ? baseTabs.filter(t => t.slot !== 'taxes') : baseTabs
+  return [...filtered, ...(props.extraTabs || [])]
+})
+
+const displayTitle = computed(() => {
+  if (props.headerTitle) return props.headerTitle
+  const typeLabels: Record<string, string> = {
+    CUSTOMER: 'Cliente',
+    SUPPLIER: 'Proveedor',
+    EMPLOYEE: 'Empleado',
+    PARTNER: 'Socio',
+    TAX_AUTHORITY: 'Ente Impositivo',
+    UTILITY: 'Servicio Público',
+    FINANCIAL: 'Entidad Financiera',
+    SERVICE_PROVIDER: 'Proveedor de Servicios'
+  }
+  return `Nuevo ${typeLabels[form.type] || 'Registro'}`
+})
 </script>
 
 <template>
   <UForm :state="form" class="mx-auto space-y-6" @submit="submit">
     <!-- HEADER -->
     <div>
-      <h2 class="text-2xl font-semibold">Nueva Empresa</h2>
+      <h2 class="text-2xl font-semibold">{{ displayTitle }}</h2>
       <p class="text-sm text-gray-500">Completá la información</p>
       <UAlert
         v-if="props.error"
@@ -170,13 +307,27 @@ const tabs = [
             />
           </UFormField>
 
-          <UFormField label="Razón Social" name="name" :error="props.errors?.name">
-            <UInput v-model="form.name" class="w-full" />
-          </UFormField>
+          <!-- Person type: Nombre + Apellido -->
+          <template v-if="isPerson">
+            <UFormField label="Nombre" name="first_name">
+              <UInput v-model="form.first_name" class="w-full" />
+            </UFormField>
 
-          <UFormField label="Nombre Fantasía" name="business_names">
-            <UInput v-model="form.business_names" class="w-full" />
-          </UFormField>
+            <UFormField label="Apellido" name="last_name">
+              <UInput v-model="form.last_name" class="w-full" />
+            </UFormField>
+          </template>
+
+          <!-- Company type: Razón Social -->
+          <template v-else>
+            <UFormField label="Razón Social" name="name" :error="props.errors?.name">
+              <UInput v-model="form.name" class="w-full" />
+            </UFormField>
+
+            <UFormField label="Nombre Fantasía" name="business_names">
+              <UInput v-model="form.business_names" class="w-full" />
+            </UFormField>
+          </template>
 
           <UFormField label="Email" name="email">
             <UInput v-model="form.email" type="email" class="w-full" />
@@ -191,8 +342,14 @@ const tabs = [
             />
           </UFormField>
 
-          <UFormField label="CUIT" name="tax_id" :error="props.errors?.tax_id">
-            <UInput v-model="form.tax_id" class="w-full" />
+          <UFormField label="Número de Documento" name="tax_id" :description="form.document_type ? `Ej: ${docPlaceholder}` : ''">
+            <UInput
+              v-model="form.tax_id"
+              :placeholder="docPlaceholder"
+              :maxlength="docMaxLength"
+              class="w-full"
+              @input="sanitizeDocumentInput"
+            />
           </UFormField>
 
           <UFormField label="Activo" name="active">
@@ -415,6 +572,11 @@ const tabs = [
             />
           </div>
         </UCard>
+      </template>
+
+      <!-- EXTRA TABS (injected by parent) -->
+      <template v-for="tab in extraTabs" #[tab.slot]="slotProps">
+        <slot :name="tab.slot" :form="form" v-bind="slotProps" />
       </template>
     </UTabs>
 

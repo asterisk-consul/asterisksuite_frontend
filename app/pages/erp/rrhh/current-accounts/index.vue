@@ -48,8 +48,15 @@ const filteredActive = computed(() => {
   return list
 })
 
-const receivableAccounts = computed(() => filteredActive.value.filter((a) => Number(a.balance) > 0))
-const payableAccounts = computed(() => filteredActive.value.filter((a) => Number(a.balance) < 0))
+const receivableAccounts = computed(() => filteredActive.value.filter((a) => {
+  const isHR = a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER'
+  return isHR ? Number(a.balance) < 0 : Number(a.balance) > 0
+}))
+
+const payableAccounts = computed(() => filteredActive.value.filter((a) => {
+  const isHR = a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER'
+  return isHR ? Number(a.balance) > 0 : Number(a.balance) < 0
+}))
 const totalReceivable = computed(() =>
   receivableAccounts.value.reduce((s, a) => s + Math.abs(Number(a.balance) || 0), 0)
 )

@@ -36,17 +36,17 @@ export const links: NavigationMenuItem[][] = [
           label: 'Vales por período',
           icon: 'i-lucide-calendar',
           to: '/erp/rrhh/reports/vales-periodo'
-        },
-        {
-          label: 'Saldos CC RRHH',
-          icon: 'i-lucide-wallet',
-          to: '/erp/rrhh/reports/saldos'
-        },
-        {
-          label: 'Movimientos por persona',
-          icon: 'i-lucide-user',
-          to: '/erp/rrhh/reports/movimientos'
         }
+        // {
+        //   label: 'Saldos CC RRHH',
+        //   icon: 'i-lucide-wallet',
+        //   to: '/erp/rrhh/reports/saldos'
+        // },
+        // {
+        //   label: 'Movimientos por persona',
+        //   icon: 'i-lucide-user',
+        //   to: '/erp/rrhh/reports/movimientos'
+        // }
       ]
     }
   ]

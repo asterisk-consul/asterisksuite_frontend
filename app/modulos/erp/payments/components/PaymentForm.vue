@@ -80,11 +80,30 @@ onMounted(() => {
 watch(
   () => props.modelValue,
   (val) => {
+    console.log('[PaymentForm] modelValue changed:', val)
+    console.log('[PaymentForm] documents:', val?.documents)
     if (!val) {
       Object.assign(form, { ...defaultForm })
+      selectedDocs.value.clear()
       return
     }
     Object.assign(form, val)
+
+    // Poblar selectedDocs desde los documentos del pago
+    if (val.documents && val.documents.length > 0) {
+      const allPending = [...(props.pendingPurchaseDocuments ?? []), ...(props.pendingSalesDocuments ?? [])]
+      selectedDocs.value.clear()
+      for (const docData of val.documents) {
+        const pendingDoc = allPending.find(d => d.id === docData.document_id)
+        if (pendingDoc) {
+          selectedDocs.value.set(docData.document_id, {
+            doc: pendingDoc,
+            amount: docData.amount_applied ?? pendingDoc.pending_amount
+          })
+        }
+      }
+      form.amount = Array.from(selectedDocs.value.values()).reduce((sum, entry) => sum + entry.amount, 0)
+    }
   },
   { immediate: true }
 )

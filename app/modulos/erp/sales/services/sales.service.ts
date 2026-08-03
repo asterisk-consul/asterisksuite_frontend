@@ -4,6 +4,7 @@ export const DocumentsSalesService = {
   async getAll(params?: {
     documentTypeId?: string
     status?: number
+    category?: string
   }): Promise<Document[]> {
     return $fetch('/api/erp/documents/sales', {
       query: params
@@ -35,6 +36,18 @@ export const DocumentsSalesService = {
 
   async cancel(id: string): Promise<Document> {
     return $fetch(`/api/erp/documents/sales/${id}/cancel`, {
+      method: 'PATCH' as any
+    })
+  },
+
+  async accept(id: string): Promise<Document> {
+    return $fetch(`/api/erp/documents/sales/${id}/accept`, {
+      method: 'PATCH' as any
+    })
+  },
+
+  async deliver(id: string): Promise<Document> {
+    return $fetch(`/api/erp/documents/sales/${id}/deliver`, {
       method: 'PATCH' as any
     })
   },
