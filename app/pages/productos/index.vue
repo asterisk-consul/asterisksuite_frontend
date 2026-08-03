@@ -8,6 +8,7 @@ import type { ButtonProps } from '@nuxt/ui'
 import * as XLSX from 'xlsx'
 
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
+import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { productColumns } from '~/modulos/logistica/master-data/product/columns'
 import {
   createDefaultProductForm,
@@ -30,6 +31,7 @@ const sorting = ref<SortingState>([])
 const open = ref(false)
 const importOpen = ref(false)
 const router = useRouter()
+const toast = useToast()
 
 // =========================
 // PRODUCT_COLUMNS — Fuente única de verdad
@@ -106,8 +108,19 @@ onMounted(async () => {
   await init()
 })
 const saveLocation = async () => {
-  await create(toCreateProductPayload(form))
-  open.value = false
+  try {
+    await create(toCreateProductPayload(form))
+    open.value = false
+    Object.assign(form, createDefaultProductForm())
+  } catch (e: any) {
+    const msg = useProductsStore().error || e?.message || 'Error al crear producto'
+    toast.add({
+      title: 'Error al crear producto',
+      description: msg,
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  }
 }
 
 const handleExportExcel = async () => {

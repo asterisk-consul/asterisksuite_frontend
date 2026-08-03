@@ -40,7 +40,7 @@ export function useDocumentTypes() {
   }
 
   const remove = async (id: string) => {
-    await $fetch(`/api/erp/documents/documents-types/${id}`, { method: 'DELETE' })
+    await $fetch(`/api/trash/document_types/${id}`, { method: 'DELETE' })
     items.value = items.value.filter(i => i.id !== id)
   }
 

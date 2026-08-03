@@ -142,7 +142,7 @@ const documentPattern: Record<string, { regex: RegExp; length: string; placehold
 
 const docPlaceholder = computed(() => {
   const rule = documentPattern[form.document_type]
-  return rule?.placeholder || 'Número de documento'
+  return rule?.placeholder || '20123456789'
 })
 
 const docMaxLength = computed(() => {
@@ -253,10 +253,27 @@ const baseTabs = [
   { label: 'Cuentas Bancarias', slot: 'bankAccounts' }
 ]
 
+// Tabs internos según el tipo seleccionado
+const internalExtraTabs = computed(() => {
+  if (form.type === 'EMPLOYEE') {
+    return [{ label: 'Datos Laborales', slot: 'employeeData' }]
+  }
+  if (form.type === 'PARTNER') {
+    return [{ label: 'Participación', slot: 'partnerData' }]
+  }
+  return []
+})
+
+// Combinar tabs internos + tabs del padre (backward compat)
+const allExtraTabs = computed(() => [
+  ...internalExtraTabs.value,
+  ...(props.extraTabs || [])
+])
+
 const tabs = computed(() => {
   const hideTaxes = form.type === 'EMPLOYEE' || form.type === 'PARTNER'
   const filtered = hideTaxes ? baseTabs.filter(t => t.slot !== 'taxes') : baseTabs
-  return [...filtered, ...(props.extraTabs || [])]
+  return [...filtered, ...allExtraTabs.value]
 })
 
 const displayTitle = computed(() => {
@@ -342,7 +359,7 @@ const displayTitle = computed(() => {
             />
           </UFormField>
 
-          <UFormField label="Número de Documento" name="tax_id" :description="form.document_type ? `Ej: ${docPlaceholder}` : ''">
+          <UFormField label="Número de Documento" name="tax_id">
             <UInput
               v-model="form.tax_id"
               :placeholder="docPlaceholder"
@@ -570,6 +587,63 @@ const displayTitle = computed(() => {
               variant="soft"
               title="Sin cuentas bancarias"
             />
+          </div>
+        </UCard>
+      </template>
+
+      <!-- INTERNAL TABS: Employee -->
+      <template v-if="form.type === 'EMPLOYEE'" #employeeData>
+        <UCard>
+          <template #header>
+            <h3 class="font-semibold">Datos Laborales</h3>
+          </template>
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <UFormField label="Cargo" name="position">
+                <UInput v-model="form.position" placeholder="Ej: Desarrollador" class="w-full" />
+              </UFormField>
+              <UFormField label="Departamento" name="department">
+                <UInput v-model="form.department" placeholder="Ej: IT" class="w-full" />
+              </UFormField>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <UFormField label="Fecha Ingreso" name="hire_date">
+                <UInput v-model="form.hire_date" type="date" class="w-full" />
+              </UFormField>
+              <UFormField label="Sueldo" name="salary">
+                <UInput v-model="form.salary" placeholder="0.00" type="number" class="w-full" />
+              </UFormField>
+            </div>
+            <UFormField label="Moneda" name="currency_code">
+              <USelectMenu
+                v-model="form.currency_code"
+                :items="[
+                  { label: 'Pesos (ARS)', value: 'ARS' },
+                  { label: 'Dólares (USD)', value: 'USD' }
+                ]"
+                value-key="value"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+        </UCard>
+      </template>
+
+      <!-- INTERNAL TABS: Partner -->
+      <template v-if="form.type === 'PARTNER'" #partnerData>
+        <UCard>
+          <template #header>
+            <h3 class="font-semibold">Participación</h3>
+          </template>
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <UFormField label="% Participación" name="share_percentage">
+                <UInput v-model="form.share_percentage" placeholder="0.00" type="number" class="w-full" />
+              </UFormField>
+              <UFormField label="Capital Aportado" name="capital_contributed">
+                <UInput v-model="form.capital_contributed" placeholder="0.00" type="number" class="w-full" />
+              </UFormField>
+            </div>
           </div>
         </UCard>
       </template>

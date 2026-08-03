@@ -244,6 +244,66 @@ export const useDocumentsSalesStore = defineStore(
     }
 
     // ─────────────────────────────────────
+    // Partial Deliver
+    // ─────────────────────────────────────
+    const partialDeliver = async (id: string, itemsPayload: { document_item_id: string; quantity: number }[]) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.partialDeliver(id, itemsPayload)
+        const index = items.value.findIndex((i) => i.id === id)
+        if (index !== -1) items.value[index] = response
+        if (current.value?.id === id) current.value = response
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error in partial delivery'
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Partial Invoice
+    // ─────────────────────────────────────
+    const partialInvoice = async (id: string, itemsPayload: { document_item_id: string; quantity: number }[]) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.partialInvoice(id, itemsPayload)
+        const index = items.value.findIndex((i) => i.id === id)
+        if (index !== -1) items.value[index] = response
+        if (current.value?.id === id) current.value = response
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error in partial invoice'
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Change Status
+    // ─────────────────────────────────────
+    const changeStatus = async (id: string, status: number) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.changeStatus(id, status)
+        const index = items.value.findIndex((i) => i.id === id)
+        if (index !== -1) items.value[index] = response
+        if (current.value?.id === id) current.value = response
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error changing status'
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
     // Remove
     // ─────────────────────────────────────
     const remove = async (id: string) => {
@@ -351,6 +411,9 @@ export const useDocumentsSalesStore = defineStore(
       cancel,
       accept,
       deliver,
+      partialDeliver,
+      partialInvoice,
+      changeStatus,
       remove,
       generateFromAllTrips,
       getCompletedTripsPending,

@@ -17,7 +17,8 @@ export function createDefaultProductGeneral() {
 
     product_type: 'FINISHED_PRODUCT' as ProductType,
     usage_type: 'BOTH' as UsageType,
-    calculation_type: 'UNIT' as CalculationType
+    calculation_type: 'UNIT' as CalculationType,
+    tax_category_id: undefined as string | undefined
   }
 }
 

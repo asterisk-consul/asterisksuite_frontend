@@ -697,5 +697,83 @@
         "title": "Excluir VALE del selector de tipos de documento"
       }
     ]
+  },
+  {
+    "version": "0.13.0-alpha",
+    "date": "2026-08-03",
+    "stage": "alpha",
+    "notes": "Sistema completo de documentos (Presupuesto→OV→Remito→Factura) con tracking de entregas parciales, componentes de impresión por tipo, y unificación de formularios de stakeholders.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Sistema de documentos: Presupuesto→OV→Remito→Factura con tracking parcial"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Extension tables presupuesto_documents y orden_venta_documents"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Endpoints accept, deliver, partialDeliver, partialInvoice, changeStatus"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Componentes de impresión por tipo (Presupuesto, OV, Remito, Factura)"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Pages budgets, orders, remitos con detalle y conversión"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Estados con workflow válido por categoría"
+      },
+      {
+        "type": "feat",
+        "scope": "stakeholders",
+        "title": "BusinessPartyForm con tabs internos para empleado/socio"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Modal rápido con campos extendidos del GeneralTab"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "FacturaView: letter dinámica y empresa real en impresión"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Labels A pagar/A cobrar según partyType"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Error handling para SKU duplicado con toast"
+      },
+      {
+        "type": "fix",
+        "scope": "trash",
+        "title": "getClientForCurrentContext para Prisma multi-tenant"
+      },
+      {
+        "type": "fix",
+        "scope": "document-types",
+        "title": "tax_ids en DTO y delete endpoint via trash"
+      },
+      {
+        "type": "fix",
+        "scope": "dashboard",
+        "title": "PrismaModule import en DashboardModule"
+      }
+    ]
   }
 ]

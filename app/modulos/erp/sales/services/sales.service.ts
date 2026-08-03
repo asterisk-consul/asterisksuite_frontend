@@ -52,6 +52,27 @@ export const DocumentsSalesService = {
     })
   },
 
+  async partialDeliver(id: string, items: { document_item_id: string; quantity: number }[]): Promise<Document> {
+    return $fetch(`/api/erp/documents/sales/${id}/partial-deliver`, {
+      method: 'PATCH' as any,
+      body: { items }
+    })
+  },
+
+  async partialInvoice(id: string, items: { document_item_id: string; quantity: number }[]): Promise<Document> {
+    return $fetch(`/api/erp/documents/sales/${id}/partial-invoice`, {
+      method: 'PATCH' as any,
+      body: { items }
+    })
+  },
+
+  async changeStatus(id: string, status: number): Promise<Document> {
+    return $fetch(`/api/erp/documents/sales/${id}/status`, {
+      method: 'PATCH' as any,
+      body: { status }
+    })
+  },
+
   async remove(id: string): Promise<void> {
     return $fetch(`/api/erp/documents/sales/${id}`, { method: 'DELETE' as any })
   },

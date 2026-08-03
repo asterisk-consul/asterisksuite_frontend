@@ -30,6 +30,7 @@ const customFieldsModalOpen = ref(false)
 const editingCustomFields = ref<CustomFieldConfig[]>([])
 const searchQuery = ref('')
 const filterCategory = ref<string | null>(null)
+const saving = ref(false)
 
 const selectedCategory = computed({
   get: () => categoryOptions.find(o => o.value === filterCategory.value) ?? categoryOptions[0],
@@ -85,6 +86,7 @@ const openEdit = (type: DocumentsType) => {
 
 const handleSubmit = async (formData: DocumentTypeFormData) => {
   try {
+    saving.value = true
     if (editingType.value) {
       await docTypes.update(editingType.value.id, { ...formData })
       toast.add({ title: 'Tipo actualizado', color: 'success' })
@@ -100,6 +102,8 @@ const handleSubmit = async (formData: DocumentTypeFormData) => {
       color: 'error',
       icon: 'i-lucide-alert-circle'
     })
+  } finally {
+    saving.value = false
   }
 }
 
@@ -393,7 +397,7 @@ const badgeForTab = (index: number) => {
     <DocumentTypeModal
       v-model:open="modalOpen"
       :document-type="editingType"
-      :loading="docTypes.loading.value"
+      :loading="saving"
       @success="handleSubmit"
     />
 

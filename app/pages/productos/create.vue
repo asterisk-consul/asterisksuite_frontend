@@ -41,6 +41,9 @@ const route = useRoute()
 if (route.query.name) form.name = String(route.query.name)
 if (route.query.sku) form.sku = String(route.query.sku)
 if (route.query.product_type) form.product_type = String(route.query.product_type) as any
+if (route.query.usage_type) form.usage_type = String(route.query.usage_type) as any
+if (route.query.calculation_type) form.calculation_type = String(route.query.calculation_type) as any
+if (route.query.tax_category_id) form.tax_category_id = String(route.query.tax_category_id)
 
 useHead({ title: 'Nuevo producto' })
 
@@ -61,18 +64,13 @@ async function handleSave() {
     toast.add({ title: 'Producto creado', color: 'success' })
     await navigateTo(`/productos/${created.id}/edit`)
   } catch (err: unknown) {
-    let message = 'Error desconocido'
-    if (typeof err === 'object' && err !== null && 'data' in err) {
-      const data = (err as any).data
-      message = Array.isArray(data?.message) ? data.message.join(', ') : data?.message || message
-    }
+    const msg = productsStore.error || 'Error al crear producto'
     toast.add({
       title: 'Error al crear Producto',
       color: 'error',
-      description: message,
+      description: msg,
       icon: 'i-lucide-alert-circle'
     })
-    throw err
   } finally {
     saving.value = false
   }

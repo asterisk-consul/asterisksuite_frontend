@@ -25,8 +25,9 @@ const balanceColor = computed(() => {
 })
 
 const balanceLabel = computed(() => {
-  if (props.balance > 0) return 'A pagar'
-  if (props.balance < 0) return 'A cobrar'
+  const isCustomer = props.partyType === 'CUSTOMER'
+  if (props.balance > 0) return isCustomer ? 'A cobrar' : 'A pagar'
+  if (props.balance < 0) return isCustomer ? 'A pagar' : 'A cobrar'
   return 'Saldo 0'
 })
 </script>

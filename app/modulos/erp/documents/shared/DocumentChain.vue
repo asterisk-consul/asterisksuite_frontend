@@ -1,0 +1,53 @@
+<script setup lang="ts">
+const props = defineProps<{
+  document: any
+}>()
+
+function fmtDate(d?: string) {
+  return d ? d.slice(0, 10) : '-'
+}
+</script>
+
+<template>
+  <UCard v-if="document">
+    <template #header>
+      <h3 class="font-semibold">Cadena de documentos</h3>
+    </template>
+
+    <div class="space-y-3">
+      <!-- Documento padre -->
+      <div v-if="document.parent_document" class="flex items-center gap-3 text-sm">
+        <UBadge label="Origen" color="info" variant="subtle" size="sm" />
+        <NuxtLink :to="`/erp/sales/${document.parent_document.id}`" class="underline font-medium">
+          {{ document.parent_document.document_types?.description }} #{{ document.parent_document.number }}
+        </NuxtLink>
+        <span class="text-muted">{{ fmtDate(document.parent_document.date) }}</span>
+      </div>
+
+      <!-- Documento actual -->
+      <div class="flex items-center gap-3 text-sm pl-4 border-l-2 border-primary">
+        <UBadge label="Actual" color="primary" variant="subtle" size="sm" />
+        <span class="font-bold">
+          {{ document.document_types?.description }} #{{ document.document_types?.code }}-{{ String(document.number).padStart(8, '0') }}
+        </span>
+        <span class="text-muted">{{ fmtDate(document.date) }}</span>
+      </div>
+
+      <!-- Documentos hijos -->
+      <div v-for="child in document.child_documents" :key="child.id" class="flex items-center gap-3 text-sm pl-4 border-l-2 border-success">
+        <UBadge label="Generado" color="success" variant="subtle" size="sm" />
+        <NuxtLink :to="`/erp/sales/${child.id}`" class="underline font-medium">
+          {{ child.document_types?.description }} #{{ child.document_types?.code }}-{{ String(child.number).padStart(8, '0') }}
+        </NuxtLink>
+        <span class="text-muted">{{ fmtDate(child.date) }}</span>
+        <span class="font-medium" :class="child.status === 2 ? 'text-success' : 'text-muted'">
+          {{ child.status === 2 ? 'Confirmado' : 'Borrador' }}
+        </span>
+      </div>
+
+      <div v-if="!document.parent_document && !document.child_documents?.length" class="text-sm text-muted">
+        Sin documentos relacionados
+      </div>
+    </div>
+  </UCard>
+</template>

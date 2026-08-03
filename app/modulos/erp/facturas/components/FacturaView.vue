@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import DocumentPrintLayout from '~/components/documents/DocumentPrintLayout.vue'
+import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 
 interface Props {
   document: any
@@ -11,6 +12,13 @@ const props = withDefaults(defineProps<{
   mode?: 'sale' | 'purchase'
 }>(), {
   mode: 'sale'
+})
+
+const companiesStore = useCompaniesStore()
+onMounted(async () => {
+  if (!companiesStore.items.length) {
+    await companiesStore.fetchAll()
+  }
 })
 
 function fmt(n: any) {
@@ -95,14 +103,16 @@ const allTaxes = computed(() =>
 
 // SALE: header=mi empresa, customer=cliente
 // PURCHASE: header=proveedor, customer=mi empresa
+const currentCompany = computed(() => companiesStore.items[0])
+
 const printCompany = computed(() => {
   if (props.mode === 'sale') {
     return {
-      name: 'Mi Empresa SRL',
-      tax_id: '30-71234567-9',
-      address: 'Av. Corrientes 1234, CABA',
-      phone: '(011) 4567-8900',
-      iva_condition: 'Responsable Inscripto'
+      name: currentCompany.value?.name ?? 'Empresa',
+      tax_id: currentCompany.value?.tax_id ?? '—',
+      address: currentCompany.value?.address ?? '',
+      phone: currentCompany.value?.phone ?? '',
+      iva_condition: currentCompany.value?.vat_condition ?? '—'
     }
   }
   // PURCHASE: el header muestra el proveedor
@@ -127,10 +137,10 @@ const printCustomer = computed(() => {
   }
   // PURCHASE: "nuestra empresa" es el cliente
   return {
-    name: 'Mi Empresa SRL',
-    tax_id: '30-71234567-9',
-    address: 'Av. Corrientes 1234, CABA',
-    iva_condition: 'Responsable Inscripto'
+    name: currentCompany.value?.name ?? 'Empresa',
+    tax_id: currentCompany.value?.tax_id ?? '—',
+    address: currentCompany.value?.address ?? '',
+    iva_condition: currentCompany.value?.vat_condition ?? '—'
   }
 })
 
@@ -233,7 +243,7 @@ const printTotals = computed(() => ({
     <div id="printable-document" class="print-only">
       <DocumentPrintLayout
         :type="mode"
-        letter="A"
+        :letter="document.document_types?.letter_type ?? 'X'"
         :number="document.number || '—'"
         :date="document.date"
         :company="printCompany"

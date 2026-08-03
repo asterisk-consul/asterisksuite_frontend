@@ -89,7 +89,9 @@ export const useProductsStore = defineStore('products', () => {
 
       return created
     } catch (err: any) {
-      error.value = err?.data?.message || 'Error al crear producto'
+      const data = err?.data?.data || err?.data || err?.response?._data
+      const msg = Array.isArray(data?.message) ? data.message[0] : (data?.message || 'Error al crear producto')
+      error.value = msg
 
       throw err
     } finally {

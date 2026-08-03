@@ -61,7 +61,13 @@ watch(() => props.modelValue, (val) => {
 
 watch(form, (val) => { emit('update:modelValue', { ...val }) }, { deep: true })
 
-const handleSubmit = () => { emit('submit', { ...form }) }
+const handleSubmit = () => {
+  const payload = { ...form }
+  // Convertir strings vacíos a undefined para campos UUID opcionales
+  if (!payload.document_sequence_id) payload.document_sequence_id = undefined
+  if (payload.tax_ids?.length === 0) payload.tax_ids = undefined
+  emit('submit', payload)
+}
 
 // Sequence inline creation
 const showSeqCreate = ref(false)
