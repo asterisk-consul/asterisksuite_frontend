@@ -11,6 +11,7 @@ import DocumentPrintSelector from '~/components/documents/DocumentPrintSelector.
 import RemitoView from '~/modulos/erp/documents/remito/RemitoView.vue'
 import { getStatusLabel, getStatusColor, getValidTransitions } from '~/modulos/erp/documents/types/document-statuses'
 import { usePrint } from '~/composables/usePrint'
+import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,10 +50,10 @@ const validTransitions = computed(() => {
 
 const actions = computed(() => {
   const items: any[] = [
-    { label: 'Imprimir', icon: 'i-lucide-printer', variant: 'outline', onClick: () => printElement('printable-document') },
+    { label: 'Imprimir', icon: 'i-lucide-printer', variant: 'outline', help: 'Abre una nueva ventana con la vista de impresión del remito. Podés imprimirlo o guardarlo como PDF.', onClick: () => printElement('printable-document') },
   ]
   if (validTransitions.value.length > 0) {
-    items.push({ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', onClick: () => { statusModalOpen.value = true } })
+    items.push({ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', help: 'Permite cambiar manualmente el estado del remito según el flujo permitido.', onClick: () => { statusModalOpen.value = true } })
   }
   return items
 })
@@ -78,6 +79,7 @@ async function changeStatus(status: number) {
         <template #trailing>
           <div class="flex gap-2">
             <UButton v-for="action in actions" :key="action.label" v-bind="action" size="sm" />
+            <DocumentHelpPopover :category="category || 'REMITO'" :actions="actions" />
           </div>
         </template>
       </UDashboardNavbar>

@@ -12,6 +12,37 @@ const store = useEmployeesStore()
 
 const saving = ref(false)
 
+// Check for pending user data from settings redirect
+const pendingUser = ref<{ name: string; email: string; password: string } | null>(null)
+
+onMounted(() => {
+  const stored = localStorage.getItem('pendingUser')
+  if (stored) {
+    try {
+      pendingUser.value = JSON.parse(stored)
+      localStorage.removeItem('pendingUser')
+    } catch {
+      localStorage.removeItem('pendingUser')
+    }
+  }
+})
+
+const initialForm = computed(() => {
+  const base: any = { type: 'EMPLOYEE', currency_code: 'ARS' }
+
+  if (pendingUser.value) {
+    const nameParts = pendingUser.value.name.split(' ')
+    base.first_name = nameParts[0] || ''
+    base.last_name = nameParts.slice(1).join(' ') || ''
+    base.createUser = true
+    base.user_name = pendingUser.value.name
+    base.user_email = pendingUser.value.email
+    base.user_password = pendingUser.value.password
+  }
+
+  return base
+})
+
 const extraTabs = [
   { label: 'Datos Laborales', slot: 'employeeData' }
 ]
@@ -33,7 +64,7 @@ const handleSubmit = async (formData: FormType) => {
 <template>
   <div class="p-4 max-w-3xl mx-auto">
     <BusinessPartyForm
-      :model-value="{ type: 'EMPLOYEE', currency_code: 'ARS' } as any"
+      :model-value="initialForm"
       :loading="saving"
       :extra-tabs="extraTabs"
       @submit="handleSubmit"

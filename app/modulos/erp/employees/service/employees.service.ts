@@ -24,5 +24,16 @@ export const useEmployeesService = () => {
       method: 'DELETE'
     })
 
-  return { findAll, findOne, create, update, remove }
+  const linkUser = (id: string, userId: string) =>
+    $fetch<{ message: string; employee_id: string; user_id: string }>(`${baseUrl}/${id}/link-user`, {
+      method: 'PATCH',
+      body: { user_id: userId }
+    })
+
+  const unlinkUser = (id: string) =>
+    $fetch<{ message: string; employee_id: string }>(`${baseUrl}/${id}/unlink-user`, {
+      method: 'PATCH'
+    })
+
+  return { findAll, findOne, create, update, remove, linkUser, unlinkUser }
 }

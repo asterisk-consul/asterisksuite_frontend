@@ -2,8 +2,11 @@ import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
+import type { Partner } from '~/modulos/erp/partners/types/partners.types'
 
-type Row = any
+type Row = Partner
+
+type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
 export const partnerColumns = (actions: {
   onEdit?: (row: Row) => void
@@ -48,6 +51,19 @@ export const partnerColumns = (actions: {
         key: 'capital_contributed',
         label: 'Capital',
         sortable: true
+      },
+      {
+        key: 'user',
+        label: 'Usuario',
+        sortable: false,
+        badge: {
+          resolve: (row: any) => {
+            if (row.user) {
+              return { label: row.user.name, color: 'success' as BadgeColor }
+            }
+            return { label: 'Sin usuario', color: 'neutral' as BadgeColor }
+          }
+        }
       },
       {
         key: 'is_active',

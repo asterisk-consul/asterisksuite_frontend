@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getStatusLabel, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
+import { getStatusLabel, getStatusColor, getStatusDescription } from '~/modulos/erp/documents/types/document-statuses'
 
 const props = defineProps<{
   document: any
@@ -21,6 +21,7 @@ function fmtDate(d?: string) {
 const category = computed(() => props.document?.document_types?.category)
 const statusLabel = computed(() => getStatusLabel(category.value, props.document?.status))
 const statusColor = computed(() => getStatusColor(category.value, props.document?.status))
+const statusDescription = computed(() => getStatusDescription(category.value, props.document?.status))
 const docNumber = computed(() => {
   if (!props.document) return ''
   return `${props.document.document_types?.code}-${String(props.document.number).padStart(8, '0')}`
@@ -38,7 +39,16 @@ const docNumber = computed(() => {
           <template v-if="document.business_parties"> · {{ document.business_parties.name }}</template>
         </p>
       </div>
-      <UBadge :label="statusLabel" :color="statusColor" variant="subtle" size="lg" />
+      <UPopover v-if="statusDescription" :ui="{ content: 'w-72' }">
+        <UBadge :label="statusLabel" :color="statusColor" variant="subtle" size="lg" class="cursor-help" />
+        <template #content>
+          <div class="p-3">
+            <p class="text-sm font-semibold">{{ statusLabel }}</p>
+            <p class="text-xs text-muted mt-1">{{ statusDescription }}</p>
+          </div>
+        </template>
+      </UPopover>
+      <UBadge v-else :label="statusLabel" :color="statusColor" variant="subtle" size="lg" />
     </div>
 
     <!-- Documento padre -->

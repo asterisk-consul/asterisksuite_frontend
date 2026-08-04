@@ -775,5 +775,129 @@
         "title": "PrismaModule import en DashboardModule"
       }
     ]
+  },
+  {
+    "version": "0.13.1-alpha",
+    "date": "2026-08-04",
+    "stage": "alpha",
+    "notes": "Cuentas corrientes: totales respetan moneda en vez de mezclar divisas",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Totales de saldos ahora se desglosan por moneda en listing de Treasury"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Historial de cuentas corrientes usa mini tabla por moneda en vez de texto corrido"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Dashboard RRHH muestra saldo CC por moneda en vez de total mezclado"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Reporte de saldos RRHH desglosa empleados/socios por moneda"
+      }
+    ]
+  },
+  {
+    "version": "0.14.0-alpha",
+    "date": "2026-08-04",
+    "stage": "alpha",
+    "notes": "Gestión de usuarios, vinculación empleados/socios, CRUD mejorado",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Vinculación de usuarios con empleados y socios (link/unlink)"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Creación de empleados y socios con usuario asociado desde el formulario"
+      },
+      {
+        "type": "feat",
+        "scope": "settings",
+        "title": "Página de gestión de usuarios con CRUD completo, roles y cambio de contraseña"
+      },
+      {
+        "type": "feat",
+        "scope": "access-control",
+        "title": "Endpoints de gestión de usuarios: crear, editar, cambiar contraseña, buscar"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Columnas de tabla mejoradas: badge de usuario vinculado, filtros de estado"
+      },
+      {
+        "type": "fix",
+        "scope": "employees",
+        "title": "Service y store con métodos linkUser/unlinkUser"
+      },
+      {
+        "type": "fix",
+        "scope": "partners",
+        "title": "Service y store con métodos linkUser/unlinkUser"
+      },
+      {
+        "type": "fix",
+        "scope": "backend",
+        "title": "Companies controller: endpoints de usuarios (create, update, password, delete)"
+      }
+    ]
+  },
+  {
+    "version": "0.15.0-alpha",
+    "date": "2026-08-04",
+    "stage": "alpha",
+    "notes": "Sistema de documentos unificado con máquina de estados, formularios modulares y páginas universales",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Páginas universales de detalle y creación para todas las categorías de documentos"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Máquina de estados con transiciones válidas por categoría (QUOTE, ORDER, REMITO, INVOICE)"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Formularios modulares: PresupuestoForm, OrdenVentaForm, FacturaForm reutilizables"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Componente DocumentHeader compartido con badges de estado y cadena documental"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Componente DocumentHelpPopover con ayuda de acciones y estados disponibles"
+      },
+      {
+        "type": "feat",
+        "scope": "stakeholders",
+        "title": "BusinessPartyForm con soporte multi-tab para empleado/socio"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Check-processing scheduler: procesamiento automático de cheques pendientes"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "documents-sales: entregas parciales y facturación parcial"
+      }
+    ]
   }
 ]

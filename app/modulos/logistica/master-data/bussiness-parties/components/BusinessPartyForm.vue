@@ -29,7 +29,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const form = reactive<BusinessPartyForm>({
+const form = reactive<BusinessPartyForm & { createUser?: boolean; user_name?: string; user_email?: string; user_password?: string }>({
   id: undefined,
   type: 'CUSTOMER',
   name: '',
@@ -51,7 +51,11 @@ const form = reactive<BusinessPartyForm>({
   salary: '',
   currency_code: 'ARS',
   share_percentage: '',
-  capital_contributed: ''
+  capital_contributed: '',
+  createUser: false,
+  user_name: '',
+  user_email: '',
+  user_password: ''
 })
 
 // Expose form state to slot content via slot props
@@ -239,7 +243,25 @@ const removeBankAccount = (i: number) => {
 const submit = () => {
   mergePersonName()
   if (!validateDocument()) return
-  emit('submit', { ...form })
+
+  // Build submit data with create_user if enabled
+  const submitData: any = { ...form }
+
+  if (form.createUser && form.user_name && form.user_email && form.user_password) {
+    submitData.create_user = {
+      name: form.user_name,
+      email: form.user_email,
+      password: form.user_password
+    }
+  }
+
+  // Remove internal UI fields
+  delete submitData.createUser
+  delete submitData.user_name
+  delete submitData.user_email
+  delete submitData.user_password
+
+  emit('submit', submitData)
 }
 
 const cancel = () => {
@@ -273,7 +295,10 @@ const allExtraTabs = computed(() => [
 const tabs = computed(() => {
   const hideTaxes = form.type === 'EMPLOYEE' || form.type === 'PARTNER'
   const filtered = hideTaxes ? baseTabs.filter(t => t.slot !== 'taxes') : baseTabs
-  return [...filtered, ...allExtraTabs.value]
+  const createUserTab = (form.type === 'EMPLOYEE' || form.type === 'PARTNER')
+    ? [{ label: 'Usuario de Acceso', slot: 'createUser' }]
+    : []
+  return [...filtered, ...allExtraTabs.value, ...createUserTab]
 })
 
 const displayTitle = computed(() => {
@@ -644,6 +669,32 @@ const displayTitle = computed(() => {
                 <UInput v-model="form.capital_contributed" placeholder="0.00" type="number" class="w-full" />
               </UFormField>
             </div>
+          </div>
+        </UCard>
+      </template>
+
+      <!-- CREATE USER (Employee/Partner only) -->
+      <template v-if="form.type === 'EMPLOYEE' || form.type === 'PARTNER'" #createUser>
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold">Usuario de Acceso</h3>
+              <UToggle v-model="form.createUser" label="Crear usuario" />
+            </div>
+          </template>
+          <div v-if="form.createUser" class="space-y-4">
+            <UFormField label="Nombre del usuario" name="user_name">
+              <UInput v-model="form.user_name" placeholder="Nombre completo" class="w-full" />
+            </UFormField>
+            <UFormField label="Email" name="user_email">
+              <UInput v-model="form.user_email" placeholder="usuario@empresa.com" type="email" class="w-full" />
+            </UFormField>
+            <UFormField label="Contraseña" name="user_password">
+              <UInput v-model="form.user_password" placeholder="Mínimo 6 caracteres" type="password" class="w-full" />
+            </UFormField>
+          </div>
+          <div v-else class="text-center py-4 text-muted text-sm">
+            Activa esta opción para crear un usuario de acceso vinculado a este {{ form.type === 'EMPLOYEE' ? 'empleado' : 'socio' }}
           </div>
         </UCard>
       </template>

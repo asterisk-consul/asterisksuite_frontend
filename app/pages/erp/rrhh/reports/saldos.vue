@@ -48,29 +48,53 @@ const sortFields: SortField[] = [
 // HELPERS
 // =========================
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
+function fmt(n: number, currency = 'ARS') {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 2 }).format(n ?? 0)
 }
 
 // Para empleados/socios: positivo = "A pagar" (empresa les debe)
 // Para empleados/socios: negativo = "A cobrar" (ellos le deben a la empresa)
-const totalBalance = computed(() =>
-  allAccounts.value
-    .filter(a => a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER')
-    .reduce((sum, a) => sum - Number(a.balance), 0)
+interface CurrencyBalance {
+  balance: number
+  count: number
+}
+
+const rrhhAccounts = computed(() =>
+  allAccounts.value.filter(a => a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER')
 )
 
-const employeesBalance = computed(() =>
-  allAccounts.value
-    .filter(a => a.party_type === 'EMPLOYEE')
-    .reduce((sum, a) => sum - Number(a.balance), 0)
-)
+const totalByCurrency = computed(() => {
+  const map: Record<string, CurrencyBalance> = {}
+  for (const a of rrhhAccounts.value) {
+    const code = a.currency_code || 'ARS'
+    if (!map[code]) map[code] = { balance: 0, count: 0 }
+    map[code].balance -= Number(a.balance)
+    map[code].count++
+  }
+  return map
+})
 
-const partnersBalance = computed(() =>
-  allAccounts.value
-    .filter(a => a.party_type === 'PARTNER')
-    .reduce((sum, a) => sum - Number(a.balance), 0)
-)
+const employeesByCurrency = computed(() => {
+  const map: Record<string, CurrencyBalance> = {}
+  for (const a of allAccounts.value.filter(a => a.party_type === 'EMPLOYEE')) {
+    const code = a.currency_code || 'ARS'
+    if (!map[code]) map[code] = { balance: 0, count: 0 }
+    map[code].balance -= Number(a.balance)
+    map[code].count++
+  }
+  return map
+})
+
+const partnersByCurrency = computed(() => {
+  const map: Record<string, CurrencyBalance> = {}
+  for (const a of allAccounts.value.filter(a => a.party_type === 'PARTNER')) {
+    const code = a.currency_code || 'ARS'
+    if (!map[code]) map[code] = { balance: 0, count: 0 }
+    map[code].balance -= Number(a.balance)
+    map[code].count++
+  }
+  return map
+})
 </script>
 
 <template>
@@ -78,31 +102,54 @@ const partnersBalance = computed(() =>
     <AppPageHeader title="Saldos CC RRHH" description="Resumen de saldos de cuentas corrientes" />
 
     <!-- Resumen -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <UPageCard variant="subtle">
-        <div class="space-y-1">
-          <p class="text-xs text-muted">Empleados (A pagar)</p>
-          <p class="text-xl font-semibold text-error">
-            {{ fmt(employeesBalance) }}
-          </p>
-        </div>
-      </UPageCard>
-      <UPageCard variant="subtle">
-        <div class="space-y-1">
-          <p class="text-xs text-muted">Socios (A pagar)</p>
-          <p class="text-xl font-semibold text-error">
-            {{ fmt(partnersBalance) }}
-          </p>
-        </div>
-      </UPageCard>
-      <UPageCard variant="subtle">
-        <div class="space-y-1">
-          <p class="text-xs text-muted">Total (A pagar)</p>
-          <p class="text-xl font-semibold text-error">
-            {{ fmt(totalBalance) }}
-          </p>
-        </div>
-      </UPageCard>
+    <div class="space-y-3">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <!-- Empleados -->
+        <UPageCard variant="subtle">
+          <div class="space-y-2">
+            <p class="text-xs text-muted font-medium uppercase">Empleados (A pagar)</p>
+            <template v-if="Object.keys(employeesByCurrency).length > 0">
+              <div v-for="(data, currency) in employeesByCurrency" :key="currency" class="flex items-baseline gap-2">
+                <p class="text-lg font-semibold text-error">
+                  {{ fmt(data.balance, currency) }}
+                </p>
+                <span class="text-xs text-muted">{{ data.count }} cuentas</span>
+              </div>
+            </template>
+            <p v-else class="text-lg font-semibold text-muted">$0.00</p>
+          </div>
+        </UPageCard>
+        <!-- Socios -->
+        <UPageCard variant="subtle">
+          <div class="space-y-2">
+            <p class="text-xs text-muted font-medium uppercase">Socios (A pagar)</p>
+            <template v-if="Object.keys(partnersByCurrency).length > 0">
+              <div v-for="(data, currency) in partnersByCurrency" :key="currency" class="flex items-baseline gap-2">
+                <p class="text-lg font-semibold text-error">
+                  {{ fmt(data.balance, currency) }}
+                </p>
+                <span class="text-xs text-muted">{{ data.count }} cuentas</span>
+              </div>
+            </template>
+            <p v-else class="text-lg font-semibold text-muted">$0.00</p>
+          </div>
+        </UPageCard>
+        <!-- Total -->
+        <UPageCard variant="subtle">
+          <div class="space-y-2">
+            <p class="text-xs text-muted font-medium uppercase">Total (A pagar)</p>
+            <template v-if="Object.keys(totalByCurrency).length > 0">
+              <div v-for="(data, currency) in totalByCurrency" :key="currency" class="flex items-baseline gap-2">
+                <p class="text-lg font-semibold text-error">
+                  {{ fmt(data.balance, currency) }}
+                </p>
+                <span class="text-xs text-muted">{{ data.count }} cuentas</span>
+              </div>
+            </template>
+            <p v-else class="text-lg font-semibold text-muted">$0.00</p>
+          </div>
+        </UPageCard>
+      </div>
     </div>
 
     <!-- Tabla -->

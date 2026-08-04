@@ -17,7 +17,12 @@ const totalPartners = ref(0)
 const activePartners = ref(0)
 const totalVales = ref(0)
 const pendingVales = ref(0)
-const totalBalance = ref(0)
+
+interface CurrencyBalance {
+  balance: number
+  count: number
+}
+const balanceByCurrency = ref<Record<string, CurrencyBalance>>({})
 
 async function loadDashboard() {
   try {
@@ -44,9 +49,15 @@ async function loadDashboard() {
     pendingVales.value = vales.filter((v: any) => v.status === 'DRAFT').length
 
     // Saldo desde current_accounts (una sola fuente de verdad)
-    totalBalance.value = allAccounts.value
-      .filter(a => a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER')
-      .reduce((sum, a) => sum - Number(a.balance), 0)
+    const map: Record<string, CurrencyBalance> = {}
+    const rrhhAccounts = allAccounts.value.filter(a => a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER')
+    for (const a of rrhhAccounts) {
+      const code = a.currency_code || 'ARS'
+      if (!map[code]) map[code] = { balance: 0, count: 0 }
+      map[code].balance -= Number(a.balance)
+      map[code].count++
+    }
+    balanceByCurrency.value = map
   } catch (e) {
     console.error(e)
   }
@@ -54,8 +65,8 @@ async function loadDashboard() {
 
 onMounted(() => loadDashboard())
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
+function fmt(n: number, currency = 'ARS') {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 2 }).format(n ?? 0)
 }
 </script>
 
@@ -99,10 +110,15 @@ function fmt(n: number) {
         <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer h-full">
           <div class="space-y-1">
             <p class="text-xs text-muted">Saldo total CC</p>
-            <p class="text-2xl font-semibold" :class="totalBalance <= 0 ? 'text-error' : 'text-success'">
-              {{ fmt(Math.abs(totalBalance)) }}
-            </p>
-            <p class="text-xs text-muted">{{ totalBalance <= 0 ? 'A pagar' : 'A cobrar' }}</p>
+            <template v-if="Object.keys(balanceByCurrency).length > 0">
+              <div v-for="(data, currency) in balanceByCurrency" :key="currency" class="flex items-baseline gap-2">
+                <p class="text-lg font-semibold" :class="data.balance <= 0 ? 'text-error' : 'text-success'">
+                  {{ currency }} {{ fmt(Math.abs(data.balance), currency) }}
+                </p>
+              </div>
+            </template>
+            <p v-else class="text-2xl font-semibold text-muted">$0.00</p>
+            <p class="text-xs text-muted">{{ Object.keys(balanceByCurrency).length > 0 ? Object.values(balanceByCurrency).reduce((s, d) => s + d.count, 0) : 0 }} cuentas</p>
           </div>
         </UPageCard>
       </NuxtLink>

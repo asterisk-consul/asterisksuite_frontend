@@ -2,8 +2,9 @@ import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
+import type { Employee } from '~/modulos/erp/employees/types/employees.types'
 
-type Row = any
+type Row = Employee
 
 type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
@@ -61,6 +62,19 @@ export const employeeColumns = (actions: {
         label: 'Fecha Ingreso',
         sortable: true,
         date: true
+      },
+      {
+        key: 'user',
+        label: 'Usuario',
+        sortable: false,
+        badge: {
+          resolve: (row: any) => {
+            if (row.user) {
+              return { label: row.user.name, color: 'success' as BadgeColor }
+            }
+            return { label: 'Sin usuario', color: 'neutral' as BadgeColor }
+          }
+        }
       },
       {
         key: 'is_active',

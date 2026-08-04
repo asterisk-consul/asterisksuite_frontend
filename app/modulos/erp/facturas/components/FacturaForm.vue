@@ -37,6 +37,7 @@ interface Props {
   loading?: boolean
   initialValues?: Partial<Document>
   moduleCode?: string
+  category?: string
 }
 
 const props = defineProps<Props>()
@@ -341,6 +342,26 @@ onMounted(async () => {
     fetchIssuerCondition()
   ])
 })
+
+// Auto-seleccionar tipo de documento por categoría
+watch(
+  () => [props.category, documentTypeOptions.value],
+  () => {
+    if (!props.category || !documentTypeOptions.value.length) return
+    // Si ya hay un tipo seleccionado, no sobreescribir
+    if (form.document_type_id) return
+
+    const match = documentTypeOptions.value.find((opt) => {
+      const docType = documentsTypes.value.find((dt) => dt.id === opt.value)
+      return docType?.category === props.category
+    })
+
+    if (match) {
+      form.document_type_id = match.value
+    }
+  },
+  { immediate: true }
+)
 
 const selectedCustomer = computed({
   get: () => partyOptions.value.find((i) => i.value === form.party_id),

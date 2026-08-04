@@ -8,6 +8,16 @@ export const QUOTE_STATUSES: Record<number, string> = {
   6: 'Cancelado',
 }
 
+export const QUOTE_STATUS_DESCRIPTIONS: Record<number, string> = {
+  0: 'Presupuesto creado, aún no enviado al cliente',
+  1: 'Presupuesto enviado al cliente, esperando respuesta',
+  2: 'Cliente aceptó el presupuesto',
+  3: 'Cliente rechazó el presupuesto',
+  4: 'Presupuesto vencido, validez expirada',
+  5: 'Presupuesto convertido en Orden de Venta',
+  6: 'Presupuesto cancelado',
+}
+
 export const ORDER_STATUSES: Record<number, string> = {
   0: 'Borrador',
   1: 'Aprobada',
@@ -20,6 +30,18 @@ export const ORDER_STATUSES: Record<number, string> = {
   8: 'Cancelada',
 }
 
+export const ORDER_STATUS_DESCRIPTIONS: Record<number, string> = {
+  0: 'OV creada, aún no aprobada internamente',
+  1: 'OV aprobada, pendiente de preparación',
+  2: 'Se está preparando el despacho',
+  3: 'Lista para ser despachada',
+  4: 'Se entregó parcialmente al cliente',
+  5: 'Todos los ítems fueron entregados',
+  6: 'OV facturada completamente',
+  7: 'OV cerrada definitivamente',
+  8: 'OV cancelada',
+}
+
 export const REMITO_STATUSES: Record<number, string> = {
   0: 'Borrador',
   1: 'En Tránsito',
@@ -27,11 +49,25 @@ export const REMITO_STATUSES: Record<number, string> = {
   3: 'Cancelado',
 }
 
+export const REMITO_STATUS_DESCRIPTIONS: Record<number, string> = {
+  0: 'Remito creado, aún no despachado',
+  1: 'Mercadería en camino al cliente',
+  2: 'Mercadería recibida por el cliente',
+  3: 'Remito cancelado',
+}
+
 export const INVOICE_STATUSES: Record<number, string> = {
   0: 'Borrador',
   1: 'Pendiente',
   2: 'Confirmada',
   3: 'Anulada',
+}
+
+export const INVOICE_STATUS_DESCRIPTIONS: Record<number, string> = {
+  0: 'Factura creada, aún no confirmada',
+  1: 'Factura pendiente de confirmación fiscal',
+  2: 'Factura confirmada con CAE válido',
+  3: 'Factura anulada',
 }
 
 type BadgeColor = 'primary' | 'neutral' | 'secondary' | 'success' | 'info' | 'warning' | 'error'
@@ -68,6 +104,19 @@ export function getStatusLabel(category: string | null | undefined, status: numb
 
 export function getStatusColor(category: string | null | undefined, status: number): BadgeColor {
   return COLOR_MAPS[category ?? '']?.[status] ?? 'neutral'
+}
+
+const DESCRIPTION_MAPS: Record<string, Record<number, string>> = {
+  QUOTE: QUOTE_STATUS_DESCRIPTIONS,
+  ORDER: ORDER_STATUS_DESCRIPTIONS,
+  REMITO: REMITO_STATUS_DESCRIPTIONS,
+  INVOICE: INVOICE_STATUS_DESCRIPTIONS,
+  CREDIT_NOTE: INVOICE_STATUS_DESCRIPTIONS,
+  DEBIT_NOTE: INVOICE_STATUS_DESCRIPTIONS,
+}
+
+export function getStatusDescription(category: string | null | undefined, status: number): string {
+  return DESCRIPTION_MAPS[category ?? '']?.[status] ?? ''
 }
 
 export function getValidTransitions(category: string | null | undefined, currentStatus: number): number[] {

@@ -8,11 +8,6 @@ export const navigationLinks = [
       to: '/'
     },
 
-    // {
-    //   label: 'Kilometros',
-    //   icon: 'i-lucide-truck',
-    //   to: '/VKilomentros'
-    // },
     {
       label: 'Ventas',
       icon: 'i-lucide-receipt',
@@ -44,12 +39,6 @@ export const navigationLinks = [
         }
       ]
     },
-    // {
-    //   label: 'Combustible',
-    //   to: '/combustible',
-    //   icon: 'i-lucide-fuel',
-    //   defaultOpen: false
-    // },
     {
       label: 'Tesorería',
       to: '/erp/treasury/dashboard',
@@ -69,8 +58,6 @@ export const navigationLinks = [
       label: 'logistica',
       to: '/logistica',
       icon: 'i-lucide-truck'
-      // defaultOpen: false,
-      // children: [{ label: 'Demostracion', to: '/logistica/operaciones' }]
     },
     {
       label: 'Stock',
@@ -85,20 +72,23 @@ export const navigationLinks = [
       defaultOpen: false
     },
     {
+      label: 'Empresa',
+      icon: 'i-lucide-building-2',
+      defaultOpen: false,
+      children: [
+        { label: 'Datos de la empresa', to: '/settings/company' },
+        { label: 'Configuración Fiscal', to: '/settings/fiscal-config' }
+      ]
+    },
+    {
       label: 'Ajustes',
-      to: '/settings',
       icon: 'i-lucide-settings',
       defaultOpen: false,
-      type: 'trigger',
       children: [
-        { label: 'General', to: '/settings', exact: true },
-        { label: 'Miembros', to: '/settings/members' },
-        { label: 'Usuarios', to: '/settings/users' },
-        { label: 'Roles y permisos', to: '/settings/roles' },
-        { label: 'Notificaciones', to: '/settings/notifications' },
+        { label: 'Perfil', to: '/settings', exact: true },
+        { label: 'Usuarios y Roles', to: '/settings/users' },
         { label: 'Seguridad', to: '/settings/security' },
         { label: 'Impuestos', to: '/settings/taxes' },
-        { label: 'Configuración Fiscal', to: '/settings/fiscal-config' },
         { label: 'Monedas', to: '/settings/monedas' },
         { label: 'Tipos de Documento', to: '/erp/settings/document-types' },
         { label: 'Secuencias', to: '/erp/settings/document-sequences' }
@@ -112,11 +102,5 @@ export const navigationLinks = [
       to: 'https://asterisk-consul.github.io/donandresdoc/',
       target: '_blank'
     }
-    // {
-    //   label: 'Ayuda',
-    //   icon: 'i-lucide-info',
-    //   to: '/changelog/',
-    //   target: '_blank'
-    // }
   ]
 ] as NavigationMenuItem[][]

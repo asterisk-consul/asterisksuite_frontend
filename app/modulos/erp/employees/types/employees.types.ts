@@ -1,3 +1,10 @@
+export interface LinkedUser {
+  id: string
+  name: string
+  email: string
+  active: boolean
+}
+
 export interface Employee {
   id: string
   party_id?: string | null
@@ -14,6 +21,7 @@ export interface Employee {
   is_active: boolean
   created_at?: string
   updated_at?: string | null
+  user?: LinkedUser | null
   party?: {
     id: string
     name: string
@@ -30,6 +38,12 @@ export interface Employee {
 export interface CreateEmployeeInput {
   party_id?: string
   user_id?: string
+  create_user?: {
+    name: string
+    email: string
+    password: string
+    role?: string
+  }
   first_name: string
   last_name: string
   document_type?: string

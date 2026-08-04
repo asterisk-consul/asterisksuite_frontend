@@ -14,6 +14,7 @@ import EntregasParciales from '~/modulos/erp/documents/orden-venta/EntregasParci
 import RemitoView from '~/modulos/erp/documents/remito/RemitoView.vue'
 import { getStatusLabel, getStatusColor, getValidTransitions } from '~/modulos/erp/documents/types/document-statuses'
 import { usePrint } from '~/composables/usePrint'
+import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
 
 const store = useDocumentsSalesStore()
 const companiesStore = useCompaniesStore()
@@ -60,24 +61,24 @@ const isConfirmed = computed(() => doc.value?.status === 2)
 
 const actions = computed(() => {
   const items: any[] = [
-    { label: 'Imprimir', icon: 'i-lucide-printer', variant: 'outline', onClick: () => printElement('printable-document') },
+    { label: 'Imprimir', icon: 'i-lucide-printer', variant: 'outline', help: 'Abre una nueva ventana con la vista de impresión del documento. Podés imprimirlo o guardarlo como PDF.', onClick: () => printElement('printable-document') },
   ]
   if (isDraft.value) {
-    items.push({ label: 'Editar', icon: 'i-lucide-pencil', onClick: () => router.push(`/erp/sales/${route.params.id}/edit`) })
-    items.push({ label: 'Confirmar', icon: 'i-lucide-check-circle', color: 'success', onClick: () => { confirmModalOpen.value = true } })
-    items.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onClick: () => { cancelModalOpen.value = true } })
+    items.push({ label: 'Editar', icon: 'i-lucide-pencil', help: 'Permite modificar los datos del documento. Solo disponible mientras esté en borrador.', onClick: () => router.push(`/erp/sales/${route.params.id}/edit`) })
+    items.push({ label: 'Confirmar', icon: 'i-lucide-check-circle', color: 'success', help: 'Confirma el documento fiscalmente. Una vez confirmado, no se puede editar ni eliminar.', onClick: () => { confirmModalOpen.value = true } })
+    items.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', help: 'Anula el documento permanentemente. Se revierten los movimientos de cuenta corriente si los hubiera.', onClick: () => { cancelModalOpen.value = true } })
   }
   if (validTransitions.value.length > 0) {
-    items.push({ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', onClick: () => { statusModalOpen.value = true } })
+    items.push({ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', help: 'Permite cambiar manualmente el estado del documento según el flujo permitido.', onClick: () => { statusModalOpen.value = true } })
   }
   if (category.value === 'QUOTE' && isConfirmed.value) {
-    items.push({ label: 'Aceptar → OV', icon: 'i-lucide-check-circle', color: 'success', onClick: () => { acceptModalOpen.value = true } })
+    items.push({ label: 'Aceptar → OV', icon: 'i-lucide-check-circle', color: 'success', help: 'Acepta el presupuesto y crea una Orden de Venta con los mismos ítems y precios.', onClick: () => { acceptModalOpen.value = true } })
   }
   if (category.value === 'ORDER' && isConfirmed.value) {
-    items.push({ label: 'Despachar → Remito', icon: 'i-lucide-truck', color: 'success', onClick: () => { deliverModalOpen.value = true } })
+    items.push({ label: 'Despachar → Remito', icon: 'i-lucide-truck', color: 'success', help: 'Crea un remito de entrega para los ítems de esta OV. Puede ser entrega parcial.', onClick: () => { deliverModalOpen.value = true } })
   }
   if (isConfirmed.value && doc.value?.party_id) {
-    items.push({ label: 'Cuenta corriente', icon: 'i-lucide-arrow-right-circle', color: 'primary', onClick: () => {
+    items.push({ label: 'Cuenta corriente', icon: 'i-lucide-arrow-right-circle', color: 'primary', help: 'Muestra el saldo y los movimientos de cuenta corriente de este cliente/proveedor.', onClick: () => {
       const currency = doc.value!.currency_code ?? 'ARS'
       router.push(`/erp/treasury/current-accounts/${doc.value!.party_id}?currency=${currency}`)
     }})
@@ -152,8 +153,9 @@ async function handleDeliver() {
           <UButton icon="i-lucide-panel-left-close" variant="ghost" color="neutral" @click="mainCollapsed = !mainCollapsed" />
         </template>
         <template #trailing>
-          <div class="flex gap-2">
+          <div class="flex gap-2 items-center">
             <UButton v-for="action in actions" :key="action.label" v-bind="action" size="sm" />
+            <DocumentHelpPopover :category="category || 'INVOICE'" :actions="actions" />
           </div>
         </template>
       </UDashboardNavbar>

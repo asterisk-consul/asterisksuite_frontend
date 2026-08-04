@@ -57,10 +57,41 @@ const payableAccounts = computed(() => filteredActive.value.filter((a) => {
   const isHR = a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER'
   return isHR ? Number(a.balance) > 0 : Number(a.balance) < 0
 }))
+interface CurrencyTotals {
+  receivable: number
+  payable: number
+  net: number
+  receivableCount: number
+  payableCount: number
+}
+
+const totalsByCurrency = computed(() => {
+  const map: Record<string, CurrencyTotals> = {}
+  for (const a of filteredActive.value) {
+    const code = a.currency_code || 'ARS'
+    if (!map[code]) map[code] = { receivable: 0, payable: 0, net: 0, receivableCount: 0, payableCount: 0 }
+    const num = Number(a.balance) || 0
+    const isHR = a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER'
+    if (isHR ? num < 0 : num > 0) {
+      map[code].receivable += Math.abs(num)
+      map[code].receivableCount++
+    } else if (isHR ? num > 0 : num < 0) {
+      map[code].payable += Math.abs(num)
+      map[code].payableCount++
+    }
+    map[code].net += isHR ? -num : num
+  }
+  return map
+})
+
+const summaryCurrencies = computed(() => Object.keys(totalsByCurrency.value))
+
 const totalReceivable = computed(() =>
-  receivableAccounts.value.reduce((s, a) => s + Math.abs(Number(a.balance) || 0), 0)
+  Object.values(totalsByCurrency.value).reduce((s, t) => s + t.receivable, 0)
 )
-const totalPayable = computed(() => payableAccounts.value.reduce((s, a) => s + Math.abs(Number(a.balance) || 0), 0))
+const totalPayable = computed(() =>
+  Object.values(totalsByCurrency.value).reduce((s, t) => s + t.payable, 0)
+)
 const netBalance = computed(() => totalReceivable.value - totalPayable.value)
 
 // =========================
@@ -126,52 +157,55 @@ const goToAccount = (account: CurrentAccount) => {
       <template #activas>
         <div class="space-y-6 pt-4">
           <!-- SUMMARY -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <UPageCard variant="subtle">
-              <div class="flex items-center gap-4">
-                <div class="size-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
-                  <UIcon name="i-lucide-arrow-down-left" class="size-5 text-success" />
-                </div>
-                <div>
-                  <p class="text-xs text-muted font-medium uppercase">A cobrar</p>
-                  <p class="text-lg font-bold text-success">{{ formatCurrency(totalReceivable) }}</p>
-                  <p class="text-xs text-muted">{{ receivableAccounts.length }} cuentas</p>
-                </div>
+          <div class="space-y-3">
+            <template v-for="currency in summaryCurrencies" :key="currency">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <UPageCard variant="subtle">
+                  <div class="flex items-center gap-4">
+                    <div class="size-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
+                      <UIcon name="i-lucide-arrow-down-left" class="size-5 text-success" />
+                    </div>
+                    <div>
+                      <p class="text-xs text-muted font-medium uppercase">A cobrar</p>
+                      <p class="text-lg font-bold text-success">{{ formatCurrency(totalsByCurrency[currency].receivable, currency) }}</p>
+                      <p class="text-xs text-muted">{{ totalsByCurrency[currency].receivableCount }} cuentas</p>
+                    </div>
+                  </div>
+                </UPageCard>
+                <UPageCard variant="subtle">
+                  <div class="flex items-center gap-4">
+                    <div class="size-10 rounded-lg bg-error/10 flex items-center justify-center shrink-0">
+                      <UIcon name="i-lucide-arrow-up-right" class="size-5 text-error" />
+                    </div>
+                    <div>
+                      <p class="text-xs text-muted font-medium uppercase">A pagar</p>
+                      <p class="text-lg font-bold text-error">{{ formatCurrency(totalsByCurrency[currency].payable, currency) }}</p>
+                      <p class="text-xs text-muted">{{ totalsByCurrency[currency].payableCount }} cuentas</p>
+                    </div>
+                  </div>
+                </UPageCard>
+                <UPageCard variant="subtle">
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="size-10 rounded-lg flex items-center justify-center shrink-0"
+                      :class="totalsByCurrency[currency].net >= 0 ? 'bg-primary/10' : 'bg-warning/10'"
+                    >
+                      <UIcon
+                        name="i-lucide-scale"
+                        class="size-5"
+                        :class="totalsByCurrency[currency].net >= 0 ? 'text-primary' : 'text-warning'"
+                      />
+                    </div>
+                    <div>
+                      <p class="text-xs text-muted font-medium uppercase">Saldo neto · {{ currency }}</p>
+                      <p class="text-lg font-bold" :class="totalsByCurrency[currency].net >= 0 ? 'text-primary' : 'text-warning'">
+                        {{ formatCurrency(totalsByCurrency[currency].net, currency) }}
+                      </p>
+                    </div>
+                  </div>
+                </UPageCard>
               </div>
-            </UPageCard>
-            <UPageCard variant="subtle">
-              <div class="flex items-center gap-4">
-                <div class="size-10 rounded-lg bg-error/10 flex items-center justify-center shrink-0">
-                  <UIcon name="i-lucide-arrow-up-right" class="size-5 text-error" />
-                </div>
-                <div>
-                  <p class="text-xs text-muted font-medium uppercase">A pagar</p>
-                  <p class="text-lg font-bold text-error">{{ formatCurrency(totalPayable) }}</p>
-                  <p class="text-xs text-muted">{{ payableAccounts.length }} cuentas</p>
-                </div>
-              </div>
-            </UPageCard>
-            <UPageCard variant="subtle">
-              <div class="flex items-center gap-4">
-                <div
-                  class="size-10 rounded-lg flex items-center justify-center shrink-0"
-                  :class="netBalance >= 0 ? 'bg-primary/10' : 'bg-warning/10'"
-                >
-                  <UIcon
-                    name="i-lucide-scale"
-                    class="size-5"
-                    :class="netBalance >= 0 ? 'text-primary' : 'text-warning'"
-                  />
-                </div>
-                <div>
-                  <p class="text-xs text-muted font-medium uppercase">Saldo neto</p>
-                  <p class="text-lg font-bold" :class="netBalance >= 0 ? 'text-primary' : 'text-warning'">
-                    {{ formatCurrency(netBalance) }}
-                  </p>
-                  <p class="text-xs text-muted">{{ filteredActive.length }} cuentas</p>
-                </div>
-              </div>
-            </UPageCard>
+            </template>
           </div>
 
           <!-- SEARCH + FILTERS -->
@@ -202,7 +236,15 @@ const goToAccount = (account: CurrentAccount) => {
                       size="xs"
                     />
                   </h3>
-                  <span class="text-sm font-bold text-success">{{ formatCurrency(totalReceivable) }}</span>
+                  <div class="flex flex-wrap gap-2">
+                    <span
+                      v-for="currency in summaryCurrencies"
+                      :key="'recv-' + currency"
+                      class="text-sm font-bold text-success"
+                    >
+                      {{ formatCurrency(totalsByCurrency[currency].receivable, currency) }}
+                    </span>
+                  </div>
                 </div>
               </template>
               <div v-if="receivableAccounts.length === 0" class="text-center py-8 text-muted text-sm">
@@ -254,7 +296,15 @@ const goToAccount = (account: CurrentAccount) => {
                       size="xs"
                     />
                   </h3>
-                  <span class="text-sm font-bold text-error">{{ formatCurrency(totalPayable) }}</span>
+                  <div class="flex flex-wrap gap-2">
+                    <span
+                      v-for="currency in summaryCurrencies"
+                      :key="'pay-' + currency"
+                      class="text-sm font-bold text-error"
+                    >
+                      {{ formatCurrency(totalsByCurrency[currency].payable, currency) }}
+                    </span>
+                  </div>
                 </div>
               </template>
               <div v-if="payableAccounts.length === 0" class="text-center py-8 text-muted text-sm">

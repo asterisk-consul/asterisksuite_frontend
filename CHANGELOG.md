@@ -2,6 +2,51 @@ Aquí tenés el contenido listo para tu archivo `changelog.md`, unificando los r
 
 # Changelog
 
+## [0.13.1-alpha] - 2026-08-04
+
+### Fix o corregido
+
+- **Cuentas Corrientes:** Los totales de saldos ahora respetan la moneda. Antes mezclaban USD y ARS en un solo monto. Los resúmenes muestran desglose por moneda y el historial usa una mini tabla por divisa.
+- **Dashboard RRHH:** La card "Saldo total CC" ahora muestra el saldo por moneda en lugar de un único total mezclado.
+- **Reporte Saldos RRHH:** Totales de empleados, socios y general ahora se desglosan por moneda.
+
+---
+
+## [0.15.0-alpha] - 2026-08-04
+
+### Agregado
+
+- **Documentos:** Páginas universales de detalle y creación para todas las categorías (Presupuesto, OV, Remito, Factura).
+- **Documentos:** Máquina de estados con transiciones válidas por categoría.
+- **Documentos:** Formularios modulares reutilizables (PresupuestoForm, OrdenVentaForm, FacturaForm).
+- **Documentos:** Componente DocumentHeader compartido con badges de estado y cadena documental.
+- **Documentos:** Componente DocumentHelpPopover con ayuda contextual.
+- **Stakeholders:** BusinessPartyForm multi-tab para empleado/socio.
+
+### Fix o corregido
+
+- **Check Processing:** Scheduler automático de procesamiento de cheques pendientes.
+- **Documents Sales:** Entregas parciales y facturación parcial.
+
+---
+
+## [0.14.0-alpha] - 2026-08-04
+
+### Agregado
+
+- **RRHH:** Vinculación de usuarios con empleados y socios (link/unlink).
+- **RRHH:** Creación de empleados y socios con usuario asociado desde el formulario.
+- **Settings:** Página de gestión de usuarios con CRUD completo, roles y cambio de contraseña.
+- **Access Control:** Endpoints de gestión de usuarios: crear, editar, cambiar contraseña, buscar.
+- **RRHH:** Columnas de tabla mejoradas con badge de usuario vinculado y filtros de estado.
+
+### Fix o corregido
+
+- **Employees/Partners:** Services y stores con métodos linkUser/unlinkUser.
+- **Backend:** Companies controller con endpoints de usuarios (create, update, password, delete).
+
+---
+
 ## [1.1.5-alpha] - 2026-03-20
 
 ### Fix o corregido

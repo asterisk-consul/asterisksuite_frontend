@@ -12,6 +12,7 @@ import OrdenVentaView from '~/modulos/erp/documents/orden-venta/OrdenVentaView.v
 import EntregasParciales from '~/modulos/erp/documents/orden-venta/EntregasParciales.vue'
 import { getStatusLabel, getStatusColor, getValidTransitions } from '~/modulos/erp/documents/types/document-statuses'
 import { usePrint } from '~/composables/usePrint'
+import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -52,13 +53,16 @@ const validTransitions = computed(() => {
 
 const actions = computed(() => {
   const items: any[] = [
-    { label: 'Imprimir', icon: 'i-lucide-printer', variant: 'outline', onClick: () => printElement('printable-document') },
+    { label: 'Imprimir', icon: 'i-lucide-printer', variant: 'outline', help: 'Abre una nueva ventana con la vista de impresión de la OV. Podés imprimirlo o guardarlo como PDF.', onClick: () => printElement('printable-document') },
   ]
   if (doc.value?.status === 0) {
-    items.push({ label: 'Editar', icon: 'i-lucide-pencil', onClick: () => router.push(`/erp/sales/${route.params.id}/edit`) })
+    items.push({ label: 'Editar', icon: 'i-lucide-pencil', help: 'Permite modificar los datos de la OV. Solo disponible mientras esté en borrador.', onClick: () => router.push(`/erp/sales/${route.params.id}/edit`) })
   }
   if (validTransitions.value.length > 0) {
-    items.push({ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', onClick: () => { statusModalOpen.value = true } })
+    items.push({ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', help: 'Permite cambiar manualmente el estado de la OV según el flujo permitido.', onClick: () => { statusModalOpen.value = true } })
+  }
+  if (doc.value?.status === 2) {
+    items.push({ label: 'Crear Remito', icon: 'i-lucide-truck', color: 'success', help: 'Crea un remito de entrega para los ítems de esta OV. Puede ser entrega parcial.', onClick: () => { deliverModalOpen.value = true } })
   }
   return items
 })
@@ -106,9 +110,9 @@ async function handleCreateRemito() {
     <template #header>
       <UDashboardNavbar :title="doc ? `OV #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Orden de Venta'">
         <template #trailing>
-          <div class="flex gap-2">
+          <div class="flex gap-2 items-center">
             <UButton v-for="action in actions" :key="action.label" v-bind="action" size="sm" />
-            <UButton v-if="doc?.status >= 2" label="Crear Remito" icon="i-lucide-truck" color="success" size="sm" :loading="processing" @click="handleCreateRemito" />
+            <DocumentHelpPopover :category="category || 'ORDER'" :actions="actions" />
           </div>
         </template>
       </UDashboardNavbar>

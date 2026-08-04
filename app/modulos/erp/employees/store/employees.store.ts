@@ -87,5 +87,35 @@ export const useEmployeesStore = defineStore('employees', () => {
     }
   }
 
-  return { items, current, loading, error, fetchAll, fetchOne, create, update, remove }
+  const linkUser = async (id: string, userId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      await service.linkUser(id, userId)
+      // Reload to get updated user info
+      await fetchAll()
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al vincular usuario'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const unlinkUser = async (id: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      await service.unlinkUser(id)
+      // Reload to get updated user info
+      await fetchAll()
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al desvincular usuario'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return { items, current, loading, error, fetchAll, fetchOne, create, update, remove, linkUser, unlinkUser }
 })
