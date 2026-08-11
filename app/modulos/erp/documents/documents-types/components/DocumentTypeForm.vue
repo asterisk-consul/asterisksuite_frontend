@@ -10,6 +10,7 @@ export interface DocumentTypeFormData {
   affects_stock: boolean
   affects_accounting: boolean
   affects_tax_book: boolean
+  affects_payment: boolean
   active: boolean
   category: string
   letter_type: string
@@ -47,7 +48,7 @@ onMounted(async () => {
 
 const defaultForm: DocumentTypeFormData = {
   code: '', description: '', direction: 1,
-  affects_stock: false, affects_accounting: true, affects_tax_book: false,
+  affects_stock: false, affects_accounting: true, affects_tax_book: false, affects_payment: false,
   active: true, category: '', letter_type: '', afip_code: '',
   requires_cae: false, is_electronic: false, document_sequence_id: '', tax_ids: []
 }
@@ -198,6 +199,7 @@ const selectedSequence = computed({
       <UCheckbox v-model="form.affects_stock" label="Afecta stock" />
       <UCheckbox v-model="form.affects_accounting" label="Afecta contabilidad" />
       <UCheckbox v-model="form.affects_tax_book" label="Libro IVA" />
+      <UCheckbox v-model="form.affects_payment" label="Afecta pagos" />
     </div>
     <UCheckbox v-model="form.active" label="Activo" />
 

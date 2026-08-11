@@ -28,6 +28,11 @@ const partyTypeOptions = [
   { label: 'Proveedor', value: 'SUPPLIER' },
 ]
 
+const selectedPartyType = computed({
+  get: () => partyTypeOptions.find(o => o.value === form.party_type) ?? null,
+  set: (val) => { form.party_type = (val?.value as 'CUSTOMER' | 'SUPPLIER') ?? 'CUSTOMER' },
+})
+
 const partySearch = ref('')
 
 const filteredParties = computed(() => {
@@ -58,10 +63,12 @@ const docTypeCode = computed(() =>
   form.party_type === 'CUSTOMER' ? 'SI-C' : 'SI-P'
 )
 
-watch(() => props.open, async (isOpen) => {
-  if (isOpen && allParties.value.length === 0) {
+onMounted(async () => {
+  try {
     const [parties] = await Promise.all([partiesService.findAll(), fetchBaseCurrency()])
     allParties.value = parties as any
+  } catch (e) {
+    console.error('Error loading parties:', e)
   }
 })
 
@@ -69,7 +76,6 @@ function close() {
   emit('update:open', false)
   form.party_id = ''
   form.amount = 0
-  form.party_search = ''
   partySearch.value = ''
   form.date = new Date().toISOString().split('T')[0]
   form.description = 'Saldo inicial'
@@ -137,7 +143,7 @@ async function handleSubmit() {
       <form class="space-y-4" @submit.prevent="handleSubmit">
         <UFormField label="Tipo de tercero" required>
           <USelectMenu
-            v-model="form.party_type"
+            v-model="selectedPartyType"
             :items="partyTypeOptions"
             placeholder="Seleccionar tipo"
           />

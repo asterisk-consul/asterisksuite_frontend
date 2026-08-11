@@ -156,7 +156,8 @@ const handleExportExcel = () => {
       { key: 'category', label: 'Categoría', width: 20 },
       { key: 'letter_type', label: 'Letra', width: 8 },
       { key: 'afip_code', label: 'AFIP', width: 12 },
-      { key: 'active', label: 'Activo', width: 10, format: (v) => (v ? 'Sí' : 'No') }
+      { key: 'active', label: 'Activo', width: 10, format: (v) => (v ? 'Sí' : 'No') },
+      { key: 'affects_payment', label: 'Afecta Pagos', width: 12, format: (v) => (v ? 'Sí' : 'No') }
     ],
     data: docTypes.items.value
   })
@@ -264,9 +265,10 @@ const badgeForTab = (index: number) => {
             </div>
             <p class="text-sm font-medium">{{ type.description }}</p>
             <div class="flex items-center gap-2 mt-2 text-xs text-muted flex-wrap">
-              <span v-if="type.affects_stock">📦 Stock</span>
-              <span v-if="type.affects_accounting">📊 Contab.</span>
-              <span v-if="type.affects_tax_book">📋 IVA</span>
+               <span v-if="type.affects_stock">📦 Stock</span>
+               <span v-if="type.affects_accounting">📊 Contab.</span>
+               <span v-if="type.affects_tax_book">📋 IVA</span>
+               <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
@@ -315,9 +317,10 @@ const badgeForTab = (index: number) => {
             </div>
             <p class="text-sm font-medium">{{ type.description }}</p>
             <div class="flex items-center gap-2 mt-2 text-xs text-muted flex-wrap">
-              <span v-if="type.affects_stock">📦 Stock</span>
-              <span v-if="type.affects_accounting">📊 Contab.</span>
-              <span v-if="type.affects_tax_book">📋 IVA</span>
+               <span v-if="type.affects_stock">📦 Stock</span>
+               <span v-if="type.affects_accounting">📊 Contab.</span>
+               <span v-if="type.affects_tax_book">📋 IVA</span>
+               <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
@@ -369,9 +372,10 @@ const badgeForTab = (index: number) => {
             </div>
             <p class="text-sm font-medium">{{ type.description }}</p>
             <div class="flex items-center gap-2 mt-2 text-xs text-muted flex-wrap">
-              <span v-if="type.affects_stock">📦 Stock</span>
-              <span v-if="type.affects_accounting">📊 Contab.</span>
-              <span v-if="type.affects_tax_book">📋 IVA</span>
+               <span v-if="type.affects_stock">📦 Stock</span>
+               <span v-if="type.affects_accounting">📊 Contab.</span>
+               <span v-if="type.affects_tax_book">📋 IVA</span>
+               <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>

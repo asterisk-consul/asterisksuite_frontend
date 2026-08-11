@@ -71,6 +71,8 @@ export interface DocumentsType {
 
   affects_tax_book?: boolean
 
+  affects_payment?: boolean
+
   document_sequence_id?: string | null
 
   module_id?: string | null
@@ -124,6 +126,8 @@ export interface CreateDocumentsTypeDto {
   affects_stock?: boolean
 
   affects_tax_book?: boolean
+
+  affects_payment?: boolean
 
   document_sequence_id?: string
 

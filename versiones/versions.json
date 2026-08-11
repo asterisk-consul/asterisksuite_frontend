@@ -927,7 +927,7 @@
     "version": "0.16.0-alpha",
     "date": "2026-08-11",
     "stage": "alpha",
-    "notes": "Saldos iniciales en cuentas corrientes, validación fiscal centralizada y documentos de apertura",
+    "notes": "Saldos iniciales, validación fiscal centralizada, affects_payment para documentos de pago",
     "highlights": [
       {
         "title": "Saldos iniciales",
@@ -988,6 +988,31 @@
         "type": "fix",
         "scope": "seed",
         "title": "SI-C y SI-P agregados a seed-all.ts (idempotente)"
+      },
+      {
+        "type": "feat",
+        "scope": "document-types",
+        "title": "Nuevo campo affects_payment para configurar qué tipos aparecen en pagos"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "findPending filtra por affects_payment en vez de hardcoded ['INVOICE']"
+      },
+      {
+        "type": "refactor",
+        "scope": "payments",
+        "title": "Controllers simplificados: eliminado parámetro categories de findPending"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "SaldoInicialModal: selector de tercero funciona con computed get/set y onMounted"
+      },
+      {
+        "type": "feat",
+        "scope": "document-types",
+        "title": "affects_payment configurable desde frontend: checkbox en form, badge en cards y columna en export Excel"
       }
     ],
     "contributors": ["agustin"]
