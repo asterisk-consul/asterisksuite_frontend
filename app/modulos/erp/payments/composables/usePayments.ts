@@ -3,8 +3,11 @@ import { usePaymentsStore } from '../store/payments.store'
 
 import type {
   Payment,
+  PaymentStatus,
   CreatePaymentInput,
-  UpdatePaymentInput
+  UpdatePaymentInput,
+  ApplyAdvanceInput,
+  AdvanceAvailable
 } from '~/modulos/erp/payments/types/payments.types'
 
 import type { PendingDocument, AvailableCheck, CreateCheckInput } from '~/modulos/erp/payments/service/payments.service'
@@ -20,7 +23,7 @@ export function usePayments() {
     party_id?: string
     type?: string
     payment_method?: string
-    status?: number
+    status?: PaymentStatus
   }) => {
     await store.fetchAll(params)
   }
@@ -43,8 +46,6 @@ export function usePayments() {
 
   const reject = async (id: string) => store.reject(id)
 
-  const fetchPendingDocuments = async (partyId?: string) => store.fetchPendingDocuments(partyId)
-
   const fetchPendingSalesDocuments = async (partyId?: string) => store.fetchPendingSalesDocuments(partyId)
 
   const fetchPendingPurchaseDocuments = async (partyId?: string) => store.fetchPendingPurchaseDocuments(partyId)
@@ -54,6 +55,12 @@ export function usePayments() {
   const fetchAvailableCustomerChecks = async () => store.fetchAvailableCustomerChecks()
 
   const createLightCheck = async (data: CreateCheckInput) => store.createLightCheck(data)
+
+  const applyAdvance = async (paymentId: string, data: ApplyAdvanceInput) => store.applyAdvance(paymentId, data)
+
+  const removeAdvanceApplication = async (paymentId: string, documentId: string) => store.removeAdvanceApplication(paymentId, documentId)
+
+  const fetchAdvanceAvailable = async (partyId?: string) => store.fetchAdvanceAvailable(partyId)
 
   // =========================
   // COMPUTED
@@ -112,12 +119,14 @@ export function usePayments() {
     confirm,
     markAsPaid,
     reject,
-    fetchPendingDocuments,
     fetchPendingSalesDocuments,
     fetchPendingPurchaseDocuments,
     fetchAvailableOwnChecks,
     fetchAvailableCustomerChecks,
     createLightCheck,
+    applyAdvance,
+    removeAdvanceApplication,
+    fetchAdvanceAvailable,
     fetchOne: store.fetchOne
   }
 }

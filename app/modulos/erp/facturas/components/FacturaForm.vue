@@ -20,6 +20,7 @@ import { useProducts } from '~/modulos/logistica/master-data/product/composable/
 
 // Currencies
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 
 // Document Types
 import { useDocumentsTypesStore } from '~/modulos/erp/documents/documents-types/store/documents-types.store'
@@ -69,7 +70,15 @@ const usageFilter = computed(() => {
   return null
 })
 const { items: productOptions } = useProducts(products, usageFilter.value)
-const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
+const { init: initCurrencies, codeSelectItems: currencyOptions, baseCurrency } = useCurrencies()
+const {
+  exchangeRate: resolvedRate,
+  rateType: resolvedRateType,
+  isBaseCurrency,
+  autoResolve,
+  setManualRate,
+  convertAmount,
+} = useExchangeRate()
 
 // Usar composable para filtrar tipos de documento por dirección + condición del emisor/receptor
 const moduleCode = computed(() => (props.moduleCode === 'SALES' ? 'SALES' : 'PURCHASES') as 'SALES' | 'PURCHASES')
@@ -81,7 +90,42 @@ const form = reactive({
   date: new Date().toISOString().split('T')[0],
   descrip: '',
   ref: '',
-  currency_code: 'ARS'
+  currency_code: 'ARS',
+  exchange_rate: null as number | null,
+  rate_type: 'OFFICIAL' as string,
+})
+
+// ─── Exchange Rate: auto-resolve on currency change ─────────
+const isForeignCurrency = computed(() => {
+  if (!baseCurrency.value) return false
+  return form.currency_code.toUpperCase() !== baseCurrency.value.code.toUpperCase()
+})
+
+watch(
+  () => form.currency_code,
+  async (newCode) => {
+    if (!newCode || !isForeignCurrency.value) {
+      form.exchange_rate = null
+      return
+    }
+    await autoResolve(newCode, baseCurrency.value?.code ?? 'ARS', form.rate_type)
+    form.exchange_rate = resolvedRate.value
+  },
+  { immediate: true },
+)
+
+watch(
+  () => form.rate_type,
+  async (newType) => {
+    if (!form.currency_code || !isForeignCurrency.value) return
+    await autoResolve(form.currency_code, baseCurrency.value?.code ?? 'ARS', newType)
+    form.exchange_rate = resolvedRate.value
+  },
+)
+
+// Sync resolved rate back to form
+watch(resolvedRate, (rate) => {
+  if (rate) form.exchange_rate = rate
 })
 
 const selectedParty = computed(() => parties.value.find((p) => p.id === form.party_id))
@@ -236,6 +280,8 @@ watch(
     form.descrip = val.descrip ?? ''
     form.ref = val.ref ?? ''
     form.currency_code = val.currency_code ?? 'ARS'
+    form.exchange_rate = val.exchange_rate ? Number(val.exchange_rate) : null
+    form.rate_type = val.rate_type ?? 'OFFICIAL'
 
     // Mapear items del documento
     // Si vienen del mapper (items), usarlos directamente
@@ -436,6 +482,8 @@ function submit() {
     descrip: form.descrip,
     ref: form.ref,
     currency_code: form.currency_code,
+    exchange_rate: form.exchange_rate,
+    rate_type: form.rate_type,
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
       quantity: Number(i.quantity),
@@ -501,6 +549,40 @@ defineExpose({ submit })
         <UInput v-model="form.date" type="date" label="Fecha" />
       </div>
 
+      <!-- Exchange Rate (solo si moneda extranjera) -->
+      <div v-if="isForeignCurrency" class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-3">
+        <div>
+          <label class="text-sm text-gray-500 mb-1 block">Tipo de cambio</label>
+          <USelect
+            v-model="form.rate_type"
+            :items="[
+              { label: 'Oficial (AFIP)', value: 'OFFICIAL' },
+              { label: 'Blue', value: 'BLUE' },
+              { label: 'MEP', value: 'MEP' },
+              { label: 'CCL', value: 'CCL' },
+            ]"
+            placeholder="Tipo"
+          />
+        </div>
+        <div>
+          <label class="text-sm text-gray-500 mb-1 block">Cotización</label>
+          <UInput
+            v-model.number="form.exchange_rate"
+            type="number"
+            step="0.000001"
+            min="0"
+            placeholder="1.000000"
+            @input="() => { if (form.exchange_rate) setManualRate(form.exchange_rate) }"
+          />
+        </div>
+        <div v-if="form.exchange_rate && total">
+          <label class="text-sm text-gray-500 mb-1 block">Equivalente ARS</label>
+          <div class="h-10 flex items-center text-lg font-semibold text-primary">
+            {{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(convertAmount(total) ?? 0) }}
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <UInput v-model="form.descrip" placeholder="Referencia (opcional)" class="md:col-span-4" />
       </div>
@@ -532,6 +614,7 @@ defineExpose({ submit })
       <FacturaItemsTable
         :items="items"
         :product-options="productOptions"
+        :currency-code="form.currency_code"
         @remove="removeItem"
         @add="addItem"
       />
@@ -540,7 +623,15 @@ defineExpose({ submit })
     <!-- Totals -->
     <div class="sticky bottom-0 z-10">
       <UCard class="shadow-lg border-t-2 border-primary">
-        <FacturaTotals :subtotal="subtotal" :taxes="taxesSummary" :total="total" :show-breakdown="showTaxBreakdown" />
+        <FacturaTotals
+          :subtotal="subtotal"
+          :taxes="taxesSummary"
+          :total="total"
+          :show-breakdown="showTaxBreakdown"
+          :currency-code="form.currency_code"
+          :exchange-rate="form.exchange_rate"
+          :converted-total="form.exchange_rate ? convertAmount(total) : null"
+        />
       </UCard>
     </div>
   </div>

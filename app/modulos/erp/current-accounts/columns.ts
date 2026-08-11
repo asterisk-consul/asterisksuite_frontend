@@ -23,7 +23,8 @@ export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; 
   DEBIT_NOTE: { label: 'Nota de débito', color: 'secondary', side: 'debit' },
   NO_DEBIT: { label: 'No débito', color: 'neutral', side: 'credit' },
   DEBIT: { label: 'Débito', color: 'warning', side: 'debit' },
-  CREDIT: { label: 'Crédito', color: 'success', side: 'credit' }
+  CREDIT: { label: 'Crédito', color: 'success', side: 'credit' },
+  OPENING_BALANCE: { label: 'Saldo inicial', color: 'info', side: 'credit' }
 }
 
 function resolveReferenceLink(entry: CurrentAccountEntry, partyType?: string): { to: string; label: string } | null {
@@ -41,14 +42,22 @@ function resolveReferenceLink(entry: CurrentAccountEntry, partyType?: string): {
   return null
 }
 
+function formatCurrency(amount: number | string | null | undefined, currency = 'ARS'): string {
+  const num = Number(amount) || 0
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 2 }).format(num)
+}
+
 export const currentAccountEntryColumns = (actions: {
   onSortFieldSelect?: (columnId: string) => void
   partyType?: string
+  baseCurrency?: string
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({
     locale: 'es-AR',
     onSortFieldSelect: actions?.onSortFieldSelect
   })
+
+  const baseCurrency = actions?.baseCurrency ?? 'ARS'
 
   return [
     ...build([
@@ -67,7 +76,6 @@ export const currentAccountEntryColumns = (actions: {
             const config = ENTRY_TYPE_CONFIG[row.type]
             let label = config?.label ?? row.type
 
-            // Si es INVOICE y EMPLOYEE/PARTNER, mostrar "Recibo de sueldo"
             if (row.type === 'INVOICE' && (actions?.partyType === 'EMPLOYEE' || actions?.partyType === 'PARTNER')) {
               label = 'Recibo de sueldo'
             }
@@ -116,17 +124,28 @@ export const currentAccountEntryColumns = (actions: {
         cell: ({ row }) => row.original.user_name ?? '—'
       },
       {
+        key: 'original_amount',
+        label: 'Monto original',
+        cell: ({ row }) => {
+          const value = row.original.amount
+          if (value == null) return '—'
+          const currency = row.original.currency_code || baseCurrency
+          return h('div', { class: 'text-sm' }, [
+            h('span', {}, formatCurrency(value, currency)),
+            row.original.exchange_rate
+              ? h('span', { class: 'text-xs text-muted ml-1' }, `@ ${row.original.exchange_rate}`)
+              : null
+          ])
+        }
+      },
+      {
         key: 'debit',
         label: 'Debito',
         cell: ({ row }) => {
           if (resolveSide(row.original.type, actions?.partyType) !== 'debit') return '—'
-          const value = row.original.amount
+          const value = row.original.converted_amount ?? row.original.amount
           if (value == null) return '—'
-          return new Intl.NumberFormat('es-AR', {
-            style: 'currency',
-            currency: row.original.currency_code || 'ARS',
-            maximumFractionDigits: 2
-          }).format(Number(value))
+          return h('span', { class: 'font-medium' }, formatCurrency(value, baseCurrency))
         }
       },
       {
@@ -134,13 +153,9 @@ export const currentAccountEntryColumns = (actions: {
         label: 'Credito',
         cell: ({ row }) => {
           if (resolveSide(row.original.type, actions?.partyType) !== 'credit') return '—'
-          const value = row.original.amount
+          const value = row.original.converted_amount ?? row.original.amount
           if (value == null) return '—'
-          return new Intl.NumberFormat('es-AR', {
-            style: 'currency',
-            currency: row.original.currency_code || 'ARS',
-            maximumFractionDigits: 2
-          }).format(Number(value))
+          return h('span', { class: 'font-medium' }, formatCurrency(value, baseCurrency))
         }
       },
       {
@@ -149,11 +164,7 @@ export const currentAccountEntryColumns = (actions: {
         cell: ({ row }) => {
           const value = row.original.balance_before
           if (value == null) return '—'
-          return new Intl.NumberFormat('es-AR', {
-            style: 'currency',
-            currency: row.original.currency_code || 'ARS',
-            maximumFractionDigits: 2
-          }).format(Number(value))
+          return formatCurrency(value, baseCurrency)
         }
       },
       {
@@ -163,11 +174,7 @@ export const currentAccountEntryColumns = (actions: {
         cell: ({ row }) => {
           const value = row.original.balance_after
           if (value == null) return '—'
-          return new Intl.NumberFormat('es-AR', {
-            style: 'currency',
-            currency: row.original.currency_code || 'ARS',
-            maximumFractionDigits: 2
-          }).format(Number(value))
+          return h('span', { class: 'font-semibold' }, formatCurrency(value, baseCurrency))
         }
       },
       {

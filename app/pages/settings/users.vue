@@ -48,6 +48,7 @@ const newUser = ref({
   name: '',
   email: '',
   password: '',
+  role: 'USER' as string,
   linkType: 'none' as 'none' | 'existing_employee' | 'existing_partner' | 'new_employee' | 'new_partner',
 })
 const selectedEmployeeId = ref('')
@@ -274,6 +275,7 @@ const openCreateModal = () => {
     name: '',
     email: '',
     password: '',
+    role: 'USER',
     linkType: 'none',
   }
   selectedEmployeeId.value = ''
@@ -332,6 +334,7 @@ const createUser = async () => {
       name: newUser.value.name,
       email: newUser.value.email,
       password: newUser.value.password,
+      role: newUser.value.role,
     }
 
     if (newUser.value.linkType === 'existing_employee' && selectedEmployeeId.value) {
@@ -515,6 +518,17 @@ onMounted(async () => {
           </UFormField>
           <UFormField label="Contraseña" name="password">
             <UInput v-model="newUser.password" placeholder="Mínimo 6 caracteres" type="password" />
+          </UFormField>
+
+          <UFormField label="Rol" name="role">
+            <USelect
+              v-model="newUser.role"
+              :items="[
+                { label: 'Usuario', value: 'USER' },
+                { label: 'Administrador', value: 'ADMIN' },
+              ]"
+              placeholder="Seleccionar rol"
+            />
           </UFormField>
 
           <UDivider />

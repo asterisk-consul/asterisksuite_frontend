@@ -91,6 +91,9 @@ export const useCurrencyRates = () => {
     getLatestRate,
     getLatestRateValue,
 
-    convert
+    convert,
+
+    fetchAll: store.fetchAll,
+    loading: computed(() => store.loading),
   }
 }

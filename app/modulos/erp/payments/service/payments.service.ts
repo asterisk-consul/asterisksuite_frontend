@@ -2,7 +2,9 @@ import type {
   Payment,
   PaymentStatus,
   CreatePaymentInput,
-  UpdatePaymentInput
+  UpdatePaymentInput,
+  ApplyAdvanceInput,
+  AdvanceAvailable
 } from '~/modulos/erp/payments/types/payments.types'
 
 const urlBase = '/api/erp/payments'
@@ -17,11 +19,15 @@ export interface PendingDocument {
   paid_amount: number
   pending_amount: number
   currency_code: string
+  exchange_rate?: number | null
+  rate_type?: string | null
+  converted_total?: number | null
   party_id: string | null
   party_name: string | null
   party_type: string | null
   document_type_code: string | null
   document_type_description: string | null
+  document_type_category: string | null
 }
 
 export interface AvailableCheck {
@@ -159,6 +165,26 @@ export const usePaymentsService = () => {
     })
   }
 
+  const applyAdvance = (paymentId: string, data: ApplyAdvanceInput) => {
+    return $fetch<Payment>(`${urlBase}/${paymentId}/apply-advance`, {
+      method: 'POST',
+      body: data
+    })
+  }
+
+  const removeAdvanceApplication = (paymentId: string, documentId: string) => {
+    return $fetch<Payment>(`${urlBase}/${paymentId}/apply-advance/${documentId}`, {
+      method: 'DELETE'
+    })
+  }
+
+  const findAdvanceAvailable = (partyId?: string) => {
+    return $fetch<AdvanceAvailable[]>(`${urlBase}/advance-available`, {
+      method: 'GET',
+      query: partyId ? { party_id: partyId } : {}
+    })
+  }
+
   return {
     findAll,
     findOne,
@@ -173,6 +199,9 @@ export const usePaymentsService = () => {
     reverse,
     confirm,
     markAsPaid,
-    reject
+    reject,
+    applyAdvance,
+    removeAdvanceApplication,
+    findAdvanceAvailable
   }
 }

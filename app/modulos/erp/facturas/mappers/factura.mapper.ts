@@ -87,6 +87,10 @@ export function mapDocumentToFacturaForm(
 
     currency_code: document.currency_code ?? 'ARS',
 
+    exchange_rate: document.exchange_rate ? Number(document.exchange_rate) : null,
+
+    rate_type: document.rate_type ?? 'OFFICIAL',
+
     date: document.date
       ? new Date(document.date as string).toISOString().split('T')[0]
       : '',

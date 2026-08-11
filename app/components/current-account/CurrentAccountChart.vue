@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
+import { resolveSide } from '~/modulos/erp/current-accounts/utils'
+import { isReceivable, balanceChartColor, balanceChartAreaColor, entryChartColor } from '~/modulos/erp/current-accounts/balance-utils'
 
 const props = defineProps<{
   entries: any[]
   balance: number
-  currencyCode?: string
+  partyType?: string
 }>()
 
 const formatCurrency = (amount: number) => {
   const num = Number(amount) || 0
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency: props.currencyCode || 'ARS',
+    currency: 'ARS',
     maximumFractionDigits: 2
   }).format(num)
 }
@@ -19,6 +21,17 @@ const formatCurrency = (amount: number) => {
 // Gráfico de evolución del saldo (line chart)
 const balanceChartData = computed(() => {
   const sorted = [...props.entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const color = balanceChartColor(props.balance, props.partyType)
+  const areaColor = balanceChartAreaColor(props.balance, props.partyType)
+
+  // Agregar punto inicial en 0 antes de la primera entrada
+  const dates: string[] = ['Inicio']
+  const values: number[] = [0]
+  for (const e of sorted) {
+    dates.push(e.date?.split('T')[0] ?? '')
+    values.push(Number(e.balance_after))
+  }
+
   return {
     tooltip: {
       trigger: 'axis',
@@ -30,7 +43,7 @@ const balanceChartData = computed(() => {
     grid: { left: 60, right: 20, top: 10, bottom: 30 },
     xAxis: {
       type: 'category',
-      data: sorted.map((e) => e.date?.split('T')[0] ?? ''),
+      data: dates,
       axisLabel: { fontSize: 10, rotate: 45 }
     },
     yAxis: {
@@ -40,11 +53,11 @@ const balanceChartData = computed(() => {
     series: [
       {
         type: 'line',
-        data: sorted.map((e) => Number(e.balance_after)),
+        data: values,
         smooth: true,
-        lineStyle: { width: 2, color: props.balance >= 0 ? '#22c55e' : '#ef4444' },
-        areaStyle: { color: props.balance >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' },
-        itemStyle: { color: props.balance >= 0 ? '#22c55e' : '#ef4444' }
+        lineStyle: { width: 2, color },
+        areaStyle: { color: areaColor },
+        itemStyle: { color }
       }
     ]
   }
@@ -52,14 +65,13 @@ const balanceChartData = computed(() => {
 
 // Resumen por tipo de entrada
 const entryTypeSummary = computed(() => {
-  const map = new Map<string, { count: number; total: number; side: string }>()
+  const map = new Map<string, { count: number; total: number; type: string }>()
   for (const e of props.entries) {
     const config = ENTRY_TYPE_CONFIG[e.type]
     const label = config?.label ?? e.type
-    const side = config?.side ?? 'debit'
-    const existing = map.get(label) || { count: 0, total: 0, side }
+    const existing = map.get(label) || { count: 0, total: 0, type: e.type }
     existing.count++
-    existing.total += Number(e.amount) || 0
+    existing.total += Number(e.converted_amount ?? e.amount) || 0
     map.set(label, existing)
   }
   return Array.from(map.entries())
@@ -69,7 +81,6 @@ const entryTypeSummary = computed(() => {
 
 // Gráfico de torta por tipo de entrada
 const entryTypePieData = computed(() => {
-  const colors = ['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6']
   return {
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: { bottom: 0, textStyle: { fontSize: 11 } },
@@ -82,10 +93,10 @@ const entryTypePieData = computed(() => {
         itemStyle: { borderRadius: 6 },
         label: { show: false },
         emphasis: { label: { show: true, fontSize: 12, fontWeight: 'bold' } },
-        data: entryTypeSummary.value.map((item, i) => ({
+        data: entryTypeSummary.value.map((item) => ({
           value: item.total,
           name: item.name,
-          itemStyle: { color: colors[i % colors.length] }
+          itemStyle: { color: entryChartColor(item.type, props.partyType) }
         }))
       }
     ]

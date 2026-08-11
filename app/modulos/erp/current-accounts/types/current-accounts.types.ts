@@ -14,12 +14,12 @@ export type AccountEntryType =
   | 'NO_DEBIT'
   | 'DEBIT'
   | 'CREDIT'
+  | 'OPENING_BALANCE'
 
 export interface CurrentAccount {
   id: string
   party_id: string
   party_type: string
-  currency_code: string
   balance: number
   active: boolean
 
@@ -40,6 +40,8 @@ export interface CurrentAccountEntry {
   amount: number
   currency_code: string
   exchange_rate?: number | null
+  rate_type?: string | null
+  converted_amount?: number | null
   balance_before: number
   balance_after: number
   description?: string | null

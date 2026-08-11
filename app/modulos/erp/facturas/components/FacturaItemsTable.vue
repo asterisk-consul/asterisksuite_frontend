@@ -15,9 +15,13 @@ interface Props {
 
     taxes?: any[]
   }[]
+
+  currencyCode?: string
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  currencyCode: 'ARS'
+})
 
 const emit = defineEmits<{
   remove: [index: number]
@@ -31,7 +35,7 @@ function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
 
-    currency: 'ARS'
+    currency: props.currencyCode
   }).format(Number(n || 0))
 }
 

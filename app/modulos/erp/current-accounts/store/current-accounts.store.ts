@@ -38,10 +38,10 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
   // ENTRIES
   // =========================
 
-  const fetchEntries = async (partyId: string, currencyCode?: string) => {
+  const fetchEntries = async (partyId: string) => {
     try {
       loading.value = true
-      entries.value = await service.getEntries(partyId, currencyCode)
+      entries.value = await service.getEntries(partyId)
       return entries.value
     } finally {
       loading.value = false
@@ -52,10 +52,10 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
   // STATEMENT
   // =========================
 
-  const fetchStatement = async (partyId: string, currencyCode: string) => {
+  const fetchStatement = async (partyId: string) => {
     try {
       loading.value = true
-      statement.value = await service.getStatement(partyId, currencyCode)
+      statement.value = await service.getStatement(partyId)
       return statement.value
     } finally {
       loading.value = false
@@ -66,10 +66,10 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
   // BALANCE
   // =========================
 
-  const fetchBalance = async (partyId: string, currencyCode: string) => {
+  const fetchBalance = async (partyId: string) => {
     try {
       loading.value = true
-      const data = await service.getBalance(partyId, currencyCode)
+      const data = await service.getBalance(partyId)
       currentBalance.value = data.balance
       return data.balance
     } finally {
@@ -109,7 +109,7 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
 
   const allAccounts = ref<CurrentAccount[]>([])
 
-  const fetchAll = async (params?: { party_type?: string; currency_code?: string; balance_filter?: string }) => {
+  const fetchAll = async (params?: { party_type?: string; balance_filter?: string }) => {
     try {
       loading.value = true
       allAccounts.value = await service.findAll(params)

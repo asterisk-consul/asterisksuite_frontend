@@ -96,6 +96,13 @@ const handleAction = async () => {
 
 onMounted(() => init())
 
+const modeFilter = ref<'ALL' | 'NORMAL' | 'ADVANCE'>('ALL')
+
+const filteredPayments = computed(() => {
+  if (modeFilter.value === 'ALL') return payments.value
+  return payments.value.filter(p => p.payment_mode === modeFilter.value)
+})
+
 const columns = computed(() => paymentColumns({
   onDetail: openDetail,
   onSortFieldSelect,
@@ -182,9 +189,35 @@ const dataActions = [
       </template>
     </AppPageHeader>
 
+    <!-- FILTRO DE MODO -->
+    <div class="flex items-center gap-2">
+      <span class="text-sm text-muted">Filtrar:</span>
+      <UButton
+        label="Todos"
+        size="xs"
+        :color="modeFilter === 'ALL' ? 'primary' : 'neutral'"
+        :variant="modeFilter === 'ALL' ? 'solid' : 'ghost'"
+        @click="modeFilter = 'ALL'"
+      />
+      <UButton
+        label="Normales"
+        size="xs"
+        :color="modeFilter === 'NORMAL' ? 'primary' : 'neutral'"
+        :variant="modeFilter === 'NORMAL' ? 'solid' : 'ghost'"
+        @click="modeFilter = 'NORMAL'"
+      />
+      <UButton
+        label="Anticipos"
+        size="xs"
+        :color="modeFilter === 'ADVANCE' ? 'warning' : 'neutral'"
+        :variant="modeFilter === 'ADVANCE' ? 'solid' : 'ghost'"
+        @click="modeFilter = 'ADVANCE'"
+      />
+    </div>
+
     <LogisticaTable
       :loading="loading"
-      :data="payments"
+      :data="filteredPayments"
       :columns="columns"
       :filter-fields="filterFields"
       :sort-fields="sortFields"

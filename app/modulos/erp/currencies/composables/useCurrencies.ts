@@ -20,7 +20,7 @@ export function useCurrencies() {
   // =========================
 
   const init = async () => {
-    await store.fetchAll()
+    await Promise.all([store.fetchAll(), store.fetchBaseCurrency()])
   }
 
   // =========================

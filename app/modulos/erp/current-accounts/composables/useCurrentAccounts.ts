@@ -15,20 +15,20 @@ export function useCurrentAccounts() {
 
   const fetchByParty = async (partyId: string) => store.fetchByParty(partyId)
 
-  const fetchEntries = async (partyId: string, currencyCode?: string) =>
-    store.fetchEntries(partyId, currencyCode)
+  const fetchEntries = async (partyId: string) =>
+    store.fetchEntries(partyId)
 
-  const fetchStatement = async (partyId: string, currencyCode: string) =>
-    store.fetchStatement(partyId, currencyCode)
+  const fetchStatement = async (partyId: string) =>
+    store.fetchStatement(partyId)
 
-  const fetchBalance = async (partyId: string, currencyCode: string) =>
-    store.fetchBalance(partyId, currencyCode)
+  const fetchBalance = async (partyId: string) =>
+    store.fetchBalance(partyId)
 
   const addEntry = async (payload: CreateCurrentAccountEntryInput) => store.addEntry(payload)
 
   const fetchActive = async () => store.fetchActive()
 
-  const fetchAll = async (params?: { party_type?: string; currency_code?: string; balance_filter?: string }) =>
+  const fetchAll = async (params?: { party_type?: string; balance_filter?: string }) =>
     store.fetchAll(params)
 
   // =========================

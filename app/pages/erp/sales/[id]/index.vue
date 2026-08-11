@@ -77,7 +77,7 @@ const actions = computed(() => {
   if (category.value === 'ORDER' && isConfirmed.value) {
     items.push({ label: 'Despachar → Remito', icon: 'i-lucide-truck', color: 'success', help: 'Crea un remito de entrega para los ítems de esta OV. Puede ser entrega parcial.', onClick: () => { deliverModalOpen.value = true } })
   }
-  if (isConfirmed.value && doc.value?.party_id) {
+  if (isConfirmed.value && doc.value?.party_id && ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'].includes(doc.value?.document_types?.category)) {
     items.push({ label: 'Cuenta corriente', icon: 'i-lucide-arrow-right-circle', color: 'primary', help: 'Muestra el saldo y los movimientos de cuenta corriente de este cliente/proveedor.', onClick: () => {
       const currency = doc.value!.currency_code ?? 'ARS'
       router.push(`/erp/treasury/current-accounts/${doc.value!.party_id}?currency=${currency}`)

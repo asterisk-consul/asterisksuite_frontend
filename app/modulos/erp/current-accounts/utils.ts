@@ -9,6 +9,7 @@ export function resolveSide(type: string, partyType?: string): 'debit' | 'credit
   if (type === 'INVOICE') return partyType === 'CUSTOMER' ? 'debit' : 'credit'
   if (type === 'CREDIT_NOTE') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
   if (type === 'PAYMENT' || type === 'COLLECTION') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
+  if (type === 'OPENING_BALANCE') return partyType === 'CUSTOMER' ? 'debit' : 'credit'
   if (type === 'SUELDO') return 'credit'
   return 'debit'
 }

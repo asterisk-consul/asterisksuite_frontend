@@ -13,22 +13,30 @@ interface Props {
   taxes: TaxSummary[]
   total: number
   showBreakdown?: boolean
+  currencyCode?: string
+  exchangeRate?: number | null
+  convertedTotal?: number | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  showBreakdown: true
+  showBreakdown: true,
+  currencyCode: 'ARS',
+  exchangeRate: null,
+  convertedTotal: null,
 })
 
-function fmt(n: number) {
+function fmt(n: number, currency?: string) {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency: 'ARS'
+    currency: currency ?? props.currencyCode
   }).format(Number(n || 0))
 }
 
 const totalTaxes = computed(() =>
   props.taxes.reduce((acc, tax) => acc + tax.amount, 0)
 )
+
+const isForeignCurrency = computed(() => props.currencyCode !== 'ARS')
 </script>
 
 <template>
@@ -67,6 +75,12 @@ const totalTaxes = computed(() =>
     <div class="flex justify-between text-xl font-bold border-t-2 pt-3">
       <span>Total</span>
       <span class="text-primary">{{ fmt(total) }}</span>
+    </div>
+
+    <!-- Equivalente ARS (solo si moneda extranjera) -->
+    <div v-if="isForeignCurrency && convertedTotal" class="flex justify-between text-sm text-gray-500 pt-1">
+      <span>Equivalente ARS</span>
+      <span class="font-medium text-gray-600 dark:text-gray-400">{{ fmt(convertedTotal, 'ARS') }}</span>
     </div>
   </div>
 </template>

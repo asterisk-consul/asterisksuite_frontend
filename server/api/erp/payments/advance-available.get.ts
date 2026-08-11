@@ -1,6 +1,5 @@
 import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  return apiProxy(event, '/currencies/latest', { method: 'GET', query })
+  return apiProxy(event, '/erp/payments/advance-available', { method: 'GET' })
 })

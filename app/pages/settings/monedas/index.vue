@@ -26,13 +26,10 @@ const items = ref<TabsItem[]>([
 import { useCurrenciesStore } from '~/modulos/erp/currencies/store/currencies.store'
 
 const store = useCurrenciesStore()
-const { items: currencies } = storeToRefs(store)
-
-const loading = ref(false)
+const { items: currencies, loading } = storeToRefs(store)
 
 onMounted(() => {
   store.fetchAll()
-  loading.value = store.loading
 })
 </script>
 <template>

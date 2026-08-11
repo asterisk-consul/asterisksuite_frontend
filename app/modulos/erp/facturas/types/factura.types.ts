@@ -61,6 +61,10 @@ export interface Document {
 
   currency_code?: string | null
 
+  exchange_rate?: number | null
+
+  rate_type?: string | null
+
   date: string
 
   status: number
@@ -133,6 +137,10 @@ export interface FacturaFormValues {
   party_id: string | null
 
   currency_code?: string
+
+  exchange_rate?: number | null
+
+  rate_type?: string | null
 
   date: string
 

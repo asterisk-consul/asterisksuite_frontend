@@ -6,6 +6,7 @@ definePageMeta({
 
 import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
 import PaymentForm from '~/modulos/erp/payments/components/PaymentForm.vue'
+import PaymentApplyAdvanceModal from '~/modulos/erp/payments/components/PaymentApplyAdvanceModal.vue'
 import type { PaymentFormData } from '~/modulos/erp/payments/components/PaymentForm.vue'
 import type { Payment } from '~/modulos/erp/payments/types/payments.types'
 
@@ -22,6 +23,8 @@ const {
   markAsPaid,
   reject,
   reverse,
+  applyAdvance,
+  removeAdvanceApplication,
   fetchPendingSalesDocuments,
   fetchPendingPurchaseDocuments,
   fetchAvailableOwnChecks,
@@ -49,6 +52,17 @@ const actionLabels: Record<string, { title: string; button: string; color: strin
 const isDraft = computed(() => currentPayment.value?.status === 'DRAFT')
 const isConfirmed = computed(() => currentPayment.value?.status === 'CONFIRMED')
 const isPaid = computed(() => currentPayment.value?.status === 'PAID')
+const isAdvance = computed(() => currentPayment.value?.payment_mode === 'ADVANCE')
+
+const availableBalance = computed(() => {
+  if (!currentPayment.value) return 0
+  const applied = currentPayment.value.documents?.reduce(
+    (sum: number, d: any) => sum + Number(d.amount_applied), 0
+  ) ?? 0
+  return Number(currentPayment.value.amount) - applied
+})
+
+const advanceModalOpen = ref(false)
 
 onMounted(async () => {
   const [payment] = await Promise.all([
@@ -66,6 +80,7 @@ onMounted(async () => {
     console.log('[PaymentDetail] payment.cash_box_id:', payment.cash_box_id)
     paymentData.value = {
       type: payment.type as 'PAYMENT' | 'COLLECTION',
+      payment_mode: (payment.payment_mode as 'NORMAL' | 'ADVANCE') ?? 'NORMAL',
       date: payment.date?.split('T')[0] ?? new Date().toISOString().split('T')[0],
       payment_method: payment.payment_method ?? 'CASH',
       amount: Number(payment.amount),
@@ -90,6 +105,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
     const updated = await update(paymentId, {
       date: formData.date,
       payment_method: formData.payment_method as any,
+      payment_mode: formData.payment_mode as any,
       amount: formData.amount,
       currency_code: formData.currency_code,
       description: formData.description || undefined,
@@ -165,13 +181,19 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   REVERSED: { label: 'Rechazado', color: 'warning' },
   CANCELLED: { label: 'Anulado', color: 'error' }
 }
+
+const handleAdvanceSuccess = async () => {
+  const updated = await fetchOne(paymentId)
+  if (updated) currentPayment.value = updated as Payment
+  toast.add({ title: 'Anticipo aplicado correctamente', color: 'success' })
+}
 </script>
 
 <template>
   <UPage class="space-y-4">
     <AppPageHeader
-      title="Editar pago / cobro"
-      description="Modificar pago o cobro existente"
+      :title="isAdvance ? 'Editar anticipo' : 'Editar pago / cobro'"
+      :description="isAdvance ? 'Anticipo a proveedor o cliente' : 'Modificar pago o cobro existente'"
     />
 
     <div v-if="loading" class="flex justify-center py-8">
@@ -225,10 +247,23 @@ const statusConfig: Record<string, { label: string; color: string }> = {
           </span>
         </div>
         <div class="flex items-center gap-2">
+          <template v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)">
+            <UBadge label="Pendiente de asociar documento" color="warning" variant="subtle" />
+            <UBadge
+              :label="`Disponible: ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: currentPayment?.currency_code || 'ARS' }).format(availableBalance)}`"
+              color="info"
+              variant="subtle"
+            />
+            <UButton label="Aplicar a factura" icon="i-lucide-link" size="sm" color="info" variant="outline" @click="advanceModalOpen = true" />
+          </template>
+          <template v-if="isAdvance && availableBalance <= 0 && (isConfirmed || isPaid)">
+            <UBadge label="Saldado" color="success" variant="subtle" />
+          </template>
           <UButton v-if="isDraft" label="Confirmar" icon="i-lucide-check-circle" size="sm" color="info" :loading="isProcessing" :disabled="isProcessing" @click="openAction('confirm')" />
           <UButton v-if="isConfirmed" label="Marcar pagado" icon="i-lucide-check" size="sm" color="success" :loading="isProcessing" :disabled="isProcessing" @click="openAction('pay')" />
           <UButton v-if="isConfirmed" label="Rechazar" icon="i-lucide-x-circle" size="sm" color="warning" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reject')" />
           <UButton v-if="isConfirmed || isPaid" label="Anular" icon="i-lucide-undo-2" size="sm" color="error" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reverse')" />
+          <UButton v-if="(isConfirmed || isPaid) && currentPayment?.party_id" label="Cuenta corriente" icon="i-lucide-arrow-right-circle" size="sm" color="primary" variant="outline" @click="router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)" />
         </div>
       </div>
 
@@ -263,5 +298,17 @@ const statusConfig: Record<string, { label: string; color: string }> = {
         </div>
       </template>
     </UModal>
+
+    <!-- ADVANCE APPLICATION MODAL -->
+    <PaymentApplyAdvanceModal
+      v-if="isAdvance && currentPayment"
+      v-model:open="advanceModalOpen"
+      :payment-id="paymentId"
+      :payment-type="currentPayment.type"
+      :available-balance="availableBalance"
+      :currency-code="currentPayment.currency_code || 'ARS'"
+      :party-id="currentPayment.party_id || undefined"
+      @success="handleAdvanceSuccess"
+    />
   </UPage>
 </template>

@@ -19,25 +19,16 @@ export const useCurrentAccountsService = () => {
     return $fetch<CurrentAccount[]>(`${urlBase}/party/${partyId}`)
   }
 
-  const getEntries = (partyId: string, currencyCode?: string) => {
-    return $fetch<CurrentAccountEntry[]>(`${urlBase}/party/${partyId}/entries`, {
-      method: 'GET',
-      query: { currency_code: currencyCode }
-    })
+  const getEntries = (partyId: string) => {
+    return $fetch<CurrentAccountEntry[]>(`${urlBase}/party/${partyId}/entries`)
   }
 
-  const getStatement = (partyId: string, currencyCode: string) => {
-    return $fetch<CurrentAccountStatement>(`${urlBase}/party/${partyId}/statement`, {
-      method: 'GET',
-      query: { currency_code: currencyCode }
-    })
+  const getStatement = (partyId: string) => {
+    return $fetch<CurrentAccountStatement>(`${urlBase}/party/${partyId}/statement`)
   }
 
-  const getBalance = (partyId: string, currencyCode: string) => {
-    return $fetch<{ balance: number }>(`${urlBase}/party/${partyId}/balance`, {
-      method: 'GET',
-      query: { currency_code: currencyCode }
-    })
+  const getBalance = (partyId: string) => {
+    return $fetch<{ currency_code: string; balance: number }>(`${urlBase}/party/${partyId}/balance`)
   }
 
   const findActive = () => {
@@ -46,7 +37,7 @@ export const useCurrentAccountsService = () => {
     })
   }
 
-  const findAll = (params?: { party_type?: string; currency_code?: string; balance_filter?: string }) => {
+  const findAll = (params?: { party_type?: string; balance_filter?: string }) => {
     return $fetch<CurrentAccount[]>(urlBase, {
       method: 'GET',
       query: params,

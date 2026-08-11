@@ -1,96 +1,195 @@
-Aquí tenés el contenido listo para tu archivo `changelog.md`, unificando los registros previos con los nuevos cambios que pasaste:
-
 # Changelog
 
-## [0.13.1-alpha] - 2026-08-04
+## 04 de agosto, 2026
 
-### Fix o corregido
+<details open>
+<summary>
 
-- **Cuentas Corrientes:** Los totales de saldos ahora respetan la moneda. Antes mezclaban USD y ARS en un solo monto. Los resúmenes muestran desglose por moneda y el historial usa una mini tabla por divisa.
-- **Dashboard RRHH:** La card "Saldo total CC" ahora muestra el saldo por moneda en lugar de un único total mezclado.
-- **Reporte Saldos RRHH:** Totales de empleados, socios y general ahora se desglosan por moneda.
+### v0.15.0-alpha
 
----
+> Sistema de documentos unificado con máquina de estados, formularios modulares y páginas universales.
 
-## [0.15.0-alpha] - 2026-08-04
+</summary>
 
-### Agregado
+#### 💡 Highlights
 
-- **Documentos:** Páginas universales de detalle y creación para todas las categorías (Presupuesto, OV, Remito, Factura).
-- **Documentos:** Máquina de estados con transiciones válidas por categoría.
-- **Documentos:** Formularios modulares reutilizables (PresupuestoForm, OrdenVentaForm, FacturaForm).
-- **Documentos:** Componente DocumentHeader compartido con badges de estado y cadena documental.
-- **Documentos:** Componente DocumentHelpPopover con ayuda contextual.
-- **Stakeholders:** BusinessPartyForm multi-tab para empleado/socio.
-
-### Fix o corregido
-
-- **Check Processing:** Scheduler automático de procesamiento de cheques pendientes.
-- **Documents Sales:** Entregas parciales y facturación parcial.
+- **Páginas universales de documentos** — Una sola página maneja Presupuesto, OV, Remito y Factura con acciones dinámicas por categoría y estado. Incluye cadena documental, impresión y entregas parciales.
+- **Máquina de estados** — Cada categoría de documento tiene sus propias transiciones válidas. El sistema valida y bloquea transiciones ilegales.
 
 ---
 
-## [0.14.0-alpha] - 2026-08-04
+##### 🚀 Features
 
-### Agregado
+- **documents**: Páginas universales de detalle y creación para todas las categorías de documentos
+- **documents**: Máquina de estados con transiciones válidas por categoría (QUOTE, ORDER, REMITO, INVOICE)
+- **documents**: Formularios modulares: PresupuestoForm, OrdenVentaForm, FacturaForm reutilizables
+- **documents**: Componente DocumentHeader compartido con badges de estado y cadena documental
+- **documents**: Componente DocumentHelpPopover con ayuda de acciones y estados disponibles
+- **stakeholders**: BusinessPartyForm con soporte multi-tab para empleado/socio
 
-- **RRHH:** Vinculación de usuarios con empleados y socios (link/unlink).
-- **RRHH:** Creación de empleados y socios con usuario asociado desde el formulario.
-- **Settings:** Página de gestión de usuarios con CRUD completo, roles y cambio de contraseña.
-- **Access Control:** Endpoints de gestión de usuarios: crear, editar, cambiar contraseña, buscar.
-- **RRHH:** Columnas de tabla mejoradas con badge de usuario vinculado y filtros de estado.
+##### 🩹 Fixes
 
-### Fix o corregido
+- **documents**: Check-processing scheduler: procesamiento automático de cheques pendientes
+- **documents**: documents-sales: entregas parciales y facturación parcial
 
-- **Employees/Partners:** Services y stores con métodos linkUser/unlinkUser.
-- **Backend:** Companies controller con endpoints de usuarios (create, update, password, delete).
+##### ❤️ Contributors
 
----
+- agustin
 
-## [1.1.5-alpha] - 2026-03-20
+</details>
 
-### Fix o corregido
+<details>
+<summary>
 
-- **Clientes, Unidades y Viajes:** Corrección en la lógica de actualizaciones (updates).
-- **Componentes UI:** Refactor de `Create.vue` y `Edit.vue` para los módulos de Clientes, Viajes y Corredores (_corridors_).
+### v0.14.0-alpha
 
----
+> Gestión de usuarios, vinculación empleados/socios, CRUD mejorado.
 
-## [1.1.1-alpha] - 2026-03-17
+</summary>
 
-### Modificado
+#### 💡 Highlights
 
-- **Corredores:** Se integra toda la estructura de corredores (Pages, Stores, Services y Types) y su relación directa con el módulo de **Trips**.
-
-### Fix o corregido
-
-- [ ] Actualización de registros en nueva flota [DON-107](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-107)
+- **Vinculación de usuarios con empleados y socios** — Los empleados y socios ahora pueden vincularse a usuarios del sistema. Se puede crear el usuario directamente desde el formulario de alta.
+- **Gestión completa de usuarios** — Nueva página de administración de usuarios con CRUD, asignación de roles, cambio de contraseña y búsqueda.
 
 ---
 
-## [0.0.1-alpha] - 2026-03-13
+##### 🚀 Features
 
-### Fix o corregido
+- **rrhh**: Vinculación de usuarios con empleados y socios (link/unlink)
+- **rrhh**: Creación de empleados y socios con usuario asociado desde el formulario
+- **settings**: Página de gestión de usuarios con CRUD completo, roles y cambio de contraseña
+- **access-control**: Endpoints de gestión de usuarios: crear, editar, cambiar contraseña, buscar
+- **rrhh**: Columnas de tabla mejoradas: badge de usuario vinculado, filtros de estado
 
-- [x] Carga de clientes [DON-111](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-111)
-- [x] Validación en tipo de vehículo [DON-110](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-110)
-- [x] Timeout de la UI [DON-109](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-109)
-- [x] Nueva flota: campo chofer [DON-108](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-108)
-- [x] Actualizar refrigerado [DON-106](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-106)
-- [x] Corrección en update de estados.
-- [x] Fix en endpoint de vehículos.
+##### 🩹 Fixes
+
+- **employees**: Service y store con métodos linkUser/unlinkUser
+- **partners**: Service y store con métodos linkUser/unlinkUser
+- **backend**: Companies controller: endpoints de usuarios (create, update, password, delete)
+
+##### ❤️ Contributors
+
+- agustin
+
+</details>
+
+<details>
+<summary>
+
+### v0.13.1-alpha
+
+> Cuentas corrientes: totales respetan moneda en vez de mezclar divisas.
+
+</summary>
 
 ---
 
-## [0.0.0-alpha] - 2026-03-01
+##### 🩹 Fixes
 
-### Agregado
+- **current-accounts**: Totales de saldos ahora se desglosan por moneda en listing de Treasury
+- **current-accounts**: Historial de cuentas corrientes usa mini tabla por moneda en vez de texto corrido
+- **rrhh**: Dashboard RRHH muestra saldo CC por moneda en vez de total mezclado
+- **rrhh**: Reporte de saldos RRHH desglosa empleados/socios por moneda
 
-## [0.0.0-alpha] - 2026-03-01
+##### ❤️ Contributors
 
-### Agregado
+- agustin
 
-- Inicio del proyecto.
-- Módulo inicial de **Transporte** (v0.6.0-alpha).
+</details>
 
-¿Querés que te ayude a redactar alguna sección más técnica para la documentación del módulo de corredores?
+---
+
+## 20 de marzo, 2026
+
+<details>
+<summary>
+
+### v1.1.5-alpha
+
+> Correcciones en lógica de updates y refactor de componentes UI.
+
+</summary>
+
+---
+
+##### 🩹 Fixes
+
+- **clientes**: Corrección en la lógica de actualizaciones (updates)
+- **ui**: Refactor de `Create.vue` y `Edit.vue` para los módulos de Clientes, Viajes y Corredores
+
+</details>
+
+---
+
+## 17 de marzo, 2026
+
+<details>
+<summary>
+
+### v1.1.1-alpha
+
+> Integración de corredores con trips.
+
+</summary>
+
+---
+
+##### 🚀 Features
+
+- **trips**: Integración completa de corredores (Pages, Stores, Services y Types) con el módulo de Trips
+
+##### 🩹 Fixes
+
+- **flota**: Actualización de registros en nueva flota [DON-107](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-107)
+
+</details>
+
+---
+
+## 13 de marzo, 2026
+
+<details>
+<summary>
+
+### v0.0.1-alpha
+
+> Correcciones iniciales en UI y lógica.
+
+</summary>
+
+---
+
+##### 🩹 Fixes
+
+- **clientes**: Carga de clientes [DON-111](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-111)
+- **vehiculos**: Validación en tipo de vehículo [DON-110](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-110)
+- **ui**: Timeout de la UI [DON-109](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-109)
+- **flota**: Campo chofer en nueva flota [DON-108](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-108)
+- **logica**: Corrección en lógica de refrigerado [DON-106](https://asteriskconsul-1753224743977.atlassian.net/browse/DON-106)
+- **general**: Corrección en update de estados
+- **api**: Fix en endpoint de vehículos
+
+</details>
+
+---
+
+## 01 de marzo, 2026
+
+<details>
+<summary>
+
+### v0.0.0-alpha
+
+> Inicio del proyecto.
+
+</summary>
+
+---
+
+##### 🚀 Features
+
+- **core**: Inicialización del sistema
+- **transporte**: Módulo base de transporte (v0.6.0-alpha)
+
+</details>

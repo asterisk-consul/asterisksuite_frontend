@@ -8,7 +8,6 @@ const props = defineProps<{
   entries: any[]
   loading?: boolean
   partyType?: string
-  currencyCode?: string
 }>()
 
 const sorting = ref<SortingState>([])
@@ -20,7 +19,8 @@ function onSortFieldSelect(columnId: string) {
 
 const columns = computed(() => currentAccountEntryColumns({
   onSortFieldSelect,
-  partyType: props.partyType
+  partyType: props.partyType,
+  baseCurrency: 'ARS'
 }))
 
 const filterFields: FilterField[] = [
@@ -45,13 +45,15 @@ const sortFields: SortField[] = [
       </div>
     </template>
 
-    <LogisticaTable
-      :loading="loading"
-      :data="entries"
-      :columns="columns"
-      :filter-fields="filterFields"
-      :sort-fields="sortFields"
-      v-model:sorting="sorting"
-    />
+    <div class="overflow-x-auto">
+      <LogisticaTable
+        :loading="loading"
+        :data="entries"
+        :columns="columns"
+        :filter-fields="filterFields"
+        :sort-fields="sortFields"
+        v-model:sorting="sorting"
+      />
+    </div>
   </UPageCard>
 </template>

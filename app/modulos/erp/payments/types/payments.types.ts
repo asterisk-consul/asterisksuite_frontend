@@ -1,5 +1,7 @@
 export type PaymentType = 'PAYMENT' | 'COLLECTION'
 
+export type PaymentMode = 'NORMAL' | 'ADVANCE'
+
 export type PaymentMethod =
   | 'CASH'
   | 'CHECK'
@@ -37,6 +39,7 @@ export interface Payment {
   cash_box_id?: string | null
   check_ids?: string[]
   status: PaymentStatus
+  payment_mode?: PaymentMode
 
   created_at?: string
   updated_at?: string
@@ -57,6 +60,7 @@ export interface CreatePaymentDocumentInput {
 
 export interface CreatePaymentInput {
   type: PaymentType
+  payment_mode?: PaymentMode
   date: string
   party_id?: string
   party_type?: string
@@ -77,3 +81,19 @@ export interface CreatePaymentInput {
 }
 
 export interface UpdatePaymentInput extends Partial<Omit<CreatePaymentInput, 'type'>> {}
+
+export interface ApplyAdvanceInput {
+  document_id: string
+  amount: number
+}
+
+export interface AdvanceAvailable {
+  id: string
+  number: number
+  date: string
+  amount: number
+  available: number
+  currency_code: string
+  party_id: string | null
+  party_name: string | null
+}

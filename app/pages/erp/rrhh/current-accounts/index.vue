@@ -3,6 +3,7 @@ definePageMeta({ layout: 'rrhh', middleware: ['auth'] })
 
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
 import type { CurrentAccount } from '~/modulos/erp/current-accounts/types/current-accounts.types'
+import { isReceivable, balanceColorClass } from '~/modulos/erp/current-accounts/balance-utils'
 
 const { activeAccounts, allAccounts, loading, fetchActive, fetchAll } = useCurrentAccounts()
 const router = useRouter()
@@ -48,15 +49,8 @@ const filteredActive = computed(() => {
   return list
 })
 
-const receivableAccounts = computed(() => filteredActive.value.filter((a) => {
-  const isHR = a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER'
-  return isHR ? Number(a.balance) < 0 : Number(a.balance) > 0
-}))
-
-const payableAccounts = computed(() => filteredActive.value.filter((a) => {
-  const isHR = a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER'
-  return isHR ? Number(a.balance) > 0 : Number(a.balance) < 0
-}))
+const receivableAccounts = computed(() => filteredActive.value.filter((a) => isReceivable(Number(a.balance), a.party_type)))
+const payableAccounts = computed(() => filteredActive.value.filter((a) => !isReceivable(Number(a.balance), a.party_type) && Number(a.balance) !== 0))
 interface CurrencyTotals {
   receivable: number
   payable: number
@@ -71,15 +65,14 @@ const totalsByCurrency = computed(() => {
     const code = a.currency_code || 'ARS'
     if (!map[code]) map[code] = { receivable: 0, payable: 0, net: 0, receivableCount: 0, payableCount: 0 }
     const num = Number(a.balance) || 0
-    const isHR = a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER'
-    if (isHR ? num < 0 : num > 0) {
+    if (isReceivable(num, a.party_type)) {
       map[code].receivable += Math.abs(num)
       map[code].receivableCount++
-    } else if (isHR ? num > 0 : num < 0) {
+    } else if (num !== 0) {
       map[code].payable += Math.abs(num)
       map[code].payableCount++
     }
-    map[code].net += isHR ? -num : num
+    map[code].net += isReceivable(num, a.party_type) ? Math.abs(num) : -Math.abs(num)
   }
   return map
 })
@@ -125,11 +118,7 @@ const formatCurrency = (amount: number | string | null | undefined, currency = '
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 2 }).format(num)
 }
 
-const balanceColor = (balance: number) => {
-  if (balance > 0) return 'text-success'
-  if (balance < 0) return 'text-error'
-  return 'text-muted'
-}
+const balanceColor = (balance: number, partyType?: string) => balanceColorClass(balance, partyType)
 
 const partyTypeLabel = (type: string) => {
   const labels: Record<string, string> = {
@@ -388,12 +377,12 @@ const goToAccount = (account: CurrentAccount) => {
                     <div class="flex items-center gap-3">
                       <div
                         class="size-8 rounded-lg flex items-center justify-center shrink-0"
-                        :class="Number(account.balance) >= 0 ? 'bg-success/10' : 'bg-error/10'"
+                        :class="isReceivable(Number(account.balance), account.party_type) ? 'bg-success/10' : 'bg-error/10'"
                       >
                         <UIcon
                           name="i-lucide-user"
                           class="size-4"
-                          :class="Number(account.balance) >= 0 ? 'text-success' : 'text-error'"
+                          :class="isReceivable(Number(account.balance), account.party_type) ? 'text-success' : 'text-error'"
                         />
                       </div>
                       <div>
@@ -411,7 +400,7 @@ const goToAccount = (account: CurrentAccount) => {
                     />
                   </td>
                   <td class="py-3 px-4">{{ account.currency_code }}</td>
-                  <td class="py-3 px-4 text-right font-semibold" :class="balanceColor(Number(account.balance))">
+                  <td class="py-3 px-4 text-right font-semibold" :class="balanceColor(Number(account.balance), account.party_type)">
                     {{ formatCurrency(account.balance, account.currency_code) }}
                   </td>
                   <td class="py-3 px-4 text-right">

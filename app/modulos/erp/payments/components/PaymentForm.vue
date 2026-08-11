@@ -3,19 +3,26 @@ import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
 import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
+import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
 import DataPicker from '~/components/ui/DataPicker.vue'
 import type { PendingDocument, AvailableCheck } from '~/modulos/erp/payments/service/payments.service'
 import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckModal from '~/modulos/erp/checks/components/CheckModal.vue'
+import PendingDocumentsList from '~/modulos/erp/payments/components/PendingDocumentsList.vue'
 import { calculateRetentions, calculateTotalRetentions, calculateNetAmount } from '~/modulos/erp/payments/utils/retentionLogic'
 
 export interface PaymentFormData {
   type: 'PAYMENT' | 'COLLECTION'
+  payment_mode: 'NORMAL' | 'ADVANCE'
   date: string
   payment_method: string
   amount: number
   currency_code: string
+  exchange_rate?: number | null
+  rate_type?: string
+  converted_amount?: number | null
   description: string
   reference: string
   party_id: string
@@ -43,15 +50,61 @@ const emit = defineEmits<{
 const { cashBoxes, init: initCashBoxes, openSession, getSessions } = useCashBoxes()
 const { bankAccounts, selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
 const { createLightCheck, fetchAvailableOwnChecks, fetchAvailableCustomerChecks } = usePayments()
-const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
+const { init: initCurrencies, codeSelectItems: currencyOptions, baseCurrency } = useCurrencies()
+const {
+  exchangeRate: resolvedRate,
+  isBaseCurrency,
+  autoResolve,
+  setManualRate,
+  convertAmount,
+} = useExchangeRate()
+const partiesService = useBusinessPartiesService()
 const toast = useToast()
+
+// Parties for ADVANCE mode selector
+const allParties = ref<Array<{ id: string; name: string; tax_id?: string; type: string }>>([])
+const partySearch = ref('')
+
+const filteredParties = computed(() => {
+  const partyType = isPayment.value ? 'SUPPLIER' : 'CUSTOMER'
+  const q = partySearch.value.toLowerCase().trim()
+  let filtered = allParties.value.filter(p => p.type === partyType)
+  if (q) {
+    filtered = filtered.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      (p.tax_id && p.tax_id.includes(q))
+    )
+  }
+  return filtered.map(p => ({
+    label: p.tax_id ? `${p.name} (${p.tax_id})` : p.name,
+    value: p.id
+  }))
+})
+
+const selectedParty = computed({
+  get: () => {
+    const party = allParties.value.find(p => p.id === form.party_id)
+    if (!party) return null
+    return {
+      label: party.tax_id ? `${party.name} (${party.tax_id})` : party.name,
+      value: party.id
+    }
+  },
+  set: (val: any) => {
+    form.party_id = val?.value ?? ''
+    form.party_type = isPayment.value ? 'SUPPLIER' : 'CUSTOMER'
+  }
+})
 
 const defaultForm: PaymentFormData = {
   type: 'PAYMENT',
+  payment_mode: 'NORMAL',
   date: new Date().toISOString().split('T')[0],
   payment_method: 'CASH',
   amount: 0,
   currency_code: 'ARS',
+  exchange_rate: null,
+  rate_type: 'OFFICIAL',
   description: '',
   reference: '',
   party_id: '',
@@ -73,8 +126,13 @@ const openingBox = ref<any>(null)
 const openingBalance = ref(0)
 const openingSaving = ref(false)
 
-onMounted(() => {
+onMounted(async () => {
   initCurrencies()
+  try {
+    allParties.value = await partiesService.findAll()
+  } catch (e) {
+    console.error('Error loading parties:', e)
+  }
 })
 
 watch(
@@ -130,6 +188,11 @@ const typeOptions = [
   { label: 'Cobro (de cliente)', value: 'COLLECTION' }
 ]
 
+const paymentModeOptions = [
+  { label: 'Normal', value: 'NORMAL' },
+  { label: 'A cuenta (anticipo)', value: 'ADVANCE' }
+]
+
 const selectedType = computed({
   get: () => typeOptions.find(o => o.value === form.type) ?? typeOptions[0],
   set: (val: any) => {
@@ -137,6 +200,11 @@ const selectedType = computed({
     selectedDocs.value.clear()
     form.amount = 0
   }
+})
+
+const selectedPaymentMode = computed({
+  get: () => paymentModeOptions.find(o => o.value === form.payment_mode) ?? paymentModeOptions[0],
+  set: (val: any) => { form.payment_mode = val?.value ?? 'NORMAL' }
 })
 
 const selectedPaymentMethod = computed({
@@ -232,6 +300,59 @@ watch(() => form.currency_code, () => {
   form.bank_account_id = ''
   selectedChecks.value.clear()
   form.check_ids = []
+})
+
+// Recalcular montos de documentos cuando cambia la cotización
+watch(resolvedRate, (newRate) => {
+  if (!newRate || selectedDocs.value.size === 0) return
+  const payCurrency = form.currency_code?.toUpperCase()
+  for (const [, entry] of selectedDocs.value.entries()) {
+    const docCurrency = entry.doc.currency_code?.toUpperCase()
+    if (docCurrency !== payCurrency) {
+      // Preferir el exchange_rate de la factura
+      const rate = entry.doc.exchange_rate ?? newRate
+      entry.amount = Number((entry.doc.pending_amount * rate).toFixed(2))
+    }
+  }
+  form.amount = totalApplied.value
+})
+
+// ─── Exchange Rate: auto-resolve on currency change ─────────
+const isForeignCurrency = computed(() => {
+  if (!baseCurrency.value) return false
+  return form.currency_code.toUpperCase() !== baseCurrency.value.code.toUpperCase()
+})
+
+watch(
+  () => form.currency_code,
+  async (newCode) => {
+    if (!newCode || !isForeignCurrency.value) {
+      form.exchange_rate = null
+      form.converted_amount = null
+      return
+    }
+    await autoResolve(newCode, baseCurrency.value?.code ?? 'ARS', form.rate_type)
+    form.exchange_rate = resolvedRate.value
+    if (form.exchange_rate && form.amount) {
+      form.converted_amount = convertAmount(form.amount)
+    }
+  },
+  { immediate: true },
+)
+
+watch(resolvedRate, (rate) => {
+  if (rate) {
+    form.exchange_rate = rate
+    if (form.amount) {
+      form.converted_amount = convertAmount(form.amount)
+    }
+  }
+})
+
+watch(() => form.amount, (amount) => {
+  if (form.exchange_rate && amount) {
+    form.converted_amount = convertAmount(amount)
+  }
 })
 
 watch(selectedType, async (val) => {
@@ -331,7 +452,19 @@ const toggleDoc = (doc: PendingDocument) => {
         return
       }
     }
-    selectedDocs.value.set(doc.id, { doc, amount: doc.pending_amount })
+    const docCurrency = doc.currency_code?.toUpperCase()
+    const payCurrency = form.currency_code?.toUpperCase()
+    let amountToApply = doc.pending_amount
+
+    if (docCurrency !== payCurrency) {
+      // Usar el exchange_rate de la factura (no el del mercado)
+      const rate = doc.exchange_rate ?? resolvedRate.value
+      if (rate) {
+        amountToApply = Number((doc.pending_amount * rate).toFixed(2))
+      }
+    }
+
+    selectedDocs.value.set(doc.id, { doc, amount: amountToApply })
   }
 
   // Auto-set party_id del primer documento seleccionado
@@ -355,8 +488,6 @@ const updateDocAmount = (docId: string, amount: number) => {
     form.amount = totalApplied.value
   }
 }
-
-const isDocSelected = (docId: string) => selectedDocs.value.has(docId)
 
 const handleCheckCreated = async (checkData: CheckFormData) => {
   const isOwn = isPayment.value
@@ -444,9 +575,12 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
 
 <template>
   <form class="space-y-4" @submit.prevent="handleSubmit">
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-3 gap-4">
       <UFormField label="Tipo" name="type" required>
         <USelectMenu v-model="selectedType" :items="typeOptions" />
+      </UFormField>
+      <UFormField label="Modo" name="payment_mode">
+        <USelectMenu v-model="selectedPaymentMode" :items="paymentModeOptions" />
       </UFormField>
       <UFormField label="Fecha" name="date" required>
         <DataPicker v-model="form.date" />
@@ -458,6 +592,50 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       </UFormField>
       <UFormField label="Moneda" name="currency_code">
         <USelectMenu v-model="selectedCurrency" :items="currencyOptions" placeholder="Seleccionar moneda" />
+      </UFormField>
+    </div>
+
+    <!-- Exchange Rate (solo si moneda extranjera) -->
+    <div v-if="isForeignCurrency" class="grid grid-cols-3 gap-4">
+      <UFormField label="Tipo de cambio" name="rate_type">
+        <USelect
+          v-model="form.rate_type"
+          :items="[
+            { label: 'Oficial (AFIP)', value: 'OFFICIAL' },
+            { label: 'Blue', value: 'BLUE' },
+            { label: 'MEP', value: 'MEP' },
+            { label: 'CCL', value: 'CCL' },
+          ]"
+          placeholder="Tipo"
+        />
+      </UFormField>
+      <UFormField label="Cotización" name="exchange_rate">
+        <UInput
+          v-model.number="form.exchange_rate"
+          type="number"
+          step="0.000001"
+          min="0"
+          placeholder="1.000000"
+          @input="() => { if (form.exchange_rate) setManualRate(form.exchange_rate) }"
+        />
+      </UFormField>
+      <UFormField v-if="form.exchange_rate && form.amount" label="Equivalente ARS">
+        <div class="h-10 flex items-center text-lg font-semibold text-primary">
+          {{ formatCurrency(convertAmount(form.amount) ?? 0, 'ARS') }}
+        </div>
+      </UFormField>
+    </div>
+
+    <!-- SELECTOR DE TERCERO (solo para modo ADVANCE — en NORMAL se toma del documento) -->
+    <div v-if="form.payment_mode === 'ADVANCE'" class="grid grid-cols-2 gap-4">
+      <UFormField :label="isPayment ? 'Proveedor' : 'Cliente'" name="party_id" required>
+        <USelectMenu
+          v-model="selectedParty"
+          :items="filteredParties"
+          :placeholder="isPayment ? 'Buscar proveedor...' : 'Buscar cliente...'"
+          searchable
+          @update:search="partySearch = $event"
+        />
       </UFormField>
     </div>
 
@@ -595,64 +773,18 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       </div>
     </div>
 
-    <!-- DOCUMENTOS PENDIENTES -->
-    <div class="border border-default rounded-lg p-4 space-y-3">
-      <div class="flex items-center justify-between">
-        <h4 class="text-sm font-medium">
-          {{ isCollection ? 'Facturas de venta' : 'Facturas de compra' }} con saldo pendiente
-          <span class="text-muted">({{ filteredDocs.length }})</span>
-        </h4>
-        <div v-if="selectedDocs.size > 0" class="text-sm font-semibold text-primary">
-          Total a aplicar: {{ formatCurrency(totalApplied, form.currency_code) }}
-        </div>
-      </div>
-
-      <UInput
-        v-model="docSearch"
-        placeholder="Buscar por N°, proveedor/cliente o tipo..."
-        icon="i-heroicons-magnifying-glass"
-        class="w-full"
-      />
-
-      <div class="max-h-64 overflow-y-auto space-y-2">
-        <div
-          v-for="doc in filteredDocs"
-          :key="doc.id"
-          class="flex items-center gap-3 p-3 rounded-lg border transition-colors"
-          :class="isDocSelected(doc.id) ? 'border-primary bg-primary/5' : 'border-default'"
-        >
-          <UCheckbox
-            :model-value="isDocSelected(doc.id)"
-            @update:model-value="toggleDoc(doc)"
-          />
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium">{{ doc.document_type_description || doc.document_type_code }} #{{ doc.number }}</span>
-              <span class="text-xs text-muted">{{ doc.party_name }}</span>
-            </div>
-            <div class="flex items-center gap-4 text-xs text-muted mt-1">
-              <span>Fecha: {{ doc.date }}</span>
-              <span>Total: {{ formatCurrency(doc.total, doc.currency_code) }}</span>
-              <span>Pagado: {{ formatCurrency(doc.paid_amount, doc.currency_code) }}</span>
-              <span class="font-semibold text-warning">Pendiente: {{ formatCurrency(doc.pending_amount, doc.currency_code) }}</span>
-            </div>
-          </div>
-          <div v-if="isDocSelected(doc.id)" class="w-28">
-            <UInput
-              :model-value="selectedDocs.get(doc.id)?.amount ?? 0"
-              type="number"
-              :max="doc.pending_amount"
-              :step="0.01"
-              size="xs"
-              @update:model-value="(v: string) => updateDocAmount(doc.id, Number(v))"
-            />
-          </div>
-        </div>
-        <div v-if="filteredDocs.length === 0" class="text-center py-4 text-muted text-sm">
-          No se encontraron documentos
-        </div>
-      </div>
-    </div>
+    <!-- DOCUMENTOS PENDIENTES (oculto en modo ADVANCE — se aplica después) -->
+    <PendingDocumentsList
+      v-if="form.payment_mode !== 'ADVANCE'"
+      :documents="filteredDocs"
+      :selected-docs="selectedDocs"
+      :currency-code="form.currency_code"
+      :exchange-rate="null"
+      :resolved-rate="resolvedRate"
+      :format-currency="formatCurrency"
+      @toggle="toggleDoc"
+      @update-amount="updateDocAmount"
+    />
 
     <div class="grid grid-cols-2 gap-4">
       <UFormField label="Monto total" name="amount" required>

@@ -59,6 +59,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
   try {
     const apiPayload = {
       type: formData.type,
+      payment_mode: formData.payment_mode as any,
       date: formData.date,
       payment_method: formData.payment_method as any,
       amount: formData.amount,

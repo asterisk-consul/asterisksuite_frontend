@@ -5,8 +5,11 @@ import { usePaymentsService } from '~/modulos/erp/payments/service/payments.serv
 
 import type {
   Payment,
+  PaymentStatus,
   CreatePaymentInput,
-  UpdatePaymentInput
+  UpdatePaymentInput,
+  ApplyAdvanceInput,
+  AdvanceAvailable
 } from '~/modulos/erp/payments/types/payments.types'
 
 import type { PendingDocument, AvailableCheck, CreateCheckInput } from '~/modulos/erp/payments/service/payments.service'
@@ -31,7 +34,7 @@ export const usePaymentsStore = defineStore('payments', () => {
     party_id?: string
     type?: string
     payment_method?: string
-    status?: number
+    status?: PaymentStatus
   }) => {
     try {
       loading.value = true
@@ -222,6 +225,44 @@ export const usePaymentsStore = defineStore('payments', () => {
     return service.createLightCheck(data)
   }
 
+  // =========================
+  // ADVANCE PAYMENTS
+  // =========================
+
+  const applyAdvance = async (paymentId: string, data: ApplyAdvanceInput) => {
+    const updated = await service.applyAdvance(paymentId, data)
+
+    const index = items.value.findIndex((i) => i.id === paymentId)
+    if (index !== -1) {
+      items.value[index] = updated
+    }
+
+    if (current.value?.id === paymentId) {
+      current.value = updated
+    }
+
+    return updated
+  }
+
+  const removeAdvanceApplication = async (paymentId: string, documentId: string) => {
+    const updated = await service.removeAdvanceApplication(paymentId, documentId)
+
+    const index = items.value.findIndex((i) => i.id === paymentId)
+    if (index !== -1) {
+      items.value[index] = updated
+    }
+
+    if (current.value?.id === paymentId) {
+      current.value = updated
+    }
+
+    return updated
+  }
+
+  const fetchAdvanceAvailable = async (partyId?: string) => {
+    return service.findAdvanceAvailable(partyId)
+  }
+
   return {
     // state
     items,
@@ -246,6 +287,9 @@ export const usePaymentsStore = defineStore('payments', () => {
     remove,
     confirm,
     markAsPaid,
-    reject
+    reject,
+    applyAdvance,
+    removeAdvanceApplication,
+    fetchAdvanceAvailable
   }
 })

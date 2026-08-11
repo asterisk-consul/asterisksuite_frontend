@@ -802,13 +802,24 @@
         "scope": "rrhh",
         "title": "Reporte de saldos RRHH desglosa empleados/socios por moneda"
       }
-    ]
+    ],
+    "contributors": ["agustin"]
   },
   {
     "version": "0.14.0-alpha",
     "date": "2026-08-04",
     "stage": "alpha",
     "notes": "Gestión de usuarios, vinculación empleados/socios, CRUD mejorado",
+    "highlights": [
+      {
+        "title": "Vinculación de usuarios con empleados y socios",
+        "description": "Los empleados y socios ahora pueden vincularse a usuarios del sistema. Se puede crear el usuario directamente desde el formulario de alta."
+      },
+      {
+        "title": "Gestión completa de usuarios",
+        "description": "Nueva página de administración de usuarios con CRUD, asignación de roles, cambio de contraseña y búsqueda."
+      }
+    ],
     "changes": [
       {
         "type": "feat",
@@ -850,13 +861,24 @@
         "scope": "backend",
         "title": "Companies controller: endpoints de usuarios (create, update, password, delete)"
       }
-    ]
+    ],
+    "contributors": ["agustin"]
   },
   {
     "version": "0.15.0-alpha",
     "date": "2026-08-04",
     "stage": "alpha",
     "notes": "Sistema de documentos unificado con máquina de estados, formularios modulares y páginas universales",
+    "highlights": [
+      {
+        "title": "Páginas universales de documentos",
+        "description": "Una sola página maneja Presupuesto, OV, Remito y Factura con acciones dinámicas por categoría y estado. Incluye cadena documental, impresión y entregas parciales."
+      },
+      {
+        "title": "Máquina de estados",
+        "description": "Cada categoría de documento tiene sus propias transiciones válidas. El sistema valida y bloquea transiciones ilegales."
+      }
+    ],
     "changes": [
       {
         "type": "feat",
@@ -898,6 +920,76 @@
         "scope": "documents",
         "title": "documents-sales: entregas parciales y facturación parcial"
       }
-    ]
+    ],
+    "contributors": ["agustin"]
+  },
+  {
+    "version": "0.16.0-alpha",
+    "date": "2026-08-11",
+    "stage": "alpha",
+    "notes": "Saldos iniciales en cuentas corrientes, validación fiscal centralizada y documentos de apertura",
+    "highlights": [
+      {
+        "title": "Saldos iniciales",
+        "description": "Modal para cargar saldos de apertura de clientes y proveedores directamente desde el listing de cuentas corrientes"
+      },
+      {
+        "title": "Validación fiscal centralizada",
+        "description": "FiscalValidationService compartido entre ventas y compras, expuesto vía CommonErpModule"
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Modal de saldo inicial con selector de tercero (Cliente/Proveedor)"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Document types SI-C y SI-P para saldos iniciales"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "create() usa dto.total directamente para OPENING_BALANCE"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "FiscalValidationService compartido entre ventas y compras"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "DocumentTotals component con columnas por moneda"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "resolveSide() maneja OPENING_BALANCE (Cliente=débito, Proveedor=crédito)"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Refresh del store después de crear saldo inicial"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "items null-safety en create() de ventas y compras"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "PendingDocumentsList reutilizable y botón CC en pagos"
+      },
+      {
+        "type": "fix",
+        "scope": "seed",
+        "title": "SI-C y SI-P agregados a seed-all.ts (idempotente)"
+      }
+    ],
+    "contributors": ["agustin"]
   }
 ]

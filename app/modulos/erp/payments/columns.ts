@@ -65,6 +65,9 @@ export const paymentColumns = (actions: {
         sortable: true,
         badge: {
           resolve: (row) => {
+            if (row.payment_mode === 'ADVANCE') {
+              return { label: 'Pago (anticipo)', color: 'warning' as const }
+            }
             const config = typeConfig[row.type]
             return {
               label: config?.label ?? row.type,
@@ -119,6 +122,25 @@ export const paymentColumns = (actions: {
             currency: row.original.currency_code || 'ARS',
             maximumFractionDigits: 2
           }).format(Number(value))
+        }
+      },
+      {
+        key: 'available_amount',
+        label: 'Disponible',
+        cell: ({ row }) => {
+          if (row.original.payment_mode !== 'ADVANCE') return '—'
+          const applied = row.original.documents?.reduce((s: number, d: any) => s + Number(d.amount_applied), 0) ?? 0
+          const available = Number(row.original.amount) - applied
+          if (available <= 0) return 'Saldado'
+          const formatted = new Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: row.original.currency_code || 'ARS',
+            maximumFractionDigits: 2
+          }).format(available)
+          return h('div', { class: 'flex items-center gap-1' }, [
+            h('span', { class: 'text-xs text-warning-600 dark:text-warning-400' }, 'Pendiente de asociar documento'),
+            h('span', {}, formatted)
+          ])
         }
       },
       {

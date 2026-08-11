@@ -96,6 +96,7 @@ const goBack = () => {
       :entries="entries"
       :balance="balance"
       :currency-code="currencyCode"
+      :party-type="account?.party_type"
     />
 
     <!-- ENTRIES TABLE -->

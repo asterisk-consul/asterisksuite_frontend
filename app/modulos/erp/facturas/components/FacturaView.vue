@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import DocumentPrintLayout from '~/components/documents/DocumentPrintLayout.vue'
+import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 
 interface Props {
@@ -15,6 +16,7 @@ const props = withDefaults(defineProps<{
 })
 
 const companiesStore = useCompaniesStore()
+
 onMounted(async () => {
   if (!companiesStore.items.length) {
     await companiesStore.fetchAll()
@@ -24,7 +26,7 @@ onMounted(async () => {
 function fmt(n: any) {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency: 'ARS'
+    currency: props.document?.currency_code ?? 'ARS'
   }).format(Number(n ?? 0))
 }
 
@@ -227,16 +229,7 @@ const printTotals = computed(() => ({
         </table>
       </UCard>
 
-      <UCard>
-        <div class="space-y-2 max-w-sm ml-auto">
-          <div class="flex justify-between"><span class="text-gray-500">Subtotal</span><span>{{ fmt(document.subtotal) }}</span></div>
-          <div v-for="tax in allTaxes" :key="tax.name" class="flex justify-between text-sm">
-            <span class="text-gray-500">{{ tax.name }} ({{ tax.rate }}%)</span><span>{{ fmt(tax.amount) }}</span>
-          </div>
-          <hr class="my-2">
-          <div class="flex justify-between text-lg font-bold"><span>Total</span><span>{{ fmt(document.total) }}</span></div>
-        </div>
-      </UCard>
+      <DocumentTotals :document="document" />
     </div>
 
     <!-- PRINT VIEW (DocumentPrintLayout) -->

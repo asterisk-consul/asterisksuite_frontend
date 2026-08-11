@@ -100,8 +100,8 @@ const links = computed(() => {
     })
   }
 
-  // Confirmado → Ver cuenta corriente
-  if (isConfirmed.value && factura.value?.party_id) {
+  // Confirmado → Ver cuenta corriente (solo facturas, NC, ND)
+  if (isConfirmed.value && factura.value?.party_id && ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'].includes(factura.value?.document_types?.category)) {
     items.push({
       label: 'Cuenta corriente',
       icon: 'i-lucide-arrow-right-circle',
