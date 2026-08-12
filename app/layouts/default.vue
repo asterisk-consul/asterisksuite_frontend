@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { navigationLinks } from '~/data/navigation'
+import { navigationTree } from '~/data/navigationTree'
 import { useVersion } from '~/composables/useVersion'
-import MainSidebar from '~/components/ui/MainSidebar.vue'
+import DrilldownSidebar from '~/components/ui/DrilldownSidebar.vue'
 const { mainCollapsed } = useSidebarState()
 const open = ref(false)
 
@@ -9,13 +9,13 @@ const versions = useVersion()
 const route = useRoute()
 const toast = useToast()
 
-const links = navigationLinks
+const links = navigationTree
 
 const groups = computed(() => [
   {
     id: 'links',
     label: 'Go to',
-    items: links.flat()
+    items: links.flatMap(n => n.children ?? [n])
   },
   {
     id: 'code',
@@ -65,7 +65,7 @@ onMounted(async () => {
 
 <template>
   <UDashboardGroup unit="rem">
-    <MainSidebar id="default" v-model:open="open" v-model:collapsed="mainCollapsed" resizable with-footer />
+    <DrilldownSidebar id="default" v-model:open="open" v-model:collapsed="mainCollapsed" resizable with-footer />
 
     <UDashboardSearch :groups="groups" />
     <slot />

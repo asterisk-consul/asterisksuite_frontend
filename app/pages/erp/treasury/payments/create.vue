@@ -27,11 +27,13 @@ const router = useRouter()
 const toast = useToast()
 
 const partyId = computed(() => (route.query.party_id as string) || undefined)
+const documentId = computed(() => (route.query.document_id as string) || undefined)
+const paymentType = computed(() => (route.query.type as 'PAYMENT' | 'COLLECTION') || 'PAYMENT')
 
-const initialValues = computed<PaymentFormData | undefined>(() =>
+const initialValues = ref<PaymentFormData | undefined>(
   partyId.value
     ? {
-        type: 'PAYMENT',
+        type: paymentType.value,
         date: new Date().toISOString().split('T')[0],
         payment_method: 'CASH',
         amount: 0,
@@ -41,7 +43,8 @@ const initialValues = computed<PaymentFormData | undefined>(() =>
         party_id: partyId.value,
         bank_account_id: '',
         cash_box_id: '',
-        check_ids: []
+        check_ids: [],
+        documents: documentId.value ? [{ document_id: documentId.value, amount_applied: 0 }] : undefined
       }
     : undefined
 )
@@ -53,6 +56,18 @@ onMounted(async () => {
     fetchAvailableOwnChecks(),
     fetchAvailableCustomerChecks()
   ])
+
+  // Auto-seleccionar factura con el monto correcto después de cargar pending docs
+  if (documentId.value && initialValues.value) {
+    const allPending = [...pendingSalesDocuments.value, ...pendingPurchaseDocuments.value]
+    const doc = allPending.find(d => d.id === documentId.value)
+    if (doc) {
+      initialValues.value = {
+        ...initialValues.value,
+        documents: [{ document_id: documentId.value, amount_applied: doc.pending_amount }]
+      }
+    }
+  }
 })
 
 const handleSubmit = async (formData: PaymentFormData) => {

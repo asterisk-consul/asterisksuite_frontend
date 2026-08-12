@@ -13,9 +13,15 @@ const props = defineProps<{
 const emit = defineEmits<{
   toggle: [doc: PendingDocument]
   updateAmount: [docId: string, amount: number]
+  createInvoice: [moduleCode: 'SALES' | 'PURCHASES']
 }>()
 
 const search = ref('')
+
+const createInvoiceItems = [
+  { label: 'Factura de Venta', icon: 'i-lucide-receipt', onSelect: () => emit('createInvoice', 'SALES') },
+  { label: 'Factura de Compra', icon: 'i-lucide-file-text', onSelect: () => emit('createInvoice', 'PURCHASES') }
+]
 
 const filteredDocs = computed(() => {
   const q = search.value.toLowerCase().trim()
@@ -57,6 +63,9 @@ function getMaxAmount(doc: PendingDocument): number {
         Documentos con saldo pendiente
         <span class="text-muted">({{ filteredDocs.length }})</span>
       </h4>
+      <UDropdownMenu :items="createInvoiceItems">
+        <UButton label="Crear Factura" icon="i-lucide-file-plus" size="xs" variant="outline" color="info" />
+      </UDropdownMenu>
     </div>
 
     <UInput

@@ -11,6 +11,7 @@ import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vu
 import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckModal from '~/modulos/erp/checks/components/CheckModal.vue'
 import PendingDocumentsList from '~/modulos/erp/payments/components/PendingDocumentsList.vue'
+import CreateInvoiceModal from '~/modulos/erp/payments/components/CreateInvoiceModal.vue'
 import { calculateRetentions, calculateTotalRetentions, calculateNetAmount } from '~/modulos/erp/payments/utils/retentionLogic'
 
 export interface PaymentFormData {
@@ -49,7 +50,7 @@ const emit = defineEmits<{
 
 const { cashBoxes, init: initCashBoxes, openSession, getSessions } = useCashBoxes()
 const { bankAccounts, selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
-const { createLightCheck, fetchAvailableOwnChecks, fetchAvailableCustomerChecks } = usePayments()
+const { createLightCheck, fetchAvailableOwnChecks, fetchAvailableCustomerChecks, fetchPendingSalesDocuments, fetchPendingPurchaseDocuments } = usePayments()
 const { init: initCurrencies, codeSelectItems: currencyOptions, baseCurrency } = useCurrencies()
 const {
   exchangeRate: resolvedRate,
@@ -125,6 +126,22 @@ const openSessionModalOpen = ref(false)
 const openingBox = ref<any>(null)
 const openingBalance = ref(0)
 const openingSaving = ref(false)
+
+// Create invoice modal
+const invoiceModalOpen = ref(false)
+const invoiceModuleCode = ref<'SALES' | 'PURCHASES'>('SALES')
+
+const openInvoiceModal = (moduleCode: 'SALES' | 'PURCHASES') => {
+  invoiceModuleCode.value = moduleCode
+  invoiceModalOpen.value = true
+}
+
+const handleInvoiceCreated = async () => {
+  await Promise.all([
+    fetchPendingSalesDocuments(),
+    fetchPendingPurchaseDocuments()
+  ])
+}
 
 onMounted(async () => {
   initCurrencies()
@@ -784,6 +801,7 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       :format-currency="formatCurrency"
       @toggle="toggleDoc"
       @update-amount="updateDocAmount"
+      @create-invoice="openInvoiceModal"
     />
 
     <div class="grid grid-cols-2 gap-4">
@@ -807,6 +825,12 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       v-model:open="checkModalOpen"
       :bank-account-items="bankAccountItems"
       @success="handleCheckCreated"
+    />
+
+    <CreateInvoiceModal
+      v-model:open="invoiceModalOpen"
+      :module-code="invoiceModuleCode"
+      @success="handleInvoiceCreated"
     />
 
     <!-- SESSION OPEN MODAL -->

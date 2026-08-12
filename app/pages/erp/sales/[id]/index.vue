@@ -82,6 +82,11 @@ const actions = computed(() => {
       const currency = doc.value!.currency_code ?? 'ARS'
       router.push(`/erp/treasury/current-accounts/${doc.value!.party_id}?currency=${currency}`)
     }})
+    if (!doc.value?.payment_documents?.length) {
+      items.push({ label: 'Realizar el pago', icon: 'i-lucide-wallet', color: 'success', help: 'Creá un pago o cobro para esta factura.', onClick: () => {
+        router.push(`/erp/treasury/payments/create?party_id=${doc.value!.party_id}&document_id=${doc.value!.id}&type=COLLECTION`)
+      }})
+    }
   }
   return items
 })
@@ -91,6 +96,7 @@ async function handleConfirm() {
   try {
     processing.value = true
     await store.confirm(route.params.id as string)
+    await store.fetchOne(route.params.id as string)
     toast.add({ title: 'Documento confirmado', color: 'success' })
     confirmModalOpen.value = false
   } catch (e: any) {
@@ -102,6 +108,7 @@ async function handleCancel() {
   try {
     processing.value = true
     await store.cancel(route.params.id as string)
+    await store.fetchOne(route.params.id as string)
     toast.add({ title: 'Documento anulado', color: 'success' })
     cancelModalOpen.value = false
   } catch (e: any) {
@@ -113,6 +120,7 @@ async function handleStatus(status: number) {
   try {
     processing.value = true
     await store.changeStatus(route.params.id as string, status)
+    await store.fetchOne(route.params.id as string)
     toast.add({ title: 'Estado actualizado', color: 'success' })
     statusModalOpen.value = false
   } catch (e: any) {

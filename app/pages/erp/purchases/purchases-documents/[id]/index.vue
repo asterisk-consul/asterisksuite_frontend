@@ -111,6 +111,16 @@ const links = computed(() => {
         router.push(`/erp/treasury/current-accounts/${factura.value!.party_id}?currency=${currency}`)
       }
     })
+    if (!factura.value?.payment_documents?.length) {
+      items.push({
+        label: 'Realizar el pago',
+        icon: 'i-lucide-wallet',
+        color: 'success',
+        onClick: () => {
+          router.push(`/erp/treasury/payments/create?party_id=${factura.value!.party_id}&document_id=${factura.value!.id}&type=PAYMENT`)
+        }
+      })
+    }
   }
 
   return items
@@ -130,6 +140,7 @@ const handleStatusChange = async () => {
   isProcessing.value = true
   try {
     await documentsPurchasesStore.update(route.params.id as string, { status: pendingStatus.value })
+    await documentsPurchasesStore.fetchOne(route.params.id as string)
     const label = STATUS_LABELS[pendingStatus.value] ?? `Status ${pendingStatus.value}`
     toast.add({ title: `Estado cambiado a "${label}"`, color: 'success' })
     statusModalOpen.value = false
@@ -149,6 +160,7 @@ const handleConfirm = async () => {
   isProcessing.value = true
   try {
     await documentsPurchasesStore.confirm(route.params.id as string)
+    await documentsPurchasesStore.fetchOne(route.params.id as string)
     toast.add({ title: 'Factura confirmada', color: 'success' })
     confirmModalOpen.value = false
     statusModalOpen.value = false

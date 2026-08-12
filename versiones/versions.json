@@ -1016,5 +1016,64 @@
       }
     ],
     "contributors": ["agustin"]
+  },
+  {
+    "version": "0.17.0-alpha",
+    "date": "2026-08-12",
+    "stage": "alpha",
+    "notes": "Navegación drill-down, creación de facturas desde pagos y fixes de fechas.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "navigation",
+        "title": "Sidebar drill-down unificado con niveles jerárquicos"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Modal de creación de factura desde pagos con opción borrador/confirmada"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Botón 'Realizar el pago' en facturas de venta y compra"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Auto-seleccionar factura al crear pago desde documento"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Fecha con hora en entradas de cuenta corriente para orden correcto"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Timezone: parseLocalDate para fechas de pago"
+      },
+      {
+        "type": "fix",
+        "scope": "tables",
+        "title": "Formato de fecha sin desfasaje UTC en todas las tablas"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Incluir payment_documents en findOne de ventas y compras"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Refrescar documento después de cambiar estado"
+      },
+      {
+        "type": "refactor",
+        "scope": "navigation",
+        "title": "Eliminar SidebarModules, MainSidebar y navegaciones por módulo"
+      }
+    ],
+    "contributors": ["agustin"]
   }
 ]
