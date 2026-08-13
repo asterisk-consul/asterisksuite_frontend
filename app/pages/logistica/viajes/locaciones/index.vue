@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
 import { LocationColumns } from '../../../../modulos/logistica/master-data/locations/columns'
 import { locationFormFields } from '~/modulos/logistica/master-data/locations/locationsFormFields'

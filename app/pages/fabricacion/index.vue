@@ -10,7 +10,6 @@ const openEdit = (product: any) => {
 }
 definePageMeta({
   middleware: ['auth'],
-  layout: 'fabricacion'
 })
 const shortcuts = computed(() => [
   { label: 'Crear BOM ', to: '/bom/create' },

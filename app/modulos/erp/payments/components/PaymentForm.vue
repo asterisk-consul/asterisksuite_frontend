@@ -100,7 +100,7 @@ const selectedParty = computed({
 const defaultForm: PaymentFormData = {
   type: 'PAYMENT',
   payment_mode: 'NORMAL',
-  date: new Date().toISOString().split('T')[0],
+  date: today(),
   payment_method: 'CASH',
   amount: 0,
   currency_code: 'ARS',

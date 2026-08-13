@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import { useChecks } from '~/modulos/erp/checks/composables/useChecks'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'

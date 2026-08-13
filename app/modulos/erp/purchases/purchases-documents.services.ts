@@ -1,7 +1,7 @@
 import type { PurchasesDocument } from '../purchases/types/purchases-documents'
 
 export const DocumentsPurchasesService = {
-  async getAll(params?: { documentTypeId?: string; status?: number }): Promise<PurchasesDocument[]> {
+  async getAll(params?: { documentTypeId?: string; status?: number; category?: string; direction?: number }): Promise<PurchasesDocument[]> {
     return $fetch('/api/erp/documents/purchases', {
       query: params
     })

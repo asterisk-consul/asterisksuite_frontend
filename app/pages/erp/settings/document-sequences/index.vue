@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import { useCompanyRole } from '~/composables/useCompanyRole'
 

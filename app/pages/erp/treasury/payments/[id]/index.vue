@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
 import PaymentForm from '~/modulos/erp/payments/components/PaymentForm.vue'
@@ -81,7 +78,7 @@ onMounted(async () => {
     paymentData.value = {
       type: payment.type as 'PAYMENT' | 'COLLECTION',
       payment_mode: (payment.payment_mode as 'NORMAL' | 'ADVANCE') ?? 'NORMAL',
-      date: payment.date?.split('T')[0] ?? new Date().toISOString().split('T')[0],
+      date: payment.date?.split('T')[0] ?? today(),
       payment_method: payment.payment_method ?? 'CASH',
       amount: Number(payment.amount),
       currency_code: payment.currency_code ?? 'ARS',

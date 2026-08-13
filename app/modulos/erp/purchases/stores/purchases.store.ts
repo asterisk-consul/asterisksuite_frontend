@@ -23,7 +23,7 @@ export const useDocumentsPurchasesStore = defineStore(
     // ─────────────────────────────────────
     // Fetch all
     // ─────────────────────────────────────
-    const fetchAll = async (params?: { status?: number; documentTypeId?: string }) => {
+    const fetchAll = async (params?: { status?: number; documentTypeId?: string; category?: string; direction?: number }) => {
       loading.value = true
 
       error.value = null

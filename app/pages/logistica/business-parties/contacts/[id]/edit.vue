@@ -9,7 +9,6 @@ import ContactsForm from '~/modulos/logistica/master-data/contacts/components/co
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'logistica'
 })
 
 const route = useRoute()

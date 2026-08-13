@@ -5,6 +5,7 @@ export const DocumentsSalesService = {
     documentTypeId?: string
     status?: number
     category?: string
+    direction?: number
   }): Promise<Document[]> {
     return $fetch('/api/erp/documents/sales', {
       query: params

@@ -1,20 +1,24 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'fabricacion',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import { useTripsStore } from '~/modulos/logistica/transport/trips/trips.store'
 import { useChoferesStore } from '~/modulos/logistica/transport/drivers/choferes.store'
 import { useVehicleCombinationsStore } from '~/modulos/logistica/transport/vehicles-combinations/vehicle-combinations.store'
 import { useDispatchOrdersStore } from '~/modulos/logistica/documents/dispatch-orders/store/dispatch-orders.store'
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 const tripsStore = useTripsStore()
 const driversStore = useChoferesStore()
 const vehiclesStore = useVehicleCombinationsStore()
 const dispatchStore = useDispatchOrdersStore()
 const warehousesStore = useDepositosStore()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+
+const showTrips = computed(() => isOwnerOrAdmin.value || hasPermission('trips.read'))
+const showWarehouses = computed(() => isOwnerOrAdmin.value || hasPermission('warehouses.read'))
 
 const loading = ref(true)
 
@@ -76,40 +80,46 @@ const pendingOrders = computed(() => dispatchOrders.value.filter((o) => o.status
 const confirmedOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'CONFIRMED'))
 const inTransitOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'IN_TRANSIT'))
 
-const statCards = computed(() => [
-  {
-    label: 'Viajes activos',
-    value: activeTrips.value.length,
-    sub: `${trips.value.length} total`,
-    icon: 'i-lucide-truck',
-    color: 'primary' as const,
-    to: '/logistica/viajes'
-  },
-  {
+const statCards = computed(() => {
+  const cards: any[] = []
+  if (showTrips.value) {
+    cards.push({
+      label: 'Viajes activos',
+      value: activeTrips.value.length,
+      sub: `${trips.value.length} total`,
+      icon: 'i-lucide-truck',
+      color: 'primary' as const,
+      to: '/logistica/viajes'
+    })
+  }
+  cards.push({
     label: 'Choferes disponibles',
     value: activeDrivers.value.length,
     sub: `${drivers.value.length} total`,
     icon: 'i-lucide-user',
     color: 'success' as const,
     to: '/logistica/viajes/drivers'
-  },
-  {
+  })
+  cards.push({
     label: 'Vehículos en flota',
     value: activeVehicles.value.length,
     sub: `${vehicles.value.length} total`,
     icon: 'i-lucide-car',
     color: 'info' as const,
     to: '/logistica/vehicles-combinations'
-  },
-  {
-    label: 'Órdenes pendientes',
-    value: pendingOrders.value.length,
-    sub: `${dispatchOrders.value.length} total`,
-    icon: 'i-lucide-clipboard-list',
-    color: 'warning' as const,
-    to: '/logistica/viajes/dispatch-orders'
+  })
+  if (showTrips.value) {
+    cards.push({
+      label: 'Órdenes pendientes',
+      value: pendingOrders.value.length,
+      sub: `${dispatchOrders.value.length} total`,
+      icon: 'i-lucide-clipboard-list',
+      color: 'warning' as const,
+      to: '/logistica/viajes/dispatch-orders'
+    })
   }
-])
+  return cards
+})
 
 const tripStatusData = computed(() => {
   const map = new Map<string, number>()
@@ -197,7 +207,7 @@ const tripStatusColor = (status: string) => TRIP_STATUS_CONFIG[status]?.color ??
 
 <template>
   <UPage class="space-y-6 px-4">
-    <UPageHeader title="Dashboard Logística" description="Resumen de operaciones de transporte y depósito" />
+    <AppPageHeader title="Dashboard Logística" description="Resumen de operaciones de transporte y depósito" />
 
     <!-- STAT CARDS -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 py-4">

@@ -1,11 +1,8 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
-const dateFrom = ref(new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0])
-const dateTo = ref(new Date().toISOString().split('T')[0])
+const dateFrom = ref(`${new Date().getFullYear()}-01-01`)
+const dateTo = ref(today())
 
 const data = ref<{ months: string[]; parties: any[] }>({ months: [], parties: [] })
 const loading = ref(false)

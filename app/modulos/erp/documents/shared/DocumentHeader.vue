@@ -26,6 +26,21 @@ const docNumber = computed(() => {
   if (!props.document) return ''
   return `${props.document.document_types?.code}-${String(props.document.number).padStart(8, '0')}`
 })
+
+function resolveDocLink(doc: any): string {
+  if (!doc) return '#'
+  const direction = doc.document_types?.direction
+  const cat = doc.document_types?.category
+  const id = doc.id
+
+  if (direction === -1) {
+    if (cat === 'ORDER') return `/erp/purchases/orders/${id}`
+    if (cat === 'REMITO') return `/erp/purchases/remitos/${id}`
+    return `/erp/purchases/purchases-documents/${id}`
+  }
+
+  return `/erp/sales/${id}`
+}
 </script>
 
 <template>
@@ -55,7 +70,7 @@ const docNumber = computed(() => {
     <UAlert v-if="document.parent_document" color="info" variant="soft" icon="i-lucide-link">
       <template #title>
         <span>Generado desde: </span>
-        <NuxtLink :to="`/erp/sales/${document.parent_document.id}`" class="underline font-medium">
+        <NuxtLink :to="resolveDocLink(document.parent_document)" class="underline font-medium">
           {{ document.parent_document.document_types?.description }} #{{ document.parent_document.number }}
         </NuxtLink>
       </template>
@@ -68,7 +83,7 @@ const docNumber = computed(() => {
       </template>
       <template #description>
         <div class="flex flex-wrap gap-2 mt-1">
-          <NuxtLink v-for="child in document.child_documents" :key="child.id" :to="`/erp/sales/${child.id}`" class="underline text-sm">
+          <NuxtLink v-for="child in document.child_documents" :key="child.id" :to="resolveDocLink(child)" class="underline text-sm">
             {{ child.document_types?.description }} #{{ child.document_types?.code }}-{{ String(child.number).padStart(8, '0') }}
           </NuxtLink>
         </div>

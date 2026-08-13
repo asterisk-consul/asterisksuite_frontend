@@ -1,10 +1,7 @@
 <script setup lang="ts">
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 import type { ButtonProps } from '@nuxt/ui'
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import type { CreateDriverInput, UpdateDriverInput } from '~/modulos/logistica/transport/drivers/drivers.types'
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'

@@ -12,7 +12,6 @@ import { useProducts } from '~/modulos/logistica/master-data/product/composable/
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'modulofabricacion'
 })
 
 useHead({ title: 'Nuevo BOM' })

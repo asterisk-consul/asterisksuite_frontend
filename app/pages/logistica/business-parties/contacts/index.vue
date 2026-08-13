@@ -8,10 +8,7 @@ type EditableField = 'first_name' | 'last_name' | 'role' | 'phone' | 'email'
 
 type EditableValue = string | null | undefined
 // --- Configuración de Pages --
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>

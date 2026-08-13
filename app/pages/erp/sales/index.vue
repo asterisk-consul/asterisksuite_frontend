@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'erp',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import {
   STATUS_LABELS,
@@ -92,21 +89,24 @@ const statusOptions = [
 </script>
 
 <template>
-  <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar title="Comprobantes de venta">
-        <template #trailing>
-          <UButton
-            icon="i-lucide-file-plus"
-            label="Generar desde viajes"
-            @click="showGenerateModal = true"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
+  <UPage class="space-y-4">
+    <AppPageHeader title="Comprobantes de venta" description="Gestión de documentos de venta">
+      <template #links>
+        <UButton
+          label="Crear Factura"
+          icon="i-lucide-file-plus"
+          color="primary"
+          @click="navigateTo('/erp/sales/new?category=INVOICE')"
+        />
+        <UButton
+          icon="i-lucide-file-plus"
+          label="Generar desde viajes"
+          @click="showGenerateModal = true"
+        />
+      </template>
+    </AppPageHeader>
 
-    <template #body>
-      <div class="p-4 space-y-5">
+    <div class="p-4 space-y-5">
         <!-- Resultado de generación -->
         <UAlert
           v-if="generateResult"
@@ -239,8 +239,7 @@ const statusOptions = [
           </UTable>
         </UPageCard>
       </div>
-    </template>
-  </UDashboardPanel>
+  </UPage>
 
   <GenerateFromTripsModal
     v-model="showGenerateModal"

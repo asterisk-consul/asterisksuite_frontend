@@ -26,6 +26,8 @@ export const useDocumentsSalesStore = defineStore(
     const fetchAll = async (params?: {
       status?: number
       documentTypeId?: string
+      category?: string
+      direction?: number
     }) => {
       loading.value = true
 

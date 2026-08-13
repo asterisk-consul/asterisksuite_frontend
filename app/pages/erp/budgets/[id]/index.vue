@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'erp', middleware: ['auth'] })
+definePageMeta({ middleware: ['auth'] })
 
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
@@ -127,19 +127,16 @@ async function handleAccept() {
 </script>
 
 <template>
-  <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar :title="doc ? `Presupuesto #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Presupuesto'">
-        <template #trailing>
-          <div class="flex gap-2 items-center">
-            <UButton v-for="action in actions" :key="action.label" v-bind="action" size="sm" />
-            <DocumentHelpPopover :category="category || 'QUOTE'" :actions="actions" />
-          </div>
-        </template>
-      </UDashboardNavbar>
-    </template>
+  <UPage class="space-y-4">
+    <AppPageHeader :title="doc ? `Presupuesto #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Presupuesto'">
+      <template #links>
+        <div class="flex gap-2 items-center">
+          <UButton v-for="action in actions" :key="action.label" v-bind="action" size="sm" />
+          <DocumentHelpPopover :category="category || 'QUOTE'" :actions="actions" />
+        </div>
+      </template>
+    </AppPageHeader>
 
-    <template #body>
       <div class="p-4 space-y-6">
         <DocumentHeader :document="doc" :loading="loading" />
         <DocumentChain v-if="doc" :document="doc" />
@@ -150,8 +147,7 @@ async function handleAccept() {
         <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" />
         <DocumentTotals v-if="doc" :document="doc" />
       </div>
-    </template>
-  </UDashboardPanel>
+  </UPage>
 
   <!-- Confirm Modal -->
   <UModal v-model:open="confirmModalOpen" title="Confirmar presupuesto">

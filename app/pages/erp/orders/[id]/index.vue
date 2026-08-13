@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'erp', middleware: ['auth'] })
+definePageMeta({ middleware: ['auth'] })
 
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
@@ -13,11 +13,15 @@ import EntregasParciales from '~/modulos/erp/documents/orden-venta/EntregasParci
 import { getStatusLabel, getStatusColor, getValidTransitions } from '~/modulos/erp/documents/types/document-statuses'
 import { usePrint } from '~/composables/usePrint'
 import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 const route = useRoute()
 const router = useRouter()
 const store = useDocumentsSalesStore()
 const companiesStore = useCompaniesStore()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
 const toast = useToast()
 const { printElement } = usePrint()
 
@@ -63,6 +67,19 @@ const actions = computed(() => {
   }
   if (doc.value?.status === 2) {
     items.push({ label: 'Crear Remito', icon: 'i-lucide-truck', color: 'success', help: 'Crea un remito de entrega para los ítems de esta OV. Puede ser entrega parcial.', onClick: () => { deliverModalOpen.value = true } })
+    const isPurchaseOrder = doc.value?.document_types?.direction === -1
+    const canCreateInvoice = isOwnerOrAdmin.value || (isPurchaseOrder ? hasPermission('purchases.create') : hasPermission('sales.create'))
+    if (canCreateInvoice) {
+      items.push({
+        label: 'Crear Factura',
+        icon: 'i-lucide-file-text',
+        color: 'info',
+        help: isPurchaseOrder ? 'Crea una factura de compra con los ítems de esta OC.' : 'Crea una factura con los ítems de esta OV.',
+        onClick: () => router.push(isPurchaseOrder
+          ? `/erp/purchases/purchases-documents/new?parent_order_id=${route.params.id}`
+          : `/erp/sales/new?category=INVOICE&parent_order_id=${route.params.id}`)
+      })
+    }
   }
   return items
 })

@@ -30,6 +30,7 @@ import { useDocumentTypesForModule } from '~/modulos/erp/documents/documents-typ
 // Invoice
 import FacturaItemsTable from './FacturaItemsTable.vue'
 import FacturaTotals from './FacturaTotals.vue'
+import ReferenceDocumentPicker from './ReferenceDocumentPicker.vue'
 import { getDocumentTypeForVatCondition, type VatCondition } from '~/modulos/erp/invoices/utils/vatConditionMap'
 
 import type { Document, FacturaItem } from '../types/factura.types'
@@ -39,6 +40,7 @@ interface Props {
   initialValues?: Partial<Document>
   moduleCode?: string
   category?: string
+  parentDocumentId?: string
 }
 
 const props = defineProps<Props>()
@@ -87,12 +89,63 @@ const moduleCode = computed(() => (props.moduleCode === 'SALES' ? 'SALES' : 'PUR
 const form = reactive({
   document_type_id: '',
   party_id: '',
-  date: new Date().toISOString().split('T')[0],
+  date: today(),
   descrip: '',
   ref: '',
   currency_code: 'ARS',
   exchange_rate: null as number | null,
   rate_type: 'OFFICIAL' as string,
+})
+
+// ─── Reference Document (NC/ND → Factura) ────────────
+const referenceDocumentId = ref<string | undefined>(undefined)
+
+function applyReferenceDocument(doc: any) {
+  if (!doc) return
+  referenceDocumentId.value = doc.id
+  form.party_id = doc.party_id ?? ''
+  form.currency_code = doc.currency_code ?? 'ARS'
+  form.descrip = doc.descrip ?? ''
+  form.ref = doc.ref ?? ''
+
+  // Mapear ítems del documento padre (quantity - quantity_invoiced)
+  items.value = (doc.document_items ?? []).map((item: any) => {
+    const remainingQty = Number(item.quantity ?? 0) - Number(item.quantity_invoiced ?? 0)
+    const subtotal = remainingQty * Number(item.unit_price ?? 0)
+    return {
+      product_id: item.product_id,
+      product_name: item.products?.name || item.products?.description || 'Producto',
+      quantity: remainingQty,
+      unit_price: Number(item.unit_price ?? 0),
+      price: subtotal,
+      subtotal,
+      taxes: [],
+      total_taxes: 0,
+      total: subtotal
+    }
+  }).filter((i: any) => i.quantity > 0)
+}
+
+function handleReferenceSelect(documentId: string) {
+  // Fetch full document via the appropriate service
+  const fetchDoc = props.moduleCode === 'SALES'
+    ? import('~/modulos/erp/sales/services/sales.service').then(m => m.DocumentsSalesService.getOne(documentId))
+    : import('~/modulos/erp/purchases/purchases-documents.services').then(m => m.DocumentsPurchasesService.getOne(documentId))
+
+  fetchDoc
+    .then(doc => applyReferenceDocument(doc))
+    .catch(e => toast.add({ title: 'Error al cargar factura', description: e?.data?.message, color: 'error' }))
+}
+
+function handleReferenceClear() {
+  referenceDocumentId.value = undefined
+}
+
+// Whether to show the reference document picker (NC/ND categories)
+const showReferencePicker = computed(() => {
+  if (props.category === 'CREDIT_NOTE' || props.category === 'DEBIT_NOTE') return true
+  const selected = documentsTypes.value.find(d => d.id === form.document_type_id)
+  return selected?.category === 'CREDIT_NOTE' || selected?.category === 'DEBIT_NOTE'
 })
 
 // ─── Exchange Rate: auto-resolve on currency change ─────────
@@ -276,7 +329,7 @@ watch(
 
     form.document_type_id = val.document_type_id ?? ''
     form.party_id = val.party_id ?? ''
-    form.date = val.date ? new Date(val.date).toISOString().split('T')[0] : ''
+    form.date = val.date ? new Date(val.date).toISOString().split('T')[0] : today()
     form.descrip = val.descrip ?? ''
     form.ref = val.ref ?? ''
     form.currency_code = val.currency_code ?? 'ARS'
@@ -337,9 +390,30 @@ watch(
   { immediate: true, deep: true }
 )
 
+// ─── Auto-select Document Type by Context (categoría) ──
+// ORDER → OV/OC, QUOTE → PRES, REMITO → REM-V/REM-C según dirección del módulo
+function getContextDocumentTypeCode(): string | null {
+  const direction = moduleCode.value === 'SALES' ? 1 : -1
+  if (props.category === 'ORDER') return direction === 1 ? 'OV' : 'OC'
+  if (props.category === 'QUOTE') return 'PRES'
+  if (props.category === 'REMITO') return direction === 1 ? 'REM-V' : 'REM-C'
+  return null
+}
+
 // ─── Auto-select Document Type by VAT Condition ───────
 watch(selectedParty, (party) => {
   if (!party || !props.moduleCode) return
+
+  // Comprobantes sin condición IVA (orden, presupuesto, remito): seleccionar por contexto
+  const contextCode = getContextDocumentTypeCode()
+  if (contextCode) {
+    const match = documentsTypes.value.find((d) => d.code?.toUpperCase() === contextCode.toUpperCase())
+    if (match) {
+      form.document_type_id = match.id
+      return
+    }
+  }
+
   const vatCondition = party.vat_condition as VatCondition | undefined
   if (!vatCondition) return
 
@@ -351,14 +425,40 @@ watch(selectedParty, (party) => {
 
   const suggestedCode = getDocumentTypeForVatCondition(vatCondition, direction, issuerVat)
 
-  // Match exacto por código (ej: "FA-A", "FB-A", "FC-A")
+  // Determinar si el comprobante actual es NC/ND (por prop o por tipo ya seleccionado)
+  const currentDoc = documentsTypes.value.find(d => d.id === form.document_type_id)
+  const noteCategory =
+    props.category === 'CREDIT_NOTE' || props.category === 'DEBIT_NOTE'
+      ? props.category
+      : (currentDoc?.category === 'CREDIT_NOTE' || currentDoc?.category === 'DEBIT_NOTE' ? currentDoc.category : null)
+
+  if (noteCategory) {
+    // NC/ND: buscar tipo con misma categoría + letra derivada del tipo de factura sugerido
+    const suggestedInvoice = documentsTypes.value.find((d) => {
+      if (!d.code) return false
+      return d.code.toUpperCase() === suggestedCode.toUpperCase()
+    })
+    const letter = suggestedInvoice?.letter_type
+    if (letter) {
+      const noteMatch = documentsTypes.value.find(d =>
+        d.category === noteCategory &&
+        d.letter_type === letter &&
+        d.direction === (props.moduleCode === 'SALES' ? 1 : -1)
+      )
+      if (noteMatch) {
+        form.document_type_id = noteMatch.id
+      }
+    }
+    return
+  }
+
+  // Factura: match exacto por código (ej: "FA-A", "FB-A", "FC-A")
   const match = documentsTypes.value.find((d) => {
     if (!d.code) return false
     return d.code.toUpperCase() === suggestedCode.toUpperCase()
   })
 
   if (match) {
-    // Siempre actualizar cuando cambia el partner (auto-select)
     form.document_type_id = match.id
   }
 })
@@ -394,6 +494,17 @@ watch(
   () => [props.category, documentTypeOptions.value],
   () => {
     if (!props.category || !documentTypeOptions.value.length) return
+
+    // Si la categoría tiene un tipo fijo por contexto (ORDER/QUOTE/REMITO), usarlo
+    const contextCode = getContextDocumentTypeCode()
+    if (contextCode) {
+      const match = documentsTypes.value.find((d) => d.code?.toUpperCase() === contextCode.toUpperCase())
+      if (match) {
+        form.document_type_id = match.id
+        return
+      }
+    }
+
     // Si ya hay un tipo seleccionado, no sobreescribir
     if (form.document_type_id) return
 
@@ -484,6 +595,7 @@ function submit() {
     currency_code: form.currency_code,
     exchange_rate: form.exchange_rate,
     rate_type: form.rate_type,
+    parent_document_id: referenceDocumentId.value || props.parentDocumentId || undefined,
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
       quantity: Number(i.quantity),
@@ -572,7 +684,7 @@ defineExpose({ submit })
             step="0.000001"
             min="0"
             placeholder="1.000000"
-            @input="() => { if (form.exchange_rate) setManualRate(form.exchange_rate) }"
+            @update:model-value="(val: number) => { if (val) setManualRate(val) }"
           />
         </div>
         <div v-if="form.exchange_rate && total">
@@ -606,6 +718,16 @@ defineExpose({ submit })
           <span class="text-gray-500">Email: </span>
           <span>{{ partyInfo.email }}</span>
         </div>
+      </div>
+
+      <!-- Reference Document Picker (NC/ND) -->
+      <div v-if="showReferencePicker" class="mt-4">
+        <ReferenceDocumentPicker
+          :module-code="moduleCode"
+          :selected-invoice="referenceDocumentId ? { id: referenceDocumentId } : null"
+          @select="handleReferenceSelect"
+          @clear="handleReferenceClear"
+        />
       </div>
     </UCard>
 

@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'erp',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { STATUS_LABELS, STATUS_COLORS } from '~/modulos/erp/purchases/types/purchases-documents'
 
@@ -70,22 +67,17 @@ const statusOptions = [
 </script>
 
 <template>
-  <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar title="Comprobantes de compra">
-        <template #trailing>
-          <UButton
-            icon="i-lucide-plus"
-            variant="ghost"
-            color="neutral"
-            label="Nueva factura"
-            to="/erp/purchases/purchases-documents/new"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
+  <UPage class="space-y-4">
+    <AppPageHeader title="Comprobantes de compra" description="Gestión de documentos de compra">
+      <template #links>
+        <UButton
+          icon="i-lucide-plus"
+          label="Nueva factura"
+          to="/erp/purchases/purchases-documents/new"
+        />
+      </template>
+    </AppPageHeader>
 
-    <template #body>
       <div class="p-4 space-y-5">
         <UAlert
           v-if="error"
@@ -206,6 +198,5 @@ const statusOptions = [
           </UTable>
         </UPageCard>
       </div>
-    </template>
-  </UDashboardPanel>
+  </UPage>
 </template>

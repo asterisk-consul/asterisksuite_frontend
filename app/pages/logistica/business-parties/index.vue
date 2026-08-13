@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'

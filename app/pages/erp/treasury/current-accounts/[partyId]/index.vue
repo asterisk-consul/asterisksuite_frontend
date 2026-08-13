@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
 import { ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'

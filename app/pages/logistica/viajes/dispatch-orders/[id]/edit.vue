@@ -4,10 +4,7 @@ import { useDispatchOrdersStore } from '~/modulos/logistica/documents/dispatch-o
 import type { CreateDispatchOrderDto } from '~/modulos/logistica/documents/dispatch-orders/types/dispatch-orders.types'
 import DispatchOrderForm from '~/modulos/logistica/documents/dispatch-orders/components/DispatchOrderForm.vue'
 
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 const route = useRoute()
 const router = useRouter()

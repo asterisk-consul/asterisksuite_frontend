@@ -7,10 +7,7 @@ import {
   HR_VALE_STATUS_COLORS
 } from '~/modulos/erp/hr/types/hr.types'
 
-definePageMeta({
-  layout: 'rrhh',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 const hrStore = useHrStore()
 const vales = computed(() => hrStore.vales)
@@ -31,7 +28,7 @@ const createForm = ref({
   type: 'SUELDO',
   amount: 0,
   currency_code: 'ARS',
-  date: new Date().toISOString().split('T')[0],
+  date: today(),
   description: ''
 })
 
@@ -171,7 +168,7 @@ function resetForm() {
     type: 'SUELDO',
     amount: 0,
     currency_code: 'ARS',
-    date: new Date().toISOString().split('T')[0],
+    date: today(),
     description: ''
   }
 }

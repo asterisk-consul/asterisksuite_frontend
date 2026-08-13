@@ -9,31 +9,27 @@ defineProps<{
   ui?: Record<string, string>
 }>()
 
-const mainCollapsed = inject('mainCollapsed', ref(false))
-const { moduleCollapsed } = useModuleSidebarState()
+const { mainCollapsed } = useSidebarState()
 
 function toggleMain() {
   mainCollapsed.value = !mainCollapsed.value
 }
-
-function toggleModule() {
-  moduleCollapsed.value = !moduleCollapsed.value
-}
 </script>
 
 <template>
-  <UPageHeader :description="description || undefined" :ui="ui" :links="links">
-    <template #title>
-      <div class="flex items-center gap-2">
-        <AppSidebarToggle v-if="!showModuleToggle" :collapsed="mainCollapsed" @click="toggleMain" />
+  <div>
+    <slot name="breadcrumb" />
+    <UPageHeader :description="description || undefined" :ui="ui" :links="links">
+      <template #title>
+        <div class="flex items-center gap-2">
+          <AppSidebarToggle :collapsed="mainCollapsed" @click="toggleMain" />
 
-        <AppSidebarToggle v-else :collapsed="moduleCollapsed" @click="toggleModule" />
-
-        <span>{{ title }}</span>
-      </div>
-    </template>
-    <template v-if="$slots.links" #links>
-      <slot name="links" />
-    </template>
-  </UPageHeader>
+          <span>{{ title }}</span>
+        </div>
+      </template>
+      <template v-if="$slots.links" #links>
+        <slot name="links" />
+      </template>
+    </UPageHeader>
+  </div>
 </template>

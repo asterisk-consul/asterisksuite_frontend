@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'erp', middleware: ['auth'] })
+definePageMeta({ middleware: ['auth'] })
 
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
@@ -12,6 +12,8 @@ import RemitoView from '~/modulos/erp/documents/remito/RemitoView.vue'
 import { getStatusLabel, getStatusColor, getValidTransitions } from '~/modulos/erp/documents/types/document-statuses'
 import { usePrint } from '~/composables/usePrint'
 import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +21,8 @@ const store = useDocumentsSalesStore()
 const companiesStore = useCompaniesStore()
 const toast = useToast()
 const { printElement } = usePrint()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
 
 const loading = ref(true)
 const processing = ref(false)
@@ -54,6 +58,9 @@ const actions = computed(() => {
   ]
   if (validTransitions.value.length > 0) {
     items.push({ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', help: 'Permite cambiar manualmente el estado del remito según el flujo permitido.', onClick: () => { statusModalOpen.value = true } })
+  }
+  if (doc.value?.status === 2 && (isOwnerOrAdmin.value || hasPermission('sales.create'))) {
+    items.push({ label: 'Crear Factura', icon: 'i-lucide-file-text', color: 'info', help: 'Crea una factura con los ítems de este remito.', onClick: () => router.push(`/erp/sales/new?category=INVOICE&parent_order_id=${route.params.id}`) })
   }
   return items
 })

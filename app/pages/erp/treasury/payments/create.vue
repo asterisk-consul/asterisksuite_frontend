@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
 import PaymentForm from '~/modulos/erp/payments/components/PaymentForm.vue'
@@ -34,7 +31,7 @@ const initialValues = ref<PaymentFormData | undefined>(
   partyId.value
     ? {
         type: paymentType.value,
-        date: new Date().toISOString().split('T')[0],
+        date: today(),
         payment_method: 'CASH',
         amount: 0,
         currency_code: 'ARS',

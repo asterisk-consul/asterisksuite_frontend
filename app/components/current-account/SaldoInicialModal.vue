@@ -19,7 +19,7 @@ const form = reactive({
   party_type: 'CUSTOMER' as 'CUSTOMER' | 'SUPPLIER',
   party_id: '',
   amount: 0,
-  date: new Date().toISOString().split('T')[0],
+  date: today(),
   description: 'Saldo inicial',
 })
 
@@ -77,7 +77,7 @@ function close() {
   form.party_id = ''
   form.amount = 0
   partySearch.value = ''
-  form.date = new Date().toISOString().split('T')[0]
+  form.date = today()
   form.description = 'Saldo inicial'
 }
 

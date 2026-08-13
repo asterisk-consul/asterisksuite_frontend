@@ -1,18 +1,23 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'fabricacion',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import { useTreasuryReports } from '~/modulos/erp/treasury-reports/composables/useTreasuryReports'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useChecks } from '~/modulos/erp/checks/composables/useChecks'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 const { dashboard, fetchDashboard, loading: reportsLoading } = useTreasuryReports()
 const { bankAccounts, init: fetchBankAccounts } = useBankAccounts()
 const { cashBoxes, init: fetchCashBoxes } = useCashBoxes()
 const { checks, init: fetchChecks } = useChecks()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+
+const showBankAccounts = computed(() => isOwnerOrAdmin.value || hasPermission('treasury.bank_accounts.read'))
+const showCashBoxes = computed(() => isOwnerOrAdmin.value || hasPermission('treasury.cash_boxes.read'))
+const showPayments = computed(() => isOwnerOrAdmin.value || hasPermission('treasury.payments.read'))
 
 onMounted(async () => {
   await Promise.allSettled([
@@ -46,24 +51,27 @@ const statCards = computed(() => {
   const d = dashboard.value
   if (!d) return []
 
-  const totalBankBalance = (d.bank_accounts ?? []).reduce((sum, a) => (Number(a.balance) || 0) + sum, 0)
+  const cards: any[] = []
 
-  const cashBoxesByCurrency: Record<string, number> = {}
-  for (const cb of (d.cash_boxes ?? [])) {
-    const code = cb.currency_code || 'ARS'
-    cashBoxesByCurrency[code] = (cashBoxesByCurrency[code] || 0) + (Number(cb.balance) || 0)
-  }
-  const cashBoxesTotal = Object.values(cashBoxesByCurrency).reduce((s, v) => s + v, 0)
-
-  return [
-    {
+  if (showBankAccounts.value) {
+    const totalBankBalance = (d.bank_accounts ?? []).reduce((sum, a) => (Number(a.balance) || 0) + sum, 0)
+    cards.push({
       label: 'Saldo bancario',
       value: formatCurrency(totalBankBalance),
       icon: 'i-lucide-landmark',
       color: 'primary' as const,
       to: '/erp/treasury/bank-accounts'
-    },
-    {
+    })
+  }
+
+  if (showCashBoxes.value) {
+    const cashBoxesByCurrency: Record<string, number> = {}
+    for (const cb of (d.cash_boxes ?? [])) {
+      const code = cb.currency_code || 'ARS'
+      cashBoxesByCurrency[code] = (cashBoxesByCurrency[code] || 0) + (Number(cb.balance) || 0)
+    }
+    const cashBoxesTotal = Object.values(cashBoxesByCurrency).reduce((s, v) => s + v, 0)
+    cards.push({
       label: 'Saldo cajas',
       value: Object.entries(cashBoxesByCurrency)
         .map(([c, a]) => formatCurrency(a, c))
@@ -72,44 +80,61 @@ const statCards = computed(() => {
       icon: 'i-lucide-wallet',
       color: 'success' as const,
       to: '/erp/treasury/cash-boxes'
-    },
-    {
+    })
+  }
+
+  if (showPayments.value) {
+    cards.push({
       label: 'A cobrar',
       value: `${pendingThirdPartyChecks.value.length} cheques`,
       sub: formatCurrency(totalThirdPartyCheckAmount.value),
       icon: 'i-lucide-arrow-down-left',
       color: 'info' as const,
       to: '/erp/treasury/checks'
-    },
-    {
+    })
+    cards.push({
       label: 'A pagar',
       value: `${pendingOwnChecks.value.length} cheques`,
       sub: formatCurrency(totalOwnCheckAmount.value),
       icon: 'i-lucide-arrow-up-right',
       color: 'warning' as const,
       to: '/erp/treasury/checks'
-    }
-  ]
+    })
+  }
+
+  return cards
 })
 
-const quickActions = [
-  { label: 'Nuevo pago', icon: 'i-lucide-send', to: '/erp/treasury/payments/create', color: 'primary' as const },
-  { label: 'Nuevo cheque', icon: 'i-lucide-square-plus', to: '/erp/treasury/checks/create', color: 'warning' as const },
-  { label: 'Transferencia caja', icon: 'i-lucide-arrow-left-right', to: '/erp/treasury/cash-box-transfers', color: 'info' as const },
-  { label: 'Cuentas corrientes', icon: 'i-lucide-file-text', to: '/erp/treasury/current-accounts', color: 'warning' as const },
-  { label: 'Cuentas bancarias', icon: 'i-lucide-landmark', to: '/erp/treasury/bank-accounts', color: 'primary' as const },
-  { label: 'Cajas', icon: 'i-lucide-wallet', to: '/erp/treasury/cash-boxes', color: 'success' as const },
-  { label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', color: 'info' as const },
-  { label: 'Pagos y cobros', icon: 'i-lucide-hand-coins', to: '/erp/treasury/payments', color: 'secondary' as const },
-  { label: 'Cuentas contables', icon: 'i-lucide-calculator', to: '/erp/contabilidad/accounts', color: 'primary' as const },
-  { label: 'Conceptos bancarios', icon: 'i-lucide-receipt', to: '/erp/treasury/bank-concepts', color: 'info' as const },
-  { label: 'Reportes', icon: 'i-lucide-bar-chart-3', to: '/erp/treasury/reports', color: 'success' as const },
-]
+const quickActions = computed(() => {
+  const actions: any[] = []
+  if (showPayments.value) {
+    actions.push({ label: 'Nuevo pago', icon: 'i-lucide-send', to: '/erp/treasury/payments/create', color: 'primary' as const })
+  }
+  actions.push({ label: 'Nuevo cheque', icon: 'i-lucide-square-plus', to: '/erp/treasury/checks/create', color: 'warning' as const })
+  if (showCashBoxes.value) {
+    actions.push({ label: 'Transferencia caja', icon: 'i-lucide-arrow-left-right', to: '/erp/treasury/cash-box-transfers', color: 'info' as const })
+  }
+  actions.push({ label: 'Cuentas corrientes', icon: 'i-lucide-file-text', to: '/erp/treasury/current-accounts', color: 'warning' as const })
+  if (showBankAccounts.value) {
+    actions.push({ label: 'Cuentas bancarias', icon: 'i-lucide-landmark', to: '/erp/treasury/bank-accounts', color: 'primary' as const })
+  }
+  if (showCashBoxes.value) {
+    actions.push({ label: 'Cajas', icon: 'i-lucide-wallet', to: '/erp/treasury/cash-boxes', color: 'success' as const })
+  }
+  actions.push({ label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', color: 'info' as const })
+  if (showPayments.value) {
+    actions.push({ label: 'Pagos y cobros', icon: 'i-lucide-hand-coins', to: '/erp/treasury/payments', color: 'secondary' as const })
+  }
+  actions.push({ label: 'Cuentas contables', icon: 'i-lucide-calculator', to: '/erp/contabilidad/accounts', color: 'primary' as const })
+  actions.push({ label: 'Conceptos bancarios', icon: 'i-lucide-receipt', to: '/erp/treasury/bank-concepts', color: 'info' as const })
+  actions.push({ label: 'Reportes', icon: 'i-lucide-bar-chart-3', to: '/erp/treasury/reports', color: 'success' as const })
+  return actions
+})
 </script>
 
 <template>
   <UPage class="space-y-6 px-4">
-    <UPageHeader title="Dashboard Tesorería" description="Resumen general de la situación financiera" />
+    <AppPageHeader title="Dashboard Tesorería" description="Resumen general de la situación financiera" />
 
     <!-- STAT CARDS -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 py-4">
@@ -150,7 +175,7 @@ const quickActions = [
     <!-- BANK ACCOUNTS + CASH BOXES -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 py-4">
       <!-- BANK ACCOUNTS -->
-      <UPageCard variant="subtle">
+      <UPageCard v-if="showBankAccounts" variant="subtle">
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-semibold flex items-center gap-2">
@@ -187,7 +212,7 @@ const quickActions = [
       </UPageCard>
 
       <!-- CASH BOXES -->
-      <UPageCard variant="subtle">
+      <UPageCard v-if="showCashBoxes" variant="subtle">
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-semibold flex items-center gap-2">

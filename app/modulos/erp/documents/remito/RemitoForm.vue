@@ -12,12 +12,12 @@ const emit = defineEmits<{
 const form = reactive({
   document_type_id: '',
   party_id: '',
-  date: new Date().toISOString().split('T')[0],
+  date: today(),
   currency_code: 'ARS',
   descrip: '',
   ref: '',
   items: [] as any[],
-  delivery_date: new Date().toISOString().split('T')[0],
+  delivery_date: today(),
 })
 
 watch(() => props.modelValue, (val) => {

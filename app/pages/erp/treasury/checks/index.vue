@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import type { ButtonProps } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'

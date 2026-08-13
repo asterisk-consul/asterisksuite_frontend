@@ -3,6 +3,7 @@ import { navigationTree } from '~/data/navigationTree'
 import { useVersion } from '~/composables/useVersion'
 import DrilldownSidebar from '~/components/ui/DrilldownSidebar.vue'
 const { mainCollapsed } = useSidebarState()
+const { items: breadcrumbs } = useBreadcrumbs()
 const open = ref(false)
 
 const versions = useVersion()
@@ -14,23 +15,8 @@ const links = navigationTree
 const groups = computed(() => [
   {
     id: 'links',
-    label: 'Go to',
+    label: 'Ir a',
     items: links.flatMap(n => n.children ?? [n])
-  },
-  {
-    id: 'code',
-    label: 'Code',
-    items: [
-      {
-        id: 'source',
-        label: 'View page source',
-        icon: 'i-simple-icons-github',
-        to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${
-          route.path === '/' ? '/index' : route.path
-        }.vue`,
-        target: '_blank'
-      }
-    ]
   }
 ])
 
@@ -68,7 +54,22 @@ onMounted(async () => {
     <DrilldownSidebar id="default" v-model:open="open" v-model:collapsed="mainCollapsed" resizable with-footer />
 
     <UDashboardSearch :groups="groups" />
-    <slot />
     <NotificationsSlideover />
+
+    <UDashboardPanel>
+      <template #header>
+        <UDashboardNavbar>
+          <template #title>
+            <UBreadcrumb :items="breadcrumbs" />
+          </template>
+          <template #right>
+            <slot name="navbar-actions" />
+          </template>
+        </UDashboardNavbar>
+      </template>
+      <template #body>
+        <slot />
+      </template>
+    </UDashboardPanel>
   </UDashboardGroup>
 </template>

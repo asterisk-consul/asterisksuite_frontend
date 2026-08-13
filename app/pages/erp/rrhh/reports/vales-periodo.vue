@@ -7,17 +7,14 @@ import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
 import RrhhTotalsCards from '~/components/rrhh/RrhhTotalsCards.vue'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
-definePageMeta({
-  layout: 'rrhh',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 const hrStore = useHrStore()
 const vales = computed(() => hrStore.vales)
 const loading = computed(() => hrStore.loading)
 
-const dateFrom = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
-const dateTo = ref(new Date().toISOString().split('T')[0])
+const dateFrom = ref(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`)
+const dateTo = ref(today())
 const filterType = ref<string | undefined>(undefined)
 const activeTab = ref('todos')
 const sorting = ref<SortingState>([])

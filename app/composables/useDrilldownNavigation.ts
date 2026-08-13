@@ -1,5 +1,13 @@
 import type { DrilldownNode } from '~/data/navigationTree'
 import { navigationTree } from '~/data/navigationTree'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
+
+// Tipo de nivel en el stack: nodos + referencia al nodo padre
+export interface StackLevel {
+  nodes: DrilldownNode[]
+  parentNode?: DrilldownNode
+}
 
 function matchesPath(node: DrilldownNode, path: string): boolean {
   const target = node.to
@@ -31,26 +39,47 @@ function findBranch(nodes: DrilldownNode[], path: string): DrilldownNode[] {
   return best
 }
 
+// Filtrar nodos recursivamente por permisos
+function filterByPermissions(
+  nodes: DrilldownNode[],
+  hasPermission: (code: string) => boolean,
+  isOwnerOrAdmin: boolean
+): DrilldownNode[] {
+  return nodes.filter(node => {
+    if (node.permission && !isOwnerOrAdmin && !hasPermission(node.permission)) {
+      return false
+    }
+    if (node.children?.length) {
+      if (node.to) return true
+      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin)
+      return filteredChildren.length > 0
+    }
+    return true
+  })
+}
+
 export const useDrilldownNavigation = () => {
   const route = useRoute()
+  const { hasPermission } = useRoles()
+  const { isOwnerOrAdmin } = useCompanyRole()
 
-  // Estado compartido de la pila de niveles (persiste entre montajes de layout)
-  const stackState = useState<DrilldownNode[][]>('drilldown-stack', () => [navigationTree])
+  const filteredTree = computed(() => filterByPermissions(navigationTree, hasPermission, isOwnerOrAdmin.value))
 
-  // stack[0] = raíz; cada push agrega un nivel con los children del nodo
-  const stack = computed<DrilldownNode[][]>({
+  // Stack: cada nivel tiene nodos + referencia al nodo padre
+  const stackState = useState<StackLevel[]>('drilldown-stack', () => [{ nodes: navigationTree }])
+
+  const stack = computed<StackLevel[]>({
     get: () => stackState.value,
     set: (v) => { stackState.value = v }
   })
 
   const currentLevel = computed<DrilldownNode[]>(() => {
     const s = stack.value
-    return s[s.length - 1] ?? []
+    return s[s.length - 1]?.nodes ?? []
   })
 
   const isRoot = computed(() => stack.value.length <= 1)
 
-  // Nodo activo = el más profundo que matchea la ruta actual
   const activeTo = computed(() => {
     const path = route.path
     const chain = findBranch(navigationTree, path)
@@ -67,7 +96,8 @@ export const useDrilldownNavigation = () => {
 
   const push = (node: DrilldownNode) => {
     if (node.children?.length) {
-      stack.value = [...stack.value, node.children]
+      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value)
+      stack.value = [...stack.value, { nodes: filteredChildren, parentNode: node }]
     }
   }
 
@@ -85,24 +115,21 @@ export const useDrilldownNavigation = () => {
       return
     }
 
-    const parentLevel = stack.value[stack.value.length - 2]
-    const currentLevel = stack.value[stack.value.length - 1]
-    const parentNode = parentLevel?.find(n => n.children === currentLevel)
-
+    const parentNode = poppedLevel.parentNode
     if (parentNode?.to) {
       navigateTo(parentNode.to)
     }
   }
 
   const goHome = () => {
-    stack.value = [navigationTree]
+    stackState.value = [{ nodes: filteredTree.value }]
   }
 
-  // Seleccionar item: si tiene children profundiza Y navega al primer hijo con `to`; si tiene `to` navega
   const select = (node: DrilldownNode) => {
     if (node.children?.length) {
       push(node)
-      const resumen = node.children.find(child => child.to)
+      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value)
+      const resumen = filteredChildren.find(child => child.to)
       if (resumen?.to) {
         navigateTo(resumen.to)
       }
@@ -116,10 +143,11 @@ export const useDrilldownNavigation = () => {
     () => route.path,
     (path) => {
       const chain = findBranch(navigationTree, path)
-      const levels: DrilldownNode[][] = [navigationTree]
+      const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
-          levels.push(node.children)
+          const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value)
+          levels.push({ nodes: filteredChildren, parentNode: node })
         }
       }
       stackState.value = levels
@@ -133,6 +161,7 @@ export const useDrilldownNavigation = () => {
     isRoot,
     activeTo,
     isActive,
+    filteredTree,
     push,
     back,
     goHome,

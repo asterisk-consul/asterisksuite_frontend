@@ -31,10 +31,7 @@ import type {
 import { createWarehouseColumns } from '../../../modulos/logistica/warehouses/warehouse/columns'
 
 // page meta
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 /* ---------------------------------------
    STATE

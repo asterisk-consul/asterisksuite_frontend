@@ -15,16 +15,12 @@ const emit = defineEmits<{
 }>()
 
 const versions = useVersion()
-const { stack, currentLevel, isRoot, isActive, back, goHome, select } = useDrilldownNavigation()
+const { stack, currentLevel, isRoot, isActive, back, select } = useDrilldownNavigation()
 
 const depth = computed(() => stack.value.length - 1)
 
-const parentNode = computed(() => {
-  if (depth.value === 0) return null
-  const prevLevel = stack.value[stack.value.length - 2]
-  const currentArr = stack.value[stack.value.length - 1]
-  return prevLevel?.find(n => n.children === currentArr) ?? null
-})
+// Nodo padre del nivel actual (para mostrar en header)
+const parentNode = computed(() => stack.value[stack.value.length - 1]?.parentNode ?? null)
 </script>
 
 <template>
@@ -44,7 +40,7 @@ const parentNode = computed(() => {
     <template #default="{ collapsed }">
       <!-- 👉 MODO COLAPSADO: solo íconos del nivel actual -->
       <div v-if="collapsed" class="flex flex-col gap-0.5 px-2 py-2">
-        <UTooltip v-if="!isRoot" text="Volver">
+        <UTooltip v-if="!isRoot" :text="stack.length >= 2 ? stack[stack.length - 2]?.parentNode?.label || 'Inicio' : 'Inicio'">
           <UButton
             icon="i-lucide-arrow-left"
             variant="ghost"
@@ -98,13 +94,8 @@ const parentNode = computed(() => {
                     size="sm"
                     @click="back"
                   />
-                  <UIcon
-                    v-if="stack[levelIndex - 1]?.find(n => n.children === level)?.icon"
-                    :name="stack[levelIndex - 1].find(n => n.children === level)!.icon!"
-                    class="size-4 text-muted shrink-0"
-                  />
                   <span class="text-sm font-semibold truncate">
-                    {{ stack[levelIndex - 1]?.find(n => n.children === level)?.label || '' }}
+                    {{ stack[levelIndex - 1]?.parentNode?.label || 'Inicio' }}
                   </span>
                 </div>
               </div>
@@ -112,7 +103,7 @@ const parentNode = computed(() => {
               <!-- ITEMS DEL NIVEL -->
               <div class="flex flex-col overflow-y-auto flex-1 px-2 pb-2 pt-1">
                 <UButton
-                  v-for="item in level"
+                  v-for="item in level.nodes"
                   :key="item.label"
                   :icon="item.icon"
                   variant="ghost"

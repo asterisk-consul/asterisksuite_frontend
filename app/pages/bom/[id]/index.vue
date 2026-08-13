@@ -14,7 +14,6 @@ import {
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'modulofabricacion'
 })
 
 const toast = useToast()

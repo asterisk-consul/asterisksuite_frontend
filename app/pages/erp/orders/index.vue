@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'erp', middleware: ['auth'] })
+definePageMeta({ middleware: ['auth'] })
 
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { STATUS_LABELS, STATUS_COLORS } from '~/modulos/erp/sales/types/sales.types'
@@ -56,16 +56,13 @@ const statusOptions = [
 </script>
 
 <template>
-  <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar title="Órdenes de Venta">
-        <template #trailing>
-          <UButton icon="i-lucide-file-plus" label="Nueva OV" :to="`/erp/sales/new?category=ORDER`" />
-        </template>
-      </UDashboardNavbar>
-    </template>
+  <UPage class="space-y-4">
+    <AppPageHeader title="Órdenes de Venta">
+      <template #links>
+        <UButton icon="i-lucide-file-plus" label="Nueva OV" :to="`/erp/sales/new?category=ORDER`" />
+      </template>
+    </AppPageHeader>
 
-    <template #body>
       <div class="p-4 space-y-5">
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <UPageCard variant="subtle">
@@ -117,6 +114,5 @@ const statusOptions = [
           </UTable>
         </UPageCard>
       </div>
-    </template>
-  </UDashboardPanel>
+  </UPage>
 </template>

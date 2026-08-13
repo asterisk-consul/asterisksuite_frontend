@@ -14,7 +14,6 @@ import {
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'modulofabricacion'
 })
 
 useHead({ title: 'Nuevo template de costo' })

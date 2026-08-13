@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'treasury', middleware: ['auth'] })
+definePageMeta({ middleware: ['auth'] })
 
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
@@ -15,6 +15,8 @@ import RemitoView from '~/modulos/erp/documents/remito/RemitoView.vue'
 import { getStatusLabel, getStatusColor, getValidTransitions } from '~/modulos/erp/documents/types/document-statuses'
 import { usePrint } from '~/composables/usePrint'
 import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 const store = useDocumentsSalesStore()
 const companiesStore = useCompaniesStore()
@@ -23,6 +25,8 @@ const route = useRoute()
 const router = useRouter()
 const { mainCollapsed } = useSidebarState()
 const { printElement } = usePrint()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
 
 const loading = ref(true)
 const processing = ref(false)
@@ -63,9 +67,13 @@ const actions = computed(() => {
   const items: any[] = [
     { label: 'Imprimir', icon: 'i-lucide-printer', variant: 'outline', help: 'Abre una nueva ventana con la vista de impresión del documento. Podés imprimirlo o guardarlo como PDF.', onClick: () => printElement('printable-document') },
   ]
-  if (isDraft.value) {
+  if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.update'))) {
     items.push({ label: 'Editar', icon: 'i-lucide-pencil', help: 'Permite modificar los datos del documento. Solo disponible mientras esté en borrador.', onClick: () => router.push(`/erp/sales/${route.params.id}/edit`) })
+  }
+  if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.confirm'))) {
     items.push({ label: 'Confirmar', icon: 'i-lucide-check-circle', color: 'success', help: 'Confirma el documento fiscalmente. Una vez confirmado, no se puede editar ni eliminar.', onClick: () => { confirmModalOpen.value = true } })
+  }
+  if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.cancel'))) {
     items.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', help: 'Anula el documento permanentemente. Se revierten los movimientos de cuenta corriente si los hubiera.', onClick: () => { cancelModalOpen.value = true } })
   }
   if (validTransitions.value.length > 0) {
@@ -76,6 +84,13 @@ const actions = computed(() => {
   }
   if (category.value === 'ORDER' && isConfirmed.value) {
     items.push({ label: 'Despachar → Remito', icon: 'i-lucide-truck', color: 'success', help: 'Crea un remito de entrega para los ítems de esta OV. Puede ser entrega parcial.', onClick: () => { deliverModalOpen.value = true } })
+  }
+  if (isConfirmed.value && (category.value === 'ORDER' || category.value === 'REMITO') && (isOwnerOrAdmin.value || hasPermission('sales.create'))) {
+    items.push({ label: 'Crear Factura', icon: 'i-lucide-file-text', color: 'info', help: 'Crea una factura con los ítems pendientes de este documento.', onClick: () => router.push(`/erp/sales/new?category=INVOICE&parent_order_id=${route.params.id}`) })
+  }
+  if (isConfirmed.value && category.value === 'INVOICE' && (isOwnerOrAdmin.value || hasPermission('sales.create'))) {
+    items.push({ label: 'Crear NC', icon: 'i-lucide-file-text', color: 'warning', help: 'Crea una nota de crédito de venta referenciando esta factura.', onClick: () => router.push(`/erp/sales/new?category=CREDIT_NOTE&parent_order_id=${route.params.id}`) })
+    items.push({ label: 'Crear ND', icon: 'i-lucide-file-text', color: 'info', help: 'Crea una nota de débito de venta referenciando esta factura.', onClick: () => router.push(`/erp/sales/new?category=DEBIT_NOTE&parent_order_id=${route.params.id}`) })
   }
   if (isConfirmed.value && doc.value?.party_id && ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'].includes(doc.value?.document_types?.category)) {
     items.push({ label: 'Cuenta corriente', icon: 'i-lucide-arrow-right-circle', color: 'primary', help: 'Muestra el saldo y los movimientos de cuenta corriente de este cliente/proveedor.', onClick: () => {
@@ -154,22 +169,16 @@ async function handleDeliver() {
 </script>
 
 <template>
-  <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar :title="doc ? `${doc.document_types?.description} #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Documento'">
-        <template #leading>
-          <UButton icon="i-lucide-panel-left-close" variant="ghost" color="neutral" @click="mainCollapsed = !mainCollapsed" />
-        </template>
-        <template #trailing>
-          <div class="flex gap-2 items-center">
-            <UButton v-for="action in actions" :key="action.label" v-bind="action" size="sm" />
-            <DocumentHelpPopover :category="category || 'INVOICE'" :actions="actions" />
-          </div>
-        </template>
-      </UDashboardNavbar>
-    </template>
+  <UPage class="space-y-4">
+    <AppPageHeader :title="doc ? `${doc.document_types?.description} #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Documento'">
+      <template #links>
+        <div class="flex gap-2 items-center">
+          <UButton v-for="action in actions" :key="action.label" v-bind="action" size="sm" />
+          <DocumentHelpPopover :category="category || 'INVOICE'" :actions="actions" />
+        </div>
+      </template>
+    </AppPageHeader>
 
-    <template #body>
       <div class="p-4 space-y-6">
         <DocumentHeader :document="doc" :loading="loading" />
         <DocumentChain v-if="doc" :document="doc" />
@@ -191,8 +200,7 @@ async function handleDeliver() {
         <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" :show-tracking="category === 'ORDER'" />
         <DocumentTotals v-if="doc" :document="doc" />
       </div>
-    </template>
-  </UDashboardPanel>
+  </UPage>
 
   <!-- Modals -->
   <UModal v-model:open="confirmModalOpen" title="Confirmar documento">

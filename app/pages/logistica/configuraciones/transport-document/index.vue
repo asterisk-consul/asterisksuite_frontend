@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import { storeToRefs } from 'pinia'
 import { useDocumentTypesStore } from '~/modulos/logistica/documents/transport-documents-types/document-types.store'
 import { documentTypeFormFields } from '~/modulos/logistica/documents/transport-documents-types/documentTypeFormFields'

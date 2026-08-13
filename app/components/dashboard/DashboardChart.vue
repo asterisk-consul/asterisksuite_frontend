@@ -1,30 +1,48 @@
 <script setup lang="ts">
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
+
 const props = defineProps<{
   data?: {
     quotes: { total: number; totalValue: number }
     orders: { total: number; totalValue: number }
     remitos: { total: number }
+    invoices: { total: number; totalValue: number }
+    creditNotes: { total: number; totalValue: number }
+    debitNotes: { total: number; totalValue: number }
     hr: { totalVales: number }
     stock: { totalProducts: number }
+    costing: { totalProducts: number; costed: number; uncosted: number }
   }
   loading?: boolean
 }>()
 
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+
 const chartData = computed(() => {
   if (!props.data) return { categories: [], series: [] }
 
+  const categories = [
+    { label: 'Presupuestos', value: props.data.quotes.total, permission: 'documents.read' },
+    { label: 'OVs', value: props.data.orders.total, permission: 'documents.read' },
+    { label: 'Facturas', value: props.data.invoices.total, permission: 'documents.read' },
+    { label: 'Notas de crédito', value: props.data.creditNotes.total, permission: 'documents.read' },
+    { label: 'Notas de débito', value: props.data.debitNotes.total, permission: 'documents.read' },
+    { label: 'Remitos', value: props.data.remitos.total, permission: 'documents.read' },
+    { label: 'Vales', value: props.data.hr.totalVales },
+    { label: 'Costeados', value: props.data.costing?.costed ?? 0, permission: 'products.read' },
+    { label: 'Sin costear', value: props.data.costing?.uncosted ?? 0, permission: 'products.read' },
+  ]
+
+  const filtered = categories.filter((c) => !c.permission || isOwnerOrAdmin.value || hasPermission(c.permission))
+
   return {
-    categories: ['Presupuestos', 'OVs', 'Remitos', 'Vales', 'Productos'],
+    categories: filtered.map((c) => c.label),
     series: [
       {
         name: 'Cantidad',
-        data: [
-          props.data.quotes.total,
-          props.data.orders.total,
-          props.data.remitos.total,
-          props.data.hr.totalVales,
-          props.data.stock.totalProducts,
-        ],
+        data: filtered.map((c) => c.value),
       },
     ],
   }
@@ -40,21 +58,21 @@ const chartData = computed(() => {
       </div>
     </template>
 
-    <div v-if="loading" class="h-48">
+    <div v-if="loading" class="h-64">
       <USkeleton class="w-full h-full rounded-lg" />
     </div>
 
-    <div v-else-if="!data" class="h-48 flex items-center justify-center text-muted text-sm">
+    <div v-else-if="!data || chartData.categories.length === 0" class="h-64 flex items-center justify-center text-muted text-sm">
       Sin datos disponibles
     </div>
 
-    <div v-else class="h-48">
+    <div v-else class="h-64">
       <VChart :option="{
         tooltip: { trigger: 'axis' },
         xAxis: {
           type: 'category',
           data: chartData.categories,
-          axisLabel: { fontSize: 10 },
+          axisLabel: { fontSize: 10, interval: 0, rotate: 30 },
         },
         yAxis: {
           type: 'value',
@@ -75,7 +93,7 @@ const chartData = computed(() => {
             borderRadius: [4, 4, 0, 0],
           },
         })),
-        grid: { left: 40, right: 10, top: 10, bottom: 30 },
+        grid: { left: 40, right: 10, top: 10, bottom: 55 },
       }" autoresize class="w-full h-full" />
     </div>
   </UPageCard>

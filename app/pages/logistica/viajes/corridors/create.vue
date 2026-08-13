@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import { useCorridorsStore } from '~/modulos/logistica/transport/corridors/corridors.store'
 import type { CreateCorridorDto } from '~/modulos/logistica/transport/corridors/types/corridors.types'
 

@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import VehicleCombinationForm from '~/modulos/logistica/transport/vehicles-combinations/components/VehiclesCombinationsForm.vue'
 import { mapVehicleCombinationFormToCreateDto } from '~/modulos/logistica/transport/vehicles-combinations/mappers/vehicle-combinations.mapper'
 import { useVehicleCombinationsStore } from '~/modulos/logistica/transport/vehicles-combinations/vehicle-combinations.store'

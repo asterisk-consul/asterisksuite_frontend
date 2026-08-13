@@ -698,7 +698,7 @@ function crearVehiculo() {
     tipo: formVehiculo.value.tipo,
     chofer: formVehiculo.value.chofer || '—',
     km: formVehiculo.value.km,
-    ultimoService: new Date().toISOString().split('T')[0],
+    ultimoService: today(),
     estado: 'Disponible',
     tempActual: '—'
   })

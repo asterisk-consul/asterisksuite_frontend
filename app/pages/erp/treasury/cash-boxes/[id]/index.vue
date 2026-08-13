@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
@@ -228,7 +225,7 @@ const movementsTabs = [
   { label: 'Histórico', icon: 'i-lucide-history', value: 'history', slot: 'history' }
 ]
 const todayMovements = computed(() => {
-  const today = new Date().toISOString().split('T')[0]
+  const todayDate = today()
   return movements.value.filter((m) => {
     const moveDate = m.date?.split('T')[0]
     return moveDate === today

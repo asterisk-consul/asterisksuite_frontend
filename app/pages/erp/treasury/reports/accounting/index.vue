@@ -6,10 +6,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 
 const { exportToExcel } = useExcelExport()
 
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 const loading = ref(false)
 const accounts = ref<any[]>([])

@@ -5,10 +5,7 @@ import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/u
 import { movimientoColumns } from './movimientos.columns'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
-definePageMeta({
-  layout: 'rrhh',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 const { statement, entries: storeEntries, loading, fetchStatement, fetchEntries } = useCurrentAccounts()
 

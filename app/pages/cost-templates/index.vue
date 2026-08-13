@@ -1,7 +1,6 @@
 <script setup lang="ts">
 definePageMeta({
   middleware: ['auth'],
-  layout: 'modulofabricacion',
   breadcrumb: [{ label: 'Fabricación', to: '/fabricacion' }, { label: 'Templates de Costos' }]
 })
 

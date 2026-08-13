@@ -47,7 +47,7 @@ const defaultForm: CheckFormData = {
   issuer_id: '',
   amount: 0,
   currency_code: 'ARS',
-  issue_date: new Date().toISOString().split('T')[0],
+  issue_date: today(),
   due_date: '',
   is_own: false,
   notes: '',

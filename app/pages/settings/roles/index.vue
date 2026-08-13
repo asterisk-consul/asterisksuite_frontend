@@ -4,39 +4,24 @@ definePageMeta({
 })
 
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
-import { usePermissions } from '~/modulos/access-control/composables/usePermissions'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 
 const toast = useToast()
+const router = useRouter()
 const { isOwnerOrAdmin } = useCompanyRole()
-const {
-  roles,
-  loading: rolesLoading,
-  init: initRoles,
-  create,
-  update,
-  remove,
-  updatePermissions: updateRolePermissions
-} = useRoles()
-
-const { permissions, groupedByModule, init: initPermissions } = usePermissions()
+const { roles, loading: rolesLoading, init: initRoles, create, update, remove } = useRoles()
 
 const search = ref('')
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
-const showPermissionsModal = ref(false)
 const showDeleteModal = ref(false)
-
-const collapsedModules = ref<Set<string>>(new Set())
 
 const roleName = ref('')
 const roleCode = ref('')
 const roleDescription = ref('')
 const editingRole = ref<any>(null)
 const deletingRole = ref<any>(null)
-const permissionsRole = ref<any>(null)
-const selectedPermissionCodes = ref<string[]>([])
 const saving = ref(false)
 
 const filteredRoles = computed(() => {
@@ -112,67 +97,10 @@ const handleEdit = async () => {
   }
 }
 
-const openPermissions = async (role: any) => {
-  permissionsRole.value = role
-  showPermissionsModal.value = true
-  collapsedModules.value = new Set()
-
-  try {
-    const data = await $fetch<any>(`/api/access-control/roles/${role.id}`)
-    selectedPermissionCodes.value = (data.permissions || []).map((p: any) => p.permission?.code).filter(Boolean)
-  } catch {
-    selectedPermissionCodes.value = []
-  }
-}
-
-const toggleModuleCollapse = (moduleLabel: string) => {
-  if (collapsedModules.value.has(moduleLabel)) {
-    collapsedModules.value.delete(moduleLabel)
-  } else {
-    collapsedModules.value.add(moduleLabel)
-  }
-}
-
-const togglePermission = (code: string) => {
-  const idx = selectedPermissionCodes.value.indexOf(code)
-  if (idx === -1) {
-    selectedPermissionCodes.value.push(code)
-  } else {
-    selectedPermissionCodes.value.splice(idx, 1)
-  }
-}
-
-const toggleModule = (modulePerms: any[]) => {
-  const codes = modulePerms.map((p) => p.code)
-  const allSelected = codes.every((c) => selectedPermissionCodes.value.includes(c))
-  if (allSelected) {
-    selectedPermissionCodes.value = selectedPermissionCodes.value.filter((c) => !codes.includes(c))
-  } else {
-    for (const c of codes) {
-      if (!selectedPermissionCodes.value.includes(c)) {
-        selectedPermissionCodes.value.push(c)
-      }
-    }
-  }
-}
-
-const savePermissions = async () => {
-  if (!permissionsRole.value) return
-  saving.value = true
-  try {
-    await updateRolePermissions(permissionsRole.value.id, selectedPermissionCodes.value)
-    toast.add({ title: 'Permisos actualizados', color: 'success' })
-    showPermissionsModal.value = false
-  } catch (e: any) {
-    toast.add({
-      title: 'Error al guardar permisos',
-      description: e?.data?.message,
-      color: 'error',
-      icon: 'i-lucide-alert-circle'
-    })
-  } finally {
-    saving.value = false
-  }
+const openPermissions = (role: any) => {
+  console.log('CLICK PERMISSIONS', role.id)
+  console.log('URL:', `/settings/roles/${role.id}/permissions`)
+  router.push(`/settings/roles/${role.id}/permissions`)
 }
 
 const confirmDelete = (role: any) => {
@@ -201,7 +129,7 @@ const handleDelete = async () => {
 }
 
 onMounted(async () => {
-  await Promise.all([initRoles(), initPermissions()])
+  await initRoles()
 })
 </script>
 
@@ -314,82 +242,6 @@ onMounted(async () => {
         <div class="flex justify-end gap-2">
           <UButton label="Cancelar" variant="ghost" @click="showEditModal = false" />
           <UButton label="Guardar" :loading="saving" @click="handleEdit" />
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Permissions Modal -->
-    <UModal v-model:open="showPermissionsModal" title="Permisos del rol" :ui="{ width: 'max-w-2xl' }">
-      <template #body>
-        <div v-if="permissionsRole" class="space-y-4">
-          <p class="text-sm text-muted">
-            Permisos asignados a
-            <strong>{{ permissionsRole.name }}</strong>
-          </p>
-
-          <div v-if="permissions.length === 0" class="text-sm text-muted py-4 text-center">
-            No hay permisos disponibles
-          </div>
-
-          <div v-else class="space-y-2 max-h-128 overflow-y-auto pr-1">
-            <div
-              v-for="group in groupedByModule"
-              :key="group.label"
-              class="border border-default rounded-lg overflow-hidden"
-            >
-              <button
-                type="button"
-                class="flex items-center gap-2 w-full px-3 py-2.5 hover:bg-muted/50 transition-colors"
-                @click="toggleModuleCollapse(group.label)"
-              >
-                <UCheckbox
-                  :model-value="group.permissions.every((p: any) => selectedPermissionCodes.includes(p.code))"
-                  :indeterminate="
-                    group.permissions.some((p: any) => selectedPermissionCodes.includes(p.code)) &&
-                    !group.permissions.every((p: any) => selectedPermissionCodes.includes(p.code))
-                  "
-                  @update:model-value="toggleModule(group.permissions)"
-                  @click.stop
-                />
-                <UIcon :name="group.icon" class="size-4 text-muted" />
-                <span class="text-xs font-semibold uppercase text-muted flex-1 text-left">{{ group.label }}</span>
-                <UBadge
-                  :label="`${group.permissions.filter((p: any) => selectedPermissionCodes.includes(p.code)).length}/${group.permissions.length}`"
-                  variant="soft"
-                  size="xs"
-                  color="neutral"
-                />
-                <UIcon
-                  :name="collapsedModules.has(group.label) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
-                  class="size-4 text-muted transition-transform"
-                />
-              </button>
-
-              <div v-if="!collapsedModules.has(group.label)" class="border-t border-default px-3 py-2">
-                <div class="grid grid-cols-2 gap-1">
-                  <label
-                    v-for="perm in group.permissions"
-                    :key="perm.code"
-                    class="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 rounded px-2 py-1.5"
-                  >
-                    <UCheckbox
-                      :model-value="selectedPermissionCodes.includes(perm.code)"
-                      @update:model-value="togglePermission(perm.code)"
-                    />
-                    <span class="truncate" :title="perm.description || perm.code">
-                      {{ perm.description || perm.code }}
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showPermissionsModal = false" />
-          <UButton label="Guardar permisos" :loading="saving" @click="savePermissions" />
         </div>
       </template>
     </UModal>

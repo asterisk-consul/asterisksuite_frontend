@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 function toggleModuleSidebar() {
   moduleCollapsed.value = !moduleCollapsed.value

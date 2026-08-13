@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PendingDocument } from '~/modulos/erp/payments/service/payments.service'
+import { formatDate } from '~/utils/dates'
 
 const props = defineProps<{
   documents: PendingDocument[]
@@ -92,7 +93,7 @@ function getMaxAmount(doc: PendingDocument): number {
             <span class="text-xs text-muted">{{ doc.party_name }}</span>
           </div>
           <div class="flex items-center gap-4 text-xs text-muted mt-1">
-            <span>Fecha: {{ doc.date }}</span>
+            <span>Fecha: {{ formatDate(doc.date) }}</span>
             <span>Total: {{ formatCurrency(doc.total, doc.currency_code) }}</span>
             <span>Pagado: {{ formatCurrency(doc.paid_amount, doc.currency_code) }}</span>
             <span class="font-semibold text-warning">Pendiente: {{ formatCurrency(doc.pending_amount, doc.currency_code) }}</span>

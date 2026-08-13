@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import type { ButtonProps } from '@nuxt/ui'
 import { useTripsStore } from '~/modulos/logistica/transport/trips/trips.store'
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'

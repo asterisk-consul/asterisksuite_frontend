@@ -1075,5 +1075,84 @@
       }
     ],
     "contributors": ["agustin"]
+  },
+  {
+    "version": "0.18.0-alpha",
+    "date": "2026-08-13",
+    "stage": "alpha",
+    "notes": "Dashboard: 7 widgets nuevos, grid responsive y linking NC/ND a facturas.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "dashboard",
+        "title": "7 widgets nuevos: Documentos por cobrar, Costeados vs No Costeados, Cuentas Corrientes, Picking Pendiente, Viajes Activos, Cheques a Vencer, Pagos/Cobros Pendientes"
+      },
+      {
+        "type": "feat",
+        "scope": "dashboard",
+        "title": "Grid responsive (1→2→3 cols) con config merge para nuevos widgets"
+      },
+      {
+        "type": "feat",
+        "scope": "dashboard",
+        "title": "Gráfico muestra productos costeados vs sin costear en vez de total stock"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Vinculación NC/ND a facturas existentes con ReferenceDocumentPicker"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Botones 'Crear Factura' en detalle de OV y Remitos"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Botones 'Crear NC'/'Crear ND' en detalle de facturas confirmadas"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Permisos bank_accounts, payments y picking en defaultPermissions"
+      },
+      {
+        "type": "fix",
+        "scope": "dashboard",
+        "title": "Permiso financial widget corregido (treasury.bank_accounts.read → bank_accounts.read)"
+      },
+      {
+        "type": "fix",
+        "scope": "dashboard",
+        "title": "stock.totalProducts cuenta productos únicos (no duplica por warehouse)"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "parent_document_id persistido en creación de facturas de venta y compra"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Auto-seleccion de condición IVA respeta categoría NC/ND"
+      },
+      {
+        "type": "refactor",
+        "scope": "documents",
+        "title": "Orden de compra migrada a useDocumentsPurchasesStore"
+      },
+      {
+        "type": "refactor",
+        "scope": "access-control",
+        "title": "Reestructuración de permisos: agrupación lógica por módulo de negocio con subgrupos"
+      },
+      {
+        "type": "feat",
+        "scope": "settings",
+        "title": "Página de roles reestructurada con rutas anidadas (index + [id]/permissions)"
+      }
+    ],
+    "contributors": ["agustin"]
   }
 ]

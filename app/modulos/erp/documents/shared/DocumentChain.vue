@@ -6,6 +6,21 @@ const props = defineProps<{
 function fmtDate(d?: string) {
   return d ? d.slice(0, 10) : '-'
 }
+
+function resolveDocLink(doc: any): string {
+  if (!doc) return '#'
+  const direction = doc.document_types?.direction
+  const category = doc.document_types?.category
+  const id = doc.id
+
+  if (direction === -1) {
+    if (category === 'ORDER') return `/erp/purchases/orders/${id}`
+    if (category === 'REMITO') return `/erp/purchases/remitos/${id}`
+    return `/erp/purchases/purchases-documents/${id}`
+  }
+
+  return `/erp/sales/${id}`
+}
 </script>
 
 <template>
@@ -18,7 +33,7 @@ function fmtDate(d?: string) {
       <!-- Documento padre -->
       <div v-if="document.parent_document" class="flex items-center gap-3 text-sm">
         <UBadge label="Origen" color="info" variant="subtle" size="sm" />
-        <NuxtLink :to="`/erp/sales/${document.parent_document.id}`" class="underline font-medium">
+        <NuxtLink :to="resolveDocLink(document.parent_document)" class="underline font-medium">
           {{ document.parent_document.document_types?.description }} #{{ document.parent_document.number }}
         </NuxtLink>
         <span class="text-muted">{{ fmtDate(document.parent_document.date) }}</span>
@@ -36,7 +51,7 @@ function fmtDate(d?: string) {
       <!-- Documentos hijos -->
       <div v-for="child in document.child_documents" :key="child.id" class="flex items-center gap-3 text-sm pl-4 border-l-2 border-success">
         <UBadge label="Generado" color="success" variant="subtle" size="sm" />
-        <NuxtLink :to="`/erp/sales/${child.id}`" class="underline font-medium">
+        <NuxtLink :to="resolveDocLink(child)" class="underline font-medium">
           {{ child.document_types?.description }} #{{ child.document_types?.code }}-{{ String(child.number).padStart(8, '0') }}
         </NuxtLink>
         <span class="text-muted">{{ fmtDate(child.date) }}</span>

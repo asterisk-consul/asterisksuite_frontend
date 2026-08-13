@@ -2,14 +2,15 @@
 import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
 import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
-definePageMeta({
-  layout: 'rrhh',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 const hrStore = useHrStore()
 const { allAccounts, fetchAll } = useCurrentAccounts()
+const { isOwnerOrAdmin } = useCompanyRole()
+
+const showSensitiveData = computed(() => isOwnerOrAdmin.value)
 
 const totalEmployees = ref(0)
 const activeEmployees = ref(0)
@@ -106,7 +107,7 @@ function fmt(n: number, currency = 'ARS') {
         </UPageCard>
       </NuxtLink>
 
-      <NuxtLink to="/erp/rrhh/current-accounts" class="h-full">
+      <NuxtLink v-if="showSensitiveData" to="/erp/rrhh/current-accounts" class="h-full">
         <UPageCard variant="subtle" class="hover:bg-muted/50 transition-colors cursor-pointer h-full">
           <div class="space-y-1">
             <p class="text-xs text-muted">Saldo total CC</p>

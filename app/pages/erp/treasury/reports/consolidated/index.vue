@@ -3,10 +3,7 @@ import type { DateRange } from '~/components/compras/FiltroDateCompras.vue'
 import DateRangePicker from '~/components/compras/FiltroDateCompras.vue'
 import { useExcelExport } from '~/composables/useExcelExport'
 
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 const { exportToExcel } = useExcelExport()
 const loading = ref(false)

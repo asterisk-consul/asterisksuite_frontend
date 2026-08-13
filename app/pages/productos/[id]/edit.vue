@@ -1,7 +1,6 @@
 <script setup lang="ts">
 definePageMeta({
   middleware: ['auth'],
-  layout: 'modulofabricacion'
 })
 import BomSidebar from '~/modulos/logistica/master-data/product/components/ProductSidebar.vue'
 import ProductForm from '~/modulos/logistica/master-data/product/components/ProductForm.vue'

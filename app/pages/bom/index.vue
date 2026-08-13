@@ -4,7 +4,6 @@ import BomTable from '~/modulos/logistica/master-data/product/costing/components
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'modulofabricacion',
   breadcrumb: [{ label: 'Fabricación', to: '/fabricacion' }, { label: 'BOM' }]
 })
 

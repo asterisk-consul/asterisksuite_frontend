@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'rrhh', middleware: ['auth'] })
+definePageMeta({ middleware: ['auth'] })
 
 import { useRouter } from 'vue-router'
 import BusinessPartyForm from '~/modulos/logistica/master-data/bussiness-parties/components/BusinessPartyForm.vue'

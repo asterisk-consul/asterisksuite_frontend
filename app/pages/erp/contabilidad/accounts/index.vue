@@ -3,10 +3,7 @@ import type { TreeItem } from '@nuxt/ui'
 import { useAccountsService } from '~/modulos/contabilidad/service/accounts.service'
 import type { Account, AccountType } from '~/modulos/contabilidad/types/accounts.types'
 
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 const service = useAccountsService()
 const toast = useToast()

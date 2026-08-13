@@ -1,6 +1,5 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'modulofabricacion',
   middleware: ['auth'],
   breadcrumb: [{ label: 'Stock', to: '/stock' }, { label: 'Productos' }]
 })

@@ -2,7 +2,6 @@
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 definePageMeta({
   middleware: ['auth'],
-  layout: 'fabricacion'
 })
 
 const { init, activeProducts } = useProducts()

@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'treasury',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import CashBoxForm from '~/modulos/erp/cash-boxes/components/CashBoxForm.vue'

@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'erp',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

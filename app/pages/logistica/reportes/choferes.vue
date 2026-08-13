@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import { getReporteChoferes } from '~/modulos/reportes/services/choferes.service'
 import type { ButtonProps } from '@nuxt/ui'
 

@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 import type { ButtonProps } from '@nuxt/ui'
 import type { EditableField } from '~/modulos/logistica/documents/dispatch-orders/dispatch-order.columns'

@@ -9,6 +9,8 @@ import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purch
 import { STATUS_LABELS, STATUS_COLORS } from '~/modulos/erp/sales/types/sales.types'
 import type { ButtonProps } from '@nuxt/ui'
 import { usePrint } from '~/composables/usePrint'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 const documentsPurchasesStore = useDocumentsPurchasesStore()
 const toast = useToast()
@@ -16,6 +18,8 @@ const route = useRoute()
 const router = useRouter()
 const { mainCollapsed } = useSidebarState()
 const { printElement } = usePrint()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
 
 const loading = ref(true)
 const isProcessing = ref(false)
@@ -58,7 +62,7 @@ const links = computed(() => {
     }
   ]
 
-  if (isDraft.value || isPending.value) {
+  if ((isDraft.value || isPending.value) && (isOwnerOrAdmin.value || hasPermission('documents.update'))) {
     items.push({
       label: 'Editar',
       icon: 'i-lucide-pencil',
@@ -66,7 +70,7 @@ const links = computed(() => {
     })
   }
 
-  if (isDraft.value) {
+  if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.update'))) {
     items.push({
       label: 'Cambiar estado',
       icon: 'i-lucide-arrow-right-circle',
@@ -78,7 +82,7 @@ const links = computed(() => {
     })
   }
 
-  if (isPending.value) {
+  if (isPending.value && (isOwnerOrAdmin.value || hasPermission('documents.confirm'))) {
     items.push({
       label: 'Confirmar',
       icon: 'i-lucide-check-circle',
@@ -89,7 +93,7 @@ const links = computed(() => {
     })
   }
 
-  if (isDraft.value || isPending.value) {
+  if ((isDraft.value || isPending.value) && (isOwnerOrAdmin.value || hasPermission('documents.cancel'))) {
     items.push({
       label: 'Anular',
       icon: 'i-lucide-x-circle',
@@ -119,6 +123,25 @@ const links = computed(() => {
         onClick: () => {
           router.push(`/erp/treasury/payments/create?party_id=${factura.value!.party_id}&document_id=${factura.value!.id}&type=PAYMENT`)
         }
+      })
+    }
+  }
+
+  if (isConfirmed.value && factura.value?.document_types?.category === 'INVOICE') {
+    if (isOwnerOrAdmin.value || hasPermission('purchases.create')) {
+      items.push({
+        label: 'Crear NC',
+        icon: 'i-lucide-file-text',
+        color: 'warning',
+        help: 'Crea una nota de crédito de compra referenciando esta factura.',
+        onClick: () => router.push(`/erp/purchases/purchases-documents/new?category=CREDIT_NOTE&parent_order_id=${route.params.id}`)
+      })
+      items.push({
+        label: 'Crear ND',
+        icon: 'i-lucide-file-text',
+        color: 'info',
+        help: 'Crea una nota de débito de compra referenciando esta factura.',
+        onClick: () => router.push(`/erp/purchases/purchases-documents/new?category=DEBIT_NOTE&parent_order_id=${route.params.id}`)
       })
     }
   }

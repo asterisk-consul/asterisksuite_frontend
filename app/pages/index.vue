@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { useDashboardConfig, buildLayout } from '~/modulos/erp/dashboard/composables/useDashboardConfig'
+import { useDashboardConfig, buildLayout, AVAILABLE_WIDGETS } from '~/modulos/erp/dashboard/composables/useDashboardConfig'
 import { useDashboardData } from '~/modulos/erp/dashboard/composables/useDashboardData'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 definePageMeta({
   middleware: ['auth'],
@@ -8,11 +10,21 @@ definePageMeta({
 
 const showConfig = ref(false)
 const initialLoading = ref(true)
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
 
 const { config, enabledWidgets, fetchConfig, saveConfig, toggleWidget, resetConfig } = useDashboardConfig()
-const { data: dashboardData, loading: dataLoading, fetchData } = useDashboardData()
+const { data: dashboardData, personal: personalData, loading: dataLoading, fetchData, fetchPersonal } = useDashboardData()
 
-const gridLayout = computed(() => buildLayout(enabledWidgets.value))
+const filteredWidgets = computed(() => {
+  return enabledWidgets.value.filter((w) => {
+    const widgetMeta = AVAILABLE_WIDGETS.find((aw) => aw.id === w.id)
+    if (!widgetMeta?.permission) return true
+    return isOwnerOrAdmin.value || hasPermission(widgetMeta.permission)
+  })
+})
+
+const gridLayout = computed(() => buildLayout(filteredWidgets.value))
 
 const handleConfigUpdate = (newWidgets: { id: string; enabled: boolean; position: number; size?: 'sm' | 'md' | 'lg' }[]) => {
   config.value = newWidgets.map((w) => ({
@@ -28,14 +40,14 @@ const handleReset = () => {
 }
 
 onMounted(async () => {
-  await Promise.allSettled([fetchConfig(), fetchData()])
+  await Promise.allSettled([fetchConfig(), fetchData(), fetchPersonal()])
   initialLoading.value = false
 })
 </script>
 
 <template>
   <UPage class="space-y-6 px-4 flex-1 overflow-y-auto">
-    <UPageHeader title="Inicio" description="Dashboard principal">
+    <AppPageHeader title="Inicio" description="Dashboard principal">
       <template #links>
         <UButton
           label="Configurar"
@@ -46,11 +58,11 @@ onMounted(async () => {
           @click="showConfig = true"
         />
       </template>
-    </UPageHeader>
+    </AppPageHeader>
 
     <!-- SKELETON LOADING -->
-    <div v-if="initialLoading" class="grid grid-cols-2 gap-6" style="grid-auto-flow: dense; grid-auto-rows: min-content">
-      <UPageCard variant="subtle" style="grid-column: 1 / -1">
+    <div v-if="initialLoading" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" style="grid-auto-flow: dense; grid-auto-rows: min-content">
+      <UPageCard variant="subtle" class="xl:col-span-3">
         <div class="space-y-3">
           <div class="flex items-center gap-2">
             <USkeleton class="size-5 rounded" />
@@ -70,7 +82,7 @@ onMounted(async () => {
         </div>
       </UPageCard>
 
-      <UPageCard variant="subtle" style="grid-row: span 2">
+      <UPageCard variant="subtle" class="md:row-span-2">
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -110,7 +122,7 @@ onMounted(async () => {
         </div>
       </UPageCard>
 
-      <UPageCard variant="subtle" style="grid-column: 1 / -1">
+      <UPageCard variant="subtle" class="md:col-span-2 xl:col-span-3">
         <div class="space-y-3">
           <div class="flex items-center gap-2">
             <USkeleton class="size-5 rounded" />
@@ -122,7 +134,7 @@ onMounted(async () => {
         </div>
       </UPageCard>
 
-      <UPageCard variant="subtle" style="grid-column: 1 / -1">
+      <UPageCard variant="subtle" class="md:col-span-2 xl:col-span-3">
         <div class="space-y-3">
           <div class="flex items-center gap-2">
             <USkeleton class="size-5 rounded" />
@@ -136,11 +148,11 @@ onMounted(async () => {
     <!-- CONTENIDO REAL -->
     <div
       v-else
-      class="grid grid-cols-2 gap-6"
+      class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"
       style="grid-auto-flow: dense; grid-auto-rows: min-content"
     >
       <div
-        v-for="widget in enabledWidgets"
+        v-for="widget in filteredWidgets"
         :key="widget.id"
         :style="{
           gridColumn: gridLayout.get(widget.id)?.gridColumn,
@@ -148,11 +160,19 @@ onMounted(async () => {
         }"
       >
         <DashboardFinancialSummary v-if="widget.id === 'financial'" :loading="dataLoading" />
+        <DashboardPersonal v-else-if="widget.id === 'personal'" :data="personalData" :loading="dataLoading" />
         <DashboardBudgets v-else-if="widget.id === 'quotes'" :data="dashboardData?.quotes" :loading="dataLoading" />
         <DashboardOrders v-else-if="widget.id === 'orders'" :data="dashboardData?.orders" :loading="dataLoading" />
         <DashboardRemitos v-else-if="widget.id === 'remitos'" :data="dashboardData?.remitos" :loading="dataLoading" />
         <DashboardRRHH v-else-if="widget.id === 'hr'" :data="dashboardData?.hr" :loading="dataLoading" />
         <DashboardStock v-else-if="widget.id === 'stock'" :data="dashboardData?.stock" :loading="dataLoading" />
+        <DashboardReceivables v-else-if="widget.id === 'receivables'" :data="dashboardData?.receivables" :loading="dataLoading" />
+        <DashboardCosting v-else-if="widget.id === 'costing'" :data="dashboardData?.costing" :loading="dataLoading" />
+        <DashboardCurrentAccounts v-else-if="widget.id === 'current_accounts'" :data="dashboardData?.currentAccounts" :loading="dataLoading" />
+        <DashboardPicking v-else-if="widget.id === 'picking'" :data="dashboardData?.picking" :loading="dataLoading" />
+        <DashboardTrips v-else-if="widget.id === 'active_trips'" :data="dashboardData?.trips" :loading="dataLoading" />
+        <DashboardChecks v-else-if="widget.id === 'checks_due'" :data="dashboardData?.checksDue" :loading="dataLoading" />
+        <DashboardPaymentsDue v-else-if="widget.id === 'payments_due'" :data="dashboardData?.paymentsDue" :loading="dataLoading" />
         <DashboardQuickActions v-else-if="widget.id === 'quick_actions'" />
         <DashboardChart v-else-if="widget.id === 'chart'" :data="dashboardData" :loading="dataLoading" />
       </div>
