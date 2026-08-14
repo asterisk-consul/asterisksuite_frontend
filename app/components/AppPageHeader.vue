@@ -17,6 +17,7 @@ function toggleMain() {
 }
 
 const isCompact = ref(false)
+const gapPx = ref(0)
 const rootRef = ref<HTMLElement | null>(null)
 
 function findScrollContainer(el: HTMLElement | null): HTMLElement | null {
@@ -51,8 +52,17 @@ onMounted(() => {
     const scrollTop = scrollContainer.scrollTop
     const compact = scrollTop > 4
     isCompact.value = compact
+
+    if (compact && rootRef.value) {
+      const containerTop = scrollContainer.getBoundingClientRect().top
+      const barTop = rootRef.value.getBoundingClientRect().top
+      gapPx.value = Math.max(0, Math.round(containerTop - barTop))
+    } else {
+      gapPx.value = 0
+    }
+
     if (compact !== lastCompact) {
-      console.log('[AppPageHeader] scrollTop:', scrollTop, '→ compact:', compact)
+      console.log('[AppPageHeader] scrollTop:', scrollTop, '→ compact:', compact, '| gap:', gapPx.value, 'px')
       lastCompact = compact
     }
   }
@@ -95,6 +105,11 @@ const rootClasses = computed(() =>
     class="sticky top-0 z-20"
     :class="rootClasses"
   >
+    <div
+      v-if="isCompact && gapPx > 0"
+      class="absolute inset-x-0 bg-elevated/95 backdrop-blur-sm"
+      :style="{ top: -gapPx + 'px', height: gapPx + 'px' }"
+    />
     <slot v-if="!isCompact" name="breadcrumb" />
     <UPageHeader
       :description="description || undefined"
