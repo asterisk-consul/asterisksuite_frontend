@@ -172,7 +172,7 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchMe()
     } catch {
       try {
-        await $fetch('/api/auth/refresh', { method: 'POST' })
+        await useRequestFetch()('/api/auth/refresh', { method: 'POST' })
         await fetchMe()
       } catch {
         user.value = null

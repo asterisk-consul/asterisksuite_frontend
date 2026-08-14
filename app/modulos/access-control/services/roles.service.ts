@@ -8,24 +8,26 @@ import type {
 const baseUrl = '/api/access-control/roles'
 
 export const useRolesService = () => {
+  const getFetch = () => useRequestFetch()
+
   // =========================
   // FIND ALL
   // =========================
 
-  const findAll = () => $fetch<Role[]>(`${baseUrl}`)
+  const findAll = () => getFetch()<Role[]>(`${baseUrl}`)
 
   // =========================
   // FIND ONE
   // =========================
 
-  const findOne = (id: string) => $fetch<Role>(`${baseUrl}/${id}`)
+  const findOne = (id: string) => getFetch()<Role>(`${baseUrl}/${id}`)
 
   // =========================
   // CREATE
   // =========================
 
   const create = (payload: CreateRoleDto) =>
-    $fetch<Role>(`${baseUrl}`, {
+    getFetch()<Role>(`${baseUrl}`, {
       method: 'POST',
       body: payload
     })
@@ -35,7 +37,7 @@ export const useRolesService = () => {
   // =========================
 
   const update = (id: string, payload: UpdateRoleDto) =>
-    $fetch<Role>(`${baseUrl}/${id}`, {
+    getFetch()<Role>(`${baseUrl}/${id}`, {
       method: 'PATCH',
       body: payload
     })
@@ -45,7 +47,7 @@ export const useRolesService = () => {
   // =========================
 
   const updatePermissions = (id: string, permissions: string[]) =>
-    $fetch<Role>(`${baseUrl}/${id}/permissions`, {
+    getFetch()<Role>(`${baseUrl}/${id}/permissions`, {
       method: 'PUT',
       body: { permissions }
     })
@@ -55,7 +57,7 @@ export const useRolesService = () => {
   // =========================
 
   const remove = (id: string) =>
-    $fetch<void>(`${baseUrl}/${id}`, {
+    getFetch()<void>(`${baseUrl}/${id}`, {
       method: 'DELETE'
     })
 
@@ -64,10 +66,10 @@ export const useRolesService = () => {
   // =========================
 
   const getUserRoles = (userId: string) =>
-    $fetch<Role[]>(`/api/access-control/users/${userId}/roles`)
+    getFetch()<Role[]>(`/api/access-control/users/${userId}/roles`)
 
   const assignRoles = (userId: string, roleIds: string[]) =>
-    $fetch<void>(`/api/access-control/users/${userId}/roles`, {
+    getFetch()<void>(`/api/access-control/users/${userId}/roles`, {
       method: 'PUT',
       body: { roleIds }
     })
@@ -77,10 +79,10 @@ export const useRolesService = () => {
   // =========================
 
   const getEffectivePermissions = (userId: string) =>
-    $fetch<EffectivePermissions>(`/api/access-control/users/${userId}/permissions`)
+    getFetch()<EffectivePermissions>(`/api/access-control/users/${userId}/permissions`)
 
   const getMyPermissions = () =>
-    $fetch<EffectivePermissions>('/api/access-control/users/me/permissions')
+    getFetch()<EffectivePermissions>('/api/access-control/users/me/permissions')
 
   return {
     findAll,

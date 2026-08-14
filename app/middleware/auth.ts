@@ -19,6 +19,10 @@ export default defineNuxtRouteMiddleware(async () => {
     return navigateTo('/select-company')
   }
 
-  const rolesStore = useRolesStore()
-  await rolesStore.fetchMyPermissionsIfNeeded(auth.selectedCompany?.id, auth.user?.id)
+  try {
+    const rolesStore = useRolesStore()
+    await rolesStore.fetchMyPermissionsIfNeeded(auth.selectedCompany?.id, auth.user?.id)
+  } catch {
+    // best-effort: permission fetch failure should not block page render
+  }
 })
