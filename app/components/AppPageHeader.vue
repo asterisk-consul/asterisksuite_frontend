@@ -49,7 +49,7 @@ onMounted(() => {
 
   const handleScroll = () => {
     const scrollTop = scrollContainer.scrollTop
-    const compact = scrollTop > 0
+    const compact = scrollTop > 4
     isCompact.value = compact
     if (compact !== lastCompact) {
       console.log('[AppPageHeader] scrollTop:', scrollTop, '→ compact:', compact)
@@ -68,15 +68,23 @@ onMounted(() => {
 
 const headerUi = computed(() => ({
   ...props.ui,
-  root: isCompact.value ? 'py-2 border-b-0' : props.ui?.root ?? '',
-  title: isCompact.value ? 'text-base font-bold truncate min-w-0' : props.ui?.title ?? '',
-  description: isCompact.value ? 'hidden' : props.ui?.description ?? '',
-  links: isCompact.value ? 'flex-nowrap overflow-x-auto' : props.ui?.links ?? ''
+  root: isCompact.value
+    ? 'py-2 border-b-0 transition-[padding] duration-300'
+    : (props.ui?.root ?? 'transition-[padding] duration-300'),
+  title: isCompact.value
+    ? 'text-base font-bold truncate min-w-0 transition-[font-size] duration-300'
+    : (props.ui?.title ?? 'transition-[font-size] duration-300'),
+  description: isCompact.value
+    ? 'hidden'
+    : (props.ui?.description ?? ''),
+  links: isCompact.value
+    ? 'flex-nowrap overflow-x-auto'
+    : (props.ui?.links ?? '')
 }))
 
-const barClasses = computed(() =>
+const rootClasses = computed(() =>
   isCompact.value
-    ? 'bg-elevated/90 backdrop-blur-sm shadow-sm border-b border-default'
+    ? 'bg-elevated/95 backdrop-blur-sm shadow-sm border-b border-default -mx-4 sm:-mx-6 px-4 sm:px-6'
     : ''
 )
 </script>
@@ -84,8 +92,8 @@ const barClasses = computed(() =>
 <template>
   <div
     ref="rootRef"
-    class="sticky top-0 z-20 transition-[padding,background-color,box-shadow] duration-200 motion-reduce:transition-none"
-    :class="barClasses"
+    class="sticky top-0 z-20"
+    :class="rootClasses"
   >
     <slot v-if="!isCompact" name="breadcrumb" />
     <UPageHeader
