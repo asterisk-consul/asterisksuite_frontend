@@ -99,6 +99,12 @@ const rootClasses = computed(() =>
     ? 'bg-elevated/95 backdrop-blur-sm shadow-sm border-b border-default -mx-4 sm:-mx-6 px-4 sm:px-6'
     : ''
 )
+
+const contentStyle = computed(() =>
+  isCompact.value && gapPx.value > 0
+    ? { transform: `translateY(-${gapPx.value}px)` }
+    : { transform: 'translateY(0)' }
+)
 </script>
 
 <template>
@@ -113,20 +119,22 @@ const rootClasses = computed(() =>
       :style="{ top: -gapPx + 'px', height: gapPx + 'px' }"
     />
     <slot v-if="!isCompact" name="breadcrumb" />
-    <UPageHeader
-      :description="description || undefined"
-      :ui="headerUi"
-      :links="links"
-    >
-      <template #title>
-        <div class="flex items-center gap-2 min-w-0">
-          <AppSidebarToggle :collapsed="mainCollapsed" @click="toggleMain" />
-          <span class="truncate">{{ title }}</span>
-        </div>
-      </template>
-      <template v-if="$slots.links" #links>
-        <slot name="links" />
-      </template>
-    </UPageHeader>
+    <div :style="contentStyle">
+      <UPageHeader
+        :description="description || undefined"
+        :ui="headerUi"
+        :links="links"
+      >
+        <template #title>
+          <div class="flex items-center gap-2 min-w-0">
+            <AppSidebarToggle :collapsed="mainCollapsed" @click="toggleMain" />
+            <span class="truncate">{{ title }}</span>
+          </div>
+        </template>
+        <template v-if="$slots.links" #links>
+          <slot name="links" />
+        </template>
+      </UPageHeader>
+    </div>
   </div>
 </template>
