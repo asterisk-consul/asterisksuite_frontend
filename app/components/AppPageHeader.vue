@@ -69,7 +69,7 @@ onMounted(() => {
 const headerUi = computed(() => ({
   ...props.ui,
   root: isCompact.value
-    ? 'py-2 border-b-0 transition-[padding] duration-300'
+    ? 'py-3 border-b-0 transition-[padding] duration-300'
     : (props.ui?.root ?? 'transition-[padding] duration-300'),
   title: isCompact.value
     ? 'text-base font-bold truncate min-w-0 transition-[font-size] duration-300'
