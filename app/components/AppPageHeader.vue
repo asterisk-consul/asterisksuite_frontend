@@ -47,6 +47,7 @@ onMounted(() => {
   }
 
   let lastCompact = false
+  let lastGap = 0
 
   const handleScroll = () => {
     const scrollTop = scrollContainer.scrollTop
@@ -56,14 +57,15 @@ onMounted(() => {
     if (compact && rootRef.value) {
       const containerTop = scrollContainer.getBoundingClientRect().top
       const barTop = rootRef.value.getBoundingClientRect().top
-      gapPx.value = Math.max(0, Math.round(containerTop - barTop))
+      gapPx.value = Math.max(0, Math.round(barTop - containerTop))
     } else {
       gapPx.value = 0
     }
 
-    if (compact !== lastCompact) {
+    if (compact !== lastCompact || gapPx.value !== lastGap) {
       console.log('[AppPageHeader] scrollTop:', scrollTop, '→ compact:', compact, '| gap:', gapPx.value, 'px')
       lastCompact = compact
+      lastGap = gapPx.value
     }
   }
 
