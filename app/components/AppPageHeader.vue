@@ -19,32 +19,44 @@ function toggleMain() {
 const isCompact = ref(false)
 const sentinelRef = ref<HTMLElement | null>(null)
 
-useIntersectionObserver(
-  sentinelRef,
-  ([entry]) => {
-    if (props.collapseDisabled) {
-      isCompact.value = false
-      return
+function findScrollContainer(el: HTMLElement | null): HTMLElement | null {
+  let current: HTMLElement | null = el
+  while (current && current !== document.documentElement) {
+    const style = getComputedStyle(current)
+    if (style.overflowY === 'auto' || style.overflowY === 'scroll') return current
+    current = current.parentElement
+  }
+  return null
+}
+
+onMounted(() => {
+  if (props.collapseDisabled) return
+
+  nextTick(() => {
+    const scrollContainer = findScrollContainer(sentinelRef.value)
+    if (!scrollContainer) return
+
+    const handleScroll = () => {
+      if (!sentinelRef.value) return
+      const rect = sentinelRef.value.getBoundingClientRect()
+      isCompact.value = rect.bottom <= 0
     }
-    isCompact.value = !entry.isIntersecting
-  },
-  { threshold: 0 }
-)
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+
+    onUnmounted(() => {
+      scrollContainer.removeEventListener('scroll', handleScroll)
+    })
+  })
+})
 
 const headerUi = computed(() => ({
   ...props.ui,
-  root: isCompact.value
-    ? 'py-2 border-b-0'
-    : props.ui?.root ?? '',
-  title: isCompact.value
-    ? 'text-base font-bold truncate min-w-0'
-    : props.ui?.title ?? '',
-  description: isCompact.value
-    ? 'hidden'
-    : props.ui?.description ?? '',
-  links: isCompact.value
-    ? 'flex-nowrap overflow-x-auto'
-    : props.ui?.links ?? ''
+  root: isCompact.value ? 'py-2 border-b-0' : props.ui?.root ?? '',
+  title: isCompact.value ? 'text-base font-bold truncate min-w-0' : props.ui?.title ?? '',
+  description: isCompact.value ? 'hidden' : props.ui?.description ?? '',
+  links: isCompact.value ? 'flex-nowrap overflow-x-auto' : props.ui?.links ?? ''
 }))
 
 const barClasses = computed(() =>
