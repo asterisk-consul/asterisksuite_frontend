@@ -81,7 +81,7 @@ onMounted(() => {
 const headerUi = computed(() => ({
   ...props.ui,
   root: isCompact.value
-    ? 'py-3 border-b-0 transition-[padding] duration-300'
+    ? 'pt-2.5 pb-2 border-b-0 transition-[padding] duration-300'
     : (props.ui?.root ?? 'transition-[padding] duration-300'),
   title: isCompact.value
     ? 'text-base font-bold truncate min-w-0 transition-[font-size] duration-300'
@@ -96,7 +96,7 @@ const headerUi = computed(() => ({
 
 const rootClasses = computed(() =>
   isCompact.value
-    ? 'bg-elevated/95 backdrop-blur-sm shadow-sm border-b border-default -mx-4 sm:-mx-6 px-4 sm:px-6'
+    ? 'bg-background border-b border-default -mx-4 sm:-mx-6 px-4 sm:px-6'
     : ''
 )
 
@@ -115,7 +115,7 @@ const contentStyle = computed(() =>
   >
     <div
       v-if="isCompact && gapPx > 0"
-      class="absolute inset-x-0 bg-elevated/95 backdrop-blur-sm"
+      class="absolute inset-x-0 bg-background"
       :style="{ top: -gapPx + 'px', height: gapPx + 'px' }"
     />
     <slot v-if="!isCompact" name="breadcrumb" />
