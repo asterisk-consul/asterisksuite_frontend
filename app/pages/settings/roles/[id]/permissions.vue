@@ -132,7 +132,7 @@ const savePermissions = async () => {
     </AppPageHeader>
 
     <!-- Buscador -->
-    <div class="sticky top-9 z-10 bg-background -mx-4 sm:-mx-6 px-4 sm:px-6 py-2">
+    <div class="sticky top-9 z-10 bg-default -mx-4 sm:-mx-6 px-4 sm:px-6 py-2">
       <UInput
         v-model="permSearch"
         icon="i-lucide-search"

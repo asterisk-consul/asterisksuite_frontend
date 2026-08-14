@@ -96,7 +96,7 @@ const headerUi = computed(() => ({
 
 const rootClasses = computed(() =>
   isCompact.value
-    ? 'bg-background border-b border-default -mx-4 sm:-mx-6 px-4 sm:px-6'
+    ? 'bg-default border-b border-default -mx-4 sm:-mx-6 px-4 sm:px-6'
     : ''
 )
 
@@ -115,7 +115,7 @@ const contentStyle = computed(() =>
   >
     <div
       v-if="isCompact && gapPx > 0"
-      class="absolute inset-x-0 bg-background"
+      class="absolute inset-x-0 bg-default"
       :style="{ top: -gapPx + 'px', height: gapPx + 'px' }"
     />
     <slot v-if="!isCompact" name="breadcrumb" />
