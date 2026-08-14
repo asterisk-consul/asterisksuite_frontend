@@ -15,9 +15,9 @@ const { checks, init: fetchChecks } = useChecks()
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 
-const showBankAccounts = computed(() => isOwnerOrAdmin.value || hasPermission('treasury.bank_accounts.read'))
-const showCashBoxes = computed(() => isOwnerOrAdmin.value || hasPermission('treasury.cash_boxes.read'))
-const showPayments = computed(() => isOwnerOrAdmin.value || hasPermission('treasury.payments.read'))
+const showBankAccounts = computed(() => isOwnerOrAdmin.value || hasPermission('bank_accounts.read'))
+const showCashBoxes = computed(() => isOwnerOrAdmin.value || hasPermission('cash_boxes.read'))
+const showPayments = computed(() => isOwnerOrAdmin.value || hasPermission('payments.read'))
 
 onMounted(async () => {
   await Promise.allSettled([

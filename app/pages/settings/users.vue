@@ -368,7 +368,9 @@ const createUser = async () => {
 }
 
 onMounted(async () => {
-  await Promise.all([loadUsers(), initRoles(), loadEmployeesAndPartners()])
+  const tasks: Promise<void>[] = [loadUsers(), loadEmployeesAndPartners()]
+  if (isOwnerOrAdmin.value) tasks.push(initRoles())
+  await Promise.all(tasks)
 })
 </script>
 

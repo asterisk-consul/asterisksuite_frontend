@@ -49,7 +49,12 @@ export function useRoles() {
   // MY PERMISSIONS
   // =========================
 
-  const myPermissions = async () => store.fetchMyPermissions()
+  const fetchMyPermissions = async () => store.fetchMyPermissions()
+
+  const fetchMyPermissionsIfNeeded = async (companyId?: string | null, userId?: string | null) =>
+    store.fetchMyPermissionsIfNeeded(companyId, userId)
+
+  const clearMyPermissions = () => store.clearMyPermissions()
 
   // =========================
   // COMPUTED
@@ -108,6 +113,11 @@ export function useRoles() {
 
     // user roles
     getUserRoles,
-    assignRoles
+    assignRoles,
+
+    // my permissions
+    fetchMyPermissions,
+    fetchMyPermissionsIfNeeded,
+    clearMyPermissions
   }
 }

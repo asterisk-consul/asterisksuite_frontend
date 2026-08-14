@@ -1,4 +1,6 @@
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useRolesStore } from '~/modulos/access-control/stores/roles.store'
+
 export default defineNuxtRouteMiddleware(async () => {
   const auth = useAuthStore()
 
@@ -16,4 +18,7 @@ export default defineNuxtRouteMiddleware(async () => {
   if (auth.needsCompanySelection) {
     return navigateTo('/select-company')
   }
+
+  const rolesStore = useRolesStore()
+  await rolesStore.fetchMyPermissionsIfNeeded(auth.selectedCompany?.id, auth.user?.id)
 })

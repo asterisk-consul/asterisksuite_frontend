@@ -123,7 +123,15 @@ export async function apiProxy(
       console.log('[FETCH] error message:', err?.message)
 
       if (err?.response?.status !== 401) {
-        throw err
+        const status = err?.response?.status || 500
+        const upstreamData = err?.data || err?.response?._data
+        const statusMessage = upstreamData?.message || err?.response?.statusText || 'Server Error'
+
+        throw createError({
+          statusCode: status,
+          statusMessage: Array.isArray(statusMessage) ? statusMessage[0] : statusMessage,
+          data: upstreamData,
+        })
       }
 
       // console.log('[AUTH] access token invalid → refresh required')

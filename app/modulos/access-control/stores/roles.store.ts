@@ -18,6 +18,8 @@ export const useRolesStore = defineStore('roles', () => {
   const items = ref<Role[]>([])
   const current = ref<Role | null>(null)
   const myPermissions = ref<EffectivePermissions | null>(null)
+  const myPermissionsForCompanyId = ref<string | null>(null)
+  const myPermissionsForUserId = ref<string | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -96,6 +98,7 @@ export const useRolesStore = defineStore('roles', () => {
         current.value = updated
       }
 
+      await refreshMyPermissions()
       return updated
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al actualizar rol'
@@ -124,6 +127,7 @@ export const useRolesStore = defineStore('roles', () => {
         current.value = updated
       }
 
+      await refreshMyPermissions()
       return updated
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al actualizar permisos'
@@ -148,6 +152,7 @@ export const useRolesStore = defineStore('roles', () => {
       if (current.value?.id === id) {
         current.value = null
       }
+      await refreshMyPermissions()
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al eliminar rol'
       throw err
@@ -178,6 +183,7 @@ export const useRolesStore = defineStore('roles', () => {
       loading.value = true
       error.value = null
       await service.assignRoles(userId, roleIds)
+      await refreshMyPermissions()
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al asignar roles'
       throw err
@@ -204,6 +210,39 @@ export const useRolesStore = defineStore('roles', () => {
     }
   }
 
+  const fetchMyPermissionsIfNeeded = async (companyId?: string | null, userId?: string | null) => {
+    if (
+      myPermissions.value &&
+      companyId && myPermissionsForCompanyId.value === companyId &&
+      userId && myPermissionsForUserId.value === userId
+    ) {
+      return myPermissions.value
+    }
+    const result = await fetchMyPermissions()
+    myPermissionsForCompanyId.value = companyId ?? null
+    myPermissionsForUserId.value = userId ?? null
+    return result
+  }
+
+  const clearMyPermissions = () => {
+    myPermissions.value = null
+    myPermissionsForCompanyId.value = null
+    myPermissionsForUserId.value = null
+  }
+
+  const refreshMyPermissions = async () => {
+    const { useAuthStore } = await import('~/modulos/auth/auth.store')
+    const auth = useAuthStore()
+    clearMyPermissions()
+    try {
+      await fetchMyPermissions()
+      myPermissionsForCompanyId.value = auth.selectedCompany?.id ?? null
+      myPermissionsForUserId.value = auth.user?.id ?? null
+    } catch {
+      // best-effort; keep nav safe with empty myPermissions
+    }
+  }
+
   return {
     items,
     current,
@@ -218,6 +257,9 @@ export const useRolesStore = defineStore('roles', () => {
     remove,
     fetchUserRoles,
     assignRoles,
-    fetchMyPermissions
+    fetchMyPermissions,
+    fetchMyPermissionsIfNeeded,
+    clearMyPermissions,
+    refreshMyPermissions
   }
 })

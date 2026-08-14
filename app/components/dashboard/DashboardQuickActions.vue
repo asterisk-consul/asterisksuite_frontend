@@ -8,7 +8,7 @@ const { isOwnerOrAdmin } = useCompanyRole()
 const allActions = [
   { label: 'Nuevo presupuesto', icon: 'i-lucide-file-plus', to: '/erp/budgets', color: 'info', permission: 'documents.create' },
   { label: 'Nueva OV', icon: 'i-lucide-shopping-cart', to: '/erp/orders', color: 'warning', permission: 'documents.create' },
-  { label: 'Nuevo pago', icon: 'i-lucide-send', to: '/erp/treasury/payments/create', color: 'primary', permission: 'treasury.payments.create' },
+  { label: 'Nuevo pago', icon: 'i-lucide-send', to: '/erp/treasury/payments/create', color: 'primary', permission: 'payments.create' },
   { label: 'Nuevo vale', icon: 'i-lucide-receipt', to: '/erp/rrhh/vales/create', color: 'secondary' },
   { label: 'Reportes', icon: 'i-lucide-bar-chart-3', to: '/erp/treasury/reports', color: 'success' },
   { label: 'Clientes', icon: 'i-lucide-users', to: '/erp/sales/customers', color: 'info', permission: 'documents.read' },

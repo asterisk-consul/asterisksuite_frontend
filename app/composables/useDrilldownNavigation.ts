@@ -50,7 +50,6 @@ function filterByPermissions(
       return false
     }
     if (node.children?.length) {
-      if (node.to) return true
       const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin)
       return filteredChildren.length > 0
     }
@@ -141,13 +140,28 @@ export const useDrilldownNavigation = () => {
   // Sync con la ruta: deep-link / refresh abren el nivel correcto
   watch(
     () => route.path,
-    (path) => {
-      const chain = findBranch(navigationTree, path)
+    () => {
+      const chain = findBranch(navigationTree, route.path)
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
-          const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value)
-          levels.push({ nodes: filteredChildren, parentNode: node })
+          levels.push({ nodes: filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value), parentNode: node })
+        }
+      }
+      stackState.value = levels
+    },
+    { immediate: true }
+  )
+
+  // Rebuild stack cuando cambian los permisos (myPermissions carga async)
+  watch(
+    () => filteredTree.value,
+    () => {
+      const chain = findBranch(navigationTree, route.path)
+      const levels: StackLevel[] = [{ nodes: filteredTree.value }]
+      for (const node of chain) {
+        if (node.children?.length) {
+          levels.push({ nodes: filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value), parentNode: node })
         }
       }
       stackState.value = levels

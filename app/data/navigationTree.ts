@@ -79,20 +79,19 @@ export const navigationTree: DrilldownNode[] = [
         label: 'Cuentas bancarias',
         icon: 'i-lucide-landmark',
         to: '/erp/treasury/bank-accounts',
-        permission: 'treasury.bank_accounts.read'
+        permission: 'bank_accounts.read'
       },
       {
         label: 'Cajas',
         icon: 'i-lucide-wallet',
         to: '/erp/treasury/cash-boxes',
-        permission: 'treasury.cash_boxes.read',
         children: [
           { label: 'Cajas', icon: 'i-lucide-wallet', to: '/erp/treasury/cash-boxes' },
           {
             label: 'Transferencias',
             icon: 'i-lucide-arrow-left-right',
             to: '/erp/treasury/cash-box-transfers',
-            permission: 'treasury.cash_box_transfers.read'
+            permission: 'cash_box_transfers.read'
           }
         ]
       },
@@ -100,18 +99,19 @@ export const navigationTree: DrilldownNode[] = [
         label: 'Pagos y cobros',
         icon: 'i-lucide-hand-coins',
         to: '/erp/treasury/payments',
-        permission: 'treasury.payments.read'
+        permission: 'payments.read'
       },
-      { label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks' },
-      { label: 'Cuentas corrientes', icon: 'i-lucide-file-text', to: '/erp/treasury/current-accounts' },
+      { label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', permission: 'payments.read' },
+      { label: 'Cuentas corrientes', icon: 'i-lucide-file-text', to: '/erp/treasury/current-accounts', permission: 'payments.read' },
       {
         label: 'Reportes',
         icon: 'i-lucide-bar-chart-3',
+        permission: 'payments.read',
         children: [
-          { label: 'Movimientos', icon: 'i-lucide-activity', to: '/erp/treasury/reports/movements' },
-          { label: 'Pagos por usuario', icon: 'i-lucide-users', to: '/erp/treasury/reports/by-user' },
-          { label: 'Entes reguladores', icon: 'i-lucide-building-2', to: '/erp/treasury/reports/regulatory-payments' },
-          { label: 'Servicios mensuales', icon: 'i-lucide-zap', to: '/erp/treasury/reports/utility-payments' }
+          { label: 'Movimientos', icon: 'i-lucide-activity', to: '/erp/treasury/reports/movements', permission: 'payments.read' },
+          { label: 'Pagos por usuario', icon: 'i-lucide-users', to: '/erp/treasury/reports/by-user', permission: 'payments.read' },
+          { label: 'Entes reguladores', icon: 'i-lucide-building-2', to: '/erp/treasury/reports/regulatory-payments', permission: 'payments.read' },
+          { label: 'Servicios mensuales', icon: 'i-lucide-zap', to: '/erp/treasury/reports/utility-payments', permission: 'payments.read' }
         ]
       },
       {
@@ -124,12 +124,12 @@ export const navigationTree: DrilldownNode[] = [
             to: '/erp/contabilidad/accounts',
             permission: 'accounts.read'
           },
-          { label: 'Tipos de documento', icon: 'i-lucide-file-text', to: '/erp/settings/document-types' },
-          { label: 'Secuencias', icon: 'i-lucide-hash', to: '/erp/settings/document-sequences' },
-          { label: 'Conceptos bancarios', icon: 'i-lucide-receipt', to: '/erp/treasury/bank-concepts' },
-          { label: 'Libro IVA', icon: 'i-lucide-book-open', to: '/erp/treasury/reports/libro-iva' },
-          { label: 'Reportes contables', icon: 'i-lucide-bar-chart-3', to: '/erp/treasury/reports/accounting' },
-          { label: 'Informe consolidado', icon: 'i-lucide-file-text', to: '/erp/treasury/reports/consolidated' }
+          { label: 'Tipos de documento', icon: 'i-lucide-file-text', to: '/erp/settings/document-types', permission: 'payments.read' },
+          { label: 'Secuencias', icon: 'i-lucide-hash', to: '/erp/settings/document-sequences', permission: 'payments.read' },
+          { label: 'Conceptos bancarios', icon: 'i-lucide-receipt', to: '/erp/treasury/bank-concepts', permission: 'bank_accounts.read' },
+          { label: 'Libro IVA', icon: 'i-lucide-book-open', to: '/erp/treasury/reports/libro-iva', permission: 'payments.read' },
+          { label: 'Reportes contables', icon: 'i-lucide-bar-chart-3', to: '/erp/treasury/reports/accounting', permission: 'payments.read' },
+          { label: 'Informe consolidado', icon: 'i-lucide-file-text', to: '/erp/treasury/reports/consolidated', permission: 'payments.read' }
         ]
       }
     ]
@@ -151,6 +151,7 @@ export const navigationTree: DrilldownNode[] = [
         icon: 'i-lucide-bar-chart-3',
         children: [
           { label: 'Vales por período', icon: 'i-lucide-calendar', to: '/erp/rrhh/reports/vales-periodo' },
+          { label: 'Comisiones', icon: 'i-lucide-percent', to: '/erp/rrhh/reports/comisiones' },
           { label: 'Movimientos', icon: 'i-lucide-activity', to: '/erp/rrhh/reports/movimientos' },
           { label: 'Saldos', icon: 'i-lucide-wallet', to: '/erp/rrhh/reports/saldos' }
         ]
