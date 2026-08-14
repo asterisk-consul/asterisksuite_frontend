@@ -17,7 +17,7 @@ function toggleMain() {
 }
 
 const isCompact = ref(false)
-const sentinelRef = ref<HTMLElement | null>(null)
+const rootRef = ref<HTMLElement | null>(null)
 
 function findScrollContainer(el: HTMLElement | null): HTMLElement | null {
   let current: HTMLElement | null = el
@@ -30,24 +30,39 @@ function findScrollContainer(el: HTMLElement | null): HTMLElement | null {
 }
 
 onMounted(() => {
+  console.log('[AppPageHeader] mounted', { title: props.title, collapseDisabled: props.collapseDisabled })
+
   if (props.collapseDisabled) return
 
-  nextTick(() => {
-    const scrollContainer = findScrollContainer(sentinelRef.value)
-    if (!scrollContainer) return
+  const stickyPos = rootRef.value ? getComputedStyle(rootRef.value).position : 'unknown'
+  console.log('[AppPageHeader] sticky position:', stickyPos)
 
-    const handleScroll = () => {
-      if (!sentinelRef.value) return
-      const rect = sentinelRef.value.getBoundingClientRect()
-      isCompact.value = rect.bottom <= 0
+  const scrollContainer = findScrollContainer(rootRef.value)
+  console.log('[AppPageHeader] scrollContainer:', scrollContainer?.tagName, scrollContainer?.className?.slice(0, 80))
+
+  if (!scrollContainer) {
+    console.warn('[AppPageHeader] NO scroll container found — sticky will not work')
+    return
+  }
+
+  let lastCompact = false
+
+  const handleScroll = () => {
+    const scrollTop = scrollContainer.scrollTop
+    const compact = scrollTop > 0
+    isCompact.value = compact
+    if (compact !== lastCompact) {
+      console.log('[AppPageHeader] scrollTop:', scrollTop, '→ compact:', compact)
+      lastCompact = compact
     }
+  }
 
-    scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
-    handleScroll()
+  scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
+  handleScroll()
 
-    onUnmounted(() => {
-      scrollContainer.removeEventListener('scroll', handleScroll)
-    })
+  onUnmounted(() => {
+    scrollContainer.removeEventListener('scroll', handleScroll)
+    console.log('[AppPageHeader] unmounted')
   })
 })
 
@@ -67,28 +82,26 @@ const barClasses = computed(() =>
 </script>
 
 <template>
-  <div>
-    <div ref="sentinelRef" class="h-px w-full shrink-0" aria-hidden="true" />
-    <div
-      class="sticky top-0 z-20 transition-[padding,background-color,box-shadow] duration-200 motion-reduce:transition-none"
-      :class="barClasses"
+  <div
+    ref="rootRef"
+    class="sticky top-0 z-20 transition-[padding,background-color,box-shadow] duration-200 motion-reduce:transition-none"
+    :class="barClasses"
+  >
+    <slot v-if="!isCompact" name="breadcrumb" />
+    <UPageHeader
+      :description="description || undefined"
+      :ui="headerUi"
+      :links="links"
     >
-      <slot v-if="!isCompact" name="breadcrumb" />
-      <UPageHeader
-        :description="description || undefined"
-        :ui="headerUi"
-        :links="links"
-      >
-        <template #title>
-          <div class="flex items-center gap-2 min-w-0">
-            <AppSidebarToggle :collapsed="mainCollapsed" @click="toggleMain" />
-            <span class="truncate">{{ title }}</span>
-          </div>
-        </template>
-        <template v-if="$slots.links" #links>
-          <slot name="links" />
-        </template>
-      </UPageHeader>
-    </div>
+      <template #title>
+        <div class="flex items-center gap-2 min-w-0">
+          <AppSidebarToggle :collapsed="mainCollapsed" @click="toggleMain" />
+          <span class="truncate">{{ title }}</span>
+        </div>
+      </template>
+      <template v-if="$slots.links" #links>
+        <slot name="links" />
+      </template>
+    </UPageHeader>
   </div>
 </template>
