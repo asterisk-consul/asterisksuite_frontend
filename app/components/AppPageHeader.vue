@@ -102,7 +102,7 @@ const rootClasses = computed(() =>
 
 const contentStyle = computed(() =>
   isCompact.value && gapPx.value > 0
-    ? { transform: `translateY(-${gapPx.value}px)` }
+    ? { transform: `translateY(-${Math.round(gapPx.value / 2)}px)` }
     : { transform: 'translateY(0)' }
 )
 </script>
