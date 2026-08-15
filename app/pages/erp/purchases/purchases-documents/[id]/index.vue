@@ -7,17 +7,21 @@ definePageMeta({
 import FacturaView from '~/modulos/erp/facturas/components/FacturaView.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocumentActions'
+import { usePrint } from '~/composables/usePrint'
 
 const documentsPurchasesStore = useDocumentsPurchasesStore()
 const companiesStore = useCompaniesStore()
+const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const { mainCollapsed } = useSidebarState()
+const { printElement } = usePrint()
 
 const loading = ref(true)
 const factura = computed(() => documentsPurchasesStore.current)
-const company = computed(() => companiesStore.items[0])
+const company = computed(() => companiesStore.current)
 const category = computed(() => factura.value?.document_types?.category)
 
 // Custom status flow: Draft(0) → Pending(1) or Confirm(2) or Cancel(3)
@@ -34,9 +38,10 @@ const customTransitions = computed(() => {
 
 onMounted(async () => {
   try {
+    const companyId = auth.selectedCompany?.id
     await Promise.all([
       documentsPurchasesStore.fetchOne(route.params.id as string),
-      companiesStore.fetchAll(),
+      companyId && companiesStore.fetchOne(companyId),
     ])
   } finally {
     loading.value = false
@@ -61,6 +66,7 @@ const {
   router,
   routeId: computed(() => route.params.id as string),
   module: 'purchases',
+  printElement,
   customTransitions: customTransitions.value,
   store: {
     confirm: (id) => documentsPurchasesStore.confirm(id),
@@ -74,7 +80,7 @@ const {
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar :title="factura ? `Factura #${factura.number}` : 'Factura'">
+      <UDashboardNavbar :title="factura ? `${factura.document_types?.description} #${factura.number}` : 'Documento'">
         <template #leading>
           <UButton icon="i-lucide-panel-left-close" variant="ghost" color="neutral" @click="mainCollapsed = !mainCollapsed" />
         </template>
@@ -83,7 +89,7 @@ const {
 
     <template #body>
       <UPage>
-        <UPageHeader :title="factura ? `Factura #${factura.number}` : ''">
+        <UPageHeader :title="factura ? `${factura.document_types?.description} #${factura.number}` : ''">
           <template #headline>
             <div class="flex gap-2 items-center flex-wrap">
               <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />

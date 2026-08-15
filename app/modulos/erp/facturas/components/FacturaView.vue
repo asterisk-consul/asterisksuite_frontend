@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import DocumentPrintLayout from '~/components/documents/DocumentPrintLayout.vue'
+import ValePrint from '~/components/documents/ValePrint.vue'
 import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 
 interface Props {
   document: any
@@ -16,10 +18,12 @@ const props = withDefaults(defineProps<{
 })
 
 const companiesStore = useCompaniesStore()
+const auth = useAuthStore()
 
 onMounted(async () => {
-  if (!companiesStore.items.length) {
-    await companiesStore.fetchAll()
+  const companyId = auth.selectedCompany?.id
+  if (companyId && !companiesStore.current) {
+    await companiesStore.fetchOne(companyId)
   }
 })
 
@@ -105,7 +109,7 @@ const allTaxes = computed(() =>
 
 // SALE: header=mi empresa, customer=cliente
 // PURCHASE: header=proveedor, customer=mi empresa
-const currentCompany = computed(() => companiesStore.items[0])
+const currentCompany = computed(() => companiesStore.current)
 
 const printCompany = computed(() => {
   if (props.mode === 'sale') {
@@ -172,7 +176,7 @@ const printTotals = computed(() => ({
         <template #header>
           <div class="flex items-center justify-between">
             <div>
-              <div class="text-xl font-bold">Factura #{{ document.number }}</div>
+              <div class="text-xl font-bold">{{ document.document_types?.description || 'Documento' }} #{{ document.number }}</div>
               <div class="text-sm text-gray-500">{{ document.document_types?.description }}</div>
             </div>
             <UBadge :color="statusInfo.color as any">{{ statusInfo.label }}</UBadge>
@@ -232,9 +236,22 @@ const printTotals = computed(() => ({
       <DocumentTotals :document="document" />
     </div>
 
-    <!-- PRINT VIEW (DocumentPrintLayout) -->
+    <!-- PRINT VIEW -->
     <div id="printable-document" class="print-only">
+      <ValePrint
+        v-if="document.document_types?.category === 'VALE'"
+        :type="mode"
+        :number="String(document.number || '—')"
+        :date="document.date"
+        :company="printCompany"
+        :customer="printCustomer"
+        :items="printItems"
+        :totals="printTotals"
+        :observations="document.descrip || document.notes || ''"
+        :document="document"
+      />
       <DocumentPrintLayout
+        v-else
         :type="mode"
         :letter="document.document_types?.letter_type ?? 'X'"
         :number="document.number || '—'"

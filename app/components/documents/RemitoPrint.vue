@@ -11,10 +11,28 @@ const props = defineProps<{
   document?: any
 }>()
 
+const isPurchase = computed(() => props.type === 'purchase')
+
 const formattedNumber = computed(() => {
   const pv = String(props.point_of_sale ?? '0001').padStart(4, '0')
   const nro = String(props.number).padStart(8, '0')
   return `${pv}-${nro}`
+})
+
+// Para purchase: proveedor arriba, empresa abajo
+// Para sale: empresa arriba, cliente abajo
+const headerLeft = computed(() => {
+  if (isPurchase.value) {
+    return { label: 'Proveedor', name: props.customer.name, tax_id: props.customer.tax_id, address: props.customer.address }
+  }
+  return { label: 'Empresa', name: props.company.name, tax_id: props.company.tax_id, address: props.company.address }
+})
+
+const headerRight = computed(() => {
+  if (isPurchase.value) {
+    return { label: 'Empresa', name: props.company.name, tax_id: props.company.tax_id, address: props.company.address, phone: props.company.phone }
+  }
+  return { label: 'Cliente', name: props.customer.name, tax_id: props.customer.tax_id, address: props.customer.address }
 })
 </script>
 
@@ -25,10 +43,10 @@ const formattedNumber = computed(() => {
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
       <tr>
         <td style="width: 45%; vertical-align: top; padding-right: 16px;">
-          <div style="font-size: 16px; font-weight: 700;">{{ company.name }}</div>
+          <div style="font-size: 16px; font-weight: 700;">{{ headerLeft.name }}</div>
           <div style="font-size: 11px; color: #555; margin-top: 4px;">
-            <div>CUIT: {{ company.tax_id ?? '—' }}</div>
-            <div v-if="company.address">{{ company.address }}</div>
+            <div>CUIT: {{ headerLeft.tax_id ?? '—' }}</div>
+            <div v-if="headerLeft.address">{{ headerLeft.address }}</div>
           </div>
         </td>
         <td style="width: 10%; text-align: center; vertical-align: top;">
@@ -47,7 +65,7 @@ const formattedNumber = computed(() => {
       </tr>
     </table>
 
-    <!-- BLOQUE 2: DESTINO -->
+    <!-- BLOQUE 2: DATOS DE ENTREGA -->
     <table style="width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 16px;">
       <tr style="background: #f5f5f5;">
         <td colspan="4" style="padding: 6px 10px; font-weight: 600; font-size: 11px; border-bottom: 1px solid #ddd;">
@@ -55,10 +73,10 @@ const formattedNumber = computed(() => {
         </td>
       </tr>
       <tr>
-        <td style="padding: 6px 10px; width: 15%; font-size: 11px; color: #555;">Cliente</td>
-        <td style="padding: 6px 10px; width: 35%; font-size: 11px; font-weight: 600;">{{ customer.name || '—' }}</td>
+        <td style="padding: 6px 10px; width: 15%; font-size: 11px; color: #555;">{{ isPurchase ? 'Proveedor' : 'Cliente' }}</td>
+        <td style="padding: 6px 10px; width: 35%; font-size: 11px; font-weight: 600;">{{ headerRight.name || '—' }}</td>
         <td style="padding: 6px 10px; width: 15%; font-size: 11px; color: #555;">CUIT/DNI</td>
-        <td style="padding: 6px 10px; width: 35%; font-size: 11px;">{{ customer.tax_id || '—' }}</td>
+        <td style="padding: 6px 10px; width: 35%; font-size: 11px;">{{ headerRight.tax_id || '—' }}</td>
       </tr>
       <tr v-if="document?.orden_venta_doc?.delivery_address">
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Dirección</td>

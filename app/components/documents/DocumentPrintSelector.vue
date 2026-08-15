@@ -2,6 +2,7 @@
 import PresupuestoPrint from './PresupuestoPrint.vue'
 import OrdenVentaPrint from './OrdenVentaPrint.vue'
 import RemitoPrint from './RemitoPrint.vue'
+import ValePrint from './ValePrint.vue'
 import DocumentPrintLayout from './DocumentPrintLayout.vue'
 
 interface Company {
@@ -119,6 +120,20 @@ const observations = computed(() => {
     :company="company"
     :customer="customer"
     :items="printItems"
+    :point-of-sale="pointOfSale"
+    :document="document"
+  />
+
+  <ValePrint
+    v-else-if="category === 'VALE'"
+    :type="docMode"
+    :number="String(document.number)"
+    :date="formatDate(document.date)"
+    :company="company"
+    :customer="customer"
+    :items="printItems"
+    :totals="printTotals"
+    :observations="observations"
     :point-of-sale="pointOfSale"
     :document="document"
   />

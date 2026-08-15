@@ -12,6 +12,8 @@ const props = defineProps<{
   document?: any
 }>()
 
+const isPurchase = computed(() => props.type === 'purchase')
+
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
 }
@@ -22,7 +24,22 @@ const formattedNumber = computed(() => {
   return `${pv}-${nro}`
 })
 
-const ov = computed(() => props.document?.orden_venta_doc)
+const ov = computed(() => props.document?.orden_venta_doc || props.document?.orden_compra_doc)
+
+// Header: para purchase, proveedor arriba (izq) y empresa abajo (der)
+const headerLeft = computed(() => {
+  if (isPurchase.value) {
+    return { label: 'Proveedor', name: props.customer.name, tax_id: props.customer.tax_id, address: props.customer.address, phone: props.customer.phone, iva_condition: props.customer.iva_condition }
+  }
+  return { label: 'Empresa', name: props.company.name, tax_id: props.company.tax_id, address: props.company.address, phone: props.company.phone, iva_condition: props.company.iva_condition }
+})
+
+const headerRight = computed(() => {
+  if (isPurchase.value) {
+    return { label: 'Empresa', name: props.company.name, tax_id: props.company.tax_id, address: props.company.address, phone: props.company.phone, iva_condition: props.company.iva_condition }
+  }
+  return { label: 'Cliente', name: props.customer.name, tax_id: props.customer.tax_id, address: props.customer.address, phone: props.customer.phone, iva_condition: props.customer.iva_condition }
+})
 </script>
 
 <template>
@@ -32,21 +49,20 @@ const ov = computed(() => props.document?.orden_venta_doc)
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
       <tr>
         <td style="width: 45%; vertical-align: top; padding-right: 16px;">
-          <div style="font-size: 16px; font-weight: 700;">{{ company.name }}</div>
+          <div style="font-size: 16px; font-weight: 700;">{{ headerLeft.name }}</div>
           <div style="font-size: 11px; color: #555; margin-top: 4px;">
-            <div>CUIT: {{ company.tax_id ?? '—' }}</div>
-            <div>Condición: {{ company.iva_condition ?? '—' }}</div>
-            <div v-if="company.address">{{ company.address }}</div>
-            <div v-if="company.phone">Tel: {{ company.phone }}</div>
+            <div>CUIT: {{ headerLeft.tax_id ?? '—' }}</div>
+            <div v-if="headerLeft.address">{{ headerLeft.address }}</div>
+            <div v-if="headerLeft.phone">Tel: {{ headerLeft.phone }}</div>
           </div>
         </td>
         <td style="width: 10%; text-align: center; vertical-align: top;">
           <div style="border: 2px solid #111; border-radius: 6px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; margin: 0 auto;">
-            OV
+            {{ isPurchase ? 'OC' : 'OV' }}
           </div>
         </td>
         <td style="width: 45%; vertical-align: top; text-align: right;">
-          <div style="font-size: 18px; font-weight: 700; color: #111;">ORDEN DE VENTA</div>
+          <div style="font-size: 18px; font-weight: 700; color: #111;">{{ isPurchase ? 'ORDEN DE COMPRA' : 'ORDEN DE VENTA' }}</div>
           <div style="font-size: 11px; margin-top: 6px;">
             <div>Punto de Venta: <strong>{{ point_of_sale ?? '0001' }}</strong></div>
             <div>Comp. Número: <strong>{{ formattedNumber }}</strong></div>
@@ -56,18 +72,18 @@ const ov = computed(() => props.document?.orden_venta_doc)
       </tr>
     </table>
 
-    <!-- BLOQUE 2: CLIENTE + ENTREGA -->
+    <!-- BLOQUE 2: DATOS + ENTREGA -->
     <table style="width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 16px;">
       <tr style="background: #f5f5f5;">
         <td colspan="4" style="padding: 6px 10px; font-weight: 600; font-size: 11px; border-bottom: 1px solid #ddd;">
-          CLIENTE Y ENTREGA
+          {{ isPurchase ? 'PROVEEDOR Y ENTREGA' : 'CLIENTE Y ENTREGA' }}
         </td>
       </tr>
       <tr>
-        <td style="padding: 6px 10px; width: 15%; font-size: 11px; color: #555;">Cliente</td>
-        <td style="padding: 6px 10px; width: 35%; font-size: 11px; font-weight: 600;">{{ customer.name || '—' }}</td>
+        <td style="padding: 6px 10px; width: 15%; font-size: 11px; color: #555;">{{ isPurchase ? 'Proveedor' : 'Cliente' }}</td>
+        <td style="padding: 6px 10px; width: 35%; font-size: 11px; font-weight: 600;">{{ headerRight.name || '—' }}</td>
         <td style="padding: 6px 10px; width: 15%; font-size: 11px; color: #555;">CUIT/DNI</td>
-        <td style="padding: 6px 10px; width: 35%; font-size: 11px;">{{ customer.tax_id || '—' }}</td>
+        <td style="padding: 6px 10px; width: 35%; font-size: 11px;">{{ headerRight.tax_id || '—' }}</td>
       </tr>
       <tr v-if="ov?.delivery_address">
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Dirección entrega</td>

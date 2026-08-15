@@ -1,5 +1,5 @@
 export function usePrint() {
-  const printElement = (elementId: string, options?: { title?: string }) => {
+  const printElement = (elementId: string, options?: { title?: string; copies?: number }) => {
     const element = document.getElementById(elementId)
     if (!element) {
       console.error('Element not found:', elementId)
@@ -13,6 +13,27 @@ export function usePrint() {
     }
 
     const title = options?.title || 'Documento'
+    const copies = options?.copies ?? 1
+
+    // Generate copy labels based on count
+    const copyLabels: Record<number, string[]> = {
+      1: [''],
+      2: ['DUPLICADO', 'ORIGINAL'],
+      3: ['TRIPLICADO', 'DUPLICADO', 'ORIGINAL'],
+    }
+    const labels = copyLabels[copies] || copyLabels[1]
+
+    // Build copies HTML
+    let copiesHTML = ''
+    for (let i = 0; i < labels.length; i++) {
+      const label = labels[i]
+      copiesHTML += `
+        <div class="print-page">
+          ${label ? `<div class="copy-label">${label}</div>` : ''}
+          ${element.innerHTML}
+        </div>
+      `
+    }
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -289,6 +310,28 @@ export function usePrint() {
           .screen-only { display: none !important; }
           .print-only { display: block !important; }
 
+          /* ===== COPY LABEL ===== */
+          .copy-label {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #6b7280;
+            padding: 8px 0;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #e5e7eb;
+          }
+
+          /* ===== PRINT PAGE BREAKS ===== */
+          .print-page {
+            page-break-after: always;
+            padding-bottom: 20px;
+          }
+          .print-page:last-child {
+            page-break-after: auto;
+          }
+
           /* ===== PRINT OVERRIDES ===== */
           @media print {
             body { background: white; margin: 0; padding: 0; }
@@ -300,7 +343,7 @@ export function usePrint() {
         </style>
       </head>
       <body>
-        ${element.innerHTML}
+        ${copiesHTML}
       </body>
       </html>
     `)

@@ -22,6 +22,8 @@ type DocumentActionsConfig = {
   module?: 'sales' | 'purchases'
   /** Override default transitions from getValidTransitions */
   customTransitions?: Array<{ label: string; status: number; color: string }>
+  /** Print function from usePrint() composable */
+  printElement?: (elementId: string, options?: { title?: string; copies?: number }) => void
 }
 
 export function useDocumentActions(config: DocumentActionsConfig) {
@@ -63,6 +65,14 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     return hasDraft ? 'partial' : 'invoiced'
   })
 
+  // Number of print copies: facturas/OV=2 (DUPLICADO+ORIGINAL), remitos=3 (TRIPLICADO+DUPLICADO+ORIGINAL)
+  const copyCount = computed(() => {
+    const cat = category.value
+    if (['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'ORDER'].includes(cat)) return 2
+    if (cat === 'REMITO') return 3
+    return 1
+  })
+
   const id = computed(() => typeof routeId === 'string' ? routeId : routeId.value)
 
   // ─── Primary Actions ────────────────────────────────────
@@ -88,7 +98,14 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       label: 'Imprimir',
       icon: 'i-lucide-printer',
       help: 'Abre una nueva ventana con la vista de impresión del documento.',
-      onClick: () => { document.dispatchEvent(new CustomEvent('print-document')) }
+      onClick: () => {
+        if (config.printElement) {
+          config.printElement('printable-document', {
+            title: doc.value?.document_types?.description ?? 'Documento',
+            copies: copyCount.value,
+          })
+        }
+      }
     })
 
     if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.confirm'))) {

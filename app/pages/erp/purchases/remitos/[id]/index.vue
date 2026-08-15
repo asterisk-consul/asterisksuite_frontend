@@ -8,23 +8,28 @@ import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
 import DocumentPrintSelector from '~/components/documents/DocumentPrintSelector.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocumentActions'
+import { usePrint } from '~/composables/usePrint'
 
 const store = useDocumentsSalesStore()
 const companiesStore = useCompaniesStore()
+const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const { printElement } = usePrint()
 
 const loading = ref(true)
 const doc = computed(() => store.current)
-const company = computed(() => companiesStore.items[0])
+const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
 
 onMounted(async () => {
   try {
+    const companyId = auth.selectedCompany?.id
     await Promise.all([
       store.fetchOne(route.params.id as string),
-      companiesStore.fetchAll(),
+      companyId && companiesStore.fetchOne(companyId),
     ])
   } finally {
     loading.value = false
@@ -45,6 +50,7 @@ const {
   router,
   routeId: computed(() => route.params.id as string),
   module: 'purchases',
+  printElement,
   store: {
     confirm: (id) => store.confirm(id),
     cancel: (id) => store.cancel(id),
