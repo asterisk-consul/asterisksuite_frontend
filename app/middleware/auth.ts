@@ -10,6 +10,11 @@ export default defineNuxtRouteMiddleware(async () => {
     return navigateTo('/login')
   }
 
+  // User has no companies — redirect to create first company
+  if (auth.companies.length === 0) {
+    return navigateTo('/create-company')
+  }
+
   if (!auth.selectedCompany) {
     const url = useRequestURL()
     auth.autoSelectByHostname(url.hostname)

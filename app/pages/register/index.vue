@@ -31,7 +31,9 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       color: 'success'
     })
 
-    if (auth.needsCompanySelection) {
+    if (auth.companies.length === 0) {
+      await navigateTo('/create-company')
+    } else if (auth.needsCompanySelection) {
       await navigateTo('/select-company')
     } else {
       await navigateTo('/')

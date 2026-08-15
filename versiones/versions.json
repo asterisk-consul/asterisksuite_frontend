@@ -1291,5 +1291,54 @@
       }
     ],
     "contributors": ["agustin"]
+  },
+  {
+    "version": "0.22.0-alpha",
+    "date": "2026-08-15",
+    "stage": "alpha",
+    "notes": "Creación de empresas con validación de subdomain, seeds unificados en seed-sql.ts, límite de 3 empresas por usuario.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "companies",
+        "title": "Página /create-company con formulario, validación de subdomain en tiempo real y loading overlay"
+      },
+      {
+        "type": "feat",
+        "scope": "companies",
+        "title": "Endpoint check-subdomain con validación de disponibilidad"
+      },
+      {
+        "type": "feat",
+        "scope": "companies",
+        "title": "Redirect automático a /create-company cuando el usuario tiene 0 empresas"
+      },
+      {
+        "type": "feat",
+        "scope": "companies",
+        "title": "Límite de 3 empresas por usuario (OWNER)"
+      },
+      {
+        "type": "feat",
+        "scope": "companies",
+        "title": "Opción 'Crear nueva empresa' en el menú de usuario"
+      },
+      {
+        "type": "refactor",
+        "scope": "seeds",
+        "title": "Módulo central seed-sql.ts con RBAC + document types + taxes + sequences"
+      },
+      {
+        "type": "refactor",
+        "scope": "seeds",
+        "title": "rbac.seed.ts y seed-all.ts importan de seed-sql.ts (fuente única de verdad)"
+      },
+      {
+        "type": "refactor",
+        "scope": "seeds",
+        "title": "companies.service.ts usa seed-sql.ts, eliminados ~200 líneas de datos hardcoded"
+      }
+    ],
+    "contributors": ["agustin"]
   }
 ]

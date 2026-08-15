@@ -57,6 +57,12 @@ const items = computed<DropdownMenuItem[][]>(() => [
       icon: 'i-lucide-settings',
       to: '/settings'
     }
+    // ,
+    // {
+    //   label: 'Crear nueva empresa',
+    //   icon: 'i-lucide-building',
+    //   to: '/create-company'
+    // }
   ],
   [
     {
@@ -87,10 +93,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
         {
           label: 'Neutro',
           slot: 'chip',
-          chip:
-            appConfig.ui.colors.neutral === 'neutral'
-              ? 'old-neutral'
-              : appConfig.ui.colors.neutral,
+          chip: appConfig.ui.colors.neutral === 'neutral' ? 'old-neutral' : appConfig.ui.colors.neutral,
           content: {
             align: 'end',
             collisionPadding: 16
