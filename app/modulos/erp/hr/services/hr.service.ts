@@ -56,4 +56,42 @@ export const HrService = {
   async getHrAccountEntries(id: string): Promise<{ account: HrAccount; entries: HrAccountEntry[] }> {
     return $fetch(`/api/erp/hr/accounts/${id}/entries`)
   },
+
+  // ══════════════════════════════════════════════════════════
+  // REPORTE DE COMISIONES
+  // ══════════════════════════════════════════════════════════
+
+  async getCommissionsReport(month: string, sellerId?: string): Promise<{
+    month: string
+    sellers: {
+      seller_id: string
+      seller_name: string
+      party_id: string | null
+      total_ventas: number
+      total_comisiones: number
+      cantidad_ov: number
+      items: {
+        document_id: string
+        ov_number: number
+        subtotal: number
+        commission_rate: number
+        commission_amount: number
+        date: string
+      }[]
+    }[]
+    total_ventas: number
+    total_comisiones: number
+    cantidad_ov: number
+  }> {
+    return $fetch('/api/erp/hr/commissions', {
+      query: { month, seller_id: sellerId },
+    })
+  },
+
+  async generateCommissionVale(sellerId: string, month: string): Promise<any> {
+    return $fetch('/api/erp/hr/commissions/vale', {
+      method: 'POST' as any,
+      body: { seller_id: sellerId, month },
+    })
+  },
 }

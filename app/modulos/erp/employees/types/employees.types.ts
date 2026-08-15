@@ -18,6 +18,7 @@ export interface Employee {
   hire_date?: string | null
   salary?: string | null
   currency_code: string
+  default_commission_rate?: number | null
   is_active: boolean
   created_at?: string
   updated_at?: string | null
@@ -53,6 +54,7 @@ export interface CreateEmployeeInput {
   hire_date?: string
   salary?: string
   currency_code?: string
+  default_commission_rate?: number
   is_active?: boolean
   // ─── Business party fields ──
   business_name?: string

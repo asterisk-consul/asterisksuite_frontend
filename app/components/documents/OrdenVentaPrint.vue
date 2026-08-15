@@ -89,6 +89,17 @@ const ov = computed(() => props.document?.orden_venta_doc)
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Prioridad</td>
         <td colspan="3" style="padding: 6px 10px; font-size: 11px;">{{ ov.priority }}</td>
       </tr>
+      <tr v-if="ov?.seller">
+        <td style="padding: 6px 10px; font-size: 11px; color: #555;">Vendedor</td>
+        <td style="padding: 6px 10px; font-size: 11px; font-weight: 600;">{{ ov.seller.first_name }} {{ ov.seller.last_name }}</td>
+        <td style="padding: 6px 10px; font-size: 11px; color: #555;">Comisión</td>
+        <td style="padding: 6px 10px; font-size: 11px;">
+          {{ ov.commission_rate }}%
+          <template v-if="ov.commission_rate && document?.subtotal">
+            — {{ fmt(Number(document.subtotal) * Number(ov.commission_rate) / 100) }}
+          </template>
+        </td>
+      </tr>
     </table>
 
     <!-- BLOQUE 3: ITEMS -->

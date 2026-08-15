@@ -129,17 +129,17 @@ const savePermissions = async () => {
         <UButton label="Volver" icon="i-lucide-arrow-left" variant="ghost" @click="router.push('/settings/roles')" />
         <UButton label="Guardar" icon="i-lucide-check" :loading="saving" @click="savePermissions" />
       </template>
+      <template #footer>
+        <div class="pt-3 mt-2">
+          <UInput
+            v-model="permSearch"
+            icon="i-lucide-search"
+            placeholder="Buscar permisos... (ej: pagos, vehiculos, documentos)"
+            size="sm"
+          />
+        </div>
+      </template>
     </AppPageHeader>
-
-    <!-- Buscador -->
-    <div class="sticky top-9 z-10 bg-default -mx-4 sm:-mx-6 px-4 sm:px-6 py-2">
-      <UInput
-        v-model="permSearch"
-        icon="i-lucide-search"
-        placeholder="Buscar permisos... (ej: pagos, vehiculos, documentos)"
-        size="sm"
-      />
-    </div>
 
     <!-- Lista de permisos -->
     <div class="space-y-2 px-4">

@@ -6,6 +6,7 @@ import {
   HR_VALE_STATUS_LABELS,
   HR_VALE_STATUS_COLORS
 } from '~/modulos/erp/hr/types/hr.types'
+import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -19,43 +20,10 @@ const filterStatus = ref<string | undefined>(undefined)
 
 const showCreateModal = ref(false)
 const showCancelModal = ref(false)
+const showCommissionModal = ref(false)
+const selectedVale = ref<any>(null)
 const cancellingVale = ref<any>(null)
 const cancelConfirmText = ref('')
-
-const createForm = ref({
-  party_id: '',
-  party_type: 'EMPLOYEE',
-  type: 'SUELDO',
-  amount: 0,
-  currency_code: 'ARS',
-  date: today(),
-  description: ''
-})
-
-const people = ref<any[]>([])
-
-async function loadPeople() {
-  try {
-    const [employees, partners] = await Promise.all([
-      $fetch<any[]>('/api/erp/employees'),
-      $fetch<any[]>('/api/erp/partners')
-    ])
-    people.value = [
-      ...employees.map((e: any) => ({
-        id: e.party_id ?? e.id,
-        name: `${e.first_name} ${e.last_name}`,
-        type: 'EMPLOYEE'
-      })),
-      ...partners.map((p: any) => ({
-        id: p.party_id ?? p.id,
-        name: `${p.first_name} ${p.last_name}`,
-        type: 'PARTNER'
-      }))
-    ]
-  } catch (e) {
-    console.error(e)
-  }
-}
 
 async function loadVales() {
   await hrStore.fetchVales({
@@ -64,48 +32,9 @@ async function loadVales() {
   })
 }
 
-onMounted(async () => {
-  await Promise.all([loadVales(), loadPeople()])
-})
+onMounted(() => loadVales())
 
 watch([filterType, filterStatus], () => loadVales())
-
-// =========================
-// FILTROS POR TIPO DE PERSONA
-// =========================
-
-const partyTypeOptions = [
-  { label: 'Empleado', value: 'EMPLOYEE' },
-  { label: 'Socio', value: 'PARTNER' }
-]
-
-const filteredPeople = computed(() =>
-  people.value
-    .filter(p => p.type === createForm.value.party_type)
-    .map(p => ({ label: p.name, value: p.id }))
-)
-
-// =========================
-// TIPOS DE VALE POR PERSONA
-// =========================
-
-const valeTypeOptions: Record<string, { label: string; value: string; icon: string; description: string }[]> = {
-  EMPLOYEE: [
-    { label: 'Sueldo', value: 'SUELDO', icon: 'i-lucide-banknote', description: 'Pago de sueldo regular' },
-    { label: 'Adelanto', value: 'ADELANTO', icon: 'i-lucide-hand-coins', description: 'Adelanto de sueldo' },
-    { label: 'Extras', value: 'EXTRAS', icon: 'i-lucide-gift', description: 'Bonuses, horas extras, comisiones' }
-  ],
-  PARTNER: [
-    { label: 'Retiro', value: 'RETIRO', icon: 'i-lucide-arrow-up-right', description: 'El socio retira dinero' },
-    { label: 'Aporte', value: 'APORTE', icon: 'i-lucide-arrow-down-left', description: 'Aporte de capital del socio' },
-    { label: 'Reembolso', value: 'REEMBOLSO', icon: 'i-lucide-receipt', description: 'Reembolso de gastos' },
-    { label: 'Préstamo', value: 'PRESTAMO', icon: 'i-lucide-hand-coins', description: 'Préstamo de la empresa' }
-  ]
-}
-
-const availableTypeOptions = computed(() =>
-  valeTypeOptions[createForm.value.party_type] || []
-)
 
 // =========================
 // FILTROS TABLA
@@ -128,11 +57,6 @@ const statusOptions = [
   { label: 'Anulado', value: 'CANCELLED' }
 ]
 
-const currencyOptions = [
-  { label: 'Peso Argentino (ARS)', value: 'ARS' },
-  { label: 'Dólar (USD)', value: 'USD' }
-]
-
 // =========================
 // HELPERS
 // =========================
@@ -148,30 +72,6 @@ function fmtDate(d: string) {
 // =========================
 // ACCIONES
 // =========================
-
-async function handleCreate() {
-  try {
-    await hrStore.createVale(createForm.value)
-    showCreateModal.value = false
-    resetForm()
-    await loadVales()
-    toast.add({ title: 'Vale creado', color: 'success' })
-  } catch (e) {
-    toast.add({ title: 'Error al crear vale', color: 'error' })
-  }
-}
-
-function resetForm() {
-  createForm.value = {
-    party_id: '',
-    party_type: 'EMPLOYEE',
-    type: 'SUELDO',
-    amount: 0,
-    currency_code: 'ARS',
-    date: today(),
-    description: ''
-  }
-}
 
 async function handleConfirm(id: string) {
   try {
@@ -270,6 +170,14 @@ const columns = [
         <template #actions-cell="{ row }">
           <div class="flex gap-1">
             <UButton
+              v-if="row.original.type === 'EXTRAS' && row.original.commission_details?.length"
+              icon="i-lucide-list"
+              variant="ghost"
+              color="info"
+              size="sm"
+              @click="selectedVale = row.original; showCommissionModal = true"
+            />
+            <UButton
               v-if="row.original.status === 'DRAFT'"
               icon="i-lucide-check"
               variant="ghost"
@@ -293,106 +201,10 @@ const columns = [
     <!-- ========================= -->
     <!-- MODAL CREAR VALE          -->
     <!-- ========================= -->
-    <UModal v-model:open="showCreateModal" :ui="{ content: 'max-w-4xl' }">
-      <template #content>
-        <div class="max-h-[80vh] overflow-y-auto p-6 space-y-5">
-          <div>
-            <h2 class="text-lg font-semibold">Nuevo vale</h2>
-            <p class="text-sm text-muted mt-1">Crear comprobante de pago para empleado o socio.</p>
-          </div>
-
-          <!-- Tipo de persona -->
-          <UFormField label="Tipo de persona" required>
-            <div class="flex gap-2">
-              <button
-                v-for="pt in partyTypeOptions"
-                :key="pt.value"
-                class="flex-1 px-4 py-3 rounded-lg border-2 text-center transition-colors"
-                :class="createForm.party_type === pt.value
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
-                  : 'border-default hover:border-accented'"
-                @click="createForm.party_type = pt.value; createForm.party_id = ''; createForm.type = availableTypeOptions[0]?.value ?? 'SUELDO'"
-              >
-                <UIcon
-                  :name="pt.value === 'EMPLOYEE' ? 'i-lucide-user' : 'i-lucide-users'"
-                  class="size-5 mx-auto mb-1"
-                  :class="createForm.party_type === pt.value ? 'text-primary-600' : 'text-muted'"
-                />
-                <p class="text-sm font-medium" :class="createForm.party_type === pt.value ? 'text-primary-700' : 'text-gray-700'">
-                  {{ pt.label }}
-                </p>
-              </button>
-            </div>
-          </UFormField>
-
-          <!-- Persona filtrada -->
-          <UFormField label="Persona" required>
-            <USelect
-              v-model="createForm.party_id"
-              :items="filteredPeople"
-              :placeholder="filteredPeople.length ? 'Seleccionar persona...' : 'No hay personas de este tipo'"
-              :disabled="!filteredPeople.length"
-            />
-          </UFormField>
-
-          <!-- Tipo de vale (cards) -->
-          <UFormField label="Tipo de vale" required>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <button
-                v-for="opt in availableTypeOptions"
-                :key="opt.value"
-                class="flex flex-col items-center p-3 rounded-lg border-2 text-center transition-colors"
-                :class="createForm.type === opt.value
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
-                  : 'border-default hover:border-accented'"
-                @click="createForm.type = opt.value"
-              >
-                <UIcon
-                  :name="opt.icon"
-                  class="size-5 mb-1"
-                  :class="createForm.type === opt.value ? 'text-primary-600' : 'text-muted'"
-                />
-                <p class="text-sm font-medium" :class="createForm.type === opt.value ? 'text-primary-700' : 'text-gray-700'">
-                  {{ opt.label }}
-                </p>
-                <p class="text-xs text-muted mt-0.5">{{ opt.description }}</p>
-              </button>
-            </div>
-          </UFormField>
-
-          <!-- Monto + Moneda -->
-          <div class="grid grid-cols-2 gap-4">
-            <UFormField label="Monto" required>
-              <UInput v-model.number="createForm.amount" type="number" placeholder="0.00" :min="0" />
-            </UFormField>
-            <UFormField label="Moneda" required>
-              <USelect v-model="createForm.currency_code" :items="currencyOptions" />
-            </UFormField>
-          </div>
-
-          <!-- Fecha -->
-          <UFormField label="Fecha" required>
-            <UInput v-model="createForm.date" type="date" />
-          </UFormField>
-
-          <!-- Descripción -->
-          <UFormField label="Descripción">
-            <UTextarea v-model="createForm.description" placeholder="Motivo del vale (sueldo, adelanto, etc.)" :rows="2" />
-          </UFormField>
-
-          <!-- Footer -->
-          <div class="flex justify-end gap-2 pt-3 border-t border-default">
-            <UButton label="Cancelar" variant="ghost" color="neutral" @click="showCreateModal = false; resetForm()" />
-            <UButton
-              label="Crear vale"
-              icon="i-lucide-plus"
-              :disabled="!createForm.party_id || createForm.amount <= 0"
-              @click="handleCreate"
-            />
-          </div>
-        </div>
-      </template>
-    </UModal>
+    <CreateValeModal
+      v-model:open="showCreateModal"
+      @success="loadVales"
+    />
 
     <!-- ========================= -->
     <!-- MODAL ANULAR VALE         -->
@@ -429,6 +241,67 @@ const columns = [
               :disabled="cancelConfirmText !== 'anular'"
               @click="confirmCancel"
             />
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- ========================= -->
+    <!-- MODAL DETALLE COMISIONES  -->
+    <!-- ========================= -->
+    <UModal v-model:open="showCommissionModal" :ui="{ content: 'max-w-3xl' }">
+      <template #content>
+        <div class="p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-semibold">Detalle de comisiones</h2>
+              <p class="text-sm text-muted mt-1">
+                Vale #{{ selectedVale?.number }} — {{ selectedVale?.party?.name }}
+              </p>
+            </div>
+            <UBadge
+              :label="`${selectedVale?.commission_details?.length ?? 0} OV`"
+              color="primary"
+              variant="subtle"
+            />
+          </div>
+
+          <div v-if="selectedVale?.commission_details?.length" class="border border-default rounded-lg overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-muted/30">
+                  <th class="text-left px-4 py-2 font-medium">OV #</th>
+                  <th class="text-left px-4 py-2 font-medium">Fecha</th>
+                  <th class="text-right px-4 py-2 font-medium">Subtotal</th>
+                  <th class="text-right px-4 py-2 font-medium">Comisión %</th>
+                  <th class="text-right px-4 py-2 font-medium">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="detail in selectedVale.commission_details" :key="detail.id" class="border-t border-default">
+                  <td class="px-4 py-2 font-mono">OV-{{ String(detail.document?.number ?? 0).padStart(8, '0') }}</td>
+                  <td class="px-4 py-2">{{ fmtDate(detail.date) }}</td>
+                  <td class="px-4 py-2 text-right">{{ fmt(Number(detail.subtotal)) }}</td>
+                  <td class="px-4 py-2 text-right">{{ detail.commission_rate }}%</td>
+                  <td class="px-4 py-2 text-right font-semibold">{{ fmt(Number(detail.commission_amount)) }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="bg-muted/20 font-semibold">
+                  <td colspan="3" class="px-4 py-2">Total</td>
+                  <td class="px-4 py-2 text-right"></td>
+                  <td class="px-4 py-2 text-right text-primary">{{ fmt(Number(selectedVale?.amount ?? 0)) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div v-else class="text-center py-8 text-muted">
+            Este vale no tiene detalles de comisiones.
+          </div>
+
+          <div class="flex justify-end pt-3 border-t border-default">
+            <UButton label="Cerrar" variant="ghost" color="neutral" @click="showCommissionModal = false; selectedVale = null" />
           </div>
         </div>
       </template>

@@ -122,7 +122,7 @@ export function getStatusDescription(category: string | null | undefined, status
 export function getValidTransitions(category: string | null | undefined, currentStatus: number): number[] {
   const transitions: Record<string, Record<number, number[]>> = {
     QUOTE: { 0: [1, 6], 1: [2, 3, 6], 2: [5] },
-    ORDER: { 0: [1, 8], 1: [2, 8], 2: [3, 8], 3: [4, 5], 4: [5, 6], 5: [6, 7], 6: [7] },
+    ORDER: { 0: [1, 8], 1: [2, 8], 2: [3, 8], 3: [4, 5], 4: [5], 5: [7] },
     REMITO: { 0: [1, 3], 1: [2, 3] },
     INVOICE: { 0: [1, 3], 1: [2, 3] },
   }

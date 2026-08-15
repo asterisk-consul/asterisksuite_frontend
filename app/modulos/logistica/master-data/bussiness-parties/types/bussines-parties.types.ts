@@ -166,6 +166,7 @@ export interface BusinessPartyForm {
   hire_date?: string
   salary?: string
   currency_code?: string
+  default_commission_rate?: number
 
   // ─── Partner fields (optional, shown when type=PARTNER) ──
   share_percentage?: string

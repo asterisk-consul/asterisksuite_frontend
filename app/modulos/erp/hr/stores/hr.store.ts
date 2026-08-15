@@ -3,6 +3,29 @@ import { ref } from 'vue'
 import { HrService } from '../services/hr.service'
 import type { HrVale, HrAccount, HrAccountEntry } from '../types/hr.types'
 
+export interface CommissionReport {
+  month: string
+  sellers: {
+    seller_id: string
+    seller_name: string
+    party_id: string | null
+    total_ventas: number
+    total_comisiones: number
+    cantidad_ov: number
+    items: {
+      document_id: string
+      ov_number: number
+      subtotal: number
+      commission_rate: number
+      commission_amount: number
+      date: string
+    }[]
+  }[]
+  total_ventas: number
+  total_comisiones: number
+  cantidad_ov: number
+}
+
 export const useHrStore = defineStore('hr', () => {
   const vales = ref<HrVale[]>([])
   const accounts = ref<HrAccount[]>([])
@@ -119,6 +142,38 @@ export const useHrStore = defineStore('hr', () => {
     }
   }
 
+  // ══════════════════════════════════════════════════════════
+  // REPORTE DE COMISIONES
+  // ══════════════════════════════════════════════════════════
+
+  const fetchCommissionsReport = async (month: string, sellerId?: string) => {
+    loading.value = true
+    error.value = null
+    try {
+      const report = await HrService.getCommissionsReport(month, sellerId)
+      return report
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al cargar reporte de comisiones'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const generateCommissionVale = async (sellerId: string, month: string) => {
+    loading.value = true
+    error.value = null
+    try {
+      const vale = await HrService.generateCommissionVale(sellerId, month)
+      return vale
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al generar vale de comisiones'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     vales,
     accounts,
@@ -131,6 +186,8 @@ export const useHrStore = defineStore('hr', () => {
     confirmVale,
     cancelVale,
     fetchAccounts,
-    fetchAccountEntries
+    fetchAccountEntries,
+    fetchCommissionsReport,
+    generateCommissionVale,
   }
 })

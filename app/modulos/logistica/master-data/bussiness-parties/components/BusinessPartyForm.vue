@@ -9,6 +9,7 @@ import { mapBusinessPartyToForm } from '~/modulos/logistica/master-data/bussines
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
 import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
 import LocationModal from '~/modulos/logistica/master-data/locations/components/LocationModal.vue'
+import EmployeeLaborData from '~/modulos/erp/employees/components/EmployeeLaborData.vue'
 
 export interface ExtraTab {
   label: string
@@ -50,6 +51,7 @@ const form = reactive<BusinessPartyForm & { createUser?: boolean; user_name?: st
   hire_date: '',
   salary: '',
   currency_code: 'ARS',
+  default_commission_rate: 0,
   share_percentage: '',
   capital_contributed: '',
   createUser: false,
@@ -618,40 +620,7 @@ const displayTitle = computed(() => {
 
       <!-- INTERNAL TABS: Employee -->
       <template v-if="form.type === 'EMPLOYEE'" #employeeData>
-        <UCard>
-          <template #header>
-            <h3 class="font-semibold">Datos Laborales</h3>
-          </template>
-          <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <UFormField label="Cargo" name="position">
-                <UInput v-model="form.position" placeholder="Ej: Desarrollador" class="w-full" />
-              </UFormField>
-              <UFormField label="Departamento" name="department">
-                <UInput v-model="form.department" placeholder="Ej: IT" class="w-full" />
-              </UFormField>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <UFormField label="Fecha Ingreso" name="hire_date">
-                <UInput v-model="form.hire_date" type="date" class="w-full" />
-              </UFormField>
-              <UFormField label="Sueldo" name="salary">
-                <UInput v-model="form.salary" placeholder="0.00" type="number" class="w-full" />
-              </UFormField>
-            </div>
-            <UFormField label="Moneda" name="currency_code">
-              <USelectMenu
-                v-model="form.currency_code"
-                :items="[
-                  { label: 'Pesos (ARS)', value: 'ARS' },
-                  { label: 'Dólares (USD)', value: 'USD' }
-                ]"
-                value-key="value"
-                class="w-full"
-              />
-            </UFormField>
-          </div>
-        </UCard>
+        <EmployeeLaborData :form="form" />
       </template>
 
       <!-- INTERNAL TABS: Partner -->

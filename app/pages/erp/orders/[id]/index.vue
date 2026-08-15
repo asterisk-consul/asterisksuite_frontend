@@ -35,6 +35,14 @@ const doc = computed(() => store.current)
 const company = computed(() => companiesStore.items[0])
 const category = computed(() => doc.value?.document_types?.category)
 
+const invoiceState = computed(() => {
+  const children = doc.value?.child_documents ?? []
+  const invoices = children.filter((c: any) => c.document_types?.category === 'INVOICE' && c.status >= 1)
+  if (!invoices.length) return null
+  const hasDraft = invoices.some((c: any) => c.status < 2)
+  return hasDraft ? 'partial' : 'invoiced'
+})
+
 onMounted(async () => {
   try {
     await Promise.all([
@@ -65,7 +73,7 @@ const actions = computed(() => {
   if (validTransitions.value.length > 0) {
     items.push({ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', help: 'Permite cambiar manualmente el estado de la OV según el flujo permitido.', onClick: () => { statusModalOpen.value = true } })
   }
-  if (doc.value?.status === 2) {
+  if (doc.value?.status >= 1 && doc.value?.status < 7) {
     items.push({ label: 'Crear Remito', icon: 'i-lucide-truck', color: 'success', help: 'Crea un remito de entrega para los ítems de esta OV. Puede ser entrega parcial.', onClick: () => { deliverModalOpen.value = true } })
     const isPurchaseOrder = doc.value?.document_types?.direction === -1
     const canCreateInvoice = isOwnerOrAdmin.value || (isPurchaseOrder ? hasPermission('purchases.create') : hasPermission('sales.create'))
@@ -128,6 +136,8 @@ async function handleCreateRemito() {
       <UDashboardNavbar :title="doc ? `OV #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Orden de Venta'">
         <template #trailing>
           <div class="flex gap-2 items-center">
+            <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />
+            <UBadge v-else-if="invoiceState === 'partial'" label="Factura parcial" color="warning" variant="subtle" />
             <UButton v-for="action in actions" :key="action.label" v-bind="action" size="sm" />
             <DocumentHelpPopover :category="category || 'ORDER'" :actions="actions" />
           </div>

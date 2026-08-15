@@ -63,10 +63,23 @@ watch(() => props.modelValue, (val) => {
 watch(form, (val) => { emit('update:modelValue', { ...val }) }, { deep: true })
 
 const handleSubmit = () => {
-  const payload = { ...form }
-  // Convertir strings vacíos a undefined para campos UUID opcionales
-  if (!payload.document_sequence_id) payload.document_sequence_id = undefined
-  if (payload.tax_ids?.length === 0) payload.tax_ids = undefined
+  const payload: DocumentTypeFormData = {
+    code: form.code,
+    description: form.description,
+    direction: form.direction,
+    affects_stock: form.affects_stock,
+    affects_accounting: form.affects_accounting,
+    affects_tax_book: form.affects_tax_book,
+    affects_payment: form.affects_payment,
+    active: form.active,
+    category: form.category,
+    letter_type: form.letter_type,
+    afip_code: form.afip_code,
+    requires_cae: form.requires_cae,
+    is_electronic: form.is_electronic,
+    document_sequence_id: form.document_sequence_id || undefined,
+    tax_ids: form.tax_ids?.length ? form.tax_ids : undefined,
+  }
   emit('submit', payload)
 }
 

@@ -7,12 +7,28 @@ function fmtDate(d?: string) {
   return d ? d.slice(0, 10) : '-'
 }
 
+function fmtCurrency(n: number) {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: props.document?.currency_code ?? 'ARS' }).format(n ?? 0)
+}
+
 const priorityColors: Record<string, string> = {
   BAJA: 'neutral',
   MEDIA: 'info',
   ALTA: 'warning',
   URGENTE: 'error',
 }
+
+const sellerName = computed(() => {
+  const seller = props.document?.orden_venta_doc?.seller
+  if (!seller) return null
+  return `${seller.first_name} ${seller.last_name}`
+})
+
+const commissionAmount = computed(() => {
+  const ov = props.document?.orden_venta_doc
+  if (!ov?.commission_rate || !props.document?.subtotal) return null
+  return Number(props.document.subtotal) * Number(ov.commission_rate) / 100
+})
 </script>
 
 <template>
@@ -49,6 +65,19 @@ const priorityColors: Record<string, string> = {
         <div v-if="document.orden_venta_doc.transport_provider">
           <p class="text-muted">Transporte</p>
           <p class="font-medium">{{ document.orden_venta_doc.transport_provider }}</p>
+        </div>
+        <div v-if="sellerName">
+          <p class="text-muted">Vendedor</p>
+          <p class="font-medium">{{ sellerName }}</p>
+        </div>
+        <div v-if="document.orden_venta_doc.commission_rate">
+          <p class="text-muted">Comisión</p>
+          <p class="font-medium">
+            {{ document.orden_venta_doc.commission_rate }}%
+            <template v-if="commissionAmount !== null">
+              — {{ fmtCurrency(commissionAmount) }}
+            </template>
+          </p>
         </div>
       </div>
       <div v-if="document.orden_venta_doc.delivery_instructions" class="mt-4 text-sm">

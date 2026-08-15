@@ -15,13 +15,15 @@ const emit = defineEmits<{
   toggle: [doc: PendingDocument]
   updateAmount: [docId: string, amount: number]
   createInvoice: [moduleCode: 'SALES' | 'PURCHASES']
+  createVale: []
 }>()
 
 const search = ref('')
 
 const createInvoiceItems = [
   { label: 'Factura de Venta', icon: 'i-lucide-receipt', onSelect: () => emit('createInvoice', 'SALES') },
-  { label: 'Factura de Compra', icon: 'i-lucide-file-text', onSelect: () => emit('createInvoice', 'PURCHASES') }
+  { label: 'Factura de Compra', icon: 'i-lucide-file-text', onSelect: () => emit('createInvoice', 'PURCHASES') },
+  { label: 'Vale RRHH', icon: 'i-lucide-banknote', onSelect: () => emit('createVale') }
 ]
 
 const filteredDocs = computed(() => {

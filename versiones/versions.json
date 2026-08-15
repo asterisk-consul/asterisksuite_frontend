@@ -1154,5 +1154,142 @@
       }
     ],
     "contributors": ["agustin"]
+  },
+  {
+    "version": "0.19.0-alpha",
+    "date": "2026-08-13",
+    "stage": "alpha",
+    "notes": "Vendedor + comisiones en OV, reporte en RRHH, vale EXTRAS detallado, seed RBAC.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Selector de vendedor y % de comisión en Orden de Venta"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Vendedor por defecto = empleado del usuario logueado, editable"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Reporte de comisiones por vendedor/mes con detalle de OV"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Generación de vale EXTRAS por comisiones con detalle por OV"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Detalle de comisiones visible en vista de vales EXTRAS"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Vendedor y comisión visibles en vista e impresión de OV"
+      },
+      {
+        "type": "feat",
+        "scope": "seeds",
+        "title": "seed-all.ts ahora ejecuta RBAC (permisos + 4 roles) como paso 11"
+      }
+    ],
+    "contributors": ["agustin"]
+  },
+  {
+    "version": "0.20.0-alpha",
+    "date": "2026-08-13",
+    "stage": "alpha",
+    "notes": "Campo de comisión por defecto configurable en el empleado (RRHH), autocompletado al seleccionar vendedor en OV.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "employees",
+        "title": "Campo default_commission_rate en DTO y service"
+      },
+      {
+        "type": "feat",
+        "scope": "employees",
+        "title": "Campo Comisión por defecto (%) en forms create/edit"
+      },
+      {
+        "type": "feat",
+        "scope": "orden-venta",
+        "title": "Autofill comisión desde default del vendedor al seleccionarlo"
+      },
+      {
+        "type": "refactor",
+        "scope": "orden-venta",
+        "title": "employeeOptions incluye defaultCommissionRate"
+      }
+    ],
+    "contributors": ["agustin"]
+  },
+  {
+    "version": "0.21.0-alpha",
+    "date": "2026-08-14",
+    "stage": "alpha",
+    "notes": "Reporte de comisiones, vales habilitados en pagos con CreateValeModal reutilizable, correcciones en current_accounts y AppPageHeader.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "comisiones",
+        "title": "Reporte de comisiones por vendedor con generación de vales EXTRAS"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Vales RRHH como documentos pendientes de pago con toggle confirmar"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Marcar hr_vale como PAID al pagar documento VALE por tesorería"
+      },
+      {
+        "type": "feat",
+        "scope": "vales",
+        "title": "CreateValeModal reutilizable con toggle confirmar, usado en pagos y RRHH"
+      },
+      {
+        "type": "fix",
+        "scope": "header",
+        "title": "AppPageHeader: slot footer, gap fix, limpieza de console.logs"
+      },
+      {
+        "type": "fix",
+        "scope": "permissions",
+        "title": "Buscador de permisos integrado en slot footer, eliminar border duplicado"
+      },
+      {
+        "type": "fix",
+        "scope": "hr",
+        "title": "current_accounts: findUnique por party_id, type PAYMENT/COLLECTION"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "current_accounts findUnique corregido en checks y scheduler"
+      },
+      {
+        "type": "fix",
+        "scope": "document-types",
+        "title": "Strip non-DTO fields al actualizar tipo de documento"
+      },
+      {
+        "type": "fix",
+        "scope": "api-proxy",
+        "title": "Manejar errores de validación class-validator (statusMessage como string)"
+      },
+      {
+        "type": "fix",
+        "scope": "comisiones",
+        "title": "Filtro comisiones: aceptar facturas Borrador/Pendiente/Confirmada"
+      }
+    ],
+    "contributors": ["agustin"]
   }
 ]

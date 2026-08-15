@@ -43,10 +43,6 @@ const initialForm = computed(() => {
   return base
 })
 
-const extraTabs = [
-  { label: 'Participación', slot: 'partnerData' }
-]
-
 const handleSubmit = async (formData: FormType) => {
   try {
     saving.value = true
@@ -66,28 +62,7 @@ const handleSubmit = async (formData: FormType) => {
     <BusinessPartyForm
       :model-value="initialForm"
       :loading="saving"
-      :extra-tabs="extraTabs"
       @submit="handleSubmit"
-    >
-      <template #partnerData="{ form }">
-        <UCard>
-          <template #header>
-            <h3 class="font-semibold">Participación</h3>
-          </template>
-
-          <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <UFormField label="% Participación" name="share_percentage">
-                <UInput v-model="form.share_percentage" placeholder="0.00" type="number" class="w-full" />
-              </UFormField>
-
-              <UFormField label="Capital Aportado" name="capital_contributed">
-                <UInput v-model="form.capital_contributed" placeholder="0.00" type="number" class="w-full" />
-              </UFormField>
-            </div>
-          </div>
-        </UCard>
-      </template>
-    </BusinessPartyForm>
+    />
   </div>
 </template>

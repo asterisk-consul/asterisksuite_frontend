@@ -63,6 +63,14 @@ const validTransitions = computed(() => {
 const isDraft = computed(() => doc.value?.status === 0)
 const isConfirmed = computed(() => doc.value?.status === 2)
 
+const invoiceState = computed(() => {
+  const children = doc.value?.child_documents ?? []
+  const invoices = children.filter((c: any) => c.document_types?.category === 'INVOICE' && c.status >= 1)
+  if (!invoices.length) return null
+  const hasDraft = invoices.some((c: any) => c.status < 2)
+  return hasDraft ? 'partial' : 'invoiced'
+})
+
 const actions = computed(() => {
   const items: any[] = [
     { label: 'Imprimir', icon: 'i-lucide-printer', variant: 'outline', help: 'Abre una nueva ventana con la vista de impresión del documento. Podés imprimirlo o guardarlo como PDF.', onClick: () => printElement('printable-document') },
@@ -85,7 +93,9 @@ const actions = computed(() => {
   if (category.value === 'ORDER' && isConfirmed.value) {
     items.push({ label: 'Despachar → Remito', icon: 'i-lucide-truck', color: 'success', help: 'Crea un remito de entrega para los ítems de esta OV. Puede ser entrega parcial.', onClick: () => { deliverModalOpen.value = true } })
   }
-  if (isConfirmed.value && (category.value === 'ORDER' || category.value === 'REMITO') && (isOwnerOrAdmin.value || hasPermission('sales.create'))) {
+  const isOrderActive = category.value === 'ORDER' && doc.value?.status >= 1 && doc.value?.status < 7
+  const isRemitoConfirmed = category.value === 'REMITO' && isConfirmed.value
+  if ((isOrderActive || isRemitoConfirmed) && (isOwnerOrAdmin.value || hasPermission('sales.create'))) {
     items.push({ label: 'Crear Factura', icon: 'i-lucide-file-text', color: 'info', help: 'Crea una factura con los ítems pendientes de este documento.', onClick: () => router.push(`/erp/sales/new?category=INVOICE&parent_order_id=${route.params.id}`) })
   }
   if (isConfirmed.value && category.value === 'INVOICE' && (isOwnerOrAdmin.value || hasPermission('sales.create'))) {
@@ -173,6 +183,8 @@ async function handleDeliver() {
     <AppPageHeader :title="doc ? `${doc.document_types?.description} #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Documento'">
       <template #links>
         <div class="flex gap-2 items-center">
+          <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />
+          <UBadge v-else-if="invoiceState === 'partial'" label="Factura parcial" color="warning" variant="subtle" />
           <UButton v-for="action in actions" :key="action.label" v-bind="action" size="sm" />
           <DocumentHelpPopover :category="category || 'INVOICE'" :actions="actions" />
         </div>

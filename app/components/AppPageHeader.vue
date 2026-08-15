@@ -31,18 +31,11 @@ function findScrollContainer(el: HTMLElement | null): HTMLElement | null {
 }
 
 onMounted(() => {
-  console.log('[AppPageHeader] mounted', { title: props.title, collapseDisabled: props.collapseDisabled })
-
   if (props.collapseDisabled) return
 
-  const stickyPos = rootRef.value ? getComputedStyle(rootRef.value).position : 'unknown'
-  console.log('[AppPageHeader] sticky position:', stickyPos)
-
   const scrollContainer = findScrollContainer(rootRef.value)
-  console.log('[AppPageHeader] scrollContainer:', scrollContainer?.tagName, scrollContainer?.className?.slice(0, 80))
 
   if (!scrollContainer) {
-    console.warn('[AppPageHeader] NO scroll container found — sticky will not work')
     return
   }
 
@@ -63,7 +56,6 @@ onMounted(() => {
     }
 
     if (compact !== lastCompact || gapPx.value !== lastGap) {
-      console.log('[AppPageHeader] scrollTop:', scrollTop, '→ compact:', compact, '| gap:', gapPx.value, 'px')
       lastCompact = compact
       lastGap = gapPx.value
     }
@@ -74,7 +66,6 @@ onMounted(() => {
 
   onUnmounted(() => {
     scrollContainer.removeEventListener('scroll', handleScroll)
-    console.log('[AppPageHeader] unmounted')
   })
 })
 
@@ -135,6 +126,7 @@ const contentStyle = computed(() =>
           <slot name="links" />
         </template>
       </UPageHeader>
+      <slot name="footer" />
     </div>
   </div>
 </template>

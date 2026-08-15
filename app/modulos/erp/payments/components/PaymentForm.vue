@@ -12,6 +12,7 @@ import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckModal from '~/modulos/erp/checks/components/CheckModal.vue'
 import PendingDocumentsList from '~/modulos/erp/payments/components/PendingDocumentsList.vue'
 import CreateInvoiceModal from '~/modulos/erp/payments/components/CreateInvoiceModal.vue'
+import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
 import { calculateRetentions, calculateTotalRetentions, calculateNetAmount } from '~/modulos/erp/payments/utils/retentionLogic'
 
 export interface PaymentFormData {
@@ -137,6 +138,20 @@ const openInvoiceModal = (moduleCode: 'SALES' | 'PURCHASES') => {
 }
 
 const handleInvoiceCreated = async () => {
+  await Promise.all([
+    fetchPendingSalesDocuments(),
+    fetchPendingPurchaseDocuments()
+  ])
+}
+
+// Create vale modal
+const valeModalOpen = ref(false)
+
+const openValeModal = () => {
+  valeModalOpen.value = true
+}
+
+const handleValeCreated = async () => {
   await Promise.all([
     fetchPendingSalesDocuments(),
     fetchPendingPurchaseDocuments()
@@ -802,6 +817,7 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       @toggle="toggleDoc"
       @update-amount="updateDocAmount"
       @create-invoice="openInvoiceModal"
+      @create-vale="openValeModal"
     />
 
     <div class="grid grid-cols-2 gap-4">
@@ -831,6 +847,11 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       v-model:open="invoiceModalOpen"
       :module-code="invoiceModuleCode"
       @success="handleInvoiceCreated"
+    />
+
+    <CreateValeModal
+      v-model:open="valeModalOpen"
+      @success="handleValeCreated"
     />
 
     <!-- SESSION OPEN MODAL -->

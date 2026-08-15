@@ -17,6 +17,16 @@ export interface HrVale {
   confirmed_at: string | null
   created_at: string
   party?: { id: string; name: string; tax_id: string | null }
+  commission_details?: {
+    id: string
+    document_id: string
+    seller_id: string | null
+    subtotal: number
+    commission_rate: number
+    commission_amount: number
+    date: string
+    document?: { id: string; number: number; date: string }
+  }[]
 }
 
 export interface HrAccount {

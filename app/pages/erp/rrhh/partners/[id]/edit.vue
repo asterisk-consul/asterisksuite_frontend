@@ -17,10 +17,6 @@ const saving = ref(false)
 const loading = ref(true)
 const formData = ref<FormType | null>(null)
 
-const extraTabs = [
-  { label: 'Participación', slot: 'partnerData' }
-]
-
 onMounted(async () => {
   try {
     const data = await store.fetchOne(id)
@@ -52,29 +48,8 @@ const handleSubmit = async (form: FormType) => {
       v-else-if="formData"
       :model-value="formData"
       :loading="saving"
-      :extra-tabs="extraTabs"
       header-title="Editar Socio"
       @submit="handleSubmit"
-    >
-      <template #partnerData="{ form }">
-        <UCard>
-          <template #header>
-            <h3 class="font-semibold">Participación</h3>
-          </template>
-
-          <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <UFormField label="% Participación" name="share_percentage">
-                <UInput v-model="form.share_percentage" placeholder="0.00" type="number" class="w-full" />
-              </UFormField>
-
-              <UFormField label="Capital Aportado" name="capital_contributed">
-                <UInput v-model="form.capital_contributed" placeholder="0.00" type="number" class="w-full" />
-              </UFormField>
-            </div>
-          </div>
-        </UCard>
-      </template>
-    </BusinessPartyForm>
+    />
   </div>
 </template>
