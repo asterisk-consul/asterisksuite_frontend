@@ -6,28 +6,19 @@ import DocumentChain from '~/modulos/erp/documents/shared/DocumentChain.vue'
 import DocumentItemsTable from '~/modulos/erp/documents/shared/DocumentItemsTable.vue'
 import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
 import DocumentPrintSelector from '~/components/documents/DocumentPrintSelector.vue'
-import { usePrint } from '~/composables/usePrint'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
-import { useRoles } from '~/modulos/access-control/composables/useRoles'
-import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocumentActions'
 
 const store = useDocumentsSalesStore()
 const companiesStore = useCompaniesStore()
-const toast = useToast()
 const route = useRoute()
 const router = useRouter()
-const { printElement } = usePrint()
-const { hasPermission } = useRoles()
-const { isOwnerOrAdmin } = useCompanyRole()
 
 const loading = ref(true)
-const processing = ref(false)
-const confirmModalOpen = ref(false)
-const cancelModalOpen = ref(false)
-
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.items[0])
+const category = computed(() => doc.value?.document_types?.category)
 
 onMounted(async () => {
   try {
@@ -40,55 +31,38 @@ onMounted(async () => {
   }
 })
 
-const isDraft = computed(() => doc.value?.status === 0)
-
-const actions = computed(() => {
-  const items: any[] = [
-    { label: 'Imprimir', icon: 'i-lucide-printer', variant: 'outline', onClick: () => printElement('printable-document') },
-  ]
-  if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.update'))) {
-    items.push({ label: 'Editar', icon: 'i-lucide-pencil', onClick: () => router.push(`/erp/purchases/remitos/${route.params.id}/edit`) })
-  }
-  if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.confirm'))) {
-    items.push({ label: 'Confirmar', icon: 'i-lucide-check-circle', color: 'success', onClick: () => { confirmModalOpen.value = true } })
-  }
-  if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.cancel'))) {
-    items.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onClick: () => { cancelModalOpen.value = true } })
-  }
-  return items
+const {
+  primaryActions,
+  secondaryActions,
+  confirmModalOpen,
+  cancelModalOpen,
+  processing,
+  handleConfirm,
+  handleCancel,
+} = useDocumentActions({
+  doc,
+  category,
+  router,
+  routeId: computed(() => route.params.id as string),
+  module: 'purchases',
+  store: {
+    confirm: (id) => store.confirm(id),
+    cancel: (id) => store.cancel(id),
+    changeStatus: (id, status) => store.changeStatus(id, status),
+    fetchOne: (id) => store.fetchOne(id),
+  },
 })
-
-async function handleConfirm() {
-  try {
-    processing.value = true
-    await store.confirm(route.params.id as string)
-    await store.fetchOne(route.params.id as string)
-    toast.add({ title: 'Remito confirmado', color: 'success' })
-    confirmModalOpen.value = false
-  } catch (e: any) {
-    toast.add({ title: 'Error', description: e?.data?.message, color: 'error' })
-  } finally { processing.value = false }
-}
-
-async function handleCancel() {
-  try {
-    processing.value = true
-    await store.cancel(route.params.id as string)
-    await store.fetchOne(route.params.id as string)
-    toast.add({ title: 'Remito anulado', color: 'success' })
-    cancelModalOpen.value = false
-  } catch (e: any) {
-    toast.add({ title: 'Error', description: e?.data?.message, color: 'error' })
-  } finally { processing.value = false }
-}
 </script>
 
 <template>
   <UPage class="space-y-4">
     <AppPageHeader :title="doc ? `Remito de Compra #${String(doc.number).padStart(8, '0')}` : 'Remito de Compra'">
       <template #links>
-        <div class="flex gap-2 items-center">
-          <UButton v-for="action in actions" :key="action.label" v-bind="action" size="sm" />
+        <div class="flex gap-2 items-center flex-wrap">
+          <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
+          <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
+            <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
+          </UDropdownMenu>
         </div>
       </template>
     </AppPageHeader>
