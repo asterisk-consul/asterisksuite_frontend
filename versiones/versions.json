@@ -1340,5 +1340,89 @@
       }
     ],
     "contributors": ["agustin"]
+  },
+  {
+    "version": "0.23.0-alpha",
+    "date": "2026-08-15",
+    "stage": "alpha",
+    "notes": "Impresión fiscal (duplicado+original, triplicado), datos empresa correctos, LogisticaTable en documentos, cuentas corrientes por tipo de tercero, useDocumentActions composable.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "print",
+        "title": "Impresión con duplicado+original (facturas/OV) y triplicado (remitos) en un solo popup"
+      },
+      {
+        "type": "feat",
+        "scope": "print",
+        "title": "Componente ValePrint para impresión de recibo de sueldo / vale"
+      },
+      {
+        "type": "fix",
+        "scope": "print",
+        "title": "Datos de empresa en impresión: fetchOne por ID en vez de fetchAll()[0]"
+      },
+      {
+        "type": "fix",
+        "scope": "print",
+        "title": "Botón Imprimir: pasar printElement a useDocumentActions en sales/[id]"
+      },
+      {
+        "type": "fix",
+        "scope": "print",
+        "title": "OrdenVentaPrint dinámico según compra/venta (badge OC/OV, título, layout)"
+      },
+      {
+        "type": "fix",
+        "scope": "print",
+        "title": "RemitoPrint dinámico según compra/venta (proveedor arriba en remitos de compra)"
+      },
+      {
+        "type": "fix",
+        "scope": "factura-view",
+        "title": "Título dinámico desde document_types.description en vez de 'Factura' hardcoded"
+      },
+      {
+        "type": "refactor",
+        "scope": "documents",
+        "title": "useDocumentActions composable: acciones, permisos, modals, transitions centralizados"
+      },
+      {
+        "type": "refactor",
+        "scope": "documents",
+        "title": "7 páginas de detalle usan useDocumentActions (sales, purchases, remitos, orders, budgets)"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Botones Cobrar/Pagar como acción primaria en facturas sin pago asociado"
+      },
+      {
+        "type": "refactor",
+        "scope": "tables",
+        "title": "LogisticaTable con column builder DSL en ventas, compras, presupuestos, OV, OC, remitos"
+      },
+      {
+        "type": "fix",
+        "scope": "tables",
+        "title": "Badge resolve en columns.ts: fix row.original.status undefined"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Layout por Clientes/Proveedores en 2 columnas con prioridad de saldo"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Máximo 10 cuentas visibles por sección con botón Ver más"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Badge dinámico con prioridad: principal (md) vs secundario (sm) por tipo de tercero"
+      }
+    ],
+    "contributors": ["agustin"]
   }
 ]

@@ -116,3 +116,26 @@ export function balanceIconBg(balance: number, partyType?: string): string {
 export function balanceIconColor(balance: number, partyType?: string): string {
   return isReceivable(balance, partyType) ? 'text-success' : 'text-error'
 }
+
+// ═══════════════════════════════════════════
+// INFO DE SALDO (para cards)
+// ═══════════════════════════════════════════
+
+type BalancePriority = 'primary' | 'secondary' | 'none'
+
+export function getBalanceInfo(balance: number, partyType?: string): {
+  label: string
+  color: string
+  priority: BalancePriority
+} {
+  if (balance === 0) return { label: 'Saldo cero', color: 'neutral', priority: 'none' }
+
+  if (partyType === 'CUSTOMER') {
+    if (balance > 0) return { label: 'A cobrar', color: 'success', priority: 'primary' }
+    return { label: 'A pagar', color: 'error', priority: 'secondary' }
+  }
+
+  // SUPPLIER / EMPLOYEE / PARTNER
+  if (balance > 0) return { label: 'A pagar', color: 'error', priority: 'primary' }
+  return { label: 'A cobrar', color: 'success', priority: 'secondary' }
+}
