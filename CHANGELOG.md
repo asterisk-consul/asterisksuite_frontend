@@ -5,6 +5,27 @@
 <details open>
 <summary>
 
+### v0.25.0-alpha
+
+> Cuentas corrientes: proveedores, empleados y socios muestran 'Saldo a favor' en vez de 'A cobrar' cuando el saldo es favorable a la empresa.
+
+</summary>
+
+---
+
+##### 🩹 Fixes
+
+- **current-accounts**: Label 'Saldo a favor' para proveedores/empleados/socios con saldo favorable (antes decía 'A cobrar')
+
+##### ❤️ Contributors
+
+- agustin
+
+</details>
+
+<details open>
+<summary>
+
 ### v0.24.0-alpha
 
 > Control de facturación al completar viaje: modal de confirmación con opción generar factura o solo completar. Recreación de vistas legacy en schema tenant.

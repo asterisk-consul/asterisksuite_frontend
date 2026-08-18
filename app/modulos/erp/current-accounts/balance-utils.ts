@@ -5,9 +5,9 @@ import { resolveSide } from './utils'
  *
  * Regla contable:
  * - CUSTOMER: positivo = a cobrar (me deben), negativo = a pagar (les debo)
- * - SUPPLIER: positivo = a pagar (les debo), negativo = a cobrar (me deben)
- * - EMPLOYEE: positivo = a pagar (les debo), negativo = a cobrar (me deben)
- * - PARTNER:  positivo = a pagar (les debo), negativo = a cobrar (me deben)
+ * - SUPPLIER: positivo = a pagar (les debo), negativo = saldo a favor (les deben)
+ * - EMPLOYEE: positivo = a pagar (les debo), negativo = saldo a favor (les deben)
+ * - PARTNER:  positivo = a pagar (les debo), negativo = saldo a favor (les deben)
  */
 
 // ═══════════════════════════════════════════
@@ -53,7 +53,9 @@ export function balanceAmountClass(balance: number, partyType?: string): string 
 /** Label descriptivo del saldo */
 export function balanceLabel(balance: number, partyType?: string): string {
   if (balance === 0) return 'Saldo 0'
-  return isReceivable(balance, partyType) ? 'A cobrar' : 'A pagar'
+  return isReceivable(balance, partyType)
+    ? (partyType === 'CUSTOMER' ? 'A cobrar' : 'Saldo a favor')
+    : 'A pagar'
 }
 
 // ═══════════════════════════════════════════
@@ -137,5 +139,5 @@ export function getBalanceInfo(balance: number, partyType?: string): {
 
   // SUPPLIER / EMPLOYEE / PARTNER
   if (balance > 0) return { label: 'A pagar', color: 'error', priority: 'primary' }
-  return { label: 'A cobrar', color: 'success', priority: 'secondary' }
+  return { label: 'Saldo a favor', color: 'success', priority: 'secondary' }
 }

@@ -1342,6 +1342,26 @@
     "contributors": ["agustin"]
   },
   {
+    "version": "0.25.0-alpha",
+    "date": "2026-08-18",
+    "stage": "alpha",
+    "notes": "Cuentas corrientes: proveedores, empleados y socios muestran 'Saldo a favor' en vez de 'A cobrar' cuando el saldo es favorable a la empresa.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Label 'Saldo a favor' para proveedores/empleados/socios con saldo favorable (antes decía 'A cobrar')"
+      }
+    ],
+    "modules": [
+      {
+        "name": "tesoreria",
+        "version": "0.7.0-alpha"
+      }
+    ],
+    "contributors": ["agustin"]
+  },
+  {
     "version": "0.24.0-alpha",
     "date": "2026-08-18",
     "stage": "alpha",
