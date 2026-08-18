@@ -1342,6 +1342,41 @@
     "contributors": ["agustin"]
   },
   {
+    "version": "0.24.0-alpha",
+    "date": "2026-08-18",
+    "stage": "alpha",
+    "notes": "Control de facturación al completar viaje: modal de confirmación con opción generar factura o solo completar. Recreación de vistas legacy en schema tenant.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "trips",
+        "title": "Modal de confirmación al completar viaje: preguntar si generar factura de venta o solo marcar completado"
+      },
+      {
+        "type": "feat",
+        "scope": "trips",
+        "title": "Backend: flag generate en updateStatus para controlar generación automática de factura"
+      },
+      {
+        "type": "feat",
+        "scope": "trips",
+        "title": "Endpoint generate-from-trip con proxy en frontend"
+      },
+      {
+        "type": "fix",
+        "scope": "views",
+        "title": "Recreación de vistas legacy (vw_trips_drivers, tarifa, vista_liquidacion_choferes, vw_reporte_despachos) en schema tenant"
+      }
+    ],
+    "modules": [
+      {
+        "name": "transporte",
+        "version": "2.3.0-alpha"
+      }
+    ],
+    "contributors": ["agustin"]
+  },
+  {
     "version": "0.23.0-alpha",
     "date": "2026-08-15",
     "stage": "alpha",

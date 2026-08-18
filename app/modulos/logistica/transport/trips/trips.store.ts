@@ -76,7 +76,7 @@ export const useTripsStore = defineStore('trips', () => {
       loading.value = false
     }
   }
-  const updateStatus = async (id: string, status: Trip['status']) => {
+  const updateStatus = async (id: string, status: Trip['status'], generate = false) => {
     error.value = null
 
     const trip = items.value.find((t) => t.id === id)
@@ -85,7 +85,7 @@ export const useTripsStore = defineStore('trips', () => {
     const prev = trip.status
     trip.status = status // optimistic update
     try {
-      await service.updateStatus(id, status)
+      await service.updateStatus(id, status, generate)
     } catch (err: any) {
       trip.status = prev // rollback
       error.value = err?.data?.message || err.message

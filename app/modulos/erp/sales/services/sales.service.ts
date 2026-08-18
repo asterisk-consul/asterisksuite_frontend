@@ -104,5 +104,11 @@ export const DocumentsSalesService = {
       method: 'POST' as any,
       body: payload
     })
+  },
+
+  async generateFromTrip(tripId: string): Promise<{ created: number; skipped: number }> {
+    return $fetch(`/api/erp/documents/sales/generate-from-trip/${tripId}`, {
+      method: 'POST' as any,
+    })
   }
 }

@@ -6,6 +6,7 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import TripPlanner from '~/modulos/logistica/transport/trips/planners/TripPlanner.vue'
 //stores
 import { useTripsStore } from '~/modulos/logistica/transport/trips/trips.store'
+import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 
 //types
 import type { Trip } from '~/modulos/logistica/transport/trips/types/trips.types'
@@ -32,9 +33,37 @@ const { items } = storeToRefs(store)
 const sorting = ref<SortingState>([])
 
 const tableRef = ref<any>(null)
-/* ---------------------------------------
-   MODAL CONTROL
---------------------------------------- */
+
+// ─── Modal confirmación completar viaje ──────────────────────────────────────
+const showCompleteModal = ref(false)
+const pendingTrip = ref<Trip | null>(null)
+const pendingValue = ref<Trip['status'] | null>(null)
+const generatingInvoice = ref(false)
+const generateResult = ref<{ created: number; skipped: number } | null>(null)
+
+async function handleCompleteTrip(generate: boolean) {
+  if (!pendingTrip.value || !pendingValue.value) return
+
+  const row = pendingTrip.value
+  const prev = row.status
+  row.status = pendingValue.value
+  generatingInvoice.value = true
+
+  try {
+    await store.updateStatus(row.id, pendingValue.value, generate)
+    if (generate) {
+      const result = await DocumentsSalesService.generateFromTrip(row.id)
+      generateResult.value = result
+    }
+  } catch {
+    row.status = prev
+  } finally {
+    generatingInvoice.value = false
+    showCompleteModal.value = false
+    pendingTrip.value = null
+    pendingValue.value = null
+  }
+}
 
 function openCreate() {
   router.push('/logistica/viajes/create')
@@ -77,6 +106,13 @@ const columns = tripsColumns({
     }
   },
   onToggleStatus: async (row, value) => {
+    if (value === 'COMPLETED') {
+      pendingTrip.value = row
+      pendingValue.value = value
+      generateResult.value = null
+      showCompleteModal.value = true
+      return
+    }
     const prev = row.status
     row.status = value
     try {
@@ -211,4 +247,42 @@ const sortFields: SortField[] = [
 
     <TripPlanner :tripId="'12'" v-else />
   </UPage>
+
+  <!-- Modal confirmación completar viaje -->
+  <UModal v-model:open="showCompleteModal" :ui="{ content: 'max-w-md' }">
+    <template #content>
+      <div class="p-6 space-y-4">
+        <div>
+          <h2 class="text-lg font-semibold">Completar viaje</h2>
+          <p class="text-sm text-muted mt-1">
+            El viaje pasará a estado <strong>Completado</strong>.
+          </p>
+        </div>
+
+        <UAlert
+          v-if="generateResult"
+          color="success"
+          variant="subtle"
+          icon="i-lucide-check-circle"
+          :title="`Generados: ${generateResult.created} — Existentes: ${generateResult.skipped}`"
+        />
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-default">
+          <UButton
+            label="Solo completar"
+            variant="ghost"
+            color="neutral"
+            :disabled="generatingInvoice"
+            @click="handleCompleteTrip(false)"
+          />
+          <UButton
+            label="Sí, generar factura"
+            icon="i-lucide-file-plus"
+            :loading="generatingInvoice"
+            @click="handleCompleteTrip(true)"
+          />
+        </div>
+      </div>
+    </template>
+  </UModal>
 </template>

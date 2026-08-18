@@ -1,5 +1,34 @@
 # Changelog
 
+## 18 de agosto, 2026
+
+<details open>
+<summary>
+
+### v0.24.0-alpha
+
+> Control de facturación al completar viaje: modal de confirmación con opción generar factura o solo completar. Recreación de vistas legacy en schema tenant.
+
+</summary>
+
+---
+
+##### 🚀 Features
+
+- **trips**: Modal de confirmación al completar viaje — preguntar si generar factura de venta o solo marcar completado
+- **trips**: Backend: flag `generate` en `updateStatus` para controlar generación automática de factura
+- **trips**: Endpoint `generate-from-trip` con proxy en frontend
+
+##### 🩹 Fixes
+
+- **views**: Recreación de vistas legacy (`vw_trips_drivers`, `tarifa`, `vista_liquidacion_choferes`, `vw_reporte_despachos`) en schema `tenant`
+
+##### ❤️ Contributors
+
+- agustin
+
+</details>
+
 ## 04 de agosto, 2026
 
 <details open>
