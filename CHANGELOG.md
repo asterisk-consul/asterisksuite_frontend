@@ -1,5 +1,33 @@
 # Changelog
 
+## 19 de agosto, 2026
+
+<details open>
+<summary>
+
+### v0.25.1-alpha
+
+> Fix: eliminadas relaciones Prisma a users en tablas tenant; edición de documentos en estado Pendiente.
+
+</summary>
+
+---
+
+##### 🩹 Fixes
+
+- **logistica**: Eliminar relaciones Prisma `@relation` a `users` de modelos tenant (cargo_transfers, delivery_notes, dispatch_orders, trips, pallets, warehouse_stock_movements, vehicle_combinations, trip_temperature_logs, picking_orders)
+- **backend**: Corregir referencias inversas de `users` en `public.prisma` para compatibilidad multi-tenant
+
+##### 🚀 Features
+
+- **documents**: Botón Editar ahora disponible para documentos en estado Pendiente (antes solo Borrador)
+
+##### ❤️ Contributors
+
+- agustin
+
+</details>
+
 ## 18 de agosto, 2026
 
 <details open>

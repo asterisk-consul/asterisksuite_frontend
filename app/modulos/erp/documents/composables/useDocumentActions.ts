@@ -79,11 +79,11 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const primaryActions = computed(() => {
     const items: any[] = []
 
-    if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.update'))) {
+    if ((isDraft.value || isPending.value) && (isOwnerOrAdmin.value || hasPermission('documents.update'))) {
       items.push({
         label: 'Editar',
         icon: 'i-lucide-pencil',
-        help: 'Permite modificar los datos del documento. Solo disponible mientras esté en borrador.',
+        help: 'Permite modificar los datos del documento. Solo disponible en borrador o pendiente.',
         onClick: () => {
           if (module === 'purchases') {
             router.push(`/erp/purchases/purchases-documents/${id.value}/edit`)
