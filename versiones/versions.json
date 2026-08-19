@@ -1484,7 +1484,7 @@
     "version": "0.25.1-alpha",
     "date": "2026-08-19",
     "stage": "alpha",
-    "notes": "Fix: eliminadas relaciones Prisma a users en tablas tenant; edición de documentos en estado Pendiente",
+    "notes": "Fix: eliminadas relaciones Prisma a users en tablas tenant; edición de documentos en estado Pendiente; precios de servicio; actualización de precios desde factura de compra",
     "changes": [
       {
         "type": "fix",
@@ -1500,6 +1500,21 @@
         "type": "feat",
         "scope": "documents",
         "title": "Botón Editar ahora disponible para documentos en estado Pendiente (antes solo Borrador)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Productos tipo Servicio ahora permiten configurar precios de venta (antes solo Productos Terminados)"
+      },
+      {
+        "type": "feat",
+        "scope": "compras",
+        "title": "Al confirmar factura de compra, opción de actualizar precios de productos (Terminado/Servicio/Materia Prima)"
+      },
+      {
+        "type": "fix",
+        "scope": "compras",
+        "title": "Corregir parámetro updateProductPrices que no se propagaba desde el modal de confirmación"
       }
     ],
     "modules": [

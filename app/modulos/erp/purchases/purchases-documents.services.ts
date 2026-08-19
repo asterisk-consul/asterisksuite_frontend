@@ -24,9 +24,10 @@ export const DocumentsPurchasesService = {
       body: dto
     })
   },
-  async confirm(id: string): Promise<PurchasesDocument> {
+  async confirm(id: string, options?: { updateProductPrices?: boolean }): Promise<PurchasesDocument> {
     return $fetch(`/api/erp/documents/purchases/${id}/confirm`, {
-      method: 'PATCH' as any
+      method: 'PATCH' as any,
+      query: options
     })
   },
 

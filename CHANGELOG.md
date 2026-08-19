@@ -7,7 +7,7 @@
 
 ### v0.25.1-alpha
 
-> Fix: eliminadas relaciones Prisma a users en tablas tenant; edición de documentos en estado Pendiente.
+> Fix: relaciones Prisma multi-tenant, edición de documentos pendientes, precios de servicio, actualización de precios desde factura de compra.
 
 </summary>
 
@@ -17,10 +17,13 @@
 
 - **logistica**: Eliminar relaciones Prisma `@relation` a `users` de modelos tenant (cargo_transfers, delivery_notes, dispatch_orders, trips, pallets, warehouse_stock_movements, vehicle_combinations, trip_temperature_logs, picking_orders)
 - **backend**: Corregir referencias inversas de `users` en `public.prisma` para compatibilidad multi-tenant
+- **productos**: Productos tipo Servicio ahora permiten configurar precios de venta (antes solo Productos Terminados)
+- **compras**: Corregir parámetro `updateProductPrices` que no se propagaba desde el modal de confirmación
 
 ##### 🚀 Features
 
 - **documents**: Botón Editar ahora disponible para documentos en estado Pendiente (antes solo Borrador)
+- **compras**: Al confirmar factura de compra, opción de actualizar precios de productos (Terminado/Servicio/Materia Prima)
 
 ##### ❤️ Contributors
 

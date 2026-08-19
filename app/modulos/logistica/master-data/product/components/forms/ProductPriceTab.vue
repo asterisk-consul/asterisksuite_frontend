@@ -32,7 +32,7 @@ const toast = useToast()
 
 const product = computed(() => props.product)
 
-const isFinishedProduct = computed(() => product.value?.product_type === 'FINISHED_PRODUCT')
+const isFinishedProduct = computed(() => ['FINISHED_PRODUCT', 'SERVICE'].includes(product.value?.product_type))
 const hasVariants = computed(() => (product.value?.product_variants?.length ?? 0) > 0)
 const hasCalculatedCost = computed(() => !!product.value?.current_cost)
 const hasCostTemplate = computed(() => !!product.value?.cost_template_id)
@@ -432,7 +432,7 @@ onMounted(async () => {
           <p class="text-sm font-medium text-gray-900">Sin precios ni costos</p>
           <p class="text-sm text-gray-500 mt-1">
             <template v-if="hasVariants">Agregá el costo de cada variante del producto.</template>
-            <template v-else-if="isFinishedProduct">Agregá el precio de venta del producto.</template>
+            <template v-else-if="isFinishedProduct">Agregá el precio de venta del producto o servicio.</template>
             <template v-else>Este producto no tiene precios configurados.</template>
           </p>
         </div>

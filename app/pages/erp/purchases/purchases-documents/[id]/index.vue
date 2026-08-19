@@ -60,6 +60,7 @@ const {
   handleConfirm,
   handleCancel,
   handleStatus,
+  updateProductPrices,
 } = useDocumentActions({
   doc: factura as any,
   category,
@@ -69,7 +70,7 @@ const {
   printElement,
   customTransitions: customTransitions.value,
   store: {
-    confirm: (id) => documentsPurchasesStore.confirm(id),
+    confirm: (id, options) => documentsPurchasesStore.confirm(id, options),
     cancel: (id) => documentsPurchasesStore.cancel(id),
     changeStatus: (id, status) => documentsPurchasesStore.update(id, { status }),
     fetchOne: (id) => documentsPurchasesStore.fetchOne(id),
@@ -126,6 +127,12 @@ const {
     <template #body>
       <p>¿Estás seguro de que deseas confirmar la factura <strong>#{{ factura?.number }}</strong>?</p>
       <p class="text-sm text-muted mt-2">Una vez confirmada, no podrá ser editada.</p>
+      <div class="mt-4">
+        <UCheckbox v-model="updateProductPrices" label="Actualizar precios de productos con los de la factura" />
+        <p class="text-xs text-muted mt-1">
+          Si un producto no tiene precio o tiene uno distinto, se actualizará automáticamente.
+        </p>
+      </div>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
         <UButton label="Confirmar" color="success" :loading="processing" @click="handleConfirm" />

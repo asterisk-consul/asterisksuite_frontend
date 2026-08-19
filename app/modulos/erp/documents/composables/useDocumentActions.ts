@@ -10,7 +10,7 @@ type DocumentActionsConfig = {
   category: ComputedRef<string | undefined>
   router: ReturnType<typeof useRouter>
   store: {
-    confirm: (id: string) => Promise<any>
+    confirm: (id: string, options?: { updateProductPrices?: boolean }) => Promise<any>
     cancel: (id: string) => Promise<any>
     changeStatus: (id: string, status: number) => Promise<any>
     fetchOne: (id: string) => Promise<any>
@@ -41,6 +41,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const statusModalOpen = ref(false)
   const acceptModalOpen = ref(false)
   const deliverModalOpen = ref(false)
+  const updateProductPrices = ref(false)
 
   // ─── Derived ────────────────────────────────────────────
   const isDraft = computed(() => doc.value?.status === 0)
@@ -213,10 +214,12 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   async function handleConfirm() {
     try {
       processing.value = true
-      await store.confirm(id.value)
+      const options = updateProductPrices.value ? { updateProductPrices: true } : undefined
+      await store.confirm(id.value, options)
       await store.fetchOne(id.value)
       toast.add({ title: 'Documento confirmado', color: 'success' })
       confirmModalOpen.value = false
+      updateProductPrices.value = false
     } catch (e: any) {
       toast.add({ title: 'Error', description: e?.data?.message, color: 'error' })
     } finally { processing.value = false }
@@ -280,6 +283,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     statusModalOpen,
     acceptModalOpen,
     deliverModalOpen,
+    updateProductPrices,
 
     // Derived
     isDraft,
