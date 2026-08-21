@@ -24,9 +24,18 @@ const modeOptions: { label: string; value: ParetoMode }[] = [
 watch(
   mode,
   async (val) => {
+    if (!props.currencyId) return
     await loadPareto(val)
   },
   { immediate: true }
+)
+
+watch(
+  () => props.currencyId,
+  async (val) => {
+    if (!val) return
+    await loadPareto(mode.value)
+  }
 )
 
 const isAssemblies = computed(() => mode.value === 'assemblies')

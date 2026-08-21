@@ -22,6 +22,8 @@ export interface EngineeringTreeNode {
   width_mm: number | null
   height_mm: number | null
   calculated_weight_kg: number | null
+  surface_m2: number | null
+  volume_m3: number | null
   waste_percentage: number | null
   active: boolean
   child_product: {
@@ -38,7 +40,9 @@ export interface EngineeringTreeNode {
     name: string | null
     sku: string | null
     thickness_mm: string | null
+    density_kg_m3: string | null
     weight_kg: string | null
+    weight_per_meter_kg: string | null
   } | null
   units: {
     id: string
@@ -49,8 +53,10 @@ export interface EngineeringTreeNode {
 }
 
 export interface EngineeringCalculationResult {
+  total_weight_kg: number
+  total_cost: number
+  tree: any[] // EngineeringCalculatedComponent[] del backend
   materials: EngineeringMaterial[]
-  total_items: number
 }
 
 export interface CreateEngineeringComponentDto {

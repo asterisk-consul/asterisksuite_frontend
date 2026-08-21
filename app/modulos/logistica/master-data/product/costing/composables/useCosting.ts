@@ -42,10 +42,10 @@ export const useCosting = (productId: string, currencyId: string) => {
   // CALCULATE
   // =========================
 
-  const calculate = async (saveSnapshot = true) => {
+  const calculate = async (saveSnapshot = true, overrideCurrencyId?: string) => {
     const dto: CalculateProductCostDto = {
       product_id: productId,
-      currency_id: currencyId,
+      currency_id: overrideCurrencyId ?? currencyId,
       save_snapshot: saveSnapshot
     }
 

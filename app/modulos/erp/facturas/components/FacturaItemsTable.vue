@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { h, resolveComponent, ref } from 'vue'
+import { h, resolveComponent, ref, watch, computed } from 'vue'
 
 import type { FacturaItem } from '../types/factura.types'
+import { useProductVariants } from '~/modulos/logistica/master-data/product-variants/composable/useVariants'
 
 interface Props {
   items: FacturaItem[]
@@ -14,6 +15,10 @@ interface Props {
     price?: number
 
     taxes?: any[]
+
+    product_type?: string
+
+    has_variants?: boolean
   }[]
 
   currencyCode?: string
@@ -30,6 +35,36 @@ const emit = defineEmits<{
 }>()
 
 const selectedProduct = ref<any>(null)
+const selectedVariant = ref<string | null>(null)
+const variantOptions = ref<any[]>([])
+const { selectItems: variantSelectItems, loadByProduct: loadVariants } = useProductVariants()
+
+const selectedProductData = computed(() => {
+  if (!selectedProduct.value) return null
+  return props.productOptions.find(p => p.value === selectedProduct.value)
+})
+
+const hasVariants = computed(() => {
+  const product = selectedProductData.value
+  return product?.has_variants === true || product?.product_type === 'RAW_MATERIAL'
+})
+
+watch(selectedProduct, async (productId) => {
+  selectedVariant.value = null
+  variantOptions.value = []
+
+  if (!productId) return
+
+  const product = selectedProductData.value
+  if (product?.has_variants || product?.product_type === 'RAW_MATERIAL') {
+    try {
+      await loadVariants(productId)
+      variantOptions.value = variantSelectItems.value
+    } catch {
+      variantOptions.value = []
+    }
+  }
+})
 
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -40,66 +75,29 @@ function fmt(n: number) {
 }
 
 function recalculateItem(item: FacturaItem) {
-  // console.log('======================')
-  // console.log('RECALCULATE ITEM')
-  // console.log(item)
-
-  // ─────────────────────────────
-  // subtotal
-  // ─────────────────────────────
   item.subtotal = Number(
     (Number(item.quantity || 0) * Number(item.unit_price || 0)).toFixed(2)
   )
 
-  // console.log('SUBTOTAL')
-  // console.log(item.subtotal)
-
-  // ─────────────────────────────
-  // recalcular taxes
-  // ─────────────────────────────
   item.taxes = (item.taxes ?? []).map((tax) => {
-    // console.log('PROCESS TAX')
-    // console.log(tax)
-
     const subtotal = Number(item.subtotal || 0)
 
-    // SOLO ignorar si está incluido en precio
     const taxAmount = tax.is_included_in_price
       ? 0
       : subtotal * (Number(tax.tax_rate || 0) / 100)
 
-    // console.log('TAX AMOUNT')
-    // console.log(taxAmount)
-
     return {
       ...tax,
-
       tax_amount: Number(taxAmount.toFixed(2))
     }
   })
 
-  // console.log('TAXES AFTER')
-  // console.log(item.taxes)
-
-  // ─────────────────────────────
-  // total taxes
-  // ─────────────────────────────
   item.total_taxes = item.taxes.reduce(
     (acc, tax) => acc + Number(tax.tax_amount || 0),
-
     0
   )
 
-  // console.log('TOTAL TAXES')
-  // console.log(item.total_taxes)
-
-  // ─────────────────────────────
-  // total
-  // ─────────────────────────────
   item.total = Number((item.subtotal + item.total_taxes).toFixed(2))
-
-  // console.log('TOTAL')
-  // console.log(item.total)
 }
 
 function handleAdd() {
@@ -107,9 +105,16 @@ function handleAdd() {
     return
   }
 
-  emit('add', selectedProduct.value)
+  const product = selectedProductData.value
+  emit('add', {
+    product_id: selectedProduct.value,
+    variant_id: selectedVariant.value || null,
+    product_name: product?.label,
+    has_variants: product?.has_variants
+  })
 
   selectedProduct.value = null
+  selectedVariant.value = null
 }
 
 const UInput = resolveComponent('UInput')
@@ -119,153 +124,89 @@ const UButton = resolveComponent('UButton')
 const columns = [
   {
     accessorKey: 'product_name',
-
     header: 'Producto'
   },
-
+  {
+    accessorKey: 'variant_id',
+    header: 'Variante',
+    cell: ({ row }: any) => {
+      if (!row.original.variant_id) return h('span', { class: 'text-muted text-sm' }, '-')
+      const variant = variantOptions.value.find(v => v.value === row.original.variant_id)
+      return h('span', { class: 'text-sm' }, variant?.label ?? row.original.variant_id)
+    }
+  },
   {
     accessorKey: 'quantity',
-
     header: 'Cantidad',
-
     meta: {
       class: {
         th: 'text-right',
-
         td: 'text-right'
       }
     },
-
     cell: ({ row }: any) =>
       h(UInput, {
         modelValue: row.original.quantity,
-
         type: 'number',
-
         min: 0,
-
         step: 1,
-
         'onUpdate:modelValue': (val: number) => {
-          // console.log('UPDATE QUANTITY', val)
-
           row.original.quantity = Number(val || 0)
-
           recalculateItem(row.original)
         }
       })
   },
-
   {
     accessorKey: 'unit_price',
-
     header: 'Precio Unitario',
-
     meta: {
       class: {
         th: 'text-right',
-
         td: 'text-right'
       }
     },
-
     cell: ({ row }: any) =>
       h(UInput, {
         modelValue: row.original.unit_price,
-
         type: 'number',
-
         min: 0,
-
         step: '0.01',
-
         'onUpdate:modelValue': (val: number) => {
-          // console.log('UPDATE PRICE', val)
-
           row.original.unit_price = Number(val || 0)
-
           recalculateItem(row.original)
         }
       })
   },
-
   {
     accessorKey: 'subtotal',
-
     header: 'Subtotal',
-
     meta: {
       class: {
         th: 'text-right',
-
         td: 'text-right'
       }
     },
-
     cell: ({ row }: any) => fmt(Number(row.original.subtotal || 0))
   },
-
-  {
-    accessorKey: 'total_taxes',
-
-    header: 'Impuestos',
-
-    meta: {
-      class: {
-        th: 'text-right',
-
-        td: 'text-right'
-      }
-    },
-
-    cell: ({ row }: any) => {
-      const item = row.original
-      const taxes = (item.taxes ?? []).filter((t: any) => Number(t.tax_amount || 0) > 0)
-
-      if (taxes.length === 0) {
-        return h('span', { class: 'text-gray-400 text-xs' }, '—')
-      }
-
-      return h('div', { class: 'text-xs space-y-0.5' },
-        taxes.map((t: any) =>
-          h('div', { class: 'flex justify-end gap-1' },
-            h('span', { class: 'text-gray-500' }, `${t.name || t.code || 'Imp'}`),
-            h('span', {}, fmt(Number(t.tax_amount)))
-          )
-        )
-      )
-    }
-  },
-
   {
     accessorKey: 'total',
-
     header: 'Total',
-
     meta: {
       class: {
         th: 'text-right',
-
         td: 'text-right'
       }
     },
-
     cell: ({ row }: any) => fmt(Number(row.original.total || 0))
   },
-
   {
     id: 'actions',
-
     header: '',
-
     cell: ({ row }: any) =>
       h(UButton, {
         color: 'error',
-
         variant: 'soft',
-
         icon: 'i-lucide-trash',
-
         onClick: () => emit('remove', row.index)
       })
   }
@@ -274,7 +215,7 @@ const columns = [
 
 <template>
   <div class="space-y-3">
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 flex-wrap">
       <span class="text-sm font-medium text-muted whitespace-nowrap">
         Agregar producto:
       </span>
@@ -285,6 +226,14 @@ const columns = [
         placeholder="Buscar por nombre..."
         searchable
         class="w-72"
+      />
+
+      <USelectMenu
+        v-if="hasVariants && variantOptions.length > 0"
+        v-model="selectedVariant"
+        :items="variantOptions"
+        placeholder="Seleccionar variante..."
+        class="w-56"
       />
 
       <UButton

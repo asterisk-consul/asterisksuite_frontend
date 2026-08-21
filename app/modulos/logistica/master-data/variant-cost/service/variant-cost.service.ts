@@ -37,11 +37,16 @@ export const useVariantCostsService = () => {
     })
   }
 
+  const getHistory = (id: string) => {
+    return $fetch<any[]>(`${urlBase}/${id}/history`)
+  }
+
   return {
     findAll,
     findOne,
     create,
     update,
-    remove
+    remove,
+    getHistory
   }
 }

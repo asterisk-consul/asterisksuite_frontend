@@ -106,6 +106,10 @@ export const useVariantCostsStore = defineStore('variantCosts', () => {
     }
   }
 
+  const getHistory = async (id: string) => {
+    return await service.getHistory(id)
+  }
+
   return {
     // state
     items,
@@ -121,6 +125,7 @@ export const useVariantCostsStore = defineStore('variantCosts', () => {
     fetchOne,
     create,
     update,
-    remove
+    remove,
+    getHistory
   }
 })

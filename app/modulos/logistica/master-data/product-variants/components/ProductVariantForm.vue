@@ -41,6 +41,10 @@ const form = reactive<CreateProductVariantInput>({
 
   weight_kg: undefined,
 
+  weight_per_m2_kg: undefined,
+
+  weight_per_meter_kg: undefined,
+
   active: true
 })
 
@@ -52,36 +56,44 @@ watch(
   () => props.variant,
   (variant) => {
     if (!variant) {
-      form.product_id = props.productId
+    form.product_id = props.productId
 
-      form.name = ''
+    form.name = ''
 
-      form.sku = ''
+    form.sku = ''
 
-      form.thickness_mm = undefined
+    form.thickness_mm = undefined
 
-      form.density_kg_m3 = undefined
+    form.density_kg_m3 = undefined
 
-      form.weight_kg = undefined
+    form.weight_kg = undefined
 
-      form.active = true
+    form.weight_per_m2_kg = undefined
 
-      return
-    }
+    form.weight_per_meter_kg = undefined
 
-    form.product_id = variant.product_id
+    form.active = true
 
-    form.name = variant.name || ''
+    return
+  }
 
-    form.sku = variant.sku || ''
+  form.product_id = variant.product_id
 
-    form.thickness_mm = variant.thickness_mm ?? undefined
+  form.name = variant.name || ''
 
-    form.density_kg_m3 = variant.density_kg_m3 ?? undefined
+  form.sku = variant.sku || ''
 
-    form.weight_kg = variant.weight_kg ?? undefined
+  form.thickness_mm = variant.thickness_mm ?? undefined
 
-    form.active = variant.active ?? true
+  form.density_kg_m3 = variant.density_kg_m3 ?? undefined
+
+  form.weight_kg = variant.weight_kg ?? undefined
+
+  form.weight_per_m2_kg = variant.weight_per_m2_kg ?? undefined
+
+  form.weight_per_meter_kg = variant.weight_per_meter_kg ?? undefined
+
+  form.active = variant.active ?? true
   },
   {
     immediate: true
@@ -94,7 +106,12 @@ watch(
 
 const onSubmit = () => {
   emit('submit', {
-    ...form
+    ...form,
+    thickness_mm: form.thickness_mm != null ? Number(form.thickness_mm) : undefined,
+    density_kg_m3: form.density_kg_m3 != null ? Number(form.density_kg_m3) : undefined,
+    weight_kg: form.weight_kg != null ? Number(form.weight_kg) : undefined,
+    weight_per_m2_kg: form.weight_per_m2_kg != null ? Number(form.weight_per_m2_kg) : undefined,
+    weight_per_meter_kg: form.weight_per_meter_kg != null ? Number(form.weight_per_meter_kg) : undefined
   })
 }
 </script>
@@ -113,15 +130,25 @@ const onSubmit = () => {
 
     <div class="grid grid-cols-3 gap-4">
       <UFormField label="Espesor (mm)">
-        <UInputNumber v-model="form.thickness_mm" />
+        <UInputNumber v-model="form.thickness_mm" :step="0.001" />
       </UFormField>
 
       <UFormField label="Densidad (kg/m3)">
-        <UInputNumber v-model="form.density_kg_m3" />
+        <UInputNumber v-model="form.density_kg_m3" :step="0.001" />
       </UFormField>
 
       <UFormField label="Peso (kg)">
-        <UInputNumber v-model="form.weight_kg" />
+        <UInputNumber v-model="form.weight_kg" :step="0.001" />
+      </UFormField>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <UFormField label="Peso por m2 (kg)">
+        <UInputNumber v-model="form.weight_per_m2_kg" :step="0.001" />
+      </UFormField>
+
+      <UFormField label="Peso por metro (kg)">
+        <UInputNumber v-model="form.weight_per_meter_kg" :step="0.001" />
       </UFormField>
     </div>
 

@@ -1,6 +1,6 @@
 import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  return apiProxy(event, '/exchange/convert', { method: 'GET', query })
+  const id = getRouterParam(event, 'id')
+  return apiProxy(event, `/variant-prices/${id}`)
 })

@@ -5,16 +5,8 @@ import type { ProductCostSource } from '~/modulos/logistica/master-data/product/
 import { ProductCostSourceOptions } from '~/modulos/logistica/master-data/product/utils/product-options.utils'
 
 import EngineeringTree from '~/modulos/logistica/master-data/product/engineering/components/EngineeringTree.vue'
-import EngineeringComponentModal from '~/modulos/logistica/master-data/product/engineering/modals/EngineeringComponentModal.vue'
-
-import {
-  createDefaultProductForm,
-  toCreateProductPayload
-} from '~/modulos/logistica/master-data/product/utils/product-form.utils'
 
 import { useEngineering } from '~/modulos/logistica/master-data/product/engineering/composables/useEngineering'
-import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
-import ProductModalForm from '~/modulos/logistica/master-data/product/components/modals/ProductModalForm.vue'
 
 const props = withDefaults(defineProps<{
   productId: string
@@ -28,22 +20,13 @@ const emit = defineEmits<{
   'update:costSource': [value: ProductCostSource]
 }>()
 
-const form = reactive(createDefaultProductForm())
 const toast = useToast()
 const engineering = useEngineering(props.productId)
-const { create } = useProducts()
 
-const selectedParent = ref<any | null>(null)
-const editingNode = ref<any | null>(null)
-
-const showModal = ref(false)
 const showDeleteModal = ref(false)
-const showProductModal = ref(false)
+const deleteConfirmStep = ref(0)
 
 const deletingNode = ref<any | null>(null)
-const deleteConfirmText = ref('')
-
-const loadingCaculate = ref(false)
 
 // =========================
 // COST SOURCE SELECTOR
@@ -81,7 +64,7 @@ const costSourceDescriptions: Record<string, { label: string; description: strin
   }
 }
 
-const showTree = computed(() => 
+const showTree = computed(() =>
   ['BOM', 'ENGINEERING', 'PURCHASE'].includes(props.form.cost_source)
 )
 
@@ -91,24 +74,20 @@ const showRateConfig = computed(() => props.form.cost_source === 'RATE')
 // TREE HANDLERS
 // =========================
 
-const handleAdd = (parent: any | null) => {
-  selectedParent.value = parent.child_product_id
-  editingNode.value = null
-  showModal.value = true
-}
-
-const handleAddProduct = () => {
-  showProductModal.value = true
-}
-
 const handleDelete = (node: any) => {
   deletingNode.value = node
-  deleteConfirmText.value = ''
+  deleteConfirmStep.value = 0
   showDeleteModal.value = true
 }
 
 const confirmDelete = async () => {
-  if (!deletingNode.value || deleteConfirmText.value !== 'eliminar') return
+  if (deleteConfirmStep.value === 0) {
+    deleteConfirmStep.value = 1
+    return
+  }
+
+  if (!deletingNode.value) return
+
   await engineering.deleteComponent(deletingNode.value.id)
   toast.add({
     title: 'Componente eliminado',
@@ -117,40 +96,7 @@ const confirmDelete = async () => {
   })
   showDeleteModal.value = false
   deletingNode.value = null
-  deleteConfirmText.value = ''
-}
-
-const handleEdit = (node: any) => {
-  editingNode.value = node
-  showModal.value = true
-}
-
-const handleCalcular = async () => {
-  loadingCaculate.value = true
-  await engineering.calculate()
-  toast.add({
-    title: 'Costo calculado',
-    description: 'El costo fue recalculado y guardado correctamente.',
-    color: 'success'
-  })
-  loadingCaculate.value = false
-}
-
-const handleSaved = async () => {
-  await engineering.loadTree()
-  showModal.value = false
-  selectedParent.value = null
-  editingNode.value = null
-}
-
-const resetForm = () => {
-  Object.assign(form, createDefaultProductForm())
-}
-
-const saveProduct = async () => {
-  await create(toCreateProductPayload(form))
-  resetForm()
-  showProductModal.value = false
+  deleteConfirmStep.value = 0
 }
 
 onMounted(async () => {
@@ -204,46 +150,14 @@ onMounted(async () => {
     <!-- ÁRBOL (BOM/ENGINEERING)   -->
     <!-- ========================= -->
     <template v-if="showTree">
-      <div class="flex items-center justify-between">
-        <h2 class="font-medium">
-          {{ form.cost_source === 'ENGINEERING' ? 'Árbol de ingeniería' : 'Árbol de componentes' }}
-        </h2>
-
-        <div class="flex items-center gap-2">
-          <UButton
-            size="sm"
-            label="Calcular"
-            variant="soft"
-            color="warning"
-            :loading="loadingCaculate"
-            @click="handleCalcular"
-            class="cursor-pointer"
-          />
-
-          <UButton
-            size="sm"
-            label="Agregar nuevo producto"
-            variant="soft"
-            color="neutral"
-            class="cursor-pointer"
-            @click="handleAddProduct"
-          />
-
-          <UButton
-            label="Agregar componente"
-            icon="i-lucide-plus"
-            size="sm"
-            class="cursor-pointer"
-            @click="handleAdd(props.productId)"
-          />
-        </div>
-      </div>
+      <h2 class="font-medium">
+        {{ form.cost_source === 'ENGINEERING' ? 'Árbol de ingeniería' : 'Árbol de componentes' }}
+      </h2>
 
       <UCard>
         <EngineeringTree
           :productId="productId"
-          @add-child="handleAdd"
-          @edit-node="handleEdit"
+          :cost-source="form.cost_source"
           @delete-node="handleDelete"
         />
       </UCard>
@@ -266,19 +180,8 @@ onMounted(async () => {
     </template>
 
     <!-- ========================= -->
-    <!-- MODALES                   -->
+    <!-- MODAL CONFIRMAR ELIMINAR  -->
     <!-- ========================= -->
-    <EngineeringComponentModal
-      v-model:open="showModal"
-      :productId="productId"
-      :component="editingNode"
-      :parentId="selectedParent"
-      @saved="handleSaved"
-    />
-
-    <ProductModalForm v-model:open="showProductModal" :form="form" @submit="saveProduct" />
-
-    <!-- Modal confirmación eliminar -->
     <UModal v-model:open="showDeleteModal" title="Eliminar componente">
       <template #body>
         <div class="space-y-4">
@@ -289,24 +192,16 @@ onMounted(async () => {
             </span>
             ? Esta acción no se puede deshacer y eliminará también todos sus componentes hijos.
           </p>
-          <p class="text-sm text-muted">
-            Para confirmar, escribí
-            <span class="font-medium text-highlighted font-mono">eliminar</span>
-            en el campo de abajo.
-          </p>
-
-          <UInput v-model="deleteConfirmText" placeholder="eliminar" />
 
           <div class="flex justify-end gap-2 pt-2 border-t border-default">
             <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">Cancelar</UButton>
             <UButton
-              color="error"
+              :color="deleteConfirmStep === 0 ? 'error' : 'error'"
+              :variant="deleteConfirmStep === 0 ? 'outline' : 'solid'"
+              :label="deleteConfirmStep === 0 ? 'Eliminar' : 'Confirmar eliminación'"
               :loading="engineering.loading.value"
-              :disabled="deleteConfirmText !== 'eliminar'"
               @click="confirmDelete"
-            >
-              Eliminar
-            </UButton>
+            />
           </div>
         </div>
       </template>

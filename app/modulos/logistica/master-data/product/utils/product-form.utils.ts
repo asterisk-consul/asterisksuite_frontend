@@ -26,7 +26,7 @@ export function createDefaultProductCosting() {
   return {
     price_enabled: true,
     auto_calculate_cost: false,
-    cost_source: 'BOM' as ProductCostSource,
+    cost_source: 'MANUAL' as ProductCostSource,
     cost_currency_id: undefined
   }
 }

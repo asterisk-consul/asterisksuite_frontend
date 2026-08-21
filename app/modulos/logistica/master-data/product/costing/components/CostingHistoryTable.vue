@@ -2,6 +2,7 @@
 import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import { useCosting } from '../composables/useCosting'
+import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import type { CostHistoryRow, CostHistoryBreakdown } from '../types/costing.types'
 
 const UBadge = resolveComponent('UBadge')
@@ -10,9 +11,15 @@ const UButton = resolveComponent('UButton')
 const props = defineProps<{
   productId: string
   currencyId: string
+  targetCurrencyId?: string
 }>()
 
 const { history, loading, formatCurrency } = useCosting(props.productId, props.currencyId)
+const { currencies, init: initCurrencies } = useCurrencies()
+
+onMounted(() => {
+  initCurrencies()
+})
 
 const COST_SOURCE_COLORS: Record<string, string> = {
   BOM: 'blue',
@@ -22,6 +29,64 @@ const COST_SOURCE_COLORS: Record<string, string> = {
   RATE: 'orange'
 }
 
+// Conversión a moneda destino
+const conversionCache = new Map<string, number>()
+
+const convertCurrency = async (amount: number, fromCode: string, toCode: string): Promise<number | null> => {
+  if (fromCode === toCode) return amount
+
+  const cacheKey = `${amount}::${fromCode}::${toCode}`
+  if (conversionCache.has(cacheKey)) return conversionCache.get(cacheKey)!
+
+  try {
+    const result = await $fetch<{ converted_amount: number }>('/api/erp/pricing/exchange/convert', {
+      method: 'GET',
+      query: { amount, from: fromCode, to: toCode }
+    })
+    conversionCache.set(cacheKey, result.converted_amount)
+    return result.converted_amount
+  } catch {
+    return null
+  }
+}
+
+const targetCurrency = computed(() =>
+  props.targetCurrencyId ? currencies.value.find(c => c.id === props.targetCurrencyId) : null
+)
+
+// Cache de conversiones por snapshot
+const snapshotConversions = ref<Record<string, string>>({})
+
+const getConvertedTotal = (row: CostHistoryRow) => {
+  return snapshotConversions.value[row.id] ?? '—'
+}
+
+const recalculateConversions = async () => {
+  if (!history.value?.length || !targetCurrency.value) {
+    snapshotConversions.value = {}
+    return
+  }
+  const newConversions: Record<string, string> = {}
+  for (const row of history.value) {
+    const amount = Number(row.total_cost) || 0
+    const fromCode = row.currencies?.code
+    if (!fromCode || amount === 0) continue
+    try {
+      const converted = await convertCurrency(amount, fromCode, targetCurrency.value.code)
+      if (converted != null && !isNaN(converted)) {
+        newConversions[row.id] = `${targetCurrency.value.symbol} ${Number(converted).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      }
+    } catch {}
+  }
+  snapshotConversions.value = newConversions
+}
+
+watch(
+  [() => props.targetCurrencyId, history],
+  () => { recalculateConversions() },
+  { immediate: true }
+)
+
 // El backend ya devuelve breakdowns anidados (solo raíces con children)
 const tableData = computed(() =>
   (history.value ?? []).map((item) => ({
@@ -29,6 +94,7 @@ const tableData = computed(() =>
     children: item.breakdowns?.length ? item.breakdowns : undefined
   }))
 )
+
 // Helper: un nodo es "breakdown" si tiene component_product_id
 const isBreakdown = (original: any) => 'component_product_id' in original
 
@@ -182,6 +248,20 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
       // Snapshot raíz: mostrar total con símbolo de moneda
       const symbol = original.currencies?.symbol ?? '$'
       return h('span', { class: 'tabular-nums' }, formatCurrency(original.total_cost, symbol))
+    }
+  },
+  {
+    id: 'equiv',
+    header: 'Equiv.',
+    meta: { class: { th: 'text-right', td: 'text-right' } },
+    cell: ({ row }) => {
+      const original = row.original as any
+      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, '—')
+
+      const converted = getConvertedTotal(original)
+      if (converted === '—') return h('span', { class: 'text-muted text-xs' }, '—')
+
+      return h('span', { class: 'text-xs tabular-nums text-muted' }, converted)
     }
   },
   {

@@ -1,25 +1,44 @@
 <script setup lang="ts">
 import { useProductPriceService } from '~/modulos/logistica/master-data/product-price/service/product-price.service'
+import { useVariantCostsService } from '~/modulos/logistica/master-data/variant-cost/service/variant-cost.service'
+import { useVariantPriceService } from '~/modulos/logistica/master-data/product-variants/service/variant-price.service'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   open: boolean
   priceId: string | null
   productName: string
-}>()
+  entityName?: string
+}>(), {
+  entityName: 'product_price'
+})
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const service = useProductPriceService()
+const productPriceService = useProductPriceService()
+const variantCostsService = useVariantCostsService()
+const variantPriceService = useVariantPriceService()
+
 const history = ref<any[]>([])
 const loading = ref(false)
+
+const getHistory = async (id: string): Promise<any[]> => {
+  switch (props.entityName) {
+    case 'product_variant_costs':
+      return await variantCostsService.getHistory(id)
+    case 'product_variant_prices':
+      return await variantPriceService.getHistory(id)
+    default:
+      return await productPriceService.getHistory(id)
+  }
+}
 
 watch([() => props.priceId, () => props.open], async ([id, isOpen]) => {
   if (!id || !isOpen) return
   loading.value = true
   try {
-    history.value = await service.getHistory(id)
+    history.value = await getHistory(id)
   } catch {
     history.value = []
   } finally {
@@ -58,14 +77,15 @@ const getActionColor = (action: string) => {
 const formatPrice = (data: any) => {
   if (!data) return '—'
   if (data.price !== undefined) return `$ ${Number(data.price).toLocaleString('es-AR')}`
+  if (data.cost !== undefined) return `$ ${Number(data.cost).toLocaleString('es-AR')}`
   return '—'
 }
 
 const calcVariation = (oldData: any, newData: any) => {
-  const oldPrice = Number(oldData?.price)
-  const newPrice = Number(newData?.price)
-  if (!oldPrice || !newPrice) return null
-  return ((newPrice - oldPrice) / oldPrice) * 100
+  const oldVal = Number(oldData?.price ?? oldData?.cost)
+  const newVal = Number(newData?.price ?? newData?.cost)
+  if (!oldVal || !newVal) return null
+  return ((newVal - oldVal) / oldVal) * 100
 }
 
 const getVariationColor = (pct: number) => {
@@ -78,7 +98,7 @@ const getVariationColor = (pct: number) => {
 <template>
   <UModal
     :open="open"
-    title="Historial de precios"
+    title="Historial de cambios"
     :ui="{ content: 'max-w-6xl' }"
     @update:open="emit('update:open', $event)"
   >
@@ -153,11 +173,5 @@ const getVariationColor = (pct: number) => {
         </template>
       </UTable>
     </template>
-
-    <!-- <template #footer>
-      <div class="flex justify-end">
-        <UButton label="Cerrar" variant="ghost" @click="emit('update:open', false)" />
-      </div>
-    </template> -->
   </UModal>
 </template>

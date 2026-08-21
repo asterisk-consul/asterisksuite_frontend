@@ -3,7 +3,7 @@ import type { ProductFormState } from '~/modulos/logistica/master-data/product/t
 
 import { useCosting } from '~/modulos/logistica/master-data/product/costing/composables/useCosting'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
-import { useProductPriceService } from '~/modulos/logistica/master-data/product-price/service/product-price.service'
+import { useEngineering } from '~/modulos/logistica/master-data/product/engineering/composables/useEngineering'
 
 import CostTemplateSelectorModal from '~/modulos/logistica/master-data/product/cost-templates/modal/CostTemplateSelectorModal.vue'
 import CostSummaryCard from '~/modulos/logistica/master-data/product/costing/components/CostSummaryCard.vue'
@@ -21,8 +21,6 @@ const emit = defineEmits<{
   'update:autoCalculate': [value: boolean]
 }>()
 
-const toast = useToast()
-
 const {
   latestCost,
   latestMaterialCost,
@@ -31,14 +29,15 @@ const {
   latestSnapshot,
   loading,
   calculating,
-  calculate,
-  init
+  init,
+  calculate
 } = useCosting(props.productId, props.currencyId)
 
 const { currencies, selectItems: currencySelectItems, init: initCurrencies } = useCurrencies()
-const priceService = useProductPriceService()
+const engineering = useEngineering(props.productId)
 
 const showTemplateModal = ref(false)
+const toast = useToast()
 
 const costingTabs = [
   { label: 'Historial', slot: 'history', value: 'history' },
@@ -46,6 +45,30 @@ const costingTabs = [
 ]
 
 const activeTab = ref('history')
+
+// =========================
+// CALCULAR COSTO
+// =========================
+
+const handleCalculate = async () => {
+  if (!props.currencyId) {
+    toast.add({ title: 'Seleccioná una moneda', color: 'error' })
+    return
+  }
+  try {
+    // 1. Recalcular ingeniería si tiene tree
+    if (['BOM', 'ENGINEERING', 'PURCHASE'].includes(props.form.cost_source)) {
+      await engineering.calculate()
+    }
+    // 2. Calcular costo con la moneda actual
+    await calculate(true, props.currencyId)
+    // 3. Refrescar historial
+    await init()
+    toast.add({ title: 'Costo calculado', color: 'success' })
+  } catch (err: any) {
+    toast.add({ title: 'Error al calcular', description: err?.data?.message || 'No se pudo calcular', color: 'error' })
+  }
+}
 
 // =========================
 // MONEDA (v-model con el padre)
@@ -68,100 +91,16 @@ const autoCalculate = computed({
 })
 
 // =========================
-// CONVERSOR DE MONEDAS
-// =========================
-
-const selectedPriceCurrency = ref('')
-const savingPrice = ref(false)
-const savedPrice = ref<{ currency: string; amount: number; symbol: string } | null>(null)
-const convertedCosts = ref<Array<{ code: string; name: string; symbol: string; amount: number }>>([])
-
-const currentCurrency = computed(() => currencies.value.find(c => c.id === props.currencyId) ?? null)
-
-const currencyOptions = computed(() =>
-  currencies.value
-    .filter(c => c.id !== props.currencyId)
-    .map(c => ({ label: `${c.symbol} ${c.name}`, value: c.id }))
-)
-
-const formatMoney = (amount: number | string | null | undefined, symbol = '$') => {
-  const num = Number(amount) || 0
-  return `${symbol} ${num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-const calculateConversions = async () => {
-  if (!latestCost.value || !currentCurrency.value) return
-
-  const results = []
-  for (const currency of currencies.value) {
-    if (currency.id === props.currencyId) continue
-
-    try {
-      const result = await $fetch<{ converted_amount: number }>('/api/erp/pricing/exchange/convert', {
-        method: 'GET',
-        query: {
-          amount: latestCost.value,
-          from: currentCurrency.value.code,
-          to: currency.code
-        }
-      })
-      results.push({
-        code: currency.code,
-        name: currency.name,
-        symbol: currency.symbol,
-        amount: result.converted_amount
-      })
-    } catch {
-      // Ignorar errores de conversión
-    }
-  }
-  convertedCosts.value = results
-}
-
-// =========================
-// GUARDAR COMO PRECIO
-// =========================
-
-const saveCostAsPrice = async () => {
-  if (!selectedPriceCurrency.value || !latestCost.value) return
-
-  savingPrice.value = true
-  try {
-    const currency = currencies.value.find(c => c.id === selectedPriceCurrency.value)
-    await priceService.create({
-      product_id: props.productId,
-      currency_id: selectedPriceCurrency.value,
-      price: latestCost.value,
-      exemption_rate: 0
-    })
-    savedPrice.value = {
-      currency: currency?.code ?? '',
-      amount: latestCost.value,
-      symbol: currency?.symbol ?? '$'
-    }
-    toast.add({ title: 'Precio guardado', color: 'success' })
-  } catch (err: any) {
-    toast.add({ title: 'Error', description: err?.data?.message, color: 'error' })
-  } finally {
-    savingPrice.value = false
-  }
-}
-
-// =========================
 // HANDLERS
 // =========================
 
-const handleCalculate = async () => {
-  await calculate()
-  await calculateConversions()
+const handleAssigned = async () => {
+  await init()
 }
-
-const handleAssigned = async () => await init()
 
 onMounted(async () => {
   await init()
   await initCurrencies()
-  await calculateConversions()
 })
 </script>
 
@@ -202,19 +141,31 @@ onMounted(async () => {
     <!-- ========================= -->
     <!-- ACCIONES                  -->
     <!-- ========================= -->
-    <div class="flex justify-end gap-2">
+    <div class="flex justify-between items-center gap-2">
       <UButton
-        label="Actualizar costo"
+        label="Calcular costo"
         icon="i-lucide-calculator"
+        color="primary"
         :loading="calculating"
         @click="handleCalculate"
       />
-      <UButton
-        label="Cambiar template"
-        icon="i-lucide-settings"
-        variant="outline"
-        @click="showTemplateModal = true"
-      />
+      <div class="flex gap-2">
+        <UButton
+          label="Refrescar"
+          icon="i-lucide-refresh-cw"
+          variant="outline"
+          size="sm"
+          :loading="loading"
+          @click="init"
+        />
+        <UButton
+          label="Template"
+          icon="i-lucide-settings"
+          variant="outline"
+          size="sm"
+          @click="showTemplateModal = true"
+        />
+      </div>
     </div>
 
     <!-- ========================= -->
@@ -227,61 +178,9 @@ onMounted(async () => {
           :material-cost="latestMaterialCost"
           :labor-cost="latestLaborCost"
           :overhead-cost="latestOverheadCost"
-          currency-symbol="$"
+          :currency-symbol="latestSnapshot?.currencies?.symbol ?? '$'"
+          :original-currency-code="latestSnapshot?.currencies?.code"
         />
-
-        <!-- Conversiones a otras monedas -->
-        <UCard v-if="convertedCosts.length">
-          <template #header>
-            <div class="flex items-center justify-between">
-              <p class="text-sm font-medium">Equivalente en otras monedas</p>
-              <UBadge label="Solo visual" variant="soft" size="xs" />
-            </div>
-          </template>
-          <div class="space-y-2">
-            <div
-              v-for="c in convertedCosts"
-              :key="c.code"
-              class="flex items-center justify-between py-2 border-b border-default last:border-0"
-            >
-              <div class="flex items-center gap-2">
-                <UBadge :label="c.code" color="neutral" variant="soft" size="xs" />
-                <span class="text-sm text-muted">{{ c.name }}</span>
-              </div>
-              <span class="font-semibold">{{ formatMoney(c.amount, c.symbol) }}</span>
-            </div>
-          </div>
-        </UCard>
-
-        <!-- Guardar como precio de venta -->
-        <UCard>
-          <template #header>
-            <p class="text-sm font-medium">Precio de venta</p>
-          </template>
-          <div class="space-y-4">
-            <p class="text-sm text-muted">
-              Guardar el costo calculado como precio de venta para facturación.
-            </p>
-            <div class="flex items-center gap-3">
-              <USelectMenu
-                v-model="selectedPriceCurrency"
-                :items="currencyOptions"
-                placeholder="Moneda"
-                class="w-40"
-              />
-              <UButton
-                label="Guardar como precio"
-                icon="i-lucide-save"
-                :loading="savingPrice"
-                :disabled="!selectedPriceCurrency"
-                @click="saveCostAsPrice"
-              />
-            </div>
-            <p v-if="savedPrice" class="text-sm text-success">
-              ✓ Precio guardado en {{ savedPrice.currency }}: {{ formatMoney(savedPrice.amount, savedPrice.symbol) }}
-            </p>
-          </div>
-        </UCard>
 
         <CostingHistoryTable :product-id="productId" :currency-id="currencyId" />
       </template>

@@ -7,6 +7,10 @@ import EngineeringSection from '~/modulos/logistica/master-data/product/engineer
 import CostingSection from '~/modulos/logistica/master-data/product/costing/sections/CostingSection.vue'
 import GeneralSection from '~/modulos/logistica/master-data/product/components/sections/GeneralSection.vue'
 
+import { useEngineering } from '~/modulos/logistica/master-data/product/engineering/composables/useEngineering'
+import { useCosting } from '~/modulos/logistica/master-data/product/costing/composables/useCosting'
+import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+
 import {
   createDefaultProductForm,
   toUpdateProductPayload
@@ -40,9 +44,11 @@ watch(mobileOpen, (open) => {
 const productId = route.params.id as string
 
 const { current, loading, loadOne, update } = useProducts()
+const engineering = useEngineering(productId)
+const { baseCurrency, init: initCurrencies } = useCurrencies()
 
 onMounted(async () => {
-  await loadOne(productId)
+  await Promise.all([loadOne(productId), initCurrencies()])
 })
 
 const product = current
@@ -81,6 +87,7 @@ const form = reactive(createDefaultProductForm())
 const activeTab = ref('general')
 
 const saving = ref(false)
+const calculating = ref(false)
 
 // Moneda local (no se guarda en el producto, se carga de product_costs)
 const currencyId = ref<string>('')
@@ -90,11 +97,73 @@ watch(
   (p) => {
     if (!p) return
     Object.assign(form, p)
-    // Cargar moneda del último product_costs
+    // Cargar moneda del último product_costs, o dejar vacío para que el costing section lo resuelva
     currencyId.value = (p as any).product_costs?.[0]?.currency_id ?? ''
   },
   { immediate: true }
 )
+
+// Si no hay moneda del snapshot, intentar cargar la base del sistema
+watch(currencyId, async (id) => {
+  if (!id && baseCurrency.value) {
+    currencyId.value = baseCurrency.value.id
+  }
+}, { immediate: true })
+
+// =========================
+// BOTÓN UNIFICADO: CALCULAR COSTO
+// =========================
+
+const handleCalculateCost = async () => {
+  calculating.value = true
+  try {
+    // 1. Recalcular ingeniería (si aplica)
+    if (['BOM', 'ENGINEERING', 'PURCHASE'].includes(form.cost_source)) {
+      await engineering.calculate()
+    }
+
+    // 2. Determinar moneda: usar la del producto o la base del sistema
+    let effectiveCurrencyId = currencyId.value
+    if (!effectiveCurrencyId && baseCurrency.value) {
+      effectiveCurrencyId = baseCurrency.value.id
+      currencyId.value = effectiveCurrencyId
+    }
+
+    if (!effectiveCurrencyId) {
+      toast.add({
+        title: 'Error',
+        description: 'No hay moneda configurada. Seleccioná una moneda en la pestaña de Costos.',
+        color: 'error'
+      })
+      return
+    }
+
+    // 3. Calcular costo final (genera snapshot)
+    const costing = useCosting(productId, effectiveCurrencyId)
+    await costing.calculate(true, effectiveCurrencyId)
+
+    // 4. Refrescar historial
+    await costing.init()
+
+    toast.add({
+      title: 'Costo calculado',
+      description: 'El costo fue recalculado y guardado correctamente.',
+      color: 'success'
+    })
+  } catch (err: any) {
+    toast.add({
+      title: 'Error al calcular',
+      description: err?.data?.message || 'No se pudo calcular el costo.',
+      color: 'error'
+    })
+  } finally {
+    calculating.value = false
+  }
+}
+
+// =========================
+// SAVE
+// =========================
 
 async function handleSave() {
   try {
@@ -154,9 +223,14 @@ const links = computed(() => [
     >
       <template #right>
         <div class="flex items-center gap-2">
-          <UButton label="Actualizar Costos" variant="soft" color="neutral" />
-
-          <UButton label="Ver BOM" variant="soft" color="neutral" />
+          <UButton
+            label="Calcular costo"
+            icon="i-lucide-calculator"
+            variant="soft"
+            color="primary"
+            :loading="calculating"
+            @click="handleCalculateCost"
+          />
 
           <UButton label="Guardar" icon="i-lucide-save" :loading="saving" @click="handleSave" />
         </div>

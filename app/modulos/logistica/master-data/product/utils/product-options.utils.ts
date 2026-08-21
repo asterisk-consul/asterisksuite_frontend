@@ -50,7 +50,7 @@ export const calculationTypeOptions: {
   },
   {
     label: 'Superficie',
-    value: 'SURFASE'
+    value: 'SURFACE'
   },
   {
     label: 'Volumen',

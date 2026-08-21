@@ -6,7 +6,7 @@ export type UsageType = 'SALE' | 'PURCHASE' | 'BOTH'
 
 export type ProductCostSource = 'MANUAL' | 'PURCHASE' | 'ENGINEERING' | 'BOM' | 'RATE'
 
-export type CalculationType = 'UNIT' | 'SURFASE' | 'VOLUME' | 'LINEAR'
+export type CalculationType = 'UNIT' | 'SURFACE' | 'VOLUME' | 'LINEAR'
 
 import type { Account } from '~/modulos/contabilidad/types/accounts.types'
 import type { Category } from '~/modulos/almacen/categories/types/categories.types'

@@ -1524,5 +1524,64 @@
       }
     ],
     "contributors": ["agustin"]
+  },
+  {
+    "version": "0.26.0-alpha",
+    "date": "2026-08-21",
+    "stage": "alpha",
+    "notes": "BOM Engineering con cálculos en frontend + Costing simplificado con conversión de monedas",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Árbol BOM con cálculos de peso/superficie/costo en tiempo real (computeNodeCalculations)"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Tabs Estructura + Resumen materiales consolidados en el tree BOM"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Selector de moneda destino en CostSummaryCard con conversión instantánea"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Botón 'Calcular costo' integrado en la sección de Costos"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix double-count en calculateMaterialCost (costing-calculator.service)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix pareto: guard cuando currencyId está vacío"
+      },
+      {
+        "type": "fix",
+        "scope": "api",
+        "title": "Proxy exchange/convert apuntaba a /currencies/latest en vez de /exchange/convert"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "USelectMenu v-model retorna objeto — fix del setter para extraer value"
+      },
+      {
+        "type": "refactor",
+        "scope": "productos",
+        "title": "Eliminado merge approach (_calculated) — cálculos en frontend puro"
+      },
+      {
+        "type": "refactor",
+        "scope": "productos",
+        "title": "Campo 'Fuente de costo' movido de General a Estructura"
+      }
+    ],
+    "contributors": ["agustin"]
   }
 ]

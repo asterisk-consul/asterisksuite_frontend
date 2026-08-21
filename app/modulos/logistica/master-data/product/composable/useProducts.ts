@@ -19,6 +19,8 @@ export interface ProductSelectItem {
   }[]
   hasCostTemplate: boolean
   usage_type: UsageType
+  product_type?: string
+  has_variants?: boolean
   tax?: {
     id: string
     rate: number
@@ -85,6 +87,8 @@ export function useProducts(usageFilter?: UsageType | null) {
         prices,
         usage_type: product.usage_type ?? 'BOTH',
         hasCostTemplate: !!product.cost_template_id,
+        product_type: product.product_type,
+        has_variants: (product.product_variants?.length ?? 0) > 0,
         tax: tax
           ? {
               id: tax.id,

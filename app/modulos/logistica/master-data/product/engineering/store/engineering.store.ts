@@ -41,7 +41,7 @@ export const useEngineeringStore = defineStore('engineering', () => {
   }
 
   // =========================
-  // CALCULATE
+  // CALCULATE (solo para snapshot de costing)
   // =========================
 
   const calculate = async (productId: string) => {
@@ -50,7 +50,6 @@ export const useEngineeringStore = defineStore('engineering', () => {
       error.value = null
 
       const result = await service.calculate(productId)
-
       calculation.value = result
 
       return result
@@ -72,9 +71,6 @@ export const useEngineeringStore = defineStore('engineering', () => {
       error.value = null
 
       const created = await service.createComponent(dto)
-
-      // Refrescar árbol después de agregar componente
-      await fetchTree(dto.parent_product_id)
 
       return created
     } catch (err: any) {
@@ -118,7 +114,7 @@ export const useEngineeringStore = defineStore('engineering', () => {
       loading.value = true
       error.value = null
       const updated = await service.updateComponent(id, dto)
-      await fetchTree(parentProductId) // refrescar árbol
+      await fetchTree(parentProductId)
       return updated
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al actualizar componente'
@@ -133,7 +129,7 @@ export const useEngineeringStore = defineStore('engineering', () => {
       loading.value = true
       error.value = null
       await service.deleteComponent(id)
-      await fetchTree(parentProductId) // refrescar árbol
+      await fetchTree(parentProductId)
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al eliminar componente'
       throw err

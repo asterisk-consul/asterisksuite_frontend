@@ -110,6 +110,8 @@ export interface FacturaItem {
 
   product_id: string | null
 
+  variant_id?: string | null
+
   product_name?: string
 
   product_code?: string

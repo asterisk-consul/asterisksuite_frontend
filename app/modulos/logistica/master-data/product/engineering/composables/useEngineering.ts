@@ -37,12 +37,14 @@ export const useEngineering = (productId: string) => {
 
   const addComponent = async (
     dto: Omit<CreateEngineeringComponentDto, 'parent_product_id'>,
-    parentId?: string | null // ← agregar
+    parentId?: string | null
   ) => {
-    return store.createComponent({
+    const result = await store.createComponent({
       ...dto,
-      parent_product_id: parentId ?? productId // ← si no hay padre, usa la raíz
+      parent_product_id: parentId ?? productId
     })
+    await loadTree()
+    return result
   }
 
   // =========================
@@ -81,7 +83,7 @@ export const useEngineering = (productId: string) => {
   // HELPERS UI
   // =========================
 
-  const totalMaterials = computed(() => store.calculation?.total_items ?? 0)
+  const totalMaterials = computed(() => store.calculation?.materials?.length ?? 0)
 
   const hasTree = computed(() => store.tree.length > 0)
 
