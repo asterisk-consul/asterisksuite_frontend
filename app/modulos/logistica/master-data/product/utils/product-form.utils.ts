@@ -34,7 +34,8 @@ export function createDefaultProductCosting() {
 export function createDefaultProductInventory() {
   return {
     manages_stock: true,
-    requires_refrigeration: false
+    requires_refrigeration: false,
+    unit_id: undefined as string | undefined
   }
 }
 
@@ -79,6 +80,7 @@ export function toUpdateProductPayload(form: ProductFormState): UpdateProductDto
 
     manages_stock: form.manages_stock,
     requires_refrigeration: form.requires_refrigeration,
+    unit_id: form.unit_id,
 
     is_composed: form.is_composed,
     is_rate_type: form.is_rate_type,
@@ -108,6 +110,7 @@ export function toCreateProductPayload(form: ProductFormState): CreateProductDto
 
     manages_stock: form.manages_stock,
     requires_refrigeration: form.requires_refrigeration,
+    unit_id: form.unit_id,
 
     is_composed: form.is_composed,
     is_rate_type: form.is_rate_type,

@@ -1,13 +1,20 @@
 import type {
   WarehouseStockItem,
+  ProductStockItem,
   StockMovement,
-  CreateStockMovementInput
+  CreateStockMovementInput,
+  TransferStockInput
 } from '~/modulos/logistica/warehouses/stock/stock.types'
 
 export const useStockService = () => {
   const getStock = (warehouseId: string) =>
     $fetch<WarehouseStockItem[]>(
       `/api/logistica/warehouse/stock/${warehouseId}`
+    )
+
+  const getStockByProduct = (productId: string) =>
+    $fetch<ProductStockItem[]>(
+      `/api/logistica/warehouse/stock/product/${productId}`
     )
 
   const getMovements = (warehouseId: string) =>
@@ -21,9 +28,26 @@ export const useStockService = () => {
       body
     })
 
+  const transferStock = (body: TransferStockInput) =>
+    $fetch<{ success: boolean }>('/api/logistica/warehouse/stock/transfer', {
+      method: 'POST',
+      body
+    })
+
+  const removeStock = (warehouseId: string, productId: string) =>
+    $fetch<{ success: boolean }>(
+      `/api/logistica/warehouse/stock/${warehouseId}/${productId}`,
+      {
+        method: 'DELETE'
+      }
+    )
+
   return {
     getStock,
+    getStockByProduct,
     getMovements,
-    createMovement
+    createMovement,
+    transferStock,
+    removeStock
   }
 }

@@ -102,16 +102,41 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'payments.read'
       },
       { label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', permission: 'payments.read' },
-      { label: 'Cuentas corrientes', icon: 'i-lucide-file-text', to: '/erp/treasury/current-accounts', permission: 'payments.read' },
+      {
+        label: 'Cuentas corrientes',
+        icon: 'i-lucide-file-text',
+        to: '/erp/treasury/current-accounts',
+        permission: 'payments.read'
+      },
       {
         label: 'Reportes',
         icon: 'i-lucide-bar-chart-3',
         permission: 'payments.read',
         children: [
-          { label: 'Movimientos', icon: 'i-lucide-activity', to: '/erp/treasury/reports/movements', permission: 'payments.read' },
-          { label: 'Pagos por usuario', icon: 'i-lucide-users', to: '/erp/treasury/reports/by-user', permission: 'payments.read' },
-          { label: 'Entes reguladores', icon: 'i-lucide-building-2', to: '/erp/treasury/reports/regulatory-payments', permission: 'payments.read' },
-          { label: 'Servicios mensuales', icon: 'i-lucide-zap', to: '/erp/treasury/reports/utility-payments', permission: 'payments.read' }
+          {
+            label: 'Movimientos',
+            icon: 'i-lucide-activity',
+            to: '/erp/treasury/reports/movements',
+            permission: 'payments.read'
+          },
+          {
+            label: 'Pagos por usuario',
+            icon: 'i-lucide-users',
+            to: '/erp/treasury/reports/by-user',
+            permission: 'payments.read'
+          },
+          {
+            label: 'Entes reguladores',
+            icon: 'i-lucide-building-2',
+            to: '/erp/treasury/reports/regulatory-payments',
+            permission: 'payments.read'
+          },
+          {
+            label: 'Servicios mensuales',
+            icon: 'i-lucide-zap',
+            to: '/erp/treasury/reports/utility-payments',
+            permission: 'payments.read'
+          }
         ]
       },
       {
@@ -124,12 +149,42 @@ export const navigationTree: DrilldownNode[] = [
             to: '/erp/contabilidad/accounts',
             permission: 'accounts.read'
           },
-          { label: 'Tipos de documento', icon: 'i-lucide-file-text', to: '/erp/settings/document-types', permission: 'payments.read' },
-          { label: 'Secuencias', icon: 'i-lucide-hash', to: '/erp/settings/document-sequences', permission: 'payments.read' },
-          { label: 'Conceptos bancarios', icon: 'i-lucide-receipt', to: '/erp/treasury/bank-concepts', permission: 'bank_accounts.read' },
-          { label: 'Libro IVA', icon: 'i-lucide-book-open', to: '/erp/treasury/reports/libro-iva', permission: 'payments.read' },
-          { label: 'Reportes contables', icon: 'i-lucide-bar-chart-3', to: '/erp/treasury/reports/accounting', permission: 'payments.read' },
-          { label: 'Informe consolidado', icon: 'i-lucide-file-text', to: '/erp/treasury/reports/consolidated', permission: 'payments.read' }
+          {
+            label: 'Tipos de documento',
+            icon: 'i-lucide-file-text',
+            to: '/erp/settings/document-types',
+            permission: 'payments.read'
+          },
+          {
+            label: 'Secuencias',
+            icon: 'i-lucide-hash',
+            to: '/erp/settings/document-sequences',
+            permission: 'payments.read'
+          },
+          {
+            label: 'Conceptos bancarios',
+            icon: 'i-lucide-receipt',
+            to: '/erp/treasury/bank-concepts',
+            permission: 'bank_accounts.read'
+          },
+          {
+            label: 'Libro IVA',
+            icon: 'i-lucide-book-open',
+            to: '/erp/treasury/reports/libro-iva',
+            permission: 'payments.read'
+          },
+          {
+            label: 'Reportes contables',
+            icon: 'i-lucide-bar-chart-3',
+            to: '/erp/treasury/reports/accounting',
+            permission: 'payments.read'
+          },
+          {
+            label: 'Informe consolidado',
+            icon: 'i-lucide-file-text',
+            to: '/erp/treasury/reports/consolidated',
+            permission: 'payments.read'
+          }
         ]
       }
     ]
@@ -190,7 +245,6 @@ export const navigationTree: DrilldownNode[] = [
           { label: 'Locaciones', icon: 'i-lucide-map-pin', to: '/logistica/viajes/locaciones' }
         ]
       },
-      { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/logistica/warehouse', permission: 'warehouses.read' },
       {
         label: 'Flota',
         icon: 'i-lucide-car',
@@ -233,7 +287,17 @@ export const navigationTree: DrilldownNode[] = [
     permission: 'products.read',
     children: [
       { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/stock' },
-      { label: 'Productos', icon: 'i-lucide-package', to: '/productos' }
+      {
+        label: 'Productos',
+        icon: 'i-lucide-package',
+        to: '/productos',
+        children: [
+          { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
+          { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
+          { label: 'Costos', icon: 'i-lucide-dollar-sign', to: '/productos/costos' }
+        ]
+      },
+      { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' }
     ]
   },
 
@@ -245,16 +309,6 @@ export const navigationTree: DrilldownNode[] = [
     permission: 'products.read',
     children: [
       { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/fabricacion' },
-      {
-        label: 'Productos',
-        icon: 'i-lucide-package',
-        to: '/productos',
-        children: [
-          { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
-          { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
-          { label: 'Costos', icon: 'i-lucide-dollar-sign', to: '/productos/costos' }
-        ]
-      },
       { label: 'BOM (Ingeniería)', icon: 'i-lucide-git-branch', to: '/bom' },
       { label: 'Plantillas de costo', icon: 'i-lucide-file-text', to: '/cost-templates' }
     ]

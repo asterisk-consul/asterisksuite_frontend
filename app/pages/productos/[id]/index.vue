@@ -7,8 +7,8 @@ import { useEngineering } from '~/modulos/logistica/master-data/product/engineer
 import EngineeringTree from '~/modulos/logistica/master-data/product/engineering/components/EngineeringTree.vue'
 import CostingHistoryTable from '~/modulos/logistica/master-data/product/costing/components/CostingHistoryTable.vue'
 import CostingParetoTable from '~/modulos/logistica/master-data/product/costing/components/CostingParetoTable.vue'
-import EngineeringComponentForm from '~/modulos/logistica/master-data/product/engineering/components/EngineeringComponentForm.vue'
 import CostTemplateSelector from '~/modulos/logistica/master-data/product/cost-templates/components/CostTemplateSelector.vue'
+import ProductStockTab from '~/modulos/logistica/master-data/product/stock/components/ProductStockTab.vue'
 
 const route = useRoute()
 const productId = computed(() => route.params.id as string)
@@ -27,7 +27,8 @@ const engineering = useEngineering(productId.value)
 const tabs = [
   { label: 'General', icon: 'i-heroicons-information-circle', slot: 'general' },
   { label: 'Ingeniería', icon: 'i-heroicons-circle-stack', slot: 'engineering' },
-  { label: 'Costos', icon: 'i-heroicons-calculator', slot: 'costing' }
+  { label: 'Costos', icon: 'i-heroicons-calculator', slot: 'costing' },
+  { label: 'Depósitos', icon: 'i-lucide-warehouse', slot: 'stock' }
 ]
 
 const activeTab = ref('general')
@@ -38,6 +39,11 @@ const activeTab = ref('general')
 
 onMounted(async () => {
   await Promise.all([costing.init(), templates.init(), engineering.init()])
+
+  // Si viene con hash #stock, abrir tab de depósitos
+  if (route.hash === '#stock') {
+    activeTab.value = 'stock'
+  }
 })
 
 // =========================
@@ -75,45 +81,15 @@ const costingTabs = [
 const activeCostingTab = ref('history')
 
 // =========================
-// ENGINEERING MODALS
+// ENGINEERING HANDLERS
 // =========================
 
-const selectedParent = ref<any | null>(null)
-const editingNode = ref<any | null>(null)
-const nodeToDelete = ref<any | null>(null)
-
-const handleAddComponent = (parentNode: any | null) => {
-  selectedParent.value = parentNode
-  editingNode.value = null
-
-  showAddComponent.value = true
-}
-
-const handleEditComponent = (node: any) => {
-  editingNode.value = node
-
-  showAddComponent.value = true
-}
-
 const handleDeleteComponent = (node: any) => {
-  nodeToDelete.value = node
-  showDeleteModal.value = true
+  // TODO: implementar delete desde el árbol
 }
 
 const handleComponentSaved = async () => {
-  showAddComponent.value = false
-
-  selectedParent.value = null
-  editingNode.value = null
-
-  await engineering.loadTree()
-}
-
-const handleComponentCancelled = () => {
-  showAddComponent.value = false
-
-  selectedParent.value = null
-  editingNode.value = null
+  // refresh tree if needed
 }
 </script>
 
@@ -126,7 +102,7 @@ const handleComponentCancelled = () => {
           variant="ghost"
           color="neutral"
           icon="i-heroicons-arrow-left"
-          to="/logistica/warehouse/productos"
+          to="/productos"
           size="sm"
         />
         <div>
@@ -158,8 +134,6 @@ const handleComponentCancelled = () => {
           <UCard>
             <EngineeringTree
               :product-id="productId"
-              @add-child="handleAddComponent"
-              @edit-node="handleEditComponent"
               @delete-node="handleDeleteComponent"
             />
           </UCard>
@@ -201,6 +175,13 @@ const handleComponentCancelled = () => {
           </UTabs>
         </div>
       </template>
+
+      <!-- ─── TAB DEPÓSITOS ──────────────────────────────────── -->
+      <template #stock>
+        <div class="mt-4">
+          <ProductStockTab :product-id="productId" />
+        </div>
+      </template>
     </UTabs>
 
     <!-- ─── MODAL TEMPLATE SELECTOR ───────────────────────────── -->
@@ -211,18 +192,6 @@ const handleComponentCancelled = () => {
           :current-template-id="costing.latestSnapshot.value?.cost_template_id ?? null"
           @assigned="handleTemplateAssigned"
           @closed="showTemplateSelector = false"
-        />
-      </template>
-    </UModal>
-
-    <!-- ─── MODAL AGREGAR COMPONENTE ──────────────────────────── -->
-    <UModal v-model:open="showAddComponent" title="Agregar componente de ingeniería">
-      <template #body>
-        <EngineeringComponentForm
-          :product-id="productId"
-          :component="editingNode"
-          @saved="handleComponentSaved"
-          @cancelled="showAddComponent = false"
         />
       </template>
     </UModal>

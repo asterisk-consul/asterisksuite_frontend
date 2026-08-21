@@ -10,6 +10,7 @@ export type CalculationType = 'UNIT' | 'SURFACE' | 'VOLUME' | 'LINEAR'
 
 import type { Account } from '~/modulos/contabilidad/types/accounts.types'
 import type { Category } from '~/modulos/almacen/categories/types/categories.types'
+import type { Unit } from '~/modulos/almacen/units/types/units.types'
 import type { ProductVariant } from '~/modulos/logistica/master-data/product-variants/types/product-variants.types'
 import type { ProductTag } from '~/modulos/logistica/master-data/product-tags/types/product-tags.types'
 import type { ProductAttributeValue } from '~/modulos/logistica/master-data/product-attribute-values/types/product-attribute-values.types'
@@ -86,6 +87,8 @@ export interface Product {
 
   current_cost?: number | string | null
 
+  unit_id?: string | null
+
   // relaciones
 
   product_variants?: ProductVariant[]
@@ -113,6 +116,8 @@ export interface Product {
   inventory_account?: Account | null
 
   transfer_rate?: TransferRate | null
+
+  unit?: Unit | null
 
   root_products?: RootProductReference[]
 }
@@ -181,6 +186,8 @@ export interface CreateProductDto {
 
   calculation_type?: CalculationType
   cost_source?: ProductCostSource
+
+  unit_id?: string
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}

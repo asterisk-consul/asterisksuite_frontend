@@ -103,7 +103,7 @@ const tabs = [
       </template>
 
       <template #inventory>
-        <ProductInventoryTab v-model="form" />
+        <ProductInventoryTab v-model="form" :product-id="props.product?.id" :mode="props.mode" />
       </template>
 
       <template #advanced>

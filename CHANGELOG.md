@@ -1,5 +1,42 @@
 # Changelog
 
+## 21 de agosto, 2026
+
+<details open>
+<summary>
+
+### v0.27.0-alpha
+
+> Rediseño completo de la landing page: hero interactivo, animaciones al scroll, tipografía Outfit, mobile nav, footer mejorado.
+
+</summary>
+
+---
+
+##### 🎨 UI / Design
+
+- **landing**: Hero con gradientes radiales reactivos al mouse (via `useMouseInElement`)
+- **landing**: Animaciones de entrada staggered (fade-in-up) en hero, stats bar, scroll indicator
+- **landing**: Sección Problema/Solución unificada con sticky headline y scroll reveal
+- **landing**: Módulos con layout asimétrico, iconos coloreados por módulo, hover glow
+- **landing**: Diferenciadores con borde gradiente animado (conic-gradient rotating on hover)
+- **landing**: Stack Tecnológico con dos columnasBackend/Frontend
+- **landing**: Seguridad con hover green glow
+- **landing**: CTA final con doble blur gradient y partículas al hover
+- **layout**: Mobile hamburger menu con transición animada
+- **layout**: Footer mejorado: 4 columnas, GitHub link, tagline
+- **layout**: Nav links con hover states y logo con glow shadow
+- **css**: Font display Outfit (Google Fonts)
+- **css**: 12 keyframe animations: fade-in-up, fade-in-scale, glow-pulse, float, scroll-indicator, particle-float, border-rotate
+- **css**: Clases utilitarias: `.reveal`, `.stagger-children`, `.gradient-border`, `.glow-orange`, `.glass`
+- **css**: Scrollbar custom y selection color
+
+##### ❤️ Contributors
+
+- agustin
+
+</details>
+
 ## 19 de agosto, 2026
 
 <details open>

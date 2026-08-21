@@ -16,11 +16,6 @@ import ModalForm from '~/components/ModalForm.vue'
 
 // composables
 import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
-const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
-import type { ButtonProps } from '@nuxt/ui'
-function toggleModuleSidebar() {
-  moduleCollapsed.value = !moduleCollapsed.value
-}
 
 // types
 import type {
@@ -29,7 +24,7 @@ import type {
 } from '~/modulos/logistica/warehouses/warehouse/warehouse.types'
 
 // columns
-import { createWarehouseColumns } from '../../../modulos/logistica/warehouses/warehouse/columns'
+import { createWarehouseColumns } from '~/modulos/logistica/warehouses/warehouse/columns'
 
 // page meta
 definePageMeta({ middleware: ['auth'] })
@@ -188,36 +183,25 @@ async function handleSubmit(data: any) {
 
   modalOpen.value = false
 }
-const links = ref<ButtonProps[]>([
+const links = ref([
   {
-    label: 'Nuevo Depositos',
+    label: 'Nuevo Depósito',
     icon: 'i-heroicons-plus',
     onClick: openCreate,
-    color: 'primary',
-    variant: 'solid'
+    color: 'primary' as const,
+    variant: 'solid' as const
   }
 ])
 </script>
 
 <template>
   <UPage class="space-y-4">
-    <div class="flex flex-col">
-      <div>
-        <UButton
-          icon="i-lucide-layout-panel-left"
-          variant="ghost"
-          color="neutral"
-          label="Menu"
-          @click="toggleModuleSidebar"
-        />
-      </div>
-      <UPageHeader
-        title="Depositos"
-        description="Listado de Depositos"
-        :links="links"
-        class="mb-4 w-full"
-      />
-    </div>
+    <UPageHeader
+      title="Depósitos"
+      description="Listado de depósitos"
+      :links="links"
+      class="mb-4 w-full"
+    />
 
     <LogisticaTable :loading="loading" :data="warehouses" :columns="columns" />
   </UPage>

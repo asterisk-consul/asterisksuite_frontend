@@ -12,6 +12,8 @@ export const warehouseSchema = z.object({
 
   locationId: z.string().uuid('Location inválida').optional().or(z.literal('')),
 
+  unitId: z.string().uuid('Unidad inválida').optional().or(z.literal('')),
+
   active: z.boolean().optional()
 })
 

@@ -1,5 +1,6 @@
 import { h } from 'vue'
 import { UBadge, UCheckbox, UInput } from '#components'
+import { NuxtLink } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 import StatusToggle from '@/components/ui/PopoverTableActive.vue'
 import type { Warehouse } from '~/modulos/logistica/warehouses/warehouse/warehouse.types'
@@ -56,10 +57,10 @@ export const createWarehouseColumns = (actions: {
       const id = row.getValue('id') as string
 
       return h(
-        'button',
+        NuxtLink,
         {
+          to: `/productos/warehouses/${id}`,
           class: 'text-primary hover:underline font-mono hover:cursor-pointer',
-          onClick: () => actions.onEdit?.(row.original)
         },
         `#${id.slice(0, 8)}`
       )
@@ -91,11 +92,11 @@ export const createWarehouseColumns = (actions: {
       }
 
       return h(
-        'div',
+        NuxtLink,
         {
+          to: `/productos/warehouses/${id}`,
           class:
-            'cursor-pointer hover:bg-primary/5 hover:text-primary px-2 py-1 rounded',
-          onClick: () => startEdit(id, 'name')
+            'cursor-pointer hover:bg-primary/5 hover:text-primary px-2 py-1 rounded font-medium',
         },
         value
       )

@@ -8,7 +8,7 @@ const props = defineProps<{
 const router = useRouter()
 
 const goToProduct = (id: string) => {
-  router.push(`/logistica/warehouse/productos/${id}/edit`)
+  router.push(`/productos/${id}/edit`)
 }
 
 // watch(

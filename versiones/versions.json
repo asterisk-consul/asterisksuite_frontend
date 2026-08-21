@@ -1583,5 +1583,89 @@
       }
     ],
     "contributors": ["agustin"]
+  },
+  {
+    "version": "0.27.0-alpha",
+    "date": "2026-08-21",
+    "stage": "alpha",
+    "notes": "Rediseño completo de la landing page: hero interactivo, animaciones al scroll, tipografía Outfit, mobile nav, footer mejorado",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Hero con gradientes radiales reactivos al mouse (useMouseInElement)"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Animaciones de entrada staggered (fade-in-up) en hero, stats bar, scroll indicator"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Sección Problema/Solución unificada con sticky headline y scroll reveal"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Módulos con layout asimétrico, iconos coloreados por módulo, hover glow"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Diferenciadores con borde gradiente animado (conic-gradient rotating on hover)"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Stack Tecnológico con dos columnas Backend/Frontend"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Seguridad con hover green glow"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "CTA final con doble blur gradient y partículas al hover"
+      },
+      {
+        "type": "feat",
+        "scope": "layout",
+        "title": "Mobile hamburger menu con transición animada"
+      },
+      {
+        "type": "feat",
+        "scope": "layout",
+        "title": "Footer mejorado: 4 columnas, GitHub link, tagline"
+      },
+      {
+        "type": "feat",
+        "scope": "layout",
+        "title": "Nav links con hover states y logo con glow shadow"
+      },
+      {
+        "type": "feat",
+        "scope": "css",
+        "title": "Font display Outfit (Google Fonts)"
+      },
+      {
+        "type": "feat",
+        "scope": "css",
+        "title": "12 keyframe animations: fade-in-up, glow-pulse, float, scroll-indicator, particle-float, border-rotate"
+      },
+      {
+        "type": "feat",
+        "scope": "css",
+        "title": "Clases utilitarias: .reveal, .stagger-children, .gradient-border, .glow-orange, .glass"
+      },
+      {
+        "type": "feat",
+        "scope": "css",
+        "title": "Scrollbar custom y selection color"
+      }
+    ],
+    "contributors": ["agustin"]
   }
 ]
