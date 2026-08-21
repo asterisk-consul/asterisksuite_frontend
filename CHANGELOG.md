@@ -5,6 +5,29 @@
 <details open>
 <summary>
 
+### v0.28.0-alpha
+
+> Landing: sección dedicada de Motor de Costos con visualización de árbol BOM, estructura de ingeniería, drivers de costo y análisis Pareto.
+
+</summary>
+
+---
+
+##### 🎨 UI / Design
+
+- **landing**: Nueva sección "Motor de Costos" con visualización jerárquica del árbol BOM (mockup interactivo de nodos con costos por nivel)
+- **landing**: 4 features de costing: Árbol BOM recursivo, Estructura de Ingeniería, Drivers de Costo, Análisis Pareto
+- **layout**: Link "Costos" agregado al nav de la landing
+
+##### ❤️ Contributors
+
+- agustin
+
+</details>
+
+<details open>
+<summary>
+
 ### v0.27.0-alpha
 
 > Rediseño completo de la landing page: hero interactivo, animaciones al scroll, tipografía Outfit, mobile nav, footer mejorado.

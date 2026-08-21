@@ -42,6 +42,7 @@ watch(() => route.fullPath, () => {
 
 const navLinks = [
   { label: 'Módulos', to: '#modulos' },
+  { label: 'Costos', to: '#costos' },
   { label: 'Diferenciadores', to: '#diferenciadores' },
   { label: 'Stack', to: '#stack' },
   { label: 'Seguridad', to: '#seguridad' }

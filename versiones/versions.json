@@ -1667,5 +1667,29 @@
       }
     ],
     "contributors": ["agustin"]
+  },
+  {
+    "version": "0.28.0-alpha",
+    "date": "2026-08-21",
+    "stage": "alpha",
+    "notes": "Landing: sección dedicada de Motor de Costos con visualización de árbol BOM, estructura de ingeniería, drivers de costo y análisis Pareto",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Nueva sección Motor de Costos con visualización jerárquica del árbol BOM"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "4 features de costing: Árbol BOM recursivo, Estructura de Ingeniería, Drivers de Costo, Análisis Pareto"
+      },
+      {
+        "type": "feat",
+        "scope": "layout",
+        "title": "Link Costos agregado al nav de la landing"
+      }
+    ],
+    "contributors": ["agustin"]
   }
 ]

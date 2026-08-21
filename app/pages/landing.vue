@@ -85,6 +85,13 @@ const securityFeatures = [
   { icon: 'i-lucide-eye', title: 'Auditoría', items: ['Logs automáticos con old/new data', 'userId e IP en cada operación', 'Schemas separados público/tenant'] }
 ]
 
+const costingFeatures = [
+  { icon: 'i-lucide-git-branch', title: 'Árbol BOM recursivo', description: 'Recorré la estructura completa de tu producto hoja por hoja. Cada componente resolve su costo real y se agrega hacia arriba.', color: 'orange' },
+  { icon: 'i-lucide-ruler', title: 'Estructura de Ingeniería', description: 'Cálculo físico por superficie, volumen o lineal. Densidad, desperdicio y dimensiones reales de cada pieza.', color: 'cyan' },
+  { icon: 'i-lucide-settings', title: 'Drivers de Costo', description: 'Plantillas con capas: Material → Mano de obra → Overhead → Otro. Porcentaje o fijo por unidad.', color: 'violet' },
+  { icon: 'i-lucide-bar-chart-3', title: 'Análisis Pareto', description: 'Identificá los componentes que más impactan tu costo. El 20% de los materiales representa el 80% del costo total.', color: 'green' }
+]
+
 function moduleColor(c: string) {
   const map: Record<string, { bg: string; text: string }> = {
     orange: { bg: 'bg-orange-500/10', text: 'text-orange-400' },
@@ -224,6 +231,87 @@ function moduleColor(c: string) {
               </div>
               <h3 class="font-display text-lg font-semibold text-white">{{ mod.title }}</h3>
               <p class="mt-2 text-sm leading-relaxed text-gray-400">{{ mod.description }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COSTOS -->
+    <section id="costos" class="relative border-y border-white/5 py-24">
+      <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-amber-500/[0.02] to-transparent" />
+      <div class="relative mx-auto max-w-7xl px-6">
+        <div class="mb-16 text-center">
+          <p class="mb-4 text-xs font-semibold uppercase tracking-widest text-amber-400 reveal">Manufactura</p>
+          <h2 class="font-display text-3xl font-bold text-white sm:text-4xl reveal">Motor de Costos</h2>
+          <p class="mt-3 text-gray-400 reveal">Calculá el costo real de cada producto desde la materia prima hasta el producto terminado.</p>
+        </div>
+
+        <div class="grid gap-12 lg:grid-cols-2 lg:items-center">
+          <!-- Left: BOM tree visualization -->
+          <div class="reveal">
+            <div class="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
+              <div class="mb-4 flex items-center gap-2 text-sm text-gray-500">
+                <UIcon name="i-lucide-git-branch" class="size-4" />
+                <span>Árbol de costos — Producto terminado</span>
+              </div>
+              <div class="space-y-3 font-mono text-sm">
+                <!-- Root -->
+                <div class="flex items-center gap-3 rounded-xl bg-orange-500/10 px-4 py-3">
+                  <UIcon name="i-lucide-box" class="size-4 text-orange-400" />
+                  <span class="flex-1 font-semibold text-white">Producto Final</span>
+                  <span class="font-display font-bold text-orange-400">$12.500</span>
+                </div>
+                <!-- Level 1 -->
+                <div class="ml-6 space-y-2 border-l-2 border-white/10 pl-4">
+                  <div class="flex items-center gap-3 rounded-lg bg-white/[0.03] px-3 py-2">
+                    <UIcon name="i-lucide-layers" class="size-3.5 text-orange-400" />
+                    <span class="flex-1 text-gray-300">Material A</span>
+                    <span class="text-orange-400">$4.200</span>
+                  </div>
+                  <div class="flex items-center gap-3 rounded-lg bg-white/[0.03] px-3 py-2">
+                    <UIcon name="i-lucide-layers" class="size-3.5 text-orange-400" />
+                    <span class="flex-1 text-gray-300">Ensamble B</span>
+                    <span class="text-orange-400">$5.800</span>
+                  </div>
+                  <!-- Level 2 -->
+                  <div class="ml-5 space-y-1.5 border-l-2 border-white/10 pl-4">
+                    <div class="flex items-center gap-3 rounded-lg bg-white/[0.02] px-3 py-1.5 text-xs">
+                      <UIcon name="i-lucide-circle" class="size-2 text-gray-600" />
+                      <span class="flex-1 text-gray-400">Componente C</span>
+                      <span class="text-gray-500">$2.100</span>
+                    </div>
+                    <div class="flex items-center gap-3 rounded-lg bg-white/[0.02] px-3 py-1.5 text-xs">
+                      <UIcon name="i-lucide-circle" class="size-2 text-gray-600" />
+                      <span class="flex-1 text-gray-400">Componente D</span>
+                      <span class="text-gray-500">$3.700</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3 rounded-lg bg-white/[0.03] px-3 py-2">
+                    <UIcon name="i-lucide-settings" class="size-3.5 text-violet-400" />
+                    <span class="flex-1 text-gray-300">Overhead (labor + indirecto)</span>
+                    <span class="text-violet-400">$2.500</span>
+                  </div>
+                </div>
+                <!-- Total bar -->
+                <div class="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 mt-4">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Costo total</span>
+                  <span class="font-display text-lg font-bold text-white">$12.500</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: features -->
+          <div class="space-y-5 stagger-children">
+            <div v-for="feat in costingFeatures" :key="feat.title" class="reveal group flex items-start gap-4 rounded-2xl border border-white/5 bg-white/[0.02] p-5 transition-all duration-300 hover:border-amber-500/20 hover:bg-amber-500/[0.04]">
+              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110" :class="[moduleColor(feat.color).bg, moduleColor(feat.color).text]">
+                <UIcon :name="feat.icon" class="size-5" />
+              </div>
+              <div>
+                <p class="font-display font-semibold text-white">{{ feat.title }}</p>
+                <p class="mt-1 text-sm leading-relaxed text-gray-400">{{ feat.description }}</p>
+              </div>
             </div>
           </div>
         </div>
