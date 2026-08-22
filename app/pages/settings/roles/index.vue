@@ -98,8 +98,6 @@ const handleEdit = async () => {
 }
 
 const openPermissions = (role: any) => {
-  console.log('CLICK PERMISSIONS', role.id)
-  console.log('URL:', `/settings/roles/${role.id}/permissions`)
   router.push(`/settings/roles/${role.id}/permissions`)
 }
 

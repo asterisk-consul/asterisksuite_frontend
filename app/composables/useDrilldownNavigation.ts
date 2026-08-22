@@ -2,6 +2,7 @@ import type { DrilldownNode } from '~/data/navigationTree'
 import { navigationTree } from '~/data/navigationTree'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useCurrentUserEmployee } from '~/composables/useCurrentUserEmployee'
 
 // Tipo de nivel en el stack: nodos + referencia al nodo padre
 export interface StackLevel {
@@ -39,18 +40,22 @@ function findBranch(nodes: DrilldownNode[], path: string): DrilldownNode[] {
   return best
 }
 
-// Filtrar nodos recursivamente por permisos
+// Filtrar nodos recursivamente por permisos y condiciones de visibilidad
 function filterByPermissions(
   nodes: DrilldownNode[],
   hasPermission: (code: string) => boolean,
-  isOwnerOrAdmin: boolean
+  isOwnerOrAdmin: boolean,
+  isSalesperson: boolean
 ): DrilldownNode[] {
   return nodes.filter(node => {
     if (node.permission && !isOwnerOrAdmin && !hasPermission(node.permission)) {
       return false
     }
+    if (node.visibleIf === 'is_salesperson' && !isSalesperson) {
+      return false
+    }
     if (node.children?.length) {
-      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin)
+      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin, isSalesperson)
       return filteredChildren.length > 0
     }
     return true
@@ -61,8 +66,9 @@ export const useDrilldownNavigation = () => {
   const route = useRoute()
   const { hasPermission } = useRoles()
   const { isOwnerOrAdmin } = useCompanyRole()
+  const { isSalesperson } = useCurrentUserEmployee()
 
-  const filteredTree = computed(() => filterByPermissions(navigationTree, hasPermission, isOwnerOrAdmin.value))
+  const filteredTree = computed(() => filterByPermissions(navigationTree, hasPermission, isOwnerOrAdmin.value, isSalesperson.value))
 
   // Stack: cada nivel tiene nodos + referencia al nodo padre
   const stackState = useState<StackLevel[]>('drilldown-stack', () => [{ nodes: navigationTree }])
@@ -95,7 +101,7 @@ export const useDrilldownNavigation = () => {
 
   const push = (node: DrilldownNode) => {
     if (node.children?.length) {
-      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value)
+      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value)
       stack.value = [...stack.value, { nodes: filteredChildren, parentNode: node }]
     }
   }
@@ -127,7 +133,7 @@ export const useDrilldownNavigation = () => {
   const select = (node: DrilldownNode) => {
     if (node.children?.length) {
       push(node)
-      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value)
+      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value)
       const resumen = filteredChildren.find(child => child.to)
       if (resumen?.to) {
         navigateTo(resumen.to)
@@ -145,7 +151,7 @@ export const useDrilldownNavigation = () => {
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
-          levels.push({ nodes: filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value), parentNode: node })
+          levels.push({ nodes: filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value), parentNode: node })
         }
       }
       stackState.value = levels
@@ -161,7 +167,7 @@ export const useDrilldownNavigation = () => {
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
-          levels.push({ nodes: filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value), parentNode: node })
+          levels.push({ nodes: filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value), parentNode: node })
         }
       }
       stackState.value = levels

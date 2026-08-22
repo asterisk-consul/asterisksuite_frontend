@@ -10,7 +10,7 @@ const router = useRouter()
 const toast = useToast()
 
 const { isOwnerOrAdmin } = useCompanyRole()
-const { groupedByModule, init: initPermissions } = usePermissions()
+const { groupedByModule, total: totalPermissions, init: initPermissions } = usePermissions()
 const { updatePermissions: updateRolePermissions } = useRoles()
 
 const roleId = route.params.id as string
@@ -20,20 +20,34 @@ const permSearch = ref('')
 const collapsedModules = ref<Set<string>>(new Set())
 const collapsedSubgroups = ref<Set<string>>(new Set())
 const selectedPermissionCodes = ref<string[]>([])
+const initialPermissionCodes = ref<string[]>([])
 
-console.log('[PermissionsPage] roleId:', roleId, 'route params:', route.params)
+const hasUnsavedChanges = computed(() => {
+  const sortedSelected = [...selectedPermissionCodes.value].sort()
+  const sortedInitial = [...initialPermissionCodes.value].sort()
+  return JSON.stringify(sortedSelected) !== JSON.stringify(sortedInitial)
+})
+
+const selectedCount = computed(() => selectedPermissionCodes.value.length)
 
 onMounted(async () => {
-  console.log('[PermissionsPage] onMounted')
   try {
     await initPermissions()
-    console.log('[PermissionsPage] permissions loaded:', groupedByModule.value.length, 'groups')
     const data = await $fetch<any>(`/api/access-control/roles/${roleId}`)
-    console.log('[PermissionsPage] role data:', data?.name)
     roleName.value = data.name || ''
-    selectedPermissionCodes.value = (data.permissions || []).map((p: any) => p.permission?.code).filter(Boolean)
-  } catch (e) {
-    console.error('[PermissionsPage] error:', e)
+    const codes = (data.permissions || []).map((p: any) => p.permission?.code).filter(Boolean)
+    selectedPermissionCodes.value = codes
+    initialPermissionCodes.value = [...codes]
+  } catch {
+    toast.add({ title: 'Error al cargar permisos', color: 'error' })
+  }
+})
+
+onBeforeUnmount(() => {
+  if (hasUnsavedChanges.value) {
+    if (!confirm('Tenés cambios sin guardar. ¿Salir de todos modos?')) {
+      // No se puede cancelar el unmount, pero al menos avisamos
+    }
   }
 })
 
@@ -72,11 +86,6 @@ watch(permSearch, (val) => {
   }
 })
 
-const groupHasResults = (perms: any[]) => {
-  if (!permSearch.value.trim()) return true
-  return filteredPerms(perms).length > 0
-}
-
 const togglePermission = (code: string) => {
   const idx = selectedPermissionCodes.value.indexOf(code)
   if (idx === -1) {
@@ -100,12 +109,26 @@ const toggleModule = (modulePerms: any[]) => {
   }
 }
 
+const selectAll = () => {
+  const allCodes: string[] = []
+  for (const group of groupedByModule.value) {
+    for (const perm of group.permissions) {
+      allCodes.push(perm.code)
+    }
+  }
+  selectedPermissionCodes.value = allCodes
+}
+
+const clearAll = () => {
+  selectedPermissionCodes.value = []
+}
+
 const savePermissions = async () => {
   saving.value = true
   try {
     await updateRolePermissions(roleId, selectedPermissionCodes.value)
+    initialPermissionCodes.value = [...selectedPermissionCodes.value]
     toast.add({ title: 'Permisos actualizados', color: 'success' })
-    router.push('/settings/roles')
   } catch (e: any) {
     toast.add({
       title: 'Error al guardar permisos',
@@ -126,20 +149,66 @@ const savePermissions = async () => {
       description="Gestiona los permisos asignados a este rol"
     >
       <template #links>
-        <UButton label="Volver" icon="i-lucide-arrow-left" variant="ghost" @click="router.push('/settings/roles')" />
-        <UButton label="Guardar" icon="i-lucide-check" :loading="saving" @click="savePermissions" />
+        <div class="flex items-center gap-2">
+          <UBadge
+            v-if="selectedCount > 0"
+            :label="`${selectedCount} de ${totalPermissions} permisos`"
+            color="primary"
+            variant="soft"
+          />
+          <UButton
+            v-if="!isOwnerOrAdmin"
+            label="Volver"
+            icon="i-lucide-arrow-left"
+            variant="ghost"
+            @click="hasUnsavedChanges ? (confirm('Tenés cambios sin guardar. ¿Salir?') && router.push('/settings/roles')) : router.push('/settings/roles')"
+          />
+          <UButton
+            v-else
+            label="Volver"
+            icon="i-lucide-arrow-left"
+            variant="ghost"
+            @click="router.push('/settings/roles')"
+          />
+          <UButton label="Guardar" icon="i-lucide-check" :loading="saving" :disabled="!hasUnsavedChanges" @click="savePermissions" />
+        </div>
       </template>
       <template #footer>
-        <div class="pt-3 mt-2">
+        <div class="flex items-center gap-2 pt-3 mt-2">
           <UInput
             v-model="permSearch"
             icon="i-lucide-search"
             placeholder="Buscar permisos... (ej: pagos, vehiculos, documentos)"
             size="sm"
+            class="flex-1"
+          />
+          <UButton
+            v-if="isOwnerOrAdmin"
+            label="Todos"
+            size="xs"
+            variant="outline"
+            @click="selectAll"
+          />
+          <UButton
+            v-if="isOwnerOrAdmin"
+            label="Ninguno"
+            size="xs"
+            variant="outline"
+            color="neutral"
+            @click="clearAll"
           />
         </div>
       </template>
     </AppPageHeader>
+
+    <!-- Guard admin -->
+    <UAlert
+      v-if="!isOwnerOrAdmin"
+      color="warning"
+      icon="i-lucide-shield-alert"
+      title="Solo visualización"
+      description="Solo los usuarios con rol OWNER o ADMIN pueden editar permisos."
+    />
 
     <!-- Lista de permisos -->
     <div class="space-y-2 px-4">
@@ -155,6 +224,7 @@ const savePermissions = async () => {
           @click="toggleModuleCollapse(group.label)"
         >
           <UCheckbox
+            :disabled="!isOwnerOrAdmin"
             :model-value="group.permissions.every((p: any) => selectedPermissionCodes.includes(p.code))"
             :indeterminate="
               group.permissions.some((p: any) => selectedPermissionCodes.includes(p.code)) &&
@@ -184,12 +254,14 @@ const savePermissions = async () => {
               v-for="perm in filteredPerms(group.permissions)"
               :key="perm.code"
               class="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 rounded px-2 py-1.5"
+              :title="perm.code"
             >
               <UCheckbox
+                :disabled="!isOwnerOrAdmin"
                 :model-value="selectedPermissionCodes.includes(perm.code)"
                 @update:model-value="togglePermission(perm.code)"
               />
-              <span class="truncate" :title="perm.description || perm.code">
+              <span class="truncate">
                 {{ perm.description || perm.code }}
               </span>
             </label>
@@ -204,6 +276,7 @@ const savePermissions = async () => {
                 @click="toggleSubgroupCollapse(`${group.label}-${subIdx}`)"
               >
                 <UCheckbox
+                  :disabled="!isOwnerOrAdmin"
                   :model-value="sub.permissions.every((p: any) => selectedPermissionCodes.includes(p.code))"
                   :indeterminate="
                     sub.permissions.some((p: any) => selectedPermissionCodes.includes(p.code)) &&
@@ -230,12 +303,14 @@ const savePermissions = async () => {
                     v-for="perm in filteredPerms(sub.permissions)"
                     :key="perm.code"
                     class="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 rounded px-2 py-1.5"
+                    :title="perm.code"
                   >
                     <UCheckbox
+                      :disabled="!isOwnerOrAdmin"
                       :model-value="selectedPermissionCodes.includes(perm.code)"
                       @update:model-value="togglePermission(perm.code)"
                     />
-                    <span class="truncate" :title="perm.description || perm.code">
+                    <span class="truncate">
                       {{ perm.description || perm.code }}
                     </span>
                   </label>

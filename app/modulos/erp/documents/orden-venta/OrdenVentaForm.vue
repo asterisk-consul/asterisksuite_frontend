@@ -30,7 +30,7 @@ const form = reactive({
 })
 
 const activeEmployees = computed(() =>
-  (employeesStore.items ?? []).filter((e: any) => e.is_active)
+  (employeesStore.items ?? []).filter((e: any) => e.is_active && e.is_salesperson)
 )
 
 const employeeOptions = computed(() =>

@@ -71,7 +71,7 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
   },
   treasury: {
     label: 'Tesorería', icon: 'i-lucide-wallet', order: 40,
-    modules: ['treasury', 'cash_boxes', 'cash_box_movements', 'cash_box_renditions', 'cash_box_transfers', 'bank_accounts', 'payments', 'currency_rates'],
+    modules: ['treasury', 'cash_boxes', 'cash_box_movements', 'cash_box_renditions', 'cash_box_transfers', 'bank_accounts', 'payments', 'currency_rates', 'checks'],
     subgroups: {
       payments: 'Pagos',
       cash_boxes: 'Cajas',
@@ -80,7 +80,17 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
       cash_box_transfers: 'Transferencias entre Cajas',
       bank_accounts: 'Bancos',
       treasury: 'General',
-      currency_rates: 'Tipos de Cambio'
+      currency_rates: 'Tipos de Cambio',
+      checks: 'Cheques'
+    }
+  },
+  hr: {
+    label: 'RRHH', icon: 'i-lucide-users', order: 45,
+    modules: ['employees', 'partners', 'vales'],
+    subgroups: {
+      employees: 'Empleados',
+      partners: 'Socios',
+      vales: 'Vales'
     }
   },
   system: {

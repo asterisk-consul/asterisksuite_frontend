@@ -19,13 +19,12 @@ onMounted(async () => {
   allSuppliers.value = data.filter((s: any) => s.type === 'SUPPLIER')
 })
 
-const supplierOptions = computed(() => [
-  { label: 'Todos los proveedores', value: '' },
-  ...allSuppliers.value.map((s: any) => ({
+const supplierOptions = computed(() =>
+  allSuppliers.value.map((s: any) => ({
     label: `${s.name}${s.tax_id ? ` (${s.tax_id})` : ''}`,
     value: s.id
   }))
-])
+)
 
 // Fetch products by supplier
 async function fetchBySupplier() {

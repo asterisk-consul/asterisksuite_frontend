@@ -1,5 +1,77 @@
 [
   {
+    "version": "0.31.0-alpha",
+    "date": "2026-08-22",
+    "stage": "alpha",
+    "notes": "RBAC nav filtering, visibilidad condicional vendedores, permisos backend, seed de permisos HR/checks",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Nav filtering por permisos: nodos de RRHH, Logística, Empresa, Fabricación ahora respetan permisos del rol"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Nav 'Mis ventas' solo visible para empleados con is_salesperson=true"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Composable useCurrentUserEmployee con endpoint GET /employees/me"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Seed: 21 permisos nuevos (employees, partners, vales, checks)"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "Filtro USER en documentos de venta: findAll filtra por created_by"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "Filtro USER en documentos de compra: findAll filtra por created_by"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "Filtro USER en cheques: findAll filtra por user_id"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "Filtro USER en RRHH (vales): findAllVales filtra por user_id"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "Filtro USER en transferencias de caja: findAll filtra por user_id"
+      },
+      {
+        "type": "feat",
+        "scope": "frontend",
+        "title": "Página de permisos reescrita: guard admin, resumen global 'N de M permisos', select-all, advertencia al salir"
+      },
+      {
+        "type": "fix",
+        "scope": "frontend",
+        "title": "Limpieza de console.log en settings/roles/index.vue"
+      }
+    ],
+    "modules": [
+      {
+        "name": "rbac",
+        "version": "0.31.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
     "version": "0.30.0-alpha",
     "date": "2026-08-22",
     "stage": "alpha",

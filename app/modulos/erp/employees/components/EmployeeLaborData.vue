@@ -43,7 +43,9 @@ defineProps<{
         />
       </UFormField>
 
-      <UFormField label="Comisión por defecto (%)" name="default_commission_rate">
+      <USwitch v-model="form.is_salesperson" label="Es vendedor" />
+
+      <UFormField v-if="form.is_salesperson" label="Comisión por defecto (%)" name="default_commission_rate">
         <UInput
           v-model.number="form.default_commission_rate"
           type="number"

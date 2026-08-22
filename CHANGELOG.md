@@ -5,6 +5,42 @@
 <details open>
 <summary>
 
+### v0.31.0-alpha
+
+> RBAC nav filtering por permisos, visibilidad condicional para vendedores, permisos backend en módulos comentados, y seed de permisos HR/checks.
+
+</summary>
+
+---
+
+##### ✨ Features
+
+- **rbac**: Nav filtering por permisos — nodos de RRHH, Logística, Empresa, Fabricación ahora se ocultan si el rol no tiene el permiso requerido
+- **rbac**: Nav "Mis ventas" solo visible para empleados con `is_salesperson=true` (campo del modelo employees)
+- **rbac**: Composable `useCurrentUserEmployee` con endpoint `GET /employees/me` para resolver employee del user logueado
+- **rbac**: Página de permisos reescrita: guard admin (solo OWNER/ADMIN edita), badge "N de M permisos", botones Seleccionar todos/Limpiar todos, advertencia al salir sin guardar
+- **frontend**: Proxy `server/api/erp/employees/me.get.ts`
+- **backend**: Seed 21 permisos nuevos: `employees.*`, `partners.*`, `vales.*`, `checks.*`
+- **backend**: Grupo HR en MODULE对照检查 de permisos (Empleados, Socios, Vales)
+
+##### 🔧 Backend
+
+- **employees**: Endpoint `GET /erp/employees/me` + método `findByUserId()` que retorna is_salesperson
+- **documents-sales**: `findAll()` filtra por `created_by` cuando companyRole === USER; `create()` setea `created_by`
+- **documents-purchases**: Mismo patrón de filtrado USER
+- **checks**: `findAll()` filtra por `user_id` cuando companyRole === USER
+- **hr**: `findAllVales()` filtra por `user_id` cuando companyRole === USER
+- **cash-box-transfers**: `findAll()` filtra por `user_id` cuando companyRole === USER
+
+##### ❤️ Contributors
+
+- agustin
+
+</details>
+
+<details open>
+<summary>
+
 ### v0.29.0-alpha
 
 > Transferencias de caja mejoradas, módulo BOM/engineering, costing simplificado con conversión de monedas, y stock por producto.

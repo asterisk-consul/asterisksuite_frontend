@@ -18,10 +18,9 @@ const modalOpen = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const editingRow = ref<any>(null)
 
-const filterType = ref('')
+const filterType = ref<string | undefined>(undefined)
 
 const typeOptions = [
-  { label: 'Todos', value: '' },
   { label: 'Venta', value: 'SALE' },
   { label: 'Compra', value: 'PURCHASE' }
 ]
