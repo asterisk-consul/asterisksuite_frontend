@@ -10,85 +10,85 @@ const shortcuts = computed(() => [
   {
     label: 'Productos',
     to: '/productos',
-    badge: activeProducts.value
+    badge: activeProducts.value,
+    icon: 'i-lucide-package'
   },
   {
-    label: 'Ingeniería',
-    to: '/fabricacion/engineering',
-    badge: 13
+    label: 'Depósitos',
+    to: '/productos/warehouses',
+    icon: 'i-lucide-warehouse'
   },
   {
     label: 'BOM',
-    to: '/bom'
+    to: '/bom',
+    icon: 'i-lucide-git-branch'
   },
   {
     label: 'Costos',
-    to: '/fabricacion/costing',
-    badge: 16
+    to: '/productos/costos',
+    icon: 'i-lucide-dollar-sign'
   },
   {
     label: 'Configuraciones',
-    to: '/productos/settings'
+    to: '/productos/settings',
+    icon: 'i-lucide-settings'
   }
 ])
 
 const sections = [
   {
-    title: 'Maestros',
+    title: 'Gestión de Stock',
     items: [
       {
         label: 'Productos',
-        to: '/fabricacion/master-data/products'
+        to: '/productos'
       },
       {
+        label: 'Depósitos',
+        to: '/productos/warehouses'
+      }
+    ]
+  },
+  {
+    title: 'Configuración',
+    items: [
+      {
         label: 'Categorías',
-        to: '/fabricacion/master-data/categories'
+        to: '/productos/settings/categorias'
       },
       {
         label: 'Etiquetas',
-        to: '/fabricacion/master-data/tags'
+        to: '/productos/settings/tags'
       },
       {
-        label: 'Plantillas de Costos',
-        to: '/fabricacion/cost-templates'
+        label: 'Unidades',
+        to: '/productos/settings/unidades'
+      },
+      {
+        label: 'Atributos',
+        to: '/productos/settings/attributes'
       }
     ]
   },
   {
-    title: 'Producción',
+    title: 'Ingeniería y Costos',
     items: [
       {
-        label: 'Ingeniería',
-        to: '/fabricacion/engineering'
+        label: 'BOM (Ingeniería)',
+        to: '/bom'
       },
       {
-        label: 'BOM',
-        to: '/fabricacion/bom'
+        label: 'Plantillas de costo',
+        to: '/cost-templates'
       },
       {
-        label: 'Rutas',
-        to: '/fabricacion/routes'
-      }
-    ]
-  },
-  {
-    title: 'Reportes',
-    items: [
-      {
-        label: 'Costos de Productos',
-        to: '/fabricacion/reports/costs'
-      },
-      {
-        label: 'Lista de Materiales',
-        to: '/fabricacion/reports/bom'
-      },
-      {
-        label: 'Variación de Costos',
-        to: '/fabricacion/reports/cost-variance'
+        label: 'Costos de productos',
+        to: '/productos/costos'
       }
     ]
   }
 ]
+
 onMounted(async () => {
   await init()
 })

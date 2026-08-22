@@ -1,5 +1,205 @@
 [
   {
+    "version": "0.30.0-alpha",
+    "date": "2026-08-22",
+    "stage": "alpha",
+    "notes": "Stock por deposito con transferencias, historial de movimientos, sistema de proveedores y listas de precio",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Tab Depositos en detalle de producto con stock por deposito, agregar, transferir y eliminar"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Pagina de detalle de deposito con resumen de stock, productos y historial de movimientos"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Historial de movimientos con LogisticaTable, filtros, exportacion a Excel e impresion"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Columna Saldo anterior calculada automaticamente en cada movimiento"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Columna Deposito vinculado con flecha mostrando origen/destino de transferencias"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "created_by resuelto desde public.users mostrando nombre del usuario"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Modal de transferencia entre depositos con seleccion de producto, destino y cantidad"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Unidad de medida en productos y depositos (unit_id con relacion a units)"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Pagina /productos/warehouses con listado de depositos y navegacion al detalle"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Tab Proveedores en formulario de producto con CRUD de proveedores asociados"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Pagina /productos/by-supplier para ver productos por proveedor con filtro"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Pagina /productos/price-lists para gestionar listas de precio (Venta/Compra)"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Backend: modelos product_suppliers, price_lists, product_list_prices con CRUD completo"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Backend: campos sale_price y margin_percentage en product_price"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Backend: transferencia enlaza movimientos con reference_id para rastrear origen/destino"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Backend: created_by con requestContext para registrar usuario en movimientos"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Nav reorganizado: todo lo de productos bajo Stock, Fabricacion solo BOM y plantillas"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix historial de movimientos mostraba datos del deposito anterior (store no refrescaba)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix companyId hardcodeado en creacion de depositos (ahora usa authStore)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix back link en detalle de producto apuntaba a ruta inexistente"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix input de cantidad enviaba numero en vez de string (cambiado a type=text)"
+      },
+      {
+        "type": "fix",
+        "scope": "backend",
+        "title": "Fix getMovements incluia relacion users que no existe en schema tenant"
+      },
+      {
+        "type": "fix",
+        "scope": "backend",
+        "title": "Fix createMovement no seteaba created_by desde requestContext"
+      },
+      {
+        "type": "refactor",
+        "scope": "productos",
+        "title": "Deposit movidos de /logistica/warehouse a /productos/warehouses"
+      }
+    ],
+    "modules": [
+      {
+        "name": "productos",
+        "version": "0.30.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.29.0-alpha",
+    "date": "2026-08-22",
+    "stage": "alpha",
+    "notes": "Transferencias de caja mejoradas, BOM/engineering, costing con conversión de monedas, stock por producto",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Modal de transferencia con selects dinámicos por tipo (Caja/Banco)"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Soporte tipo de cambio (Oficial, Blue, MEP, CCL) con auto-resolución"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Modal de detalle con acciones de confirmar/cancelar/eliminar"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Columna 'Creado por' resolviendo nombre desde public.users"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "BOM engineering con árbol de componentes y cálculos frontend"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Costing simplificado con CostSummaryCard, HistoryTable, ParetoTable"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Stock por producto: agregar, remover y transferir"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Variantes de producto con precios y costos"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "Backend DTO y service actualizados con rate_type y converted_amount"
+      }
+    ],
+    "modules": [
+      {
+        "name": "treasury",
+        "version": "0.29.0-alpha"
+      },
+      {
+        "name": "productos",
+        "version": "0.29.0-alpha"
+      }
+    ]
+  },
+  {
     "version": "0.0.0-alpha",
     "date": "2026-03-01",
     "stage": "alpha",
@@ -803,7 +1003,9 @@
         "title": "Reporte de saldos RRHH desglosa empleados/socios por moneda"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.14.0-alpha",
@@ -862,7 +1064,9 @@
         "title": "Companies controller: endpoints de usuarios (create, update, password, delete)"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.15.0-alpha",
@@ -921,7 +1125,9 @@
         "title": "documents-sales: entregas parciales y facturación parcial"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.16.0-alpha",
@@ -1015,7 +1221,9 @@
         "title": "affects_payment configurable desde frontend: checkbox en form, badge en cards y columna en export Excel"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.17.0-alpha",
@@ -1074,7 +1282,9 @@
         "title": "Eliminar SidebarModules, MainSidebar y navegaciones por módulo"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.18.0-alpha",
@@ -1153,7 +1363,9 @@
         "title": "Página de roles reestructurada con rutas anidadas (index + [id]/permissions)"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.19.0-alpha",
@@ -1197,7 +1409,9 @@
         "title": "seed-all.ts ahora ejecuta RBAC (permisos + 4 roles) como paso 11"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.20.0-alpha",
@@ -1226,7 +1440,9 @@
         "title": "employeeOptions incluye defaultCommissionRate"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.21.0-alpha",
@@ -1290,7 +1506,9 @@
         "title": "Filtro comisiones: aceptar facturas Borrador/Pendiente/Confirmada"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.22.0-alpha",
@@ -1339,7 +1557,9 @@
         "title": "companies.service.ts usa seed-sql.ts, eliminados ~200 líneas de datos hardcoded"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.25.0-alpha",
@@ -1359,7 +1579,9 @@
         "version": "0.7.0-alpha"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.24.0-alpha",
@@ -1394,7 +1616,9 @@
         "version": "2.3.0-alpha"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.23.0-alpha",
@@ -1478,7 +1702,9 @@
         "title": "Badge dinámico con prioridad: principal (md) vs secundario (sm) por tipo de tercero"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.25.1-alpha",
@@ -1523,7 +1749,9 @@
         "version": "2.3.1-alpha"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.26.0-alpha",
@@ -1582,7 +1810,9 @@
         "title": "Campo 'Fuente de costo' movido de General a Estructura"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.27.0-alpha",
@@ -1666,7 +1896,9 @@
         "title": "Scrollbar custom y selection color"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   },
   {
     "version": "0.28.0-alpha",
@@ -1690,6 +1922,8 @@
         "title": "Link Costos agregado al nav de la landing"
       }
     ],
-    "contributors": ["agustin"]
+    "contributors": [
+      "agustin"
+    ]
   }
 ]

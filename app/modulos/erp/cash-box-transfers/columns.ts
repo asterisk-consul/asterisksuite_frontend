@@ -1,6 +1,9 @@
+import { h } from 'vue'
+import { UButton } from '#components'
 import type { CashBoxTransfer } from '~/modulos/erp/cash-box-transfers/types/cash-box-transfers.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
+import { useIdColumn } from '@/composables/table/useIdColumn'
 
 type Row = CashBoxTransfer
 
@@ -18,7 +21,11 @@ const statusConfig: Record<string, { label: string; color?: string }> = {
 }
 
 export const cashBoxTransferColumns = (actions: {
+  onDetail?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
+  onConfirm?: (row: Row) => void
+  onCancel?: (row: Row) => void
+  onDelete?: (row: Row) => void
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({
     locale: 'es-AR',
@@ -26,6 +33,8 @@ export const cashBoxTransferColumns = (actions: {
   })
 
   return [
+    useIdColumn<Row>(actions.onDetail),
+
     ...build([
       {
         key: 'created_at',
@@ -98,6 +107,31 @@ export const cashBoxTransferColumns = (actions: {
               value
             }))
           }
+        }
+      },
+      {
+        key: 'creator',
+        label: 'Creado por',
+        cell: ({ row }) => row.original.creator?.name ?? row.original.creator?.email ?? '—'
+      },
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => {
+          const status = row.original.status
+          const buttons: Array<{ icon: string; color: string; onClick: () => void }> = []
+
+          if (status === 'pending') {
+            buttons.push({ icon: 'i-lucide-check-circle', color: 'success', onClick: () => actions.onConfirm?.(row.original) })
+            buttons.push({ icon: 'i-lucide-x-circle', color: 'warning', onClick: () => actions.onCancel?.(row.original) })
+            buttons.push({ icon: 'i-lucide-trash-2', color: 'error', onClick: () => actions.onDelete?.(row.original) })
+          } else if (status === 'completed') {
+            buttons.push({ icon: 'i-lucide-eye', color: 'neutral', onClick: () => actions.onDetail?.(row.original) })
+          }
+
+          return h('div', { class: 'flex gap-1' }, buttons.map((btn) =>
+            h(UButton, { icon: btn.icon, size: 'xs', variant: 'ghost', color: btn.color as any, onClick: btn.onClick })
+          ))
         }
       }
     ])

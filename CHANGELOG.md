@@ -1,6 +1,44 @@
 # Changelog
 
-## 21 de agosto, 2026
+## 22 de agosto, 2026
+
+<details open>
+<summary>
+
+### v0.29.0-alpha
+
+> Transferencias de caja mejoradas, módulo BOM/engineering, costing simplificado con conversión de monedas, y stock por producto.
+
+</summary>
+
+---
+
+##### ✨ Features
+
+- **treasury**: Modal de nueva transferencia con selects dinámicos según tipo (Caja/Banco), auto-selección de moneda desde origen, saldo disponible visible
+- **treasury**: Soporte para tipo de cambio (Oficial, Blue, MEP, CCL) con auto-resolución y monto convertido
+- **treasury**: Modal de detalle de transferencia con info completa y acciones
+- **treasury**: Columna "Creado por" resolviendo nombre desde `public.users`
+- **treasury**: Acciones por estado en tabla: Confirmar, Cancelar, Eliminar (solo pendientes)
+- **treasury**: ID clickable para abrir detalle
+- **productos**: BOM engineering con árbol de componentes, modal de agregar/editar/eliminar, cálculos de costos en frontend
+- **productos**: Costing simplificado con CostSummaryCard, CostingHistoryTable, CostingParetoTable y conversión de monedas
+- **productos**: Stock por producto: agregar, remover y transferir stock con modales dedicados
+- **productos**: Variantes de producto con precios y costos por variante
+- **productos**: Forms mejorados: pestañas de inventario, precios y stock
+
+##### 🔧 Backend
+
+- **cash-box-transfers**: DTO actualizado con `rate_type` y `converted_amount`
+- **cash-box-transfers**: Service resuelve `creator` desde `public.users` en `findAll` y `findOne`
+- **variant-costs**: Endpoint de historial de costos por variante
+- **warehouse-stock**: Endpoints de stock por producto y eliminación de stock
+
+##### ❤️ Contributors
+
+- agustin
+
+</details>
 
 <details open>
 <summary>

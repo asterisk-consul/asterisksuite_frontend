@@ -5,6 +5,7 @@ import ProductGeneralTab from '~/modulos/logistica/master-data/product/component
 import ProductInventoryTab from '~/modulos/logistica/master-data/product/components/forms/ProductInventoryTab.vue'
 import ProductAccountingTab from '~/modulos/logistica/master-data/product/components/forms/ProductAccountingTab.vue'
 import ProductAdvancedTab from '~/modulos/logistica/master-data/product/components/forms/ProductAdvancedTab.vue'
+import ProductSuppliersTab from '~/modulos/logistica/master-data/product/components/forms/ProductSuppliersTab.vue'
 import RootCard from '~/modulos/logistica/master-data/product/components/forms/RootCard.vue'
 import ProductPriceTab from '~/modulos/logistica/master-data/product/components/forms/ProductPriceTab.vue'
 import ProductVariantTable from '~/modulos/logistica/master-data/product-variants/components/ProductVariantTable.vue'
@@ -35,20 +36,19 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   submit: []
-  variantCreated: [variant: ProductVariant] // 👈
-  variantUpdated: [variant: ProductVariant] // 👈
+  variantCreated: [variant: ProductVariant]
+  variantUpdated: [variant: ProductVariant]
 }>()
 
 const submitText = computed(() => {
   if (props.submitLabel) return props.submitLabel
-
   return props.mode === 'edit' ? 'Guardar cambios' : 'Crear producto'
 })
 
 const activeTab = ref(0)
 
 provide('switchToAdvancedTab', () => {
-  activeTab.value = 5
+  activeTab.value = 6
 })
 
 const tabs = [
@@ -59,6 +59,7 @@ const tabs = [
     icon: 'i-lucide-link-2'
   },
   { label: 'Precios', slot: 'precios', icon: 'i-lucide-wallet' },
+  { label: 'Proveedores', slot: 'suppliers', icon: 'i-lucide-truck' },
   {
     label: 'Inventario',
     slot: 'inventory',
@@ -100,6 +101,13 @@ const tabs = [
 
       <template #precios>
         <ProductPriceTab :product="props.product" v-model:price-enabled="form.price_enabled" />
+      </template>
+
+      <template #suppliers>
+        <ProductSuppliersTab v-if="props.product?.id" :product-id="props.product.id" />
+        <div v-else class="p-4 text-sm text-muted">
+          Guardá el producto primero para poder agregar proveedores.
+        </div>
       </template>
 
       <template #inventory>

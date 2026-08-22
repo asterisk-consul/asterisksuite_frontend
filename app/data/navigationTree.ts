@@ -294,7 +294,9 @@ export const navigationTree: DrilldownNode[] = [
         children: [
           { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
           { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
-          { label: 'Costos', icon: 'i-lucide-dollar-sign', to: '/productos/costos' }
+          { label: 'Costos', icon: 'i-lucide-dollar-sign', to: '/productos/costos' },
+          { label: 'Listas de precio', icon: 'i-lucide-tag', to: '/productos/price-lists' },
+          { label: 'Por proveedor', icon: 'i-lucide-truck', to: '/productos/by-supplier' }
         ]
       },
       { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' }

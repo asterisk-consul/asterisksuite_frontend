@@ -2,6 +2,12 @@ export type TransferType = 'CASH_TO_CASH' | 'CASH_TO_BANK' | 'BANK_TO_CASH' | 'B
 export type TransferSourceType = 'cash_box' | 'bank_account'
 export type TransferStatus = 'pending' | 'completed' | 'cancelled'
 
+export interface TransferUser {
+  id: string
+  name?: string | null
+  email?: string | null
+}
+
 export interface CashBoxTransfer {
   id: string
   session_id?: string | null
@@ -18,6 +24,7 @@ export interface CashBoxTransfer {
   reference?: string | null
   transfer_type: TransferType
   status: TransferStatus
+  creator?: TransferUser | null
 
   created_at?: string
   updated_at?: string
@@ -33,6 +40,8 @@ export interface CreateCashBoxTransferInput {
   amount: number
   currency_code: string
   exchange_rate?: number
+  rate_type?: string
+  converted_amount?: number
   description?: string
   reference?: string
   transfer_type: TransferType
