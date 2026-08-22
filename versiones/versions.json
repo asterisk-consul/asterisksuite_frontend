@@ -1,5 +1,42 @@
 [
   {
+    "version": "0.32.0-alpha",
+    "date": "2026-08-22",
+    "stage": "alpha",
+    "notes": "RBAC backend completo: 368 permisos activos en 54 controllers, CombinedGuard, fix version sidebar",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "368 @RequirePermissions activados en 54 controllers (productos, docs, tesorería, logística, inventario, etc.)"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "CombinedGuard: TenantAccessGuard + PermissionsGuard ejecutados en orden como único APP_GUARD"
+      },
+      {
+        "type": "fix",
+        "scope": "rbac",
+        "title": "PermissionsGuard tolerante: si request.user no existe, deja pasar (JwtAuthGuard controller-level maneja auth)"
+      },
+      {
+        "type": "fix",
+        "scope": "frontend",
+        "title": "useVersion: sidebar mostraba versión más vieja en vez de la más nueva (tomaba último elemento del array)"
+      }
+    ],
+    "modules": [
+      {
+        "name": "rbac",
+        "version": "0.32.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
     "version": "0.31.0-alpha",
     "date": "2026-08-22",
     "stage": "alpha",

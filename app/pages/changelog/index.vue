@@ -8,47 +8,118 @@ type ChangelogVersion = {
   tag: string
   title: string
   date: string
-  body: any // MDCRoot
+  body: any
+  notes?: string
+  changes?: any[]
+  modules?: any[]
 }
 
 const { data: versions } = await useFetch<ChangelogVersion[]>('/api/changelog')
 const safeVersions = computed(() => versions.value || [])
 
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('es-AR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+const searchQuery = ref('')
+const selectedStage = ref<string>('all')
+
+const stages = [
+  { label: 'Todas', value: 'all' },
+  { label: 'Alpha', value: 'alpha' },
+  { label: 'Beta', value: 'beta' },
+  { label: 'RC', value: 'rc' },
+  { label: 'Stable', value: 'stable' }
+]
+
+const filteredVersions = computed(() => {
+  let result = safeVersions.value
+
+  if (selectedStage.value !== 'all') {
+    result = result.filter(v => v.tag.includes(selectedStage.value))
+  }
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(v =>
+      v.tag.toLowerCase().includes(query) ||
+      v.notes?.toLowerCase().includes(query)
+    )
+  }
+
+  return result
+})
+
+function getBadge(version: string) {
+  if (version.includes('alpha')) return { label: 'Alpha', color: 'warning' as const }
+  if (version.includes('beta')) return { label: 'Beta', color: 'info' as const }
+  if (version.includes('rc')) return { label: 'RC', color: 'primary' as const }
+  return { label: 'Stable', color: 'success' as const }
 }
 </script>
 
 <template>
-  <UChangelogVersions
-    as="main"
-    :indicator-motion="false"
-    :ui="{
-      root: 'py-4 sm:py-22 lg:py-30 w-full max-w-5xl mx-auto',
-      indicator: 'inset-y-0'
-    }"
-  >
-    <UChangelogVersion
-      v-for="version in safeVersions"
-      :key="version.tag"
-      :title="version.title"
-      :date="formatDate(version.date)"
-      :ui="{
-        root: 'flex items-start py-2',
-        container: 'flex-1 w-full',
-        header: 'border-b border-default pb-2', // antes era pb-4
-        title: 'text-xl font-semibold', // antes text-3xl
-        date: 'text-xs/9 text-toned whitespace-nowrap',
-        indicator: 'sticky top-0 pt-2'
-      }"
-    >
-      <template #body>
-        <MDCRenderer v-if="version.body" :body="version.body" />
-      </template>
-    </UChangelogVersion>
-  </UChangelogVersions>
+  <div class="min-h-screen">
+    <!-- Header -->
+    <div class="border-b border-default bg-muted/30">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+        <h1 class="text-4xl font-bold tracking-tight">Changelog</h1>
+        <p class="mt-2 text-lg text-muted">Historial de cambios del sistema Asterisk Suite</p>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <UBadge label="Alpha" color="warning" variant="soft" size="sm" />
+          <span class="text-sm text-muted">{{ safeVersions.length }} versiones publicadas</span>
+        </div>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <UInput
+            v-model="searchQuery"
+            placeholder="Buscar versiones..."
+            icon="i-lucide-search"
+            :ui="{ root: 'w-64' }"
+          />
+          <USelectMenu
+            v-model="selectedStage"
+            :items="stages"
+            placeholder="Filtrar por etapa"
+            :ui="{ root: 'w-40' }"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <UChangelogVersions
+        :indicator-motion="false"
+        :ui="{
+          root: 'w-full',
+          container: 'flex flex-col gap-y-12'
+        }"
+      >
+        <UChangelogVersion
+          v-for="version in filteredVersions"
+          :key="version.tag"
+          :title="`v${version.tag}`"
+          :description="version.notes"
+          :date="version.date"
+          :badge="getBadge(version.tag)"
+          :ui="{
+            root: 'py-6',
+            container: 'flex-1 w-full pl-12',
+            header: 'border-b border-default pb-4 mb-4',
+            title: 'text-2xl font-bold',
+            date: 'text-sm text-muted',
+            indicator: 'sticky top-4'
+          }"
+        >
+          <template #body>
+            <div class="prose prose-sm dark:prose-invert max-w-none">
+              <MDCRenderer v-if="version.body" :body="version.body" />
+            </div>
+          </template>
+        </UChangelogVersion>
+      </UChangelogVersions>
+
+      <!-- Empty state -->
+      <div v-if="filteredVersions.length === 0" class="text-center py-16">
+        <UIcon name="i-lucide-file-text" class="size-12 mx-auto text-muted mb-4" />
+        <p class="text-muted">No hay versiones que coincidan con la búsqueda.</p>
+      </div>
+    </div>
+  </div>
 </template>

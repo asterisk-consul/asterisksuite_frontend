@@ -49,10 +49,8 @@ function generateMarkdown(v: any) {
     for (const type of order) {
       const scopes = grouped[type]
       if (!scopes) continue
-      md += `---\n\n`
       md += `### ${titleMap[type] || type}\n\n`
       for (const [scope, items] of Object.entries(scopes)) {
-        md += `#### ${scope}\n\n`
         for (const c of items) {
           const badge = badgeMap[type] || ''
           if (c.url && c.id)
@@ -60,13 +58,13 @@ function generateMarkdown(v: any) {
           else md += `- ${badge} ${c.title}\n`
           if (c.description) md += `  - ${c.description}\n`
         }
-        md += `\n`
       }
+      md += `\n`
     }
   }
 
   if (v.modules?.length) {
-    md += `---\n\n### 📦 Modules\n\n`
+    md += `### 📦 Modules\n\n`
     for (const m of v.modules) {
       md += `- **${m.name}** → \`${m.version}\`\n`
     }
@@ -97,7 +95,8 @@ export default defineEventHandler(async () => {
         tag: v.version,
         title: `v${v.version}`,
         date: v.date,
-        body: parsed.body
+        body: parsed.body,
+        notes: v.notes || null
       }
     })
   )

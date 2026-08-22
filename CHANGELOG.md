@@ -5,6 +5,33 @@
 <details open>
 <summary>
 
+### v0.32.0-alpha
+
+> RBAC backend completo: 368 permisos activos en 54 controllers, CombinedGuard para resolver APP_GUARD, fix de versión en sidebar.
+
+</summary>
+
+---
+
+##### ✨ Features
+
+- **rbac**: 368 `@RequirePermissions` activados en 54 controllers — productos, documentos, tesorería, logística, inventario, maestros, trash, media, importación
+- **rbac**: `CombinedGuard` ejecuta `TenantAccessGuard` → `PermissionsGuard` en orden como único `APP_GUARD`
+
+##### 🐛 Bug Fixes
+
+- **rbac**: `PermissionsGuard` tolerante — si `request.user` no existe aún (global scope), deja pasar para que `JwtAuthGuard` a nivel controller maneje la autenticación
+- **frontend**: `useVersion` mostraba la versión más vieja del array en vez de la más nueva
+
+##### ❤️ Contributors
+
+- agustin
+
+</details>
+
+<details open>
+<summary>
+
 ### v0.31.0-alpha
 
 > RBAC nav filtering por permisos, visibilidad condicional para vendedores, permisos backend en módulos comentados, y seed de permisos HR/checks.

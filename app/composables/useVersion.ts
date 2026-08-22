@@ -1,7 +1,7 @@
 import versions from '~~/versiones/versions.json'
 
 export const useVersion = () => {
-  const latest = versions[versions.length - 1]
+  const latest = versions[0]
 
   return {
     version: latest?.version,
