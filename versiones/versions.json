@@ -1,5 +1,87 @@
 [
   {
+    "version": "0.33.0-alpha",
+    "date": "2026-08-24",
+    "stage": "alpha",
+    "notes": "Módulo de Operaciones Internacionales: schema, backend CRUD, frontend con LogisticaTable, dashboard, contenedores con timeline, proxy routes, RBAC, seed de secuencia IMP",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Schema Prisma: international_operations, international_containers, container_events, junction tables para documentos y pagos"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Backend: NestJS module completo con CRUD, transiciones de estado validadas, summary/dashboard, asociaciones documento/pago/OC"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Backend: ContainersService y EventsService con CRUD y timeline de eventos"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Backend: @RequirePermissions en todos los endpoints (international_operations.read/create/update/delete)"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Listado con LogisticaTable, filtros por estado/proveedor/país, sorting, selección múltiple"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Formulario de creación con moneda select (useCurrencies), incoterm con UPopover de ayuda, locaciones para origen/destino"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Dashboard de operación con KPIs, situación financiera, contenedores, documentos, pagos, alertas ETA"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Crear contenedor con tipo en español + UPopover de ayuda, puertos con USelectMenu de locaciones"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Detalle de contenedor con timeline de eventos (create/delete)"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "20 Nuxt server proxy routes para forwarding de API al backend NestJS"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Seed: secuencia IMP (point_of_sale: 0003, prefix: IMP) en seed-sql.ts, document-types.seed.ts y document-types.seed.sql"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "RBAC: 4 permisos (international_operations.read/create/update/delete) con asignación a roles default"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "FKs a locations para origin/destination en operaciones y puertos en contenedores"
+      }
+    ],
+    "modules": [
+      {
+        "name": "international-operations",
+        "version": "0.1.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
     "version": "0.32.0-alpha",
     "date": "2026-08-22",
     "stage": "alpha",

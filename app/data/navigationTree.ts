@@ -341,6 +341,17 @@ export const navigationTree: DrilldownNode[] = [
     ]
   },
 
+  // ─── OPERACIONES INTERNACIONALES ───────────────────────────────
+  {
+    label: 'Operaciones Internacionales',
+    icon: 'i-lucide-globe',
+    permission: 'international_operations.read',
+    children: [
+      { label: 'Operaciones', icon: 'i-lucide-ship', to: '/operaciones-internacionales', permission: 'international_operations.read' },
+      { label: 'Nueva operación', icon: 'i-lucide-plus', to: '/operaciones-internacionales/create', permission: 'international_operations.create' }
+    ]
+  },
+
   // ─── EMPRESA ───────────────────────────────────────────────────
   {
     label: 'Empresa',
