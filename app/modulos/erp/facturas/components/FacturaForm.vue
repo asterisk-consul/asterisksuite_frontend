@@ -562,8 +562,9 @@ function addItem(prod: any) {
   }
 
   items.value.push({
-    product_id: prod.value ?? prod.id ?? '',
-    product_name: prod.label ?? prod.name ?? 'Producto',
+    product_id: prod.product_id,
+    variant_id: prod.variant_id ?? null,
+    product_name: prod.product_name,
     quantity,
     unit_price: unitPrice,
     price: quantity * unitPrice,

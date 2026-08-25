@@ -50,10 +50,10 @@ export const useInternationalOperationsService = () => {
   const getSummary = (id: string) =>
     $fetch<OperationSummary>(`${baseUrl}/${id}/summary`)
 
-  const associateDocument = (operationId: string, documentId: string) =>
+  const associateDocument = (operationId: string, documentId: string, expenseType?: string, containerId?: string) =>
     $fetch<void>(`${baseUrl}/${operationId}/documents`, {
       method: 'POST',
-      body: { document_id: documentId }
+      body: { document_id: documentId, expense_type: expenseType, container_id: containerId }
     })
 
   const disassociateDocument = (operationId: string, documentId: string) =>

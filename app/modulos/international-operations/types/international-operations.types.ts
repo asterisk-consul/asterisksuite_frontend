@@ -44,6 +44,17 @@ export type Incoterm =
   | 'DAP'
   | 'DPU'
   | 'DDP'
+export type InternationalExpenseType =
+  | 'MERCHANDISE'
+  | 'INTERNATIONAL_FREIGHT'
+  | 'INSURANCE'
+  | 'CUSTOMS_BROKER'
+  | 'COMMERCIAL_AGENT'
+  | 'PORT_EXPENSE'
+  | 'STORAGE'
+  | 'LOCAL_TRANSPORT'
+  | 'CUSTOMS_DUTIES'
+  | 'OTHER'
 
 export interface InternationalOperation {
   id: string
@@ -122,14 +133,33 @@ export interface ContainerEvent {
 export interface OperationDocumentRelation {
   operation_id: string
   document_id: string
+  expense_type?: InternationalExpenseType
+  custom_expense_description?: string
+  container_id?: string
+  exchange_rate?: number
   document?: {
     id: string
     number: number
     date: string
     total: number
+    paid_amount: number
     currency_code?: string
     party_id?: string
+    business_parties?: { id: string; name: string }
     document_types?: { code: string; description: string; category?: string }
+    payment_documents?: Array<{
+      amount_applied: number
+      payment_id: string
+      payment?: {
+        id: string
+        number: number
+        date: string
+        amount: number
+        currency_code: string
+        status: string
+        payment_method: string
+      }
+    }>
   }
 }
 
@@ -192,6 +222,13 @@ export interface OperationSummary {
     paid: { amount: number; baseAmount: number }
     pending: { amount: number; baseAmount: number }
   }
+  financialByCurrency: Array<{
+    currency: string
+    total: number
+    paid: number
+    pending: number
+  }>
+  expenseGroups: ExpenseGroup[]
   alerts: {
     etaApproaching: boolean
     etaOverdue: boolean

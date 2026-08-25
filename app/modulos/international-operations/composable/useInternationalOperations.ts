@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import { useInternationalOperationsStore } from '../store/international-operations.store'
+import { formatDate } from '~/utils/dates'
 import type {
   InternationalOperation,
   OperationStatus,
@@ -8,7 +9,9 @@ import type {
   UpdateOperationInput,
   CreateContainerInput,
   UpdateContainerInput,
-  CreateEventInput
+  CreateEventInput,
+  InternationalExpenseType,
+  ContainerType
 } from '~/modulos/international-operations/types/international-operations.types'
 
 export function useInternationalOperations() {
@@ -25,7 +28,7 @@ export function useInternationalOperations() {
   const fetchOne = async (id: string) => store.fetchOne(id)
   const fetchSummary = async (id: string) => store.fetchSummary(id)
 
-  const associateDocument = async (opId: string, docId: string) => store.associateDocument(opId, docId)
+  const associateDocument = async (opId: string, docId: string, expenseType?: InternationalExpenseType, containerId?: string) => store.associateDocument(opId, docId, expenseType, containerId)
   const disassociateDocument = async (opId: string, docId: string) => store.disassociateDocument(opId, docId)
   const associatePayment = async (opId: string, payId: string) => store.associatePayment(opId, payId)
   const disassociatePayment = async (opId: string, payId: string) => store.disassociatePayment(opId, payId)
@@ -33,6 +36,7 @@ export function useInternationalOperations() {
   const disassociatePurchaseOrder = async (opId: string, docId: string) => store.disassociatePurchaseOrder(opId, docId)
 
   const createContainer = async (opId: string, payload: CreateContainerInput) => store.createContainer(opId, payload)
+  const findOneContainer = async (containerId: string) => store.findOneContainer(containerId)
   const updateContainer = async (containerId: string, payload: UpdateContainerInput) => store.updateContainer(containerId, payload)
   const removeContainer = async (containerId: string) => store.removeContainer(containerId)
   const createEvent = async (containerId: string, payload: CreateEventInput) => store.createEvent(containerId, payload)
@@ -62,6 +66,18 @@ export function useInternationalOperations() {
     { label: 'Entregado', value: 'DELIVERED', color: 'success' },
     { label: 'Cerrado', value: 'CLOSED', color: 'success' }
   ]
+
+  const containerTypeOptions = [
+    { label: '20\' Dry Van', value: 'TWENTY_DV' },
+    { label: '40\' Dry Van', value: 'FORTY_DV' },
+    { label: '40\' High Cube', value: 'FORTY_HC' },
+    { label: '45\' High Cube', value: 'FORTY_FIVE_HC' },
+    { label: 'Otro', value: 'OTHER' }
+  ]
+
+  const containerTypeLabel = (type: ContainerType): string => {
+    return containerTypeOptions.find((t) => t.value === type)?.label ?? type
+  }
 
   const statusColor = (status: OperationStatus): string => {
     const map: Record<OperationStatus, string> = {
@@ -111,9 +127,21 @@ export function useInternationalOperations() {
     }).format(amount)
   }
 
-  const formatDate = (date?: string): string => {
-    if (!date) return '-'
-    return new Date(date).toLocaleDateString('es-AR')
+  const expenseTypeOptions = [
+    { label: 'Mercadería', value: 'MERCHANDISE' },
+    { label: 'Flete Internacional', value: 'INTERNATIONAL_FREIGHT' },
+    { label: 'Seguro', value: 'INSURANCE' },
+    { label: 'Despachante', value: 'CUSTOMS_BROKER' },
+    { label: 'Agente Comercial', value: 'COMMERCIAL_AGENT' },
+    { label: 'Gastos Portuarios', value: 'PORT_EXPENSE' },
+    { label: 'Almacenaje', value: 'STORAGE' },
+    { label: 'Transporte Interno', value: 'LOCAL_TRANSPORT' },
+    { label: 'Derechos de Aduana', value: 'CUSTOMS_DUTIES' },
+    { label: 'Otros', value: 'OTHER' }
+  ]
+
+  const expenseTypeLabel = (type: InternationalExpenseType): string => {
+    return expenseTypeOptions.find((e) => e.value === type)?.label ?? type
   }
 
   return {
@@ -126,10 +154,14 @@ export function useInternationalOperations() {
 
     statusOptions,
     containerStatusOptions,
+    containerTypeOptions,
+    expenseTypeOptions,
     statusColor,
     containerStatusColor,
     statusLabel,
     containerStatusLabel,
+    containerTypeLabel,
+    expenseTypeLabel,
     formatCurrency,
     formatDate,
 
@@ -147,6 +179,7 @@ export function useInternationalOperations() {
     associatePurchaseOrder,
     disassociatePurchaseOrder,
     createContainer,
+    findOneContainer,
     updateContainer,
     removeContainer,
     createEvent,

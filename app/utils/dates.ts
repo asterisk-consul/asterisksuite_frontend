@@ -67,8 +67,10 @@ export function nowISO(): string {
 /**
  * Formatea fecha para UI: dd/mm/yyyy
  */
-export function formatDate(date: Date | string): string {
+export function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return '-'
   const d = typeof date === 'string' ? parseLocalDateTime(date) : date
+  if (!d || isNaN(d.getTime())) return '-'
   const day = String(d.getUTCDate()).padStart(2, '0')
   const month = String(d.getUTCMonth() + 1).padStart(2, '0')
   const year = d.getUTCFullYear()
@@ -78,8 +80,10 @@ export function formatDate(date: Date | string): string {
 /**
  * Formatea fecha y hora para UI: dd/mm/yyyy HH:mm
  */
-export function formatDateTime(date: Date | string): string {
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) return '-'
   const d = typeof date === 'string' ? parseLocalDateTime(date) : date
+  if (!d || isNaN(d.getTime())) return '-'
   const day = String(d.getUTCDate()).padStart(2, '0')
   const month = String(d.getUTCMonth() + 1).padStart(2, '0')
   const year = d.getUTCFullYear()

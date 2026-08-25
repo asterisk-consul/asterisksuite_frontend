@@ -11,7 +11,8 @@ import type {
   CreateContainerInput,
   UpdateContainerInput,
   CreateEventInput,
-  ContainerEvent
+  ContainerEvent,
+  InternationalExpenseType
 } from '~/modulos/international-operations/types/international-operations.types'
 
 export const useInternationalOperationsStore = defineStore('international-operations', () => {
@@ -140,11 +141,11 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
-  const associateDocument = async (operationId: string, documentId: string) => {
+  const associateDocument = async (operationId: string, documentId: string, expenseType?: InternationalExpenseType, containerId?: string) => {
     try {
       loading.value = true
       error.value = null
-      await service.associateDocument(operationId, documentId)
+      await service.associateDocument(operationId, documentId, expenseType, containerId)
       if (current.value?.id === operationId) {
         await fetchOne(operationId)
       }
@@ -270,6 +271,20 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
+  const findOneContainer = async (containerId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      const data = await service.findOneContainer(containerId)
+      return data
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al cargar contenedor'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   const removeContainer = async (containerId: string) => {
     try {
       loading.value = true
@@ -340,6 +355,7 @@ export const useInternationalOperationsStore = defineStore('international-operat
     associatePurchaseOrder,
     disassociatePurchaseOrder,
     createContainer,
+    findOneContainer,
     updateContainer,
     removeContainer,
     createEvent,

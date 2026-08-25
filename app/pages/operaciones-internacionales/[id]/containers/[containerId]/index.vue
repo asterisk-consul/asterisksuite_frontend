@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
-import type { ContainerEvent, ContainerEventType } from '~/modulos/international-operations/types/international-operations.types'
+import type { ContainerEvent, ContainerEventType, ContainerStatus, ContainerType } from '~/modulos/international-operations/types/international-operations.types'
 
 definePageMeta({ layout: 'default', middleware: ['auth'] })
 
@@ -11,10 +11,13 @@ const containerId = route.params.containerId as string
 
 const {
   findOneContainer,
+  updateContainer,
   createEvent,
   removeEvent,
   containerStatusColor,
   containerStatusLabel,
+  containerStatusOptions,
+  containerTypeLabel,
   formatCurrency,
   formatDate
 } = useInternationalOperations()
@@ -42,6 +45,30 @@ const eventTypes: { label: string; value: ContainerEventType }[] = [
   { label: 'Arribó al depósito', value: 'ARRIVED_AT_WAREHOUSE' },
   { label: 'Entregado', value: 'DELIVERED' }
 ]
+
+const containerStatusTransitions: Record<ContainerStatus, { label: string; value: ContainerStatus }[]> = {
+  PREPARING: [{ label: 'Cargado', value: 'LOADED' }],
+  LOADED: [{ label: 'Embarcado', value: 'SHIPPED' }],
+  SHIPPED: [{ label: 'En Tránsito', value: 'IN_TRANSIT' }],
+  IN_TRANSIT: [{ label: 'Arribado', value: 'ARRIVED' }],
+  ARRIVED: [{ label: 'Aduana', value: 'CUSTOMS' }],
+  CUSTOMS: [{ label: 'Liberado', value: 'RELEASED' }],
+  RELEASED: [{ label: 'Entregado', value: 'DELIVERED' }],
+  DELIVERED: [{ label: 'Cerrado', value: 'CLOSED' }],
+  CLOSED: []
+}
+
+const nextContainerStatuses = computed(() => {
+  if (!container.value) return []
+  return containerStatusTransitions[container.value.status] ?? []
+})
+
+const handleStatusChange = async (status: ContainerStatus) => {
+  if (confirm(`¿Cambiar estado a "${containerStatusLabel(status)}"?`)) {
+    await updateContainer(containerId, { status })
+    container.value = await findOneContainer(containerId)
+  }
+}
 
 onMounted(async () => {
   try {
@@ -87,7 +114,19 @@ const handleRemoveEvent = async (eventId: string) => {
     <template v-if="container">
       <div class="flex flex-wrap gap-2 items-center">
         <UBadge :label="containerStatusLabel(container.status)" :color="containerStatusColor(container.status)" size="lg" />
-        <span class="text-muted text-sm" v-if="container.container_type">{{ container.container_type }}</span>
+        <span class="text-muted text-sm" v-if="container.container_type">{{ containerTypeLabel(container.container_type as ContainerType) }}</span>
+      </div>
+
+      <div v-if="nextContainerStatuses.length" class="flex gap-2 my-4">
+        <UButton
+          v-for="ns in nextContainerStatuses"
+          :key="ns.value"
+          :label="`→ ${ns.label}`"
+          color="primary"
+          variant="outline"
+          size="sm"
+          @click="handleStatusChange(ns.value)"
+        />
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -99,7 +138,7 @@ const handleRemoveEvent = async (eventId: string) => {
             </div>
             <div>
               <p class="text-muted">Tipo</p>
-              <p class="font-medium">{{ container.container_type }}</p>
+              <p class="font-medium">{{ containerTypeLabel(container.container_type as ContainerType) }}</p>
             </div>
             <div v-if="container.seal_number">
               <p class="text-muted">Sello</p>

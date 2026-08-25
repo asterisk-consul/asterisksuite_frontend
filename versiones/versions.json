@@ -1,24 +1,43 @@
 [
   {
     "version": "0.33.0-alpha",
-    "date": "2026-08-24",
+    "date": "2026-08-25",
     "stage": "alpha",
-    "notes": "Módulo de Operaciones Internacionales: schema, backend CRUD, frontend con LogisticaTable, dashboard, contenedores con timeline, proxy routes, RBAC, seed de secuencia IMP",
+    "notes": "Módulo Operaciones Internacionales (Import/Export): gestión completa de operaciones, contenedores, documentos, pagos y conciliación financiera multimoneda",
+    "highlights": [
+      {
+        "title": "Operaciones Internacionales: CRUD completo con estados, contenedores con timeline, documentos y pagos asociados",
+        "description": "Módulo completo para gestionar importaciones/exportaciones: operaciones (PLANNED→CLOSED), contenedores (PREPARING→DELIVERED), timeline de eventos, documentos con tipos de gasto, pagos con conciliación, y resumen financiero multimoneda"
+      },
+      {
+        "title": "Conciliación financiera multimoneda",
+        "description": "Resumen financiero agrupado por moneda (USD, ARS, etc.), tipos de gasto (Mercadería, Flete, Seguro, Despachante, etc.), y historial de pagos por factura con montos, fechas y métodos"
+      },
+      {
+        "title": "Validación de moneda al asociar documentos",
+        "description": "Al asociar una factura en moneda distinta a la operación, se solicita tipo de cambio manual para conversión correcta en el resumen financiero"
+      }
+    ],
     "changes": [
       {
         "type": "feat",
         "scope": "international-operations",
-        "title": "Schema Prisma: international_operations, international_containers, container_events, junction tables para documentos y pagos"
+        "title": "Schema Prisma: international_operations, international_containers, container_events, junction tables operation_documents/operation_payments, FKs a locations"
       },
       {
         "type": "feat",
         "scope": "international-operations",
-        "title": "Backend: NestJS module completo con CRUD, transiciones de estado validadas, summary/dashboard, asociaciones documento/pago/OC"
+        "title": "Backend: NestJS module con CRUD completo, transiciones de estado validadas (PLANNED→CLOSED/CANCELLED), summary/dashboard con financialByCurrency"
       },
       {
         "type": "feat",
         "scope": "international-operations",
-        "title": "Backend: ContainersService y EventsService con CRUD y timeline de eventos"
+        "title": "Backend: ContainersService y EventsService con CRUD y timeline de eventos (LOADED_AT_ORIGIN → DELIVERED)"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Backend: Asociar/desasociar documentos (con expense_type, custom_expense_description, container_id, exchange_rate), pagos y órdenes de compra"
       },
       {
         "type": "feat",
@@ -28,27 +47,32 @@
       {
         "type": "feat",
         "scope": "international-operations",
-        "title": "Frontend: Listado con LogisticaTable, filtros por estado/proveedor/país, sorting, selección múltiple"
+        "title": "Frontend: Listado con LogisticaTable, filtros por estado/proveedor/país, sorting, paginación"
       },
       {
         "type": "feat",
         "scope": "international-operations",
-        "title": "Frontend: Formulario de creación con moneda select (useCurrencies), incoterm con UPopover de ayuda, locaciones para origen/destino"
+        "title": "Frontend: Formulario de creación con moneda select, incoterm con UPopover de ayuda, locaciones para origen/destino"
       },
       {
         "type": "feat",
         "scope": "international-operations",
-        "title": "Frontend: Dashboard de operación con KPIs, situación financiera, contenedores, documentos, pagos, alertas ETA"
+        "title": "Frontend: Dashboard de operación con KPIs, situación financiera por moneda, contenedores en grid, documentos agrupados por expense_type, pagos con historial"
       },
       {
         "type": "feat",
         "scope": "international-operations",
-        "title": "Frontend: Crear contenedor con tipo en español + UPopover de ayuda, puertos con USelectMenu de locaciones"
+        "title": "Frontend: Crear contenedor con tipo en español + UPopover de ayuda, puertos con USelectMenu de locaciones, change estado dropdown"
       },
       {
         "type": "feat",
         "scope": "international-operations",
-        "title": "Frontend: Detalle de contenedor con timeline de eventos (create/delete)"
+        "title": "Frontend: Detalle de contenedor con timeline de eventos (create/delete), cambio estado dropdown"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Modal asociar documento con validación de moneda + input exchange_rate, modal asociar pago, botones desasociar con confirm"
       },
       {
         "type": "feat",
@@ -58,17 +82,22 @@
       {
         "type": "feat",
         "scope": "international-operations",
-        "title": "Seed: secuencia IMP (point_of_sale: 0003, prefix: IMP) en seed-sql.ts, document-types.seed.ts y document-types.seed.sql"
-      },
-      {
-        "type": "feat",
-        "scope": "international-operations",
-        "title": "RBAC: 4 permisos (international_operations.read/create/update/delete) con asignación a roles default"
+        "title": "Seed: secuencia IMP (point_of_sale: 0003, prefix: IMP) + RBAC 4 permisos con roles default"
       },
       {
         "type": "feat",
         "scope": "international-operations",
         "title": "FKs a locations para origin/destination en operaciones y puertos en contenedores"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Fix USelectMenu value-key en FacturaItemsTable: selectedProduct y selectedVariant ahora almacenan UUID string, habilita select de variantes"
+      },
+      {
+        "type": "fix",
+        "scope": "international-operations",
+        "title": "Fix template Vue (divs anidados) en [id]/index.vue y declaración duplicada en AssociateDocumentModal"
       }
     ],
     "modules": [

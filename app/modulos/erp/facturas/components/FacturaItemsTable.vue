@@ -223,6 +223,7 @@ const columns = [
       <USelectMenu
         v-model="selectedProduct"
         :items="props.productOptions"
+        value-key="value"
         placeholder="Buscar por nombre..."
         searchable
         class="w-72"
@@ -232,6 +233,7 @@ const columns = [
         v-if="hasVariants && variantOptions.length > 0"
         v-model="selectedVariant"
         :items="variantOptions"
+        value-key="value"
         placeholder="Seleccionar variante..."
         class="w-56"
       />
