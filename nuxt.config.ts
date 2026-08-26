@@ -1,3 +1,20 @@
+import { readFileSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+function getAppVersion(): string {
+  try {
+    const versionsPath = resolve(__dirname, 'versiones/versions.json')
+    const content = readFileSync(versionsPath, 'utf-8')
+    const versions = JSON.parse(content)
+    return versions[0]?.version || '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+}
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: [
@@ -63,7 +80,8 @@ export default defineNuxtConfig({
 
     public: {
       apiBase: '',
-      baseDomain: ''
+      baseDomain: '',
+      appVersion: getAppVersion()
     }
   },
 

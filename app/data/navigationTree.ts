@@ -277,6 +277,18 @@ export const navigationTree: DrilldownNode[] = [
         ]
       },
       {
+        label: 'Mantenimiento',
+        icon: 'i-lucide-wrench',
+        to: '/logistica/mantenimiento',
+        permission: 'trips.read',
+        children: [
+          { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/logistica/mantenimiento/dashboard', permission: 'trips.read' },
+          { label: 'Órdenes', icon: 'i-lucide-clipboard-list', to: '/logistica/mantenimiento', permission: 'trips.read' },
+          { label: 'Cubiertas', icon: 'i-lucide-circle', to: '/logistica/mantenimiento/cubiertas', permission: 'trips.read' },
+          { label: 'Planes preventivos', icon: 'i-lucide-calendar-check', to: '/logistica/mantenimiento/planes', permission: 'trips.read' }
+        ]
+      },
+      {
         label: 'Partes interesadas',
         icon: 'i-lucide-building-2',
         to: '/logistica/business-parties',

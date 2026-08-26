@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { navigationTree } from '~/data/navigationTree'
 import { useVersion } from '~/composables/useVersion'
+import { useAppVersion } from '~/composables/useAppVersion'
 import DrilldownSidebar from '~/components/ui/DrilldownSidebar.vue'
+import AppVersionBanner from '~/components/AppVersionBanner/AppVersionBanner.vue'
 const { mainCollapsed } = useSidebarState()
 const { items: breadcrumbs } = useBreadcrumbs()
 const open = ref(false)
@@ -9,6 +11,8 @@ const open = ref(false)
 const versions = useVersion()
 const route = useRoute()
 const toast = useToast()
+
+const { init: initVersionCheck, showBanner, dismiss: dismissVersionBanner, currentVersion } = useAppVersion()
 
 const links = navigationTree
 
@@ -20,7 +24,9 @@ const groups = computed(() => [
   }
 ])
 
-onMounted(async () => {
+onMounted(() => {
+  initVersionCheck()
+
   const cookie = useCookie('cookie-consent')
   if (cookie.value === 'accepted') {
     return
@@ -50,6 +56,13 @@ onMounted(async () => {
 </script>
 
 <template>
+  <AppVersionBanner
+    v-if="showBanner"
+    :message="`Se actualizó la aplicación con mejoras en operaciones internacionales, pagos y conciliación de pagos por factura.`"
+    :version="currentVersion"
+    :changelog-url="'/changelog'"
+    @dismiss="dismissVersionBanner"
+  />
   <UDashboardGroup unit="rem">
     <DrilldownSidebar id="default" v-model:open="open" v-model:collapsed="mainCollapsed" resizable with-footer />
 

@@ -1,5 +1,156 @@
 [
   {
+    "version": "0.34.0-alpha",
+    "date": "2026-08-26",
+    "stage": "alpha",
+    "notes": "Módulo de Mantenimiento de Flota: backend CRUD completo, frontend con detalle, modales de sub-entidades ylookups via stores",
+    "highlights": [
+      {
+        "title": "Módulo de Mantenimiento de Flota: backend y frontend",
+        "description": "CRUD completo de órdenes de mantenimiento, cubiertas, planes preventivos, con sub-entidades (tareas, repuestos, mano de obra, servicios) y asociación a facturas de compra"
+      },
+      {
+        "title": "Detalle de orden con tabs y modales",
+        "description": "Página de detalle con 6 tabs (info, tareas, repuestos, mano de obra, servicios, historial) y modales para crear sub-entidades con lookups de productos, depósitos, proveedores, empleados y facturas"
+      },
+      {
+        "title": "Lookups via stores de Pinia",
+        "description": "Todos los selectores delookup usan stores dePinia (useProductsStore, useDepositosStore, useBusinessPartiesStore, useEmployeesStore) en vez de $fetch directo"
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Schema Prisma con 12 modelos (maintenance_orders, maintenance_tasks, maintenance_parts, maintenance_labor, maintenance_services, tires, tire_positions, tire_movements, maintenance_plans, plan_assets, vehicle_tire_configs, maintenance_status_history) y 10 enums"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Controllers con @RequirePermissions en todos los endpoints (orders, tasks, parts, labor, services, tires, plans, movements, positions)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: findOne() con parámetro tx para uso dentro de $transaction (11 call sites corregidos en orders.service y tires.service)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Fix user.sub → user.id en 9 controllers (38 reemplazos, JwtStrategy mapea sub→id)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Labor dual mode (employee_id OR supplier_id) con document_id opcional para asociar factura"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Parts con document_id opcional para asociar factura de compra"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: MaintenanceStatusHistory sin deleted_at (append-only audit trail)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Seed MAINTENANCE_ORDER sequence + RBAC 4 permisos (maintenance_orders.read/create/update/delete)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Service con 16 métodos CRUD para sub-entidades (tasks, parts, labor, services)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Store con 16 acciones para sub-entidades que actualizan currentOrder localmente"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Detail page [id]/index.vue con 6 tabs (info, tasks, parts, labor, services, history) y UTabs named slots"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: 5 modales (cambiar estado, agregar tarea, agregar repuesto, agregar mano de obra, agregar servicio) con USelectMenu searchable"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Lookupsvia stores de Pinia (useProductsStore, useDepositosStore, useBusinessPartiesStore, useEmployeesStore) con computed selectItems"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Dropdown factura asociada filtrado por category=INVOICE&status=2 (solo facturas de compra confirmadas)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Edit page [id]/editar.vue con formulario completo y carga de orden existente"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: 3 columns files (orders, tires, plans) concreateTableBuilder + useIdColumn + useSelectColumn"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: List pages (mantenimiento, cubiertas, planes) adaptadas al patrón builder columns"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: VehicleTireMap.vue componente SVG de mapa de cubiertas por posición"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Página vehiculos/[id]/index.vue con detalle de vehículo y mapa de cubiertas"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Cubiertas nueva.vue y [id]/index.vue reescritas con USelectMenu searchable para lookups"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "16 server API proxy routes para sub-entidades (tasks, parts, labor, services × CRUD)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Proxies adicionales: vehicles/[id], vehicle-tire-positions, dashboard, business-parties"
+      },
+      {
+        "type": "fix",
+        "scope": "maintenance",
+        "title": "Fix accessorFn en columns: row.original.X → row.X (accessorFn recibe raw data, no TanStack Row)"
+      },
+      {
+        "type": "fix",
+        "scope": "maintenance",
+        "title": "Fix proxy business-parties para pasar query params (type=SUPPLIER)"
+      }
+    ],
+    "modules": [
+      {
+        "name": "maintenance",
+        "version": "0.1.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
     "version": "0.33.0-alpha",
     "date": "2026-08-25",
     "stage": "alpha",

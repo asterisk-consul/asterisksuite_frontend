@@ -1,6 +1,6 @@
 import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  return apiProxy(event, `/master-data/business-parties`, { query })
+  const { id } = event.context.params!
+  return apiProxy(event, `/logistica/vehicles/${id}`)
 })
