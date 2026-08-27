@@ -78,6 +78,19 @@ export const useChecksService = () => {
     })
   }
 
+  const deposit = (id: string, data: { bank_account_id: string; amount?: number }) => {
+    return $fetch<Check>(`${urlBase}/${id}/deposit`, {
+      method: 'PATCH',
+      body: data
+    })
+  }
+
+  const revert = (id: string) => {
+    return $fetch<Check>(`${urlBase}/${id}/revert`, {
+      method: 'PATCH'
+    })
+  }
+
   return {
     findAll,
     findOne,
@@ -89,6 +102,8 @@ export const useChecksService = () => {
     clear,
     bounce,
     confirm,
-    reject
+    reject,
+    deposit,
+    revert
   }
 }

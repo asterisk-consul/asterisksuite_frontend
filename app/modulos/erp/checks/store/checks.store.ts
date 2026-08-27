@@ -123,7 +123,7 @@ export const useChecksStore = defineStore('checks', () => {
   }
 
   // =========================
-  // ACTIONS: CLEAR, BOUNCE, CONFIRM, REJECT
+  // ACTIONS: CLEAR, BOUNCE, CONFIRM, REJECT, DEPOSIT
   // =========================
 
   const updateCheckStatus = async (
@@ -131,6 +131,36 @@ export const useChecksStore = defineStore('checks', () => {
     action: 'clear' | 'bounce' | 'confirm' | 'reject'
   ) => {
     const updated = await service[action](id)
+
+    const index = items.value.findIndex((i) => i.id === id)
+    if (index !== -1) {
+      items.value[index] = updated
+    }
+
+    if (current.value?.id === id) {
+      current.value = updated
+    }
+
+    return updated
+  }
+
+  const deposit = async (id: string, data: { bank_account_id: string; amount?: number }) => {
+    const updated = await service.deposit(id, data)
+
+    const index = items.value.findIndex((i) => i.id === id)
+    if (index !== -1) {
+      items.value[index] = updated
+    }
+
+    if (current.value?.id === id) {
+      current.value = updated
+    }
+
+    return updated
+  }
+
+  const revert = async (id: string) => {
+    const updated = await service.revert(id)
 
     const index = items.value.findIndex((i) => i.id === id)
     if (index !== -1) {
@@ -163,6 +193,8 @@ export const useChecksStore = defineStore('checks', () => {
     clear: (id: string) => updateCheckStatus(id, 'clear'),
     bounce: (id: string) => updateCheckStatus(id, 'bounce'),
     confirm: (id: string) => updateCheckStatus(id, 'confirm'),
-    reject: (id: string) => updateCheckStatus(id, 'reject')
+    reject: (id: string) => updateCheckStatus(id, 'reject'),
+    deposit,
+    revert
   }
 })

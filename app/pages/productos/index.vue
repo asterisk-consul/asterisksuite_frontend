@@ -21,6 +21,7 @@ import ProductModalForm from '~/modulos/logistica/master-data/product/components
 import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 const { init, products, create, loading } = useProducts()
 const { exportToExcel } = useExcelExport()
@@ -98,8 +99,25 @@ function onSortFieldSelect(columnId: string) {
   ]
 }
 
+/* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('products')
+
+async function handleDeleteOne(row: any) {
+  await deleteOne(row.id)
+  await init()
+}
+
+async function handleBulkDelete(rows: any[]) {
+  await deleteMany(rows.map(r => r.id))
+  await init()
+}
+
 const columns = productColumns({
   onEdit: openEdit,
+  onDelete: handleDeleteOne,
   onSortFieldSelect
 })
 
@@ -287,6 +305,7 @@ const sortFields: SortField[] = [
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
     />
   </UPage>
   <ProductModalForm v-model:open="open" v-model:form="form" @submit="saveLocation" />

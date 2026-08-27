@@ -5,6 +5,7 @@ import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vu
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import { BusinessPartyColumns } from '~/modulos/logistica/master-data/bussiness-parties/columns'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 import type { ButtonProps } from '@nuxt/ui'
@@ -29,6 +30,22 @@ const openEdit = (row: any) => {
   router.push(`/logistica/business-parties/${row.id}/edit`)
 }
 
+/* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('business_parties')
+
+async function handleDeleteOne(row: any) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: any[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
 function onSortFieldSelect(columnId: string) {
   const current = sorting.value[0]
   sorting.value = [
@@ -41,7 +58,8 @@ function onSortFieldSelect(columnId: string) {
 
 const columns = BusinessPartyColumns({
   onEdit: openEdit,
-  onSortFieldSelect
+  onSortFieldSelect,
+  onDelete: handleDeleteOne
 })
 
 const links: ButtonProps[] = [
@@ -77,6 +95,7 @@ const sortFields: SortField[] = [
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
     />
   </UPage>
 </template>

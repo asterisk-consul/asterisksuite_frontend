@@ -537,8 +537,6 @@ const handleCheckCreated = async (checkData: CheckFormData) => {
     due_date: checkData.due_date,
     is_own: isOwn,
     notes: checkData.notes || undefined,
-    party_id: form.party_id || undefined,
-    party_type: isOwn ? 'SUPPLIER' : 'CUSTOMER',
   })
   checkModalOpen.value = false
   if (isCollection.value) {

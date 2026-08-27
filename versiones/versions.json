@@ -1,5 +1,144 @@
 [
   {
+    "version": "0.35.1-alpha",
+    "date": "2026-08-26",
+    "stage": "alpha",
+    "notes": "Ciclo de vida de cheques: depósito, reversión con impacto bancario, badge de estado corregido, auto-deposit scheduler y moneda configurable",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Depósito de cheques con selección de cuenta bancaria y movimiento COLLECTION"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Revertir depósito: CLEARED → PENDING, elimina movimiento bancario y revierte saldo"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "Badge muestra 'Depositado' (estado) en vez de 'Depositar' (acción) con badgeLabel en PopoverTableActive"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Auto-deposit scheduler: cheques de terceros con vencimiento <= hoy se depositan automáticamente"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Ventana de días configurable para dashboard y treasury-reports (parámetro checks_days)"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Selector de moneda USelect en formulario de cheques (create/edit)"
+      },
+      {
+        "type": "feat",
+        "scope": "pagos",
+        "title": "Procesamiento de cheques vinculados a pagos: check_ids en CreatePaymentDto"
+      },
+      {
+        "type": "fix",
+        "scope": "pagos",
+        "title": "Tipo de status como @IsEnum PaymentStatus en vez de @IsInt number en CreatePaymentDto"
+      }
+    ]
+  },
+  {
+    "version": "0.35.0-alpha",
+    "date": "2026-08-26",
+    "stage": "alpha",
+    "notes": "Módulo de Papelera completo: página en Ajustes, soft-delete desde LogisticaTable (individual y bulk), resolución de usuario, fix de rutas NestJS",
+    "highlights": [
+      {
+        "title": "Página de Papelera en Ajustes",
+        "description": "Nueva página /settings/trash con tabla de elementos eliminados, filtros por tabla y período, búsqueda, restaurar y eliminar permanentemente"
+      },
+      {
+        "title": "Soft-delete desde LogisticaTable",
+        "description": "Integración de eliminación a papelera tanto individual (botón por fila) como bulk (selección múltiple) en 9 módulos de logística y productos"
+      },
+      {
+        "title": "Resolución de usuario en Papelera",
+        "description": "La columna 'Eliminado por' ahora muestra el nombre del usuario en vez del UUID, resuelto desde public.users"
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Página /settings/trash con UTable, filtros USelectMenu (search + clear), selección múltiple, restaurar y hard delete"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Nav: item 'Papelera' en grupo Ajustes con permiso trash.read"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Composable useTableDelete: encapsula DELETE /api/trash/{table}/{id} y bulk, con toast y link a papelera"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "LogisticaTable: prop onDelete para habilitar eliminación bulk con modal de confirmación"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "DeleteConfirmModal: texto actualizado para referencia a papelera, prop loading"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Columnas actualizadas con onDelete: drivers, vehicles-combinations, locations, business-parties, contacts, products, warehouses, transfer-rates, corridors"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "9 páginas conectadas: drivers, vehicles-combinations, locaciones, business-parties, contacts, productos, warehouses, tarifas, corridors"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Backend findAllTrash: retorna nombre real de tabla (no 'mixed') y campos en camelCase (deletedAt, deletedBy)"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Backend findAllTrash: resolución de deletedBy UUID → nombre de usuario via public.users"
+      },
+      {
+        "type": "fix",
+        "scope": "trash",
+        "title": "Fix NestJS route ordering: bulk/:table y hard/:table ahora se declaran antes que :table/:id para evitar conflicto de rutas"
+      },
+      {
+        "type": "fix",
+        "scope": "trash",
+        "title": "Fix TRASH_TABLES: eliminados cargo_transfers (sin deleted_at), product_tags y product_categories (claves compuestas sin id)"
+      },
+      {
+        "type": "fix",
+        "scope": "frontend",
+        "title": "Corregido Nuxt 3 → Nuxt 4 en AGENTS.md, agents y skills"
+      }
+    ],
+    "modules": [
+      {
+        "name": "trash",
+        "version": "0.1.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
     "version": "0.34.0-alpha",
     "date": "2026-08-26",
     "stage": "alpha",

@@ -5,6 +5,7 @@ definePageMeta({ middleware: ['auth'] })
 import type { CreateDriverInput, UpdateDriverInput } from '~/modulos/logistica/transport/drivers/drivers.types'
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 import { useDocumentTypesStore } from '~/modulos/logistica/documents/transport-documents-types/document-types.store'
 import { useChoferesStore } from '~/modulos/logistica/transport/drivers/choferes.store'
@@ -61,6 +62,22 @@ function openEdit(row: Driver) {
 }
 
 /* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('drivers')
+
+async function handleDeleteOne(row: Driver) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: Driver[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
+/* ---------------------------------------
    TABLE COLUMNS
 --------------------------------------- */
 function onSortFieldSelect(columnId: string) {
@@ -75,6 +92,7 @@ function onSortFieldSelect(columnId: string) {
 
 const columns = driversColumns({
   onEdit: openEdit,
+  onDelete: handleDeleteOne,
   onSortFieldSelect,
   onToggleActive: async (row, value) => {
     const prev = row.active
@@ -264,6 +282,7 @@ const sortFields: SortField[] = [
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
     />
   </UPage>
   <ModalForm

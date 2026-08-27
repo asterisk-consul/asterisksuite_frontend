@@ -1,3 +1,5 @@
+import { h } from 'vue'
+import { UButton } from '#components'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
@@ -28,6 +30,7 @@ const ivaConfig: Record<string, { label: string; color: BadgeColor }> = {
 export const BusinessPartyColumns = (actions: {
   onSortFieldSelect?: (columnId: string) => void
   onEdit?: (row: Row) => void
+  onDelete?: (row: Row) => void
 }): ExtendedColumn<Row>[] => {
   const build = createTableBuilder<Row>({
     locale: 'es-AR',
@@ -124,6 +127,29 @@ export const BusinessPartyColumns = (actions: {
         label: 'Creado',
         sortable: true,
         date: true
+      },
+
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            onClick: () => actions.onEdit?.(row.original)
+          }),
+          actions.onDelete
+            ? h(UButton, {
+                icon: 'i-lucide-trash-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'error',
+                onClick: () => actions.onDelete?.(row.original)
+              })
+            : null
+        ])
       }
     ])
   ]

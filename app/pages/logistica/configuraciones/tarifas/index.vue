@@ -2,6 +2,7 @@
 definePageMeta({ middleware: ['auth'] })
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 //stores
 import { useTransferRatesStore } from '~/modulos/logistica/transport/transfer-rates/transfer-rates.store'
@@ -57,9 +58,26 @@ function onSortFieldSelect(columnId: string) {
   ]
 }
 
+/* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('transfer_rates')
+
+async function handleDeleteOne(row: any) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: any[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
 const columns = tarifasColumns({
   onEdit: openEdit,
   onSortFieldSelect,
+  onDelete: handleDeleteOne,
   onToggleActive: async (row, value) => {
     const prev = row.active
     row.active = value
@@ -153,6 +171,7 @@ const sortFields: SortField[] = [
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
     />
   </UPage>
   <ModalForm

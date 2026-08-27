@@ -2,6 +2,7 @@
 definePageMeta({ middleware: ['auth'] })
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 //stores
 import { useVehiclesStore } from '~/modulos/logistica/transport/vehicles/store/vehicles.store'
@@ -46,6 +47,22 @@ const { items: driverItems } = useDriverMetrics(drivers)
 const router = useRouter()
 
 /* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('vehicle_combinations')
+
+async function handleDeleteOne(row: VehicleCombination) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: VehicleCombination[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
+/* ---------------------------------------
    MODAL CONTROL
 --------------------------------------- */
 
@@ -77,6 +94,7 @@ function onSortFieldSelect(columnId: string) {
 
 const columns = VehicleCombinationColumns({
   onEdit: openEdit,
+  onDelete: handleDeleteOne,
   onSortFieldSelect,
   onInlineSave: async (row: VehicleCombination, field: EditableField, value: EditableValue) => {
     const prev = row[field]
@@ -290,6 +308,7 @@ const sortFields: SortField[] = [
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
     />
   </UPage>
 </template>

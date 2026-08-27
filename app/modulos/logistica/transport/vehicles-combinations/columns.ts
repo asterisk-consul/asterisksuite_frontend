@@ -1,3 +1,5 @@
+import { h } from 'vue'
+import { UButton } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 import type { VehicleCombination } from '~/modulos/logistica/transport/vehicles-combinations/types/vehicles-combinations.types'
 import StatusToggle from '@/components/ui/PopoverTableActive.vue'
@@ -14,6 +16,7 @@ export const VehicleCombinationColumns = (actions: {
   onInlineSave?: (row: Row, field: EditableField, value: any) => void
   onToggleActive?: (row: Row, validUntil: string | null) => void
   onEdit?: (row: Row) => void
+  onDelete?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row, EditableField>({
@@ -150,6 +153,29 @@ export const VehicleCombinationColumns = (actions: {
         label: 'Creado',
         sortable: true,
         date: true
+      },
+
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            onClick: () => actions.onEdit?.(row.original)
+          }),
+          actions.onDelete
+            ? h(UButton, {
+                icon: 'i-lucide-trash-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'error',
+                onClick: () => actions.onDelete?.(row.original)
+              })
+            : null
+        ])
       }
     ])
   ]

@@ -3,6 +3,7 @@ type OptionValue = string | boolean
 
 interface Option {
   label: string
+  badgeLabel?: string
   value: OptionValue
   color?:
     | 'success'
@@ -43,7 +44,7 @@ function selectOption(option: Option) {
 <template>
   <UPopover v-model:open="open" mode="click">
     <UBadge class="cursor-pointer" variant="subtle" :color="current?.color">
-      {{ current?.label }}
+      {{ current?.badgeLabel ?? current?.label }}
     </UBadge>
 
     <template #content>

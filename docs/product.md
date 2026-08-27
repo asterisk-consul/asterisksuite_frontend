@@ -81,7 +81,7 @@ JWT con refresh rotation, bcrypt, auditoría automática de cada operación, sof
 Roles por defecto (admin, manager, user, viewer) + permisos por módulo + overrides por usuario. El OWNER bypass todo. RBAC completo.
 
 ### Open source, moderno
-NestJS + Prisma + PostgreSQL + Nuxt 3 + Nuxt UI. Stack moderno, TypeScript en todo, sin deuda técnica.
+NestJS + Prisma + PostgreSQL + Nuxt 4 + Nuxt UI. Stack moderno, TypeScript en todo, sin deuda técnica.
 
 ---
 

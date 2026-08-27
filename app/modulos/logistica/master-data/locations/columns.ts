@@ -1,3 +1,5 @@
+import { h } from 'vue'
+import { UButton } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 
 import type { Location } from '~/modulos/logistica/master-data/locations/types/locations.types'
@@ -16,6 +18,7 @@ export const LocationColumns = (actions: {
   onToggleActive?: (row: Row, value: boolean) => void
   onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void
   onEdit?: (row: Row) => void
+  onDelete?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row, EditableField>({
@@ -85,6 +88,29 @@ export const LocationColumns = (actions: {
         label: 'Creado',
         sortable: true,
         date: true
+      },
+
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            onClick: () => actions.onEdit?.(row.original)
+          }),
+          actions.onDelete
+            ? h(UButton, {
+                icon: 'i-lucide-trash-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'error',
+                onClick: () => actions.onDelete?.(row.original)
+              })
+            : null
+        ])
       }
     ])
   ]

@@ -1,6 +1,6 @@
 import { h } from 'vue'
 
-import { UBadge } from '#components'
+import { UBadge, UButton } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 
 import type { Corridor } from './types/corridors.types'
@@ -13,6 +13,7 @@ type Row = Corridor
 
 export const corridorsColumns = (actions: {
   onEdit?: (row: Row) => void
+  onDelete?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({
@@ -145,6 +146,29 @@ export const corridorsColumns = (actions: {
         sortable: true,
 
         date: true
+      },
+
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            onClick: () => actions.onEdit?.(row.original)
+          }),
+          actions.onDelete
+            ? h(UButton, {
+                icon: 'i-lucide-trash-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'error',
+                onClick: () => actions.onDelete?.(row.original)
+              })
+            : null
+        ])
       }
     ])
   ]

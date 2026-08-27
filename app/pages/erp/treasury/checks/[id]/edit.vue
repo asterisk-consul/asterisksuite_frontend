@@ -3,6 +3,7 @@ definePageMeta({ middleware: ['auth'] })
 
 import { useChecks } from '~/modulos/erp/checks/composables/useChecks'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
+import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
 
@@ -12,6 +13,7 @@ const toast = useToast()
 
 const { getCheck, update } = useChecks()
 const { selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
+const { codeSelectItems: currencyItems, init: initCurrencies } = useCurrencies()
 
 const check = ref<CheckFormData | null>(null)
 const loadingData = ref(true)
@@ -53,6 +55,7 @@ onMounted(async () => {
   } finally {
     loadingData.value = false
     await initBankAccounts()
+    await initCurrencies()
   }
 })
 
@@ -96,6 +99,7 @@ const handleSubmit = async (formData: CheckFormData) => {
         :model-value="check"
         :loading="saving"
         :bank-account-items="bankAccountItems"
+        :currency-items="currencyItems"
         @submit="handleSubmit"
         @cancel="router.push('/erp/treasury/checks')"
       />

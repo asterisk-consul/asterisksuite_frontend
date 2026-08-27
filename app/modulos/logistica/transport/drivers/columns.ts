@@ -1,6 +1,6 @@
 import { h } from 'vue'
 
-import { UBadge } from '#components'
+import { UBadge, UButton } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 
 import type { Driver } from '~/modulos/logistica/transport/drivers/drivers.types'
@@ -33,6 +33,8 @@ export const driversColumns = (actions: {
   onToggleActive?: (row: Row, value: boolean) => void
 
   onEdit?: (row: Row) => void
+
+  onDelete?: (row: Row) => void
 
   onSortFieldSelect?: (columnId: string) => void
 }): TableColumn<Row>[] => {
@@ -145,6 +147,29 @@ export const driversColumns = (actions: {
         sortable: true,
 
         date: true
+      },
+
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            onClick: () => actions.onEdit?.(row.original)
+          }),
+          actions.onDelete
+            ? h(UButton, {
+                icon: 'i-lucide-trash-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'error',
+                onClick: () => actions.onDelete?.(row.original)
+              })
+            : null
+        ])
       }
     ])
   ]

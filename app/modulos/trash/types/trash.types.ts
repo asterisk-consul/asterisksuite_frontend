@@ -3,13 +3,13 @@ export interface TrashItem<T = any> {
   table: string
   deletedAt: string
   deletedBy?: string
+  deletedByName?: string
   data?: T
 }
 
 export const TRASH_TABLES = [
   'users',
   'business_parties',
-  'cargo_transfers',
   'companies',
   'delivery_notes',
   'drivers',
@@ -41,7 +41,18 @@ export const TRASH_TABLES = [
   'document_types',
   'documents',
   'product_taxes',
-  'taxes'
+  'taxes',
+  'product_price',
+  'accounts',
+  'product_attribute_values',
+  'attributes',
+  'tags',
+  'categories',
+  'product_components',
+  'product_variants',
+  'units',
+  'currency_rates',
+  'currencies'
 ] as const
 
 export type TrashTable = (typeof TRASH_TABLES)[number]

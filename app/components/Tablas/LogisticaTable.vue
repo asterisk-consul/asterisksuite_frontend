@@ -22,6 +22,7 @@ const props = defineProps<{
   loading?: boolean
   filterFields?: FilterField[]
   sortFields?: SortField[]
+  onDelete?: (rows: T[]) => Promise<void>
 }>()
 const sorting = defineModel<SortingState>('sorting', {
   default: () => []
@@ -64,10 +65,18 @@ const pagination = ref({ pageIndex: 0, pageSize: 15 })
    Acciones
 ======================== */
 
-function confirmDelete(): void {
-  emit('delete:rows', selectedRows.value)
-  rowSelection.value = {}
-  showDeleteModal.value = false
+const deleting = ref(false)
+
+async function confirmDelete(): Promise<void> {
+  if (!props.onDelete) return
+  deleting.value = true
+  try {
+    await props.onDelete(selectedRows.value)
+    rowSelection.value = {}
+  } finally {
+    deleting.value = false
+    showDeleteModal.value = false
+  }
 }
 </script>
 
@@ -135,15 +144,17 @@ function confirmDelete(): void {
          Selection Bar
     ========================= -->
 
-    <TableSelectionBar :count="selectedCount" @open-delete="showDeleteModal = true" />
+    <TableSelectionBar v-if="onDelete" :count="selectedCount" @open-delete="showDeleteModal = true" />
 
     <!-- ========================
          Delete Modal
     ========================= -->
 
     <DeleteConfirmModal
+      v-if="onDelete"
       :open="showDeleteModal"
       :count="selectedCount"
+      :loading="deleting"
       @confirm="confirmDelete"
       @cancel="showDeleteModal = false"
     />

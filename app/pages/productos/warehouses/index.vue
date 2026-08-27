@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 type EditableField = 'name' | 'code' | 'locationId'
 type EditableValue = string | null | undefined
@@ -71,11 +72,28 @@ function openEdit(row: any) {
 }
 
 /* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('warehouses')
+
+async function handleDeleteOne(row: any) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: any[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
+/* ---------------------------------------
    TABLE COLUMNS
 --------------------------------------- */
 
 const columns = createWarehouseColumns({
   onEdit: openEdit,
+  onDelete: handleDeleteOne,
 
   onToggleActive: async (row, value) => {
     const prev = row.active
@@ -203,7 +221,7 @@ const links = ref([
       class="mb-4 w-full"
     />
 
-    <LogisticaTable :loading="loading" :data="warehouses" :columns="columns" />
+    <LogisticaTable :loading="loading" :data="warehouses" :columns="columns" :on-delete="handleBulkDelete" />
   </UPage>
 
   <ModalForm

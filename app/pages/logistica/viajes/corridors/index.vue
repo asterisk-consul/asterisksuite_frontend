@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router'
 import type { ButtonProps } from '@nuxt/ui'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 import { corridorsColumns } from '~/modulos/logistica/transport/corridors/corridorsColums'
 import { useCorridorsStore } from '~/modulos/logistica/transport/corridors/corridors.store'
 
@@ -51,9 +52,26 @@ function onSortFieldSelect(columnId: string) {
   ]
 }
 
+/* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('corridors')
+
+async function handleDeleteOne(row: any) {
+  await deleteOne(row.id)
+  await store.fetchCorridors()
+}
+
+async function handleBulkDelete(rows: any[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchCorridors()
+}
+
 const columns = corridorsColumns({
   onEdit: openDetail,
-  onSortFieldSelect
+  onSortFieldSelect,
+  onDelete: handleDeleteOne
   // onRowClick: openDetail
 })
 
@@ -127,6 +145,7 @@ const sortFields: SortField[] = [
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
     />
   </UPage>
 </template>

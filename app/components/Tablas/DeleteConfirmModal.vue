@@ -2,6 +2,7 @@
 const props = defineProps<{
   open: boolean
   count: number
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -42,25 +43,23 @@ function onClose() {
 
           <div>
             <h3 class="text-base font-semibold text-highlighted">
-              ¿Eliminar {{ count }} fila{{ count !== 1 ? 's' : '' }}?
+              ¿Enviar {{ count }} fila{{ count !== 1 ? 's' : '' }} a la papelera?
             </h3>
 
             <p class="text-sm text-muted mt-0.5">
-              Esta acción es
-              <strong class="text-red-600 dark:text-red-400">
-                permanente e irreversible
-              </strong>
-              . Los datos eliminados no podrán recuperarse.
+              Los elementos se enviarán a la
+              <strong>papelera</strong>. Podés recuperarlos desde
+              <strong>Ajustes → Papelera</strong>.
             </p>
           </div>
         </div>
 
         <!-- Warning -->
         <div
-          class="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3"
+          class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-4 py-3"
         >
-          <p class="text-sm text-red-700 dark:text-red-300 font-medium">
-            ⚠️ No hay vuelta atrás. Esta operación no puede deshacerse.
+          <p class="text-sm text-amber-700 dark:text-amber-300 font-medium">
+            Los elementos dejarán de aparecer en el listado pero podrán recuperarse desde la papelera.
           </p>
         </div>
 
@@ -93,9 +92,10 @@ function onClose() {
             color="error"
             icon="i-lucide-trash-2"
             :disabled="!canDelete"
+            :loading="loading"
             @click="onConfirm"
           >
-            Eliminar definitivamente
+            Enviar a la papelera
           </UButton>
         </div>
       </div>

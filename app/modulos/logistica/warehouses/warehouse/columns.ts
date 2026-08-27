@@ -1,5 +1,5 @@
 import { h } from 'vue'
-import { UBadge, UCheckbox, UInput } from '#components'
+import { UBadge, UButton, UCheckbox, UInput } from '#components'
 import { NuxtLink } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 import StatusToggle from '@/components/ui/PopoverTableActive.vue'
@@ -32,6 +32,7 @@ export const createWarehouseColumns = (actions: {
   onToggleActive?: (row: Row, value: boolean) => void
   onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void
   onEdit?: (row: Row) => void
+  onDelete?: (row: Row) => void
 }): TableColumn<Row>[] => [
   {
     id: 'select',
@@ -219,5 +220,28 @@ export const createWarehouseColumns = (actions: {
         year: 'numeric'
       })
     }
+  },
+
+  {
+    id: 'actions',
+    header: '',
+    cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+      h(UButton, {
+        icon: 'i-lucide-pencil',
+        size: 'xs',
+        variant: 'ghost',
+        color: 'neutral',
+        onClick: () => actions.onEdit?.(row.original)
+      }),
+      actions.onDelete
+        ? h(UButton, {
+            icon: 'i-lucide-trash-2',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'error',
+            onClick: () => actions.onDelete?.(row.original)
+          })
+        : null
+    ])
   }
 ]

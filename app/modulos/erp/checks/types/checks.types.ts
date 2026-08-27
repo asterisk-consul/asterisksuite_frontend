@@ -64,8 +64,6 @@ export interface CreateCheckInput {
   is_own?: boolean
   notes?: string
   payment_date?: string
-  party_id?: string
-  party_type?: string
 }
 
 export interface UpdateCheckInput {

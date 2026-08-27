@@ -11,7 +11,7 @@ type Row = Check
 const statusConfig: Record<string, { label: string; color?: string }> = {
   PENDING: { label: 'Pendiente', color: 'warning' },
   CONFIRMED: { label: 'Confirmado', color: 'info' },
-  CLEARED: { label: 'Liquidado', color: 'success' },
+  CLEARED: { label: 'Depositado', color: 'success' },
   BOUNCED: { label: 'Rechazado', color: 'error' },
   REJECTED: { label: 'Rechazado', color: 'error' },
   CANCELLED: { label: 'Cancelado', color: 'neutral' }
@@ -21,7 +21,7 @@ function getAvailableStatuses(row: Check) {
   const all = [
     { value: 'PENDING', label: 'Pendiente', color: 'warning' as const },
     { value: 'CONFIRMED', label: 'Confirmar', color: 'info' as const },
-    { value: 'CLEARED', label: 'Liquidar', color: 'success' as const },
+    { value: 'CLEARED', label: 'Depositar', badgeLabel: 'Depositado', color: 'success' as const },
     { value: 'BOUNCED', label: 'Rechazar (bounce)', color: 'error' as const },
     { value: 'CANCELLED', label: 'Cancelar', color: 'neutral' as const },
   ]
@@ -50,6 +50,8 @@ export const checkColumns = (actions: {
   onDetail?: (row: Row) => void
   onEdit?: (row: Row) => void
   onDelete?: (row: Row) => void
+  onDeposit?: (row: Row) => void
+  onRevert?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
   onStatusChange?: (row: Row, newStatus: string) => void
 }): TableColumn<Row>[] => {
@@ -177,20 +179,44 @@ export const checkColumns = (actions: {
         id: 'actions',
         label: '',
         cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
-          h(UButton, {
-            icon: 'i-lucide-pencil',
-            size: 'xs',
-            variant: 'ghost',
-            color: 'neutral',
-            onClick: () => actions.onEdit?.(row.original)
-          }),
-          h(UButton, {
-            icon: 'i-lucide-trash-2',
-            size: 'xs',
-            variant: 'ghost',
-            color: 'error',
-            onClick: () => actions.onDelete?.(row.original)
-          })
+          ...((!row.original.is_own && ['PENDING', 'CONFIRMED'].includes(row.original.status))
+            ? [h(UButton, {
+                icon: 'i-lucide-building-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'success',
+                label: 'Depósitar',
+                onClick: () => actions.onDeposit?.(row.original)
+              })]
+            : []),
+          ...(row.original.status === 'CLEARED'
+            ? [h(UButton, {
+                icon: 'i-lucide-undo-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'warning',
+                label: 'Revertir',
+                onClick: () => actions.onRevert?.(row.original)
+              })]
+            : []),
+          ...(row.original.status !== 'CLEARED'
+            ? [h(UButton, {
+                icon: 'i-lucide-pencil',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'neutral',
+                onClick: () => actions.onEdit?.(row.original)
+              })]
+            : []),
+          ...(row.original.status !== 'CLEARED'
+            ? [h(UButton, {
+                icon: 'i-lucide-trash-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'error',
+                onClick: () => actions.onDelete?.(row.original)
+              })]
+            : [])
         ])
       }
     ])

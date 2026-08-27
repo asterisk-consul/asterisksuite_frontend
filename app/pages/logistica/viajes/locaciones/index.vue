@@ -4,6 +4,7 @@ import { useLocationsStore } from '~/modulos/logistica/master-data/locations/sto
 import { LocationColumns } from '../../../../modulos/logistica/master-data/locations/columns'
 import { locationFormFields } from '~/modulos/logistica/master-data/locations/locationsFormFields'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 import type { ButtonProps } from '@nuxt/ui'
@@ -60,6 +61,22 @@ function openEdit(row: any) {
 }
 
 /* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('locations')
+
+async function handleDeleteOne(row: any) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: any[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
+/* ---------------------------------------
    TABLE COLUMNS
 --------------------------------------- */
 function onSortFieldSelect(columnId: string) {
@@ -75,6 +92,7 @@ function onSortFieldSelect(columnId: string) {
 const columns = LocationColumns({
   onEdit: openEdit,
   onSortFieldSelect,
+  onDelete: handleDeleteOne,
   onInlineSave: async (row: Location, field: EditableField, value: EditableValue) => {
     const prev = row[field]
     row[field] = value ?? ''
@@ -197,6 +215,7 @@ const sortFields: SortField[] = [
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
     />
   </UPage>
 

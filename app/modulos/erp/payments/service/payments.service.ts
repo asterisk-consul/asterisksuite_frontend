@@ -64,8 +64,6 @@ export interface CreateCheckInput {
   due_date: string
   is_own?: boolean
   notes?: string
-  party_id?: string
-  party_type?: string
 }
 
 export const usePaymentsService = () => {
@@ -114,7 +112,7 @@ export const usePaymentsService = () => {
   }
 
   const createLightCheck = (data: CreateCheckInput) => {
-    return $fetch<AvailableCheck>('/api/erp/checks/light', {
+    return $fetch<AvailableCheck>('/api/erp/checks', {
       method: 'POST',
       body: data
     })

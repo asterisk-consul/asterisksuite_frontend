@@ -27,8 +27,10 @@ const props = withDefaults(defineProps<{
   modelValue?: CheckFormData
   loading?: boolean
   bankAccountItems?: BankAccountItem[]
+  currencyItems?: BankAccountItem[]
 }>(), {
   bankAccountItems: () => [],
+  currencyItems: () => [],
 })
 
 const emit = defineEmits<{
@@ -132,7 +134,11 @@ const bankOptions = [
         <UInput v-model.number="form.amount" type="number" :min="0.01" :step="0.01" />
       </UFormField>
       <UFormField label="Moneda" name="currency_code">
-        <UInput v-model="form.currency_code" />
+        <USelect
+          v-model="form.currency_code"
+          :items="currencyItems"
+          placeholder="Seleccionar moneda"
+        />
       </UFormField>
       <UFormField label="Fecha emisión" name="issue_date" required>
         <UInput v-model="form.issue_date" type="date" />

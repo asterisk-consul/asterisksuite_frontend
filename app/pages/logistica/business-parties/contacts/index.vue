@@ -17,6 +17,7 @@ import { usePartyContactsStore } from '~/modulos/logistica/master-data/contacts/
 import { PartyContactColumns } from '~/modulos/logistica/master-data/contacts/contacts.columns'
 // --- COMPONENTS ---s
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 function toggleModuleSidebar() {
   moduleCollapsed.value = !moduleCollapsed.value
@@ -44,6 +45,22 @@ function openEdit(row: any) {
 }
 
 /* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('party_contacts')
+
+async function handleDeleteOne(row: any) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: any[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
+/* ---------------------------------------
    TABLE COLUMNS
 --------------------------------------- */
 function onSortFieldSelect(columnId: string) {
@@ -59,6 +76,7 @@ function onSortFieldSelect(columnId: string) {
 const columns = PartyContactColumns({
   onEdit: openEdit,
   onSortFieldSelect,
+  onDelete: handleDeleteOne,
   onInlineSave: async (row: PartyContact, field: EditableField, value: EditableValue) => {
     const prev = row[field] ?? ''
     row[field] = value ?? ''
@@ -131,6 +149,7 @@ const sortFields: SortField[] = [
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
     />
   </UPage>
 </template>
