@@ -56,6 +56,15 @@ export interface Document {
 
   number: number
   document_type_id: string
+  document_sequence_id?: string | null
+
+  document_sequences?: {
+    id: string
+    name: string
+    point_of_sale: string
+    prefix?: string | null
+    current_number?: number
+  } | null
 
   party_id: string | null
 
@@ -135,6 +144,8 @@ export interface FacturaFormValues {
   id?: string
 
   document_type_id: string
+
+  document_sequence_id?: string | null
 
   party_id: string | null
 

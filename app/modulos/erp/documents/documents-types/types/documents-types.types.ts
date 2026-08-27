@@ -109,6 +109,14 @@ export interface DocumentsType {
 
   document_sequences?: DocumentSequence | null
 
+  document_type_sequences?: {
+    id: string
+    document_type_id: string
+    sequence_id: string
+    is_default?: boolean
+    document_sequences: DocumentSequence
+  }[]
+
   document_type_taxes?: DocumentTypeTax[]
 }
 
@@ -130,6 +138,8 @@ export interface CreateDocumentsTypeDto {
   affects_payment?: boolean
 
   document_sequence_id?: string
+
+  document_sequence_ids?: string[]
 
   category?: DocumentCategory
 

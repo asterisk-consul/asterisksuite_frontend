@@ -10,7 +10,9 @@ export interface DocumentSequence {
   active: boolean
   created_at?: string
   updated_at?: string
-  document_types?: { id: string; code: string; description: string }[]
+  document_type_links?: {
+    document_types: { id: string; code: string; description: string }
+  }[]
 }
 
 export interface CreateDocumentSequenceInput {
@@ -20,6 +22,7 @@ export interface CreateDocumentSequenceInput {
   range_start?: number
   range_end?: number
   automatic?: boolean
+  document_type_ids?: string[]
 }
 
 export interface UpdateDocumentSequenceInput extends Partial<CreateDocumentSequenceInput> {}

@@ -27,6 +27,13 @@ const loading = ref(true)
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
+const documentNumber = computed(() => {
+  if (!doc.value) return ''
+  const code = doc.value.document_types?.code ?? ''
+  const pointOfSale = doc.value.document_sequences?.point_of_sale
+  const number = String(doc.value.number).padStart(8, '0')
+  return pointOfSale ? `${code}-${pointOfSale}-${number}` : `${code}-${number}`
+})
 
 onMounted(async () => {
   try {
@@ -77,7 +84,7 @@ const {
 
 <template>
   <UPage class="space-y-4">
-    <AppPageHeader :title="doc ? `${doc.document_types?.description} #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Documento'">
+    <AppPageHeader :title="doc ? `${doc.document_types?.description} #${documentNumber}` : 'Documento'">
       <template #links>
         <div class="flex gap-2 items-center flex-wrap">
           <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />

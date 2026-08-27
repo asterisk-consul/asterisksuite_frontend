@@ -48,7 +48,7 @@ async function handleSubmit(payload: any) {
       </template>
     </AppPageHeader>
 
-    <div class="max-w-4xl">
+    <div class="mx-auto w-full max-w-screen-2xl">
       <SalesDocumentForm
         ref="formRef"
         :loading="saving"

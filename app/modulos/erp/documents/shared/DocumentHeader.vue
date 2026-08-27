@@ -22,9 +22,13 @@ const category = computed(() => props.document?.document_types?.category)
 const statusLabel = computed(() => getStatusLabel(category.value, props.document?.status))
 const statusColor = computed(() => getStatusColor(category.value, props.document?.status))
 const statusDescription = computed(() => getStatusDescription(category.value, props.document?.status))
+const pointOfSale = computed(() => props.document?.document_sequences?.point_of_sale)
 const docNumber = computed(() => {
   if (!props.document) return ''
-  return `${props.document.document_types?.code}-${String(props.document.number).padStart(8, '0')}`
+  const code = props.document.document_types?.code ?? ''
+  const pointOfSale = props.document.document_sequences?.point_of_sale
+  const number = String(props.document.number).padStart(8, '0')
+  return pointOfSale ? `${code}-${pointOfSale}-${number}` : `${code}-${number}`
 })
 
 function resolveDocLink(doc: any): string {
@@ -51,6 +55,7 @@ function resolveDocLink(doc: any): string {
         <h1 class="text-2xl font-bold">{{ document.document_types?.description }} #{{ docNumber }}</h1>
         <p class="text-sm text-muted">
           {{ fmtDate(document.date) }}
+          <template v-if="pointOfSale"> · Punto de venta {{ pointOfSale }}</template>
           <template v-if="document.business_parties"> · {{ document.business_parties.name }}</template>
         </p>
       </div>

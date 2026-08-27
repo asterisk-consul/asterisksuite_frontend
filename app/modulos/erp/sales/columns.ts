@@ -17,7 +17,20 @@ export const createSalesColumns = (actions: {
         key: 'number',
         label: 'Nº',
         sortable: true,
-        accessorFn: (row) => `${row.document_types?.code}-${String(row.number).padStart(8, '0')}`
+        accessorFn: (row) => {
+          const code = row.document_types?.code ?? ''
+          const pointOfSale = row.document_sequences?.point_of_sale
+          const number = String(row.number).padStart(8, '0')
+
+          // La secuencia del documento es la fuente de verdad. Los registros
+          // históricos sin FK conservan el formato anterior.
+          return pointOfSale ? `${code}-${pointOfSale}-${number}` : `${code}-${number}`
+        }
+      },
+      {
+        id: 'point_of_sale',
+        label: 'Punto de venta',
+        accessorFn: (row) => row.document_sequences?.point_of_sale ?? '-'
       },
       { key: 'date', label: 'Fecha', sortable: true, date: true },
       {

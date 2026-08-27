@@ -76,7 +76,12 @@ onMounted(async () => {
 })
 
 // Expose form data for parent to read
-const getFormData = () => ({ ...form })
+const getFormData = () => {
+  const data = { ...form }
+  if (!data.seller_id) data.seller_id = undefined
+  if (!data.commission_rate) data.commission_rate = undefined
+  return data
+}
 defineExpose({ getFormData })
 </script>
 
@@ -86,7 +91,7 @@ defineExpose({ getFormData })
       <h3 class="font-semibold">Información de entrega</h3>
     </template>
     <div class="space-y-4">
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <UFormField label="Prioridad" name="priority">
           <USelectMenu v-model="form.priority" :items="[
             { label: 'Baja', value: 'BAJA' },
@@ -102,7 +107,7 @@ defineExpose({ getFormData })
       <UFormField label="Dirección de entrega" name="delivery_address">
         <UInput v-model="form.delivery_address" placeholder="Dirección completa" class="w-full" />
       </UFormField>
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         <UFormField label="Contacto" name="delivery_contact">
           <UInput v-model="form.delivery_contact" placeholder="Nombre del contacto" class="w-full" />
         </UFormField>
@@ -113,12 +118,12 @@ defineExpose({ getFormData })
           <UInput v-model="form.delivery_time" placeholder="Ej: 7-10 días" class="w-full" />
         </UFormField>
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <UFormField label="Transporte" name="transport_provider">
           <UInput v-model="form.transport_provider" placeholder="Nombre del transporte" class="w-full" />
         </UFormField>
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <UFormField label="Vendedor" name="seller_id">
           <USelectMenu
             v-model="form.seller_id"

@@ -63,7 +63,7 @@ async function handleSubmit(payload: any) {
       </template>
     </AppPageHeader>
 
-    <div class="max-w-4xl space-y-4">
+    <div class="mx-auto w-full max-w-screen-2xl space-y-5">
       <FacturaForm
         v-if="factura"
         ref="formRef"

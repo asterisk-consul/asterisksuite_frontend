@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.37.0-alpha",
+    "date": "2026-08-27",
+    "stage": "alpha",
+    "notes": "Secuencia de documentos vinculada al documento: FK document_sequence_id, cada PV tiene su propio rango de numeración, fix de off-by-one y mejoras en edit mode",
+    "changes": [
+      { "type": "feat", "scope": "database", "title": "FK document_sequence_id en tabla documents + constraint único compuesto (document_type_id, document_sequence_id, number)" },
+      { "type": "fix", "scope": "erp", "title": "Off-by-one en inicialización de secuencias: current_number ahora inicia en range_start - 1" },
+      { "type": "feat", "scope": "erp", "title": "Guardar document_sequence_id al crear documentos (sales, purchases, HR)" },
+      { "type": "fix", "scope": "erp", "title": "Simplificar getNextNumber quitando retry loop (cada PV tiene rango independiente)" },
+      { "type": "feat", "scope": "erp", "title": "findOne incluye document_sequences para mostrar punto de venta en frontend" },
+      { "type": "fix", "scope": "facturas", "title": "Mapper restaura document_sequence_id en edit mode" },
+      { "type": "fix", "scope": "facturas", "title": "Race condition en FacturaForm: watch(sequences) restaura secuencia cuando datos están listos" }
+    ]
+  },
+  {
+    "version": "0.36.1-alpha",
+    "date": "2026-08-27",
+    "stage": "alpha",
+    "notes": "Junction table document_type_sequences: multi-select de secuencias por tipo de documento, fix de filtrado en FacturaForm y fix de validación seller_id vacío",
+    "changes": [
+      { "type": "fix", "scope": "erp", "title": "Filtrar seller_id vacío en OrdenVentaForm para evitar error de validación UUID" },
+      { "type": "feat", "scope": "erp", "title": "Junction table document_type_sequences en backend (DTO, service CRUD con createMany/deleteMany)" },
+      { "type": "feat", "scope": "erp", "title": "Multi-select de secuencias en DocumentTypeForm y settings page" },
+      { "type": "fix", "scope": "erp", "title": "Filtrado de secuencias en FacturaForm por tipo de documento (return false en vez de true)" }
+    ]
+  },
+  {
     "version": "0.36.0-alpha",
     "date": "2026-08-26",
     "stage": "alpha",

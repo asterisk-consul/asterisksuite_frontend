@@ -7,6 +7,14 @@ function fmtDate(d?: string) {
   return d ? d.slice(0, 10) : '-'
 }
 
+function fmtNumber(doc: any) {
+  if (!doc) return ''
+  const code = doc.document_types?.code ?? ''
+  const pointOfSale = doc.document_sequences?.point_of_sale
+  const number = String(doc.number).padStart(8, '0')
+  return pointOfSale ? `${code}-${pointOfSale}-${number}` : `${code}-${number}`
+}
+
 function resolveDocLink(doc: any): string {
   if (!doc) return '#'
   const direction = doc.document_types?.direction
@@ -34,7 +42,7 @@ function resolveDocLink(doc: any): string {
       <div v-if="document.parent_document" class="flex items-center gap-3 text-sm">
         <UBadge label="Origen" color="info" variant="subtle" size="sm" />
         <NuxtLink :to="resolveDocLink(document.parent_document)" class="underline font-medium">
-          {{ document.parent_document.document_types?.description }} #{{ document.parent_document.number }}
+          {{ document.parent_document.document_types?.description }} #{{ fmtNumber(document.parent_document) }}
         </NuxtLink>
         <span class="text-muted">{{ fmtDate(document.parent_document.date) }}</span>
       </div>
@@ -43,7 +51,7 @@ function resolveDocLink(doc: any): string {
       <div class="flex items-center gap-3 text-sm pl-4 border-l-2 border-primary">
         <UBadge label="Actual" color="primary" variant="subtle" size="sm" />
         <span class="font-bold">
-          {{ document.document_types?.description }} #{{ document.document_types?.code }}-{{ String(document.number).padStart(8, '0') }}
+          {{ document.document_types?.description }} #{{ fmtNumber(document) }}
         </span>
         <span class="text-muted">{{ fmtDate(document.date) }}</span>
       </div>
@@ -52,7 +60,7 @@ function resolveDocLink(doc: any): string {
       <div v-for="child in document.child_documents" :key="child.id" class="flex items-center gap-3 text-sm pl-4 border-l-2 border-success">
         <UBadge label="Generado" color="success" variant="subtle" size="sm" />
         <NuxtLink :to="resolveDocLink(child)" class="underline font-medium">
-          {{ child.document_types?.description }} #{{ child.document_types?.code }}-{{ String(child.number).padStart(8, '0') }}
+          {{ child.document_types?.description }} #{{ fmtNumber(child) }}
         </NuxtLink>
         <span class="text-muted">{{ fmtDate(child.date) }}</span>
         <span class="font-medium" :class="child.status === 2 ? 'text-success' : 'text-muted'">

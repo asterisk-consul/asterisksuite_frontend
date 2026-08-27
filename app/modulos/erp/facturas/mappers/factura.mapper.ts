@@ -83,6 +83,8 @@ export function mapDocumentToFacturaForm(
 
     document_type_id: document.document_type_id,
 
+    document_sequence_id: document.document_sequence_id ?? null,
+
     party_id: document.party_id,
 
     currency_code: document.currency_code ?? 'ARS',

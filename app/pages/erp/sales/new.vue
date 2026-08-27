@@ -136,7 +136,7 @@ async function handleSubmit(payload: any) {
           ]"
         />
 
-        <UPageBody class="space-y-6">
+        <UPageBody class="mx-auto w-full max-w-screen-2xl space-y-6">
           <!-- Form principal (genérico) -->
           <SalesDocumentForm ref="formRef" :loading="saving" module-code="SALES" :category="category" :initial-values="initialValues" :parent-document-id="parentOrderId" @submit="handleSubmit" />
 

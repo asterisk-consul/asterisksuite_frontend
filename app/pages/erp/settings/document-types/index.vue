@@ -268,10 +268,15 @@ const badgeForTab = (index: number) => {
                <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
-              <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
-              <span v-if="type.document_sequences" class="text-primary">
-                🔢 Seq: {{ type.document_sequences.point_of_sale }}
-              </span>
+               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
+               <template v-if="type.document_type_sequences?.length">
+                 <span v-for="dts in type.document_type_sequences" :key="dts.id" class="text-primary font-medium">
+                   🔢 {{ dts.document_sequences?.point_of_sale }}{{ dts.document_sequences?.prefix ? `-${dts.document_sequences.prefix}` : '' }}
+                 </span>
+               </template>
+               <span v-else-if="type.document_sequences" class="text-primary">
+                 🔢 Seq: {{ type.document_sequences.point_of_sale }}
+               </span>
             </div>
             <div class="flex items-center gap-1 mt-3">
               <UButton icon="i-lucide-settings" variant="ghost" size="xs" @click.stop="openCustomFields(type)" />
@@ -320,10 +325,15 @@ const badgeForTab = (index: number) => {
                <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
-              <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
-              <span v-if="type.document_sequences" class="text-primary">
-                🔢 Seq: {{ type.document_sequences.point_of_sale }}
-              </span>
+               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
+               <template v-if="type.document_type_sequences?.length">
+                 <span v-for="dts in type.document_type_sequences" :key="dts.id" class="text-primary font-medium">
+                   🔢 {{ dts.document_sequences?.point_of_sale }}{{ dts.document_sequences?.prefix ? `-${dts.document_sequences.prefix}` : '' }}
+                 </span>
+               </template>
+               <span v-else-if="type.document_sequences" class="text-primary">
+                 🔢 Seq: {{ type.document_sequences.point_of_sale }}
+               </span>
             </div>
             <div class="flex items-center gap-1 mt-3">
               <UButton icon="i-lucide-settings" variant="ghost" size="xs" @click.stop="openCustomFields(type)" />
@@ -375,10 +385,15 @@ const badgeForTab = (index: number) => {
                <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
-              <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
-              <span v-if="type.document_sequences" class="text-primary">
-                🔢 Seq: {{ type.document_sequences.point_of_sale }}
-              </span>
+               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
+               <template v-if="type.document_type_sequences?.length">
+                 <span v-for="dts in type.document_type_sequences" :key="dts.id" class="text-primary font-medium">
+                   🔢 {{ dts.document_sequences?.point_of_sale }}{{ dts.document_sequences?.prefix ? `-${dts.document_sequences.prefix}` : '' }}
+                 </span>
+               </template>
+               <span v-else-if="type.document_sequences" class="text-primary">
+                 🔢 Seq: {{ type.document_sequences.point_of_sale }}
+               </span>
             </div>
             <div class="flex items-center gap-1 mt-3">
               <UButton icon="i-lucide-settings" variant="ghost" size="xs" @click.stop="openCustomFields(type)" />

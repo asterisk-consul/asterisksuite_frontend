@@ -2,10 +2,12 @@
 definePageMeta({ middleware: ['auth'] })
 
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useDocumentsTypesStore } from '~/modulos/erp/documents/documents-types/store/documents-types.store'
 
 const { isOwnerOrAdmin } = useCompanyRole()
 const toast = useToast()
 const router = useRouter()
+const documentsTypesStore = useDocumentsTypesStore()
 
 if (!isOwnerOrAdmin.value) {
   router.push('/erp/treasury/dashboard')
@@ -24,10 +26,20 @@ const form = reactive({
   prefix: '',
   range_start: 1,
   range_end: 999999,
-  automatic: true
+  automatic: true,
+  document_type_ids: [] as string[]
 })
 
 const sequences = ref<any[]>([])
+
+const documentTypeOptions = computed(() => {
+  return (documentsTypesStore.items ?? [])
+    .filter(dt => dt.active)
+    .map(dt => ({
+      label: `${dt.code} - ${dt.description}`,
+      value: dt.id
+    }))
+})
 
 const fetchSequences = async () => {
   loading.value = true
@@ -40,7 +52,12 @@ const fetchSequences = async () => {
   }
 }
 
-onMounted(() => fetchSequences())
+onMounted(async () => {
+  await Promise.all([
+    fetchSequences(),
+    documentsTypesStore.fetchAll()
+  ])
+})
 
 const openCreate = () => {
   editingSequence.value = null
@@ -50,20 +67,29 @@ const openCreate = () => {
     prefix: '',
     range_start: 1,
     range_end: 999999,
-    automatic: true
+    automatic: true,
+    document_type_ids: []
   })
   modalOpen.value = true
 }
 
 const openEdit = (seq: any) => {
   editingSequence.value = seq
+  const linkedTypes = (seq.document_type_sequences ?? [])
+    .map((link: any) => link.document_types)
+    .filter(Boolean)
+    .map((dt: any) => ({
+      label: `${dt.code} - ${dt.description}`,
+      value: dt.id
+    }))
   Object.assign(form, {
     name: seq.name,
     point_of_sale: seq.point_of_sale,
     prefix: seq.prefix || '',
     range_start: seq.range_start || 1,
     range_end: seq.range_end || 999999,
-    automatic: seq.automatic
+    automatic: seq.automatic,
+    document_type_ids: linkedTypes
   })
   modalOpen.value = true
 }
@@ -71,11 +97,21 @@ const openEdit = (seq: any) => {
 const handleSubmit = async () => {
   saving.value = true
   try {
+    const payload = {
+      ...form,
+      document_type_ids: form.document_type_ids.map((item: any) => typeof item === 'string' ? item : item.value)
+    }
     if (editingSequence.value) {
-      await $fetch(`/api/erp/document-sequences/${editingSequence.value.id}`, { method: 'PATCH', body: form })
+      await $fetch(`/api/erp/document-sequences/${editingSequence.value.id}`, {
+        method: 'PATCH',
+        body: payload
+      })
       toast.add({ title: 'Secuencia actualizada', color: 'success' })
     } else {
-      await $fetch('/api/erp/document-sequences', { method: 'POST', body: form })
+      await $fetch('/api/erp/document-sequences', {
+        method: 'POST',
+        body: form
+      })
       toast.add({ title: 'Secuencia creada', color: 'success' })
     }
     modalOpen.value = false
@@ -107,6 +143,10 @@ const handleDelete = async () => {
   } catch (e: any) {
     toast.add({ title: 'Error', description: e?.data?.message, color: 'error', icon: 'i-lucide-alert-circle' })
   }
+}
+
+function getLinkedDocTypes(seq: any) {
+  return (seq.document_type_sequences ?? []).map((link: any) => link.document_types).filter(Boolean)
 }
 </script>
 
@@ -164,11 +204,11 @@ const handleDelete = async () => {
           </div>
         </div>
 
-        <div v-if="seq.document_types?.length" class="mb-3">
+        <div v-if="getLinkedDocTypes(seq).length" class="mb-3">
           <p class="text-xs text-muted mb-1">Tipos asociados:</p>
           <div class="flex flex-wrap gap-1">
             <UBadge
-              v-for="dt in seq.document_types"
+              v-for="dt in getLinkedDocTypes(seq)"
               :key="dt.id"
               :label="dt.code"
               color="primary"
@@ -213,6 +253,15 @@ const handleDelete = async () => {
             </UFormField>
           </div>
           <UCheckbox v-model="form.automatic" label="Numeración automática" />
+          <UFormField label="Tipos de documento asociados" name="document_type_ids">
+            <USelectMenu
+              v-model="form.document_type_ids"
+              :items="documentTypeOptions"
+              placeholder="Seleccionar tipos de documento"
+              multiple
+              searchable
+            />
+          </UFormField>
           <div class="flex justify-end gap-2 pt-4">
             <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
             <UButton label="Guardar" type="submit" :loading="saving" />

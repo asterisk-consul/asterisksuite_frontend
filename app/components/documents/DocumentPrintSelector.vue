@@ -68,6 +68,11 @@ const printTotals = computed(() => ({
 }))
 
 const pointOfSale = computed(() => {
+  // The sequence selected for this document is the source of truth. The code
+  // fallback keeps old documents (created before document_sequence_id) working.
+  const documentPointOfSale = props.document?.document_sequences?.point_of_sale
+  if (documentPointOfSale) return String(documentPointOfSale)
+
   const code = props.document?.document_types?.code ?? ''
   return code.includes('-') ? code.split('-').pop() : '0001'
 })

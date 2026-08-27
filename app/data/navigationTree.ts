@@ -57,6 +57,11 @@ export const navigationTree: DrilldownNode[] = [
         label: 'Resumen de productos vendidos',
         icon: 'i-lucide-bar-chart-3',
         to: '/erp/sales/sales-reports/salesProducts'
+      },
+      {
+        label: 'Ventas por Punto de Venta',
+        icon: 'i-lucide-map-pin',
+        to: '/erp/sales/sales-reports/by-point-of-sale'
       }
     ]
   },

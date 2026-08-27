@@ -17,7 +17,7 @@ export interface DocumentTypeFormData {
   afip_code: string
   requires_cae: boolean
   is_electronic: boolean
-  document_sequence_id: string
+  document_sequence_ids: string[]
   tax_ids?: string[]
 }
 
@@ -50,14 +50,17 @@ const defaultForm: DocumentTypeFormData = {
   code: '', description: '', direction: 1,
   affects_stock: false, affects_accounting: true, affects_tax_book: false, affects_payment: false,
   active: true, category: '', letter_type: '', afip_code: '',
-  requires_cae: false, is_electronic: false, document_sequence_id: '', tax_ids: []
+  requires_cae: false, is_electronic: false, document_sequence_ids: [], tax_ids: []
 }
 
 const form = reactive<DocumentTypeFormData>({ ...defaultForm })
 
-watch(() => props.modelValue, (val) => {
+watch([() => props.modelValue, () => sequencesStore.items], ([val]) => {
   if (!val) { Object.assign(form, { ...defaultForm }); return }
-  Object.assign(form, val)
+  const linkedSequenceIds = (val as any).document_type_sequences?.map(
+    (dts: any) => dts.document_sequences?.id ?? dts.sequence_id
+  ) ?? val.document_sequence_id ? [val.document_sequence_id] : []
+  Object.assign(form, { ...val, document_sequence_ids: linkedSequenceIds })
 }, { immediate: true })
 
 watch(form, (val) => { emit('update:modelValue', { ...val }) }, { deep: true })
@@ -77,7 +80,7 @@ const handleSubmit = () => {
     afip_code: form.afip_code,
     requires_cae: form.requires_cae,
     is_electronic: form.is_electronic,
-    document_sequence_id: form.document_sequence_id || undefined,
+    document_sequence_ids: (form.document_sequence_ids ?? []).map((item: any) => typeof item === 'string' ? item : item.value),
     tax_ids: form.tax_ids?.length ? form.tax_ids : undefined,
   }
   emit('submit', payload)
@@ -96,7 +99,7 @@ const handleSeqCreate = async () => {
   seqCreating.value = true
   try {
     const created = await sequencesStore.create(seqForm)
-    form.document_sequence_id = created.id
+    form.document_sequence_ids = [...(form.document_sequence_ids ?? []), created.id]
     showSeqCreate.value = false
     toast.add({ title: 'Secuencia creada', color: 'success' })
   } catch (e: any) {
@@ -163,11 +166,6 @@ const selectedCategory = computed({
   get: () => categoryOptions.find(o => o.value === form.category) ?? categoryOptions[0],
   set: (val: any) => { form.category = val?.value ?? val ?? '' }
 })
-
-const selectedSequence = computed({
-  get: () => sequenceOptions.value.find(o => o.value === form.document_sequence_id) ?? sequenceOptions.value[0],
-  set: (val: any) => { form.document_sequence_id = val?.value ?? val ?? '' }
-})
 </script>
 
 <template>
@@ -196,8 +194,14 @@ const selectedSequence = computed({
         <UInput v-model="form.afip_code" placeholder="Ej: 01, 06, 11" />
       </UFormField>
       <div>
-        <UFormField label="Secuencia de numeración" name="document_sequence_id">
-          <USelectMenu v-model="selectedSequence" :items="sequenceOptions" placeholder="Seleccionar..." />
+        <UFormField label="Secuencias de numeración" name="document_sequence_ids">
+          <USelectMenu
+            v-model="form.document_sequence_ids"
+            :items="sequenceOptions.filter(o => o.value)"
+            placeholder="Seleccionar secuencias..."
+            multiple
+            searchable
+          />
         </UFormField>
         <UButton label="Crear secuencia" variant="ghost" size="xs" icon="i-lucide-plus" class="mt-1" @click="openSeqCreate" />
       </div>

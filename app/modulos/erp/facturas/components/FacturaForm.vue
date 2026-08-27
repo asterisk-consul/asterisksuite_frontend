@@ -27,6 +27,10 @@ import { useDocumentsTypesStore } from '~/modulos/erp/documents/documents-types/
 import { useDocumentsTypes } from '~/modulos/erp/documents/documents-types/composables/useDocumentsTypes'
 import { useDocumentTypesForModule } from '~/modulos/erp/documents/documents-types/composables/useDocumentTypesForModule'
 
+// Document Sequences (Punto de Venta)
+import { useDocumentSequencesService } from '~/modulos/erp/document-sequences/service/document-sequences.service'
+import type { DocumentSequence } from '~/modulos/erp/document-sequences/types/document-sequences.types'
+
 // Invoice
 import FacturaItemsTable from './FacturaItemsTable.vue'
 import FacturaTotals from './FacturaTotals.vue'
@@ -193,6 +197,41 @@ const {
 
 const items = ref<FacturaItem[]>([])
 
+// ─── Punto de Venta (Secuencias) ─────────────────────────
+const documentSequencesService = useDocumentSequencesService()
+const sequences = ref<DocumentSequence[]>([])
+// Keep only the UUID in the form state. USelectMenu can otherwise return either
+// the whole option or its value depending on its configuration/version.
+const selectedSequenceId = ref<string>('')
+
+const sequenceOptions = computed(() => {
+  return sequences.value
+    .filter(s => s.active && !s.deleted_at)
+    .filter(s => {
+      if (!form.document_type_id) return true
+      const dt = documentsTypes.value.find(d => d.id === form.document_type_id)
+      if (!dt) return true
+      // Filtrar secuencias que tengan el tipo de documento asociado (junction table)
+      const linkedTypes = (s.document_type_sequences ?? []).map(
+        (link: any) => link.document_types?.id ?? link.document_type_id
+      )
+      if (linkedTypes.length > 0) {
+        return linkedTypes.includes(form.document_type_id)
+      }
+      // Fallback: si no tiene tipos vinculados (backward compatibility), verificar FK
+      if (s.document_types?.length) {
+        return s.document_types.some((dtSeq: any) => dtSeq.id === form.document_type_id)
+      }
+      // Si no tiene ninguna vinculación, NO mostrar (ya hay tipo doc seleccionado)
+      return false
+    })
+    .map(s => ({
+      label: `PV ${s.point_of_sale}${s.prefix ? ` - ${s.prefix}` : ''} (${s.name})`,
+      value: s.id,
+      point_of_sale: s.point_of_sale
+    }))
+})
+
 // ─── Validación de comprobante ─────────────────────────
 const documentTypeValidation = ref<string | null>(null)
 
@@ -335,6 +374,8 @@ watch(
     form.currency_code = val.currency_code ?? 'ARS'
     form.exchange_rate = val.exchange_rate ? Number(val.exchange_rate) : null
     form.rate_type = val.rate_type ?? 'OFFICIAL'
+    const seqId = (val as any).document_sequence_id
+    selectedSequenceId.value = seqId && sequenceOptions.value.some(s => s.value === seqId) ? seqId : ''
 
     // Mapear items del documento
     // Si vienen del mapper (items), usarlos directamente
@@ -474,6 +515,15 @@ watch(() => form.document_type_id, (newId) => {
     documentTypeValidation.value = null
   }
 
+  // En alta se propone la primera secuencia. En edición, un documento legado
+  // sin secuencia debe conservarse así hasta que el usuario elija una.
+  if (!props.initialValues?.id && newId && sequenceOptions.value.length > 0) {
+    const currentSeqVal = selectedSequenceId.value
+    if (!currentSeqVal || !sequenceOptions.value.some(s => s.value === currentSeqVal)) {
+      selectedSequenceId.value = sequenceOptions.value[0]?.value ?? ''
+    }
+  }
+
   if (items.value.length > 0) {
     fetchPreview()
   }
@@ -485,9 +535,21 @@ onMounted(async () => {
     productsStore.fetchAll(),
     documentsTypesStore.fetchAll(),
     initCurrencies(),
-    fetchIssuerCondition()
+    fetchIssuerCondition(),
+    documentSequencesService.findAll().then(s => { sequences.value = s })
   ])
 })
+
+// Restaurar secuencia cuando sequences se carga (edit mode)
+watch(sequences, () => {
+  if (props.initialValues?.document_sequence_id && sequenceOptions.value.length > 0) {
+    const seqId = (props.initialValues as any).document_sequence_id
+    const match = sequenceOptions.value.find(s => s.value === seqId)
+    if (match) {
+      selectedSequenceId.value = match.value
+    }
+  }
+}, { immediate: true })
 
 // Auto-seleccionar tipo de documento por categoría
 watch(
@@ -597,6 +659,7 @@ function submit() {
     exchange_rate: form.exchange_rate,
     rate_type: form.rate_type,
     parent_document_id: referenceDocumentId.value || props.parentDocumentId || undefined,
+    document_sequence_id: selectedSequenceId.value || undefined,
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
       quantity: Number(i.quantity),
@@ -625,47 +688,67 @@ defineExpose({ submit })
 </script>
 
 <template>
-  <div class="space-y-4">
-    <!-- Header: Party + Document Type + Currency + Date -->
+  <div class="w-full min-w-0 space-y-5">
+    <!-- Header: Party + Document Type + PV + Currency + Date -->
     <UCard>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="flex gap-2">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
+        <UFormField label="Cliente / Proveedor" class="min-w-0 md:col-span-2 xl:col-span-4">
+          <div class="flex min-w-0 gap-2">
+            <USelectMenu
+              v-model="selectedCustomer"
+              :items="partyOptions"
+              placeholder="Buscar cliente o proveedor..."
+              searchable
+              class="min-w-0 flex-1"
+            />
+            <UButton icon="i-lucide-plus" variant="outline" class="shrink-0" aria-label="Crear cliente o proveedor" @click="showBusinessPartiesModal = true" />
+            <UButton
+              icon="i-lucide-pencil"
+              variant="outline"
+              class="shrink-0"
+              aria-label="Editar cliente o proveedor"
+              :disabled="!selectedCustomer"
+              @click="onEditBussinessParty"
+            />
+          </div>
+        </UFormField>
+
+        <UFormField label="Tipo de documento" class="min-w-0 xl:col-span-3">
           <USelectMenu
-            v-model="selectedCustomer"
-            :items="partyOptions"
-            placeholder="Cliente / Proveedor"
-            searchable
-            class="w-full"
+            v-model="selectedDocumentType"
+            :items="documentTypeOptions"
+            placeholder="Seleccionar tipo..."
+            class="w-full min-w-0"
           />
-          <UButton icon="i-lucide-plus" variant="outline" @click="showBusinessPartiesModal = true" />
-          <UButton
-            icon="i-lucide-pencil"
-            variant="outline"
-            :disabled="!selectedCustomer"
-            @click="onEditBussinessParty"
+        </UFormField>
+
+        <UFormField label="Punto de venta" class="min-w-0 xl:col-span-2">
+          <USelectMenu
+            v-model="selectedSequenceId"
+            :items="sequenceOptions"
+            value-key="value"
+            placeholder="Seleccionar PV..."
+            class="w-full min-w-0"
           />
-        </div>
+        </UFormField>
 
-        <USelectMenu
-          v-model="selectedDocumentType"
-          :items="documentTypeOptions"
-          placeholder="Tipo de documento"
-          class="w-full"
-        />
+        <UFormField label="Moneda" class="min-w-0 xl:col-span-1">
+          <USelect
+            v-model="form.currency_code"
+            :items="currencyOptions"
+            placeholder="Moneda"
+            class="w-full min-w-0"
+          />
+        </UFormField>
 
-        <USelect
-          v-model="form.currency_code"
-          :items="currencyOptions"
-          placeholder="Moneda"
-        />
-
-        <UInput v-model="form.date" type="date" label="Fecha" />
+        <UFormField label="Fecha" class="min-w-0 xl:col-span-2">
+          <UInput v-model="form.date" type="date" class="w-full min-w-0" />
+        </UFormField>
       </div>
 
       <!-- Exchange Rate (solo si moneda extranjera) -->
-      <div v-if="isForeignCurrency" class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-3">
-        <div>
-          <label class="text-sm text-gray-500 mb-1 block">Tipo de cambio</label>
+      <div v-if="isForeignCurrency" class="mt-4 grid grid-cols-1 gap-4 rounded-lg bg-muted/40 p-4 md:grid-cols-3">
+        <UFormField label="Tipo de cambio" class="min-w-0">
           <USelect
             v-model="form.rate_type"
             :items="[
@@ -675,20 +758,21 @@ defineExpose({ submit })
               { label: 'CCL', value: 'CCL' },
             ]"
             placeholder="Tipo"
+            class="w-full min-w-0"
           />
-        </div>
-        <div>
-          <label class="text-sm text-gray-500 mb-1 block">Cotización</label>
+        </UFormField>
+        <UFormField label="Cotización" class="min-w-0">
           <UInput
             v-model.number="form.exchange_rate"
             type="number"
             step="0.000001"
             min="0"
             placeholder="1.000000"
+            class="w-full min-w-0"
             @update:model-value="(val: number) => { if (val) setManualRate(val) }"
           />
-        </div>
-        <div v-if="form.exchange_rate && total">
+        </UFormField>
+        <div v-if="form.exchange_rate && total" class="min-w-0">
           <label class="text-sm text-gray-500 mb-1 block">Equivalente ARS</label>
           <div class="h-10 flex items-center text-lg font-semibold text-primary">
             {{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(convertAmount(total) ?? 0) }}
@@ -696,9 +780,9 @@ defineExpose({ submit })
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <UInput v-model="form.descrip" placeholder="Referencia (opcional)" class="md:col-span-4" />
-      </div>
+      <UFormField label="Referencia" class="mt-4 min-w-0">
+        <UInput v-model="form.descrip" placeholder="Referencia u observación breve (opcional)" class="w-full min-w-0" />
+      </UFormField>
 
       <!-- Validación de comprobante -->
       <div v-if="documentTypeValidation" class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
@@ -706,7 +790,7 @@ defineExpose({ submit })
       </div>
 
       <!-- Party info card -->
-      <div v-if="partyInfo" class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg flex gap-6 text-sm">
+      <div v-if="partyInfo" class="mt-4 flex flex-wrap gap-x-6 gap-y-2 rounded-lg bg-gray-50 p-3 text-sm dark:bg-gray-800">
         <div>
           <span class="text-gray-500">CUIT: </span>
           <span class="font-mono">{{ partyInfo.tax_id }}</span>
@@ -744,7 +828,7 @@ defineExpose({ submit })
     </UCard>
 
     <!-- Totals -->
-    <div class="sticky bottom-0 z-10">
+    <div class="sticky bottom-0 z-10 min-w-0">
       <UCard class="shadow-lg border-t-2 border-primary">
         <FacturaTotals
           :subtotal="subtotal"

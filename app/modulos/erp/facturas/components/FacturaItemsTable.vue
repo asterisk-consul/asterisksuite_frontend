@@ -215,8 +215,8 @@ const columns = [
 
 <template>
   <div class="space-y-3">
-    <div class="flex items-center gap-3 flex-wrap">
-      <span class="text-sm font-medium text-muted whitespace-nowrap">
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] xl:grid-cols-[auto_minmax(18rem,1fr)_minmax(14rem,0.65fr)_auto] xl:items-end">
+      <span class="text-sm font-medium text-muted whitespace-nowrap xl:pb-2.5">
         Agregar producto:
       </span>
 
@@ -226,7 +226,7 @@ const columns = [
         value-key="value"
         placeholder="Buscar por nombre..."
         searchable
-        class="w-72"
+        class="w-full min-w-0"
       />
 
       <USelectMenu
@@ -235,18 +235,20 @@ const columns = [
         :items="variantOptions"
         value-key="value"
         placeholder="Seleccionar variante..."
-        class="w-56"
+        class="w-full min-w-0 sm:col-span-1"
       />
 
       <UButton
         icon="i-lucide-plus"
+        label="Agregar"
+        class="w-full justify-center sm:w-auto"
         :disabled="!selectedProduct"
         @click="handleAdd"
-      >
-        Agregar
-      </UButton>
+      />
     </div>
 
-    <UTable :data="props.items" :columns="columns" />
+    <div class="w-full overflow-x-auto rounded-lg border border-default">
+      <UTable :data="props.items" :columns="columns" class="min-w-[760px]" />
+    </div>
   </div>
 </template>
