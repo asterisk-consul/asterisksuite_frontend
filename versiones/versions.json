@@ -1,5 +1,81 @@
 [
   {
+    "version": "0.36.0-alpha",
+    "date": "2026-08-26",
+    "stage": "alpha",
+    "notes": "Historial de cliente: página /erp/sales/customers/[id] con timeline, documentos, pagos y cuenta corriente multi-moneda",
+    "highlights": [
+      {
+        "title": "Página de historial del cliente",
+        "description": "Vista 360° del cliente con resumen, timeline lateral, tabs de documentos/pagos/cuenta corriente"
+      },
+      {
+        "title": "Timeline lateral con búsqueda",
+        "description": "Historial cronológico de OV, remitos, facturas y cobros con filtro por número y tipo"
+      },
+      {
+        "title": "Multi-moneda en resumen",
+        "description": "Totales de OV, facturado y cobrado usan converted_total/converted_amount para mostrar en moneda base"
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Página /erp/sales/customers/[id] con info del cliente, resumen y tabs de documentos/pagos/cuenta corriente"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Timeline lateral (CustomerHistoryTimeline) con búsqueda, scroll y filtro por tipo/estado"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Resumen multi-moneda: OV total, facturado (solo confirmadas), cobrado, saldo CC usando converted_total/converted_amount"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Tab documentos usa LogisticaTable con columnas builder (número clickeable, tipo badge, fecha, estado badge, total)"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Tab pagos usa paymentColumns de ~/modulos/erp/payments/columns (misma tabla que /erp/treasury/payments)"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Tab cuenta corriente usa CurrentAccountEntryTable con soporte multi-moneda"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "findAll en documents_sales acepta partyId para filtrar documentos por cliente"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Columna de acciones en listado de clientes con botón ver detalle"
+      },
+      {
+        "type": "fix",
+        "scope": "customers",
+        "title": "Click en ID del listado de clientes navega al detail [id] en vez de [id]/edit"
+      }
+    ],
+    "modules": [
+      {
+        "name": "customers",
+        "version": "0.1.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
     "version": "0.35.1-alpha",
     "date": "2026-08-26",
     "stage": "alpha",

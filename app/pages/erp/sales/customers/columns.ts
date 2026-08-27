@@ -1,3 +1,5 @@
+import { h } from 'vue'
+import { UButton } from '#components'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
@@ -91,6 +93,20 @@ export const customerColumns = (actions: {
         label: 'Creado',
         sortable: true,
         date: true
+      },
+
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          h(UButton, {
+            icon: 'i-lucide-eye',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            onClick: () => actions.onEdit?.(row.original)
+          }),
+        ])
       }
     ])
   ]

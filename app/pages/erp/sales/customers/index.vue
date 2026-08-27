@@ -21,6 +21,7 @@ const parties = computed(() => allParties.value.filter(p => p.type === 'CUSTOMER
 
 onMounted(() => store.fetchAll())
 
+const openDetail = (row: any) => router.push(`/erp/sales/customers/${row.id}`)
 const openEdit = (row: any) => router.push(`/erp/sales/customers/${row.id}/edit`)
 const openCreate = () => router.push('/erp/sales/customers/create')
 
@@ -29,7 +30,7 @@ function onSortFieldSelect(columnId: string) {
   sorting.value = [{ id: columnId, desc: current?.id === columnId ? !current.desc : false }]
 }
 
-const columns = customerColumns({ onEdit: openEdit, onSortFieldSelect })
+const columns = customerColumns({ onEdit: openDetail, onSortFieldSelect })
 
 const filterFields: FilterField[] = [
   { id: 'name', label: 'Filtrar por Razón Social...', class: 'w-40' },
