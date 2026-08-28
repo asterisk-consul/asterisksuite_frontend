@@ -114,10 +114,15 @@ export const dispatchOrdersColumns = (actions: {
         label: 'Tarifas',
         multiBadge: {
           resolve: (row) =>
-            row.dispatch_rates?.map((r) => ({
-              label: `${r.transfer_rates?.name ?? '—'}: $${r.value ?? '0'}`,
-              color: 'primary'
-            })) || []
+            row.dispatch_items?.length
+              ? row.dispatch_items.map((item) => ({
+                  label: `${item.product?.name ?? 'Producto'}: ${item.currency_code ?? 'ARS'} ${Number(item.quantity) * Number(item.unit_price)}`,
+                  color: 'primary'
+                }))
+              : row.dispatch_rates?.map((r) => ({
+                  label: `${r.transfer_rates?.name ?? 'Tarifa anterior'}: $${r.value ?? '0'}`,
+                  color: 'neutral'
+                })) || []
         }
       },
 

@@ -46,7 +46,8 @@ const formatCurrency = (amount: number | string | null | undefined, currency = '
 }
 
 const TRIP_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  PENDING: { label: 'Pendiente', color: 'neutral' },
+  PLANNED: { label: 'Planificado', color: 'warning' },
+  PENDING: { label: 'Pendiente', color: 'neutral' }, // compatibilidad histórica
   IN_PROGRESS: { label: 'En curso', color: 'info' },
   COMPLETED: { label: 'Completado', color: 'success' },
   CANCELLED: { label: 'Cancelado', color: 'error' },
@@ -54,12 +55,15 @@ const TRIP_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 }
 
 const DISPATCH_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  DRAFT: { label: 'Borrador', color: 'neutral' },
+  DRAFT: { label: 'Borrador', color: 'neutral' }, // compatibilidad histórica
   PENDING: { label: 'Pendiente', color: 'warning' },
-  CONFIRMED: { label: 'Confirmado', color: 'info' },
+  ASSIGNED: { label: 'Asignado', color: 'info' },
+  IN_PROGRESS: { label: 'En viaje', color: 'primary' },
+  COMPLETED: { label: 'Completado', color: 'success' },
+  CANCELLED: { label: 'Cancelado', color: 'error' },
+  CONFIRMED: { label: 'Confirmado', color: 'info' }, // compatibilidad histórica
   IN_TRANSIT: { label: 'En tránsito', color: 'primary' },
-  DELIVERED: { label: 'Entregado', color: 'success' },
-  CANCELLED: { label: 'Cancelado', color: 'error' }
+  DELIVERED: { label: 'Entregado', color: 'success' }
 }
 
 const trips = computed(() => tripsStore.items ?? [])
@@ -69,7 +73,7 @@ const dispatchOrders = computed(() => dispatchStore.dispatchOrders ?? [])
 const warehouses = computed(() => warehousesStore.warehouses ?? [])
 
 const activeTrips = computed(() => trips.value.filter((t) => t.status === 'IN_PROGRESS'))
-const pendingTrips = computed(() => trips.value.filter((t) => t.status === 'PENDING'))
+const pendingTrips = computed(() => trips.value.filter((t) => t.status === 'PLANNED' || t.status === 'PENDING'))
 const completedTrips = computed(() => trips.value.filter((t) => t.status === 'COMPLETED'))
 
 const activeDrivers = computed(() => drivers.value.filter((d) => d.active))
@@ -77,8 +81,14 @@ const inactiveDrivers = computed(() => drivers.value.filter((d) => !d.active))
 
 const activeVehicles = computed(() => vehicles.value.filter((v) => v.active !== false))
 const pendingOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'PENDING' || o.status === 'DRAFT'))
-const confirmedOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'CONFIRMED'))
-const inTransitOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'IN_TRANSIT'))
+const assignedOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'ASSIGNED' || o.status === 'CONFIRMED'))
+const inTransitOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'IN_PROGRESS' || o.status === 'IN_TRANSIT'))
+const openOrderValue = computed(() => dispatchOrders.value
+  .filter((o) => !['COMPLETED', 'CANCELLED', 'DELIVERED'].includes(o.status))
+  .reduce((sum, order) => sum + Number(order.tariff_total ?? 0), 0))
+const ordersWithoutTrip = computed(() => dispatchOrders.value.filter((order: any) =>
+  ['PENDING', 'ASSIGNED'].includes(order.status) && !(order.tripStopOrders?.length)
+))
 
 const statCards = computed(() => {
   const cards: any[] = []
@@ -169,7 +179,7 @@ const dispatchPipeline = computed(() => {
       color: DISPATCH_STATUS_CONFIG[status]?.color ?? 'neutral'
     }))
     .sort((a, b) => {
-      const order = ['DRAFT', 'PENDING', 'CONFIRMED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED']
+      const order = ['DRAFT', 'PENDING', 'ASSIGNED', 'CONFIRMED', 'IN_PROGRESS', 'IN_TRANSIT', 'COMPLETED', 'DELIVERED', 'CANCELLED']
       return order.indexOf(a.status) - order.indexOf(b.status)
     })
   return entries
@@ -178,6 +188,13 @@ const dispatchPipeline = computed(() => {
 const recentTrips = computed(() =>
   [...trips.value].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5)
 )
+
+const operationalSummary = computed(() => [
+  { label: 'Viajes por planificar', value: pendingTrips.value.length, icon: 'i-lucide-calendar-clock', color: 'text-warning', help: 'Viajes todavía no iniciados' },
+  { label: 'Despachos sin viaje', value: ordersWithoutTrip.value.length, icon: 'i-lucide-unlink', color: 'text-error', help: 'Órdenes pendientes de asignación' },
+  { label: 'Despachos en viaje', value: inTransitOrders.value.length, icon: 'i-lucide-route', color: 'text-primary', help: `${assignedOrders.value.length} asignados` },
+  { label: 'Importe operativo abierto', value: formatCurrency(openOrderValue.value), icon: 'i-lucide-circle-dollar-sign', color: 'text-success', help: 'Según productos/tarifas de despachos abiertos' }
+])
 
 const quickActions = [
   { label: 'Nuevo viaje', icon: 'i-lucide-truck', to: '/logistica/viajes/create', color: 'primary' as const },
@@ -207,7 +224,7 @@ const tripStatusColor = (status: string) => TRIP_STATUS_CONFIG[status]?.color ??
 
 <template>
   <UPage class="space-y-6 px-4">
-    <AppPageHeader title="Dashboard Logística" description="Resumen de operaciones de transporte y depósito" />
+    <AppPageHeader title="Panel de logística" description="Estado operativo de viajes, despachos, flota y depósitos" />
 
     <!-- STAT CARDS -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 py-4">
@@ -238,6 +255,28 @@ const tripStatusColor = (status: string) => TRIP_STATUS_CONFIG[status]?.color ??
       </NuxtLink>
     </div>
 
+    <!-- OPERATIONAL ALERTS -->
+    <UPageCard variant="subtle">
+      <template #header>
+        <div>
+          <h2 class="text-sm font-semibold">Resumen operativo</h2>
+          <p class="mt-1 text-xs text-muted">Pendientes que requieren atención y valor de los despachos abiertos</p>
+        </div>
+      </template>
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div v-for="item in operationalSummary" :key="item.label" class="flex items-start gap-3 rounded-lg border border-default p-4">
+          <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-elevated" :class="item.color">
+            <UIcon :name="item.icon" class="size-5" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-medium text-muted">{{ item.label }}</p>
+            <p class="mt-1 truncate text-xl font-bold">{{ item.value }}</p>
+            <p class="mt-1 text-xs text-muted">{{ item.help }}</p>
+          </div>
+        </div>
+      </div>
+    </UPageCard>
+
     <!-- QUICK ACTIONS -->
     <div class="flex items-center gap-3">
       <NuxtLink v-for="action in quickActions" :key="action.label" :to="action.to">
@@ -261,14 +300,14 @@ const tripStatusColor = (status: string) => TRIP_STATUS_CONFIG[status]?.color ??
       <!-- DISPATCH PIPELINE -->
       <UPageCard variant="subtle">
         <template #header>
-          <h3 class="text-sm font-semibold">Pipeline de órdenes</h3>
+          <div><h3 class="text-sm font-semibold">Estado de órdenes de despacho</h3><p class="mt-1 text-xs text-muted">Desde pendientes hasta completadas</p></div>
         </template>
         <div v-if="dispatchOrders.length === 0" class="text-center py-8 text-muted text-sm">
           No hay órdenes registradas
         </div>
         <div v-else class="space-y-3 py-2">
           <div v-for="item in dispatchPipeline" :key="item.status" class="flex items-center gap-3">
-            <UBadge :label="item.label" :color="item.color" variant="soft" size="xs" class="w-24 justify-center" />
+            <UBadge :label="item.label" :color="item.color" variant="soft" size="xs" class="w-28 justify-center" />
             <div class="flex-1 h-6 bg-muted/30 rounded-full overflow-hidden">
               <div
                 class="h-full rounded-full transition-all"

@@ -12,6 +12,7 @@ const store = useDispatchOrdersStore()
 
 const id = route.params.id as string
 const loading = ref(true)
+const creatingRemito = ref(false)
 
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 
@@ -31,6 +32,19 @@ const submit = async (dto: CreateDispatchOrderDto) => {
   await store.update(id, dto)
   router.push(`/logistica/viajes/dispatch-orders/`)
 }
+
+async function createRemito() {
+  creatingRemito.value = true
+  try {
+    const remito = await $fetch<any>(`/api/erp/documents/sales/dispatch/${id}/create-remito`, { method: 'POST' })
+    useToast().add({ title: 'Remito creado', description: 'Se copiaron el cliente y los productos del despacho.', color: 'success' })
+    await router.push(`/erp/remitos/${remito.id}`)
+  } catch (error: any) {
+    useToast().add({ title: 'No se pudo crear el remito', description: error?.data?.message, color: 'error' })
+  } finally {
+    creatingRemito.value = false
+  }
+}
 </script>
 
 <template>
@@ -44,7 +58,11 @@ const submit = async (dto: CreateDispatchOrderDto) => {
         @click="moduleCollapsed = !moduleCollapsed"
       />
 
-      <UPageHeader title="Editar Orden de Despacho" />
+      <UPageHeader title="Editar Orden de Despacho">
+        <template #links>
+          <UButton label="Crear / abrir remito" icon="i-lucide-file-output" color="success" :loading="creatingRemito" @click="createRemito" />
+        </template>
+      </UPageHeader>
     </div>
 
     <DispatchOrderForm

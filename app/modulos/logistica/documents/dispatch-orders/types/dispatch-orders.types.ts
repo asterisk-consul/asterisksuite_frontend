@@ -46,6 +46,16 @@ export interface DispatchRate {
   transfer_rates?: TransferRate
 }
 
+export interface DispatchOrderItem {
+  id?: string
+  product_id?: string
+  source_document_item_id?: string
+  quantity: number
+  unit_price: number
+  currency_code?: string
+  product?: { id: string; name: string; sku?: string | null; is_rate_type?: boolean; rate_id?: string | null }
+}
+
 // 🔹 main entity
 export interface DispatchOrder {
   id: string
@@ -70,6 +80,10 @@ export interface DispatchOrder {
   corridors?: Corridor
 
   dispatch_rates?: DispatchRate[]
+  dispatch_items?: DispatchOrderItem[]
+  tariff_total?: number
+  tariff_source?: 'PRODUCTS' | 'LEGACY_RATES'
+  tripStopOrders?: Array<{ id: string; trip_stop?: { trip?: { id: string; status: string } } }>
 
   created_at: string
   updated_at?: string
@@ -81,6 +95,15 @@ export interface DispatchOrder {
 export interface DispatchRateInput {
   rate_id: string
   value: number
+}
+
+export interface DispatchItemInput {
+  product_id?: string
+  source_document_item_id?: string
+  quantity: number
+  unit_price: number
+  currency_code?: string
+  product?: DispatchOrderItem['product']
 }
 
 export interface CreateDispatchOrderDto {
@@ -96,6 +119,7 @@ export interface CreateDispatchOrderDto {
   planned_date?: string
 
   rates?: DispatchRateInput[]
+  items?: DispatchItemInput[]
 }
 
 export type UpdateDispatchOrderDto = Partial<CreateDispatchOrderDto>

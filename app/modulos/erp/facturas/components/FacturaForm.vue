@@ -328,11 +328,17 @@ watch(
 // Watch para re-resolver precios cuando cambie la currency del documento
 watch(
   () => form.currency_code,
-  (newCurrency, oldCurrency) => {
+  async (newCurrency, oldCurrency) => {
     if (!newCurrency || !oldCurrency || newCurrency === oldCurrency) return
     if (!items.value.length) return
 
-    items.value.forEach((item) => {
+    await Promise.all(items.value.map(async (item) => {
+      const agreedPrice = await resolvePartyPrice(item.product_id, newCurrency)
+      if (agreedPrice !== null) {
+        item.unit_price = agreedPrice
+        return
+      }
+
       // Buscar el producto en el store
       const product = products.value.find(p => p.id === item.product_id)
       if (!product) return
@@ -353,7 +359,7 @@ watch(
           color: 'warning'
         })
       }
-    })
+    }))
 
     // Re-calcular totales con el backend
     fetchPreview()
@@ -603,7 +609,39 @@ const partyInfo = computed(() => {
   }
 })
 
-function addItem(prod: any) {
+async function resolvePartyPrice(productId: string, currencyCode = form.currency_code): Promise<number | null> {
+  if (!form.party_id || !productId || !currencyCode) return null
+
+  try {
+    const result = await $fetch<{ price: number | null }>('/api/erp/pricing/party-prices/resolve', {
+      query: {
+        productId,
+        partyId: form.party_id,
+        currencyCode,
+        operationType: props.moduleCode === 'SALES' ? 'SALE' : 'PURCHASE'
+      }
+    })
+    return result.price === null ? null : Number(result.price)
+  } catch (error) {
+    console.error('No se pudo resolver el precio por parte interesada', error)
+    return null
+  }
+}
+
+watch(
+  () => form.party_id,
+  async (newParty, oldParty) => {
+    if (!newParty || !oldParty || newParty === oldParty || !items.value.length) return
+
+    await Promise.all(items.value.map(async (item) => {
+      const price = await resolvePartyPrice(item.product_id)
+      if (price !== null) item.unit_price = price
+    }))
+    await fetchPreview()
+  }
+)
+
+async function addItem(prod: any) {
   const quantity = 1
 
   // La currency del documento es la fuente de verdad
@@ -612,10 +650,11 @@ function addItem(prod: any) {
     (p: any) => p.code === form.currency_code
   )
 
-  const unitPrice = matchingPrice?.amount ?? 0
+  const partyPrice = await resolvePartyPrice(prod.product_id)
+  const unitPrice = partyPrice ?? matchingPrice?.amount ?? 0
 
   // Warning si no hay precio para esa currency
-  if (!matchingPrice && prod.prices?.length > 0) {
+  if (partyPrice === null && !matchingPrice && prod.prices?.length > 0) {
     toast.add({
       title: 'Precio no disponible',
       description: `El producto no tiene precio en ${form.currency_code}. Ingresá el precio manualmente.`,

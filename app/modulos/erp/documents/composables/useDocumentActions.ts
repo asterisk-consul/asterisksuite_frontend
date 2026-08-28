@@ -153,6 +153,8 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   // ─── Secondary Actions ──────────────────────────────────
   const secondaryActions = computed(() => {
     const items: any[] = []
+    const isOrderActive = category.value === 'ORDER' && doc.value?.status >= 1 && doc.value?.status < 7
+    const canCreateSalesDocument = isOwnerOrAdmin.value || hasPermission(`${module === 'sales' ? 'sales' : 'purchases'}.create`)
 
     if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.cancel'))) {
       items.push([{ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onClick: () => { cancelModalOpen.value = true } }])
@@ -167,15 +169,14 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       items.push([{ label: 'Aceptar → OV', icon: 'i-lucide-check-circle', color: 'success', onClick: () => { acceptModalOpen.value = true } }])
     }
 
-    // Sales-specific: Despachar → Remito
-    if (category.value === 'ORDER' && isConfirmed.value && module === 'sales') {
-      items.push([{ label: 'Despachar → Remito', icon: 'i-lucide-truck', color: 'success', onClick: () => { deliverModalOpen.value = true } }])
+    // Desde una OV activa se puede elegir Remito o Factura.
+    if (isOrderActive && module === 'sales' && canCreateSalesDocument) {
+      items.push([{ label: 'Crear Remito', icon: 'i-lucide-truck', color: 'success', onClick: () => { deliverModalOpen.value = true } }])
     }
 
     // Crear Factura (from ORDER active or REMITO confirmed)
-    const isOrderActive = category.value === 'ORDER' && doc.value?.status >= 1 && doc.value?.status < 7
     const isRemitoConfirmed = category.value === 'REMITO' && isConfirmed.value
-    if ((isOrderActive || isRemitoConfirmed) && (isOwnerOrAdmin.value || hasPermission(`${module === 'sales' ? 'sales' : 'purchases'}.create`))) {
+    if ((isOrderActive || isRemitoConfirmed) && canCreateSalesDocument) {
       const createUrl = module === 'sales'
         ? `/erp/sales/new?category=INVOICE&parent_order_id=${id.value}`
         : `/erp/purchases/purchases-documents/new?parent_order_id=${id.value}`

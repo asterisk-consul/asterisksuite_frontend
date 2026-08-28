@@ -1,5 +1,60 @@
 [
   {
+    "version": "0.38.0-alpha",
+    "date": "2026-08-28",
+    "stage": "alpha",
+    "notes": "Integración comercial y logística: precios por cliente/proveedor, tarifas basadas en productos, creación de órdenes de despacho desde ventas y mejoras del panel logístico",
+    "highlights": [
+      {
+        "title": "Precios personalizados por contraparte",
+        "description": "Productos y tarifas pueden tener precios específicos por cliente o proveedor, conservando el precio general como respaldo y registrando su historial"
+      },
+      {
+        "title": "Flujo comercial y logístico integrado",
+        "description": "Las órdenes de venta pueden originar remitos, facturas u órdenes de despacho manteniendo cliente, productos, precios y trazabilidad entre documentos"
+      },
+      {
+        "title": "Tarifas logísticas como productos",
+        "description": "Las órdenes de despacho usan los productos y precios comerciales como fuente de tarifas, con compatibilidad para registros históricos"
+      },
+      {
+        "title": "Nuevo panel operativo de logística",
+        "description": "Dashboard con estados en español, despachos sin viaje, viajes por planificar, operaciones en curso e importe operativo abierto"
+      }
+    ],
+    "changes": [
+      { "type": "feat", "scope": "pricing", "title": "Precios de producto por cliente o proveedor con vigencia e historial de modificaciones" },
+      { "type": "feat", "scope": "products", "title": "Nueva pestaña para relacionar productos con clientes y proveedores y administrar sus precios" },
+      { "type": "feat", "scope": "pricing", "title": "Listado de precios por contraparte con productos relacionados e historial por producto" },
+      { "type": "feat", "scope": "pricing", "title": "Resolución automática del precio específico según cliente/proveedor con fallback al precio general del producto" },
+      { "type": "fix", "scope": "pricing", "title": "Rutas proxy para alta, edición, consulta e historial de precios por contraparte" },
+      { "type": "fix", "scope": "pricing", "title": "Edición de precios desde la pestaña del producto y obtención segura del usuario autenticado en backend" },
+      { "type": "feat", "scope": "erp", "title": "Selección y persistencia de punto de venta/secuencia en órdenes de venta y compra" },
+      { "type": "feat", "scope": "erp", "title": "Cambio de secuencia al editar documentos con ajuste de numeración entre la secuencia anterior y la nueva" },
+      { "type": "fix", "scope": "erp", "title": "Visualización del punto de venta y número completo en detalle, edición y cadena de documentos" },
+      { "type": "fix", "scope": "erp", "title": "Fechas opcionales vacías se omiten antes de enviar formularios para evitar errores de validación ISO 8601" },
+      { "type": "feat", "scope": "sales", "title": "Acciones para crear remitos, facturas y órdenes de despacho desde una orden de venta" },
+      { "type": "feat", "scope": "dispatch", "title": "Creación de orden de despacho desde ventas copiando cliente, productos, cantidades, precios y documento de origen" },
+      { "type": "feat", "scope": "dispatch", "title": "Ítems de productos en órdenes de despacho como nueva fuente de tarifas con posibilidad de editar cantidades y precios" },
+      { "type": "feat", "scope": "dispatch", "title": "Total tarifario y origen de tarifa expuestos por la API de órdenes de despacho" },
+      { "type": "compat", "scope": "dispatch", "title": "Fallback a las tarifas logísticas históricas cuando una orden antigua no posee ítems de producto" },
+      { "type": "feat", "scope": "logistica", "title": "Flujo despacho → viaje y despacho → remito mantenido como procesos independientes y disponibles manualmente" },
+      { "type": "feat", "scope": "logistica", "title": "Cierre del despacho al entregar el remito y finalización del viaje cuando todas sus órdenes están completas" },
+      { "type": "feat", "scope": "reports", "title": "Reportes logísticos y montos de choferes adaptados a tarifas provenientes de productos con soporte histórico" },
+      { "type": "feat", "scope": "logistica", "title": "Panel de logística con estados operativos en español y compatibilidad con estados anteriores" },
+      { "type": "feat", "scope": "logistica", "title": "Resumen de viajes por planificar, despachos sin viaje, despachos en curso e importe operativo abierto" },
+      { "type": "style", "scope": "erp", "title": "Mejoras responsive y de UX en formularios de ventas y compras para evitar selects rotos por contenido extenso" }
+    ],
+    "modules": [
+      { "name": "pricing", "version": "0.1.0-alpha" },
+      { "name": "dispatch", "version": "0.2.0-alpha" },
+      { "name": "logistica", "version": "0.2.0-alpha" }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
     "version": "0.37.0-alpha",
     "date": "2026-08-27",
     "stage": "alpha",

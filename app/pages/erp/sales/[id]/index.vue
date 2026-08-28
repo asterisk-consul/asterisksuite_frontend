@@ -24,6 +24,7 @@ const router = useRouter()
 const { printElement } = usePrint()
 
 const loading = ref(true)
+const creatingDispatch = ref(false)
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
@@ -46,6 +47,20 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function createDispatchOrder() {
+  if (!doc.value) return
+  creatingDispatch.value = true
+  try {
+    const dispatch = await $fetch<any>(`/api/erp/documents/sales/${doc.value.id}/create-dispatch`, { method: 'POST' })
+    useToast().add({ title: 'Orden de Despacho creada', description: 'Ya puede planificarse en un viaje y generar su remito.', color: 'success' })
+    await router.push(`/logistica/viajes/dispatch-orders/${dispatch.id}/edit`)
+  } catch (error: any) {
+    useToast().add({ title: 'No se pudo crear la Orden de Despacho', description: error?.data?.message, color: 'error' })
+  } finally {
+    creatingDispatch.value = false
+  }
+}
 
 // ─── Document Actions (shared composable) ─────────────────
 const {
@@ -89,6 +104,7 @@ const {
         <div class="flex gap-2 items-center flex-wrap">
           <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />
           <UBadge v-else-if="invoiceState === 'partial'" label="Factura parcial" color="warning" variant="subtle" />
+          <UButton v-if="category === 'ORDER' && Number(doc?.status) >= 1 && Number(doc?.status) < 7" label="Crear Orden de Despacho" icon="i-lucide-clipboard-list" color="primary" variant="outline" size="sm" :loading="creatingDispatch" @click="createDispatchOrder" />
           <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
           <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
             <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
@@ -158,9 +174,10 @@ const {
     </template>
   </UModal>
 
-  <UModal v-model:open="deliverModalOpen" title="Despachar orden">
+  <UModal v-model:open="deliverModalOpen" title="Crear remito desde la orden">
     <template #body>
-      <p>¿Crear remito para esta OV?</p>
+      <p>Se copiarán el cliente y todos los productos pendientes de esta Orden de Venta.</p>
+      <p class="text-sm text-muted mt-2">El remito se creará en borrador para que puedas revisarlo antes de confirmarlo.</p>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="deliverModalOpen = false" />
         <UButton label="Crear Remito" color="success" :loading="processing" @click="handleDeliver" />

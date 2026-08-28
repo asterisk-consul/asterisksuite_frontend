@@ -77,7 +77,10 @@ onMounted(async () => {
 
 // Expose form data for parent to read
 const getFormData = () => {
-  const data = { ...form }
+  const data: Record<string, any> = { ...form }
+  // Los inputs date vacíos entregan ""; el backend espera una fecha ISO
+  // válida o que la propiedad no sea enviada.
+  if (!data.confirmed_delivery_date) data.confirmed_delivery_date = undefined
   if (!data.seller_id) data.seller_id = undefined
   if (!data.commission_rate) data.commission_rate = undefined
   return data

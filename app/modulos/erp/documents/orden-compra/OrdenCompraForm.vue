@@ -25,7 +25,11 @@ watch(() => props.modelValue, (val) => {
   if (val) Object.assign(form, val)
 }, { immediate: true })
 
-const getFormData = () => ({ ...form })
+const getFormData = () => ({
+  ...form,
+  // Evita enviar "" a @IsDateString en altas y ediciones.
+  confirmed_delivery_date: form.confirmed_delivery_date || undefined
+})
 defineExpose({ getFormData })
 </script>
 

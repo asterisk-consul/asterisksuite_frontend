@@ -167,6 +167,16 @@ const form = reactive<CreateDispatchOrderDto>({
     props.dispatch_order?.dispatch_rates?.map((r) => ({
       rate_id: r.rate_id,
       value: Number(r.value)
+    })) ?? [],
+
+  items:
+    props.dispatch_order?.dispatch_items?.map((item) => ({
+      product_id: item.product_id,
+      source_document_item_id: item.source_document_item_id,
+      quantity: Number(item.quantity),
+      unit_price: Number(item.unit_price),
+      currency_code: item.currency_code,
+      product: item.product
     })) ?? []
 })
 
@@ -288,9 +298,18 @@ const submit = () => {
       : undefined,
 
     rates:
-      form.rates?.map((r) => ({
+      (form.items?.length ? [] : form.rates?.map((r) => ({
         rate_id: r.rate_id,
         value: Number(r.value)
+      }))) ?? [],
+
+    items:
+      form.items?.map((item) => ({
+        product_id: item.product_id,
+        source_document_item_id: item.source_document_item_id,
+        quantity: Number(item.quantity),
+        unit_price: Number(item.unit_price),
+        currency_code: item.currency_code
       })) ?? []
   }
 
@@ -429,10 +448,35 @@ watch(
             clear
           />
         </UFormField>
+        <div v-if="form.items?.length" class="col-span-2 overflow-hidden rounded-xl border border-default">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-default bg-elevated px-4 py-3">
+            <div>
+              <h3 class="font-semibold">Productos y tarifas de la venta</h3>
+              <p class="text-xs text-muted">El precio fue copiado de la Orden de Venta. Podés ajustarlo antes de generar el remito.</p>
+            </div>
+            <UBadge label="Origen: Orden de Venta" color="primary" variant="subtle" />
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[680px] text-sm">
+              <thead class="text-left text-muted"><tr><th class="p-3">Producto / tarifa</th><th class="p-3 text-right">Cantidad</th><th class="p-3">Moneda</th><th class="p-3 text-right">Precio unitario</th><th class="p-3 text-right">Subtotal</th></tr></thead>
+              <tbody>
+                <tr v-for="(item, index) in form.items" :key="item.source_document_item_id || item.product_id || index" class="border-t border-default">
+                  <td class="p-3"><div class="font-medium">{{ item.product?.name || 'Producto' }}</div><div class="text-xs text-muted">{{ item.product?.sku || (item.product?.is_rate_type ? 'Tarifa' : 'Sin SKU') }}</div></td>
+                  <td class="p-3"><UInput v-model.number="item.quantity" type="number" min="0.001" step="0.001" class="ml-auto w-28 text-right" /></td>
+                  <td class="p-3">{{ item.currency_code || 'ARS' }}</td>
+                  <td class="p-3"><UInput v-model.number="item.unit_price" type="number" min="0" step="0.01" class="ml-auto w-36 text-right" /></td>
+                  <td class="p-3 text-right font-semibold tabular-nums">{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: item.currency_code || 'ARS' }).format(Number(item.quantity || 0) * Number(item.unit_price || 0)) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div
+          v-if="!form.items?.length"
           class="flex flex-col gap-3 col-span-2 p-4 border-2 border-gray-200 rounded-xl dark:border-neutral-800"
         >
-          <h3 class="font-semibold">Tarifas</h3>
+          <div><h3 class="font-semibold">Tarifas anteriores</h3><p class="text-xs text-muted">Compatibilidad para órdenes históricas sin productos asociados.</p></div>
           <!-- LISTA -->
           <div
             v-for="(rate, index) in form.rates"

@@ -8,6 +8,7 @@ import type { BusinessPartyForm as FormType } from '~/modulos/logistica/master-d
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import { storeToRefs } from 'pinia'
 import { mapBusinessPartyToForm, mapFormToBusinessPartyDto } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
+import PartyProductPrices from '~/modulos/erp/pricing/components/PartyProductPrices.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,7 +41,7 @@ const handleSubmit = async (form: FormType) => {
 </script>
 
 <template>
-  <div class="p-4 max-w-3xl mx-auto">
+  <div class="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
     <h1 class="text-xl font-semibold mb-4">Editar parte interesada</h1>
 
     <div v-if="loading">Cargando...</div>
@@ -50,5 +51,7 @@ const handleSubmit = async (form: FormType) => {
       :model-value="formData"
       @submit="handleSubmit"
     />
+
+    <PartyProductPrices v-if="formData" :party-id="id" />
   </div>
 </template>

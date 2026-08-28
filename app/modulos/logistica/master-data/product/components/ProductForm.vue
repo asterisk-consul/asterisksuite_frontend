@@ -6,6 +6,7 @@ import ProductInventoryTab from '~/modulos/logistica/master-data/product/compone
 import ProductAccountingTab from '~/modulos/logistica/master-data/product/components/forms/ProductAccountingTab.vue'
 import ProductAdvancedTab from '~/modulos/logistica/master-data/product/components/forms/ProductAdvancedTab.vue'
 import ProductSuppliersTab from '~/modulos/logistica/master-data/product/components/forms/ProductSuppliersTab.vue'
+import ProductPartyPricesTab from '~/modulos/logistica/master-data/product/components/forms/ProductPartyPricesTab.vue'
 import RootCard from '~/modulos/logistica/master-data/product/components/forms/RootCard.vue'
 import ProductPriceTab from '~/modulos/logistica/master-data/product/components/forms/ProductPriceTab.vue'
 import ProductVariantTable from '~/modulos/logistica/master-data/product-variants/components/ProductVariantTable.vue'
@@ -48,7 +49,7 @@ const submitText = computed(() => {
 const activeTab = ref(0)
 
 provide('switchToAdvancedTab', () => {
-  activeTab.value = 6
+  activeTab.value = 7
 })
 
 const tabs = [
@@ -59,7 +60,8 @@ const tabs = [
     icon: 'i-lucide-link-2'
   },
   { label: 'Precios', slot: 'precios', icon: 'i-lucide-wallet' },
-  { label: 'Proveedores', slot: 'suppliers', icon: 'i-lucide-truck' },
+  { label: 'Clientes y proveedores', slot: 'parties', icon: 'i-lucide-users' },
+  { label: 'Datos de proveedores', slot: 'suppliers', icon: 'i-lucide-truck' },
   {
     label: 'Inventario',
     slot: 'inventory',
@@ -107,6 +109,13 @@ const tabs = [
         <ProductSuppliersTab v-if="props.product?.id" :product-id="props.product.id" />
         <div v-else class="p-4 text-sm text-muted">
           Guardá el producto primero para poder agregar proveedores.
+        </div>
+      </template>
+
+      <template #parties>
+        <ProductPartyPricesTab v-if="props.product?.id" :product-id="props.product.id" />
+        <div v-else class="rounded-lg border border-dashed border-default p-6 text-sm text-muted">
+          Guardá el producto primero. Luego vas a poder asignarle clientes, proveedores y precios específicos. Si no asignás ninguno, se utilizará el precio general.
         </div>
       </template>
 
