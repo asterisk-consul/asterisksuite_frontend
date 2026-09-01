@@ -35,6 +35,10 @@ export function useInternationalOperations() {
   const associatePurchaseOrder = async (opId: string, docId: string) => store.associatePurchaseOrder(opId, docId)
   const disassociatePurchaseOrder = async (opId: string, docId: string) => store.disassociatePurchaseOrder(opId, docId)
 
+  const associateQuote = async (opId: string, docId: string) => store.associateQuote(opId, docId)
+  const updateQuoteStatus = async (opId: string, quoteId: string, status: string) => store.updateQuoteStatus(opId, quoteId, status)
+  const disassociateQuote = async (opId: string, quoteId: string) => store.disassociateQuote(opId, quoteId)
+
   const createContainer = async (opId: string, payload: CreateContainerInput) => store.createContainer(opId, payload)
   const findOneContainer = async (containerId: string) => store.findOneContainer(containerId)
   const updateContainer = async (containerId: string, payload: UpdateContainerInput) => store.updateContainer(containerId, payload)
@@ -137,11 +141,37 @@ export function useInternationalOperations() {
     { label: 'Almacenaje', value: 'STORAGE' },
     { label: 'Transporte Interno', value: 'LOCAL_TRANSPORT' },
     { label: 'Derechos de Aduana', value: 'CUSTOMS_DUTIES' },
+    { label: 'Nacionalización', value: 'NACIONALIZACION' },
     { label: 'Otros', value: 'OTHER' }
   ]
 
   const expenseTypeLabel = (type: InternationalExpenseType): string => {
     return expenseTypeOptions.find((e) => e.value === type)?.label ?? type
+  }
+
+  const statusDescriptions: Record<string, { label: string; description: string }> = {
+    PLANNED: { label: 'Planificada', description: 'Cargada al sistema, aún sin preparación de mercadería.' },
+    IN_PREPARATION: { label: 'En Preparación', description: 'Mercadería en depósito, pendiente de despacho al puerto de origen.' },
+    SHIPPED: { label: 'Embarcada', description: 'La mercadería fue entregada al transportista en el puerto de origen.' },
+    IN_TRANSIT: { label: 'En Tránsito', description: 'En viaje hacia el país de destino.' },
+    ARRIVED: { label: 'Arribada', description: 'Llegó al puerto o punto de entrada del país de destino.' },
+    CUSTOMS: { label: 'En Aduana', description: 'En proceso de despacho aduanero.' },
+    RELEASED: { label: 'Liberada', description: 'Aduana liberada: lista para retiro o entrega.' },
+    DELIVERED: { label: 'Entregada', description: 'Mercadería entregada al destinatario final.' },
+    CLOSED: { label: 'Cerrada', description: 'Operación finalizada, sin acciones pendientes.' },
+    CANCELLED: { label: 'Cancelada', description: 'Operación anulada: no se concretó.' }
+  }
+
+  const containerStatusDescriptions: Record<string, { label: string; description: string }> = {
+    PREPARING: { label: 'Preparando', description: 'Cargando mercadería en el contenedor.' },
+    LOADED: { label: 'Cargado', description: 'Contenedor lleno y precintado, listo para el embarque.' },
+    SHIPPED: { label: 'Embarcado', description: 'A bordo del buque o transporte internacional.' },
+    IN_TRANSIT: { label: 'En Tránsito', description: 'En viaje hacia el puerto de destino.' },
+    ARRIVED: { label: 'Arribado', description: 'Llegó al puerto de destino.' },
+    CUSTOMS: { label: 'En Aduana', description: 'En proceso de despacho aduanero.' },
+    RELEASED: { label: 'Liberado', description: 'Autorizado por aduana, pronto a retirar.' },
+    DELIVERED: { label: 'Entregado', description: 'Descargado en el depósito o destino final.' },
+    CLOSED: { label: 'Cerrado', description: 'Ciclo completado: vacío devuelto o fuera de uso.' }
   }
 
   return {
@@ -156,6 +186,8 @@ export function useInternationalOperations() {
     containerStatusOptions,
     containerTypeOptions,
     expenseTypeOptions,
+    statusDescriptions,
+    containerStatusDescriptions,
     statusColor,
     containerStatusColor,
     statusLabel,
@@ -178,6 +210,9 @@ export function useInternationalOperations() {
     disassociatePayment,
     associatePurchaseOrder,
     disassociatePurchaseOrder,
+    associateQuote,
+    updateQuoteStatus,
+    disassociateQuote,
     createContainer,
     findOneContainer,
     updateContainer,

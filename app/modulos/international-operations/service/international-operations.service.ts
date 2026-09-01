@@ -116,6 +116,15 @@ export const useInternationalOperationsService = () => {
   const removeEvent = (eventId: string) =>
     $fetch<void>(`${baseUrl}/events/${eventId}`, { method: 'DELETE' })
 
+  const associateQuote = (operationId: string, documentId: string) =>
+    $fetch(`${baseUrl}/${operationId}/quotes`, { method: 'POST', body: { document_id: documentId } })
+
+  const updateQuoteStatus = (operationId: string, quoteId: string, status: string) =>
+    $fetch(`${baseUrl}/${operationId}/quotes/${quoteId}/status`, { method: 'PATCH', body: { status } })
+
+  const disassociateQuote = (operationId: string, quoteId: string) =>
+    $fetch<void>(`${baseUrl}/${operationId}/quotes/${quoteId}`, { method: 'DELETE' })
+
   return {
     findAll,
     findOne,
@@ -130,6 +139,9 @@ export const useInternationalOperationsService = () => {
     disassociatePayment,
     associatePurchaseOrder,
     disassociatePurchaseOrder,
+    associateQuote,
+    updateQuoteStatus,
+    disassociateQuote,
     createContainer,
     findAllContainers,
     findOneContainer,

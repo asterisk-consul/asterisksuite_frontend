@@ -1,5 +1,62 @@
 [
   {
+    "version": "0.39.0-alpha",
+    "date": "2026-09-01",
+    "stage": "alpha",
+    "notes": "Operaciones Internacionales: presupuestos de compra por operacion, edicion de operacion y contenedores, rediseño del detalle, doble moneda con tipo de cambio por documento y estados libres",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "operaciones-intl",
+        "title": "Presupuestos de compra por operacion: crear rapido, asociar existentes y aceptar ganador (auto-rechaza el resto) sin impactar totales"
+      },
+      {
+        "type": "feat",
+        "scope": "operaciones-intl",
+        "title": "Edicion de operacion y de contenedor con formularios compartidos (OperationForm / ContainerForm)"
+      },
+      {
+        "type": "feat",
+        "scope": "operaciones-intl",
+        "title": "Rediseño del detalle: sub-navegacion sticky, gastos por contenedor con estado de pago y cambio de estado libre con ayuda descriptiva"
+      },
+      {
+        "type": "feat",
+        "scope": "operaciones-intl",
+        "title": "Doble moneda: tipo de cambio asignado al asociar documentos y consolidado en la moneda de la operacion"
+      },
+      {
+        "type": "feat",
+        "scope": "operaciones-intl",
+        "title": "Tipo de gasto Nacionalizacion y contenedor opcional al asociar pagos"
+      },
+      {
+        "type": "feat",
+        "scope": "database",
+        "title": "Tabla international_operation_quotes (QuoteStatus), container_id en pagos de operacion y enum NACIONALIZACION"
+      },
+      {
+        "type": "feat",
+        "scope": "document-types",
+        "title": "Tipo Presupuesto de Compra (PRE-C) agregado al seed"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Modal de tipos de documento: switches con descripciones, select de secuencias muestra nombre y fix de v-model en impuestos"
+      },
+      {
+        "type": "refactor",
+        "scope": "operaciones-intl",
+        "title": "Util compartido de conversion con tipo de cambio de mercado (frontend y backend)"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Presupuestos de compra en operaciones internacionales, edición de operación y contenedores, doble moneda y rediseño del detalle"
+  },
+  {
     "version": "0.38.0-alpha",
     "date": "2026-08-28",
     "stage": "alpha",
@@ -23,32 +80,125 @@
       }
     ],
     "changes": [
-      { "type": "feat", "scope": "pricing", "title": "Precios de producto por cliente o proveedor con vigencia e historial de modificaciones" },
-      { "type": "feat", "scope": "products", "title": "Nueva pestaña para relacionar productos con clientes y proveedores y administrar sus precios" },
-      { "type": "feat", "scope": "pricing", "title": "Listado de precios por contraparte con productos relacionados e historial por producto" },
-      { "type": "feat", "scope": "pricing", "title": "Resolución automática del precio específico según cliente/proveedor con fallback al precio general del producto" },
-      { "type": "fix", "scope": "pricing", "title": "Rutas proxy para alta, edición, consulta e historial de precios por contraparte" },
-      { "type": "fix", "scope": "pricing", "title": "Edición de precios desde la pestaña del producto y obtención segura del usuario autenticado en backend" },
-      { "type": "feat", "scope": "erp", "title": "Selección y persistencia de punto de venta/secuencia en órdenes de venta y compra" },
-      { "type": "feat", "scope": "erp", "title": "Cambio de secuencia al editar documentos con ajuste de numeración entre la secuencia anterior y la nueva" },
-      { "type": "fix", "scope": "erp", "title": "Visualización del punto de venta y número completo en detalle, edición y cadena de documentos" },
-      { "type": "fix", "scope": "erp", "title": "Fechas opcionales vacías se omiten antes de enviar formularios para evitar errores de validación ISO 8601" },
-      { "type": "feat", "scope": "sales", "title": "Acciones para crear remitos, facturas y órdenes de despacho desde una orden de venta" },
-      { "type": "feat", "scope": "dispatch", "title": "Creación de orden de despacho desde ventas copiando cliente, productos, cantidades, precios y documento de origen" },
-      { "type": "feat", "scope": "dispatch", "title": "Ítems de productos en órdenes de despacho como nueva fuente de tarifas con posibilidad de editar cantidades y precios" },
-      { "type": "feat", "scope": "dispatch", "title": "Total tarifario y origen de tarifa expuestos por la API de órdenes de despacho" },
-      { "type": "compat", "scope": "dispatch", "title": "Fallback a las tarifas logísticas históricas cuando una orden antigua no posee ítems de producto" },
-      { "type": "feat", "scope": "logistica", "title": "Flujo despacho → viaje y despacho → remito mantenido como procesos independientes y disponibles manualmente" },
-      { "type": "feat", "scope": "logistica", "title": "Cierre del despacho al entregar el remito y finalización del viaje cuando todas sus órdenes están completas" },
-      { "type": "feat", "scope": "reports", "title": "Reportes logísticos y montos de choferes adaptados a tarifas provenientes de productos con soporte histórico" },
-      { "type": "feat", "scope": "logistica", "title": "Panel de logística con estados operativos en español y compatibilidad con estados anteriores" },
-      { "type": "feat", "scope": "logistica", "title": "Resumen de viajes por planificar, despachos sin viaje, despachos en curso e importe operativo abierto" },
-      { "type": "style", "scope": "erp", "title": "Mejoras responsive y de UX en formularios de ventas y compras para evitar selects rotos por contenido extenso" }
+      {
+        "type": "feat",
+        "scope": "pricing",
+        "title": "Precios de producto por cliente o proveedor con vigencia e historial de modificaciones"
+      },
+      {
+        "type": "feat",
+        "scope": "products",
+        "title": "Nueva pestaña para relacionar productos con clientes y proveedores y administrar sus precios"
+      },
+      {
+        "type": "feat",
+        "scope": "pricing",
+        "title": "Listado de precios por contraparte con productos relacionados e historial por producto"
+      },
+      {
+        "type": "feat",
+        "scope": "pricing",
+        "title": "Resolución automática del precio específico según cliente/proveedor con fallback al precio general del producto"
+      },
+      {
+        "type": "fix",
+        "scope": "pricing",
+        "title": "Rutas proxy para alta, edición, consulta e historial de precios por contraparte"
+      },
+      {
+        "type": "fix",
+        "scope": "pricing",
+        "title": "Edición de precios desde la pestaña del producto y obtención segura del usuario autenticado en backend"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Selección y persistencia de punto de venta/secuencia en órdenes de venta y compra"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Cambio de secuencia al editar documentos con ajuste de numeración entre la secuencia anterior y la nueva"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Visualización del punto de venta y número completo en detalle, edición y cadena de documentos"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Fechas opcionales vacías se omiten antes de enviar formularios para evitar errores de validación ISO 8601"
+      },
+      {
+        "type": "feat",
+        "scope": "sales",
+        "title": "Acciones para crear remitos, facturas y órdenes de despacho desde una orden de venta"
+      },
+      {
+        "type": "feat",
+        "scope": "dispatch",
+        "title": "Creación de orden de despacho desde ventas copiando cliente, productos, cantidades, precios y documento de origen"
+      },
+      {
+        "type": "feat",
+        "scope": "dispatch",
+        "title": "Ítems de productos en órdenes de despacho como nueva fuente de tarifas con posibilidad de editar cantidades y precios"
+      },
+      {
+        "type": "feat",
+        "scope": "dispatch",
+        "title": "Total tarifario y origen de tarifa expuestos por la API de órdenes de despacho"
+      },
+      {
+        "type": "compat",
+        "scope": "dispatch",
+        "title": "Fallback a las tarifas logísticas históricas cuando una orden antigua no posee ítems de producto"
+      },
+      {
+        "type": "feat",
+        "scope": "logistica",
+        "title": "Flujo despacho → viaje y despacho → remito mantenido como procesos independientes y disponibles manualmente"
+      },
+      {
+        "type": "feat",
+        "scope": "logistica",
+        "title": "Cierre del despacho al entregar el remito y finalización del viaje cuando todas sus órdenes están completas"
+      },
+      {
+        "type": "feat",
+        "scope": "reports",
+        "title": "Reportes logísticos y montos de choferes adaptados a tarifas provenientes de productos con soporte histórico"
+      },
+      {
+        "type": "feat",
+        "scope": "logistica",
+        "title": "Panel de logística con estados operativos en español y compatibilidad con estados anteriores"
+      },
+      {
+        "type": "feat",
+        "scope": "logistica",
+        "title": "Resumen de viajes por planificar, despachos sin viaje, despachos en curso e importe operativo abierto"
+      },
+      {
+        "type": "style",
+        "scope": "erp",
+        "title": "Mejoras responsive y de UX en formularios de ventas y compras para evitar selects rotos por contenido extenso"
+      }
     ],
     "modules": [
-      { "name": "pricing", "version": "0.1.0-alpha" },
-      { "name": "dispatch", "version": "0.2.0-alpha" },
-      { "name": "logistica", "version": "0.2.0-alpha" }
+      {
+        "name": "pricing",
+        "version": "0.1.0-alpha"
+      },
+      {
+        "name": "dispatch",
+        "version": "0.2.0-alpha"
+      },
+      {
+        "name": "logistica",
+        "version": "0.2.0-alpha"
+      }
     ],
     "contributors": [
       "agustin"
@@ -60,13 +210,41 @@
     "stage": "alpha",
     "notes": "Secuencia de documentos vinculada al documento: FK document_sequence_id, cada PV tiene su propio rango de numeración, fix de off-by-one y mejoras en edit mode",
     "changes": [
-      { "type": "feat", "scope": "database", "title": "FK document_sequence_id en tabla documents + constraint único compuesto (document_type_id, document_sequence_id, number)" },
-      { "type": "fix", "scope": "erp", "title": "Off-by-one en inicialización de secuencias: current_number ahora inicia en range_start - 1" },
-      { "type": "feat", "scope": "erp", "title": "Guardar document_sequence_id al crear documentos (sales, purchases, HR)" },
-      { "type": "fix", "scope": "erp", "title": "Simplificar getNextNumber quitando retry loop (cada PV tiene rango independiente)" },
-      { "type": "feat", "scope": "erp", "title": "findOne incluye document_sequences para mostrar punto de venta en frontend" },
-      { "type": "fix", "scope": "facturas", "title": "Mapper restaura document_sequence_id en edit mode" },
-      { "type": "fix", "scope": "facturas", "title": "Race condition en FacturaForm: watch(sequences) restaura secuencia cuando datos están listos" }
+      {
+        "type": "feat",
+        "scope": "database",
+        "title": "FK document_sequence_id en tabla documents + constraint único compuesto (document_type_id, document_sequence_id, number)"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Off-by-one en inicialización de secuencias: current_number ahora inicia en range_start - 1"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Guardar document_sequence_id al crear documentos (sales, purchases, HR)"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Simplificar getNextNumber quitando retry loop (cada PV tiene rango independiente)"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "findOne incluye document_sequences para mostrar punto de venta en frontend"
+      },
+      {
+        "type": "fix",
+        "scope": "facturas",
+        "title": "Mapper restaura document_sequence_id en edit mode"
+      },
+      {
+        "type": "fix",
+        "scope": "facturas",
+        "title": "Race condition en FacturaForm: watch(sequences) restaura secuencia cuando datos están listos"
+      }
     ]
   },
   {
@@ -75,10 +253,26 @@
     "stage": "alpha",
     "notes": "Junction table document_type_sequences: multi-select de secuencias por tipo de documento, fix de filtrado en FacturaForm y fix de validación seller_id vacío",
     "changes": [
-      { "type": "fix", "scope": "erp", "title": "Filtrar seller_id vacío en OrdenVentaForm para evitar error de validación UUID" },
-      { "type": "feat", "scope": "erp", "title": "Junction table document_type_sequences en backend (DTO, service CRUD con createMany/deleteMany)" },
-      { "type": "feat", "scope": "erp", "title": "Multi-select de secuencias en DocumentTypeForm y settings page" },
-      { "type": "fix", "scope": "erp", "title": "Filtrado de secuencias en FacturaForm por tipo de documento (return false en vez de true)" }
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Filtrar seller_id vacío en OrdenVentaForm para evitar error de validación UUID"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Junction table document_type_sequences en backend (DTO, service CRUD con createMany/deleteMany)"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Multi-select de secuencias en DocumentTypeForm y settings page"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Filtrado de secuencias en FacturaForm por tipo de documento (return false en vez de true)"
+      }
     ]
   },
   {

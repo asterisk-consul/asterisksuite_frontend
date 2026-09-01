@@ -10,6 +10,7 @@ import { useLocationsStore } from '~/modulos/logistica/master-data/locations/sto
 import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
 import LocationModal from '~/modulos/logistica/master-data/locations/components/LocationModal.vue'
 import EmployeeLaborData from '~/modulos/erp/employees/components/EmployeeLaborData.vue'
+import PartyFiscalProfileTab from '~/modulos/erp/fiscal/components/PartyFiscalProfileTab.vue'
 
 export interface ExtraTab {
   label: string
@@ -274,7 +275,8 @@ const baseTabs = [
   { label: 'Impuestos', slot: 'taxes' },
   { label: 'Direcciones', slot: 'locations' },
   { label: 'Contactos', slot: 'contacts' },
-  { label: 'Cuentas Bancarias', slot: 'bankAccounts' }
+  { label: 'Cuentas Bancarias', slot: 'bankAccounts' },
+  { label: 'Retenciones', slot: 'fiscalProfile' }
 ]
 
 // Tabs internos según el tipo seleccionado
@@ -296,7 +298,7 @@ const allExtraTabs = computed(() => [
 
 const tabs = computed(() => {
   const hideTaxes = form.type === 'EMPLOYEE' || form.type === 'PARTNER'
-  const filtered = hideTaxes ? baseTabs.filter(t => t.slot !== 'taxes') : baseTabs
+  const filtered = hideTaxes ? baseTabs.filter(t => t.slot !== 'taxes' && t.slot !== 'fiscalProfile') : baseTabs
   const createUserTab = (form.type === 'EMPLOYEE' || form.type === 'PARTNER')
     ? [{ label: 'Usuario de Acceso', slot: 'createUser' }]
     : []
@@ -616,6 +618,11 @@ const displayTitle = computed(() => {
             />
           </div>
         </UCard>
+      </template>
+
+      <!-- FISCAL PROFILE (Retenciones) -->
+      <template #fiscalProfile>
+        <PartyFiscalProfileTab :party-id="form.id" />
       </template>
 
       <!-- INTERNAL TABS: Employee -->

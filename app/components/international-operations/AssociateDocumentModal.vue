@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { InternationalExpenseType } from '~/modulos/international-operations/types/international-operations.types'
+import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 
@@ -20,14 +21,28 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+const { expenseTypeOptions } = useInternationalOperations()
+
 const loading = ref(false)
 
+// Dirección del documento: filtra la búsqueda (venta o compra)
+const documentDirection = ref<'SALES' | 'PURCHASE' | undefined>(undefined)
+const directionItems = [
+  { label: 'Venta (emisión)', value: 'SALES' },
+  { label: 'Compra (recepción)', value: 'PURCHASE' }
+]
+
+const selectedDirection = computed({
+  get: () => directionItems.find(o => o.value === documentDirection.value),
+  set: (val: any) => { documentDirection.value = val?.value ?? undefined }
+})
+
 // USelectMenu guarda el objeto completo { label, value }
-const selectedDocument = ref<{ label: string; value: string } | null>(null)
-const selectedExpenseType = ref<{ label: string; value: InternationalExpenseType } | null>(null)
+const selectedDocument = ref<{ label: string; value: string } | undefined>(undefined)
+const selectedExpenseType = ref<{ label: string; value: InternationalExpenseType } | undefined>(undefined)
 const customExpenseDescription = ref('')
 const customExchangeRate = ref<number | null>(null)
-const selectedContainer = ref<{ label: string; value: string } | null>(null)
+const selectedContainer = ref<{ label: string; value: string } | undefined>(undefined)
 
 const documents = ref<Array<{
   id: string
@@ -46,35 +61,31 @@ const selectedExpenseTypeValue = computed(() => selectedExpenseType.value?.value
 const selectedContainerId = computed(() => selectedContainer.value?.value ?? null)
 
 const fetchDocuments = async () => {
+  if (!documentDirection.value) {
+    documents.value = []
+    return
+  }
   loading.value = true
   try {
-    const [salesDocs, purchaseDocs] = await Promise.all([
-      DocumentsSalesService.getAll({ limit: 200 }),
-      DocumentsPurchasesService.getAll({ limit: 200 })
-    ])
-    
-    const allDocs = [
-      ...(salesDocs ?? []).map((d: any) => ({
-        id: d.id,
-        number: d.number,
-        date: d.date,
-        total: Number(d.total),
-        currency_code: d.currency_code,
-        party_name: d.business_parties?.name,
-        document_type_code: d.document_types?.code,
-        document_type_description: d.document_types?.description
-      })),
-      ...(purchaseDocs ?? []).map((d: any) => ({
-        id: d.id,
-        number: d.number,
-        date: d.date,
-        total: Number(d.total),
-        currency_code: d.currency_code,
-        party_name: d.business_parties?.name,
-        document_type_code: d.document_types?.code,
-        document_type_description: d.document_types?.description
-      }))
-    ]
+    let fetched: any[] = []
+    if (documentDirection.value === 'SALES') {
+      const salesDocs = await (DocumentsSalesService.getAll as any)({ limit: 200 })
+      fetched = salesDocs ?? []
+    } else {
+      const purchaseDocs = await (DocumentsPurchasesService.getAll as any)({ limit: 200 })
+      fetched = purchaseDocs ?? []
+    }
+
+    const allDocs = fetched.map((d: any) => ({
+      id: d.id,
+      number: d.number,
+      date: d.date,
+      total: Number(d.total),
+      currency_code: d.currency_code,
+      party_name: d.business_parties?.name,
+      document_type_code: d.document_types?.code,
+      document_type_description: d.document_types?.description
+    }))
 
     documents.value = allDocs.filter(d => !props.excludeDocumentIds?.includes(d.id))
   } catch (err) {
@@ -83,6 +94,11 @@ const fetchDocuments = async () => {
     loading.value = false
   }
 }
+
+watch(documentDirection, () => {
+  selectedDocument.value = undefined
+  fetchDocuments()
+})
 
 // Currency validation
 const selectedDocumentCurrency = computed(() => {
@@ -105,19 +121,6 @@ const documentOptions = computed(() => documents.value.map(d => ({
   value: d.id
 })))
 
-const expenseTypeOptions = [
-  { label: 'Mercadería', value: 'MERCHANDISE' },
-  { label: 'Flete Internacional', value: 'INTERNATIONAL_FREIGHT' },
-  { label: 'Seguro', value: 'INSURANCE' },
-  { label: 'Despachante', value: 'CUSTOMS_BROKER' },
-  { label: 'Agente Comercial', value: 'COMMERCIAL_AGENT' },
-  { label: 'Gastos Portuarios', value: 'PORT_EXPENSE' },
-  { label: 'Almacenaje', value: 'STORAGE' },
-  { label: 'Transporte Interno', value: 'LOCAL_TRANSPORT' },
-  { label: 'Derechos de Aduana', value: 'CUSTOMS_DUTIES' },
-  { label: 'Otros', value: 'OTHER' }
-]
-
 const containerOptions = computed(() => (props.containers ?? []).map(c => ({
   label: c.container_number,
   value: c.id
@@ -125,11 +128,11 @@ const containerOptions = computed(() => (props.containers ?? []).map(c => ({
 
 watch(() => props.open, (open) => {
   if (open) {
-    fetchDocuments()
-    selectedDocument.value = null
-    selectedExpenseType.value = null
+    documentDirection.value = undefined
+    selectedDocument.value = undefined
+    selectedExpenseType.value = undefined
     customExpenseDescription.value = ''
-    selectedContainer.value = null
+    selectedContainer.value = undefined
   }
 })
 
@@ -173,15 +176,25 @@ const handleAssociate = async () => {
   >
     <template #body>
       <div class="space-y-4">
+        <UFormField label="Tipo de documento" name="document_direction" required>
+          <USelectMenu
+            v-model="selectedDirection"
+            :items="directionItems"
+            placeholder="¿Es de venta o de compra?"
+            class="w-full"
+            :disabled="loading"
+          />
+        </UFormField>
+
         <UFormField label="Documento" name="document_id" required>
           <USelectMenu
             v-model="selectedDocument"
             :items="documentOptions"
-            placeholder="Buscar y seleccionar documento..."
+            :placeholder="documentDirection ? 'Buscar y seleccionar documento...' : 'Primero seleccioná el tipo de documento'"
             searchable
             clear
             class="w-full"
-            :disabled="loading"
+            :disabled="loading || !documentDirection"
           />
         </UFormField>
 

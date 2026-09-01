@@ -5,6 +5,8 @@ import { usePaymentsService } from '~/modulos/erp/payments/service/payments.serv
 interface Props {
   open: boolean
   operationId: string
+  operationCurrencyCode?: string
+  containers?: Array<{ id: string; container_number: string }>
   excludePaymentIds?: string[]
 }
 
@@ -21,8 +23,15 @@ const service = usePaymentsService()
 const loading = ref(false)
 
 // USelectMenu guarda el objeto completo { label, value }
-const selectedPayment = ref<{ label: string; value: string } | null>(null)
+const selectedPayment = ref<{ label: string; value: string } | undefined>(undefined)
 const selectedPaymentId = computed(() => selectedPayment.value?.value ?? null)
+const selectedContainer = ref<{ label: string; value: string } | undefined>(undefined)
+const selectedContainerId = computed(() => selectedContainer.value?.value ?? null)
+
+const containerOptions = computed(() => (props.containers ?? []).map(c => ({
+  label: c.container_number,
+  value: c.id
+})))
 
 const payments = ref<Array<{
   id: string
@@ -38,7 +47,7 @@ const payments = ref<Array<{
 const fetchPayments = async () => {
   loading.value = true
   try {
-    const pays = await service.findAll({ limit: 200 })
+    const pays = await (service.findAll as any)({ limit: 200 })
     payments.value = pays.map((p: any) => ({
       id: p.id,
       number: p.number,
@@ -48,7 +57,7 @@ const fetchPayments = async () => {
       status: p.status,
       payment_method: p.payment_method,
       party_name: p.party?.name
-    })).filter(p => !props.excludePaymentIds?.includes(p.id))
+    })).filter((p: any) => !props.excludePaymentIds?.includes(p.id))
   } catch (err) {
     console.error('Error fetching payments:', err)
   } finally {
@@ -64,7 +73,8 @@ const paymentOptions = computed(() => payments.value.map(p => ({
 watch(() => props.open, (open) => {
   if (open) {
     fetchPayments()
-    selectedPayment.value = null
+    selectedPayment.value = undefined
+    selectedContainer.value = undefined
   }
 })
 
@@ -74,7 +84,7 @@ const handleAssociate = async () => {
     loading.value = true
     await $fetch(`/api/international-operations/${props.operationId}/payments`, {
       method: 'POST',
-      body: { payment_id: selectedPaymentId.value }
+      body: { payment_id: selectedPaymentId.value, container_id: selectedContainerId.value || undefined }
     })
     emit('associated')
     emit('update:open', false)
@@ -100,6 +110,17 @@ const handleAssociate = async () => {
             :items="paymentOptions"
             placeholder="Buscar y seleccionar pago..."
             searchable
+            clear
+            class="w-full"
+            :disabled="loading"
+          />
+        </UFormField>
+
+        <UFormField v-if="props.containers?.length" label="Contenedor (opcional)" name="container_id">
+          <USelectMenu
+            v-model="selectedContainer"
+            :items="containerOptions"
+            placeholder="Sin contenedor específico"
             clear
             class="w-full"
             :disabled="loading"

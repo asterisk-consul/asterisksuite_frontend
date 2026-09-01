@@ -54,7 +54,10 @@ export type InternationalExpenseType =
   | 'STORAGE'
   | 'LOCAL_TRANSPORT'
   | 'CUSTOMS_DUTIES'
+  | 'NACIONALIZACION'
   | 'OTHER'
+
+export type QuoteStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED'
 
 export interface InternationalOperation {
   id: string
@@ -84,6 +87,7 @@ export interface InternationalOperation {
   containers?: InternationalContainer[]
   operation_documents?: OperationDocumentRelation[]
   operation_payments?: OperationPaymentRelation[]
+  operation_quotes?: OperationQuoteRelation[]
   purchase_orders?: PurchaseOrderRelation[]
   created_at?: string
   updated_at?: string
@@ -163,9 +167,10 @@ export interface OperationDocumentRelation {
   }
 }
 
-export interface OperationPaymentRelation {
-  operation_id: string
+export interface OperationPaymentRelation {  operation_id: string
   payment_id: string
+  container_id?: string
+  container?: { id: string; container_number: string }
   payment?: {
     id: string
     number: number
@@ -174,6 +179,28 @@ export interface OperationPaymentRelation {
     currency_code: string
     status: string
     payment_method: string
+  }
+}
+
+export interface OperationQuoteRelation {
+  id: string
+  operation_id: string
+  document_id: string
+  status: QuoteStatus
+  notes?: string
+  document?: {
+    id: string
+    number: number
+    date: string
+    total: number
+    currency_code?: string
+    business_parties?: { id: string; name: string }
+    document_types?: { code: string; description: string; category?: string }
+    document_items?: Array<{
+      quantity: number
+      price: number
+      products?: { id: string; name: string; sku?: string }
+    }>
   }
 }
 
@@ -218,9 +245,11 @@ export interface OperationSummary {
     productCount: number
   }
   financial: {
+    currency?: string
     total: { amount: number; baseAmount: number }
     paid: { amount: number; baseAmount: number }
     pending: { amount: number; baseAmount: number }
+    unconverted?: { count: number; amount: number }
   }
   financialByCurrency: Array<{
     currency: string
@@ -234,6 +263,19 @@ export interface OperationSummary {
     etaOverdue: boolean
     pendingClosure: boolean
   }
+}
+
+export interface ExpenseGroup {
+  type: string
+  label: string
+  total: number
+  paid: number
+  pending: number
+  currency?: string
+  unconvertedCount?: number
+  unconvertedAmount?: number
+  documentCount: number
+  documents: Array<OperationDocumentRelation & { paid_amount: number; pending_amount: number }>
 }
 
 export interface OperationListResponse {

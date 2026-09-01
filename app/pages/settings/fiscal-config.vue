@@ -5,6 +5,7 @@ definePageMeta({
 })
 
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import CompanyAgentConfig from '~/modulos/erp/fiscal/components/CompanyAgentConfig.vue'
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -75,14 +76,33 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-6">Configuración Fiscal</h1>
+  <div class="max-w-4xl mx-auto p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">Configuración Fiscal</h1>
+      <div class="flex gap-2">
+        <UButton
+          label="Reglas y alícuotas"
+          variant="outline"
+          icon="i-lucide-list-tree"
+          to="/settings/fiscal-rules"
+        />
+        <UButton
+          label="Retenciones"
+          variant="outline"
+          icon="i-lucide-receipt-text"
+          to="/erp/fiscal/withholdings"
+        />
+      </div>
+    </div>
 
     <div v-if="loading" class="text-center py-8 text-muted">
       Cargando configuración...
     </div>
 
-    <div v-else-if="settings" class="space-y-6">
+    <div v-else class="space-y-6">
+      <CompanyAgentConfig />
+
+      <div v-if="settings">
       <!-- Modo Fiscal -->
       <UCard>
         <template #header>
@@ -166,6 +186,7 @@ onMounted(() => {
           :loading="saving"
           @click="saveSettings"
         />
+      </div>
       </div>
     </div>
   </div>

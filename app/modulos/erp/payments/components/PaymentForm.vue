@@ -13,7 +13,8 @@ import CheckModal from '~/modulos/erp/checks/components/CheckModal.vue'
 import PendingDocumentsList from '~/modulos/erp/payments/components/PendingDocumentsList.vue'
 import CreateInvoiceModal from '~/modulos/erp/payments/components/CreateInvoiceModal.vue'
 import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
-import { calculateRetentions, calculateTotalRetentions, calculateNetAmount } from '~/modulos/erp/payments/utils/retentionLogic'
+import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
+import type { WithholdingProposal, PaymentWithholdingPayload } from '~/modulos/erp/fiscal/types/fiscal.types'
 
 export interface PaymentFormData {
   type: 'PAYMENT' | 'COLLECTION'
@@ -61,7 +62,70 @@ const {
   convertAmount,
 } = useExchangeRate()
 const partiesService = useBusinessPartiesService()
+const fiscalService = useFiscalService()
 const toast = useToast()
+
+// ─── Retenciones (motor fiscal) ──────────────────────────────
+const withholdings = ref<WithholdingProposal[]>([])
+const withholdingSkipped = ref<{ tax_type: string; reason: string }[]>([])
+const retentionLoading = ref(false)
+
+const totalWithheld = computed(() =>
+  withholdings.value.reduce((s, w) => s + (Number(w.withheld_amount) || 0), 0)
+)
+
+const removeWithholding = (index: number) => {
+  withholdings.value.splice(index, 1)
+}
+
+const addManualWithholding = () => {
+  withholdings.value.push({
+    tax_type: 'GANANCIAS',
+    jurisdiction_id: null,
+    jurisdiction_name: null,
+    withholding_concept_id: null,
+    tax_rule_id: null,
+    rule_name: 'Manual',
+    base_amount: 0,
+    prorrate_percentage: null,
+    rate: 0,
+    withheld_amount: 0,
+    automatic_amount: null,
+    reason: 'Carga manual'
+  })
+}
+
+const calculateSuggestedWithholdings = async (baseAmount: number) => {
+  if (!form.party_id || baseAmount <= 0) return
+  retentionLoading.value = true
+  try {
+    const preview = await fiscalService.previewWithholdings({
+      party_id: form.party_id,
+      base_amount: baseAmount,
+      date: form.date,
+      operation_type: form.type === 'PAYMENT' ? 'PURCHASE' : 'SALE'
+    })
+    withholdings.value = preview.proposals
+    withholdingSkipped.value = preview.skipped
+    if (preview.proposals.length > 0) {
+      toast.add({
+        title: `Se sugirieron ${preview.proposals.length} retención(es) por ${formatCurrency(preview.total_withheld, form.currency_code)}`,
+        color: 'info',
+        duration: 4000
+      })
+    }
+  } catch (e: any) {
+    console.error('Error calculando retenciones:', e)
+    toast.add({
+      title: 'No se pudieron calcular retenciones',
+      description: e?.data?.message ?? 'Verifique la configuración fiscal',
+      color: 'warning',
+      duration: 4000
+    })
+  } finally {
+    retentionLoading.value = false
+  }
+}
 
 // Parties for ADVANCE mode selector
 const allParties = ref<Array<{ id: string; name: string; tax_id?: string; type: string }>>([])
@@ -550,43 +614,52 @@ const handleSubmit = async () => {
   const paymentAmount = totalApplied.value > 0 ? totalApplied.value : totalChecksAmount.value > 0 ? totalChecksAmount.value : form.amount
   console.log('[PaymentForm] paymentAmount:', paymentAmount)
   console.log('[PaymentForm] selectedDocs:', Array.from(selectedDocs.value.entries()))
-  
-  // Calculate retentions if it's a payment to a supplier
-  let retentions: { code: string; name: string; amount: number }[] = []
-  if (form.type === 'PAYMENT' && form.party_id) {
-    try {
-      // Fetch supplier info for retention calculation
-      const supplier = await $fetch<any>(`/api/logistica/master-data/business-parties/${form.party_id}`)
-      if (supplier?.retention_agent) {
-        retentions = calculateRetentions(paymentAmount, {
-          retention_agent: supplier.retention_agent || false,
-          iibb_registered: supplier.iibb_registered || false,
-          province: supplier.province,
-          operation_type: supplier.operation_type
-        })
-      }
-    } catch (e) {
-      console.error('Error fetching supplier for retentions:', e)
-    }
-  }
 
-  const totalRetentions = calculateTotalRetentions(retentions)
-  const netAmount = calculateNetAmount(paymentAmount, totalRetentions)
+  // Retenciones: usar las cargadas/confirmadas en el formulario
+  const validWithholdings = withholdings.value.filter(w => Number(w.withheld_amount) > 0)
+  const totalRetentions = validWithholdings.reduce((s, w) => s + Number(w.withheld_amount), 0)
+  // Dinero efectivo = aplicado a documentos − retenciones
+  const cashAmount = Math.max(0, Math.round((paymentAmount - totalRetentions) * 100) / 100)
 
   const documentsData = Array.from(selectedDocs.value.values()).map(d => ({
     document_id: d.doc.id,
     amount_applied: d.amount
   }))
 
+  // Distribuir retenciones proporcionalmente entre documentos aplicados
+  const withholdingsPayload: PaymentWithholdingPayload[] = validWithholdings.map(w => {
+    let allocations: { document_id: string; allocated_amount: number }[] | undefined
+    if (documentsData.length > 0 && paymentAmount > 0) {
+      const shares = documentsData.map(d =>
+        Math.round(((Number(w.withheld_amount) * d.amount_applied) / paymentAmount) * 100) / 100
+      )
+      // Ajustar la última para que la suma dé exactamente el importe retenido
+      const allocated = shares.slice(0, -1).reduce((s, v) => s + v, 0)
+      shares[shares.length - 1] = Math.round((Number(w.withheld_amount) - allocated) * 100) / 100
+      allocations = documentsData
+        .map((d, i) => ({ document_id: d.document_id, allocated_amount: shares[i] }))
+        .filter(a => a.allocated_amount !== 0)
+    }
+    return {
+      tax_type: w.tax_type,
+      jurisdiction_id: w.jurisdiction_id ?? undefined,
+      withholding_concept_id: w.withholding_concept_id ?? undefined,
+      tax_rule_id: w.tax_rule_id ?? undefined,
+      base_amount: w.base_amount,
+      rate: w.rate ?? undefined,
+      withheld_amount: Number(w.withheld_amount),
+      observations: w.reason,
+      allocations
+    }
+  })
+
   console.log('[PaymentForm] documentsData:', documentsData)
 
   const payload = {
     ...form,
-    amount: paymentAmount,
+    amount: cashAmount,
     check_ids: form.check_ids.length > 0 ? form.check_ids : undefined,
-    retentions: retentions.length > 0 ? retentions : undefined,
-    total_retentions: totalRetentions,
-    net_amount: netAmount,
+    withholdings: withholdingsPayload.length > 0 ? withholdingsPayload : undefined,
     documents: documentsData.length > 0 ? documentsData : undefined
   }
   console.log('[PaymentForm] EMIT payload:', payload)
@@ -817,6 +890,81 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       @create-invoice="openInvoiceModal"
       @create-vale="openValeModal"
     />
+
+    <!-- RETENCIONES (motor fiscal) -->
+    <div v-if="form.party_id" class="border border-default rounded-lg p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <h4 class="text-sm font-medium">Retenciones</h4>
+        <div class="flex gap-2">
+          <UButton
+            label="Calcular sugeridas"
+            size="xs"
+            variant="outline"
+            icon="i-lucide-calculator"
+            :loading="retentionLoading"
+            :disabled="totalApplied <= 0 && totalChecksAmount <= 0"
+            @click="calculateSuggestedWithholdings(totalApplied > 0 ? totalApplied : totalChecksAmount)"
+          />
+          <UButton
+            label="Agregar manual"
+            size="xs"
+            variant="ghost"
+            icon="i-lucide-plus"
+            @click="addManualWithholding"
+          />
+        </div>
+      </div>
+
+      <div v-if="withholdings.length === 0" class="text-xs text-muted">
+        Sin retenciones. Use "Calcular sugeridas" para que el motor fiscal proponga las retenciones según el perfil del tercero.
+      </div>
+
+      <div v-else class="space-y-2">
+        <div
+          v-for="(wh, index) in withholdings"
+          :key="index"
+          class="grid grid-cols-12 gap-2 items-center p-2 rounded border border-default"
+        >
+          <div class="col-span-3">
+            <USelectMenu
+              v-model="wh.tax_type"
+              :items="['GANANCIAS', 'IIBB', 'SUSS', 'IVA']"
+              size="xs"
+            />
+          </div>
+          <div class="col-span-2">
+            <UInput v-model.number="wh.base_amount" type="number" size="xs" placeholder="Base" />
+          </div>
+          <div class="col-span-2">
+            <UInput v-model.number="wh.rate" type="number" size="xs" placeholder="Alícuota %" />
+          </div>
+          <div class="col-span-3">
+            <UInput v-model.number="wh.withheld_amount" type="number" size="xs" placeholder="Importe" />
+          </div>
+          <div class="col-span-1 text-xs text-muted truncate" :title="wh.reason">
+            {{ wh.jurisdiction_name || '—' }}
+          </div>
+          <div class="col-span-1 flex justify-end">
+            <UButton icon="i-lucide-x" size="xs" variant="ghost" color="error" @click="removeWithholding(index)" />
+          </div>
+        </div>
+        <div class="flex justify-between text-sm pt-1 border-t border-default">
+          <span class="text-muted">
+            Aplicado a facturas: {{ formatCurrency(totalApplied > 0 ? totalApplied : totalChecksAmount, form.currency_code) }}
+          </span>
+          <span class="font-medium">
+            Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
+            Efectivo: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
+          </span>
+        </div>
+      </div>
+
+      <div v-if="withholdingSkipped.length > 0" class="text-xs text-muted space-y-0.5">
+        <div v-for="(s, i) in withholdingSkipped" :key="i">
+          {{ s.tax_type }}: {{ s.reason }}
+        </div>
+      </div>
+    </div>
 
     <div class="grid grid-cols-2 gap-4">
       <UFormField label="Monto total" name="amount" required>

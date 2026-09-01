@@ -11,6 +11,7 @@ export interface DocumentTypeFormData {
   affects_accounting: boolean
   affects_tax_book: boolean
   affects_payment: boolean
+  calculates_taxes?: boolean
   active: boolean
   category: string
   letter_type: string
@@ -49,6 +50,7 @@ onMounted(async () => {
 const defaultForm: DocumentTypeFormData = {
   code: '', description: '', direction: 1,
   affects_stock: false, affects_accounting: true, affects_tax_book: false, affects_payment: false,
+  calculates_taxes: true,
   active: true, category: '', letter_type: '', afip_code: '',
   requires_cae: false, is_electronic: false, document_sequence_ids: [], tax_ids: []
 }
@@ -57,9 +59,12 @@ const form = reactive<DocumentTypeFormData>({ ...defaultForm })
 
 watch([() => props.modelValue, () => sequencesStore.items], ([val]) => {
   if (!val) { Object.assign(form, { ...defaultForm }); return }
-  const linkedSequenceIds = (val as any).document_type_sequences?.map(
-    (dts: any) => dts.document_sequences?.id ?? dts.sequence_id
-  ) ?? val.document_sequence_id ? [val.document_sequence_id] : []
+  const valAny = val as any
+  const linkedSequenceIds = valAny.document_type_sequences?.length
+    ? valAny.document_type_sequences.map((dts: any) => dts.document_sequences?.id ?? dts.sequence_id)
+    : valAny.document_sequence_id
+      ? [valAny.document_sequence_id]
+      : (val.document_sequence_ids ?? [])
   Object.assign(form, { ...val, document_sequence_ids: linkedSequenceIds })
 }, { immediate: true })
 
@@ -74,6 +79,7 @@ const handleSubmit = () => {
     affects_accounting: form.affects_accounting,
     affects_tax_book: form.affects_tax_book,
     affects_payment: form.affects_payment,
+    calculates_taxes: form.calculates_taxes ?? true,
     active: form.active,
     category: form.category,
     letter_type: form.letter_type,
@@ -149,13 +155,22 @@ const letterOptions = [
   { label: 'X', value: 'X' }
 ]
 
-const sequenceOptions = computed(() => [
-  { label: 'Sin secuencia', value: '' },
-  ...sequencesStore.items.map(s => ({
+const sequenceOptions = computed(() =>
+  sequencesStore.items.map(s => ({
     label: `${s.name} (PV: ${s.point_of_sale}${s.prefix ? ' - ' + s.prefix : ''})`,
     value: s.id
   }))
-])
+)
+
+const selectedSequences = computed({
+  get: () =>
+    (form.document_sequence_ids ?? [])
+      .map((id: any) => sequenceOptions.value.find(o => o.value === (typeof id === 'string' ? id : id.value)))
+      .filter(Boolean),
+  set: (val: any) => {
+    form.document_sequence_ids = (val ?? []).map((item: any) => typeof item === 'string' ? item : item.value)
+  }
+})
 
 const selectedDirection = computed({
   get: () => directionOptions.find(o => o.value === form.direction) ?? directionOptions[0],
@@ -169,63 +184,154 @@ const selectedCategory = computed({
 </script>
 
 <template>
-  <form class="space-y-4" @submit.prevent="handleSubmit">
-    <div class="grid grid-cols-2 gap-4">
-      <UFormField label="Código" name="code" required>
-        <UInput v-model="form.code" placeholder="Ej: FA-A" :disabled="!!form.id" />
+  <form class="space-y-5" @submit.prevent="handleSubmit">
+    <!-- DATOS GENERALES -->
+    <div class="space-y-4">
+      <p class="text-xs font-semibold text-muted uppercase tracking-wide">Datos generales</p>
+      <div class="grid grid-cols-2 gap-4">
+        <UFormField label="Código" name="code" required>
+          <UInput v-model="form.code" placeholder="Ej: FA-A" :disabled="!!form.id" />
+        </UFormField>
+        <UFormField label="Dirección" name="direction" required>
+          <USelectMenu v-model="selectedDirection" :items="directionOptions" />
+        </UFormField>
+      </div>
+      <UFormField label="Descripción" name="description" required>
+        <UInput v-model="form.description" placeholder="Ej: Factura A Venta" />
       </UFormField>
-      <UFormField label="Dirección" name="direction" required>
-        <USelectMenu v-model="selectedDirection" :items="directionOptions" />
-      </UFormField>
-    </div>
-    <UFormField label="Descripción" name="description" required>
-      <UInput v-model="form.description" placeholder="Ej: Factura A Venta" />
-    </UFormField>
-    <div class="grid grid-cols-2 gap-4">
-      <UFormField label="Categoría" name="category">
-        <USelectMenu v-model="selectedCategory" :items="categoryOptions" placeholder="Seleccionar..." />
-      </UFormField>
-      <UFormField label="Letra AFIP" name="letter_type">
-        <USelectMenu v-model="form.letter_type" :items="letterOptions" placeholder="A, B, C, X" />
-      </UFormField>
-    </div>
-    <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-2 gap-4">
+        <UFormField label="Categoría" name="category">
+          <USelectMenu v-model="selectedCategory" :items="categoryOptions" placeholder="Seleccionar..." />
+        </UFormField>
+        <UFormField label="Letra AFIP" name="letter_type">
+          <USelectMenu v-model="form.letter_type" :items="letterOptions" placeholder="A, B, C, X" />
+        </UFormField>
+      </div>
       <UFormField label="Código AFIP" name="afip_code">
         <UInput v-model="form.afip_code" placeholder="Ej: 01, 06, 11" />
       </UFormField>
-      <div>
-        <UFormField label="Secuencias de numeración" name="document_sequence_ids">
-          <USelectMenu
-            v-model="form.document_sequence_ids"
-            :items="sequenceOptions.filter(o => o.value)"
-            placeholder="Seleccionar secuencias..."
-            multiple
-            searchable
-          />
-        </UFormField>
-        <UButton label="Crear secuencia" variant="ghost" size="xs" icon="i-lucide-plus" class="mt-1" @click="openSeqCreate" />
-      </div>
     </div>
-    <div class="grid grid-cols-2 gap-4">
-      <div class="flex items-end gap-4 pb-1">
-        <UCheckbox v-model="form.requires_cae" label="Requiere CAE" />
-        <UCheckbox v-model="form.is_electronic" label="Electrónico" />
-      </div>
-    </div>
-    <div class="grid grid-cols-3 gap-4">
-      <UCheckbox v-model="form.affects_stock" label="Afecta stock" />
-      <UCheckbox v-model="form.affects_accounting" label="Afecta contabilidad" />
-      <UCheckbox v-model="form.affects_tax_book" label="Libro IVA" />
-      <UCheckbox v-model="form.affects_payment" label="Afecta pagos" />
-    </div>
-    <UCheckbox v-model="form.active" label="Activo" />
 
-    <!-- TAXES SECTION -->
+    <USeparator />
+
+    <!-- SECUENCIAS -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold text-muted uppercase tracking-wide">Secuencias de numeración</p>
+          <p class="text-xs text-muted mt-0.5">Define cómo se numeran los comprobantes (punto de venta, prefijo y rango).</p>
+        </div>
+        <UButton label="Crear secuencia" variant="outline" size="xs" icon="i-lucide-plus" @click="openSeqCreate" />
+      </div>
+      <UFormField name="document_sequence_ids">
+        <USelectMenu
+          v-model="selectedSequences"
+          :items="sequenceOptions"
+          placeholder="Seleccionar secuencias..."
+          multiple
+          searchable
+          class="w-full"
+        />
+      </UFormField>
+    </div>
+
+    <USeparator />
+
+    <!-- FACTURACIÓN ELECTRÓNICA -->
+    <div class="space-y-3">
+      <p class="text-xs font-semibold text-muted uppercase tracking-wide">Facturación electrónica</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+          <div>
+            <p class="text-sm font-medium">Requiere CAE</p>
+            <p class="text-xs text-muted">Solicita CAE a ARCA/AFIP</p>
+          </div>
+          <USwitch v-model="form.requires_cae" />
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+          <div>
+            <p class="text-sm font-medium">Electrónico</p>
+            <p class="text-xs text-muted">Comprobante electrónico</p>
+          </div>
+          <USwitch v-model="form.is_electronic" />
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPORTAMIENTO -->
+    <div class="space-y-3">
+      <p class="text-xs font-semibold text-muted uppercase tracking-wide">Comportamiento</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+          <div>
+            <p class="text-sm font-medium">Afecta stock</p>
+            <p class="text-xs text-muted">Movimenta inventario</p>
+          </div>
+          <USwitch v-model="form.affects_stock" />
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+          <div>
+            <p class="text-sm font-medium">Afecta contabilidad</p>
+            <p class="text-xs text-muted">Genera asientos</p>
+          </div>
+          <USwitch v-model="form.affects_accounting" />
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+          <div>
+            <p class="text-sm font-medium">Libro IVA</p>
+            <p class="text-xs text-muted">Se informa en libro IVA</p>
+          </div>
+          <USwitch v-model="form.affects_tax_book" />
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+          <div>
+            <p class="text-sm font-medium">Afecta pagos</p>
+            <p class="text-xs text-muted">Se aplica en pagos/cobros</p>
+          </div>
+          <USwitch v-model="form.affects_payment" />
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3 col-span-2">
+          <div>
+            <p class="text-sm font-medium">Calcula impuestos</p>
+            <p class="text-xs text-muted">El motor fiscal calcula impuestos para este tipo</p>
+          </div>
+          <USwitch :model-value="form.calculates_taxes ?? true" @update:model-value="(v: boolean | 'indeterminate') => form.calculates_taxes = v === true" />
+        </div>
+      </div>
+      <UAlert
+        v-if="form.calculates_taxes === false"
+        color="warning"
+        variant="soft"
+        icon="i-lucide-alert-triangle"
+        class="text-xs"
+        title="Comprobante sin desglose de impuestos"
+        description="El motor fiscal no calculará impuestos para documentos de este tipo (ej: comprobantes X o internos)."
+      />
+    </div>
+
+    <USeparator />
+
+    <!-- ESTADO -->
+    <div class="flex items-center justify-between gap-3 rounded-lg border p-3"
+      :class="form.active ? 'border-success/40 bg-success/5' : 'border-default'"
+    >
+      <div class="flex items-center gap-2">
+        <UIcon :name="form.active ? 'i-lucide-check-circle' : 'i-lucide-circle-off'" class="size-4"
+          :class="form.active ? 'text-success' : 'text-muted'" />
+        <div>
+          <p class="text-sm font-medium">{{ form.active ? 'Tipo de documento activo' : 'Tipo de documento inactivo' }}</p>
+          <p class="text-xs text-muted">{{ form.active ? 'Disponible para crear documentos' : 'No aparecerá al crear documentos' }}</p>
+        </div>
+      </div>
+      <USwitch v-model="form.active" color="success" />
+    </div>
+
+    <!-- IMPUESTOS -->
     <div class="border border-default rounded-lg p-4 space-y-3">
-      <h4 class="text-sm font-semibold flex items-center gap-2">
+      <div class="flex items-center gap-2">
         <UIcon name="i-lucide-receipt" class="size-4" />
-        Impuestos del tipo de documento
-      </h4>
+        <h4 class="text-sm font-semibold">Impuestos del tipo de documento</h4>
+      </div>
       <p class="text-xs text-muted">
         Estos impuestos se aplican automáticamente al crear documentos de este tipo.
       </p>
@@ -269,7 +375,7 @@ const selectedCategory = computed({
       </div>
     </div>
 
-    <div class="flex justify-end gap-2 pt-4">
+    <div class="flex justify-end gap-2 pt-2 border-t border-default">
       <UButton label="Cancelar" variant="ghost" @click="emit('cancel')" />
       <UButton label="Guardar" type="submit" :loading="loading" />
     </div>
@@ -297,7 +403,7 @@ const selectedCategory = computed({
               <UInput v-model.number="seqForm.range_end" type="number" />
             </UFormField>
           </div>
-          <UCheckbox v-model="seqForm.automatic" label="Numeración automática" />
+          <USwitch v-model="seqForm.automatic" label="Numeración automática" />
           <div class="flex justify-end gap-2 pt-4">
             <UButton label="Cancelar" variant="ghost" @click="showSeqCreate = false" />
             <UButton label="Crear secuencia" color="primary" type="submit" :loading="seqCreating" />

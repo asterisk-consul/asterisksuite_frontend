@@ -58,7 +58,6 @@ onMounted(() => {
 <template>
   <AppVersionBanner
     v-if="showBanner"
-    :message="`Se actualizó la aplicación con mejoras en operaciones internacionales, pagos y conciliación de pagos por factura.`"
     :version="currentVersion"
     :changelog-url="'/changelog'"
     @dismiss="dismissVersionBanner"

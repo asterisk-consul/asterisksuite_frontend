@@ -2,6 +2,7 @@
 interface Props {
   version: string
   changelogUrl: string
+  message?: string
 }
 
 interface Emits {
@@ -10,6 +11,17 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Texto del banner: campo `message` de la última versión en versions.json,
+// con fallback a `notes` y a un texto genérico
+const { data: versions } = useFetch<Array<{ message?: string | null; notes?: string | null }>>('/api/changelog', {
+  default: () => []
+})
+const latestMessage = computed(() =>
+  versions.value?.[0]?.message ?? versions.value?.[0]?.notes ?? null
+)
+
+const bannerText = computed(() => props.message ?? latestMessage.value ?? 'Descubrí las novedades de esta versión')
 </script>
 
 <template>
@@ -18,8 +30,8 @@ const emit = defineEmits<Emits>()
     role="alert"
   >
     <div class="mx-auto max-w-5xl flex items-center justify-between gap-3 px-4 py-2.5">
-      <p class="text-sm text-primary font-medium">
-        Nueva versión <strong>{{ version }}</strong> disponible — mejoras en operaciones internacionales, pagos y conciliación.
+      <p class="text-sm text-primary font-medium truncate min-w-0">
+        Nueva versión <strong>{{ version }}</strong> disponible — {{ bannerText }}
       </p>
       <div class="flex items-center gap-2 flex-shrink-0">
         <NuxtLink

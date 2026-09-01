@@ -334,6 +334,56 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
+  const associateQuote = async (operationId: string, documentId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      const created = await service.associateQuote(operationId, documentId)
+      if (current.value?.id === operationId) {
+        await fetchOne(operationId)
+      }
+      return created
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al asociar presupuesto'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const updateQuoteStatus = async (operationId: string, quoteId: string, status: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      const updated = await service.updateQuoteStatus(operationId, quoteId, status)
+      if (current.value?.id === operationId) {
+        await fetchOne(operationId)
+      }
+      return updated
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al actualizar presupuesto'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const disassociateQuote = async (operationId: string, quoteId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      await service.disassociateQuote(operationId, quoteId)
+      if (current.value?.id === operationId) {
+        await fetchOne(operationId)
+      }
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al desasociar presupuesto'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     items,
     current,
@@ -354,6 +404,9 @@ export const useInternationalOperationsStore = defineStore('international-operat
     disassociatePayment,
     associatePurchaseOrder,
     disassociatePurchaseOrder,
+    associateQuote,
+    updateQuoteStatus,
+    disassociateQuote,
     createContainer,
     findOneContainer,
     updateContainer,

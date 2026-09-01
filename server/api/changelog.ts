@@ -96,7 +96,8 @@ export default defineEventHandler(async () => {
         title: `v${v.version}`,
         date: v.date,
         body: parsed.body,
-        notes: v.notes || null
+        notes: v.notes || null,
+        message: v.message || null
       }
     })
   )

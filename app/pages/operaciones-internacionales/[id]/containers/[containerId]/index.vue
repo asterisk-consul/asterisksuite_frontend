@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
-import type { ContainerEvent, ContainerEventType, ContainerStatus, ContainerType } from '~/modulos/international-operations/types/international-operations.types'
+import type { ContainerEvent, ContainerEventType, ContainerStatus, ContainerType, CreateEventInput } from '~/modulos/international-operations/types/international-operations.types'
 
 definePageMeta({ layout: 'default', middleware: ['auth'] })
 
@@ -17,6 +17,7 @@ const {
   containerStatusColor,
   containerStatusLabel,
   containerStatusOptions,
+  containerStatusDescriptions,
   containerTypeLabel,
   formatCurrency,
   formatDate
@@ -28,7 +29,7 @@ const loading = ref(true)
 const showEventForm = ref(false)
 const eventForm = ref<CreateEventInput>({
   event_type: 'LOADED_AT_ORIGIN' as ContainerEventType,
-  event_date: new Date().toISOString().split('T')[0],
+  event_date: new Date().toISOString().split('T')[0]!,
   location_text: '',
   description: ''
 })
@@ -46,25 +47,17 @@ const eventTypes: { label: string; value: ContainerEventType }[] = [
   { label: 'Entregado', value: 'DELIVERED' }
 ]
 
-const containerStatusTransitions: Record<ContainerStatus, { label: string; value: ContainerStatus }[]> = {
-  PREPARING: [{ label: 'Cargado', value: 'LOADED' }],
-  LOADED: [{ label: 'Embarcado', value: 'SHIPPED' }],
-  SHIPPED: [{ label: 'En Tránsito', value: 'IN_TRANSIT' }],
-  IN_TRANSIT: [{ label: 'Arribado', value: 'ARRIVED' }],
-  ARRIVED: [{ label: 'Aduana', value: 'CUSTOMS' }],
-  CUSTOMS: [{ label: 'Liberado', value: 'RELEASED' }],
-  RELEASED: [{ label: 'Entregado', value: 'DELIVERED' }],
-  DELIVERED: [{ label: 'Cerrado', value: 'CLOSED' }],
-  CLOSED: []
-}
-
-const nextContainerStatuses = computed(() => {
-  if (!container.value) return []
-  return containerStatusTransitions[container.value.status] ?? []
-})
+const containerStatusItems = computed(() =>
+  containerStatusOptions.map((s) => ({
+    label: s.value === container.value?.status ? `${s.label} (actual)` : s.label,
+    disabled: s.value === container.value?.status,
+    onSelect: () => handleStatusChange(s.value as ContainerStatus)
+  }))
+)
 
 const handleStatusChange = async (status: ContainerStatus) => {
-  if (confirm(`¿Cambiar estado a "${containerStatusLabel(status)}"?`)) {
+  const current = container.value?.status
+  if (current && current !== status && confirm(`¿Cambiar estado de "${containerStatusLabel(current)}" a "${containerStatusLabel(status)}"?`)) {
     await updateContainer(containerId, { status })
     container.value = await findOneContainer(containerId)
   }
@@ -84,7 +77,7 @@ const handleCreateEvent = async () => {
   showEventForm.value = false
   eventForm.value = {
     event_type: 'LOADED_AT_ORIGIN' as ContainerEventType,
-    event_date: new Date().toISOString().split('T')[0],
+    event_date: new Date().toISOString().split('T')[0]!,
     location_text: '',
     description: ''
   }
@@ -103,6 +96,12 @@ const handleRemoveEvent = async (eventId: string) => {
     <AppPageHeader v-if="container" :title="container.container_number" :description="`Contenedor — ${container.operation?.number ?? ''}`">
       <template #links>
         <UButton label="Volver" variant="ghost" icon="i-lucide-arrow-left" :to="`/operaciones-internacionales/${container.operation?.id}`" />
+        <UButton
+          label="Editar"
+          variant="outline"
+          icon="i-lucide-pencil"
+          :to="`/operaciones-internacionales/${container.operation?.id}/containers/${containerId}/edit`"
+        />
       </template>
     </AppPageHeader>
 
@@ -113,20 +112,26 @@ const handleRemoveEvent = async (eventId: string) => {
 
     <template v-if="container">
       <div class="flex flex-wrap gap-2 items-center">
-        <UBadge :label="containerStatusLabel(container.status)" :color="containerStatusColor(container.status)" size="lg" />
+        <UBadge :label="containerStatusLabel(container.status)" :color="containerStatusColor(container.status) as any" size="lg" />
         <span class="text-muted text-sm" v-if="container.container_type">{{ containerTypeLabel(container.container_type as ContainerType) }}</span>
       </div>
 
-      <div v-if="nextContainerStatuses.length" class="flex gap-2 my-4">
-        <UButton
-          v-for="ns in nextContainerStatuses"
-          :key="ns.value"
-          :label="`→ ${ns.label}`"
-          color="primary"
-          variant="outline"
-          size="sm"
-          @click="handleStatusChange(ns.value)"
-        />
+      <div class="flex gap-2 my-4 items-center">
+        <UDropdownMenu :items="containerStatusItems">
+          <UButton label="Cambiar estado" icon="i-lucide-refresh-cw" variant="outline" size="sm" />
+        </UDropdownMenu>
+        <UPopover>
+          <UButton icon="i-lucide-help-circle" size="xs" variant="ghost" aria-label="Estados" />
+          <template #content>
+            <div class="p-4 w-80 space-y-2.5">
+              <p class="text-xs font-semibold text-muted uppercase tracking-wide">Estados del contenedor</p>
+              <div v-for="(d, key) in containerStatusDescriptions" :key="key">
+                <p class="text-xs font-medium">{{ d.label }}</p>
+                <p class="text-xs text-muted">{{ d.description }}</p>
+              </div>
+            </div>
+          </template>
+        </UPopover>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -197,7 +202,7 @@ const handleRemoveEvent = async (eventId: string) => {
         <template #header>
           <div class="flex items-center justify-between w-full">
             <span class="font-medium">Timeline</span>
-            <UButton label="Agregar evento" icon="i-lucide-plus" size="xs" variant="outline" @click="showEventForm = !showEventForm" />
+            <UButton label="Agregar evento" icon="i-lucide-plus" size="xs" variant="outline" @click="() => { showEventForm = !showEventForm }" />
           </div>
         </template>
 
@@ -217,7 +222,7 @@ const handleRemoveEvent = async (eventId: string) => {
             <UInput v-model="eventForm.description" placeholder="Descripción del evento..." class="w-full" />
           </UFormField>
           <div class="flex justify-end gap-2">
-            <UButton label="Cancelar" variant="ghost" size="sm" @click="showEventForm = false" />
+            <UButton label="Cancelar" variant="ghost" size="sm" @click="() => { showEventForm = false }" />
             <UButton label="Guardar" color="primary" size="sm" @click="handleCreateEvent" />
           </div>
         </div>
