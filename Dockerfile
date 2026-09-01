@@ -14,7 +14,9 @@ ENV NUXT_API_BASE=$NUXT_API_BASE
 RUN echo "NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE" && \
     echo "NUXT_API_BASE=$NUXT_API_BASE"
 
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+# Heap configurable del build (subir vía --build-arg NODE_MEMORY=8192 si hiciera falta)
+ARG NODE_MEMORY=6144
+ENV NODE_OPTIONS="--max-old-space-size=${NODE_MEMORY}"
 ENV CI=true
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

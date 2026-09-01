@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
+import { useAccountsStore } from '~/modulos/contabilidad/store/accounts.store'
 import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
@@ -31,6 +32,7 @@ export interface PaymentFormData {
   party_id: string
   bank_account_id: string
   cash_box_id: string
+  account_id: string
   check_ids: string[]
   documents?: { document_id: string; amount_applied: number }[]
 }
@@ -52,6 +54,7 @@ const emit = defineEmits<{
 
 const { cashBoxes, init: initCashBoxes, openSession, getSessions } = useCashBoxes()
 const { bankAccounts, selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
+const accountsStore = useAccountsStore()
 const { createLightCheck, fetchAvailableOwnChecks, fetchAvailableCustomerChecks, fetchPendingSalesDocuments, fetchPendingPurchaseDocuments } = usePayments()
 const { init: initCurrencies, codeSelectItems: currencyOptions, baseCurrency } = useCurrencies()
 const {
@@ -176,6 +179,7 @@ const defaultForm: PaymentFormData = {
   party_id: '',
   bank_account_id: '',
   cash_box_id: '',
+  account_id: '',
   check_ids: [],
 }
 

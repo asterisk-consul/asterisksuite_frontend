@@ -37,6 +37,8 @@ export interface Payment {
   reference?: string | null
   bank_account_id?: string | null
   cash_box_id?: string | null
+  account_id?: string | null
+  account?: { id: string; code: string; name: string; account_type: string } | null
   check_ids?: string[]
   status: PaymentStatus
   payment_mode?: PaymentMode
@@ -75,6 +77,7 @@ export interface CreatePaymentInput {
   reference?: string
   bank_account_id?: string
   cash_box_id?: string
+  account_id?: string
   check_ids?: string[]
   documents?: CreatePaymentDocumentInput[]
   status?: PaymentStatus
