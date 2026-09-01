@@ -54,6 +54,11 @@ export function usePayments() {
 
   const fetchAvailableCustomerChecks = async () => store.fetchAvailableCustomerChecks()
 
+  // Refresca ambas listas de cartera (propios + terceros)
+  const fetchAvailableChecks = async () => {
+    await Promise.all([store.fetchAvailableOwnChecks(), store.fetchAvailableCustomerChecks()])
+  }
+
   const createLightCheck = async (data: CreateCheckInput) => store.createLightCheck(data)
 
   const applyAdvance = async (paymentId: string, data: ApplyAdvanceInput) => store.applyAdvance(paymentId, data)
@@ -101,6 +106,7 @@ export function usePayments() {
     pendingPurchaseDocuments,
     availableOwnChecks,
     availableCustomerChecks,
+    fetchAvailableChecks,
     loading: computed(() => store.loading),
 
     // computed

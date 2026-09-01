@@ -64,6 +64,10 @@ const handleSubmit = async (formData: CheckFormData) => {
   saving.value = true
   try {
     await update(formData.id, {
+      check_number: formData.check_number,
+      amount: Number(formData.amount),
+      currency_code: formData.currency_code,
+      issue_date: formData.issue_date || undefined,
       bank_name: formData.bank_name,
       bank_account_id: formData.bank_account_id || undefined,
       bank_branch: formData.bank_branch || undefined,

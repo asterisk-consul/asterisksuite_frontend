@@ -67,6 +67,10 @@ export interface CreateCheckInput {
 }
 
 export interface UpdateCheckInput {
+  check_number?: string
+  amount?: number
+  currency_code?: string
+  issue_date?: string
   bank_name?: string
   bank_account_id?: string
   bank_branch?: string

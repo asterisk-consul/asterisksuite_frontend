@@ -39,6 +39,7 @@ export interface AvailableCheck {
   issuer_name: string
   issuer_id: string | null
   amount: number
+  available_amount?: number | null
   currency_code: string
   issue_date: string
   due_date: string
@@ -94,6 +95,12 @@ export const usePaymentsService = () => {
     return $fetch<PendingDocument[]>(`${urlDocsPurchases}/pending`, {
       method: 'GET',
       query: partyId ? { party_id: partyId } : {}
+    })
+  }
+
+  const findAvailableChecks = () => {
+    return $fetch<AvailableCheck[]>('/api/erp/checks/available', {
+      method: 'GET'
     })
   }
 
@@ -188,6 +195,7 @@ export const usePaymentsService = () => {
     findOne,
     findPendingSalesDocuments,
     findPendingPurchaseDocuments,
+    findAvailableChecks,
     findAvailableOwnChecks,
     findAvailableCustomerChecks,
     createLightCheck,

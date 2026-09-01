@@ -149,6 +149,17 @@ export const paymentColumns = (actions: {
         cell: ({ row }) => row.original.description ?? '—'
       },
       {
+        id: 'account',
+        label: 'Cuenta',
+        accessorFn: (row: any) => (row.account ? `${row.account.code} - ${row.account.name}` : ''),
+        sortable: true,
+        cell: ({ row }) => {
+          const acc = (row.original as any).account
+          if (!acc) return '—'
+          return `${acc.code} - ${acc.name}`
+        }
+      },
+      {
         key: 'status',
         label: 'Estado',
         badge: {

@@ -202,6 +202,12 @@ export const navigationTree: DrilldownNode[] = [
             permission: 'payments.read'
           },
           {
+            label: 'Gastos por cuenta',
+            icon: 'i-lucide-chart-pie',
+            to: '/erp/treasury/reports/expenses-by-account',
+            permission: 'payments.read'
+          },
+          {
             label: 'Informe consolidado',
             icon: 'i-lucide-file-text',
             to: '/erp/treasury/reports/consolidated',

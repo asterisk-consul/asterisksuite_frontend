@@ -1,5 +1,24 @@
 [
   {
+    "version": "0.39.1-alpha",
+    "date": "2026-09-01",
+    "stage": "alpha",
+    "notes": "Fix seleccion de cheques en pagos y validacion real en alta de cheque",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "pagos",
+        "title": "Fix doble toggle en seleccion de cheques: click en checkbox se disparaba dos veces por burbujeo de eventos"
+      },
+      {
+        "type": "fix",
+        "scope": "cheques",
+        "title": "Validacion real en formulario de cheques: toast con campos faltantes antes de enviar al backend"
+      }
+    ],
+    "message": "Corrección de selección de cheques en pagos: ahora se puede hacer clic en cualquier parte del cheque para seleccionarlo. Alta de cheque valida campos obligatorios antes de enviar."
+  },
+  {
     "version": "0.39.0-alpha",
     "date": "2026-09-01",
     "stage": "alpha",

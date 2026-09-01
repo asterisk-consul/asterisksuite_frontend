@@ -78,6 +78,24 @@ watch(
 )
 
 const handleSubmit = () => {
+  // Validación real: los "required" visuales no bloquean el submit
+  const missing: string[] = []
+  if (!form.check_number?.trim()) missing.push('N° Cheque')
+  if (!form.bank_name?.trim()) missing.push('Banco')
+  if (!form.issuer_name?.trim()) missing.push('Emisor')
+  if (!form.amount || Number(form.amount) <= 0) missing.push('Monto')
+  if (!form.issue_date) missing.push('Fecha emisión')
+  if (!form.due_date) missing.push('Vencimiento')
+  if (missing.length > 0) {
+    const toast = useToast()
+    toast.add({
+      title: 'Faltan campos obligatorios',
+      description: missing.join(', '),
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return
+  }
   emit('submit', { ...form })
 }
 

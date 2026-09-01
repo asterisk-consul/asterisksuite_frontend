@@ -87,6 +87,7 @@ onMounted(async () => {
       party_id: payment.party_id ?? '',
       bank_account_id: payment.bank_account_id ?? '',
       cash_box_id: payment.cash_box_id ?? '',
+      account_id: payment.account_id ?? '',
       check_ids: [],
       documents: (payment as any).documents?.map((d: any) => ({
         document_id: d.document_id,
@@ -110,6 +111,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       party_id: formData.party_id || undefined,
       bank_account_id: formData.bank_account_id || undefined,
       cash_box_id: formData.cash_box_id || undefined,
+      account_id: formData.account_id || null,
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
       documents: formData.documents?.length ? formData.documents : undefined,
     })

@@ -31,6 +31,7 @@ const initialValues = ref<PaymentFormData | undefined>(
   partyId.value
     ? {
         type: paymentType.value,
+        payment_mode: 'NORMAL',
         date: today(),
         payment_method: 'CASH',
         amount: 0,
@@ -40,6 +41,7 @@ const initialValues = ref<PaymentFormData | undefined>(
         party_id: partyId.value,
         bank_account_id: '',
         cash_box_id: '',
+        account_id: '',
         check_ids: [],
         documents: documentId.value ? [{ document_id: documentId.value, amount_applied: 0 }] : undefined
       }
@@ -81,6 +83,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       party_id: formData.party_id || undefined,
       bank_account_id: formData.bank_account_id || undefined,
       cash_box_id: formData.cash_box_id || undefined,
+      account_id: formData.account_id || undefined,
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
       documents: formData.documents?.length ? formData.documents : undefined,
     }
@@ -107,7 +110,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       description="Crear un nuevo pago o cobro"
     />
 
-    <div class="max-w-4xl">
+    <div class="max-w-5xl">
       <PaymentForm
         v-model="initialValues"
         :pending-sales-documents="pendingSalesDocuments"

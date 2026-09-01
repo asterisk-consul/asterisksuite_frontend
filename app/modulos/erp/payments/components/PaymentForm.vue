@@ -55,7 +55,7 @@ const emit = defineEmits<{
 const { cashBoxes, init: initCashBoxes, openSession, getSessions } = useCashBoxes()
 const { bankAccounts, selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
 const accountsStore = useAccountsStore()
-const { createLightCheck, fetchAvailableOwnChecks, fetchAvailableCustomerChecks, fetchPendingSalesDocuments, fetchPendingPurchaseDocuments } = usePayments()
+const { createLightCheck, fetchAvailableChecks, fetchPendingSalesDocuments, fetchPendingPurchaseDocuments } = usePayments()
 const { init: initCurrencies, codeSelectItems: currencyOptions, baseCurrency } = useCurrencies()
 const {
   exchangeRate: resolvedRate,
@@ -68,7 +68,7 @@ const partiesService = useBusinessPartiesService()
 const fiscalService = useFiscalService()
 const toast = useToast()
 
-// ─── Retenciones (motor fiscal) ──────────────────────────────
+// ═══ Retenciones (motor fiscal) ═══
 const withholdings = ref<WithholdingProposal[]>([])
 const withholdingSkipped = ref<{ tax_type: string; reason: string }[]>([])
 const retentionLoading = ref(false)
@@ -238,8 +238,6 @@ onMounted(async () => {
 watch(
   () => props.modelValue,
   (val) => {
-    console.log('[PaymentForm] modelValue changed:', val)
-    console.log('[PaymentForm] documents:', val?.documents)
     if (!val) {
       Object.assign(form, { ...defaultForm })
       selectedDocs.value.clear()
@@ -338,10 +336,17 @@ const filteredDocs = computed(() => {
   )
 })
 
+// Cartera completa: propios + terceros, ordenados por vencimiento.
+// En cobros solo se ofrecen cheques de terceros.
+const checksInCartera = computed(() => [
+  ...(props.availableOwnChecks ?? []),
+  ...(props.availableCustomerChecks ?? [])
+].sort((a, b) => a.due_date.localeCompare(b.due_date)))
+
 const availableChecks = computed(() => {
-  const checks = isCollection.value
-    ? (props.availableCustomerChecks ?? [])
-    : (props.availableOwnChecks ?? [])
+  let checks = isCollection.value
+    ? checksInCartera.value.filter(c => !c.is_own)
+    : checksInCartera.value
   if (!form.currency_code) return checks
   return checks.filter(c => c.currency_code === form.currency_code)
 })
@@ -366,21 +371,33 @@ const totalApplied = computed(() => {
   return Math.round(total * 100) / 100
 })
 
+const checkAvailableAmount = (check: AvailableCheck) =>
+  check.available_amount != null ? Number(check.available_amount) : Number(check.amount)
+
 const totalChecksAmount = computed(() => {
   let total = 0
   for (const check of selectedChecks.value.values()) {
-    total += Number(check.amount)
+    total += checkAvailableAmount(check)
   }
   return Math.round(total * 100) / 100
 })
 
+// Reparte el presupuesto de cheques entre los documentos seleccionados:
+// cada documento recibe lo aplicado (editable) pero sin exceder el saldo disponible
+const redistributeAppliedAmounts = () => {
+  if (!isCheck.value || selectedChecks.value.size === 0 || selectedDocs.value.size === 0) return
+  let budget = totalChecksAmount.value
+  for (const [, entry] of selectedDocs.value.entries()) {
+    const capped = Math.min(entry.amount, budget, entry.doc.pending_amount)
+    entry.amount = Math.round(capped * 100) / 100
+    budget = Math.round((budget - entry.amount) * 100) / 100
+  }
+  form.amount = totalApplied.value
+}
+
 watch(selectedPaymentMethod, async (val) => {
   if (val?.value === 'CHECK') {
-    if (isCollection.value) {
-      await fetchAvailableCustomerChecks()
-    } else {
-      await fetchAvailableOwnChecks()
-    }
+    await fetchAvailableChecks()
   } else {
     selectedChecks.value.clear()
     form.check_ids = []
@@ -417,7 +434,7 @@ watch(resolvedRate, (newRate) => {
   form.amount = totalApplied.value
 })
 
-// ─── Exchange Rate: auto-resolve on currency change ─────────
+// ═══ Exchange Rate: auto-resolve on currency change ═══
 const isForeignCurrency = computed(() => {
   if (!baseCurrency.value) return false
   return form.currency_code.toUpperCase() !== baseCurrency.value.code.toUpperCase()
@@ -463,11 +480,7 @@ watch(selectedType, async (val) => {
   form.check_ids = []
 
   if (isCheck.value) {
-    if (val?.value === 'COLLECTION') {
-      await fetchAvailableCustomerChecks()
-    } else {
-      await fetchAvailableOwnChecks()
-    }
+    await fetchAvailableChecks()
   }
 })
 
@@ -478,7 +491,8 @@ const selectCheck = (check: AvailableCheck) => {
     selectedChecks.value.set(check.id, check)
   }
   form.check_ids = Array.from(selectedChecks.value.keys())
-  form.amount = totalChecksAmount.value
+  redistributeAppliedAmounts()
+  form.amount = selectedDocs.value.size > 0 ? totalApplied.value : totalChecksAmount.value
 }
 
 const isCheckSelected = (id: string) => selectedChecks.value.has(id)
@@ -579,6 +593,7 @@ const toggleDoc = (doc: PendingDocument) => {
   }
 
   form.amount = totalApplied.value
+  redistributeAppliedAmounts()
 }
 
 const updateDocAmount = (docId: string, amount: number) => {
@@ -607,17 +622,11 @@ const handleCheckCreated = async (checkData: CheckFormData) => {
     notes: checkData.notes || undefined,
   })
   checkModalOpen.value = false
-  if (isCollection.value) {
-    await fetchAvailableCustomerChecks()
-  } else {
-    await fetchAvailableOwnChecks()
-  }
+  await fetchAvailableChecks()
 }
 
 const handleSubmit = async () => {
   const paymentAmount = totalApplied.value > 0 ? totalApplied.value : totalChecksAmount.value > 0 ? totalChecksAmount.value : form.amount
-  console.log('[PaymentForm] paymentAmount:', paymentAmount)
-  console.log('[PaymentForm] selectedDocs:', Array.from(selectedDocs.value.entries()))
 
   // Retenciones: usar las cargadas/confirmadas en el formulario
   const validWithholdings = withholdings.value.filter(w => Number(w.withheld_amount) > 0)
@@ -629,6 +638,21 @@ const handleSubmit = async () => {
     document_id: d.doc.id,
     amount_applied: d.amount
   }))
+
+  // Asignación de cheques: distribuye secuencialmente hasta cubrir lo aplicado
+  const buildCheckAllocations = (totalToCover: number) => {
+    if (!isCheck.value || selectedChecks.value.size === 0) return undefined
+    let remaining = Math.round(totalToCover * 100) / 100
+    const allocations: { check_id: string; amount_applied: number }[] = []
+    for (const [id, check] of selectedChecks.value.entries()) {
+      if (remaining <= 0.009) break
+      const available = checkAvailableAmount(check)
+      const applied = Math.min(available, remaining)
+      allocations.push({ check_id: id, amount_applied: Math.round(applied * 100) / 100 })
+      remaining = Math.round((remaining - applied) * 100) / 100
+    }
+    return allocations.length > 0 ? allocations : undefined
+  }
 
   // Distribuir retenciones proporcionalmente entre documentos aplicados
   const withholdingsPayload: PaymentWithholdingPayload[] = validWithholdings.map(w => {
@@ -657,16 +681,15 @@ const handleSubmit = async () => {
     }
   })
 
-  console.log('[PaymentForm] documentsData:', documentsData)
-
   const payload = {
     ...form,
     amount: cashAmount,
-    check_ids: form.check_ids.length > 0 ? form.check_ids : undefined,
+    account_id: form.account_id || undefined,
+    check_ids: undefined,
+    checks: buildCheckAllocations(paymentAmount),
     withholdings: withholdingsPayload.length > 0 ? withholdingsPayload : undefined,
     documents: documentsData.length > 0 ? documentsData : undefined
   }
-  console.log('[PaymentForm] EMIT payload:', payload)
 
   emit('submit', payload as any)
 }
@@ -804,11 +827,11 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       </div>
     </div>
 
-    <!-- SELECTOR DE CHEQUES (PAGO y COBRO) -->
+    <!-- SELECTOR DE CHEQUES (PAGO y COBRO) — cartera completa -->
     <div v-if="isCheck" class="border border-default rounded-lg p-4 space-y-3">
       <div class="flex items-center justify-between">
         <h4 class="text-sm font-medium">
-          {{ isCollection ? 'Seleccionar cheques del cliente' : 'Seleccionar cheques propios' }}
+          {{ isCollection ? 'Seleccionar cheques de terceros' : 'Seleccionar cheques (propios y de terceros)' }}
         </h4>
         <div class="flex items-center gap-2">
           <UButton label="Crear cheque" size="xs" variant="outline" @click="checkModalOpen = true" />
@@ -817,8 +840,14 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
           </div>
         </div>
       </div>
-      <div v-if="availableChecks.length === 0" class="text-center py-4 text-muted text-sm">
-        {{ form.currency_code ? `No hay cheques en ${form.currency_code}. Cree uno nuevo con el botón de arriba.` : 'No hay cheques disponibles. Cree uno nuevo con el botón de arriba.' }}
+      <div v-if="availableChecks.length === 0" class="text-center py-4 text-muted text-sm space-y-1">
+        <p v-if="checksInCartera.length > 0 && form.currency_code">
+          Hay {{ checksInCartera.length }} cheque(s) en cartera, pero ninguno en {{ form.currency_code }}.
+        </p>
+        <p v-else>
+          No hay cheques en cartera disponibles.
+        </p>
+        <p class="text-xs">Creá uno nuevo con el botón de arriba.</p>
       </div>
       <div v-else class="max-h-64 overflow-y-auto space-y-2">
         <div
@@ -828,19 +857,25 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
           :class="isCheckSelected(check.id) ? 'border-primary bg-primary/5' : 'border-default'"
           @click="selectCheck(check)"
         >
-          <UCheckbox
-            :model-value="isCheckSelected(check.id)"
-            @update:model-value="selectCheck(check)"
-          />
+          <div class="shrink-0" @click.stop>
+            <UCheckbox
+              :model-value="isCheckSelected(check.id)"
+              @update:model-value="selectCheck(check)"
+            />
+          </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium">Cheque #{{ check.check_number }}</span>
               <span class="text-xs text-muted">{{ check.bank_name }}</span>
+              <UBadge :label="check.is_own ? 'Propio' : 'Tercero'" color="neutral" variant="outline" size="xs" />
               <UBadge label="Pendiente" color="warning" size="xs" />
             </div>
             <div class="flex items-center gap-4 text-xs text-muted mt-1">
               <span>Emisor: {{ check.issuer_name }}</span>
               <span>Monto: {{ formatCurrency(Number(check.amount), check.currency_code) }}</span>
+              <span v-if="check.available_amount != null && Number(check.available_amount) < Number(check.amount)" class="text-warning-500 font-medium">
+                Disponible: {{ formatCurrency(Number(check.available_amount), check.currency_code) }}
+              </span>
               <span>Vence: {{ check.due_date }}</span>
             </div>
           </div>

@@ -123,7 +123,8 @@ const links: ButtonProps[] = [
 
 const filterFields: FilterField[] = [
   { id: 'number', label: 'Filtrar por N°...', class: 'w-32' },
-  { id: 'description', label: 'Filtrar por descripción...', class: 'w-56' }
+  { id: 'description', label: 'Filtrar por descripción...', class: 'w-56' },
+  { id: 'account', label: 'Filtrar por cuenta...', class: 'w-48' }
 ]
 
 const sortFields: SortField[] = [
@@ -132,6 +133,7 @@ const sortFields: SortField[] = [
   { label: 'Tipo', value: 'type' },
   { label: 'Método', value: 'payment_method' },
   { label: 'Monto', value: 'amount' },
+  { label: 'Cuenta', value: 'account' },
   { label: 'Estado', value: 'status' },
   { label: 'Fecha Creación', value: 'created_at' }
 ]
