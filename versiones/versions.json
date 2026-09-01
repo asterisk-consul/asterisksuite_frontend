@@ -1,5 +1,44 @@
 [
   {
+    "version": "0.39.2-alpha",
+    "date": "2026-09-01",
+    "stage": "alpha",
+    "notes": "Mejoras UX/UI en pagos: selects full width, sticky footer, retenciones con encabezados y cuenta corriente",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "pagos",
+        "title": "Selects full width en formulario de pagos para consistencia visual"
+      },
+      {
+        "type": "feat",
+        "scope": "pagos",
+        "title": "Fila de metodo/moneda/cuenta contable reorganizada en grid-cols-3"
+      },
+      {
+        "type": "feat",
+        "scope": "pagos",
+        "title": "Sticky footer con total y botonera siempre visible al scrollear"
+      },
+      {
+        "type": "feat",
+        "scope": "pagos",
+        "title": "Metodo de pago Cuenta corriente con card informativa"
+      },
+      {
+        "type": "fix",
+        "scope": "pagos",
+        "title": "Retenciones manuales: encabezados de columna, tooltips descriptivos, badge de jurisdiccion y placeholder auto-calculado"
+      },
+      {
+        "type": "fix",
+        "scope": "pagos",
+        "title": "Edicion de pago: precarga de retenciones guardadas en el formulario"
+      }
+    ],
+    "message": "Selects uniformes a ancho completo, footer pegajoso con total, retenciones con labels y cuenta corriente como metodo de pago. Al editar un pago ahora se ven las retenciones ya guardadas."
+  },
+  {
     "version": "0.39.1-alpha",
     "date": "2026-09-01",
     "stage": "alpha",

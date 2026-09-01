@@ -43,6 +43,7 @@ const props = defineProps<{
   pendingPurchaseDocuments?: PendingDocument[]
   availableOwnChecks?: AvailableCheck[]
   availableCustomerChecks?: AvailableCheck[]
+  initialWithholdings?: WithholdingProposal[]
   loading?: boolean
 }>()
 
@@ -228,6 +229,7 @@ const handleValeCreated = async () => {
 
 onMounted(async () => {
   initCurrencies()
+  accountsStore.fetchAll()
   try {
     allParties.value = await partiesService.findAll()
   } catch (e) {
@@ -260,6 +262,11 @@ watch(
       }
       form.amount = Array.from(selectedDocs.value.values()).reduce((sum, entry) => sum + entry.amount, 0)
     }
+
+    // Precargar retenciones guardadas (modo edición)
+    if (props.initialWithholdings && props.initialWithholdings.length > 0) {
+      withholdings.value = [...props.initialWithholdings]
+    }
   },
   { immediate: true }
 )
@@ -278,7 +285,8 @@ const paymentMethods = [
   { label: 'Transferencia bancaria', value: 'BANK_TRANSFER' },
   { label: 'Tarjeta de crédito', value: 'CREDIT_CARD' },
   { label: 'Tarjeta de débito', value: 'DEBIT_CARD' },
-  { label: 'Billetera virtual', value: 'VIRTUAL_WALLET' }
+  { label: 'Billetera virtual', value: 'VIRTUAL_WALLET' },
+  { label: 'Cuenta corriente', value: 'CURRENT_ACCOUNT' }
 ]
 
 const typeOptions = [
@@ -314,6 +322,25 @@ const selectedCurrency = computed({
   get: () => currencyOptions.value.find(o => o.value === form.currency_code) ?? currencyOptions.value[0],
   set: (val: any) => { form.currency_code = val?.value ?? 'ARS' }
 })
+
+const accountOptions = computed(() =>
+  accountsStore.activeItems.map(a => ({
+    label: `${a.code} — ${a.name}`,
+    value: a.id
+  }))
+)
+
+const selectedAccount = computed({
+  get: () => accountOptions.value.find(o => o.value === form.account_id) ?? null,
+  set: (val: any) => { form.account_id = val?.value ?? '' }
+})
+
+const suggestedWithheld = (wh: any) => {
+  if (wh.rate > 0 && wh.base_amount > 0 && (!wh.withheld_amount || wh.withheld_amount <= 0)) {
+    return formatCurrency(wh.base_amount * wh.rate / 100, form.currency_code)
+  }
+  return null
+}
 
 const isCollection = computed(() => form.type === 'COLLECTION')
 const isPayment = computed(() => form.type === 'PAYMENT')
@@ -704,24 +731,34 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
 </script>
 
 <template>
-  <form class="space-y-4" @submit.prevent="handleSubmit">
+  <form class="space-y-5" @submit.prevent="handleSubmit">
     <div class="grid grid-cols-3 gap-4">
       <UFormField label="Tipo" name="type" required>
-        <USelectMenu v-model="selectedType" :items="typeOptions" />
+        <USelectMenu v-model="selectedType" :items="typeOptions" class="w-full" />
       </UFormField>
       <UFormField label="Modo" name="payment_mode">
-        <USelectMenu v-model="selectedPaymentMode" :items="paymentModeOptions" />
+        <USelectMenu v-model="selectedPaymentMode" :items="paymentModeOptions" class="w-full" />
       </UFormField>
       <UFormField label="Fecha" name="date" required>
         <DataPicker v-model="form.date" />
       </UFormField>
     </div>
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-3 gap-4">
       <UFormField label="Método de pago" name="payment_method" required>
-        <USelectMenu v-model="selectedPaymentMethod" :items="paymentMethods" />
+        <USelectMenu v-model="selectedPaymentMethod" :items="paymentMethods" class="w-full" />
       </UFormField>
       <UFormField label="Moneda" name="currency_code">
-        <USelectMenu v-model="selectedCurrency" :items="currencyOptions" placeholder="Seleccionar moneda" />
+        <USelectMenu v-model="selectedCurrency" :items="currencyOptions" placeholder="Seleccionar moneda" class="w-full" />
+      </UFormField>
+      <UFormField label="Cuenta contable (opc.)" name="account_id">
+        <USelectMenu
+          v-model="selectedAccount"
+          :items="accountOptions"
+          placeholder="Sin asignar"
+          searchable
+          clearable
+          class="w-full"
+        />
       </UFormField>
     </div>
 
@@ -737,6 +774,7 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
             { label: 'CCL', value: 'CCL' },
           ]"
           placeholder="Tipo"
+          class="w-full"
         />
       </UFormField>
       <UFormField label="Cotización" name="exchange_rate">
@@ -764,6 +802,7 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
           :items="filteredParties"
           :placeholder="isPayment ? 'Buscar proveedor...' : 'Buscar cliente...'"
           searchable
+          class="w-full"
           @update:search="partySearch = $event"
         />
       </UFormField>
@@ -915,6 +954,17 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       </div>
     </div>
 
+    <!-- CUENTA CORRIENTE (solo informativa) -->
+    <div v-if="selectedPaymentMethod?.value === 'CURRENT_ACCOUNT'" class="border border-primary/30 bg-primary/5 rounded-lg p-4">
+      <div class="flex items-start gap-3">
+        <span class="i-lucide-arrow-right-circle text-primary text-lg mt-0.5" />
+        <div class="text-sm space-y-1">
+          <p class="font-medium text-primary">Pago/cobro vía cuenta corriente</p>
+          <p class="text-muted">No se genera movimiento de caja ni banco. La entrada en la cuenta corriente del tercero se creará al confirmar el pago.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- DOCUMENTOS PENDIENTES (oculto en modo ADVANCE — se aplica después) -->
     <PendingDocumentsList
       v-if="form.payment_mode !== 'ADVANCE'"
@@ -959,6 +1009,14 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       </div>
 
       <div v-else class="space-y-2">
+        <div class="grid grid-cols-12 gap-2 px-2 text-[10px] font-medium text-muted uppercase tracking-wide">
+          <span class="col-span-3">Impuesto</span>
+          <span class="col-span-2">Base</span>
+          <span class="col-span-2">Alícuota %</span>
+          <span class="col-span-3">Importe</span>
+          <span class="col-span-1">Jurisd.</span>
+          <span class="col-span-1"></span>
+        </div>
         <div
           v-for="(wh, index) in withholdings"
           :key="index"
@@ -969,22 +1027,24 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
               v-model="wh.tax_type"
               :items="['GANANCIAS', 'IIBB', 'SUSS', 'IVA']"
               size="xs"
+              class="w-full"
             />
           </div>
           <div class="col-span-2">
-            <UInput v-model.number="wh.base_amount" type="number" size="xs" placeholder="Base" />
+            <UInput v-model.number="wh.base_amount" type="number" size="xs" title="Monto base sobre el que se calcula la retención" placeholder="Base" />
           </div>
           <div class="col-span-2">
-            <UInput v-model.number="wh.rate" type="number" size="xs" placeholder="Alícuota %" />
+            <UInput v-model.number="wh.rate" type="number" size="xs" title="Porcentaje de alícuota" placeholder="Alícuota %" />
           </div>
           <div class="col-span-3">
-            <UInput v-model.number="wh.withheld_amount" type="number" size="xs" placeholder="Importe" />
+            <UInput v-model.number="wh.withheld_amount" type="number" size="xs" :placeholder="suggestedWithheld(wh) ? `≈ ${suggestedWithheld(wh)}` : 'Importe'" title="Importe total retenido" />
           </div>
-          <div class="col-span-1 text-xs text-muted truncate" :title="wh.reason">
-            {{ wh.jurisdiction_name || '—' }}
+          <div class="col-span-1">
+            <UBadge v-if="wh.jurisdiction_name" :label="wh.jurisdiction_name" size="xs" variant="soft" />
+            <span v-else class="text-xs text-muted">—</span>
           </div>
           <div class="col-span-1 flex justify-end">
-            <UButton icon="i-lucide-x" size="xs" variant="ghost" color="error" @click="removeWithholding(index)" />
+            <UButton icon="i-lucide-x" size="xs" variant="ghost" color="error" title="Quitar retención" @click="removeWithholding(index)" />
           </div>
         </div>
         <div class="flex justify-between text-sm pt-1 border-t border-default">
@@ -1017,9 +1077,20 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       <UInput v-model="form.description" placeholder="Descripción del pago/cobro" />
     </UFormField>
 
-    <div class="flex justify-end gap-2 pt-4">
-      <UButton label="Cancelar" variant="ghost" @click="emit('cancel')" />
-      <UButton label="Guardar" type="submit" :disabled="selectedDocs.size > 0 && totalApplied <= 0" />
+    <div class="sticky bottom-0 bg-default border-t border-default -mx-4 px-4 py-3 flex items-center justify-between">
+      <div class="text-sm space-y-0.5">
+        <div class="font-semibold">
+          Total: {{ formatCurrency(totalApplied > 0 ? totalApplied : totalChecksAmount > 0 ? totalChecksAmount : form.amount, form.currency_code) }}
+        </div>
+        <div v-if="totalWithheld > 0" class="text-muted text-xs">
+          Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
+          Efectivo: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <UButton label="Cancelar" variant="ghost" @click="emit('cancel')" />
+        <UButton label="Guardar" type="submit" :disabled="selectedDocs.size > 0 && totalApplied <= 0" />
+      </div>
     </div>
 
     <CheckModal

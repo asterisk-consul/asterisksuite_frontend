@@ -35,6 +35,7 @@ const {
 
 const paymentData = ref<PaymentFormData | null>(null)
 const currentPayment = ref<Payment | null>(null)
+const initialWithholdings = ref<any[]>([])
 const isProcessing = ref(false)
 const actionModalOpen = ref(false)
 const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse'>('confirm')
@@ -95,6 +96,25 @@ onMounted(async () => {
       })) ?? [],
     }
     console.log('[PaymentDetail] paymentData:', paymentData.value)
+
+    // Precargar retenciones guardadas
+    const rawWithholdings = (payment as any).withholdings
+    if (rawWithholdings && rawWithholdings.length > 0) {
+      initialWithholdings.value = rawWithholdings.map((w: any) => ({
+        tax_type: w.tax_type,
+        jurisdiction_id: w.jurisdiction_id ?? null,
+        jurisdiction_name: w.jurisdiction?.name ?? w.jurisdiction_name ?? null,
+        withholding_concept_id: w.withholding_concept_id ?? null,
+        tax_rule_id: w.tax_rule_id ?? null,
+        rule_name: w.rule_name ?? 'Guardada',
+        base_amount: Number(w.base_amount),
+        prorrate_percentage: w.prorrate_percentage ? Number(w.prorrate_percentage) : null,
+        rate: w.rate ? Number(w.rate) : 0,
+        withheld_amount: Number(w.withheld_amount),
+        automatic_amount: w.automatic_amount ? Number(w.automatic_amount) : null,
+        reason: w.reason ?? w.observations ?? 'Carga guardada'
+      }))
+    }
   }
 })
 
@@ -274,6 +294,7 @@ const handleAdvanceSuccess = async () => {
           :pending-purchase-documents="pendingPurchaseDocuments"
           :available-own-checks="availableOwnChecks"
           :available-customer-checks="availableCustomerChecks"
+          :initial-withholdings="initialWithholdings"
           :loading="loading"
           @submit="handleSubmit"
           @cancel="router.push('/erp/treasury/payments')"
