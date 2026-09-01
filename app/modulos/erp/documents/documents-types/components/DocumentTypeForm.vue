@@ -271,8 +271,8 @@ const selectedCategory = computed({
         </div>
         <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
           <div>
-            <p class="text-sm font-medium">Afecta contabilidad</p>
-            <p class="text-xs text-muted">Genera asientos</p>
+          <p class="text-sm font-medium">Afecta cuenta corriente</p>
+          <p class="text-xs text-muted">Genera movimientos en la cuenta corriente del tercero al confirmar/anular</p>
           </div>
           <USwitch v-model="form.affects_accounting" />
         </div>

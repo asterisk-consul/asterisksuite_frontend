@@ -263,7 +263,7 @@ const badgeForTab = (index: number) => {
             <p class="text-sm font-medium">{{ type.description }}</p>
             <div class="flex items-center gap-2 mt-2 text-xs text-muted flex-wrap">
                <span v-if="type.affects_stock">📦 Stock</span>
-               <span v-if="type.affects_accounting">📊 Contab.</span>
+               <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
                <span v-if="type.affects_tax_book">📋 IVA</span>
                <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
@@ -320,7 +320,7 @@ const badgeForTab = (index: number) => {
             <p class="text-sm font-medium">{{ type.description }}</p>
             <div class="flex items-center gap-2 mt-2 text-xs text-muted flex-wrap">
                <span v-if="type.affects_stock">📦 Stock</span>
-               <span v-if="type.affects_accounting">📊 Contab.</span>
+               <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
                <span v-if="type.affects_tax_book">📋 IVA</span>
                <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
@@ -380,7 +380,7 @@ const badgeForTab = (index: number) => {
             <p class="text-sm font-medium">{{ type.description }}</p>
             <div class="flex items-center gap-2 mt-2 text-xs text-muted flex-wrap">
                <span v-if="type.affects_stock">📦 Stock</span>
-               <span v-if="type.affects_accounting">📊 Contab.</span>
+               <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
                <span v-if="type.affects_tax_book">📋 IVA</span>
                <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>

@@ -4,6 +4,7 @@ import type { CurrentAccountEntry } from '~/modulos/erp/current-accounts/types/c
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
 import { resolveSide } from './utils'
+import DocumentChainPopover from '~/components/current-account/DocumentChainPopover.vue'
 
 type Row = CurrentAccountEntry
 
@@ -101,20 +102,27 @@ export const currentAccountEntryColumns = (actions: {
         key: 'reference',
         label: 'Comprobante',
         cell: ({ row }) => {
-          const link = resolveReferenceLink(row.original, actions?.partyType)
+          const entry = row.original
+          const link = resolveReferenceLink(entry, actions?.partyType)
           if (!link) return '—'
-          const text = row.original.description || link.label
-          return h(
-            NuxtLink,
-            {
-              to: link.to,
-              class: 'inline-flex items-center gap-1 text-primary hover:underline text-sm font-medium'
-            },
-            () => [
-              h('span', text),
-              h('i', { class: 'i-lucide-external-link text-xs' })
-            ]
-          )
+          const text = entry.description || link.label
+          const hasChain = entry.document_chain && entry.document_chain.length > 1
+          return h('div', { class: 'inline-flex items-center gap-1' }, [
+            h(
+              NuxtLink,
+              {
+                to: link.to,
+                class: 'inline-flex items-center gap-1 text-primary hover:underline text-sm font-medium'
+              },
+              () => [
+                h('span', text),
+                h('i', { class: 'i-lucide-external-link text-xs' })
+              ]
+            ),
+            hasChain
+              ? h(DocumentChainPopover, { chain: entry.document_chain!, partyType: actions?.partyType })
+              : null
+          ])
         }
       },
       {

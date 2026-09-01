@@ -5,6 +5,7 @@ import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/u
 import type { CurrentAccount } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 import { useExcelExport } from '~/composables/useExcelExport'
 import { isReceivable, getBalanceInfo } from '~/modulos/erp/current-accounts/balance-utils'
+import { getActivityInfo } from '~/modulos/erp/current-accounts/utils'
 import SaldoInicialModal from '~/components/current-account/SaldoInicialModal.vue'
 
 const { activeAccounts, allAccounts, loading, fetchActive, fetchAll } = useCurrentAccounts()
@@ -177,9 +178,14 @@ const exportActive = () => {
     columns: [
       { key: 'party_name', label: 'Tercero', width: 30 },
       { key: 'party_type', label: 'Tipo', width: 15, format: (v) => partyTypeLabel(v) },
+      { key: 'last_activity', label: 'Última actividad', width: 20, format: (v) => v ?? 'Sin actividad' },
       { key: 'balance', label: 'Saldo', width: 15, format: (v) => formatCurrency(v) }
     ],
-    data: filteredAccounts.value.map((a) => ({ ...a, party_name: a.party?.name ?? '' }))
+    data: filteredAccounts.value.map((a) => ({
+      ...a,
+      party_name: a.party?.name ?? '',
+      last_activity: getActivityInfo(a.last_entry_date, a.last_entry).lastMovementLabel,
+    }))
   })
 }
 
@@ -278,6 +284,17 @@ const exportHistory = () => {
                   <div class="min-w-0">
                     <p class="text-sm font-medium truncate">{{ account.party?.name ?? 'Sin nombre' }}</p>
                     <p class="text-xs text-muted">CUIT: {{ account.party?.tax_id ?? '—' }}</p>
+                    <div class="flex items-center gap-2 mt-1">
+                      <UBadge
+                        :label="getActivityInfo(account.last_entry_date, account.last_entry).label"
+                        :color="getActivityInfo(account.last_entry_date, account.last_entry).color"
+                        size="xs"
+                        variant="soft"
+                      />
+                      <span class="text-[11px] text-muted truncate">
+                        Último: {{ getActivityInfo(account.last_entry_date, account.last_entry).lastMovementLabel }}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div class="text-right shrink-0 ml-3">
@@ -337,6 +354,17 @@ const exportHistory = () => {
                   <div class="min-w-0">
                     <p class="text-sm font-medium truncate">{{ account.party?.name ?? 'Sin nombre' }}</p>
                     <p class="text-xs text-muted">CUIT: {{ account.party?.tax_id ?? '—' }}</p>
+                    <div class="flex items-center gap-2 mt-1">
+                      <UBadge
+                        :label="getActivityInfo(account.last_entry_date, account.last_entry).label"
+                        :color="getActivityInfo(account.last_entry_date, account.last_entry).color"
+                        size="xs"
+                        variant="soft"
+                      />
+                      <span class="text-[11px] text-muted truncate">
+                        Último: {{ getActivityInfo(account.last_entry_date, account.last_entry).lastMovementLabel }}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div class="text-right shrink-0 ml-3">
@@ -407,6 +435,7 @@ const exportHistory = () => {
                 <tr>
                   <th class="text-left py-3 px-4 font-medium text-muted">Tercero</th>
                   <th class="text-left py-3 px-4 font-medium text-muted">Tipo</th>
+                  <th class="text-left py-3 px-4 font-medium text-muted">Última actividad</th>
                   <th class="text-right py-3 px-4 font-medium text-muted">Saldo</th>
                   <th class="text-right py-3 px-4 font-medium text-muted">Acciones</th>
                 </tr>
@@ -436,6 +465,19 @@ const exportHistory = () => {
                       variant="soft"
                       :color="account.party_type === 'CUSTOMER' ? 'success' : account.party_type === 'SUPPLIER' ? 'error' : 'neutral'"
                     />
+                  </td>
+                  <td class="py-3 px-4">
+                    <div class="flex items-center gap-2">
+                      <UBadge
+                        :label="getActivityInfo(account.last_entry_date, account.last_entry).label"
+                        :color="getActivityInfo(account.last_entry_date, account.last_entry).color"
+                        size="xs"
+                        variant="soft"
+                      />
+                      <span class="text-xs text-muted truncate max-w-[180px]">
+                        {{ getActivityInfo(account.last_entry_date, account.last_entry).lastMovementLabel }}
+                      </span>
+                    </div>
                   </td>
                   <td class="py-3 px-4 text-right font-semibold" :class="isReceivable(Number(account.balance), account.party_type) ? 'text-success' : 'text-error'">
                     {{ formatCurrency(account.balance) }}

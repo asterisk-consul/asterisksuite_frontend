@@ -16,21 +16,39 @@ export type AccountEntryType =
   | 'CREDIT'
   | 'OPENING_BALANCE'
 
+export interface CurrentAccountEntryLast {
+  type: string
+  description: string | null
+  reference_type: string | null
+  date: string
+}
+
 export interface CurrentAccount {
   id: string
   party_id: string
   party_type: string
   balance: number
   active: boolean
+  last_entry_date?: string | null
+  last_entry?: CurrentAccountEntryLast | null
 
   party?: {
     id: string
     name: string
+    tax_id?: string | null
   } | null
 
   created_at?: string
   updated_at?: string
   deleted_at?: string | null
+}
+
+export interface DocumentChainNode {
+  id: string
+  number: number
+  type_code: string
+  description: string | null
+  role: 'parent' | 'current' | 'child'
 }
 
 export interface CurrentAccountEntry {
@@ -50,6 +68,7 @@ export interface CurrentAccountEntry {
   payment_id?: string | null
   user_name?: string | null
   date: string
+  document_chain?: DocumentChainNode[] | null
 
   created_at?: string
   updated_at?: string

@@ -1,5 +1,52 @@
 [
   {
+    "version": "0.39.4-alpha",
+    "date": "2026-09-01",
+    "stage": "alpha",
+    "notes": "Cuenta corriente: indicador de actividad por tercero (dias sin movimiento + ultimo documento)",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Badge de actividad: muestra 'Hace X dias' con color (verde <15d, amarillo 15-60d, rojo >60d) en cada tercero"
+      },
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Ultimo movimiento: subtitulo con tipo y descripcion del ultimo entry en la cuenta corriente"
+      },
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Historial: columna de ultima actividad en la tabla del tab Historial"
+      },
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Exportacion Excel incluye columna de ultima actividad"
+      }
+    ],
+    "message": "Ahora en la lista de cuentas corrientes ves de un vistazo hace cuanto fue el ultimo movimiento de cada cliente o proveedor. El badge cambia de verde a rojo segun la antiguedad, y abajo aparece el tipo de documento y descripcion del ultimo movimiento."
+  },
+  {
+    "date": "2026-09-01",
+    "stage": "alpha",
+    "notes": "Cuenta corriente: cadena de documentos relacionados en cada movimiento",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Cadena de documentos: cada movimiento en CC muestra el arbol de documentos relacionados (OV → Remito → Factura, etc.) via icono de ramas"
+      },
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Popover con arbol indentado: al hacer hover sobre el icono se despliega la cadena completa con links a cada documento"
+      }
+    ],
+    "message": "Ahora en la cuenta corriente podes ver la cadena completa de documentos que origino cada movimiento. Un icono de ramas al lado del comprobante despliega el arbol: desde la OV hasta la factura, pasando por remitos y notas."
+  },
+  {
     "version": "0.39.2-alpha",
     "date": "2026-09-01",
     "stage": "alpha",
