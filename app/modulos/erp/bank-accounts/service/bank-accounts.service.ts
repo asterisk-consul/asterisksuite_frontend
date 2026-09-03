@@ -1,6 +1,7 @@
 import type {
   BankAccount,
   BankAccountMovement,
+  BankAccountUserRole,
   CreateBankAccountInput,
   UpdateBankAccountInput
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
@@ -42,12 +43,32 @@ export const useBankAccountsService = () => {
     return $fetch<BankAccountMovement[]>(`${urlBase}/${id}/movements`)
   }
 
+  const getUserRoles = (id: string) => {
+    return $fetch<BankAccountUserRole[]>(`${urlBase}/${id}/user-roles`)
+  }
+
+  const addUserRole = (bankAccountId: string, userId: string, role: string) => {
+    return $fetch<BankAccountUserRole>(`${urlBase}/${bankAccountId}/user-roles`, {
+      method: 'POST',
+      body: { user_id: userId, role }
+    })
+  }
+
+  const removeUserRole = (bankAccountId: string, userId: string) => {
+    return $fetch<void>(`${urlBase}/${bankAccountId}/user-roles/${userId}`, {
+      method: 'DELETE'
+    })
+  }
+
   return {
     findAll,
     findOne,
     create,
     update,
     remove,
-    getMovements
+    getMovements,
+    getUserRoles,
+    addUserRole,
+    removeUserRole
   }
 }

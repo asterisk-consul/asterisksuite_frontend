@@ -10,6 +10,7 @@ const partiesStore = useBusinessPartiesStore()
 const { items: parties } = storeToRefs(partiesStore)
 const { init: initCurrencies, activeCurrencies } = useCurrencies()
 const prices = ref<any[]>([])
+const suppliers = ref<any[]>([])
 const history = ref<any[]>([])
 const loading = ref(false)
 const saving = ref(false)
@@ -19,7 +20,10 @@ const form = reactive({
   operation_type: 'SALE' as 'SALE' | 'PURCHASE',
   party_id: '',
   currency_id: '',
-  price: 0
+  price: 0,
+  lead_time_days: null as number | null,
+  min_order_quantity: '',
+  is_primary: false
 })
 
 const operationOptions = [
@@ -37,18 +41,44 @@ const currencyOptions = computed(() => activeCurrencies.value.map(currency => ({
   label: `${currency.symbol} ${currency.code}`,
   value: currency.id
 })))
+const hasSuppliersData = computed(() => prices.value.some(p => p.supplier_data))
 
 watch(() => form.operation_type, (value, previous) => {
-  if (value !== previous) form.party_id = ''
+  if (value !== previous) {
+    form.party_id = ''
+    form.lead_time_days = null
+    form.min_order_quantity = ''
+    form.is_primary = false
+  }
 })
+
+function resetForm() {
+  editingId.value = null
+  form.operation_type = 'SALE'
+  form.party_id = ''
+  form.price = 0
+  form.lead_time_days = null
+  form.min_order_quantity = ''
+  form.is_primary = false
+}
 
 async function load() {
   loading.value = true
   try {
-    [prices.value, history.value] = await Promise.all([
+    const [partyPrices, suppliersData, historyData] = await Promise.all([
       $fetch<any[]>(`/api/erp/pricing/party-prices/product/${props.productId}`),
+      $fetch<any[]>(`/api/pricing/product-suppliers`, { query: { product_id: props.productId } }),
       $fetch<any[]>(`/api/erp/pricing/party-prices/product/${props.productId}/history`)
     ])
+    suppliers.value = suppliersData
+    prices.value = partyPrices.map((pp: any) => {
+      if (pp.operation_type === 'PURCHASE') {
+        const supplier = suppliersData.find((s: any) => s.supplier_id === pp.party_id)
+        return { ...pp, supplier_data: supplier || null }
+      }
+      return { ...pp, supplier_data: null }
+    })
+    history.value = historyData
   } finally {
     loading.value = false
   }
@@ -57,20 +87,25 @@ async function load() {
 async function edit(item: any) {
   editingId.value = item.id
   form.operation_type = item.operation_type
-  // El watcher del tipo de operación se ejecuta en el siguiente tick.
-  // Cargamos la parte interesada después para que no sea limpiada.
   await nextTick()
   form.party_id = item.party_id
   form.currency_id = item.currency_id
   form.price = Number(item.price)
+  if (item.supplier_data) {
+    form.lead_time_days = item.supplier_data.lead_time_days ?? null
+    form.min_order_quantity = item.supplier_data.min_order_quantity ?? ''
+    form.is_primary = item.supplier_data.is_primary ?? false
+  } else {
+    form.lead_time_days = null
+    form.min_order_quantity = ''
+    form.is_primary = false
+  }
   await nextTick()
   formPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
 function cancelEdit() {
-  editingId.value = null
-  form.party_id = ''
-  form.price = 0
+  resetForm()
 }
 
 async function save() {
@@ -79,12 +114,43 @@ async function save() {
   try {
     await $fetch('/api/erp/pricing/party-prices', {
       method: 'POST',
-      body: { ...form, product_id: props.productId }
+      body: {
+        product_id: props.productId,
+        party_id: form.party_id,
+        currency_id: form.currency_id,
+        operation_type: form.operation_type,
+        price: form.price
+      }
     })
+
+    if (form.operation_type === 'PURCHASE') {
+      const existingSupplier = suppliers.value.find(
+        (s: any) => s.supplier_id === form.party_id
+      )
+      const supplierPayload: Record<string, any> = {
+        supplier_id: form.party_id,
+        purchase_price: String(form.price),
+        currency_id: form.currency_id,
+        is_primary: form.is_primary
+      }
+      if (form.lead_time_days != null) supplierPayload.lead_time_days = form.lead_time_days
+      if (form.min_order_quantity) supplierPayload.min_order_quantity = String(form.min_order_quantity)
+
+      if (existingSupplier) {
+        await $fetch(`/api/pricing/product-suppliers/${existingSupplier.id}`, {
+          method: 'PATCH',
+          body: supplierPayload
+        })
+      } else {
+        await $fetch('/api/pricing/product-suppliers', {
+          method: 'POST',
+          body: { ...supplierPayload, product_id: props.productId }
+        })
+      }
+    }
+
     toast.add({ title: 'Relación guardada', description: 'El precio quedó asignado a la parte interesada.', color: 'success' })
-    editingId.value = null
-    form.party_id = ''
-    form.price = 0
+    resetForm()
     await load()
   } finally {
     saving.value = false
@@ -93,6 +159,9 @@ async function save() {
 
 async function remove(item: any) {
   await $fetch(`/api/erp/pricing/party-prices/${item.id}`, { method: 'DELETE' })
+  if (item.supplier_data) {
+    await $fetch(`/api/pricing/product-suppliers/${item.supplier_data.id}`, { method: 'DELETE' })
+  }
   toast.add({ title: 'Relación desactivada', color: 'success' })
   await load()
 }
@@ -133,6 +202,15 @@ onMounted(async () => {
       <UFormField label="Precio acordado">
         <UInput v-model.number="form.price" type="number" min="0" step="0.01" class="w-full" />
       </UFormField>
+      <UFormField v-if="form.operation_type === 'PURCHASE'" label="Días de entrega">
+        <UInput v-model.number="form.lead_time_days" type="number" min="0" placeholder="Ej: 7" class="w-full" />
+      </UFormField>
+      <UFormField v-if="form.operation_type === 'PURCHASE'" label="Cantidad mín.">
+        <UInput v-model="form.min_order_quantity" type="text" inputmode="decimal" placeholder="0.00" class="w-full" />
+      </UFormField>
+      <div v-if="form.operation_type === 'PURCHASE'" class="flex items-end pb-1">
+        <USwitch v-model="form.is_primary" label="Proveedor principal" />
+      </div>
       <div class="flex items-end">
         <UButton type="button" :label="editingId ? 'Guardar cambios' : 'Asignar'" :icon="editingId ? 'i-lucide-save' : 'i-lucide-link'" :loading="saving" :disabled="!form.party_id || !form.currency_id" class="w-full justify-center" @click="save" />
       </div>
@@ -141,16 +219,39 @@ onMounted(async () => {
 
     <div class="overflow-x-auto rounded-lg border border-default">
       <table class="w-full min-w-[680px] text-sm">
-        <thead class="bg-elevated text-left text-muted"><tr><th class="p-3">Cliente / proveedor</th><th class="p-3">Uso</th><th class="p-3 text-right">Precio</th><th class="p-3">Vigente desde</th><th class="p-3 text-right">Acciones</th></tr></thead>
+        <thead class="bg-elevated text-left text-muted">
+          <tr>
+            <th class="p-3">Cliente / proveedor</th>
+            <th class="p-3">Uso</th>
+            <th class="p-3 text-right">Precio</th>
+            <th v-if="hasSuppliersData" class="p-3">Entrega</th>
+            <th v-if="hasSuppliersData" class="p-3">Mín. pedido</th>
+            <th v-if="hasSuppliersData" class="p-3">Principal</th>
+            <th class="p-3">Vigente desde</th>
+            <th class="p-3 text-right">Acciones</th>
+          </tr>
+        </thead>
         <tbody>
           <tr v-for="item in prices" :key="item.id" class="border-t border-default" :class="editingId === item.id ? 'bg-primary/5' : ''">
             <td class="p-3 font-medium">{{ item.business_parties?.name }}</td>
             <td class="p-3"><UBadge :color="item.operation_type === 'SALE' ? 'primary' : 'info'" variant="subtle">{{ item.operation_type === 'SALE' ? 'Venta' : 'Compra' }}</UBadge></td>
             <td class="p-3 text-right tabular-nums">{{ money(item.price, item.currencies?.code) }}</td>
+            <td v-if="hasSuppliersData" class="p-3">
+              <span v-if="item.supplier_data?.lead_time_days != null" class="text-muted">{{ item.supplier_data.lead_time_days }} días</span>
+              <span v-else class="text-muted">—</span>
+            </td>
+            <td v-if="hasSuppliersData" class="p-3">
+              <span v-if="item.supplier_data?.min_order_quantity" class="text-muted">{{ item.supplier_data.min_order_quantity }}</span>
+              <span v-else class="text-muted">—</span>
+            </td>
+            <td v-if="hasSuppliersData" class="p-3">
+              <UBadge v-if="item.supplier_data?.is_primary" label="Principal" color="amber" variant="subtle" size="xs" />
+              <span v-else class="text-muted">—</span>
+            </td>
             <td class="p-3 text-muted">{{ new Date(item.effective_from).toLocaleDateString('es-AR') }}</td>
             <td class="p-3"><div class="flex justify-end gap-1"><UButton type="button" icon="i-lucide-pencil" color="neutral" variant="ghost" aria-label="Editar" @click="edit(item)" /><UButton type="button" icon="i-lucide-trash-2" color="error" variant="ghost" aria-label="Desactivar" @click="remove(item)" /></div></td>
           </tr>
-          <tr v-if="!loading && !prices.length"><td colspan="5" class="p-7 text-center text-muted">Esta tarifa todavía no tiene clientes ni proveedores asignados. Se usará su precio general.</td></tr>
+          <tr v-if="!loading && !prices.length"><td colspan="7" class="p-7 text-center text-muted">Esta tarifa todavía no tiene clientes ni proveedores asignados. Se usará su precio general.</td></tr>
         </tbody>
       </table>
     </div>

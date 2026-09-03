@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.40.0-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Export e import de precios por cliente/proveedor en la pagina Precios vigentes",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Export Excel: descarga de precios acordados por cliente/proveedor en formato .xlsx"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Export CSV: descarga de precios acordados en formato CSV con BOM para Excel"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Import Excel: importacion masiva de precios via plantilla SKU + Moneda + Precio"
+      },
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "ExcelImportDialog: matching case-insensitive de headers para previsualizacion"
+      }
+    ],
+    "message": "Ahora podes exportar e importar precios por cliente/proveedor desde la pagina Precios vigentes. El export genera Excel o CSV con los precios acordados, y el import acepta archivos con columnas SKU, Moneda y Precio (acepta variants de headers)."
+  },
+  {
     "version": "0.39.4-alpha",
     "date": "2026-09-01",
     "stage": "alpha",

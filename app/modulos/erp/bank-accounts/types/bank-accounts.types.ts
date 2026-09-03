@@ -47,3 +47,11 @@ export interface CreateBankAccountInput {
 }
 
 export interface UpdateBankAccountInput extends Partial<CreateBankAccountInput> {}
+
+export interface BankAccountUserRole {
+  id: string
+  bank_account_id: string
+  user_id: string
+  role: 'RESPONSIBLE' | 'OPERATOR' | 'VIEWER'
+  created_at?: string
+}

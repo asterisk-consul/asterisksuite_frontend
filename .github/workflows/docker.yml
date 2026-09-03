@@ -27,7 +27,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/asterisk-consul/asterisksuite-frontend:dev
+          tags: |
+            ghcr.io/asterisk-consul/asterisksuite-frontend:dev
+            ghcr.io/asterisk-consul/asterisksuite-frontend:dev-${{ github.sha }}
           build-args: |
             NUXT_PUBLIC_API_BASE=${{ secrets.NUXT_PUBLIC_API_BASE }}
             NUXT_API_BASE=${{ secrets.NUXT_API_BASE }}

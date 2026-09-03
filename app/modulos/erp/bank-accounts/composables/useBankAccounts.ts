@@ -1,8 +1,10 @@
 import { computed } from 'vue'
 import { useBankAccountsStore } from '../store/bank-accounts.store'
+import { useBankAccountsService } from '../service/bank-accounts.service'
 
 import type {
   BankAccount,
+  BankAccountUserRole,
   CreateBankAccountInput,
   UpdateBankAccountInput
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
@@ -14,6 +16,7 @@ export interface SelectItem {
 
 export function useBankAccounts() {
   const store = useBankAccountsStore()
+  const service = useBankAccountsService()
 
   // =========================
   // INIT
@@ -34,6 +37,22 @@ export function useBankAccounts() {
   const remove = async (id: string) => store.remove(id)
 
   const fetchMovements = async (id: string) => store.fetchMovements(id)
+
+  // =========================
+  // USER ROLES
+  // =========================
+
+  const getUserRoles = async (bankAccountId: string): Promise<BankAccountUserRole[]> => {
+    return service.getUserRoles(bankAccountId)
+  }
+
+  const addUserRole = async (bankAccountId: string, userId: string, role: string) => {
+    return service.addUserRole(bankAccountId, userId, role)
+  }
+
+  const removeUserRole = async (bankAccountId: string, userId: string) => {
+    return service.removeUserRole(bankAccountId, userId)
+  }
 
   // =========================
   // COMPUTED
@@ -83,6 +102,11 @@ export function useBankAccounts() {
     update,
     remove,
     fetchMovements,
-    fetchOne: store.fetchOne
+    fetchOne: store.fetchOne,
+
+    // user roles
+    getUserRoles,
+    addUserRole,
+    removeUserRole
   }
 }

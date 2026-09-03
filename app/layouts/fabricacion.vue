@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { mainCollapsed } = useSidebarState()
 const moduleCollapsed = ref(false)
-const { items: breadcrumbs } = useBreadcrumbs() 
+const { items: breadcrumbs } = useBreadcrumbs()
 provide('moduleSidebarCollapsed', moduleCollapsed)
 provide('mainCollapsed', mainCollapsed)
 </script>

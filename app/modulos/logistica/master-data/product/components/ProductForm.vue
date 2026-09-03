@@ -5,7 +5,6 @@ import ProductGeneralTab from '~/modulos/logistica/master-data/product/component
 import ProductInventoryTab from '~/modulos/logistica/master-data/product/components/forms/ProductInventoryTab.vue'
 import ProductAccountingTab from '~/modulos/logistica/master-data/product/components/forms/ProductAccountingTab.vue'
 import ProductAdvancedTab from '~/modulos/logistica/master-data/product/components/forms/ProductAdvancedTab.vue'
-import ProductSuppliersTab from '~/modulos/logistica/master-data/product/components/forms/ProductSuppliersTab.vue'
 import ProductPartyPricesTab from '~/modulos/logistica/master-data/product/components/forms/ProductPartyPricesTab.vue'
 import RootCard from '~/modulos/logistica/master-data/product/components/forms/RootCard.vue'
 import ProductPriceTab from '~/modulos/logistica/master-data/product/components/forms/ProductPriceTab.vue'
@@ -61,7 +60,6 @@ const tabs = [
   },
   { label: 'Precios', slot: 'precios', icon: 'i-lucide-wallet' },
   { label: 'Clientes y proveedores', slot: 'parties', icon: 'i-lucide-users' },
-  { label: 'Datos de proveedores', slot: 'suppliers', icon: 'i-lucide-truck' },
   {
     label: 'Inventario',
     slot: 'inventory',
@@ -103,13 +101,6 @@ const tabs = [
 
       <template #precios>
         <ProductPriceTab :product="props.product" v-model:price-enabled="form.price_enabled" />
-      </template>
-
-      <template #suppliers>
-        <ProductSuppliersTab v-if="props.product?.id" :product-id="props.product.id" />
-        <div v-else class="p-4 text-sm text-muted">
-          Guardá el producto primero para poder agregar proveedores.
-        </div>
       </template>
 
       <template #parties>

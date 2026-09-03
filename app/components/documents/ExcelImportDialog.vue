@@ -70,11 +70,26 @@ const handleFileSelect = (event: Event) => {
       const jsonData = XLSX.utils.sheet_to_json(firstSheet)
 
       // Map headers to our column keys
+      // Build a case-insensitive lookup from the Excel headers
+      const headers = Object.keys(jsonData[0] ?? {})
+      const headerMap = new Map<string, any>()
+      for (const h of headers) {
+        headerMap.set(h.toLowerCase().trim(), h)
+      }
+
       previewData.value = jsonData.slice(0, 5).map((row: any) => {
         const mapped: any = {}
         for (const col of props.columns) {
-          // Try to find the column by label or key
-          mapped[col.key] = row[col.label] ?? row[col.key] ?? ''
+          const searchKeys = [col.label, col.key].filter(Boolean)
+          let value: any = undefined
+          for (const key of searchKeys) {
+            // Exact match
+            if (row[key] !== undefined) { value = row[key]; break }
+            // Case-insensitive match against actual Excel headers
+            const match = headerMap.get(key.toLowerCase().trim())
+            if (match && row[match] !== undefined) { value = row[match]; break }
+          }
+          mapped[col.key] = value ?? ''
         }
         return mapped
       })

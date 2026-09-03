@@ -3,14 +3,15 @@ definePageMeta({ middleware: ['auth'] })
 
 import type { ButtonProps } from '@nuxt/ui'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
-import type { BankAccount, CreateBankAccountInput } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
+import type { BankAccount, CreateBankAccountInput, BankAccountUserRole } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 import { useExcelExport } from '~/composables/useExcelExport'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 
-const { bankAccounts, loading, init, create, update, remove } = useBankAccounts()
+const { bankAccounts, loading, init, create, update, remove, getUserRoles, addUserRole, removeUserRole } = useBankAccounts()
 const { exportToExcel } = useExcelExport()
 const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
 const router = useRouter()
+const toast = useToast()
 
 const modalOpen = ref(false)
 const editingAccount = ref<BankAccount | null>(null)
@@ -29,6 +30,28 @@ const form = reactive<CreateBankAccountInput>({
   balance: 0,
   active: true
 })
+
+const boxUsers = ref<{ userId: string; userName: string; userEmail: string; role: string }[]>([])
+const pendingUsers = ref<{ userId: string; userName: string; userEmail: string; role: string }[]>([])
+const userSearch = ref('')
+const userResults = ref<{ id: string; name: string; email: string }[]>([])
+const userSearchTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+const showAllUsers = ref(false)
+const allUsersList = ref<{ id: string; name: string; email: string }[]>([])
+const showRemoveModal = ref(false)
+const userToRemove = ref<{ userId: string; userName: string; userEmail: string; role: string } | null>(null)
+
+const userRoleOptions = [
+  { label: 'Responsable', value: 'RESPONSIBLE' },
+  { label: 'Operador', value: 'OPERATOR' },
+  { label: 'Visor', value: 'VIEWER' }
+]
+
+const selectedUserRole = computed({
+  get: () => userRoleOptions.find(o => o.value === selectedUserRoleRaw.value) ?? userRoleOptions[1],
+  set: (val: any) => { selectedUserRoleRaw.value = val?.value ?? 'OPERATOR' }
+})
+const selectedUserRoleRaw = ref('OPERATOR')
 
 onMounted(() => {
   init()
@@ -101,10 +124,12 @@ const openCreate = () => {
     balance: 0,
     active: true
   })
+  boxUsers.value = []
+  pendingUsers.value = []
   modalOpen.value = true
 }
 
-const openEdit = (account: BankAccount) => {
+const openEdit = async (account: BankAccount) => {
   editingAccount.value = account
   Object.assign(form, {
     name: account.name,
@@ -117,6 +142,41 @@ const openEdit = (account: BankAccount) => {
     balance: account.balance,
     active: account.active
   })
+  pendingUsers.value = []
+
+  try {
+    const roles = await getUserRoles(account.id)
+    if (roles?.length) {
+      const ids = roles.map(r => r.user_id).filter(Boolean)
+      if (ids.length > 0) {
+        const userDetails = await $fetch<{ id: string; name: string; email: string }[]>('/api/access-control/users/batch', {
+          query: { ids: ids.join(',') }
+        })
+        const userMap = new Map(userDetails.map(u => [u.id, u]))
+        boxUsers.value = roles.map(r => {
+          const detail = userMap.get(r.user_id)
+          return {
+            userId: r.user_id,
+            userName: detail?.name ?? r.user_id,
+            userEmail: detail?.email ?? '',
+            role: r.role
+          }
+        })
+      } else {
+        boxUsers.value = roles.map(r => ({
+          userId: r.user_id,
+          userName: r.user_id,
+          userEmail: '',
+          role: r.role
+        }))
+      }
+    } else {
+      boxUsers.value = []
+    }
+  } catch {
+    boxUsers.value = []
+  }
+
   modalOpen.value = true
 }
 
@@ -132,13 +192,122 @@ const handleSubmit = async () => {
     }
     if (editingAccount.value) {
       await update(editingAccount.value.id, payload)
+      toast.add({ title: 'Cuenta actualizada', color: 'success' })
     } else {
-      await create(payload)
+      const created = await create(payload)
+      if (created?.id && pendingUsers.value.length > 0) {
+        for (const p of pendingUsers.value) {
+          await addUserRole(created.id, p.userId, p.role)
+        }
+      }
+      toast.add({ title: 'Cuenta creada', color: 'success' })
     }
     modalOpen.value = false
   } catch (error) {
     console.error(error)
+    toast.add({ title: 'Error al guardar', color: 'error', icon: 'i-lucide-alert-circle' })
   }
+}
+
+const searchUsers = () => {
+  if (userSearchTimeout.value) clearTimeout(userSearchTimeout.value)
+  userSearchTimeout.value = setTimeout(async () => {
+    const q = userSearch.value.trim()
+    if (q.length < 2) {
+      userResults.value = []
+      return
+    }
+    try {
+      const users = await $fetch<{ id: string; name: string; email: string }[]>('/api/access-control/users/search', {
+        query: { q }
+      })
+      const existingIds = new Set([
+        ...boxUsers.value.map(u => u.userId),
+        ...pendingUsers.value.map(u => u.userId)
+      ])
+      userResults.value = users.filter(u => !existingIds.has(u.id))
+    } catch {
+      userResults.value = []
+    }
+  }, 300)
+}
+
+const loadAllUsers = async () => {
+  try {
+    allUsersList.value = await $fetch<{ id: string; name: string; email: string }[]>('/api/access-control/users/all')
+  } catch {
+    allUsersList.value = []
+  }
+}
+
+watch(showAllUsers, async (val) => {
+  if (val && allUsersList.value.length === 0) {
+    await loadAllUsers()
+  }
+})
+
+const filteredAllUsers = computed(() => {
+  const q = userSearch.value.toLowerCase().trim()
+  const existingIds = new Set([
+    ...boxUsers.value.map(u => u.userId),
+    ...pendingUsers.value.map(u => u.userId)
+  ])
+  let users = allUsersList.value.filter(u => !existingIds.has(u.id))
+  if (q) {
+    users = users.filter(u => u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q))
+  }
+  return users
+})
+
+const addUser = async (user: { id: string; name: string; email: string }) => {
+  const newUser = {
+    userId: user.id,
+    userName: user.name,
+    userEmail: user.email,
+    role: selectedUserRoleRaw.value
+  }
+
+  if (editingAccount.value) {
+    try {
+      await addUserRole(editingAccount.value.id, user.id, selectedUserRoleRaw.value)
+      boxUsers.value.push(newUser)
+      toast.add({ title: `${user.name || user.email} agregado`, color: 'success' })
+    } catch (e: any) {
+      toast.add({ title: 'Error al agregar usuario', description: e?.data?.message || e?.message, color: 'error', icon: 'i-lucide-alert-circle' })
+    }
+  } else {
+    pendingUsers.value.push(newUser)
+    toast.add({ title: `${user.name || user.email} agregado`, color: 'success' })
+  }
+  userSearch.value = ''
+  userResults.value = []
+}
+
+const confirmRemoveUser = (user: { userId: string; userName: string; userEmail: string; role: string }) => {
+  userToRemove.value = user
+  showRemoveModal.value = true
+}
+
+const executeRemoveUser = async () => {
+  if (!userToRemove.value) return
+
+  const user = userToRemove.value
+
+  if (editingAccount.value) {
+    try {
+      await removeUserRole(editingAccount.value.id, user.userId)
+      boxUsers.value = boxUsers.value.filter(u => u.userId !== user.userId)
+      toast.add({ title: `${user.userName || user.userEmail} removido`, color: 'success' })
+    } catch (e: any) {
+      toast.add({ title: 'Error al remover usuario', description: e?.data?.message || e?.message, color: 'error', icon: 'i-lucide-alert-circle' })
+    }
+  } else {
+    pendingUsers.value = pendingUsers.value.filter(u => u.userId !== user.userId)
+    toast.add({ title: `${user.userName || user.userEmail} removido`, color: 'success' })
+  }
+
+  showRemoveModal.value = false
+  userToRemove.value = null
 }
 
 const confirmDelete = (account: BankAccount) => {
@@ -360,6 +529,115 @@ const selectedAccountType = computed({
           <UFormField label="Saldo inicial" name="balance">
             <UInput v-model.number="form.balance" type="number" />
           </UFormField>
+
+          <!-- USER ROLES -->
+          <div class="border border-default rounded-lg p-4 space-y-3">
+            <h4 class="text-sm font-medium">Usuarios con acceso</h4>
+
+            <!-- Existing users -->
+            <div v-if="boxUsers.length > 0" class="space-y-2">
+              <div
+                v-for="ur in boxUsers"
+                :key="ur.userId"
+                class="flex items-center gap-3 p-2 rounded border border-default"
+              >
+                <div class="flex-1 min-w-0">
+                  <span class="text-sm font-medium">{{ ur.userName || ur.userEmail || ur.userId }}</span>
+                  <span v-if="ur.userEmail && ur.userName" class="text-xs text-muted ml-1">({{ ur.userEmail }})</span>
+                  <UBadge
+                    :label="userRoleOptions.find(o => o.value === ur.role)?.label ?? ur.role"
+                    :color="ur.role === 'RESPONSIBLE' ? 'success' : ur.role === 'OPERATOR' ? 'primary' : 'gray'"
+                    size="xs"
+                    class="ml-2"
+                  />
+                </div>
+                <UButton icon="i-heroicons-x-mark" color="error" variant="ghost" size="xs" @click="confirmRemoveUser(ur)" />
+              </div>
+            </div>
+
+            <!-- Pending users (creating) -->
+            <div v-if="pendingUsers.length > 0" class="space-y-2">
+              <div
+                v-for="p in pendingUsers"
+                :key="p.userId"
+                class="flex items-center gap-3 p-2 rounded border border-dashed border-primary"
+              >
+                <div class="flex-1 min-w-0">
+                  <span class="text-sm font-medium">{{ p.userName || p.userEmail || p.userId }}</span>
+                  <span v-if="p.userEmail && p.userName" class="text-xs text-muted ml-1">({{ p.userEmail }})</span>
+                  <UBadge
+                    :label="userRoleOptions.find(o => o.value === p.role)?.label ?? p.role"
+                    :color="p.role === 'RESPONSIBLE' ? 'success' : p.role === 'OPERATOR' ? 'primary' : 'gray'"
+                    size="xs"
+                    class="ml-2"
+                  />
+                  <UBadge label="Pendiente" color="info" size="xs" class="ml-1" />
+                </div>
+                <UButton icon="i-heroicons-x-mark" color="error" variant="ghost" size="xs" @click="confirmRemoveUser(p)" />
+              </div>
+            </div>
+
+            <div v-if="boxUsers.length === 0 && pendingUsers.length === 0" class="text-sm text-muted">
+              No hay usuarios asignados a esta cuenta.
+            </div>
+
+            <!-- Add user section -->
+            <div class="border-t border-default pt-3 space-y-2">
+              <div class="flex items-end gap-2">
+                <UFormField label="Buscar usuario" class="flex-1">
+                  <UInput v-model="userSearch" placeholder="Nombre o email..." @input="searchUsers" />
+                </UFormField>
+                <UFormField label="Rol">
+                  <USelectMenu v-model="selectedUserRole" :items="userRoleOptions" />
+                </UFormField>
+              </div>
+
+              <div v-if="userResults.length > 0" class="border border-default rounded p-2 space-y-1 max-h-40 overflow-y-auto">
+                <div
+                  v-for="u in userResults"
+                  :key="u.id"
+                  class="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                  @click="addUser(u)"
+                >
+                  <span class="text-sm font-medium">{{ u.name || u.email }}</span>
+                  <span v-if="u.name" class="text-xs text-muted">{{ u.email }}</span>
+                </div>
+              </div>
+
+              <UButton
+                v-if="userResults.length === 0 && !showAllUsers"
+                label="Ver todos los usuarios"
+                variant="ghost"
+                size="xs"
+                icon="i-lucide-users"
+                @click="() => { showAllUsers = true }"
+              />
+              <UButton
+                v-if="showAllUsers"
+                label="Ocultar lista"
+                variant="ghost"
+                size="xs"
+                icon="i-lucide-chevron-up"
+                @click="() => { showAllUsers = false }"
+              />
+
+              <div v-if="showAllUsers && allUsersList.length > 0" class="border border-default rounded p-2 space-y-1 max-h-48 overflow-y-auto">
+                <div
+                  v-for="u in filteredAllUsers"
+                  :key="u.id"
+                  class="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                  @click="addUser(u)"
+                >
+                  <span class="text-sm font-medium">{{ u.name || u.email }}</span>
+                  <span v-if="u.name" class="text-xs text-muted">{{ u.email }}</span>
+                </div>
+                <div v-if="filteredAllUsers.length === 0" class="text-xs text-muted p-2 text-center">
+                  No hay más usuarios disponibles
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="flex justify-end gap-2 pt-4">
             <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
             <UButton label="Guardar" type="submit" />
@@ -379,6 +657,21 @@ const selectedAccountType = computed({
         <div class="flex justify-end gap-2 pt-4">
           <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
           <UButton label="Eliminar" color="error" @click="handleDelete" />
+        </div>
+      </template>
+    </UModal>
+
+    <!-- REMOVE USER MODAL -->
+    <UModal v-model:open="showRemoveModal" title="Remover usuario">
+      <template #body>
+        <p class="text-sm">
+          Vas a remover a <strong>{{ userToRemove?.userName || userToRemove?.userEmail }}</strong> de esta cuenta bancaria.
+        </p>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton label="Cancelar" variant="ghost" @click="showRemoveModal = false" />
+          <UButton label="Confirmar" color="error" @click="executeRemoveUser" />
         </div>
       </template>
     </UModal>

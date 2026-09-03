@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
+
 definePageMeta({ middleware: ['auth'] })
 
 const route = useRoute()
@@ -12,6 +14,8 @@ const parties = ref<any[]>([])
 const prices = ref<any[]>([])
 const history = ref<any[]>([])
 const loading = ref(false)
+const showImportDialog = ref(false)
+const { exportToExcel } = useExcelExport()
 
 const typeOptions = [
   { label: 'Clientes', value: 'CUSTOMER', icon: 'i-lucide-users' },
@@ -66,6 +70,58 @@ function money(value: unknown, code = 'ARS') {
 function sourceLabel(source: string) {
   return ({ MANUAL: 'Manual', SALE_DOCUMENT: 'Venta confirmada', PURCHASE_DOCUMENT: 'Compra confirmada', DISPATCH_RATE: 'Tarifa de despacho', LEGACY_SUPPLIER: 'Proveedor existente' } as Record<string, string>)[source] ?? source
 }
+
+function handleExportExcel() {
+  exportToExcel({
+    filename: `precios_${partyType.value.toLowerCase()}_${selectedParty.value?.name || 'todos'}`,
+    sheetName: 'Precios',
+    columns: [
+      { key: 'producto', label: 'Producto', width: 30 },
+      { key: 'sku', label: 'SKU', width: 15 },
+      { key: 'operacion', label: 'Operación', width: 12 },
+      { key: 'moneda', label: 'Moneda', width: 8 },
+      { key: 'precio_acordado', label: 'Precio acordado', width: 15, format: (v: unknown) => Number(v).toFixed(2) },
+      { key: 'precio_general', label: 'Precio general', width: 15, format: (v: unknown) => v != null ? Number(v).toFixed(2) : '—' },
+      { key: 'actualizado', label: 'Actualizado', width: 12 }
+    ],
+    data: filteredPrices.value.map(p => ({
+      producto: p.products?.name ?? '',
+      sku: p.products?.sku ?? '',
+      operacion: p.operation_type === 'SALE' ? 'Venta' : 'Compra',
+      moneda: p.currencies?.code ?? '',
+      precio_acordado: Number(p.price),
+      precio_general: generalPrice(p),
+      actualizado: p.effective_from ? new Date(p.effective_from).toLocaleDateString('es-AR') : ''
+    }))
+  })
+}
+
+function handleExportCSV() {
+  const headers = ['Producto', 'SKU', 'Operación', 'Moneda', 'Precio acordado', 'Precio general', 'Actualizado']
+  const rows = filteredPrices.value.map(p => [
+    p.products?.name || '',
+    p.products?.sku || '',
+    p.operation_type === 'SALE' ? 'Venta' : 'Compra',
+    p.currencies?.code || '',
+    Number(p.price).toFixed(2),
+    generalPrice(p) != null ? Number(generalPrice(p)).toFixed(2) : '',
+    p.effective_from ? new Date(p.effective_from).toLocaleDateString('es-AR') : ''
+  ])
+  const csvContent = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n')
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `precios_${partyType.value.toLowerCase()}_${selectedParty.value?.name || 'todos'}.csv`
+  link.click()
+}
+
+const importColumns = [
+  { key: 'sku', label: 'SKU', required: true, type: 'string' as const },
+  { key: 'currency_code', label: 'Moneda', required: true, type: 'string' as const },
+  { key: 'price', label: 'Precio acordado', required: true, type: 'number' as const }
+]
+
+const importEndpoint = computed(() => `/api/erp/pricing/party-prices/import?party_id=${selectedPartyId.value}&operation_type=${partyType.value === 'CUSTOMER' ? 'SALE' : 'PURCHASE'}`)
 
 async function loadPrices() {
   if (!selectedPartyId.value) {
@@ -135,7 +191,15 @@ onMounted(async () => {
             <h2 class="font-semibold">{{ selectedParty?.name }}</h2>
             <p class="text-sm text-muted">{{ prices.length }} precio{{ prices.length === 1 ? '' : 's' }} específico{{ prices.length === 1 ? '' : 's' }}</p>
           </div>
-          <UButton label="Administrar productos" icon="i-lucide-settings-2" color="neutral" variant="outline" :to="`/erp/stakeholders/${selectedPartyId}/edit`" />
+          <div class="flex items-center gap-2">
+            <UDropdownMenu :items="[
+              [{ label: 'Excel (.xlsx)', icon: 'i-lucide-file-spreadsheet', onSelect: handleExportExcel }, { label: 'CSV', icon: 'i-lucide-file-text', onSelect: handleExportCSV }]
+            ]">
+              <UButton label="Exportar" icon="i-lucide-download" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-down" />
+            </UDropdownMenu>
+            <UButton label="Importar" icon="i-lucide-upload" color="neutral" variant="outline" @click="showImportDialog = true" />
+            <UButton label="Administrar productos" icon="i-lucide-settings-2" color="neutral" variant="outline" :to="`/erp/stakeholders/${selectedPartyId}/edit`" />
+          </div>
         </div>
       </template>
 
@@ -180,5 +244,14 @@ onMounted(async () => {
     </UCard>
 
     <UCard v-else><div class="py-10 text-center text-muted"><UIcon name="i-lucide-contact-round" class="mx-auto mb-3 size-9 opacity-50" /><p>Seleccioná un cliente o proveedor para consultar su lista de precios.</p></div></UCard>
+
+    <ExcelImportDialog
+      v-model:open="showImportDialog"
+      title="Importar precios"
+      :description="`Importar precios de ${partyType === 'CUSTOMER' ? 'venta' : 'compra'} para ${selectedParty?.name || ''}`"
+      :columns="importColumns"
+      :endpoint="importEndpoint"
+      @success="loadPrices"
+    />
   </UPage>
 </template>
