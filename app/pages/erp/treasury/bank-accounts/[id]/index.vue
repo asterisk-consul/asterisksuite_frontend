@@ -56,15 +56,23 @@ const getAccountTypeConfig = (type: string) => ACCOUNT_TYPE_CONFIG[type] ?? { la
 
 const totalIn = computed(() =>
   movements.value
-    .filter((m) => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'in')
+    .filter((m) => Number(m.amount) > 0)
     .reduce((sum, m) => sum + (Number(m.amount) || 0), 0)
 )
 
 const totalOut = computed(() =>
   movements.value
-    .filter((m) => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'out')
-    .reduce((sum, m) => sum + (Number(m.amount) || 0), 0)
+    .filter((m) => Number(m.amount) < 0)
+    .reduce((sum, m) => sum + Math.abs(Number(m.amount) || 0), 0)
 )
+
+const realBalance = computed(() => {
+  if (!movements.value.length) return Number(account.value?.balance ?? 0)
+  const sorted = [...movements.value].sort((a, b) =>
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  )
+  return Number(sorted[0].balance_after ?? account.value?.balance ?? 0)
+})
 
 const columns = bankMovementColumns({ onSortFieldSelect })
 
@@ -107,8 +115,8 @@ const links = computed(() => [
       <UPageCard variant="subtle">
         <div class="text-center">
           <p class="text-xs text-muted font-medium uppercase">Saldo actual</p>
-          <p class="text-2xl font-bold mt-1" :class="Number(account.balance) >= 0 ? 'text-foreground' : 'text-error'">
-            {{ formatCurrency(account.balance, account.currency_code) }}
+          <p class="text-2xl font-bold mt-1" :class="realBalance >= 0 ? 'text-foreground' : 'text-error'">
+            {{ formatCurrency(realBalance, account.currency_code) }}
           </p>
           <p class="text-xs text-muted mt-1">
             <span :class="getCurrencyConfig(account.currency_code).color">

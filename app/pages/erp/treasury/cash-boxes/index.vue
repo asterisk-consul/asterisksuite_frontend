@@ -222,10 +222,10 @@ const handleSession = async () => {
   sessionSaving.value = true
   try {
     if (sessionAction.value === 'open') {
-      await openSession(sessionBox.value.id, { opening_balance: sessionForm.opening_balance })
+      await openSession(sessionBox.value.id, { opening_balance: Number(sessionForm.opening_balance) || 0 })
       toast.add({ title: 'Sesión abierta', color: 'success' })
     } else {
-      await closeSession(sessionBox.value.id, { actual_balance: sessionForm.actual_balance })
+      await closeSession(sessionBox.value.id, { actual_balance: Number(sessionForm.actual_balance) || 0 })
       toast.add({ title: 'Sesión cerrada', color: 'success' })
     }
     sessionModalOpen.value = false

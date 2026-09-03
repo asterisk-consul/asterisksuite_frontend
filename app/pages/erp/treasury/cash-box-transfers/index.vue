@@ -103,6 +103,16 @@ const sourceCurrency = computed(() => {
   return account?.currency_code ?? null
 })
 
+const destCurrency = computed(() => {
+  if (!form.dest_id) return null
+  if (isDestCashBox.value) {
+    const box = findCashBox(form.dest_id)
+    return box?.currency_code ?? null
+  }
+  const account = findBankAccount(form.dest_id)
+  return account?.currency_code ?? null
+})
+
 const sourceBalance = computed(() => {
   if (!form.source_id) return null
   if (isSourceCashBox.value) {
@@ -116,8 +126,8 @@ const sourceBalance = computed(() => {
 })
 
 const showExchangeRate = computed(() => {
-  if (!form.currency_code || !baseCurrency.value) return false
-  return form.currency_code.toUpperCase() !== baseCurrency.value.code.toUpperCase()
+  if (!sourceCurrency.value || !destCurrency.value) return false
+  return sourceCurrency.value.toUpperCase() !== destCurrency.value.toUpperCase()
 })
 
 const computedConvertedAmount = computed(() => {
@@ -158,14 +168,14 @@ function onCurrencyChange() {
 }
 
 async function checkExchangeRate() {
-  if (!showExchangeRate.value || !baseCurrency.value) {
+  if (!showExchangeRate.value || !sourceCurrency.value || !destCurrency.value) {
     form.exchange_rate = undefined
     form.converted_amount = undefined
     return
   }
   loadingRate.value = true
   try {
-    const rate = await autoResolve(form.currency_code, baseCurrency.value.code)
+    const rate = await autoResolve(sourceCurrency.value, destCurrency.value)
     if (rate) form.exchange_rate = rate
   } finally {
     loadingRate.value = false
@@ -186,6 +196,10 @@ watch(() => form.exchange_rate, (val) => {
   if (val && form.amount) {
     form.converted_amount = computedConvertedAmount.value ?? undefined
   }
+})
+
+watch(() => form.dest_id, () => {
+  checkExchangeRate()
 })
 
 function onSortFieldSelect(columnId: string) {
@@ -235,9 +249,15 @@ async function handleDelete(row: CashBoxTransfer) {
 }
 
 const handleSubmit = async () => {
-  form.converted_amount = computedConvertedAmount.value ?? undefined
-  await create({ ...form })
-  modalOpen.value = false
+  try {
+    form.converted_amount = computedConvertedAmount.value ?? undefined
+    form.exchange_rate = form.exchange_rate ? Number(form.exchange_rate) : undefined
+    await create({ ...form })
+    modalOpen.value = false
+    toast.add({ title: 'Transferencia creada', color: 'success' })
+  } catch (e: any) {
+    toast.add({ title: e?.data?.message ?? 'Error al crear transferencia', color: 'error' })
+  }
 }
 
 const columns = cashBoxTransferColumns({
@@ -371,7 +391,7 @@ const sortFields: SortField[] = [
             </div>
             <div v-if="showConvertedAmount" class="flex items-center gap-2 text-sm text-muted p-2 bg-elevated/50 rounded-lg">
               <UIcon name="i-heroicons-calculator" class="text-primary" />
-              <span>Monto convertido: <span class="font-semibold text-highlighted">{{ formatMoney(computedConvertedAmount, baseCurrency?.code) }}</span></span>
+              <span>Monto convertido: <span class="font-semibold text-highlighted">{{ formatMoney(computedConvertedAmount, destCurrency) }}</span></span>
             </div>
           </template>
 

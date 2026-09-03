@@ -173,7 +173,7 @@ const handleSession = async () => {
       await openSession(boxId, payload)
       toast.add({ title: 'Sesión abierta', color: 'success' })
     } else {
-      await closeSession(boxId, { actual_balance: sessionForm.actual_balance })
+      await closeSession(boxId, { actual_balance: Number(sessionForm.actual_balance) || 0 })
       toast.add({ title: 'Sesión cerrada', color: 'success' })
     }
     sessionModalOpen.value = false
@@ -228,9 +228,25 @@ const todayMovements = computed(() => {
   const todayDate = today()
   return movements.value.filter((m) => {
     const moveDate = m.date?.split('T')[0]
-    return moveDate === today
+    return moveDate === todayDate
   })
 })
+
+const sessionMovements = computed(() =>
+  movements.value.filter(m => m.session_id === currentSession.value?.id)
+)
+
+const realIncome = computed(() =>
+  sessionMovements.value
+    .filter(m => Number(m.amount) > 0)
+    .reduce((sum, m) => sum + Number(m.amount), 0)
+)
+
+const realExpenses = computed(() =>
+  sessionMovements.value
+    .filter(m => Number(m.amount) < 0)
+    .reduce((sum, m) => sum + Math.abs(Number(m.amount)), 0)
+)
 
 const links = computed(() => [
   {
@@ -304,11 +320,11 @@ const links = computed(() => [
         </div>
         <div>
           <p class="text-xs text-muted font-medium uppercase">Ingresos</p>
-          <p class="text-sm font-semibold text-success">+{{ formatCurrency(currentSession.total_income) }}</p>
+          <p class="text-sm font-semibold text-success">+{{ formatCurrency(realIncome) }}</p>
         </div>
         <div>
           <p class="text-xs text-muted font-medium uppercase">Egresos</p>
-          <p class="text-sm font-semibold text-error">-{{ formatCurrency(currentSession.total_expenses) }}</p>
+          <p class="text-sm font-semibold text-error">-{{ formatCurrency(realExpenses) }}</p>
         </div>
       </div>
 
@@ -346,11 +362,11 @@ const links = computed(() => [
       </div>
       <div class="p-4 rounded-xl border border-default bg-default">
         <p class="text-xs text-muted font-medium uppercase">Ingresos sesión</p>
-        <p class="text-xl font-bold mt-1 text-success">+{{ formatCurrency(currentSession?.total_income ?? 0) }}</p>
+        <p class="text-xl font-bold mt-1 text-success">+{{ formatCurrency(realIncome) }}</p>
       </div>
       <div class="p-4 rounded-xl border border-default bg-default">
         <p class="text-xs text-muted font-medium uppercase">Egresos sesión</p>
-        <p class="text-xl font-bold mt-1 text-error">-{{ formatCurrency(currentSession?.total_expenses ?? 0) }}</p>
+        <p class="text-xl font-bold mt-1 text-error">-{{ formatCurrency(realExpenses) }}</p>
       </div>
       <div class="p-4 rounded-xl border border-default bg-default">
         <p class="text-xs text-muted font-medium uppercase">Saldo sesión</p>
@@ -358,8 +374,8 @@ const links = computed(() => [
           {{
             formatCurrency(
               Number(currentSession?.opening_balance ?? box.opening_balance ?? 0) +
-                Number(currentSession?.total_income ?? 0) -
-                Number(currentSession?.total_expenses ?? 0)
+                realIncome -
+                realExpenses
             )
           }}
         </p>

@@ -68,14 +68,13 @@ export const bankMovementColumns = (actions: {
         cell: ({ row }) => {
           const value = row.original.amount
           if (value == null) return '—'
-          const config = MOVEMENT_TYPE_CONFIG[row.original.type]
-          const isPositive = config?.side === 'in'
+          const numValue = Number(value)
           const formatted = new Intl.NumberFormat('es-AR', {
             style: 'currency',
             currency: row.original.currency_code || 'ARS',
             maximumFractionDigits: 2
-          }).format(Number(value))
-          return `${isPositive ? '+' : '-'} ${formatted}`
+          }).format(Math.abs(numValue))
+          return `${numValue >= 0 ? '+' : '-'} ${formatted}`
         }
       },
       {

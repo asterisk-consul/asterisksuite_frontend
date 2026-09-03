@@ -1,5 +1,204 @@
 [
   {
+    "version": "0.42.2-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: signo en montos de caja y script de recálculo de saldos de tesorería",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Cajas: montos de movimientos muestran signo correcto (+/-) según el monto"
+      },
+      {
+        "type": "feat",
+        "scope": "tesoreria",
+        "title": "Script recalc-treasury-balances.ts para recalcular saldos históricos corruptos"
+      }
+    ],
+    "message": "Se corrige el signo duplicado en montos de movimientos de caja y se agrega un script para recalcular balance_before/after y saldos de cajas y bancos."
+  },
+  {
+    "version": "0.42.1-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: balance_before en movimientos ahora se lee antes de actualizar el saldo",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias: balance_before se calcula correctamente leyendo saldo antes de la actualización"
+      }
+    ],
+    "message": "El saldo anterior en movimientos de transferencia ahora muestra el saldo real antes de la operación, no después de actualizar."
+  },
+  {
+    "version": "0.42.0-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: saldos de bancos y cajas ahora se derivan de los movimientos",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Bancos: saldo actual se calcula desde el último movimiento, no desde la columna desnormalizada"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Cajas: ingresos/egresos de sesión se calculan desde movimientos filtrados por sesión"
+      }
+    ],
+    "message": "Los saldos de cuentas bancarias y cajas ahora se derivan directamente de los movimientos registrados, evitando desincronización con las columnas desnormalizadas."
+  },
+  {
+    "version": "0.41.9-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: bancos muestran montos negativos y clasifican transferencias correctamente",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Bancos: movimientos muestran signo correcto (+/-) según monto"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Bancos: ingresos/egresos se calculan por signo del monto, no por tipo"
+      }
+    ],
+    "message": "Los movimientos bancarios ahora muestran el signo correcto del monto. Los totales de ingresos/egresos se calculan correctamente según la dirección del dinero."
+  },
+  {
+    "version": "0.41.8-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: bank_account_movements balance_before/balance_after usaba Decimal en vez de number",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias banco→caja: corregido cálculo de balance_after que fallaba por tipo Decimal"
+      }
+    ],
+    "message": "Corregido el cálculo de balance_before y balance_after en movimientos bancarios que usaba Prisma Decimal sin convertir a number."
+  },
+  {
+    "version": "0.41.7-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: movimiento de origen ahora registra monto negativo (egreso)",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias: el movimiento de origen ahora se registra con monto negativo para que aparezca como egreso"
+      }
+    ],
+    "message": "El movimiento de caja al realizar una transferencia saliente ahora se registra correctamente como egreso con monto negativo."
+  },
+  {
+    "version": "0.41.6-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: transferencias requieren sesión abierta y actualiza totales de sesión",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias: requieren sesión abierta en la caja origen"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias: actualiza ingresos/egresos de sesión correctamente"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias entre cajas: cada caja usa su propia sesión"
+      }
+    ],
+    "message": "Las transferencias ahora requieren una sesión abierta en la caja origen. Los movimientos de transferencia ahora se reflejan correctamente en los totales de ingresos/egresos de la sesión, y cada caja usa su propia sesión."
+  },
+  {
+    "version": "0.41.5-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: moneda correcta en movimientos bancarios y tab Hoy en cajas",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Movimientos bancarios: al recibir transferencia de otra moneda, se registra en la moneda del banco con el monto convertido"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Cajas tab Hoy: los movimientos del día ahora aparecen correctamente en la pestaña Hoy"
+      }
+    ],
+    "message": "Al recibir una transferencia de otra moneda en una cuenta bancaria, el movimiento ahora se registra en la moneda de la cuenta con el monto convertido. También se corrige que la pestaña 'Hoy' en cajas muestre los movimientos del día."
+  },
+  {
+    "version": "0.41.4-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: transferencias now create bank_account_movements and use correct dest currency",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Movimientos bancarios: las transferencias ahora crean registros en bank_account_movements para que aparezcan en el historial"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Moneda destino: en transferencias entre monedas, el saldo de la caja destino se acredita en su propia moneda"
+      }
+    ],
+    "message": "Las transferencias ahora crean movimientos en cuentas bancarias (iban y vienen en el historial). También se corrige que en transferencias entre monedas distintas, la caja destino reciba el saldo en su moneda correcta."
+  },
+  {
+    "version": "0.41.3-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: transferencias no acreditaban en destino (caja/banco) y no convertían moneda",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias a banco: el destino ahora recibe el monto cuando es cuenta bancaria"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias entre monedas: el destino recibe el monto convertido en la moneda correcta"
+      }
+    ],
+    "message": "Las transferencias ahora acreditan correctamente en el destino. Antes, si el destino era una cuenta bancaria el dinero no llegaba. También se corrige que en transferencias entre monedas distintas el destino reciba el monto convertido en su propia moneda."
+  },
+  {
+    "version": "0.41.2-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: tipo de cambio en transferencias entre cajas/bancos",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Exchange rate: se envía como número en vez de string para evitar error de validación"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Tipo de cambio: solo se muestra cuando origen y destino tienen monedas distintas"
+      }
+    ],
+    "message": "Al transferir entre cajas o bancos, el campo tipo de cambio ahora se muestra solo cuando las monedas de origen y destino son diferentes. Antes se comparaba contra la moneda base del sistema. También se corrige el envío del tipo de cambio como número."
+  },
+  {
     "version": "0.41.1-alpha",
     "date": "2026-09-03",
     "stage": "alpha",
