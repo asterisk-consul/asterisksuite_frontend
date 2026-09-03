@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TreeItem } from '@nuxt/ui'
+import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 import { useAccountsService } from '~/modulos/contabilidad/service/accounts.service'
 import type { Account, AccountType } from '~/modulos/contabilidad/types/accounts.types'
 
@@ -12,6 +13,7 @@ const accounts = ref<Account[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 const searchQuery = ref('')
+const showImportDialog = ref(false)
 
 // CRUD state
 const modalOpen = ref(false)
@@ -152,6 +154,29 @@ const accountTypeOptions = [
   { label: 'Gastos', value: 'EXPENSE' }
 ]
 
+// Export
+const handleExportExcel = () => {
+  window.open('/api/contabilidad/accounts/export?format=xlsx', '_blank')
+}
+
+const handleExportCSV = () => {
+  window.open('/api/contabilidad/accounts/export?format=csv', '_blank')
+}
+
+// Import
+const importColumns = [
+  { key: 'code', label: 'Código', required: true, type: 'string' as const },
+  { key: 'name', label: 'Nombre', required: true, type: 'string' as const },
+  { key: 'account_type', label: 'Tipo', required: true, type: 'string' as const },
+  { key: 'parent_code', label: 'Cuenta padre', required: false, type: 'string' as const }
+]
+
+const importEndpoint = '/api/contabilidad/accounts/import'
+
+const onImportSuccess = async () => {
+  accounts.value = await service.findAll()
+}
+
 const parentOptions = computed(() => [
   { label: 'Sin padre (raíz)', value: '' },
   ...accounts.value.map((a) => ({
@@ -179,6 +204,12 @@ const selectedType = computed({
   <UPage class="space-y-6 px-4">
     <AppPageHeader title="Plan de Cuentas" description="Plan contable de la empresa">
       <template #links>
+        <UDropdownMenu :items="[
+          [{ label: 'Excel (.xlsx)', icon: 'i-lucide-file-spreadsheet', onSelect: handleExportExcel }, { label: 'CSV', icon: 'i-lucide-file-text', onSelect: handleExportCSV }]
+        ]">
+          <UButton label="Exportar" icon="i-lucide-download" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-down" />
+        </UDropdownMenu>
+        <UButton label="Importar" icon="i-lucide-upload" color="neutral" variant="outline" @click="showImportDialog = true" />
         <UButton label="Nueva cuenta" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate()" />
       </template>
     </AppPageHeader>
@@ -295,5 +326,14 @@ const selectedType = computed({
         </div>
       </template>
     </UModal>
+
+    <ExcelImportDialog
+      v-model:open="showImportDialog"
+      title="Importar plan de cuentas"
+      description="Importar cuentas contables desde Excel. Las columnas son: Código, Nombre, Tipo, Cuenta padre"
+      :columns="importColumns"
+      :endpoint="importEndpoint"
+      @success="onImportSuccess"
+    />
   </UPage>
 </template>

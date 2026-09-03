@@ -1,5 +1,24 @@
 [
   {
+    "version": "0.41.0-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Export e import del plan de cuentas contables",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "contabilidad",
+        "title": "Export plan de cuentas: descarga Excel o CSV con código, nombre, tipo y cuenta padre"
+      },
+      {
+        "type": "feat",
+        "scope": "contabilidad",
+        "title": "Import plan de cuentas: importación masiva desde Excel respetando jerarquía padre-hijo"
+      }
+    ],
+    "message": "Ahora podes exportar e importar el plan de cuentas contables desde la página Plan de Cuentas. El export genera Excel o CSV con la estructura completa, y el import acepta archivos con columnas Código, Nombre, Tipo y Cuenta padre, creando la jerarquía correctamente."
+  },
+  {
     "version": "0.40.0-alpha",
     "date": "2026-09-03",
     "stage": "alpha",
