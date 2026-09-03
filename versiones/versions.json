@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.42.3-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Se ocultan métodos de pago no implementados (tarjeta, billetera, cuenta corriente)",
+    "changes": [
+      {
+        "type": "chore",
+        "scope": "pagos",
+        "title": "Métodos de pago: solo se muestran efectivo, cheques y bancos por ahora"
+      }
+    ],
+    "message": "Se comentan las opciones de pago no implementadas hasta tener sus módulos listos."
+  },
+  {
     "version": "0.42.2-alpha",
     "date": "2026-09-03",
     "stage": "alpha",

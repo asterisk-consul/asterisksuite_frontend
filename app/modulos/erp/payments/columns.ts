@@ -24,9 +24,9 @@ const methodConfig: Record<string, { label: string; color?: string }> = {
   CASH: { label: 'Efectivo', color: 'neutral' },
   CHECK: { label: 'Cheque', color: 'warning' },
   BANK_TRANSFER: { label: 'Transferencia', color: 'primary' },
-  CREDIT_CARD: { label: 'Tarjeta crédito', color: 'info' },
-  DEBIT_CARD: { label: 'Tarjeta débito', color: 'secondary' },
-  VIRTUAL_WALLET: { label: 'Billetera virtual', color: 'success' }
+  // CREDIT_CARD: { label: 'Tarjeta crédito', color: 'info' },
+  // DEBIT_CARD: { label: 'Tarjeta débito', color: 'secondary' },
+  // VIRTUAL_WALLET: { label: 'Billetera virtual', color: 'success' }
 }
 
 export const paymentColumns = (actions: {

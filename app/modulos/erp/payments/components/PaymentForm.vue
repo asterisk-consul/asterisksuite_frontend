@@ -283,10 +283,10 @@ const paymentMethods = [
   { label: 'Efectivo', value: 'CASH' },
   { label: 'Cheque', value: 'CHECK' },
   { label: 'Transferencia bancaria', value: 'BANK_TRANSFER' },
-  { label: 'Tarjeta de crédito', value: 'CREDIT_CARD' },
-  { label: 'Tarjeta de débito', value: 'DEBIT_CARD' },
-  { label: 'Billetera virtual', value: 'VIRTUAL_WALLET' },
-  { label: 'Cuenta corriente', value: 'CURRENT_ACCOUNT' }
+  // { label: 'Tarjeta de crédito', value: 'CREDIT_CARD' },
+  // { label: 'Tarjeta de débito', value: 'DEBIT_CARD' },
+  // { label: 'Billetera virtual', value: 'VIRTUAL_WALLET' },
+  // { label: 'Cuenta corriente', value: 'CURRENT_ACCOUNT' }
 ]
 
 const typeOptions = [
