@@ -179,6 +179,11 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
 
   const create = async (payload: CreateCashBoxInput) => {
     const created = await service.create(payload)
+    if (created.is_main) {
+      for (const item of items.value) {
+        item.is_main = false
+      }
+    }
     items.value.push(created)
     return created
   }
@@ -189,6 +194,14 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
 
   const update = async (id: string, payload: UpdateCashBoxInput) => {
     const updated = await service.update(id, payload)
+
+    if (updated.is_main) {
+      for (const item of items.value) {
+        if (item.id !== id) {
+          item.is_main = false
+        }
+      }
+    }
 
     const index = items.value.findIndex((i) => i.id === id)
     if (index !== -1) {

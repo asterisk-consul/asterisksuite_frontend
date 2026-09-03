@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.41.1-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: caja principal se duplicaba en la UI al crear o editar",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Caja principal: al marcar una caja como principal, se desmarca correctamente en las demás cajas del store local"
+      }
+    ],
+    "message": "Al crear o editar una caja y marcarla como principal, ahora se desmarca correctamente en el store de Pinia. Antes solo se actualizaba en la DB pero la UI mostraba dos cajas como principales hasta refrescar la página."
+  },
+  {
     "version": "0.41.0-alpha",
     "date": "2026-09-03",
     "stage": "alpha",
