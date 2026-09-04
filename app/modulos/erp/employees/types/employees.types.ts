@@ -19,6 +19,7 @@ export interface Employee {
   salary?: string | null
   currency_code: string
   default_commission_rate?: number | null
+  commission_base?: 'INVOICED' | 'PAID' | null
   is_salesperson: boolean
   is_active: boolean
   created_at?: string
@@ -56,6 +57,7 @@ export interface CreateEmployeeInput {
   salary?: string
   currency_code?: string
   default_commission_rate?: number
+  commission_base?: 'INVOICED' | 'PAID'
   is_salesperson?: boolean
   is_active?: boolean
   // ─── Business party fields ──

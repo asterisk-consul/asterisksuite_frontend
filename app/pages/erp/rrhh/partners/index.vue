@@ -18,13 +18,17 @@ onMounted(() => store.fetchAll())
 
 const openEdit = (row: any) => router.push(`/erp/rrhh/partners/${row.id}/edit`)
 const openCreate = () => router.push('/erp/rrhh/partners/create')
+const openReport = (row: any) => {
+  const partyId = row.party_id ?? row.id
+  router.push(`/erp/rrhh/reports/socio/${partyId}`)
+}
 
 function onSortFieldSelect(columnId: string) {
   const current = sorting.value[0]
   sorting.value = [{ id: columnId, desc: current?.id === columnId ? !current.desc : false }]
 }
 
-const columns = partnerColumns({ onEdit: openEdit, onSortFieldSelect })
+const columns = partnerColumns({ onEdit: openEdit, onReport: openReport, onSortFieldSelect })
 
 const filterFields: FilterField[] = [
   { id: 'first_name', label: 'Filtrar por Nombre...', class: 'w-40' },

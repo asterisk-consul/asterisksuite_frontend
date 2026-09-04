@@ -28,6 +28,7 @@ jobs:
           context: .
           push: true
           tags: |
+            ghcr.io/asterisk-consul/asterisksuite-frontend:latest
             ghcr.io/asterisk-consul/asterisksuite-frontend:dev
             ghcr.io/asterisk-consul/asterisksuite-frontend:dev-${{ github.sha }}
           build-args: |

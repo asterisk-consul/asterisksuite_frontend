@@ -19,6 +19,7 @@ const createForm = ref({
   type: 'SUELDO',
   amount: 0,
   currency_code: 'ARS',
+  exchange_rate: null as number | null,
   date: today(),
   description: ''
 })
@@ -71,6 +72,33 @@ const alertDescription = computed(() =>
     : 'Podés confirmarlo después desde la lista de vales.'
 )
 
+// ═══════════════════════════════════════════
+// TIPO DE CAMBIO
+// ═══════════════════════════════════════════
+
+const convertedAmount = computed(() => {
+  if (!createForm.value.exchange_rate || createForm.value.amount <= 0) return null
+  return createForm.value.amount * createForm.value.exchange_rate
+})
+
+const inverseConvertedAmount = computed(() => {
+  if (!createForm.value.exchange_rate || createForm.value.amount <= 0 || createForm.value.exchange_rate === 0) return null
+  return createForm.value.amount / createForm.value.exchange_rate
+})
+
+const convertedCurrencyLabel = computed(() =>
+  createForm.value.currency_code === 'USD' ? 'ARS' : 'USD'
+)
+
+const convertedPreviewText = computed(() => {
+  if (!convertedAmount.value) return null
+  const fromCurrency = createForm.value.currency_code
+  const toCurrency = convertedCurrencyLabel.value
+  const fromFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: fromCurrency, maximumFractionDigits: 2 }).format(createForm.value.amount)
+  const toFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: toCurrency, maximumFractionDigits: 2 }).format(convertedAmount.value)
+  return `${fromFmt} ≈ ${toFmt}`
+})
+
 async function loadPeople() {
   try {
     const [employees, partners] = await Promise.all([
@@ -101,6 +129,7 @@ function resetForm() {
     type: 'SUELDO',
     amount: 0,
     currency_code: 'ARS',
+    exchange_rate: null,
     date: today(),
     description: ''
   }
@@ -109,7 +138,11 @@ function resetForm() {
 async function handleCreate() {
   try {
     saving.value = true
-    const vale = await hrStore.createVale(createForm.value)
+    const vale = await hrStore.createVale({
+      ...createForm.value,
+      rate_type: 'OFFICIAL',
+      converted_amount: convertedAmount.value ?? createForm.value.amount,
+    })
     if (confirmAutomatically.value) {
       await hrStore.confirmVale(vale.id)
       toast.add({ title: 'Vale creado y confirmado', color: 'success' })
@@ -236,6 +269,29 @@ watch(open, (val) => {
           </UFormField>
         </div>
 
+        <!-- Tipo de cambio -->
+        <div class="space-y-2">
+          <div class="grid grid-cols-2 gap-4">
+            <UFormField label="Tipo de cambio" required>
+              <UInput
+                v-model.number="createForm.exchange_rate"
+                type="number"
+                placeholder="Ej: 1200"
+                :min="0"
+                :step="0.01"
+              />
+            </UFormField>
+            <div v-if="convertedPreviewText" class="flex items-end pb-1">
+              <p class="text-sm font-medium text-muted">
+                {{ convertedPreviewText }}
+              </p>
+            </div>
+          </div>
+          <p v-if="createForm.exchange_rate && createForm.amount > 0" class="text-xs text-muted">
+            Equivalente en {{ convertedCurrencyLabel }}: {{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: convertedCurrencyLabel, maximumFractionDigits: 2 }).format(convertedAmount ?? 0) }}
+          </p>
+        </div>
+
         <!-- Fecha -->
         <UFormField label="Fecha" required>
           <UInput v-model="createForm.date" type="date" />
@@ -255,7 +311,7 @@ watch(open, (val) => {
           label="Crear borrador"
           variant="outline"
           :loading="saving"
-          :disabled="!createForm.party_id || createForm.amount <= 0"
+          :disabled="!createForm.party_id || createForm.amount <= 0 || !createForm.exchange_rate"
           @click="handleCreate"
         />
         <UButton
@@ -263,7 +319,7 @@ watch(open, (val) => {
           color="success"
           icon="i-lucide-check"
           :loading="saving"
-          :disabled="!createForm.party_id || createForm.amount <= 0"
+          :disabled="!createForm.party_id || createForm.amount <= 0 || !createForm.exchange_rate"
           @click="handleCreate"
         />
       </div>

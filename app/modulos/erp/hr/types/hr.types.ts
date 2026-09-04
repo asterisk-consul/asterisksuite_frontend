@@ -10,6 +10,9 @@ export interface HrVale {
   type: HrValeType
   amount: number
   currency_code: string
+  exchange_rate: number | null
+  rate_type: string | null
+  converted_amount: number | null
   status: HrValeStatus
   description: string | null
   date: string
@@ -45,6 +48,9 @@ export interface HrAccountEntry {
   type: string
   amount: number
   currency_code: string
+  exchange_rate: number | null
+  rate_type: string | null
+  converted_amount: number | null
   balance_before: number
   balance_after: number
   description: string | null
@@ -86,4 +92,39 @@ export const HR_VALE_STATUS_COLORS: Record<HrValeStatus, string> = {
   CONFIRMED: 'warning',
   PAID: 'success',
   CANCELLED: 'error',
+}
+
+// ═══════════════════════════════════════════
+// REPORTE DE SOCIO
+// ═══════════════════════════════════════════
+
+export interface PartnerReport {
+  partner: {
+    id: string
+    name: string
+    document_type: string | null
+    document_number: string | null
+    share_percentage: number | null
+    capital_contributed: number | null
+    is_active: boolean
+  }
+  balances: {
+    currency_code: string
+    balance: number
+    converted_balance: number | null
+  }[]
+  summary: {
+    total_aportes: number
+    total_retiros: number
+    total_reembolsos: number
+    total_prestamos: number
+    saldo_neto_ars: number
+    saldo_neto_usd: number
+  }
+  vales: HrVale[]
+  evolution: {
+    date: string
+    balance_ars: number
+    balance_usd: number
+  }[]
 }

@@ -74,6 +74,7 @@ const commissionAmount = computed(() => {
           <p class="text-muted">Comisión</p>
           <p class="font-medium">
             {{ document.orden_venta_doc.commission_rate }}%
+            <span class="text-xs text-muted">({{ document.orden_venta_doc.commission_base === 'PAID' ? 'sobre cobrado' : 'sobre facturado' }})</span>
             <template v-if="commissionAmount !== null">
               — {{ fmtCurrency(commissionAmount) }}
             </template>

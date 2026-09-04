@@ -65,6 +65,10 @@ function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
 }
 
+function fmtCurrency(n: number, currencyCode: string = 'ARS') {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: currencyCode, maximumFractionDigits: 2 }).format(n ?? 0)
+}
+
 function fmtDate(d: string) {
   return d ? new Date(d).toLocaleDateString('es-AR') : '-'
 }
@@ -152,7 +156,12 @@ const columns = [
         </template>
 
         <template #amount-cell="{ row }">
-          <span class="font-medium">{{ fmt(Number(row.original.amount)) }}</span>
+          <div>
+            <span class="font-medium">{{ fmtCurrency(Number(row.original.amount), row.original.currency_code) }}</span>
+            <p v-if="row.original.converted_amount" class="text-xs text-muted">
+              ≈ {{ fmtCurrency(Number(row.original.converted_amount), row.original.currency_code === 'USD' ? 'ARS' : 'USD') }}
+            </p>
+          </div>
         </template>
 
         <template #date-cell="{ row }">
@@ -221,7 +230,7 @@ const columns = [
             ¿Estás seguro que querés anular el vale
             <span class="font-medium text-highlighted">#{{ cancellingVale?.number }}</span>
             de <span class="font-medium text-highlighted">{{ cancellingVale?.party?.name }}</span>
-            por <span class="font-medium text-highlighted">{{ fmt(Number(cancellingVale?.amount ?? 0)) }}</span>?
+            por <span class="font-medium text-highlighted">{{ fmtCurrency(Number(cancellingVale?.amount ?? 0), cancellingVale?.currency_code) }}</span>?
           </p>
 
           <p class="text-sm text-muted">

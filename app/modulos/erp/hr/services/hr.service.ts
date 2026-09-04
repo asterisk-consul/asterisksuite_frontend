@@ -1,4 +1,4 @@
-import type { HrVale, HrAccount, HrAccountEntry } from '../types/hr.types'
+import type { HrVale, HrAccount, HrAccountEntry, PartnerReport } from '../types/hr.types'
 
 export const HrService = {
   // ══════════════════════════════════════════════════════════
@@ -24,6 +24,9 @@ export const HrService = {
     type: string
     amount: number
     currency_code: string
+    exchange_rate: number
+    rate_type?: string
+    converted_amount: number
     date: string
     description?: string
   }): Promise<HrVale> {
@@ -93,5 +96,13 @@ export const HrService = {
       method: 'POST' as any,
       body: { seller_id: sellerId, month },
     })
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // REPORTE DE SOCIO
+  // ══════════════════════════════════════════════════════════
+
+  async getPartnerReport(partyId: string): Promise<PartnerReport> {
+    return $fetch(`/api/erp/hr/partner-report/${partyId}`)
   },
 }

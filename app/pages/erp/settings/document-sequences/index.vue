@@ -110,7 +110,7 @@ const handleSubmit = async () => {
     } else {
       await $fetch('/api/erp/document-sequences', {
         method: 'POST',
-        body: form
+        body: payload
       })
       toast.add({ title: 'Secuencia creada', color: 'success' })
     }

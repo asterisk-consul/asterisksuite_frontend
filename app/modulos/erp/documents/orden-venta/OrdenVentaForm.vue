@@ -27,6 +27,7 @@ const form = reactive({
   confirmed_delivery_date: '',
   seller_id: '',
   commission_rate: null as number | null,
+  commission_base: 'INVOICED' as string,
 })
 
 const activeEmployees = computed(() =>
@@ -39,6 +40,7 @@ const employeeOptions = computed(() =>
     value: e.id,
     userId: e.user_id,
     defaultCommissionRate: e.default_commission_rate ? Number(e.default_commission_rate) : null,
+    commissionBase: e.commission_base ?? 'INVOICED',
   }))
 )
 
@@ -59,14 +61,16 @@ watch(activeEmployees, (emps) => {
     form.seller_id = defaultSellerId.value
     const emp = employeeOptions.value.find((e: any) => e.value === defaultSellerId.value)
     if (emp?.defaultCommissionRate) form.commission_rate = emp.defaultCommissionRate
+    if (emp?.commissionBase) form.commission_base = emp.commissionBase
   }
 }, { immediate: true })
 
-// Auto-fill commission_rate from seller's default when seller changes
+// Auto-fill commission_rate and commission_base from seller's defaults when seller changes
 watch(() => form.seller_id, (sellerId) => {
   if (!sellerId) return
   const emp = employeeOptions.value.find((e: any) => e.value === sellerId)
   if (emp?.defaultCommissionRate) form.commission_rate = emp.defaultCommissionRate
+  if (emp?.commissionBase) form.commission_base = emp.commissionBase
 })
 
 onMounted(async () => {

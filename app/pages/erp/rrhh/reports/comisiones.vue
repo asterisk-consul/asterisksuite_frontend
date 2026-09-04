@@ -214,7 +214,7 @@ watch([currentMonth, selectedSellerId], () => loadReport())
               <tr class="bg-muted/30">
                 <th class="text-left px-4 py-2 font-medium">OV #</th>
                 <th class="text-left px-4 py-2 font-medium">Fecha</th>
-                <th class="text-right px-4 py-2 font-medium">Subtotal</th>
+                <th class="text-right px-4 py-2 font-medium">Base</th>
                 <th class="text-right px-4 py-2 font-medium">Comisión %</th>
                 <th class="text-right px-4 py-2 font-medium">Monto</th>
               </tr>
@@ -224,7 +224,10 @@ watch([currentMonth, selectedSellerId], () => loadReport())
                 <td class="px-4 py-2 font-mono">OV-{{ String(item.ov_number).padStart(8, '0') }}</td>
                 <td class="px-4 py-2">{{ fmtDate(item.date) }}</td>
                 <td class="px-4 py-2 text-right">{{ fmt(item.subtotal) }}</td>
-                <td class="px-4 py-2 text-right">{{ item.commission_rate }}%</td>
+                <td class="px-4 py-2 text-right">
+                  {{ item.commission_rate }}%
+                  <span class="text-xs text-muted">({{ item.commission_base === 'PAID' ? 'cobrado' : 'facturado' }})</span>
+                </td>
                 <td class="px-4 py-2 text-right font-semibold">{{ fmt(item.commission_amount) }}</td>
               </tr>
             </tbody>

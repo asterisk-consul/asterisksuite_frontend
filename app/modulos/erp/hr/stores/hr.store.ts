@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { HrService } from '../services/hr.service'
-import type { HrVale, HrAccount, HrAccountEntry } from '../types/hr.types'
+import type { HrVale, HrAccount, HrAccountEntry, PartnerReport } from '../types/hr.types'
 
 export interface CommissionReport {
   month: string
@@ -59,6 +59,9 @@ export const useHrStore = defineStore('hr', () => {
     type: string
     amount: number
     currency_code: string
+    exchange_rate: number
+    rate_type?: string
+    converted_amount: number
     date: string
     description?: string
   }) => {
@@ -174,6 +177,23 @@ export const useHrStore = defineStore('hr', () => {
     }
   }
 
+  // ══════════════════════════════════════════════════════════
+  // REPORTE DE SOCIO
+  // ══════════════════════════════════════════════════════════
+
+  const fetchPartnerReport = async (partyId: string): Promise<PartnerReport> => {
+    loading.value = true
+    error.value = null
+    try {
+      return await HrService.getPartnerReport(partyId)
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al cargar reporte de socio'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     vales,
     accounts,
@@ -189,5 +209,6 @@ export const useHrStore = defineStore('hr', () => {
     fetchAccountEntries,
     fetchCommissionsReport,
     generateCommissionVale,
+    fetchPartnerReport,
   }
 })

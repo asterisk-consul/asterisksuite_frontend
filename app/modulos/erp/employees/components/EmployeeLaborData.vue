@@ -1,7 +1,17 @@
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   form: Record<string, any>
 }>()
+
+const commissionBaseOptions = [
+  { label: 'Monto facturado', value: 'INVOICED' },
+  { label: 'Monto cobrado', value: 'PAID' }
+]
+
+const commissionBaseSelect = computed({
+  get: () => commissionBaseOptions.find(o => o.value === props.form.commission_base) ?? commissionBaseOptions[0],
+  set: (val: any) => { props.form.commission_base = val?.value ?? 'INVOICED' }
+})
 </script>
 
 <template>
@@ -55,6 +65,15 @@ defineProps<{
           class="w-full"
         />
       </UFormField>
+
+      <UFormField v-if="form.is_salesperson" label="Calcular comisión sobre" name="commission_base">
+        <USelectMenu
+          v-model="commissionBaseSelect"
+          :items="commissionBaseOptions"
+          class="w-full"
+        />
+      </UFormField>
     </div>
   </UCard>
 </template>
+

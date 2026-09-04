@@ -78,6 +78,23 @@ const accountTree = computed(() => {
   return roots
 })
 
+const handleExportExcel = () => {
+  exportToExcel({
+    filename: 'reportes_contables',
+    sheetName: 'Plan de Cuentas',
+    columns: [
+      { key: 'code', label: 'Código', width: 12 },
+      { key: 'name', label: 'Nombre', width: 30 },
+      { key: 'account_type', label: 'Tipo', width: 15 },
+      { key: 'movement_total', label: 'Total Movimientos', width: 20 }
+    ],
+    data: accountTree.value.flatMap(account => [
+      account,
+      ...(account.children ?? [])
+    ])
+  })
+}
+
 const dataActions: DropdownMenuItem[] = [
   { label: 'Exportar Excel', icon: 'i-lucide-file-spreadsheet', onSelect: handleExportExcel }
 ]

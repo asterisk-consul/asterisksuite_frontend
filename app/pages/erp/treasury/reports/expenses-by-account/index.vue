@@ -93,10 +93,9 @@ async function loadData() {
   }
 }
 
-const accountOptions = computed(() => [
-  { label: 'Todas las cuentas', value: '' },
-  ...(accountsStore.items ?? []).map(a => ({ label: `${a.code} - ${a.name}`, value: a.id }))
-])
+const accountOptions = computed(() =>
+  (accountsStore.items ?? []).map(a => ({ label: `${a.code} - ${a.name}`, value: a.id }))
+)
 
 const top5 = computed(() => (data.value?.accounts ?? []).slice(0, 5))
 

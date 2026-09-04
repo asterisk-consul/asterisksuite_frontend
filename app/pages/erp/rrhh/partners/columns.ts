@@ -1,3 +1,4 @@
+import { h } from 'vue'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
@@ -10,6 +11,7 @@ type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'i
 
 export const partnerColumns = (actions: {
   onEdit?: (row: Row) => void
+  onReport?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
 }): ExtendedColumn<Row>[] => {
   const build = createTableBuilder<Row>({
@@ -92,6 +94,24 @@ export const partnerColumns = (actions: {
         sortable: true,
         date: true
       }
-    ])
+    ]),
+
+    // Columna de acciones: Reporte
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }: any) => {
+        const partyId = row.original?.party_id ?? row.original?.id
+        return h('div', { class: 'flex gap-1' }, [
+          h('button', {
+            class: 'p-1.5 rounded-md hover:bg-muted transition-colors text-primary',
+            title: 'Ver reporte',
+            onClick: () => actions.onReport?.(row.original)
+          }, [
+            h('span', { class: 'i-lucide-bar-chart-3 size-4' })
+          ])
+        ])
+      }
+    }
   ]
 }

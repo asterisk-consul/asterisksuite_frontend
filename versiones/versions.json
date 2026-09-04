@@ -1,5 +1,53 @@
 [
   {
+    "version": "0.43.0-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Configuración de base de comisión por vendedor (facturado vs cobrado)",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "comisiones",
+        "title": "Nuevo campo commission_base en empleados: INVOICED (facturado) o PAID (cobrado)"
+      },
+      {
+        "type": "feat",
+        "scope": "comisiones",
+        "title": "La base de comisión se hereda del vendedor al crear la OV"
+      },
+      {
+        "type": "feat",
+        "scope": "comisiones",
+        "title": "Cálculo de comisiones usa el monto base correcto (facturado o cobrado)"
+      },
+      {
+        "type": "feat",
+        "scope": "comisiones",
+        "title": "Reporte de comisiones muestra la base utilizada por OV"
+      }
+    ],
+    "message": "Cada vendedor puede configurar si su comisión se calcula sobre el monto facturado o el monto cobrado de cada orden de venta. El valor se hereda del empleado al crear la OV."
+  },
+  {
+    "version": "0.42.4-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: reportes contables y selector de cuentas en gastos por cuenta",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "reportes",
+        "title": "Reportes contables: agregada función handleExportExcel faltante"
+      },
+      {
+        "type": "fix",
+        "scope": "reportes",
+        "title": "Gastos por cuenta: eliminado item con value vacío del selector de cuentas"
+      }
+    ],
+    "message": "Corregido el error de exportar Excel en reportes contables y el error de ComboboxItem con value vacío en el selector de cuentas."
+  },
+  {
     "version": "0.42.3-alpha",
     "date": "2026-09-03",
     "stage": "alpha",
