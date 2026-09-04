@@ -33,6 +33,7 @@ const handleSubmit = async (form: FormType) => {
 
     <BusinessPartyForm
       :model-value="{} as any"
+      :loading="saving"
       @submit="handleSubmit"
     />
   </div>

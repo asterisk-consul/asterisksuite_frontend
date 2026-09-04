@@ -244,6 +244,7 @@ const removeBankAccount = (i: number) => {
 }
 
 const submit = () => {
+  if (props.loading) return
   mergePersonName()
   if (!validateDocument()) return
 
@@ -684,7 +685,7 @@ const displayTitle = computed(() => {
     <!-- ACTIONS -->
     <div class="flex justify-end gap-3">
       <UButton variant="soft" @click="cancel">Cancelar</UButton>
-      <UButton type="submit" color="primary">Guardar</UButton>
+      <UButton type="submit" color="primary" :disabled="loading">Guardar</UButton>
     </div>
   </UForm>
 </template>
