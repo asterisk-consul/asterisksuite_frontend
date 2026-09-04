@@ -63,19 +63,10 @@ const availableBalance = computed(() => {
 const advanceModalOpen = ref(false)
 
 onMounted(async () => {
-  const [payment] = await Promise.all([
-    fetchOne(paymentId),
-    fetchPendingSalesDocuments(),
-    fetchPendingPurchaseDocuments(),
-    fetchAvailableOwnChecks(),
-    fetchAvailableCustomerChecks()
-  ])
+  const payment = await fetchOne(paymentId)
 
   if (payment) {
     currentPayment.value = payment as Payment
-    console.log('[PaymentDetail] payment:', payment)
-    console.log('[PaymentDetail] payment.documents:', (payment as any).documents)
-    console.log('[PaymentDetail] payment.cash_box_id:', payment.cash_box_id)
     paymentData.value = {
       type: payment.type as 'PAYMENT' | 'COLLECTION',
       payment_mode: (payment.payment_mode as 'NORMAL' | 'ADVANCE') ?? 'NORMAL',
@@ -93,9 +84,22 @@ onMounted(async () => {
       documents: (payment as any).documents?.map((d: any) => ({
         document_id: d.document_id,
         amount_applied: Number(d.amount_applied),
+        document: d.document,
       })) ?? [],
+      bank_account: (payment as any).bank_account,
+      cash_box: (payment as any).cash_box,
+      payment_allocations: (payment as any).payment_allocations ?? [],
     }
-    console.log('[PaymentDetail] paymentData:', paymentData.value)
+
+    // Solo fetchear documentos pendientes si el pago es editable (DRAFT)
+    if (payment.status === 'DRAFT') {
+      await Promise.all([
+        fetchPendingSalesDocuments(),
+        fetchPendingPurchaseDocuments(),
+        fetchAvailableOwnChecks(),
+        fetchAvailableCustomerChecks()
+      ])
+    }
 
     // Precargar retenciones guardadas
     const rawWithholdings = (payment as any).withholdings
@@ -286,10 +290,11 @@ const handleAdvanceSuccess = async () => {
         </div>
       </div>
 
-      <!-- FORM (editable only when DRAFT) -->
-      <div :class="{ 'max-w-4xl': true, 'opacity-60 pointer-events-none': !isDraft }">
+      <!-- FORM (readonly when not DRAFT) -->
+      <div class="max-w-4xl">
         <PaymentForm
           :model-value="paymentData"
+          :readonly="!isDraft"
           :pending-sales-documents="pendingSalesDocuments"
           :pending-purchase-documents="pendingPurchaseDocuments"
           :available-own-checks="availableOwnChecks"

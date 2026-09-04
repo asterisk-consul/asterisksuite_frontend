@@ -95,7 +95,12 @@ export const navigationTree: DrilldownNode[] = [
     icon: 'i-lucide-wallet',
     to: '/erp/treasury/dashboard',
     children: [
-      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/erp/treasury/dashboard', permission: 'payments.read' },
+      {
+        label: 'Resumen',
+        icon: 'i-lucide-layout-dashboard',
+        to: '/erp/treasury/dashboard',
+        permission: 'payments.read'
+      },
       {
         label: 'Cuentas bancarias',
         icon: 'i-lucide-landmark',
@@ -229,15 +234,35 @@ export const navigationTree: DrilldownNode[] = [
       { label: 'Empleados', icon: 'i-lucide-user', to: '/erp/rrhh/employees', permission: 'employees.read' },
       { label: 'Socios', icon: 'i-lucide-users', to: '/erp/rrhh/partners', permission: 'partners.read' },
       { label: 'Vales', icon: 'i-lucide-receipt', to: '/erp/rrhh/vales', permission: 'vales.read' },
-      { label: 'Cuentas Corrientes', icon: 'i-lucide-file-text', to: '/erp/rrhh/current-accounts', permission: 'employees.read' },
+      {
+        label: 'Cuentas Corrientes',
+        icon: 'i-lucide-file-text',
+        to: '/erp/rrhh/current-accounts',
+        permission: 'employees.read'
+      },
       {
         label: 'Reportes',
         icon: 'i-lucide-bar-chart-3',
         permission: 'employees.read',
         children: [
-          { label: 'Vales por período', icon: 'i-lucide-calendar', to: '/erp/rrhh/reports/vales-periodo', permission: 'vales.read' },
-          { label: 'Comisiones', icon: 'i-lucide-percent', to: '/erp/rrhh/reports/comisiones', permission: 'employees.read' },
-          { label: 'Movimientos', icon: 'i-lucide-activity', to: '/erp/rrhh/reports/movimientos', permission: 'employees.read' },
+          {
+            label: 'Vales por período',
+            icon: 'i-lucide-calendar',
+            to: '/erp/rrhh/reports/vales-periodo',
+            permission: 'vales.read'
+          },
+          {
+            label: 'Comisiones',
+            icon: 'i-lucide-percent',
+            to: '/erp/rrhh/reports/comisiones',
+            permission: 'employees.read'
+          },
+          {
+            label: 'Movimientos',
+            icon: 'i-lucide-activity',
+            to: '/erp/rrhh/reports/movimientos',
+            permission: 'employees.read'
+          },
           { label: 'Saldos', icon: 'i-lucide-wallet', to: '/erp/rrhh/reports/saldos', permission: 'employees.read' }
         ]
       }
@@ -271,10 +296,25 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'trips.read',
         children: [
           { label: 'Viajes', icon: 'i-lucide-truck', to: '/logistica/viajes', permission: 'trips.read' },
-          { label: 'Orden de despacho', icon: 'i-lucide-clipboard-list', to: '/logistica/viajes/dispatch-orders', permission: 'dispatch_orders.read' },
-          { label: 'Corredores', icon: 'i-lucide-map', to: '/logistica/viajes/corridors', permission: 'corridors.read' },
+          {
+            label: 'Orden de despacho',
+            icon: 'i-lucide-clipboard-list',
+            to: '/logistica/viajes/dispatch-orders',
+            permission: 'dispatch_orders.read'
+          },
+          {
+            label: 'Corredores',
+            icon: 'i-lucide-map',
+            to: '/logistica/viajes/corridors',
+            permission: 'corridors.read'
+          },
           { label: 'Choferes', icon: 'i-lucide-user', to: '/logistica/viajes/drivers', permission: 'drivers.read' },
-          { label: 'Locaciones', icon: 'i-lucide-map-pin', to: '/logistica/viajes/locaciones', permission: 'trips.read' }
+          {
+            label: 'Locaciones',
+            icon: 'i-lucide-map-pin',
+            to: '/logistica/viajes/locaciones',
+            permission: 'trips.read'
+          }
         ]
       },
       {
@@ -283,8 +323,18 @@ export const navigationTree: DrilldownNode[] = [
         to: '/logistica/vehicles-combinations',
         permission: 'vehicles.read',
         children: [
-          { label: 'Combinaciones', icon: 'i-lucide-layers', to: '/logistica/vehicles-combinations', permission: 'vehicle_combinations.read' },
-          { label: 'Vehículos', icon: 'i-lucide-bus-front', to: '/logistica/vehicles-combinations/vehicles', permission: 'vehicles.read' }
+          {
+            label: 'Combinaciones',
+            icon: 'i-lucide-layers',
+            to: '/logistica/vehicles-combinations',
+            permission: 'vehicle_combinations.read'
+          },
+          {
+            label: 'Vehículos',
+            icon: 'i-lucide-bus-front',
+            to: '/logistica/vehicles-combinations/vehicles',
+            permission: 'vehicles.read'
+          }
         ]
       },
       {
@@ -293,10 +343,30 @@ export const navigationTree: DrilldownNode[] = [
         to: '/logistica/mantenimiento',
         permission: 'trips.read',
         children: [
-          { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/logistica/mantenimiento/dashboard', permission: 'trips.read' },
-          { label: 'Órdenes', icon: 'i-lucide-clipboard-list', to: '/logistica/mantenimiento', permission: 'trips.read' },
-          { label: 'Cubiertas', icon: 'i-lucide-circle', to: '/logistica/mantenimiento/cubiertas', permission: 'trips.read' },
-          { label: 'Planes preventivos', icon: 'i-lucide-calendar-check', to: '/logistica/mantenimiento/planes', permission: 'trips.read' }
+          {
+            label: 'Dashboard',
+            icon: 'i-lucide-layout-dashboard',
+            to: '/logistica/mantenimiento/dashboard',
+            permission: 'trips.read'
+          },
+          {
+            label: 'Órdenes',
+            icon: 'i-lucide-clipboard-list',
+            to: '/logistica/mantenimiento',
+            permission: 'trips.read'
+          },
+          {
+            label: 'Cubiertas',
+            icon: 'i-lucide-circle',
+            to: '/logistica/mantenimiento/cubiertas',
+            permission: 'trips.read'
+          },
+          {
+            label: 'Planes preventivos',
+            icon: 'i-lucide-calendar-check',
+            to: '/logistica/mantenimiento/planes',
+            permission: 'trips.read'
+          }
         ]
       },
       {
@@ -305,8 +375,18 @@ export const navigationTree: DrilldownNode[] = [
         to: '/logistica/business-parties',
         permission: 'business_parties.read',
         children: [
-          { label: 'Listado', icon: 'i-lucide-list', to: '/logistica/business-parties', permission: 'business_parties.read' },
-          { label: 'Contactos', icon: 'i-lucide-users', to: '/logistica/business-parties/contacts', permission: 'contacts.read' }
+          {
+            label: 'Listado',
+            icon: 'i-lucide-list',
+            to: '/logistica/business-parties',
+            permission: 'business_parties.read'
+          },
+          {
+            label: 'Contactos',
+            icon: 'i-lucide-users',
+            to: '/logistica/business-parties/contacts',
+            permission: 'contacts.read'
+          }
         ]
       },
       { label: 'Reportes', icon: 'i-lucide-bar-chart-3', to: '/logistica/reportes/choferes', permission: 'trips.read' },
@@ -321,7 +401,12 @@ export const navigationTree: DrilldownNode[] = [
             to: '/logistica/configuraciones/transport-document',
             permission: 'transport_document_types.read'
           },
-          { label: 'Tarifas', icon: 'i-lucide-banknotes', to: '/logistica/configuraciones/tarifas', permission: 'transfer_rates.read' }
+          {
+            label: 'Tarifas',
+            icon: 'i-lucide-banknotes',
+            to: '/logistica/configuraciones/tarifas',
+            permission: 'transfer_rates.read'
+          }
         ]
       }
     ]
@@ -343,7 +428,7 @@ export const navigationTree: DrilldownNode[] = [
           { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
           { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
           { label: 'Costos', icon: 'i-lucide-dollar-sign', to: '/productos/costos' },
-          { label: 'Listas de precio', icon: 'i-lucide-tag', to: '/productos/price-lists' },
+          // { label: 'Listas de precio', icon: 'i-lucide-tag', to: '/productos/price-lists' },
           { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party' }
         ]
       },
@@ -370,8 +455,18 @@ export const navigationTree: DrilldownNode[] = [
     icon: 'i-lucide-globe',
     permission: 'international_operations.read',
     children: [
-      { label: 'Operaciones', icon: 'i-lucide-ship', to: '/operaciones-internacionales', permission: 'international_operations.read' },
-      { label: 'Nueva operación', icon: 'i-lucide-plus', to: '/operaciones-internacionales/create', permission: 'international_operations.create' }
+      {
+        label: 'Operaciones',
+        icon: 'i-lucide-ship',
+        to: '/operaciones-internacionales',
+        permission: 'international_operations.read'
+      },
+      {
+        label: 'Nueva operación',
+        icon: 'i-lucide-plus',
+        to: '/operaciones-internacionales/create',
+        permission: 'international_operations.create'
+      }
     ]
   },
 
@@ -381,8 +476,18 @@ export const navigationTree: DrilldownNode[] = [
     icon: 'i-lucide-building-2',
     permission: 'companies.read',
     children: [
-      { label: 'Datos de la empresa', icon: 'i-lucide-building', to: '/settings/company', permission: 'companies.read' },
-      { label: 'Configuración Fiscal', icon: 'i-lucide-percent', to: '/settings/fiscal-config', permission: 'companies.read' },
+      {
+        label: 'Datos de la empresa',
+        icon: 'i-lucide-building',
+        to: '/settings/company',
+        permission: 'companies.read'
+      },
+      {
+        label: 'Configuración Fiscal',
+        icon: 'i-lucide-percent',
+        to: '/settings/fiscal-config',
+        permission: 'companies.read'
+      },
       { label: 'Miembros', icon: 'i-lucide-users', to: '/settings/members', permission: 'companies.read' }
     ]
   },

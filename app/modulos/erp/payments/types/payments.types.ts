@@ -17,6 +17,17 @@ export interface PaymentDocument {
   payment_id: string
   document_id: string
   amount_applied: number
+  document?: {
+    id: string
+    number: number
+    total: number
+    paid_amount: number
+    party_id: string | null
+    date: string
+    currency_code: string
+    business_parties?: { id: string; name: string } | null
+    document_types?: { id: string; code: string; description: string; category: string } | null
+  }
 }
 
 export interface Payment {
@@ -39,6 +50,18 @@ export interface Payment {
   cash_box_id?: string | null
   account_id?: string | null
   account?: { id: string; code: string; name: string; account_type: string } | null
+  bank_account?: {
+    id: string; name: string; bank_name: string; account_number?: string | null
+    cbu?: string | null; alias?: string | null; currency_code: string
+  } | null
+  cash_box?: { id: string; name: string; type: string; currency_code?: string | null } | null
+  payment_allocations?: Array<{
+    amount_applied: number
+    check: {
+      id: string; check_number: string; bank_name?: string | null; issuer_name?: string | null
+      amount: number; currency_code: string; due_date?: string | null; is_own: boolean
+    }
+  }>
   check_ids?: string[]
   status: PaymentStatus
   payment_mode?: PaymentMode

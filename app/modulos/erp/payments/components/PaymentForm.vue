@@ -34,7 +34,14 @@ export interface PaymentFormData {
   cash_box_id: string
   account_id: string
   check_ids: string[]
-  documents?: { document_id: string; amount_applied: number }[]
+  documents?: Array<{
+    document_id: string
+    amount_applied: number
+    document?: any
+  }>
+  bank_account?: any
+  cash_box?: any
+  payment_allocations?: any[]
 }
 
 const props = defineProps<{
@@ -45,6 +52,7 @@ const props = defineProps<{
   availableCustomerChecks?: AvailableCheck[]
   initialWithholdings?: WithholdingProposal[]
   loading?: boolean
+  readonly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -260,7 +268,11 @@ watch(
           })
         }
       }
-      form.amount = Array.from(selectedDocs.value.values()).reduce((sum, entry) => sum + entry.amount, 0)
+      // En solo lectura los documentos saldados ya no aparecen entre los pendientes.
+      // Conservar el monto persistido del pago en lugar de recalcularlo como cero.
+      if (!props.readonly) {
+        form.amount = Array.from(selectedDocs.value.values()).reduce((sum, entry) => sum + entry.amount, 0)
+      }
     }
 
     // Precargar retenciones guardadas (modo edición)
@@ -347,6 +359,63 @@ const isPayment = computed(() => form.type === 'PAYMENT')
 const isCheck = computed(() => form.payment_method === 'CHECK')
 const isCollectingCheck = computed(() => isCollection.value && isCheck.value)
 const isPayingWithCheck = computed(() => isPayment.value && isCheck.value)
+
+// ═══════════════════════════════════════════
+// LABELS SOLO LECTURA
+// ═══════════════════════════════════════════
+
+const readonlyTypeLabel = computed(() =>
+  form.type === 'COLLECTION' ? 'Cobro (de cliente)' : 'Pago (a proveedor)'
+)
+
+const readonlyModeLabel = computed(() =>
+  form.payment_mode === 'ADVANCE' ? 'A cuenta (anticipo)' : 'Normal'
+)
+
+const readonlyMethodLabel = computed(() =>
+  paymentMethods.find(m => m.value === form.payment_method)?.label ?? form.payment_method
+)
+
+const readonlyCashBoxLabel = computed(() => {
+  if (!form.cash_box_id) return null
+  const persisted = props.modelValue?.cash_box
+  if (persisted?.name) return persisted.name
+  const cb = cashBoxes.value.find((c: any) => c.id === form.cash_box_id)
+  return cb?.name ?? 'Caja no disponible'
+})
+
+const readonlyBankLabel = computed(() => {
+  if (!form.bank_account_id) return null
+  const persisted = props.modelValue?.bank_account
+  if (persisted) {
+    const account = persisted.account_number || persisted.alias || persisted.name
+    return [persisted.bank_name, account].filter(Boolean).join(' — ')
+  }
+  const ba = bankAccounts.value.find((b: any) => b.id === form.bank_account_id)
+  return ba ? `${ba.bank_name} — ${ba.account_number || ba.name}` : 'Cuenta bancaria no disponible'
+})
+
+const readonlyChecks = computed(() =>
+  (props.modelValue?.payment_allocations ?? []).map((allocation: any) => ({
+    ...allocation.check,
+    amount_applied: Number(allocation.amount_applied)
+  }))
+)
+
+const readonlyDocsList = computed(() => {
+  if (!props.modelValue?.documents?.length) return []
+  return props.modelValue.documents.map(d => {
+    const doc = (d as any).document
+    return {
+      number: doc?.number ?? d.document_id.slice(0, 8),
+      party_name: doc?.business_parties?.name ?? '-',
+      type_code: doc?.document_types?.code ?? '-',
+      type_description: doc?.document_types?.description ?? '',
+      date: doc?.date?.split('T')[0] ?? '-',
+      amount_applied: d.amount_applied
+    }
+  })
+})
 
 const filteredDocs = computed(() => {
   const docs = isCollection.value
@@ -731,7 +800,125 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
 </script>
 
 <template>
-  <form class="space-y-5" @submit.prevent="handleSubmit">
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- MODO SOLO LECTURA (pago confirmado/pagado/anulado)    -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div v-if="readonly" class="space-y-4">
+    <!-- Resumen general -->
+    <UCard>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+        <div>
+          <p class="text-xs text-muted font-medium uppercase">Tipo</p>
+          <p class="font-medium">{{ readonlyTypeLabel }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-muted font-medium uppercase">Modo</p>
+          <p class="font-medium">{{ readonlyModeLabel }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-muted font-medium uppercase">Método de pago</p>
+          <p class="font-medium">{{ readonlyMethodLabel }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-muted font-medium uppercase">Moneda</p>
+          <p class="font-medium">{{ form.currency_code }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-muted font-medium uppercase">Fecha</p>
+          <p class="font-medium">{{ form.date }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-muted font-medium uppercase">Monto total</p>
+          <p class="text-lg font-bold text-primary">{{ formatCurrency(form.amount, form.currency_code) }}</p>
+        </div>
+      </div>
+    </UCard>
+
+    <!-- Medio de pago utilizado -->
+    <UCard v-if="readonlyCashBoxLabel || readonlyBankLabel || readonlyChecks.length">
+      <template #header>
+        <p class="text-sm font-medium">Medio de pago utilizado</p>
+      </template>
+      <div v-if="readonlyCashBoxLabel || readonlyBankLabel" class="flex items-center gap-3">
+        <div class="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <UIcon :name="form.payment_method === 'CASH' ? 'i-lucide-wallet' : 'i-lucide-building-2'" class="size-5 text-primary" />
+        </div>
+        <div>
+          <p class="font-medium">{{ readonlyCashBoxLabel || readonlyBankLabel }}</p>
+          <p class="text-xs text-muted">
+            {{ form.payment_method === 'CASH' ? 'Caja' : 'Cuenta bancaria' }} · {{ form.currency_code }}
+          </p>
+        </div>
+      </div>
+      <div v-if="readonlyChecks.length" class="space-y-3">
+        <div v-for="check in readonlyChecks" :key="check.id" class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <UIcon name="i-lucide-receipt-text" class="size-5 text-primary" />
+            </div>
+            <div>
+              <p class="font-medium">Cheque N.º {{ check.check_number }}</p>
+              <p class="text-xs text-muted">
+                {{ check.bank_name || (check.is_own ? 'Cheque propio' : 'Cheque de tercero') }}
+                <span v-if="check.issuer_name"> · {{ check.issuer_name }}</span>
+              </p>
+            </div>
+          </div>
+          <p class="font-semibold">{{ formatCurrency(check.amount_applied, check.currency_code || form.currency_code) }}</p>
+        </div>
+      </div>
+    </UCard>
+
+    <!-- Documentos aplicados -->
+    <UCard v-if="readonlyDocsList.length > 0">
+      <template #header>
+        <p class="text-sm font-medium">Documentos aplicados</p>
+      </template>
+      <div class="border border-default rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-muted/30">
+              <th class="text-left px-4 py-2 font-medium">Tipo</th>
+              <th class="text-left px-4 py-2 font-medium">Documento</th>
+              <th class="text-left px-4 py-2 font-medium">Fecha</th>
+              <th class="text-left px-4 py-2 font-medium">Tercero</th>
+              <th class="text-right px-4 py-2 font-medium">Monto aplicado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(doc, i) in readonlyDocsList" :key="i" class="border-t border-default">
+              <td class="px-4 py-2">
+                <span class="text-xs font-medium text-muted" :title="doc.type_description">{{ doc.type_description || doc.type_code }}</span>
+              </td>
+              <td class="px-4 py-2 font-mono text-xs">{{ String(doc.number).padStart(8, '0') }}</td>
+              <td class="px-4 py-2 text-xs">{{ doc.date }}</td>
+              <td class="px-4 py-2">{{ doc.party_name }}</td>
+              <td class="px-4 py-2 text-right font-medium">{{ formatCurrency(doc.amount_applied, form.currency_code) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </UCard>
+
+    <!-- Descripción / Referencia -->
+    <UCard v-if="form.description || form.reference">
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <div v-if="form.reference">
+          <p class="text-xs text-muted font-medium uppercase">Referencia</p>
+          <p class="font-medium">{{ form.reference }}</p>
+        </div>
+        <div v-if="form.description">
+          <p class="text-xs text-muted font-medium uppercase">Descripción</p>
+          <p class="font-medium">{{ form.description }}</p>
+        </div>
+      </div>
+    </UCard>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- MODO EDITABLE (borrador)                              -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <form v-else class="space-y-5" @submit.prevent="handleSubmit">
     <div class="grid grid-cols-3 gap-4">
       <UFormField label="Tipo" name="type" required>
         <USelectMenu v-model="selectedType" :items="typeOptions" class="w-full" />
