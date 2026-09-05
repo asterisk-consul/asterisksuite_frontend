@@ -1,97 +1,175 @@
 import { h } from 'vue'
-import { UBadge } from '#components'
+
+import { UBadge, UButton } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 
 import type { Corridor } from './types/corridors.types'
 
-import { useDateColumn } from '~/composables/table/useDateColumn'
+import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
-
-const createdDate = useDateColumn('es-AR')
 
 type Row = Corridor
 
 export const corridorsColumns = (actions: {
   onEdit?: (row: Row) => void
-}): TableColumn<Row>[] => [
-  // selección múltiple
-  useSelectColumn<Row>(),
+  onDelete?: (row: Row) => void
+  onSortFieldSelect?: (columnId: string) => void
+}): TableColumn<Row>[] => {
+  const build = createTableBuilder<Row>({
+    locale: 'es-AR',
+    onSortFieldSelect: actions.onSortFieldSelect
+  })
 
-  // columna ID reusable
-  useIdColumn<Row>(actions.onEdit),
+  return [
+    useSelectColumn(),
 
-  {
-    accessorKey: 'name',
-    header: 'Corredor',
-    cell: ({ row }) => row.original.name ?? '—'
-  },
+    useIdColumn(actions.onEdit),
 
-  {
-    id: 'route',
-    header: 'Ruta',
-    cell: ({ row }) => {
-      const c = row.original
+    ...build([
+      {
+        key: 'name',
 
-      return h('div', { class: 'flex items-center gap-2 text-sm' }, [
-        h(
-          'span',
-          { class: 'font-medium' },
-          c.origin_location?.city ?? 'Origen'
-        ),
-        h('span', { class: 'text-gray-400' }, '→'),
-        h(
-          'span',
-          { class: 'font-medium' },
-          c.destination_location?.city ?? 'Destino'
-        )
-      ])
-    }
-  },
+        label: 'Corredor',
 
-  {
-    id: 'stops',
-    header: 'Paradas',
-    cell: ({ row }) => row.original.corridorStops?.length ?? 0
-  },
+        sortable: true
+      },
 
-  {
-    id: 'distance',
-    header: 'Distancia',
-    cell: ({ row }) =>
-      row.original.total_distance_km
-        ? `${row.original.total_distance_km} km`
-        : '—'
-  },
+      {
+        id: 'route',
 
-  {
-    id: 'time',
-    header: 'Tiempo',
-    cell: ({ row }) =>
-      row.original.estimated_minutes
-        ? `${row.original.estimated_minutes} min`
-        : '—'
-  },
+        label: 'Ruta',
 
-  {
-    accessorKey: 'is_template',
-    header: 'Tipo',
-    cell: ({ row }) =>
-      h(
-        UBadge,
-        {
-          variant: 'subtle',
-          color: row.original.is_template ? 'info' : 'neutral'
-        },
-        () => (row.original.is_template ? 'Template' : 'Corredor')
-      )
-  },
+        sortable: true,
 
-  {
-    accessorKey: 'created_at',
-    header: 'Creado',
-    meta: createdDate.meta,
-    filterFn: createdDate.filterFn,
-    cell: ({ row }) => createdDate.format(row.getValue<string>('created_at'))
-  }
-]
+        accessorFn: (row) => `${row.origin_location?.city ?? ''} ${row.destination_location?.city ?? ''}`,
+
+        cell: ({ row }) => {
+          const c = row.original
+
+          return h(
+            'div',
+            {
+              class: 'flex items-center gap-2 text-sm'
+            },
+            [
+              h(
+                'span',
+                {
+                  class: 'font-medium'
+                },
+                c.origin_location?.city ?? 'Origen'
+              ),
+
+              h(
+                'span',
+                {
+                  class: 'text-gray-400'
+                },
+                '→'
+              ),
+
+              h(
+                'span',
+                {
+                  class: 'font-medium'
+                },
+                c.destination_location?.city ?? 'Destino'
+              )
+            ]
+          )
+        }
+      },
+
+      {
+        id: 'stops',
+
+        label: 'Paradas',
+
+        sortable: true,
+
+        accessorFn: (row) => row.corridorStops?.length ?? 0,
+
+        cell: ({ row }) => row.original.corridorStops?.length ?? 0
+      },
+
+      {
+        id: 'distance',
+
+        label: 'Distancia',
+
+        sortable: true,
+
+        accessorFn: (row) => row.total_distance_km ?? 0,
+
+        cell: ({ row }) => (row.original.total_distance_km ? `${row.original.total_distance_km} km` : '—')
+      },
+
+      {
+        id: 'time',
+
+        label: 'Tiempo',
+
+        sortable: true,
+
+        accessorFn: (row) => row.estimated_minutes ?? 0,
+
+        cell: ({ row }) => (row.original.estimated_minutes ? `${row.original.estimated_minutes} min` : '—')
+      },
+
+      {
+        key: 'is_template',
+
+        label: 'Tipo',
+
+        enum: {
+          options: [
+            {
+              label: 'Template',
+              value: true,
+              color: 'info'
+            },
+            {
+              label: 'Corredor',
+              value: false,
+              color: 'neutral'
+            }
+          ]
+        }
+      },
+
+      {
+        key: 'created_at',
+
+        label: 'Creado',
+
+        sortable: true,
+
+        date: true
+      },
+
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            onClick: () => actions.onEdit?.(row.original)
+          }),
+          actions.onDelete
+            ? h(UButton, {
+                icon: 'i-lucide-trash-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'error',
+                onClick: () => actions.onDelete?.(row.original)
+              })
+            : null
+        ])
+      }
+    ])
+  ]
+}

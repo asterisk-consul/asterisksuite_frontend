@@ -21,11 +21,11 @@ export const useTripsService = () => {
   const remove = (id: string) =>
     $fetch<{ deleted: boolean }>(`${base}/${id}`, { method: 'DELETE' })
 
-  const updateStatus = async (id: string, status: string) => {
-    // Añade un log aquí para ver la URL final exacta
+  const updateStatus = async (id: string, status: string, generate = false) => {
     const url = `${base}/${id}/status/${status}`
     return await $fetch<Trip>(url, {
-      method: 'PATCH'
+      method: 'PATCH',
+      query: generate ? { generate: 'true' } : undefined,
     })
   }
 

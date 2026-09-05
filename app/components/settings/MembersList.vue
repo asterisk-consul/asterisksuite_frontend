@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { Member } from '~/types'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 defineProps<{
   members: Member[]
 }>()
+
+const { isOwnerOrAdmin } = useCompanyRole()
 
 const items = [{
   label: 'Edit member',
@@ -42,8 +45,9 @@ const items = [{
       <div class="flex items-center gap-3">
         <USelect
           :model-value="member.role"
-          :items="['member', 'owner']"
+          :items="['OWNER', 'ADMIN', 'USER']"
           color="neutral"
+          :disabled="!isOwnerOrAdmin"
           :ui="{ value: 'capitalize', item: 'capitalize' }"
         />
 

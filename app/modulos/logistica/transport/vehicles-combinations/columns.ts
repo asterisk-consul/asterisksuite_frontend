@@ -1,3 +1,5 @@
+import { h } from 'vue'
+import { UButton } from '#components'
 import type { TableColumn } from '@nuxt/ui'
 import type { VehicleCombination } from '~/modulos/logistica/transport/vehicles-combinations/types/vehicles-combinations.types'
 import StatusToggle from '@/components/ui/PopoverTableActive.vue'
@@ -14,10 +16,13 @@ export const VehicleCombinationColumns = (actions: {
   onInlineSave?: (row: Row, field: EditableField, value: any) => void
   onToggleActive?: (row: Row, validUntil: string | null) => void
   onEdit?: (row: Row) => void
+  onDelete?: (row: Row) => void
+  onSortFieldSelect?: (columnId: string) => void
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row, EditableField>({
     locale: 'es-AR',
-    onInlineSave: actions.onInlineSave
+    onInlineSave: actions.onInlineSave,
+    onSortFieldSelect: actions.onSortFieldSelect
   })
 
   return [
@@ -48,45 +53,87 @@ export const VehicleCombinationColumns = (actions: {
             component: StatusToggle,
             title: 'Cambiar estado',
             onChange: (row, value) => {
-              const newValidUntil =
-                value === null ? null : new Date().toISOString()
+              const newValidUntil = value === null ? null : new Date().toISOString()
               actions.onToggleActive?.(row, newValidUntil)
             }
           }
         }
       },
-
       {
         id: 'tractor',
+
         label: 'Tractor',
+
+        sortable: true,
+
+        accessorFn: (row) => {
+          const t = row.tractor
+
+          if (!t) return ''
+
+          const details = [t.brand, t.model].filter(Boolean).join(' ')
+
+          return details ? `${t.plate} ${details}` : t.plate
+        },
+
         cell: ({ row }) => {
           const t = row.original.tractor
+
           if (!t) return '—'
+
           const details = [t.brand, t.model].filter(Boolean).join(' ')
+
           return details ? `${t.plate} - ${details}` : t.plate
         }
       },
 
       {
         id: 'trailer',
+
         label: 'Trailer',
+
+        sortable: true,
+
+        accessorFn: (row) => {
+          const t = row.trailer
+
+          if (!t) return ''
+
+          const details = [t.brand, t.model].filter(Boolean).join(' ')
+
+          return details ? `${t.plate} ${details}` : t.plate
+        },
+
         cell: ({ row }) => {
           const t = row.original.trailer
+
           if (!t) return '—'
+
           const details = [t.brand, t.model].filter(Boolean).join(' ')
+
           return details ? `${t.plate} - ${details}` : t.plate
         }
       },
 
       {
         id: 'driver',
+
         label: 'Chofer',
+
+        sortable: true,
+
+        accessorFn: (row) => {
+          const d = row.drivers
+
+          return d ? `${d.first_name} ${d.last_name}` : ''
+        },
+
         cell: ({ row }) => {
           const d = row.original.drivers
+
           return d ? `${d.first_name} ${d.last_name}` : '—'
         }
       },
-
       {
         key: 'valid_from',
         label: 'Válido desde',
@@ -106,6 +153,29 @@ export const VehicleCombinationColumns = (actions: {
         label: 'Creado',
         sortable: true,
         date: true
+      },
+
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            onClick: () => actions.onEdit?.(row.original)
+          }),
+          actions.onDelete
+            ? h(UButton, {
+                icon: 'i-lucide-trash-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'error',
+                onClick: () => actions.onDelete?.(row.original)
+              })
+            : null
+        ])
       }
     ])
   ]

@@ -8,6 +8,7 @@ type EditableValue = string | null | undefined
 // stores
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
+import { useUnitsStore } from '~/modulos/almacen/units/store/units.store'
 
 // form
 import { warehouseFormFields } from '~/modulos/logistica/warehouses/warehouse/warehouseFormFields'
@@ -31,10 +32,7 @@ import type {
 import { createWarehouseColumns } from '../../../modulos/logistica/warehouses/warehouse/columns'
 
 // page meta
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 /* ---------------------------------------
    STATE
@@ -44,9 +42,11 @@ const loading = ref(true)
 
 const store = useDepositosStore()
 const locationsStore = useLocationsStore()
+const unitsStore = useUnitsStore()
 
 const { warehouses } = storeToRefs(store)
 const { items: locations } = storeToRefs(locationsStore)
+const { items: units } = storeToRefs(unitsStore)
 
 const { items } = useLocations(locations)
 
@@ -69,7 +69,8 @@ function openEdit(row: any) {
 
   editingRow.value = {
     ...row,
-    locationId: row.locationId ?? row.locations?.id ?? null
+    locationId: row.locationId ?? row.locations?.id ?? null,
+    unitId: row.unitId ?? row.units?.id ?? null
   }
   modalOpen.value = true
 }
@@ -109,6 +110,15 @@ const columns = createWarehouseColumns({
    FORM FIELDS
 --------------------------------------- */
 
+const unitOptions = computed(() =>
+  units.value
+    .filter((u) => u.active)
+    .map((u) => ({
+      label: `${u.name} (${u.symbol})`,
+      value: u.id
+    }))
+)
+
 const fields = computed(() =>
   warehouseFormFields.map((field) => {
     if (field.name === 'locationId') {
@@ -116,6 +126,13 @@ const fields = computed(() =>
         ...field,
         options: items.value,
         disabled: items.value.length === 0
+      }
+    }
+    if (field.name === 'unitId') {
+      return {
+        ...field,
+        options: unitOptions.value,
+        disabled: unitOptions.value.length === 0
       }
     }
     return field
@@ -133,6 +150,10 @@ onMounted(async () => {
     await locationsStore.fetchAll()
   }
 
+  if (units.value.length === 0) {
+    await unitsStore.fetchAll()
+  }
+
   loading.value = store.loading
 })
 
@@ -143,9 +164,9 @@ onMounted(async () => {
 async function handleSubmit(data: any) {
   if (modalMode.value === 'create') {
     const payload: CreateWarehouseInput = {
-      companyId: 'a060f7ff-0281-4df4-b5b3-cbdf940be31e',
       name: data.name,
       locationId: data.locationId,
+      unitId: data.unitId,
       code: data.code,
       active: true
     }
@@ -155,6 +176,7 @@ async function handleSubmit(data: any) {
     const payload: UpdateWarehouseInput = {
       name: data.name,
       locationId: data.locationId,
+      unitId: data.unitId,
       code: data.code,
       active: data.active
     }
@@ -162,7 +184,7 @@ async function handleSubmit(data: any) {
     await store.updateWarehouse(editingRow.value.id, payload)
   }
 
-  await store.fetchAll() // 🔥 FALTA ESTO
+  await store.fetchAll()
 
   modalOpen.value = false
 }

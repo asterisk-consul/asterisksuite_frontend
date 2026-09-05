@@ -1,26 +1,94 @@
-import { computed, type Ref } from 'vue'
-import type { Product } from '~/modulos/logistica/master-data/product/product.types'
+import { computed } from 'vue'
+import { useProductsStore } from '../store/products.store'
+import type {
+  CreateProductInput,
+  UpdateProductInput,
+  ProductCostCard,
+  CreateProductDto,
+  UsageType
+} from '~/modulos/logistica/master-data/product/types/product.types'
 
 export interface ProductSelectItem {
   label: string
   value: string
   price: number
+  currencyCode: string
+  prices: {
+    code: string
+    amount: number
+  }[]
+  hasCostTemplate: boolean
+  usage_type: UsageType
+  product_type?: string
+  has_variants?: boolean
   tax?: {
     id: string
     rate: number
   }
 }
 
-export function useProducts(products: Ref<Product[]>) {
+export interface SelectItem {
+  label: string
+  value: string
+}
+
+export function useProducts(usageFilter?: UsageType | null) {
+  const store = useProductsStore()
+
+  // =========================
+  // INIT
+  // =========================
+
+  const init = async () => {
+    await store.fetchAll()
+  }
+
+  // =========================
+  // ACTIONS
+  // =========================
+
+  const create = async (payload: CreateProductDto) => store.create(payload)
+
+  const update = async (id: string, payload: UpdateProductInput) => store.update(id, payload)
+
+  const remove = async (id: string) => store.remove(id) // ✅ store.delete → store.remove
+
+  // =========================
+  // COMPUTED
+  // =========================
+
+  const filteredItems = computed(() => {
+    if (!usageFilter) return store.items
+    return store.items.filter((p) => {
+      if (p.usage_type === 'BOTH') return true
+      if (usageFilter === 'sale') return p.usage_type === 'SALE'
+      if (usageFilter === 'purchase') return p.usage_type === 'PURCHASE'
+      return true
+    })
+  })
+
   const items = computed<ProductSelectItem[]>(() =>
-    products.value.map((product) => {
-      const price = product.product_price?.[0]?.price ?? 0
+    filteredItems.value.map((product) => {
+      const prices = (product.product_price ?? [])
+        .filter((pp: any) => pp.currencies?.code)
+        .map((pp: any) => ({
+          code: pp.currencies!.code as string,
+          amount: Number(pp.price ?? 0)
+        }))
+
+      const defaultPrice = prices[0]
       const tax = product.product_taxes?.[0]
 
       return {
         label: `${product.sku} - ${product.name}`,
         value: product.id,
-        price,
+        price: defaultPrice?.amount ?? 0,
+        currencyCode: defaultPrice?.code ?? 'ARS',
+        prices,
+        usage_type: product.usage_type ?? 'BOTH',
+        hasCostTemplate: !!product.cost_template_id,
+        product_type: product.product_type,
+        has_variants: (product.product_variants?.length ?? 0) > 0,
         tax: tax
           ? {
               id: tax.id,
@@ -31,5 +99,107 @@ export function useProducts(products: Ref<Product[]>) {
     })
   )
 
-  return { items }
+  const selectItems = computed<SelectItem[]>(() =>
+    store.items.map((product) => ({
+      label: `${product.sku} - ${product.name}`,
+      value: product.id
+    }))
+  )
+
+  const withCostTemplate = computed(() => filteredItems.value.filter((p) => !!p.cost_template_id))
+
+  const withCostTemplateIds = computed(() => new Set(withCostTemplate.value.map((p) => p.id)))
+
+  const costCards = computed<ProductCostCard[]>(() =>
+    filteredItems.value
+      .filter((p) => p.cost_template_id)
+      .map((product) => ({
+        id: product.id,
+        sku: product.sku ?? '',
+        name: product.name,
+        current_cost: product.current_cost,
+        currency: product.product_costs?.[0]?.currencies
+      }))
+  )
+
+  // =========================
+  // HELPERS
+  // =========================
+
+  const hasCostTemplate = (productId: string) => withCostTemplateIds.value.has(productId)
+
+  const formatLabel = (productId: string) => {
+    const product = store.items.find((p) => p.id === productId)
+    return product ? `${product.sku} - ${product.name}` : ''
+  }
+
+  const findById = (id: string) => store.items.find((p) => p.id === id)
+
+  const loadOne = async (id: string) => store.fetchOne(id)
+
+  const getProduct = async (id: string) => {
+    const local = findById(id)
+    if (local) return local
+    return await store.fetchOne(id)
+  }
+
+  // =========================
+  // STATS
+  // =========================
+
+  const totalProducts = computed(() => filteredItems.value.length)
+
+  const activeProducts = computed(() => filteredItems.value.filter((p) => p.active !== false).length)
+
+  const inactiveProducts = computed(() => filteredItems.value.filter((p) => p.active === false).length)
+
+  const productsWithCostTemplate = computed(() => filteredItems.value.filter((p) => !!p.cost_template_id).length)
+
+  const productsWithoutCostTemplate = computed(() => filteredItems.value.filter((p) => !p.cost_template_id).length)
+
+  // =========================
+  // RETURN
+  // =========================
+
+  return {
+    // state
+    products: computed(() => store.items),
+    current: computed(() => store.current),
+    roots: computed(() => store.roots),
+    loading: computed(() => store.loading),
+    error: computed(() => store.error),
+    total: computed(() => store.items.length),
+
+    // computed
+    items,
+    selectItems,
+    withCostTemplate,
+    withCostTemplateIds,
+
+    // helpers
+    hasCostTemplate,
+    formatLabel,
+    findById,
+    loadOne,
+    getProduct,
+
+    // stats
+    totalProducts,
+    activeProducts,
+    inactiveProducts,
+    productsWithCostTemplate,
+    productsWithoutCostTemplate,
+
+    //costos
+    costCards,
+
+    // actions
+    init,
+    create,
+    update,
+    remove,
+    patchTags: store.patchTags,
+    patchCategories: store.patchCategories,
+    fetchRootProducts: (id: string) => store.fetchRootProducts(id)
+  }
 }

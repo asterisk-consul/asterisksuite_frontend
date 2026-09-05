@@ -1,12 +1,17 @@
 import type { ApiLoginResponse } from '~/modulos/auth/auth.types'
 import { getCookieOptions } from '~~/server/utils/cookies'
+import { getTenant } from '~~/server/utils/tenant'
+
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const config = useRuntimeConfig()
+  const tenant = getTenant(event)
+
   try {
     const api = await $fetch<ApiLoginResponse>(`${config.apiBase}/auth/login`, {
       method: 'POST',
-      body
+      body,
+      headers: { 'x-tenant': tenant }
     })
 
     setCookie(event, 'api_access', api.accessToken, {
@@ -19,7 +24,7 @@ export default defineEventHandler(async (event) => {
       maxAge: 60 * 60 * 24 * 7
     })
 
-    return { user: api.user }
+    return { user: api.user, companies: api.companies }
   } catch (e: any) {
     throw createError({
       statusCode: e?.status || 500,

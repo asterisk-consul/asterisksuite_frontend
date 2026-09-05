@@ -24,8 +24,9 @@
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit"
-  }
+  },
+  "graalvm.home": "",
+  "netbeans.jdkhome": ""
 }

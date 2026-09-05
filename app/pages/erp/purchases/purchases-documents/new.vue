@@ -1,206 +1,111 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'default',
   middleware: ['auth']
 })
 
-import { storeToRefs } from 'pinia'
-
+import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
+import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
-import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
-import { useProductsStore } from '~/modulos/logistica/master-data/product/products.store'
-import { useBusinessParties } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessParties'
-import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 
+const { mainCollapsed } = useSidebarState()
+const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-// ✅ instanciar servicio
-const salesService = DocumentsSalesService
-
-const store = useBusinessPartiesStore()
-const { items: parties } = storeToRefs(store)
-const { items: partyOptions } = useBusinessParties(parties)
-
-// ── Productos ─────────────────────────────────────────────────────
-// ✔ Productos
-const productStore = useProductsStore()
-const { items: products } = storeToRefs(productStore)
-
-const { items: productOptions } = useProducts(products)
-onMounted(async () => {
-  await store.fetchAll()
-  await productStore.fetchAll()
-  console.log(productStore.items)
-})
-// ── Form ──────────────────────────────────────────────────────────
-const form = reactive({
-  document_type_id: '40bf1615-da10-4994-ae56-3d105f88b3c5',
-  party_id: '',
-  date: new Date().toISOString().slice(0, 10),
-  descrip: '',
-  ref: ''
-})
-
-const selectedParty = ref<{ label: string; value: string } | null>(null)
-
-watch(selectedParty, (v) => {
-  form.party_id = v?.value ?? ''
-})
-
-// ── Items ─────────────────────────────────────────────────────────
-interface LineItem {
-  product_id: string
-  product_name: string
-  quantity: number
-  unit_price: number
-  price: number
-  tax_rate: number
-  tax_id: string
-  tax_amount: number
-}
-
-const items = ref<LineItem[]>([])
-const selectedProduct = ref<any>(null)
-
-function addItem() {
-  if (!selectedProduct.value) return
-
-  const prod = productOptions.value.find(
-    (p) => p.value === selectedProduct.value?.value
-  )
-  if (!prod) return
-
-  items.value.push({
-    product_id: prod.value,
-    product_name: prod.label,
-    quantity: 1,
-    unit_price: prod.price,
-    price: prod.price,
-    tax_rate: prod.tax?.rate ?? 21,
-    tax_id: prod.tax?.id ?? '',
-    tax_amount: parseFloat(
-      (prod.price * ((prod.tax?.rate ?? 21) / 100)).toFixed(2)
-    )
-  })
-
-  selectedProduct.value = null
-}
-
-function removeItem(idx: number) {
-  items.value.splice(idx, 1)
-}
-
-function updateItemQty(idx: number, qty: number) {
-  const item = items.value[idx]
-  if (!item) return
-
-  item.quantity = qty
-  item.price = parseFloat((item.unit_price * qty).toFixed(2))
-  item.tax_amount = parseFloat((item.price * (item.tax_rate / 100)).toFixed(2))
-}
-
-// ── Totales ───────────────────────────────────────────────────────
-const subtotal = computed(() =>
-  items.value.reduce((acc, i) => acc + i.price, 0)
-)
-
-const totalTaxes = computed(() =>
-  items.value.reduce((acc, i) => acc + i.tax_amount, 0)
-)
-
-const total = computed(() => subtotal.value + totalTaxes.value)
-
-function fmt(n: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS'
-  }).format(n ?? 0)
-}
-
-// ── Submit ────────────────────────────────────────────────────────
 const saving = ref(false)
+const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
 
-async function submit() {
-  if (!form.party_id) {
-    toast.add({ title: 'Seleccioná un cliente', color: 'warning' })
-    return
+const partyId = computed(() => (route.query.party_id as string) || undefined)
+const parentOrderId = computed(() => (route.query.parent_order_id as string) || undefined)
+const category = computed(() => (route.query.category as string) || undefined)
+const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
+const captureLoading = ref(false)
+
+async function enableCapture() {
+  if (intakeId.value) return
+  captureLoading.value = true
+  try {
+    const capture = await $fetch<{ id: string }>('/api/intake-records', {
+      method: 'POST',
+      body: {
+        title: 'Comprobante de compra pendiente de carga',
+        suggested_type: 'PURCHASE_DOCUMENT',
+      },
+    })
+    intakeId.value = capture.id
+    toast.add({ title: 'Captura preparada', description: 'Ahora podés adjuntar una foto o un PDF.', color: 'success' })
+  } catch (e: any) {
+    toast.add({ title: 'No se pudo preparar la captura', description: e?.data?.message || e?.message, color: 'error' })
+  } finally {
+    captureLoading.value = false
   }
+}
 
-  if (!items.value.length) {
-    toast.add({ title: 'Agregá al menos un ítem', color: 'warning' })
-    return
+const pageTitle = computed(() => {
+  const labels: Record<string, string> = {
+    INVOICE: 'Factura',
+    CREDIT_NOTE: 'Nota de Crédito',
+    DEBIT_NOTE: 'Nota de Débito',
   }
+  return labels[category.value ?? ''] ?? 'Comprobante de Compra'
+})
 
-  const taxesMap = new Map<
-    string,
-    {
-      tax_id: string
-      tax_rate: number
-      taxable_base: number
-      tax_amount: number
+// Cargar datos de la OC si viene de "Crear Factura"
+const orderData = ref<any>(null)
+
+onMounted(async () => {
+  if (parentOrderId.value) {
+    try {
+      const order = await DocumentsSalesService.getOne(parentOrderId.value)
+      orderData.value = order
+    } catch (e: any) {
+      toast.add({ title: 'Error al cargar la orden', description: e?.data?.message, color: 'error' })
     }
-  >()
+  }
+})
 
-  for (const item of items.value) {
-    if (!item.tax_id) continue
+const initialValues = computed(() => {
+  const base: any = {}
 
-    const existing = taxesMap.get(item.tax_id)
-
-    if (existing) {
-      existing.taxable_base += item.price
-      existing.tax_amount += item.tax_amount
-    } else {
-      taxesMap.set(item.tax_id, {
-        tax_id: item.tax_id,
-        tax_rate: item.tax_rate,
-        taxable_base: item.price,
-        tax_amount: item.tax_amount
-      })
-    }
+  if (orderData.value) {
+    base.party_id = orderData.value.party_id
+    base.currency_code = orderData.value.currency_code
+    base.descrip = orderData.value.descrip || ''
+    base.ref = orderData.value.ref || ''
+    base.items = (orderData.value.document_items ?? [])
+      .map((item: any) => ({
+        product_id: item.product_id,
+        quantity: Number(item.quantity) - Number(item.quantity_invoiced ?? 0),
+        unit_price: Number(item.unit_price)
+      }))
+      .filter((item: any) => item.quantity > 0)
   }
 
-  const payload = {
-    document_type_id: form.document_type_id,
-    party_id: form.party_id,
-    date: form.date,
-    descrip: form.descrip || undefined,
-    ref: form.ref || undefined,
-    subtotal: subtotal.value,
-    exempt_amount: 0,
-    total_taxes: totalTaxes.value,
-    total: total.value,
-    items: items.value.map((i) => ({
-      product_id: i.product_id,
-      quantity: i.quantity,
-      unit_price: i.unit_price,
-      price: i.price,
-      taxes: i.tax_id
-        ? [
-            {
-              tax_id: i.tax_id,
-              tax_rate: i.tax_rate,
-              tax_amount: i.tax_amount
-            }
-          ]
-        : []
-    })),
-    taxes: Array.from(taxesMap.values())
+  if (partyId.value && !base.party_id) {
+    base.party_id = partyId.value
   }
 
+  return Object.keys(base).length > 0 ? base : undefined
+})
+
+async function handleSubmit(payload: any) {
   try {
     saving.value = true
-
-    const created = await salesService.create(payload)
-
-    toast.add({ title: 'Factura creada', color: 'success' })
-
-    router.push(`/erp/sales/${created.id}`)
+    const fullPayload = {
+      ...payload,
+      parent_document_id: parentOrderId.value || undefined
+    }
+    const created = await DocumentsPurchasesService.create(fullPayload)
+    if (intakeId.value) {
+      await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
+        method: 'POST', body: { target_type: 'PURCHASE_DOCUMENT', target_id: created.id }
+      })
+    }
+    toast.add({ title: `${pageTitle.value} creado`, color: 'success' })
+    router.push(`/erp/purchases/purchases-documents/${created.id}`)
   } catch (e: any) {
-    console.error('ERROR CREATE:', e)
-
     toast.add({
-      title: 'Error al crear factura',
+      title: `Error al crear ${pageTitle.value.toLowerCase()}`,
       description: e?.data?.message,
       color: 'error'
     })
@@ -213,63 +118,73 @@ async function submit() {
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar title="Nueva Factura de Venta">
+      <UDashboardNavbar :title="`Nuevo ${pageTitle}`">
         <template #leading>
           <UButton
-            icon="i-heroicons-arrow-left"
+            icon="i-lucide-panel-left-close"
             variant="ghost"
-            @click="router.push('/erp/sales')"
+            color="neutral"
+            @click="mainCollapsed = !mainCollapsed"
           />
-        </template>
-        <template #right>
-          <UButton icon="i-heroicons-check" :loading="saving" @click="submit">
-            Guardar
-          </UButton>
         </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
-      <div class="p-4 space-y-5 max-w-4xl mx-auto">
-        <!-- DATOS -->
-        <div class="border border-primary-300 rounded-xl p-5 space-y-4">
-          <span class="text-sm font-semibold">Datos generales</span>
+      <UPage>
+        <UPageHeader
+          :title="`Crear ${pageTitle}`"
+          description="Completá los datos y agregá los productos"
+          :links="[
+            {
+              label: `Guardar ${pageTitle}`,
+              icon: 'i-lucide-check',
+              loading: saving,
+              onClick: () => formRef?.submit()
+            }
+          ]"
+        />
 
-          <USelectMenu
-            v-model="selectedParty"
-            :items="partyOptions"
-            placeholder="Cliente"
-            searchable
-            clear
-            class="w-full"
+        <UPageBody class="mx-auto w-full max-w-screen-2xl">
+          <UCard v-if="!intakeId" class="mb-4">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex items-start gap-3">
+                <div class="rounded-lg bg-primary/10 p-2 text-primary">
+                  <UIcon name="i-lucide-camera" class="size-5" />
+                </div>
+                <div>
+                  <p class="font-medium">Captura del comprobante (opcional)</p>
+                  <p class="text-sm text-muted">Adjuntá una foto o PDF. El archivo quedará asociado al documento cuando lo guardes.</p>
+                </div>
+              </div>
+              <UButton
+                label="Agregar captura"
+                icon="i-lucide-paperclip"
+                variant="outline"
+                :loading="captureLoading"
+                @click="enableCapture"
+              />
+            </div>
+          </UCard>
+
+          <UiAttachmentManager
+            v-else-if="intakeId"
+            class="mb-4"
+            entity-type="intake"
+            :entity-id="intakeId"
           />
 
-          <UInput v-model="form.date" type="date" />
-        </div>
-
-        <!-- ITEMS -->
-        <div class="border border-primary-300 rounded-xl p-5 space-y-4">
-          <USelectMenu
-            v-model="selectedProduct"
-            :items="productOptions"
-            placeholder="Producto"
-            searchable
-            clear
-            class="w-full"
+          <SalesDocumentForm
+            ref="formRef"
+            :loading="saving"
+            module-code="PURCHASES"
+            :category="category"
+            :initial-values="initialValues"
+            :parent-document-id="parentOrderId"
+            @submit="handleSubmit"
           />
-
-          <UButton @click="addItem">Agregar</UButton>
-
-          <div v-if="!items.length" class="text-gray-400">Sin items</div>
-
-          <div v-for="(item, i) in items" :key="i">
-            {{ item.product_name }} - {{ fmt(item.price) }}
-          </div>
-        </div>
-
-        <!-- TOTAL -->
-        <div v-if="items.length">Total: {{ fmt(total) }}</div>
-      </div>
+        </UPageBody>
+      </UPage>
     </template>
   </UDashboardPanel>
 </template>

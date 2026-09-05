@@ -3,11 +3,6 @@ export const warehouseFormFields: BaseField[] = [
   { name: 'id', type: 'hidden' },
 
   {
-    name: 'companyId',
-    type: 'hidden'
-  },
-
-  {
     label: 'Nombre del depósito',
     name: 'name',
     type: 'text',
@@ -25,6 +20,13 @@ export const warehouseFormFields: BaseField[] = [
   {
     label: 'Ubicación',
     name: 'locationId',
+    type: 'select',
+    options: [] // se inyectan dinámicamente
+  },
+
+  {
+    label: 'Unidad de medida',
+    name: 'unitId',
     type: 'select',
     options: [] // se inyectan dinámicamente
   }

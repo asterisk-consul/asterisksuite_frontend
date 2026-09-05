@@ -1,40 +1,32 @@
 <script setup lang="ts">
-import { navigationLinks } from '~/data/navigation'
+import { navigationTree } from '~/data/navigationTree'
 import { useVersion } from '~/composables/useVersion'
-import MainSidebar from '~/components/ui/MainSidebar.vue'
+import { useAppVersion } from '~/composables/useAppVersion'
+import DrilldownSidebar from '~/components/ui/DrilldownSidebar.vue'
+import AppVersionBanner from '~/components/AppVersionBanner/AppVersionBanner.vue'
 const { mainCollapsed } = useSidebarState()
+const { items: breadcrumbs } = useBreadcrumbs()
 const open = ref(false)
 
 const versions = useVersion()
 const route = useRoute()
 const toast = useToast()
 
-const links = navigationLinks
+const { init: initVersionCheck, showBanner, dismiss: dismissVersionBanner, currentVersion } = useAppVersion()
+
+const links = navigationTree
 
 const groups = computed(() => [
   {
     id: 'links',
-    label: 'Go to',
-    items: links.flat()
-  },
-  {
-    id: 'code',
-    label: 'Code',
-    items: [
-      {
-        id: 'source',
-        label: 'View page source',
-        icon: 'i-simple-icons-github',
-        to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${
-          route.path === '/' ? '/index' : route.path
-        }.vue`,
-        target: '_blank'
-      }
-    ]
+    label: 'Ir a',
+    items: links.flatMap(n => n.children ?? [n])
   }
 ])
 
-onMounted(async () => {
+onMounted(() => {
+  initVersionCheck()
+
   const cookie = useCookie('cookie-consent')
   if (cookie.value === 'accepted') {
     return
@@ -64,17 +56,32 @@ onMounted(async () => {
 </script>
 
 <template>
+  <AppVersionBanner
+    v-if="showBanner"
+    :version="currentVersion"
+    :changelog-url="'/changelog'"
+    @dismiss="dismissVersionBanner"
+  />
   <UDashboardGroup unit="rem">
-    <MainSidebar
-      id="default"
-      v-model:open="open"
-      v-model:collapsed="mainCollapsed"
-      resizable
-      with-footer
-    />
+    <DrilldownSidebar id="default" v-model:open="open" v-model:collapsed="mainCollapsed" resizable with-footer />
 
     <UDashboardSearch :groups="groups" />
-    <slot />
     <NotificationsSlideover />
+
+    <UDashboardPanel>
+      <template #header>
+        <UDashboardNavbar>
+          <template #title>
+            <UBreadcrumb :items="breadcrumbs" />
+          </template>
+          <template #right>
+            <slot name="navbar-actions" />
+          </template>
+        </UDashboardNavbar>
+      </template>
+      <template #body>
+        <slot />
+      </template>
+    </UDashboardPanel>
   </UDashboardGroup>
 </template>

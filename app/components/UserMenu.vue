@@ -31,13 +31,13 @@ const colors = [
 ]
 const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
 
-const user = ref({
-  name: auth.user?.name,
+const user = computed(() => ({
+  name: auth.user?.name || 'Usuario',
   avatar: {
-    src: 'https://github.com/benjamincanac.png',
-    alt: 'Benjamin Canac'
+    src: auth.user?.avatar || '',
+    alt: auth.user?.name || 'Usuario'
   }
-})
+}))
 
 const items = computed<DropdownMenuItem[][]>(() => [
   [
@@ -49,22 +49,28 @@ const items = computed<DropdownMenuItem[][]>(() => [
   ],
   [
     {
-      label: 'Profile',
+      label: 'Perfil',
       icon: 'i-lucide-user'
     },
     {
-      label: 'Settings',
+      label: 'Configuración',
       icon: 'i-lucide-settings',
       to: '/settings'
     }
+    // ,
+    // {
+    //   label: 'Crear nueva empresa',
+    //   icon: 'i-lucide-building',
+    //   to: '/create-company'
+    // }
   ],
   [
     {
-      label: 'Theme',
+      label: 'Tema',
       icon: 'i-lucide-palette',
       children: [
         {
-          label: 'Primary',
+          label: 'Primario',
           slot: 'chip',
           chip: appConfig.ui.colors.primary,
           content: {
@@ -85,12 +91,9 @@ const items = computed<DropdownMenuItem[][]>(() => [
           }))
         },
         {
-          label: 'Neutral',
+          label: 'Neutro',
           slot: 'chip',
-          chip:
-            appConfig.ui.colors.neutral === 'neutral'
-              ? 'old-neutral'
-              : appConfig.ui.colors.neutral,
+          chip: appConfig.ui.colors.neutral === 'neutral' ? 'old-neutral' : appConfig.ui.colors.neutral,
           content: {
             align: 'end',
             collisionPadding: 16
@@ -111,11 +114,11 @@ const items = computed<DropdownMenuItem[][]>(() => [
       ]
     },
     {
-      label: 'Appearance',
+      label: 'Apariencia',
       icon: 'i-lucide-sun-moon',
       children: [
         {
-          label: 'Light',
+          label: 'Claro',
           icon: 'i-lucide-sun',
           type: 'checkbox',
           checked: colorMode.value === 'light',
@@ -126,7 +129,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
           }
         },
         {
-          label: 'Dark',
+          label: 'Oscuro',
           icon: 'i-lucide-moon',
           type: 'checkbox',
           checked: colorMode.value === 'dark',
@@ -145,24 +148,18 @@ const items = computed<DropdownMenuItem[][]>(() => [
 
   [
     {
-      label: 'Documentation',
+      label: 'Documentación',
       icon: 'i-lucide-book-open',
       to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
       target: '_blank'
     },
     {
-      label: 'GitHub repository',
-      icon: 'i-simple-icons-github',
-      to: 'https://github.com/nuxt-ui-templates/dashboard',
-      target: '_blank'
-    },
-    {
-      label: 'Log out',
+      label: 'Cerrar sesión',
       icon: 'i-lucide-log-out',
       onSelect: () => {
         const auth = useAuthStore()
-        auth.logout() // 🔹 Limpia token, cookies y userData
-        navigateTo('/login') // 🔹 Redirige al login
+        auth.logout()
+        navigateTo('/login')
       }
     }
   ]

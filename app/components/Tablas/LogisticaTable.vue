@@ -1,30 +1,36 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { sub } from 'date-fns'
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, h } from 'vue'
 import { getPaginationRowModel } from '@tanstack/vue-table'
-import type { ComponentPublicInstance } from 'vue'
+import type { SortingState } from '@tanstack/vue-table'
+import { UCheckbox } from '#components'
+
+import type { UTableInstance, ExtendedColumn } from './types/tablas.types'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 import { useColumnVisibility } from '@/composables/table/useColumnVisibility'
+
 import DeleteConfirmModal from './DeleteConfirmModal.vue'
 import TableSelectionBar from './TableSelectionBar.vue'
-import DateRangePicker, {
-  type DateRange
-} from '@/components/compras/FiltroDateCompras.vue'
-
-/* ========================
-   Tipos
-======================== */
-
-import type { UTableInstance, ExtendedColumn } from './tablas.types'
+import TableToolbar from '~/components/Tablas/TableToolbar.vue'
 
 /* ========================
    Props / Emits
 ======================== */
+
 const props = defineProps<{
   data: T[]
   columns: ExtendedColumn<T>[]
   loading?: boolean
+  filterFields?: FilterField[]
+  sortFields?: SortField[]
+  onDelete?: (rows: T[]) => Promise<void>
+  deletePermanently?: boolean
+  selectable?: boolean
+  canSelectRow?: (row: T) => boolean
 }>()
+const sorting = defineModel<SortingState>('sorting', {
+  default: () => []
+})
 
 const emit = defineEmits<{
   'delete:rows': [rows: T[]]
@@ -33,226 +39,129 @@ const emit = defineEmits<{
 /* ========================
    Tabla
 ======================== */
+
 const table = useTemplateRef<UTableInstance<T>>('table')
+
+defineExpose({ table })
+
 const rowSelection = ref<Record<string, boolean>>({})
 const showDeleteModal = ref(false)
+
 const { columnVisibility, columnVisibilityItems } = useColumnVisibility(table)
-/* ========================
-   Filtros dinámicos
-======================== */
 
-defineExpose({
-  table
-})
-const selectedColumn = ref<string>('__global__')
+const tableColumns = computed<ExtendedColumn<T>[]>(() => {
+  if (!props.selectable) return props.columns
 
-const searchText = ref<string>('')
+  const selectColumn: ExtendedColumn<T> = {
+    id: 'select',
+    header: ({ table: tableApi }: any) => {
+      const eligibleRows = tableApi
+        .getRowModel()
+        .rows.filter((row: any) => props.canSelectRow?.(row.original) ?? true)
+      const allSelected = eligibleRows.length > 0 && eligibleRows.every((row: any) => row.getIsSelected())
+      const someSelected = eligibleRows.some((row: any) => row.getIsSelected())
 
-const searchRange = shallowRef<DateRange>({
-  start: sub(new Date(), { days: 14 }),
-  end: new Date()
-})
-
-const columnFilters = ref<any[]>([])
-const globalFilter = ref<string>('')
-const filterableColumns = computed(() =>
-  props.columns
-    .filter((c) => c.accessorKey)
-    .map((c: any) => ({
-      label:
-        c.meta?.label ??
-        (typeof c.header === 'string' ? c.header : c.accessorKey),
-      value: String(c.accessorKey)
-    }))
-)
-
-const columnOptions = computed(() => [
-  { label: 'Todas', value: '__global__' },
-  ...filterableColumns.value
-])
-
-const selectedColumnDef = computed(() =>
-  props.columns.find((c) => c.accessorKey === selectedColumn.value)
-)
-
-const isDateRangeFilter = computed(
-  () => selectedColumnDef.value?.meta?.filterType === 'date-range'
-)
-
-/* ========================
-   Aplicar filtros texto
-======================== */
-function applyTextFilter(value: string, column: string) {
-  const api = table.value?.tableApi
-  if (!api) return
-  // console.log('SET FILTER', {
-  //   column,
-  //   value
-  // })
-  if (column === '__global__') {
-    filterableColumns.value.forEach((c) => {
-      api.getColumn(c.value)?.setFilterValue(undefined)
-    })
-    globalFilter.value = value
-    return
+      return h(UCheckbox, {
+        modelValue: someSelected && !allSelected ? 'indeterminate' : allSelected,
+        disabled: eligibleRows.length === 0,
+        'aria-label': 'Seleccionar filas permitidas',
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
+          eligibleRows.forEach((row: any) => row.toggleSelected(!!value))
+      })
+    },
+    cell: ({ row }: any) => {
+      const enabled = props.canSelectRow?.(row.original) ?? true
+      return h(UCheckbox, {
+        modelValue: row.getIsSelected(),
+        disabled: !enabled,
+        'aria-label': enabled ? 'Seleccionar fila' : 'Esta fila no se puede seleccionar',
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value)
+      })
+    }
   }
 
-  globalFilter.value = ''
-
-  filterableColumns.value.forEach((c) => {
-    if (c.value !== column) {
-      api.getColumn(c.value)?.setFilterValue(undefined)
-    }
-  })
-
-  api.getColumn(column)?.setFilterValue(value || undefined)
-}
-
-/* ========================
-   Aplicar filtros fecha rango
-======================== */
-function applyDateRangeFilter(column: string, range: DateRange) {
-  const api = table.value?.tableApi
-  if (!api) return
-
-  globalFilter.value = ''
-
-  filterableColumns.value.forEach((c) => {
-    if (c.value !== column) {
-      api.getColumn(c.value)?.setFilterValue(undefined)
-    }
-  })
-
-  api.getColumn(column)?.setFilterValue({
-    start: range.start,
-    end: range.end
-  })
-}
-
-/* ========================
-   Debounce texto
-======================== */
-const DEBOUNCE_MS = 300
-
-const applyTextFilterDebounced = useDebounceFn(
-  (v: string, c: string) => applyTextFilter(v, c),
-  DEBOUNCE_MS
-)
-
-/* ========================
-   Watchers
-======================== */
-watch([searchText, selectedColumn], ([v, c]) => {
-  if (isDateRangeFilter.value) return
-  applyTextFilterDebounced(v, c)
+  return [
+    selectColumn,
+    ...props.columns.filter(column => !('id' in column) || column.id !== 'select')
+  ]
 })
-
-watch(
-  [searchRange, selectedColumn],
-  ([range, col]) => {
-    if (!isDateRangeFilter.value) return
-    applyDateRangeFilter(col, range)
-  },
-  { deep: true }
-)
-
-watch(selectedColumn, () => {
-  searchText.value = ''
-  searchRange.value = { start: new Date(), end: new Date() }
-})
-
-onMounted(() => {
-  applyTextFilter('', selectedColumn.value)
-})
-
-watch(
-  () => table.value?.tableApi,
-  (api) => {
-    if (!api) return
-    applyTextFilter('', selectedColumn.value)
-  },
-  { immediate: true }
-)
-
-// ✅ Solo reacciona si cambia la referencia del array, no el contenido
-watch(
-  () => props.data,
-  () => applyTextFilter('', selectedColumn.value)
-)
 
 /* ========================
    Selección
 ======================== */
-const selectedRows = computed<T[]>(
-  () =>
-    table.value?.tableApi
-      ?.getFilteredSelectedRowModel()
-      .rows.map((r) => r.original) ?? []
+
+const selectedCount = computed<number>(
+  () => Object.values(rowSelection.value).filter(Boolean).length
 )
 
-const selectedCount = computed<number>(() => selectedRows.value.length)
-
-const totalCount = computed<number>(
-  () => table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0
-)
-
-const pagination = ref({
-  pageIndex: 0,
-  pageSize: 15
+const selectedRows = computed<T[]>(() => {
+  // La dependencia explícita hace reactiva la consulta al modelo interno de UTable.
+  void rowSelection.value
+  return table.value?.tableApi?.getFilteredSelectedRowModel().rows.map(row => row.original) ?? []
 })
+const totalCount = computed<number>(() => table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0)
+
+/* ========================
+   Pagination
+======================== */
+
+const pagination = ref({ pageIndex: 0, pageSize: 15 })
 
 /* ========================
    Acciones
 ======================== */
-function confirmDelete(): void {
-  emit('delete:rows', selectedRows.value)
-  rowSelection.value = {}
-  showDeleteModal.value = false
+
+const deleting = ref(false)
+
+async function confirmDelete(): Promise<void> {
+  if (!props.onDelete) return
+  deleting.value = true
+  try {
+    await props.onDelete(selectedRows.value)
+    rowSelection.value = {}
+  } finally {
+    deleting.value = false
+    showDeleteModal.value = false
+  }
 }
 </script>
 
 <template>
   <div class="flex-1 w-full pb-20">
-    <!-- Buscador dinámico -->
-    <div class="flex items-center justify-between gap-2 py-3.5">
-      <div class="flex items-center gap-2">
-        <USelect v-model="selectedColumn" :items="columnOptions" class="w-44" />
+    <!-- ========================
+         Toolbar (si hay filterFields o sortFields)
+    ========================= -->
 
-        <!-- Texto -->
-        <UInput
-          v-if="!isDateRangeFilter"
-          v-model="searchText"
-          placeholder="Buscar..."
-          class="max-w-sm"
-          icon="i-lucide-search"
-        />
+    <TableToolbar
+      v-if="filterFields?.length || sortFields?.length"
+      :table="table"
+      :columns="tableColumns"
+      v-model:sorting="sorting"
+      :filter-fields="filterFields ?? []"
+      :sort-fields="sortFields ?? []"
+    />
 
-        <!-- Rango fechas -->
-        <DateRangePicker v-else v-model="searchRange" />
-      </div>
-      <UDropdownMenu :items="columnVisibilityItems" :content="{ align: 'end' }">
-        <UButton
-          label="Display"
-          color="neutral"
-          variant="outline"
-          trailing-icon="i-lucide-settings-2"
-        />
-      </UDropdownMenu>
-    </div>
+    <TableSelectionBar
+      v-if="onDelete && selectedCount > 0"
+      :count="selectedCount"
+      class="mb-2"
+      @open-delete="showDeleteModal = true"
+    />
 
-    <!-- Tabla -->
+    <!-- ========================
+         Tabla
+    ========================= -->
 
     <UTable
       ref="table"
       v-model:pagination="pagination"
       v-model:row-selection="rowSelection"
       v-model:column-visibility="columnVisibility"
-      v-model:column-filters="columnFilters"
-      v-model:global-filter="globalFilter"
+      v-model:sorting="sorting"
       sticky
       :get-row-id="(row: T) => (row as any).id"
       :data="props.data"
-      :columns="props.columns"
+      :columns="tableColumns"
       :loading="props.loading"
       :pagination-options="{
         getPaginationRowModel: getPaginationRowModel(),
@@ -262,23 +171,19 @@ function confirmDelete(): void {
         base: 'table-fixed border-separate border-spacing-0',
         thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
         tbody: '[&>tr]:last:[&>td]:border-b-0',
-        th: 'first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r',
+        th: 'first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r py-0.5',
         td: 'border-b border-default'
       }"
-      :class="[
-        'max-h-[75vh] overflow-y-auto',
-        selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg'
-      ]"
+      :class="['max-h-[75vh] overflow-y-auto', selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg']"
     />
 
-    <!-- Footer -->
+    <!-- ========================
+         Footer
+    ========================= -->
 
-    <div
-      class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2"
-    >
-      <div class="text-xs text-muted">
-        {{ selectedCount }} seleccionadas • {{ totalCount }} totales
-      </div>
+    <div class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2">
+      <div class="text-xs text-muted">{{ selectedCount }} seleccionadas • {{ totalCount }} totales</div>
+
       <UPagination
         size="sm"
         :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
@@ -287,16 +192,17 @@ function confirmDelete(): void {
         @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
       />
     </div>
-    <!-- Barra selección -->
-    <TableSelectionBar
-      :count="selectedCount"
-      @open-delete="showDeleteModal = true"
-    />
 
-    <!-- Modal eliminar -->
+    <!-- ========================
+         Delete Modal
+    ========================= -->
+
     <DeleteConfirmModal
+      v-if="onDelete"
       :open="showDeleteModal"
       :count="selectedCount"
+      :loading="deleting"
+      :permanent="deletePermanently"
       @confirm="confirmDelete"
       @cancel="showDeleteModal = false"
     />

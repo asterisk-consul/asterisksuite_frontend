@@ -42,6 +42,18 @@ export interface DocumentSequence {
   range_end?: number | null
 }
 
+export interface CustomFieldConfig {
+  key: string
+  label: string
+  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox'
+  required?: boolean
+  options?: string[]
+  default_value?: any
+  placeholder?: string
+}
+
+export type DocumentCategory = 'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'ORDER' | 'QUOTE' | 'RECEIPT' | 'REMITO'
+
 export interface DocumentsType {
   id: string
 
@@ -59,7 +71,31 @@ export interface DocumentsType {
 
   affects_tax_book?: boolean
 
+  affects_payment?: boolean
+
+  calculates_taxes?: boolean
+
   document_sequence_id?: string | null
+
+  module_id?: string | null
+
+  category?: DocumentCategory | null
+
+  letter_type?: string | null
+
+  afip_code?: string | null
+
+  requires_cae?: boolean
+
+  is_electronic?: boolean
+
+  custom_fields_config?: CustomFieldConfig[] | null
+
+  system_modules?: {
+    id: string
+    code: string
+    name: string
+  } | null
 
   created_at?: string
 
@@ -74,6 +110,14 @@ export interface DocumentsType {
   deleted_by?: string | null
 
   document_sequences?: DocumentSequence | null
+
+  document_type_sequences?: {
+    id: string
+    document_type_id: string
+    sequence_id: string
+    is_default?: boolean
+    document_sequences: DocumentSequence
+  }[]
 
   document_type_taxes?: DocumentTypeTax[]
 }
@@ -93,7 +137,25 @@ export interface CreateDocumentsTypeDto {
 
   affects_tax_book?: boolean
 
+  affects_payment?: boolean
+
+  calculates_taxes?: boolean
+
   document_sequence_id?: string
+
+  document_sequence_ids?: string[]
+
+  category?: DocumentCategory
+
+  letter_type?: string
+
+  afip_code?: string
+
+  requires_cae?: boolean
+
+  is_electronic?: boolean
+
+  custom_fields_config?: CustomFieldConfig[]
 }
 
 export interface UpdateDocumentsTypeDto extends Partial<CreateDocumentsTypeDto> {}

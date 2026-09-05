@@ -1,3 +1,20 @@
+import { readFileSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+function getAppVersion(): string {
+  try {
+    const versionsPath = resolve(__dirname, 'versiones/versions.json')
+    const content = readFileSync(versionsPath, 'utf-8')
+    const versions = JSON.parse(content)
+    return versions[0]?.version || '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+}
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: [
@@ -5,12 +22,20 @@ export default defineNuxtConfig({
     '@nuxtjs/mdc',
     '@vueuse/nuxt', // 👈 así se pasan las opciones
     ['@pinia/nuxt', { autoImports: ['defineStore', 'storeToRefs'] }],
-    'nuxt-auth-utils'
+    [
+      'nuxt-echarts',
+      {
+        charts: ['BarChart', 'LineChart', 'PieChart'],
+        components: ['GridComponent', 'TooltipComponent', 'LegendComponent', 'DataZoomComponent'],
+        renderer: 'svg' // recomendado para SSR
+      }
+    ]
   ],
   devServer: {
     host: '0.0.0.0', // <- debe estar así
     port: 3008
   },
+  sourcemap: false,
   experimental: {
     watcher: 'chokidar',
     componentIslands: false
@@ -19,9 +44,14 @@ export default defineNuxtConfig({
     typeCheck: false // Desactivar temporalmente durante build
   },
   vite: {
+    build: {
+      sourcemap: false
+    },
+
     optimizeDeps: {
       include: ['leaflet', 'date-fns', '@unovis/vue', 'zod']
     },
+
     ssr: {
       noExternal: ['@unovis/vue']
     }
@@ -46,10 +76,12 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
-    apiBase: process.env.API_BASE,
+    apiBase: '',
 
     public: {
-      apiBase: process.env.PUBLIC_API_BASE
+      apiBase: '',
+      baseDomain: '',
+      appVersion: getAppVersion()
     }
   },
 
@@ -73,6 +105,10 @@ export default defineNuxtConfig({
           'Access-Control-Allow-Headers': 'Authorization,Content-Type'
         }
       }
+    },
+    // ✅ Aumentar límite de body para uploads
+    h3: {
+      maxBodySize: '50mb'
     }
   }
 })

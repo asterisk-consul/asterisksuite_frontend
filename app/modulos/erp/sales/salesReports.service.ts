@@ -1,7 +1,9 @@
 import type {
   SalesSummaryResponse,
   SalesMovement,
-  SummaryFilters
+  SummaryFilters,
+  PointOfSaleReport,
+  PointOfSaleReportResponse
 } from './types/salesReports.types'
 
 export const SalesService = {
@@ -37,5 +39,13 @@ export const SalesService = {
 
   async getProductById(id: number | string) {
     return $fetch(`/api/erp/sales-reports/products/${id}`)
+  },
+
+  async getByPointOfSale(filters?: SummaryFilters): Promise<PointOfSaleReportResponse> {
+    const params = new URLSearchParams()
+    if (filters?.startDate) params.set('startDate', filters.startDate)
+    if (filters?.endDate) params.set('endDate', filters.endDate)
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    return $fetch(`/api/erp/sales-reports/by-point-of-sale${qs}`)
   }
 }

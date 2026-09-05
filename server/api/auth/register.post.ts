@@ -1,30 +1,30 @@
 import type { ApiLoginResponse } from '~/modulos/auth/auth.types'
+import { getCookieOptions } from '~~/server/utils/cookies'
+import { getTenant } from '~~/server/utils/tenant'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const config = useRuntimeConfig()
+  const tenant = getTenant(event)
 
   try {
     const api = await $fetch<ApiLoginResponse>(
       `${config.apiBase}/auth/register`,
       {
         method: 'POST',
-        body
+        body,
+        headers: { 'x-tenant': tenant }
       }
     )
 
     // 🔐 cookies igual que login
     setCookie(event, 'api_access', api.accessToken, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
+      ...getCookieOptions(),
       maxAge: 60 * 15
     })
 
     setCookie(event, 'api_refresh', api.refreshToken, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
+      ...getCookieOptions(),
       maxAge: 60 * 60 * 24 * 7
     })
 

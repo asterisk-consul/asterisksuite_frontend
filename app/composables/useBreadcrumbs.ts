@@ -3,15 +3,19 @@ import { useRoute } from 'vue-router'
 export const useBreadcrumbs = () => {
   const route = useRoute()
 
+  const homeItem = { icon: 'i-lucide-house', to: '/' }
+
   const items = computed(() => {
+    const base = [homeItem]
+
     // 👉 override manual desde páginas (edit, create, etc.)
     if (route.meta.breadcrumb) {
-      return route.meta.breadcrumb as any[]
+      return [...base, ...(route.meta.breadcrumb as any[])]
     }
 
     const segments = route.path.split('/').filter(Boolean)
 
-    return segments
+    const dynamic = segments
       .map((segment, index) => {
         const config = breadcrumbMap[segment]
 
@@ -30,6 +34,8 @@ export const useBreadcrumbs = () => {
         }
       })
       .filter(Boolean)
+
+    return [...base, ...dynamic]
   })
 
   return { items }
@@ -44,6 +50,7 @@ const breadcrumbMap: Record<
 > = {
   // módulos
   logistica: { label: 'Logística', to: '/logistica' },
+  erp: { label: 'ERP', to: '/erp' },
 
   // agrupadores
   transport: { label: 'Transporte', clickable: false },
@@ -67,7 +74,16 @@ const breadcrumbMap: Record<
 
   // acciones
   create: { label: 'Crear', clickable: false },
-  edit: { label: 'Editar', clickable: false }
+  edit: { label: 'Editar', clickable: false },
+  // ERP - ventas
+  sales: { label: 'Ventas', to: '/erp/sales' },
+  customers: { label: 'Clientes', to: '/erp/sales/customers' },
+  purchases: { label: 'Compras', to: '/erp/purchases' },
+  'purchases-documents': {
+    label: 'Facturas de Compra',
+    to: '/erp/purchases/purchases-documents'
+  },
+  new: { label: 'Nuevo', clickable: false }
 }
 
 //

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { useFileParser } from '@/composables/useFileParser'
 import { fetchData, postData } from '../composables/apiService'
 
-import { formatearFecha } from '@/utils/formatDate'
+import { formatearFecha } from '@/utils/formatearFecha'
 import * as XLSX from 'xlsx'
 
 export const useKilometrosStore = defineStore('csv', {

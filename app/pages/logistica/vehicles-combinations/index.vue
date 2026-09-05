@@ -1,10 +1,8 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 //stores
 import { useVehiclesStore } from '~/modulos/logistica/transport/vehicles/store/vehicles.store'
@@ -25,11 +23,10 @@ import type {
   UpdateVehicleCombinationInput
 } from '~/modulos/logistica/transport/vehicles-combinations/types/vehicles-combinations.types'
 
-const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 import type { ButtonProps } from '@nuxt/ui'
-function toggleModuleSidebar() {
-  moduleCollapsed.value = !moduleCollapsed.value
-}
+
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 type EditableField = 'unit_number'
 type EditableValue = string | null | undefined
@@ -50,12 +47,29 @@ const { items: driverItems } = useDriverMetrics(drivers)
 const router = useRouter()
 
 /* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('vehicle_combinations')
+
+async function handleDeleteOne(row: VehicleCombination) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: VehicleCombination[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
+/* ---------------------------------------
    MODAL CONTROL
 --------------------------------------- */
 
 const modalOpen = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const editingRow = ref<any>(null)
+const sorting = ref<SortingState>([])
 
 function openCreate() {
   router.push('/logistica/vehicles-combinations/create')
@@ -68,13 +82,21 @@ function openEdit(row: VehicleCombination) {
    TABLE COLUMNS
 --------------------------------------- */
 
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [
+    {
+      id: columnId,
+      desc: current?.id === columnId ? !current.desc : false
+    }
+  ]
+}
+
 const columns = VehicleCombinationColumns({
   onEdit: openEdit,
-  onInlineSave: async (
-    row: VehicleCombination,
-    field: EditableField,
-    value: EditableValue
-  ) => {
+  onDelete: handleDeleteOne,
+  onSortFieldSelect,
+  onInlineSave: async (row: VehicleCombination, field: EditableField, value: EditableValue) => {
     const prev = row[field]
     row[field] = value ?? ''
 
@@ -98,8 +120,7 @@ const columns = VehicleCombinationColumns({
       row[field] = prev
 
       // Tomar mensaje del backend si existe
-      const backendMessage =
-        err?.response?.data?.message || `No se pudo actualizar el ${field}`
+      const backendMessage = err?.response?.data?.message || `No se pudo actualizar el ${field}`
 
       // Mostrar toast de error
       toast.add({
@@ -212,9 +233,7 @@ async function handleSubmit(data: any) {
     modalOpen.value = false
   } catch (err: any) {
     // Mostrar mensaje del backend si existe
-    const backendMessage =
-      err?.response?.data?.message ||
-      'Ocurrió un error al guardar la combinación'
+    const backendMessage = err?.response?.data?.message || 'Ocurrió un error al guardar la combinación'
 
     toast.add({
       title: 'Error',
@@ -235,27 +254,61 @@ const links = ref<ButtonProps[]>([
     variant: 'solid'
   }
 ])
+
+const filterFields: FilterField[] = [
+  {
+    id: 'unit_number',
+    label: 'Filtrar por unidad...'
+  },
+  {
+    id: 'driver',
+    label: 'Filtrar por chofer...'
+  },
+  {
+    id: 'tractor',
+    label: 'Filtrar por tractor...'
+  },
+  {
+    id: 'trailer',
+    label: 'Filtrar por trailer...'
+  }
+]
+
+const sortFields: SortField[] = [
+  {
+    label: 'N° Unidad',
+    value: 'unit_number'
+  },
+  {
+    label: 'Chofer',
+    value: 'driver'
+  },
+  {
+    label: 'Tractor',
+    value: 'tractor'
+  },
+  {
+    label: 'Trailer',
+    value: 'trailer'
+  },
+  {
+    label: 'Creado',
+    value: 'created_at'
+  }
+]
 </script>
 
 <template>
   <UPage class="space-y-4">
-    <div class="flex flex-col">
-      <div>
-        <UButton
-          icon="i-lucide-layout-panel-left"
-          variant="ghost"
-          color="neutral"
-          label="Menu"
-          @click="toggleModuleSidebar"
-        />
-      </div>
-      <UPageHeader
-        title="Unidades"
-        description="Listado de Unidades"
-        :links="links"
-        class="mb-4 w-full"
-      />
-    </div>
-    <LogisticaTable :loading="loading" :data="items" :columns="columns" />
+    <AppPageHeader title="Unidades" description="Listado de Unidades" :links="links" />
+    <LogisticaTable
+      :loading="loading"
+      :data="items"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
+    />
   </UPage>
 </template>

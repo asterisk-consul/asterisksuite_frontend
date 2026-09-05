@@ -1,9 +1,9 @@
 import { h } from 'vue'
-import type { TableColumn } from '@nuxt/ui'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 
 export function useIdColumn<T extends { id: string }>(
   onClick?: (row: T) => void
-): TableColumn<T> {
+): ExtendedColumn<T> {
   return {
     accessorKey: 'id',
     header: '#',

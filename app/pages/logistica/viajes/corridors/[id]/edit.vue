@@ -7,7 +7,6 @@ import CorridorForm from '~/modulos/logistica/transport/corridors/components/Cor
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'logistica'
 })
 
 const route = useRoute()

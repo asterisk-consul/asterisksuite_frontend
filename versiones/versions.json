@@ -1,5 +1,1552 @@
 [
   {
+    "version": "0.44.0-alpha",
+    "date": "2026-09-05",
+    "stage": "alpha",
+    "notes": "Estados por categoría y nueva UX en documentos, fixes en mis ventas y reporte por PV, datos laborales unificados entre stakeholders y empleados, locaciones en Ajustes y módulo de adjuntos/intake",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Ventas y compras: filtros y estadísticas por categoría de documento con estado correcto por tipo (QUOTE/ORDER/REMITO/INVOICE/NC/ND)"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Columnas reordenadas: Estado, Nº clickeable, Cliente, Descripción acortada con tooltip, Total, Fecha, Punto de venta"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Reporte ventas por punto de venta agrupa por document_documents.document_sequence_id (PV real del documento)"
+      },
+      {
+        "type": "fix",
+        "scope": "mis-ventas",
+        "title": "Relaciones Prisma corregidas: business_parties, orden_venta_doc y document_types en my-sales"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Import Prisma faltante en documents-purchases y cliente regenerado (relación warehouse en documents)"
+      },
+      {
+        "type": "fix",
+        "scope": "auth",
+        "title": "Cache de vendedor (is_salesperson) se resetea al cambiar usuario o empresa: Mis ventas aparece/desaparece sin recargar"
+      },
+      {
+        "type": "refactor",
+        "scope": "partes-interesadas",
+        "title": "Datos laborales sincronizados entre stakeholders y empleados: findOne incluye employee+user y update persiste"
+      },
+      {
+        "type": "refactor",
+        "scope": "nav",
+        "title": "Locaciones como master data: movida a Ajustes (/ajustes/locaciones) fuera de Viajes"
+      },
+      {
+        "type": "feat",
+        "scope": "media",
+        "title": "Gestión de adjuntos (AttachmentManager, view/download/thumb) e intake records con permisos y migraciones"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Estados por categoría en ventas/compras, fixes de mis ventas y reporte PV, datos laborales unificados, locaciones en Ajustes y módulo de adjuntos"
+  },
+  {
+    "version": "0.43.0-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Configuración de base de comisión por vendedor (facturado vs cobrado)",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "comisiones",
+        "title": "Nuevo campo commission_base en empleados: INVOICED (facturado) o PAID (cobrado)"
+      },
+      {
+        "type": "feat",
+        "scope": "comisiones",
+        "title": "La base de comisión se hereda del vendedor al crear la OV"
+      },
+      {
+        "type": "feat",
+        "scope": "comisiones",
+        "title": "Cálculo de comisiones usa el monto base correcto (facturado o cobrado)"
+      },
+      {
+        "type": "feat",
+        "scope": "comisiones",
+        "title": "Reporte de comisiones muestra la base utilizada por OV"
+      }
+    ],
+    "message": "Cada vendedor puede configurar si su comisión se calcula sobre el monto facturado o el monto cobrado de cada orden de venta. El valor se hereda del empleado al crear la OV."
+  },
+  {
+    "version": "0.42.4-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: reportes contables y selector de cuentas en gastos por cuenta",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "reportes",
+        "title": "Reportes contables: agregada función handleExportExcel faltante"
+      },
+      {
+        "type": "fix",
+        "scope": "reportes",
+        "title": "Gastos por cuenta: eliminado item con value vacío del selector de cuentas"
+      }
+    ],
+    "message": "Corregido el error de exportar Excel en reportes contables y el error de ComboboxItem con value vacío en el selector de cuentas."
+  },
+  {
+    "version": "0.42.3-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Se ocultan métodos de pago no implementados (tarjeta, billetera, cuenta corriente)",
+    "changes": [
+      {
+        "type": "chore",
+        "scope": "pagos",
+        "title": "Métodos de pago: solo se muestran efectivo, cheques y bancos por ahora"
+      }
+    ],
+    "message": "Se comentan las opciones de pago no implementadas hasta tener sus módulos listos."
+  },
+  {
+    "version": "0.42.2-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: signo en montos de caja y script de recálculo de saldos de tesorería",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Cajas: montos de movimientos muestran signo correcto (+/-) según el monto"
+      },
+      {
+        "type": "feat",
+        "scope": "tesoreria",
+        "title": "Script recalc-treasury-balances.ts para recalcular saldos históricos corruptos"
+      }
+    ],
+    "message": "Se corrige el signo duplicado en montos de movimientos de caja y se agrega un script para recalcular balance_before/after y saldos de cajas y bancos."
+  },
+  {
+    "version": "0.42.1-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: balance_before en movimientos ahora se lee antes de actualizar el saldo",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias: balance_before se calcula correctamente leyendo saldo antes de la actualización"
+      }
+    ],
+    "message": "El saldo anterior en movimientos de transferencia ahora muestra el saldo real antes de la operación, no después de actualizar."
+  },
+  {
+    "version": "0.42.0-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: saldos de bancos y cajas ahora se derivan de los movimientos",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Bancos: saldo actual se calcula desde el último movimiento, no desde la columna desnormalizada"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Cajas: ingresos/egresos de sesión se calculan desde movimientos filtrados por sesión"
+      }
+    ],
+    "message": "Los saldos de cuentas bancarias y cajas ahora se derivan directamente de los movimientos registrados, evitando desincronización con las columnas desnormalizadas."
+  },
+  {
+    "version": "0.41.9-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: bancos muestran montos negativos y clasifican transferencias correctamente",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Bancos: movimientos muestran signo correcto (+/-) según monto"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Bancos: ingresos/egresos se calculan por signo del monto, no por tipo"
+      }
+    ],
+    "message": "Los movimientos bancarios ahora muestran el signo correcto del monto. Los totales de ingresos/egresos se calculan correctamente según la dirección del dinero."
+  },
+  {
+    "version": "0.41.8-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: bank_account_movements balance_before/balance_after usaba Decimal en vez de number",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias banco→caja: corregido cálculo de balance_after que fallaba por tipo Decimal"
+      }
+    ],
+    "message": "Corregido el cálculo de balance_before y balance_after en movimientos bancarios que usaba Prisma Decimal sin convertir a number."
+  },
+  {
+    "version": "0.41.7-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: movimiento de origen ahora registra monto negativo (egreso)",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias: el movimiento de origen ahora se registra con monto negativo para que aparezca como egreso"
+      }
+    ],
+    "message": "El movimiento de caja al realizar una transferencia saliente ahora se registra correctamente como egreso con monto negativo."
+  },
+  {
+    "version": "0.41.6-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: transferencias requieren sesión abierta y actualiza totales de sesión",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias: requieren sesión abierta en la caja origen"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias: actualiza ingresos/egresos de sesión correctamente"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias entre cajas: cada caja usa su propia sesión"
+      }
+    ],
+    "message": "Las transferencias ahora requieren una sesión abierta en la caja origen. Los movimientos de transferencia ahora se reflejan correctamente en los totales de ingresos/egresos de la sesión, y cada caja usa su propia sesión."
+  },
+  {
+    "version": "0.41.5-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: moneda correcta en movimientos bancarios y tab Hoy en cajas",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Movimientos bancarios: al recibir transferencia de otra moneda, se registra en la moneda del banco con el monto convertido"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Cajas tab Hoy: los movimientos del día ahora aparecen correctamente en la pestaña Hoy"
+      }
+    ],
+    "message": "Al recibir una transferencia de otra moneda en una cuenta bancaria, el movimiento ahora se registra en la moneda de la cuenta con el monto convertido. También se corrige que la pestaña 'Hoy' en cajas muestre los movimientos del día."
+  },
+  {
+    "version": "0.41.4-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: transferencias now create bank_account_movements and use correct dest currency",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Movimientos bancarios: las transferencias ahora crean registros en bank_account_movements para que aparezcan en el historial"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Moneda destino: en transferencias entre monedas, el saldo de la caja destino se acredita en su propia moneda"
+      }
+    ],
+    "message": "Las transferencias ahora crean movimientos en cuentas bancarias (iban y vienen en el historial). También se corrige que en transferencias entre monedas distintas, la caja destino reciba el saldo en su moneda correcta."
+  },
+  {
+    "version": "0.41.3-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: transferencias no acreditaban en destino (caja/banco) y no convertían moneda",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias a banco: el destino ahora recibe el monto cuando es cuenta bancaria"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Transferencias entre monedas: el destino recibe el monto convertido en la moneda correcta"
+      }
+    ],
+    "message": "Las transferencias ahora acreditan correctamente en el destino. Antes, si el destino era una cuenta bancaria el dinero no llegaba. También se corrige que en transferencias entre monedas distintas el destino reciba el monto convertido en su propia moneda."
+  },
+  {
+    "version": "0.41.2-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: tipo de cambio en transferencias entre cajas/bancos",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Exchange rate: se envía como número en vez de string para evitar error de validación"
+      },
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Tipo de cambio: solo se muestra cuando origen y destino tienen monedas distintas"
+      }
+    ],
+    "message": "Al transferir entre cajas o bancos, el campo tipo de cambio ahora se muestra solo cuando las monedas de origen y destino son diferentes. Antes se comparaba contra la moneda base del sistema. También se corrige el envío del tipo de cambio como número."
+  },
+  {
+    "version": "0.41.1-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Fix: caja principal se duplicaba en la UI al crear o editar",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "tesoreria",
+        "title": "Caja principal: al marcar una caja como principal, se desmarca correctamente en las demás cajas del store local"
+      }
+    ],
+    "message": "Al crear o editar una caja y marcarla como principal, ahora se desmarca correctamente en el store de Pinia. Antes solo se actualizaba en la DB pero la UI mostraba dos cajas como principales hasta refrescar la página."
+  },
+  {
+    "version": "0.41.0-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Export e import del plan de cuentas contables",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "contabilidad",
+        "title": "Export plan de cuentas: descarga Excel o CSV con código, nombre, tipo y cuenta padre"
+      },
+      {
+        "type": "feat",
+        "scope": "contabilidad",
+        "title": "Import plan de cuentas: importación masiva desde Excel respetando jerarquía padre-hijo"
+      }
+    ],
+    "message": "Ahora podes exportar e importar el plan de cuentas contables desde la página Plan de Cuentas. El export genera Excel o CSV con la estructura completa, y el import acepta archivos con columnas Código, Nombre, Tipo y Cuenta padre, creando la jerarquía correctamente."
+  },
+  {
+    "version": "0.40.0-alpha",
+    "date": "2026-09-03",
+    "stage": "alpha",
+    "notes": "Export e import de precios por cliente/proveedor en la pagina Precios vigentes",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Export Excel: descarga de precios acordados por cliente/proveedor en formato .xlsx"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Export CSV: descarga de precios acordados en formato CSV con BOM para Excel"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Import Excel: importacion masiva de precios via plantilla SKU + Moneda + Precio"
+      },
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "ExcelImportDialog: matching case-insensitive de headers para previsualizacion"
+      }
+    ],
+    "message": "Ahora podes exportar e importar precios por cliente/proveedor desde la pagina Precios vigentes. El export genera Excel o CSV con los precios acordados, y el import acepta archivos con columnas SKU, Moneda y Precio (acepta variants de headers)."
+  },
+  {
+    "version": "0.39.4-alpha",
+    "date": "2026-09-01",
+    "stage": "alpha",
+    "notes": "Cuenta corriente: indicador de actividad por tercero (dias sin movimiento + ultimo documento)",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Badge de actividad: muestra 'Hace X dias' con color (verde <15d, amarillo 15-60d, rojo >60d) en cada tercero"
+      },
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Ultimo movimiento: subtitulo con tipo y descripcion del ultimo entry en la cuenta corriente"
+      },
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Historial: columna de ultima actividad en la tabla del tab Historial"
+      },
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Exportacion Excel incluye columna de ultima actividad"
+      }
+    ],
+    "message": "Ahora en la lista de cuentas corrientes ves de un vistazo hace cuanto fue el ultimo movimiento de cada cliente o proveedor. El badge cambia de verde a rojo segun la antiguedad, y abajo aparece el tipo de documento y descripcion del ultimo movimiento."
+  },
+  {
+    "date": "2026-09-01",
+    "stage": "alpha",
+    "notes": "Cuenta corriente: cadena de documentos relacionados en cada movimiento",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Cadena de documentos: cada movimiento en CC muestra el arbol de documentos relacionados (OV → Remito → Factura, etc.) via icono de ramas"
+      },
+      {
+        "type": "feat",
+        "scope": "cuenta-corriente",
+        "title": "Popover con arbol indentado: al hacer hover sobre el icono se despliega la cadena completa con links a cada documento"
+      }
+    ],
+    "message": "Ahora en la cuenta corriente podes ver la cadena completa de documentos que origino cada movimiento. Un icono de ramas al lado del comprobante despliega el arbol: desde la OV hasta la factura, pasando por remitos y notas."
+  },
+  {
+    "version": "0.39.2-alpha",
+    "date": "2026-09-01",
+    "stage": "alpha",
+    "notes": "Mejoras UX/UI en pagos: selects full width, sticky footer, retenciones con encabezados y cuenta corriente",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "pagos",
+        "title": "Selects full width en formulario de pagos para consistencia visual"
+      },
+      {
+        "type": "feat",
+        "scope": "pagos",
+        "title": "Fila de metodo/moneda/cuenta contable reorganizada en grid-cols-3"
+      },
+      {
+        "type": "feat",
+        "scope": "pagos",
+        "title": "Sticky footer con total y botonera siempre visible al scrollear"
+      },
+      {
+        "type": "feat",
+        "scope": "pagos",
+        "title": "Metodo de pago Cuenta corriente con card informativa"
+      },
+      {
+        "type": "fix",
+        "scope": "pagos",
+        "title": "Retenciones manuales: encabezados de columna, tooltips descriptivos, badge de jurisdiccion y placeholder auto-calculado"
+      },
+      {
+        "type": "fix",
+        "scope": "pagos",
+        "title": "Edicion de pago: precarga de retenciones guardadas en el formulario"
+      }
+    ],
+    "message": "Selects uniformes a ancho completo, footer pegajoso con total, retenciones con labels y cuenta corriente como metodo de pago. Al editar un pago ahora se ven las retenciones ya guardadas."
+  },
+  {
+    "version": "0.39.1-alpha",
+    "date": "2026-09-01",
+    "stage": "alpha",
+    "notes": "Fix seleccion de cheques en pagos y validacion real en alta de cheque",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "pagos",
+        "title": "Fix doble toggle en seleccion de cheques: click en checkbox se disparaba dos veces por burbujeo de eventos"
+      },
+      {
+        "type": "fix",
+        "scope": "cheques",
+        "title": "Validacion real en formulario de cheques: toast con campos faltantes antes de enviar al backend"
+      }
+    ],
+    "message": "Corrección de selección de cheques en pagos: ahora se puede hacer clic en cualquier parte del cheque para seleccionarlo. Alta de cheque valida campos obligatorios antes de enviar."
+  },
+  {
+    "version": "0.39.0-alpha",
+    "date": "2026-09-01",
+    "stage": "alpha",
+    "notes": "Operaciones Internacionales: presupuestos de compra por operacion, edicion de operacion y contenedores, rediseño del detalle, doble moneda con tipo de cambio por documento y estados libres",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "operaciones-intl",
+        "title": "Presupuestos de compra por operacion: crear rapido, asociar existentes y aceptar ganador (auto-rechaza el resto) sin impactar totales"
+      },
+      {
+        "type": "feat",
+        "scope": "operaciones-intl",
+        "title": "Edicion de operacion y de contenedor con formularios compartidos (OperationForm / ContainerForm)"
+      },
+      {
+        "type": "feat",
+        "scope": "operaciones-intl",
+        "title": "Rediseño del detalle: sub-navegacion sticky, gastos por contenedor con estado de pago y cambio de estado libre con ayuda descriptiva"
+      },
+      {
+        "type": "feat",
+        "scope": "operaciones-intl",
+        "title": "Doble moneda: tipo de cambio asignado al asociar documentos y consolidado en la moneda de la operacion"
+      },
+      {
+        "type": "feat",
+        "scope": "operaciones-intl",
+        "title": "Tipo de gasto Nacionalizacion y contenedor opcional al asociar pagos"
+      },
+      {
+        "type": "feat",
+        "scope": "database",
+        "title": "Tabla international_operation_quotes (QuoteStatus), container_id en pagos de operacion y enum NACIONALIZACION"
+      },
+      {
+        "type": "feat",
+        "scope": "document-types",
+        "title": "Tipo Presupuesto de Compra (PRE-C) agregado al seed"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Modal de tipos de documento: switches con descripciones, select de secuencias muestra nombre y fix de v-model en impuestos"
+      },
+      {
+        "type": "refactor",
+        "scope": "operaciones-intl",
+        "title": "Util compartido de conversion con tipo de cambio de mercado (frontend y backend)"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Presupuestos de compra en operaciones internacionales, edición de operación y contenedores, doble moneda y rediseño del detalle"
+  },
+  {
+    "version": "0.38.0-alpha",
+    "date": "2026-08-28",
+    "stage": "alpha",
+    "notes": "Integración comercial y logística: precios por cliente/proveedor, tarifas basadas en productos, creación de órdenes de despacho desde ventas y mejoras del panel logístico",
+    "highlights": [
+      {
+        "title": "Precios personalizados por contraparte",
+        "description": "Productos y tarifas pueden tener precios específicos por cliente o proveedor, conservando el precio general como respaldo y registrando su historial"
+      },
+      {
+        "title": "Flujo comercial y logístico integrado",
+        "description": "Las órdenes de venta pueden originar remitos, facturas u órdenes de despacho manteniendo cliente, productos, precios y trazabilidad entre documentos"
+      },
+      {
+        "title": "Tarifas logísticas como productos",
+        "description": "Las órdenes de despacho usan los productos y precios comerciales como fuente de tarifas, con compatibilidad para registros históricos"
+      },
+      {
+        "title": "Nuevo panel operativo de logística",
+        "description": "Dashboard con estados en español, despachos sin viaje, viajes por planificar, operaciones en curso e importe operativo abierto"
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "pricing",
+        "title": "Precios de producto por cliente o proveedor con vigencia e historial de modificaciones"
+      },
+      {
+        "type": "feat",
+        "scope": "products",
+        "title": "Nueva pestaña para relacionar productos con clientes y proveedores y administrar sus precios"
+      },
+      {
+        "type": "feat",
+        "scope": "pricing",
+        "title": "Listado de precios por contraparte con productos relacionados e historial por producto"
+      },
+      {
+        "type": "feat",
+        "scope": "pricing",
+        "title": "Resolución automática del precio específico según cliente/proveedor con fallback al precio general del producto"
+      },
+      {
+        "type": "fix",
+        "scope": "pricing",
+        "title": "Rutas proxy para alta, edición, consulta e historial de precios por contraparte"
+      },
+      {
+        "type": "fix",
+        "scope": "pricing",
+        "title": "Edición de precios desde la pestaña del producto y obtención segura del usuario autenticado en backend"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Selección y persistencia de punto de venta/secuencia en órdenes de venta y compra"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Cambio de secuencia al editar documentos con ajuste de numeración entre la secuencia anterior y la nueva"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Visualización del punto de venta y número completo en detalle, edición y cadena de documentos"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Fechas opcionales vacías se omiten antes de enviar formularios para evitar errores de validación ISO 8601"
+      },
+      {
+        "type": "feat",
+        "scope": "sales",
+        "title": "Acciones para crear remitos, facturas y órdenes de despacho desde una orden de venta"
+      },
+      {
+        "type": "feat",
+        "scope": "dispatch",
+        "title": "Creación de orden de despacho desde ventas copiando cliente, productos, cantidades, precios y documento de origen"
+      },
+      {
+        "type": "feat",
+        "scope": "dispatch",
+        "title": "Ítems de productos en órdenes de despacho como nueva fuente de tarifas con posibilidad de editar cantidades y precios"
+      },
+      {
+        "type": "feat",
+        "scope": "dispatch",
+        "title": "Total tarifario y origen de tarifa expuestos por la API de órdenes de despacho"
+      },
+      {
+        "type": "compat",
+        "scope": "dispatch",
+        "title": "Fallback a las tarifas logísticas históricas cuando una orden antigua no posee ítems de producto"
+      },
+      {
+        "type": "feat",
+        "scope": "logistica",
+        "title": "Flujo despacho → viaje y despacho → remito mantenido como procesos independientes y disponibles manualmente"
+      },
+      {
+        "type": "feat",
+        "scope": "logistica",
+        "title": "Cierre del despacho al entregar el remito y finalización del viaje cuando todas sus órdenes están completas"
+      },
+      {
+        "type": "feat",
+        "scope": "reports",
+        "title": "Reportes logísticos y montos de choferes adaptados a tarifas provenientes de productos con soporte histórico"
+      },
+      {
+        "type": "feat",
+        "scope": "logistica",
+        "title": "Panel de logística con estados operativos en español y compatibilidad con estados anteriores"
+      },
+      {
+        "type": "feat",
+        "scope": "logistica",
+        "title": "Resumen de viajes por planificar, despachos sin viaje, despachos en curso e importe operativo abierto"
+      },
+      {
+        "type": "style",
+        "scope": "erp",
+        "title": "Mejoras responsive y de UX en formularios de ventas y compras para evitar selects rotos por contenido extenso"
+      }
+    ],
+    "modules": [
+      {
+        "name": "pricing",
+        "version": "0.1.0-alpha"
+      },
+      {
+        "name": "dispatch",
+        "version": "0.2.0-alpha"
+      },
+      {
+        "name": "logistica",
+        "version": "0.2.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.37.0-alpha",
+    "date": "2026-08-27",
+    "stage": "alpha",
+    "notes": "Secuencia de documentos vinculada al documento: FK document_sequence_id, cada PV tiene su propio rango de numeración, fix de off-by-one y mejoras en edit mode",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "database",
+        "title": "FK document_sequence_id en tabla documents + constraint único compuesto (document_type_id, document_sequence_id, number)"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Off-by-one en inicialización de secuencias: current_number ahora inicia en range_start - 1"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Guardar document_sequence_id al crear documentos (sales, purchases, HR)"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Simplificar getNextNumber quitando retry loop (cada PV tiene rango independiente)"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "findOne incluye document_sequences para mostrar punto de venta en frontend"
+      },
+      {
+        "type": "fix",
+        "scope": "facturas",
+        "title": "Mapper restaura document_sequence_id en edit mode"
+      },
+      {
+        "type": "fix",
+        "scope": "facturas",
+        "title": "Race condition en FacturaForm: watch(sequences) restaura secuencia cuando datos están listos"
+      }
+    ]
+  },
+  {
+    "version": "0.36.1-alpha",
+    "date": "2026-08-27",
+    "stage": "alpha",
+    "notes": "Junction table document_type_sequences: multi-select de secuencias por tipo de documento, fix de filtrado en FacturaForm y fix de validación seller_id vacío",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Filtrar seller_id vacío en OrdenVentaForm para evitar error de validación UUID"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Junction table document_type_sequences en backend (DTO, service CRUD con createMany/deleteMany)"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Multi-select de secuencias en DocumentTypeForm y settings page"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Filtrado de secuencias en FacturaForm por tipo de documento (return false en vez de true)"
+      }
+    ]
+  },
+  {
+    "version": "0.36.0-alpha",
+    "date": "2026-08-26",
+    "stage": "alpha",
+    "notes": "Historial de cliente: página /erp/sales/customers/[id] con timeline, documentos, pagos y cuenta corriente multi-moneda",
+    "highlights": [
+      {
+        "title": "Página de historial del cliente",
+        "description": "Vista 360° del cliente con resumen, timeline lateral, tabs de documentos/pagos/cuenta corriente"
+      },
+      {
+        "title": "Timeline lateral con búsqueda",
+        "description": "Historial cronológico de OV, remitos, facturas y cobros con filtro por número y tipo"
+      },
+      {
+        "title": "Multi-moneda en resumen",
+        "description": "Totales de OV, facturado y cobrado usan converted_total/converted_amount para mostrar en moneda base"
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Página /erp/sales/customers/[id] con info del cliente, resumen y tabs de documentos/pagos/cuenta corriente"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Timeline lateral (CustomerHistoryTimeline) con búsqueda, scroll y filtro por tipo/estado"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Resumen multi-moneda: OV total, facturado (solo confirmadas), cobrado, saldo CC usando converted_total/converted_amount"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Tab documentos usa LogisticaTable con columnas builder (número clickeable, tipo badge, fecha, estado badge, total)"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Tab pagos usa paymentColumns de ~/modulos/erp/payments/columns (misma tabla que /erp/treasury/payments)"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Tab cuenta corriente usa CurrentAccountEntryTable con soporte multi-moneda"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "findAll en documents_sales acepta partyId para filtrar documentos por cliente"
+      },
+      {
+        "type": "feat",
+        "scope": "customers",
+        "title": "Columna de acciones en listado de clientes con botón ver detalle"
+      },
+      {
+        "type": "fix",
+        "scope": "customers",
+        "title": "Click en ID del listado de clientes navega al detail [id] en vez de [id]/edit"
+      }
+    ],
+    "modules": [
+      {
+        "name": "customers",
+        "version": "0.1.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.35.1-alpha",
+    "date": "2026-08-26",
+    "stage": "alpha",
+    "notes": "Ciclo de vida de cheques: depósito, reversión con impacto bancario, badge de estado corregido, auto-deposit scheduler y moneda configurable",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Depósito de cheques con selección de cuenta bancaria y movimiento COLLECTION"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Revertir depósito: CLEARED → PENDING, elimina movimiento bancario y revierte saldo"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "Badge muestra 'Depositado' (estado) en vez de 'Depositar' (acción) con badgeLabel en PopoverTableActive"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Auto-deposit scheduler: cheques de terceros con vencimiento <= hoy se depositan automáticamente"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Ventana de días configurable para dashboard y treasury-reports (parámetro checks_days)"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Selector de moneda USelect en formulario de cheques (create/edit)"
+      },
+      {
+        "type": "feat",
+        "scope": "pagos",
+        "title": "Procesamiento de cheques vinculados a pagos: check_ids en CreatePaymentDto"
+      },
+      {
+        "type": "fix",
+        "scope": "pagos",
+        "title": "Tipo de status como @IsEnum PaymentStatus en vez de @IsInt number en CreatePaymentDto"
+      }
+    ]
+  },
+  {
+    "version": "0.35.0-alpha",
+    "date": "2026-08-26",
+    "stage": "alpha",
+    "notes": "Módulo de Papelera completo: página en Ajustes, soft-delete desde LogisticaTable (individual y bulk), resolución de usuario, fix de rutas NestJS",
+    "highlights": [
+      {
+        "title": "Página de Papelera en Ajustes",
+        "description": "Nueva página /settings/trash con tabla de elementos eliminados, filtros por tabla y período, búsqueda, restaurar y eliminar permanentemente"
+      },
+      {
+        "title": "Soft-delete desde LogisticaTable",
+        "description": "Integración de eliminación a papelera tanto individual (botón por fila) como bulk (selección múltiple) en 9 módulos de logística y productos"
+      },
+      {
+        "title": "Resolución de usuario en Papelera",
+        "description": "La columna 'Eliminado por' ahora muestra el nombre del usuario en vez del UUID, resuelto desde public.users"
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Página /settings/trash con UTable, filtros USelectMenu (search + clear), selección múltiple, restaurar y hard delete"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Nav: item 'Papelera' en grupo Ajustes con permiso trash.read"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Composable useTableDelete: encapsula DELETE /api/trash/{table}/{id} y bulk, con toast y link a papelera"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "LogisticaTable: prop onDelete para habilitar eliminación bulk con modal de confirmación"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "DeleteConfirmModal: texto actualizado para referencia a papelera, prop loading"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Columnas actualizadas con onDelete: drivers, vehicles-combinations, locations, business-parties, contacts, products, warehouses, transfer-rates, corridors"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "9 páginas conectadas: drivers, vehicles-combinations, locaciones, business-parties, contacts, productos, warehouses, tarifas, corridors"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Backend findAllTrash: retorna nombre real de tabla (no 'mixed') y campos en camelCase (deletedAt, deletedBy)"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Backend findAllTrash: resolución de deletedBy UUID → nombre de usuario via public.users"
+      },
+      {
+        "type": "fix",
+        "scope": "trash",
+        "title": "Fix NestJS route ordering: bulk/:table y hard/:table ahora se declaran antes que :table/:id para evitar conflicto de rutas"
+      },
+      {
+        "type": "fix",
+        "scope": "trash",
+        "title": "Fix TRASH_TABLES: eliminados cargo_transfers (sin deleted_at), product_tags y product_categories (claves compuestas sin id)"
+      },
+      {
+        "type": "fix",
+        "scope": "frontend",
+        "title": "Corregido Nuxt 3 → Nuxt 4 en AGENTS.md, agents y skills"
+      }
+    ],
+    "modules": [
+      {
+        "name": "trash",
+        "version": "0.1.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.34.0-alpha",
+    "date": "2026-08-26",
+    "stage": "alpha",
+    "notes": "Módulo de Mantenimiento de Flota: backend CRUD completo, frontend con detalle, modales de sub-entidades ylookups via stores",
+    "highlights": [
+      {
+        "title": "Módulo de Mantenimiento de Flota: backend y frontend",
+        "description": "CRUD completo de órdenes de mantenimiento, cubiertas, planes preventivos, con sub-entidades (tareas, repuestos, mano de obra, servicios) y asociación a facturas de compra"
+      },
+      {
+        "title": "Detalle de orden con tabs y modales",
+        "description": "Página de detalle con 6 tabs (info, tareas, repuestos, mano de obra, servicios, historial) y modales para crear sub-entidades con lookups de productos, depósitos, proveedores, empleados y facturas"
+      },
+      {
+        "title": "Lookups via stores de Pinia",
+        "description": "Todos los selectores delookup usan stores dePinia (useProductsStore, useDepositosStore, useBusinessPartiesStore, useEmployeesStore) en vez de $fetch directo"
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Schema Prisma con 12 modelos (maintenance_orders, maintenance_tasks, maintenance_parts, maintenance_labor, maintenance_services, tires, tire_positions, tire_movements, maintenance_plans, plan_assets, vehicle_tire_configs, maintenance_status_history) y 10 enums"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Controllers con @RequirePermissions en todos los endpoints (orders, tasks, parts, labor, services, tires, plans, movements, positions)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: findOne() con parámetro tx para uso dentro de $transaction (11 call sites corregidos en orders.service y tires.service)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Fix user.sub → user.id en 9 controllers (38 reemplazos, JwtStrategy mapea sub→id)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Labor dual mode (employee_id OR supplier_id) con document_id opcional para asociar factura"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Parts con document_id opcional para asociar factura de compra"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: MaintenanceStatusHistory sin deleted_at (append-only audit trail)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Backend: Seed MAINTENANCE_ORDER sequence + RBAC 4 permisos (maintenance_orders.read/create/update/delete)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Service con 16 métodos CRUD para sub-entidades (tasks, parts, labor, services)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Store con 16 acciones para sub-entidades que actualizan currentOrder localmente"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Detail page [id]/index.vue con 6 tabs (info, tasks, parts, labor, services, history) y UTabs named slots"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: 5 modales (cambiar estado, agregar tarea, agregar repuesto, agregar mano de obra, agregar servicio) con USelectMenu searchable"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Lookupsvia stores de Pinia (useProductsStore, useDepositosStore, useBusinessPartiesStore, useEmployeesStore) con computed selectItems"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Dropdown factura asociada filtrado por category=INVOICE&status=2 (solo facturas de compra confirmadas)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Edit page [id]/editar.vue con formulario completo y carga de orden existente"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: 3 columns files (orders, tires, plans) concreateTableBuilder + useIdColumn + useSelectColumn"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: List pages (mantenimiento, cubiertas, planes) adaptadas al patrón builder columns"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: VehicleTireMap.vue componente SVG de mapa de cubiertas por posición"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Página vehiculos/[id]/index.vue con detalle de vehículo y mapa de cubiertas"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Frontend: Cubiertas nueva.vue y [id]/index.vue reescritas con USelectMenu searchable para lookups"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "16 server API proxy routes para sub-entidades (tasks, parts, labor, services × CRUD)"
+      },
+      {
+        "type": "feat",
+        "scope": "maintenance",
+        "title": "Proxies adicionales: vehicles/[id], vehicle-tire-positions, dashboard, business-parties"
+      },
+      {
+        "type": "fix",
+        "scope": "maintenance",
+        "title": "Fix accessorFn en columns: row.original.X → row.X (accessorFn recibe raw data, no TanStack Row)"
+      },
+      {
+        "type": "fix",
+        "scope": "maintenance",
+        "title": "Fix proxy business-parties para pasar query params (type=SUPPLIER)"
+      }
+    ],
+    "modules": [
+      {
+        "name": "maintenance",
+        "version": "0.1.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.33.0-alpha",
+    "date": "2026-08-25",
+    "stage": "alpha",
+    "notes": "Módulo Operaciones Internacionales (Import/Export): gestión completa de operaciones, contenedores, documentos, pagos y conciliación financiera multimoneda",
+    "highlights": [
+      {
+        "title": "Operaciones Internacionales: CRUD completo con estados, contenedores con timeline, documentos y pagos asociados",
+        "description": "Módulo completo para gestionar importaciones/exportaciones: operaciones (PLANNED→CLOSED), contenedores (PREPARING→DELIVERED), timeline de eventos, documentos con tipos de gasto, pagos con conciliación, y resumen financiero multimoneda"
+      },
+      {
+        "title": "Conciliación financiera multimoneda",
+        "description": "Resumen financiero agrupado por moneda (USD, ARS, etc.), tipos de gasto (Mercadería, Flete, Seguro, Despachante, etc.), y historial de pagos por factura con montos, fechas y métodos"
+      },
+      {
+        "title": "Validación de moneda al asociar documentos",
+        "description": "Al asociar una factura en moneda distinta a la operación, se solicita tipo de cambio manual para conversión correcta en el resumen financiero"
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Schema Prisma: international_operations, international_containers, container_events, junction tables operation_documents/operation_payments, FKs a locations"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Backend: NestJS module con CRUD completo, transiciones de estado validadas (PLANNED→CLOSED/CANCELLED), summary/dashboard con financialByCurrency"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Backend: ContainersService y EventsService con CRUD y timeline de eventos (LOADED_AT_ORIGIN → DELIVERED)"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Backend: Asociar/desasociar documentos (con expense_type, custom_expense_description, container_id, exchange_rate), pagos y órdenes de compra"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Backend: @RequirePermissions en todos los endpoints (international_operations.read/create/update/delete)"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Listado con LogisticaTable, filtros por estado/proveedor/país, sorting, paginación"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Formulario de creación con moneda select, incoterm con UPopover de ayuda, locaciones para origen/destino"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Dashboard de operación con KPIs, situación financiera por moneda, contenedores en grid, documentos agrupados por expense_type, pagos con historial"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Crear contenedor con tipo en español + UPopover de ayuda, puertos con USelectMenu de locaciones, change estado dropdown"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Detalle de contenedor con timeline de eventos (create/delete), cambio estado dropdown"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Frontend: Modal asociar documento con validación de moneda + input exchange_rate, modal asociar pago, botones desasociar con confirm"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "20 Nuxt server proxy routes para forwarding de API al backend NestJS"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Seed: secuencia IMP (point_of_sale: 0003, prefix: IMP) + RBAC 4 permisos con roles default"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "FKs a locations para origin/destination en operaciones y puertos en contenedores"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Fix USelectMenu value-key en FacturaItemsTable: selectedProduct y selectedVariant ahora almacenan UUID string, habilita select de variantes"
+      },
+      {
+        "type": "fix",
+        "scope": "international-operations",
+        "title": "Fix template Vue (divs anidados) en [id]/index.vue y declaración duplicada en AssociateDocumentModal"
+      }
+    ],
+    "modules": [
+      {
+        "name": "international-operations",
+        "version": "0.1.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.32.0-alpha",
+    "date": "2026-08-22",
+    "stage": "alpha",
+    "notes": "RBAC backend completo: 368 permisos activos en 54 controllers, CombinedGuard, fix version sidebar",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "368 @RequirePermissions activados en 54 controllers (productos, docs, tesorería, logística, inventario, etc.)"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "CombinedGuard: TenantAccessGuard + PermissionsGuard ejecutados en orden como único APP_GUARD"
+      },
+      {
+        "type": "fix",
+        "scope": "rbac",
+        "title": "PermissionsGuard tolerante: si request.user no existe, deja pasar (JwtAuthGuard controller-level maneja auth)"
+      },
+      {
+        "type": "fix",
+        "scope": "frontend",
+        "title": "useVersion: sidebar mostraba versión más vieja en vez de la más nueva (tomaba último elemento del array)"
+      }
+    ],
+    "modules": [
+      {
+        "name": "rbac",
+        "version": "0.32.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.31.0-alpha",
+    "date": "2026-08-22",
+    "stage": "alpha",
+    "notes": "RBAC nav filtering, visibilidad condicional vendedores, permisos backend, seed de permisos HR/checks",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Nav filtering por permisos: nodos de RRHH, Logística, Empresa, Fabricación ahora respetan permisos del rol"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Nav 'Mis ventas' solo visible para empleados con is_salesperson=true"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Composable useCurrentUserEmployee con endpoint GET /employees/me"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Seed: 21 permisos nuevos (employees, partners, vales, checks)"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "Filtro USER en documentos de venta: findAll filtra por created_by"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "Filtro USER en documentos de compra: findAll filtra por created_by"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "Filtro USER en cheques: findAll filtra por user_id"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "Filtro USER en RRHH (vales): findAllVales filtra por user_id"
+      },
+      {
+        "type": "feat",
+        "scope": "backend",
+        "title": "Filtro USER en transferencias de caja: findAll filtra por user_id"
+      },
+      {
+        "type": "feat",
+        "scope": "frontend",
+        "title": "Página de permisos reescrita: guard admin, resumen global 'N de M permisos', select-all, advertencia al salir"
+      },
+      {
+        "type": "fix",
+        "scope": "frontend",
+        "title": "Limpieza de console.log en settings/roles/index.vue"
+      }
+    ],
+    "modules": [
+      {
+        "name": "rbac",
+        "version": "0.31.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.30.0-alpha",
+    "date": "2026-08-22",
+    "stage": "alpha",
+    "notes": "Stock por deposito con transferencias, historial de movimientos, sistema de proveedores y listas de precio",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Tab Depositos en detalle de producto con stock por deposito, agregar, transferir y eliminar"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Pagina de detalle de deposito con resumen de stock, productos y historial de movimientos"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Historial de movimientos con LogisticaTable, filtros, exportacion a Excel e impresion"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Columna Saldo anterior calculada automaticamente en cada movimiento"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Columna Deposito vinculado con flecha mostrando origen/destino de transferencias"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "created_by resuelto desde public.users mostrando nombre del usuario"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Modal de transferencia entre depositos con seleccion de producto, destino y cantidad"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Unidad de medida en productos y depositos (unit_id con relacion a units)"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Pagina /productos/warehouses con listado de depositos y navegacion al detalle"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Tab Proveedores en formulario de producto con CRUD de proveedores asociados"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Pagina /productos/by-supplier para ver productos por proveedor con filtro"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Pagina /productos/price-lists para gestionar listas de precio (Venta/Compra)"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Backend: modelos product_suppliers, price_lists, product_list_prices con CRUD completo"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Backend: campos sale_price y margin_percentage en product_price"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Backend: transferencia enlaza movimientos con reference_id para rastrear origen/destino"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Backend: created_by con requestContext para registrar usuario en movimientos"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Nav reorganizado: todo lo de productos bajo Stock, Fabricacion solo BOM y plantillas"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix historial de movimientos mostraba datos del deposito anterior (store no refrescaba)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix companyId hardcodeado en creacion de depositos (ahora usa authStore)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix back link en detalle de producto apuntaba a ruta inexistente"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix input de cantidad enviaba numero en vez de string (cambiado a type=text)"
+      },
+      {
+        "type": "fix",
+        "scope": "backend",
+        "title": "Fix getMovements incluia relacion users que no existe en schema tenant"
+      },
+      {
+        "type": "fix",
+        "scope": "backend",
+        "title": "Fix createMovement no seteaba created_by desde requestContext"
+      },
+      {
+        "type": "refactor",
+        "scope": "productos",
+        "title": "Deposit movidos de /logistica/warehouse a /productos/warehouses"
+      }
+    ],
+    "modules": [
+      {
+        "name": "productos",
+        "version": "0.30.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.29.0-alpha",
+    "date": "2026-08-22",
+    "stage": "alpha",
+    "notes": "Transferencias de caja mejoradas, BOM/engineering, costing con conversión de monedas, stock por producto",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Modal de transferencia con selects dinámicos por tipo (Caja/Banco)"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Soporte tipo de cambio (Oficial, Blue, MEP, CCL) con auto-resolución"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Modal de detalle con acciones de confirmar/cancelar/eliminar"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Columna 'Creado por' resolviendo nombre desde public.users"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "BOM engineering con árbol de componentes y cálculos frontend"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Costing simplificado con CostSummaryCard, HistoryTable, ParetoTable"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Stock por producto: agregar, remover y transferir"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Variantes de producto con precios y costos"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "Backend DTO y service actualizados con rate_type y converted_amount"
+      }
+    ],
+    "modules": [
+      {
+        "name": "treasury",
+        "version": "0.29.0-alpha"
+      },
+      {
+        "name": "productos",
+        "version": "0.29.0-alpha"
+      }
+    ]
+  },
+  {
     "version": "0.0.0-alpha",
     "date": "2026-03-01",
     "stage": "alpha",
@@ -354,6 +1901,1376 @@
         "name": "transporte",
         "version": "2.2.2-alpha"
       }
+    ]
+  },
+  {
+    "version": "0.10.0-alpha",
+    "date": "2026-06-11",
+    "stage": "alpha",
+    "notes": "Incorporación de manufactura, ingeniería, costeo, precios y mejoras de multimoneda.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Nuevo módulo de productos con soporte para materias primas, productos terminados y servicios."
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Soporte para variantes y configuraciones de productos."
+      },
+      {
+        "type": "feat",
+        "scope": "ingenieria",
+        "title": "Creación del módulo de ingeniería con estructuras multinivel (BOM)."
+      },
+      {
+        "type": "feat",
+        "scope": "ingenieria",
+        "title": "Versionado y trazabilidad de estructuras de producto."
+      },
+      {
+        "type": "feat",
+        "scope": "costeo",
+        "title": "Implementación del motor de cálculo de costos basado en estructuras de ingeniería."
+      },
+      {
+        "type": "feat",
+        "scope": "costeo",
+        "title": "Historial de costos con snapshots versionados."
+      },
+      {
+        "type": "feat",
+        "scope": "costeo",
+        "title": "Desglose de materiales, mano de obra y costos indirectos."
+      },
+      {
+        "type": "feat",
+        "scope": "costeo",
+        "title": "Plantillas de costos y aplicación de tasas configurables."
+      },
+      {
+        "type": "feat",
+        "scope": "costeo",
+        "title": "Análisis Pareto para identificación de componentes críticos."
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Nuevo módulo de listas de precios basado en costos calculados."
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Versionado e historial de precios."
+      },
+      {
+        "type": "feat",
+        "scope": "currencies",
+        "title": "Actualización integral del módulo de monedas y tipos de cambio."
+      },
+      {
+        "type": "feat",
+        "scope": "currencies",
+        "title": "Soporte multicurrency para costos y precios."
+      },
+      {
+        "type": "feat",
+        "scope": "frontend",
+        "title": "Nuevas vistas y componentes para ingeniería, costeo y gestión de precios."
+      },
+      {
+        "type": "refactor",
+        "scope": "backend",
+        "title": "Reestructuración de servicios y modelos para soportar manufactura y costeo."
+      },
+      {
+        "type": "refactor",
+        "scope": "frontend",
+        "title": "Estandarización de stores, composables y formularios."
+      },
+      {
+        "type": "refactor",
+        "scope": "frontend",
+        "title": "Reemplazo del sistema de filtros por una arquitectura unificada basada en filtros dinámicos y reutilizables."
+      }
+    ],
+    "modules": [
+      {
+        "name": "transporte",
+        "version": "2.2.2-alpha"
+      },
+      {
+        "name": "manufactura",
+        "version": "0.9.0-alpha"
+      }
+    ]
+  },
+  {
+    "version": "0.10.1-alpha",
+    "date": "2026-07-31",
+    "stage": "alpha",
+    "notes": "Correcciones en módulo de precios: rutas proxy, historial con usuario y variación, reactivización de price_enabled.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "Agregar ruta proxy para findByProduct — precio ahora se muestra después de editar sin refrescar"
+      },
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "Agregar ruta proxy para historial de precios — el modal ahora muestra los cambios registrados"
+      },
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "Reestructurar rutas proxy con directorio [id]/ para habilitar /:id/history"
+      },
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "Reactivizar price_enabled en formulario de producto — toggle en Advanced tab ahora oculta/muestra precios instantáneamente"
+      },
+      {
+        "type": "fix",
+        "scope": "precios",
+        "title": "History modal re-fetch al abrir — evita mostrar datos desactualizados"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Mostrar usuario que realizó el cambio en el historial de precios (resolución cross-schema via AuditService)"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Mostrar variación porcentual del precio en el historial (verde si sube, rojo si baja)"
+      }
+    ]
+  },
+  {
+    "version": "0.11.0-alpha",
+    "date": "2026-07-31",
+    "stage": "alpha",
+    "notes": "BOM: auto_calculate_cost, conversión de monedas, UX mejorada. CRUD completo de empleados y socios. Importación de productos corregida.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "auto_calculate_cost: usar costo calculado como precio de factura cuando está activo"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Conversor de monedas en tab Costos — ver equivalencias a otras monedas"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Guardar costo calculado como precio de venta en cualquier moneda"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Selector de fuente de costo (BOM/Ingeniería/Compra/Tasa) en tab Estructura"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Tab Ingeniería renombrada a Estructura"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Consistencia de moneda en BOM — componentes sin variante ahora respetan la moneda del padre"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Botón Nuevo BOM en lista de BOMs"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Card de decisión Manual vs Desde Costos en tab Precios para productos terminados"
+      },
+      {
+        "type": "feat",
+        "scope": "precios",
+        "title": "Tooltip descriptivo con todos los tipos de costo (UPopover con iconos)"
+      },
+      {
+        "type": "feat",
+        "scope": "empleados",
+        "title": "Módulo completo de empleados: CRUD, filtros, sorting, server proxies"
+      },
+      {
+        "type": "feat",
+        "scope": "socios",
+        "title": "Módulo completo de socios: CRUD, filtros, sorting, server proxies"
+      },
+      {
+        "type": "feat",
+        "scope": "clientes",
+        "title": "Reescribir página de clientes con filtros, sorting e import/export (igual que stakeholders)"
+      },
+      {
+        "type": "feat",
+        "scope": "proveedores",
+        "title": "Reescribir página de proveedores con filtros, sorting e import/export"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Reescribir cuentas corrientes RRHH usando módulo compartido useCurrentAccounts"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Padding uniforme en todas las páginas de RRHH (space-y-6 px-4)"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Tarjetas del dashboard RRHH con misma altura (h-full en NuxtLink y UPageCard)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Importación de Excel: headers unificados en PRODUCT_COLUMNS — template, import y export usan las mismas columnas"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Parser de importación acepta headers alternativos (.Nombre*, Tipo, Activo, etc.)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Tabla se refresca después de importar Excel (evento @success)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Alerta informativa sobre comportamiento del SKU en importación"
+      },
+      {
+        "type": "fix",
+        "scope": "pricing",
+        "title": "Consistencia de moneda en BOM — componentes sin variante ahora buscan costo en product_costs con conversión"
+      },
+      {
+        "type": "fix",
+        "scope": "pricing",
+        "title": "auto_calculate_cost ahora funciona — pricing engine usa product_costs cuando no hay product_price"
+      },
+      {
+        "type": "fix",
+        "scope": "exchange",
+        "title": "Corregir ExchangeScheduler: usar schema_name en vez de db_name"
+      }
+    ]
+  },
+  {
+    "version": "0.12.0-alpha",
+    "date": "2026-08-02",
+    "stage": "alpha",
+    "notes": "RRHH: vales con tipos SUELDO/EXTRAS/APORTE, dashboard mejorado. Pagos: documentos visibles al editar. Importación: headers unificados.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Nuevos tipos de vale: SUELDO, EXTRAS, APORTE para empleados y socios"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Dashboard RRHH mejorado con saldo desde current_accounts y desglose de empleados/socios"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Reporte vales-por-período con tabs (Todos, Pendientes, Confirmados, Anulados) y composable useRrhhTotals"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Componente RrhhTotalsCards reutilizable para totales de débito/crédito"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "resolveSide corregido para EMPLOYEE/PARTNER en cuentas corrientes"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Badge 'Recibo de sueldo' para INVOICE + EMPLOYEE en tabla de movimientos"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Saldo total CC en dashboard: invertido para HR (positivo = A pagar)"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Documentos visibles al editar pago en borrador"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "PaymentForm popula selectedDocs desde documentos del pago al cargar"
+      },
+      {
+        "type": "fix",
+        "scope": "purchases",
+        "title": "Excluir documentos VALE de findPending para que aparezcan en pagos"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "findAll soporta múltiples party_types separados por coma"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "resolveSide función compartida en utils.ts"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Excluir VALE del selector de tipos de documento"
+      }
+    ]
+  },
+  {
+    "version": "0.13.0-alpha",
+    "date": "2026-08-03",
+    "stage": "alpha",
+    "notes": "Sistema completo de documentos (Presupuesto→OV→Remito→Factura) con tracking de entregas parciales, componentes de impresión por tipo, y unificación de formularios de stakeholders.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Sistema de documentos: Presupuesto→OV→Remito→Factura con tracking parcial"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Extension tables presupuesto_documents y orden_venta_documents"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Endpoints accept, deliver, partialDeliver, partialInvoice, changeStatus"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Componentes de impresión por tipo (Presupuesto, OV, Remito, Factura)"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Pages budgets, orders, remitos con detalle y conversión"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Estados con workflow válido por categoría"
+      },
+      {
+        "type": "feat",
+        "scope": "stakeholders",
+        "title": "BusinessPartyForm con tabs internos para empleado/socio"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Modal rápido con campos extendidos del GeneralTab"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "FacturaView: letter dinámica y empresa real en impresión"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Labels A pagar/A cobrar según partyType"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Error handling para SKU duplicado con toast"
+      },
+      {
+        "type": "fix",
+        "scope": "trash",
+        "title": "getClientForCurrentContext para Prisma multi-tenant"
+      },
+      {
+        "type": "fix",
+        "scope": "document-types",
+        "title": "tax_ids en DTO y delete endpoint via trash"
+      },
+      {
+        "type": "fix",
+        "scope": "dashboard",
+        "title": "PrismaModule import en DashboardModule"
+      }
+    ]
+  },
+  {
+    "version": "0.13.1-alpha",
+    "date": "2026-08-04",
+    "stage": "alpha",
+    "notes": "Cuentas corrientes: totales respetan moneda en vez de mezclar divisas",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Totales de saldos ahora se desglosan por moneda en listing de Treasury"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Historial de cuentas corrientes usa mini tabla por moneda en vez de texto corrido"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Dashboard RRHH muestra saldo CC por moneda en vez de total mezclado"
+      },
+      {
+        "type": "fix",
+        "scope": "rrhh",
+        "title": "Reporte de saldos RRHH desglosa empleados/socios por moneda"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.14.0-alpha",
+    "date": "2026-08-04",
+    "stage": "alpha",
+    "notes": "Gestión de usuarios, vinculación empleados/socios, CRUD mejorado",
+    "highlights": [
+      {
+        "title": "Vinculación de usuarios con empleados y socios",
+        "description": "Los empleados y socios ahora pueden vincularse a usuarios del sistema. Se puede crear el usuario directamente desde el formulario de alta."
+      },
+      {
+        "title": "Gestión completa de usuarios",
+        "description": "Nueva página de administración de usuarios con CRUD, asignación de roles, cambio de contraseña y búsqueda."
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Vinculación de usuarios con empleados y socios (link/unlink)"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Creación de empleados y socios con usuario asociado desde el formulario"
+      },
+      {
+        "type": "feat",
+        "scope": "settings",
+        "title": "Página de gestión de usuarios con CRUD completo, roles y cambio de contraseña"
+      },
+      {
+        "type": "feat",
+        "scope": "access-control",
+        "title": "Endpoints de gestión de usuarios: crear, editar, cambiar contraseña, buscar"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Columnas de tabla mejoradas: badge de usuario vinculado, filtros de estado"
+      },
+      {
+        "type": "fix",
+        "scope": "employees",
+        "title": "Service y store con métodos linkUser/unlinkUser"
+      },
+      {
+        "type": "fix",
+        "scope": "partners",
+        "title": "Service y store con métodos linkUser/unlinkUser"
+      },
+      {
+        "type": "fix",
+        "scope": "backend",
+        "title": "Companies controller: endpoints de usuarios (create, update, password, delete)"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.15.0-alpha",
+    "date": "2026-08-04",
+    "stage": "alpha",
+    "notes": "Sistema de documentos unificado con máquina de estados, formularios modulares y páginas universales",
+    "highlights": [
+      {
+        "title": "Páginas universales de documentos",
+        "description": "Una sola página maneja Presupuesto, OV, Remito y Factura con acciones dinámicas por categoría y estado. Incluye cadena documental, impresión y entregas parciales."
+      },
+      {
+        "title": "Máquina de estados",
+        "description": "Cada categoría de documento tiene sus propias transiciones válidas. El sistema valida y bloquea transiciones ilegales."
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Páginas universales de detalle y creación para todas las categorías de documentos"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Máquina de estados con transiciones válidas por categoría (QUOTE, ORDER, REMITO, INVOICE)"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Formularios modulares: PresupuestoForm, OrdenVentaForm, FacturaForm reutilizables"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Componente DocumentHeader compartido con badges de estado y cadena documental"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Componente DocumentHelpPopover con ayuda de acciones y estados disponibles"
+      },
+      {
+        "type": "feat",
+        "scope": "stakeholders",
+        "title": "BusinessPartyForm con soporte multi-tab para empleado/socio"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Check-processing scheduler: procesamiento automático de cheques pendientes"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "documents-sales: entregas parciales y facturación parcial"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.16.0-alpha",
+    "date": "2026-08-11",
+    "stage": "alpha",
+    "notes": "Saldos iniciales, validación fiscal centralizada, affects_payment para documentos de pago",
+    "highlights": [
+      {
+        "title": "Saldos iniciales",
+        "description": "Modal para cargar saldos de apertura de clientes y proveedores directamente desde el listing de cuentas corrientes"
+      },
+      {
+        "title": "Validación fiscal centralizada",
+        "description": "FiscalValidationService compartido entre ventas y compras, expuesto vía CommonErpModule"
+      }
+    ],
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Modal de saldo inicial con selector de tercero (Cliente/Proveedor)"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Document types SI-C y SI-P para saldos iniciales"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "create() usa dto.total directamente para OPENING_BALANCE"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "FiscalValidationService compartido entre ventas y compras"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "DocumentTotals component con columnas por moneda"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "resolveSide() maneja OPENING_BALANCE (Cliente=débito, Proveedor=crédito)"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Refresh del store después de crear saldo inicial"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "items null-safety en create() de ventas y compras"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "PendingDocumentsList reutilizable y botón CC en pagos"
+      },
+      {
+        "type": "fix",
+        "scope": "seed",
+        "title": "SI-C y SI-P agregados a seed-all.ts (idempotente)"
+      },
+      {
+        "type": "feat",
+        "scope": "document-types",
+        "title": "Nuevo campo affects_payment para configurar qué tipos aparecen en pagos"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "findPending filtra por affects_payment en vez de hardcoded ['INVOICE']"
+      },
+      {
+        "type": "refactor",
+        "scope": "payments",
+        "title": "Controllers simplificados: eliminado parámetro categories de findPending"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "SaldoInicialModal: selector de tercero funciona con computed get/set y onMounted"
+      },
+      {
+        "type": "feat",
+        "scope": "document-types",
+        "title": "affects_payment configurable desde frontend: checkbox en form, badge en cards y columna en export Excel"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.17.0-alpha",
+    "date": "2026-08-12",
+    "stage": "alpha",
+    "notes": "Navegación drill-down, creación de facturas desde pagos y fixes de fechas.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "navigation",
+        "title": "Sidebar drill-down unificado con niveles jerárquicos"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Modal de creación de factura desde pagos con opción borrador/confirmada"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Botón 'Realizar el pago' en facturas de venta y compra"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Auto-seleccionar factura al crear pago desde documento"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Fecha con hora en entradas de cuenta corriente para orden correcto"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Timezone: parseLocalDate para fechas de pago"
+      },
+      {
+        "type": "fix",
+        "scope": "tables",
+        "title": "Formato de fecha sin desfasaje UTC en todas las tablas"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Incluir payment_documents en findOne de ventas y compras"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Refrescar documento después de cambiar estado"
+      },
+      {
+        "type": "refactor",
+        "scope": "navigation",
+        "title": "Eliminar SidebarModules, MainSidebar y navegaciones por módulo"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.18.0-alpha",
+    "date": "2026-08-13",
+    "stage": "alpha",
+    "notes": "Dashboard: 7 widgets nuevos, grid responsive y linking NC/ND a facturas.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "dashboard",
+        "title": "7 widgets nuevos: Documentos por cobrar, Costeados vs No Costeados, Cuentas Corrientes, Picking Pendiente, Viajes Activos, Cheques a Vencer, Pagos/Cobros Pendientes"
+      },
+      {
+        "type": "feat",
+        "scope": "dashboard",
+        "title": "Grid responsive (1→2→3 cols) con config merge para nuevos widgets"
+      },
+      {
+        "type": "feat",
+        "scope": "dashboard",
+        "title": "Gráfico muestra productos costeados vs sin costear en vez de total stock"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Vinculación NC/ND a facturas existentes con ReferenceDocumentPicker"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Botones 'Crear Factura' en detalle de OV y Remitos"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Botones 'Crear NC'/'Crear ND' en detalle de facturas confirmadas"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Permisos bank_accounts, payments y picking en defaultPermissions"
+      },
+      {
+        "type": "fix",
+        "scope": "dashboard",
+        "title": "Permiso financial widget corregido (treasury.bank_accounts.read → bank_accounts.read)"
+      },
+      {
+        "type": "fix",
+        "scope": "dashboard",
+        "title": "stock.totalProducts cuenta productos únicos (no duplica por warehouse)"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "parent_document_id persistido en creación de facturas de venta y compra"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Auto-seleccion de condición IVA respeta categoría NC/ND"
+      },
+      {
+        "type": "refactor",
+        "scope": "documents",
+        "title": "Orden de compra migrada a useDocumentsPurchasesStore"
+      },
+      {
+        "type": "refactor",
+        "scope": "access-control",
+        "title": "Reestructuración de permisos: agrupación lógica por módulo de negocio con subgrupos"
+      },
+      {
+        "type": "feat",
+        "scope": "settings",
+        "title": "Página de roles reestructurada con rutas anidadas (index + [id]/permissions)"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.19.0-alpha",
+    "date": "2026-08-13",
+    "stage": "alpha",
+    "notes": "Vendedor + comisiones en OV, reporte en RRHH, vale EXTRAS detallado, seed RBAC.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Selector de vendedor y % de comisión en Orden de Venta"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Vendedor por defecto = empleado del usuario logueado, editable"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Reporte de comisiones por vendedor/mes con detalle de OV"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Generación de vale EXTRAS por comisiones con detalle por OV"
+      },
+      {
+        "type": "feat",
+        "scope": "rrhh",
+        "title": "Detalle de comisiones visible en vista de vales EXTRAS"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Vendedor y comisión visibles en vista e impresión de OV"
+      },
+      {
+        "type": "feat",
+        "scope": "seeds",
+        "title": "seed-all.ts ahora ejecuta RBAC (permisos + 4 roles) como paso 11"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.20.0-alpha",
+    "date": "2026-08-13",
+    "stage": "alpha",
+    "notes": "Campo de comisión por defecto configurable en el empleado (RRHH), autocompletado al seleccionar vendedor en OV.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "employees",
+        "title": "Campo default_commission_rate en DTO y service"
+      },
+      {
+        "type": "feat",
+        "scope": "employees",
+        "title": "Campo Comisión por defecto (%) en forms create/edit"
+      },
+      {
+        "type": "feat",
+        "scope": "orden-venta",
+        "title": "Autofill comisión desde default del vendedor al seleccionarlo"
+      },
+      {
+        "type": "refactor",
+        "scope": "orden-venta",
+        "title": "employeeOptions incluye defaultCommissionRate"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.21.0-alpha",
+    "date": "2026-08-14",
+    "stage": "alpha",
+    "notes": "Reporte de comisiones, vales habilitados en pagos con CreateValeModal reutilizable, correcciones en current_accounts y AppPageHeader.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "comisiones",
+        "title": "Reporte de comisiones por vendedor con generación de vales EXTRAS"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Vales RRHH como documentos pendientes de pago con toggle confirmar"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Marcar hr_vale como PAID al pagar documento VALE por tesorería"
+      },
+      {
+        "type": "feat",
+        "scope": "vales",
+        "title": "CreateValeModal reutilizable con toggle confirmar, usado en pagos y RRHH"
+      },
+      {
+        "type": "fix",
+        "scope": "header",
+        "title": "AppPageHeader: slot footer, gap fix, limpieza de console.logs"
+      },
+      {
+        "type": "fix",
+        "scope": "permissions",
+        "title": "Buscador de permisos integrado en slot footer, eliminar border duplicado"
+      },
+      {
+        "type": "fix",
+        "scope": "hr",
+        "title": "current_accounts: findUnique por party_id, type PAYMENT/COLLECTION"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "current_accounts findUnique corregido en checks y scheduler"
+      },
+      {
+        "type": "fix",
+        "scope": "document-types",
+        "title": "Strip non-DTO fields al actualizar tipo de documento"
+      },
+      {
+        "type": "fix",
+        "scope": "api-proxy",
+        "title": "Manejar errores de validación class-validator (statusMessage como string)"
+      },
+      {
+        "type": "fix",
+        "scope": "comisiones",
+        "title": "Filtro comisiones: aceptar facturas Borrador/Pendiente/Confirmada"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.22.0-alpha",
+    "date": "2026-08-15",
+    "stage": "alpha",
+    "notes": "Creación de empresas con validación de subdomain, seeds unificados en seed-sql.ts, límite de 3 empresas por usuario.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "companies",
+        "title": "Página /create-company con formulario, validación de subdomain en tiempo real y loading overlay"
+      },
+      {
+        "type": "feat",
+        "scope": "companies",
+        "title": "Endpoint check-subdomain con validación de disponibilidad"
+      },
+      {
+        "type": "feat",
+        "scope": "companies",
+        "title": "Redirect automático a /create-company cuando el usuario tiene 0 empresas"
+      },
+      {
+        "type": "feat",
+        "scope": "companies",
+        "title": "Límite de 3 empresas por usuario (OWNER)"
+      },
+      {
+        "type": "feat",
+        "scope": "companies",
+        "title": "Opción 'Crear nueva empresa' en el menú de usuario"
+      },
+      {
+        "type": "refactor",
+        "scope": "seeds",
+        "title": "Módulo central seed-sql.ts con RBAC + document types + taxes + sequences"
+      },
+      {
+        "type": "refactor",
+        "scope": "seeds",
+        "title": "rbac.seed.ts y seed-all.ts importan de seed-sql.ts (fuente única de verdad)"
+      },
+      {
+        "type": "refactor",
+        "scope": "seeds",
+        "title": "companies.service.ts usa seed-sql.ts, eliminados ~200 líneas de datos hardcoded"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.25.0-alpha",
+    "date": "2026-08-18",
+    "stage": "alpha",
+    "notes": "Cuentas corrientes: proveedores, empleados y socios muestran 'Saldo a favor' en vez de 'A cobrar' cuando el saldo es favorable a la empresa.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Label 'Saldo a favor' para proveedores/empleados/socios con saldo favorable (antes decía 'A cobrar')"
+      }
+    ],
+    "modules": [
+      {
+        "name": "tesoreria",
+        "version": "0.7.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.24.0-alpha",
+    "date": "2026-08-18",
+    "stage": "alpha",
+    "notes": "Control de facturación al completar viaje: modal de confirmación con opción generar factura o solo completar. Recreación de vistas legacy en schema tenant.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "trips",
+        "title": "Modal de confirmación al completar viaje: preguntar si generar factura de venta o solo marcar completado"
+      },
+      {
+        "type": "feat",
+        "scope": "trips",
+        "title": "Backend: flag generate en updateStatus para controlar generación automática de factura"
+      },
+      {
+        "type": "feat",
+        "scope": "trips",
+        "title": "Endpoint generate-from-trip con proxy en frontend"
+      },
+      {
+        "type": "fix",
+        "scope": "views",
+        "title": "Recreación de vistas legacy (vw_trips_drivers, tarifa, vista_liquidacion_choferes, vw_reporte_despachos) en schema tenant"
+      }
+    ],
+    "modules": [
+      {
+        "name": "transporte",
+        "version": "2.3.0-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.23.0-alpha",
+    "date": "2026-08-15",
+    "stage": "alpha",
+    "notes": "Impresión fiscal (duplicado+original, triplicado), datos empresa correctos, LogisticaTable en documentos, cuentas corrientes por tipo de tercero, useDocumentActions composable.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "print",
+        "title": "Impresión con duplicado+original (facturas/OV) y triplicado (remitos) en un solo popup"
+      },
+      {
+        "type": "feat",
+        "scope": "print",
+        "title": "Componente ValePrint para impresión de recibo de sueldo / vale"
+      },
+      {
+        "type": "fix",
+        "scope": "print",
+        "title": "Datos de empresa en impresión: fetchOne por ID en vez de fetchAll()[0]"
+      },
+      {
+        "type": "fix",
+        "scope": "print",
+        "title": "Botón Imprimir: pasar printElement a useDocumentActions en sales/[id]"
+      },
+      {
+        "type": "fix",
+        "scope": "print",
+        "title": "OrdenVentaPrint dinámico según compra/venta (badge OC/OV, título, layout)"
+      },
+      {
+        "type": "fix",
+        "scope": "print",
+        "title": "RemitoPrint dinámico según compra/venta (proveedor arriba en remitos de compra)"
+      },
+      {
+        "type": "fix",
+        "scope": "factura-view",
+        "title": "Título dinámico desde document_types.description en vez de 'Factura' hardcoded"
+      },
+      {
+        "type": "refactor",
+        "scope": "documents",
+        "title": "useDocumentActions composable: acciones, permisos, modals, transitions centralizados"
+      },
+      {
+        "type": "refactor",
+        "scope": "documents",
+        "title": "7 páginas de detalle usan useDocumentActions (sales, purchases, remitos, orders, budgets)"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Botones Cobrar/Pagar como acción primaria en facturas sin pago asociado"
+      },
+      {
+        "type": "refactor",
+        "scope": "tables",
+        "title": "LogisticaTable con column builder DSL en ventas, compras, presupuestos, OV, OC, remitos"
+      },
+      {
+        "type": "fix",
+        "scope": "tables",
+        "title": "Badge resolve en columns.ts: fix row.original.status undefined"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Layout por Clientes/Proveedores en 2 columnas con prioridad de saldo"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Máximo 10 cuentas visibles por sección con botón Ver más"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Badge dinámico con prioridad: principal (md) vs secundario (sm) por tipo de tercero"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.25.1-alpha",
+    "date": "2026-08-19",
+    "stage": "alpha",
+    "notes": "Fix: eliminadas relaciones Prisma a users en tablas tenant; edición de documentos en estado Pendiente; precios de servicio; actualización de precios desde factura de compra",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "logistica",
+        "title": "Eliminar relaciones Prisma @relation a users de modelos tenant (cargo_transfers, delivery_notes, dispatch_orders, trips, pallets, etc.)"
+      },
+      {
+        "type": "fix",
+        "scope": "backend",
+        "title": "Corregir referencias inversas de users en public.prisma para compatibilidad multi-tenant"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Botón Editar ahora disponible para documentos en estado Pendiente (antes solo Borrador)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Productos tipo Servicio ahora permiten configurar precios de venta (antes solo Productos Terminados)"
+      },
+      {
+        "type": "feat",
+        "scope": "compras",
+        "title": "Al confirmar factura de compra, opción de actualizar precios de productos (Terminado/Servicio/Materia Prima)"
+      },
+      {
+        "type": "fix",
+        "scope": "compras",
+        "title": "Corregir parámetro updateProductPrices que no se propagaba desde el modal de confirmación"
+      }
+    ],
+    "modules": [
+      {
+        "name": "transporte",
+        "version": "2.3.1-alpha"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.26.0-alpha",
+    "date": "2026-08-21",
+    "stage": "alpha",
+    "notes": "BOM Engineering con cálculos en frontend + Costing simplificado con conversión de monedas",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Árbol BOM con cálculos de peso/superficie/costo en tiempo real (computeNodeCalculations)"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Tabs Estructura + Resumen materiales consolidados en el tree BOM"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Selector de moneda destino en CostSummaryCard con conversión instantánea"
+      },
+      {
+        "type": "feat",
+        "scope": "productos",
+        "title": "Botón 'Calcular costo' integrado en la sección de Costos"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix double-count en calculateMaterialCost (costing-calculator.service)"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "Fix pareto: guard cuando currencyId está vacío"
+      },
+      {
+        "type": "fix",
+        "scope": "api",
+        "title": "Proxy exchange/convert apuntaba a /currencies/latest en vez de /exchange/convert"
+      },
+      {
+        "type": "fix",
+        "scope": "productos",
+        "title": "USelectMenu v-model retorna objeto — fix del setter para extraer value"
+      },
+      {
+        "type": "refactor",
+        "scope": "productos",
+        "title": "Eliminado merge approach (_calculated) — cálculos en frontend puro"
+      },
+      {
+        "type": "refactor",
+        "scope": "productos",
+        "title": "Campo 'Fuente de costo' movido de General a Estructura"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.27.0-alpha",
+    "date": "2026-08-21",
+    "stage": "alpha",
+    "notes": "Rediseño completo de la landing page: hero interactivo, animaciones al scroll, tipografía Outfit, mobile nav, footer mejorado",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Hero con gradientes radiales reactivos al mouse (useMouseInElement)"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Animaciones de entrada staggered (fade-in-up) en hero, stats bar, scroll indicator"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Sección Problema/Solución unificada con sticky headline y scroll reveal"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Módulos con layout asimétrico, iconos coloreados por módulo, hover glow"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Diferenciadores con borde gradiente animado (conic-gradient rotating on hover)"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Stack Tecnológico con dos columnas Backend/Frontend"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Seguridad con hover green glow"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "CTA final con doble blur gradient y partículas al hover"
+      },
+      {
+        "type": "feat",
+        "scope": "layout",
+        "title": "Mobile hamburger menu con transición animada"
+      },
+      {
+        "type": "feat",
+        "scope": "layout",
+        "title": "Footer mejorado: 4 columnas, GitHub link, tagline"
+      },
+      {
+        "type": "feat",
+        "scope": "layout",
+        "title": "Nav links con hover states y logo con glow shadow"
+      },
+      {
+        "type": "feat",
+        "scope": "css",
+        "title": "Font display Outfit (Google Fonts)"
+      },
+      {
+        "type": "feat",
+        "scope": "css",
+        "title": "12 keyframe animations: fade-in-up, glow-pulse, float, scroll-indicator, particle-float, border-rotate"
+      },
+      {
+        "type": "feat",
+        "scope": "css",
+        "title": "Clases utilitarias: .reveal, .stagger-children, .gradient-border, .glow-orange, .glass"
+      },
+      {
+        "type": "feat",
+        "scope": "css",
+        "title": "Scrollbar custom y selection color"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ]
+  },
+  {
+    "version": "0.28.0-alpha",
+    "date": "2026-08-21",
+    "stage": "alpha",
+    "notes": "Landing: sección dedicada de Motor de Costos con visualización de árbol BOM, estructura de ingeniería, drivers de costo y análisis Pareto",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "Nueva sección Motor de Costos con visualización jerárquica del árbol BOM"
+      },
+      {
+        "type": "feat",
+        "scope": "landing",
+        "title": "4 features de costing: Árbol BOM recursivo, Estructura de Ingeniería, Drivers de Costo, Análisis Pareto"
+      },
+      {
+        "type": "feat",
+        "scope": "layout",
+        "title": "Link Costos agregado al nav de la landing"
+      }
+    ],
+    "contributors": [
+      "agustin"
     ]
   }
 ]

@@ -62,6 +62,7 @@ export interface PurchasesDocument {
     code: string
     description: string
     direction: number
+    category?: string | null
   }
   business_parties: {
     id: string

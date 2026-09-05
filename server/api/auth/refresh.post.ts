@@ -1,42 +1,27 @@
 import { getCookieOptions } from '~~/server/utils/cookies'
-export default defineEventHandler(async (event) => {
-  console.log('================ REFRESH START ================')
+import { getTenant } from '~~/server/utils/tenant'
 
+export default defineEventHandler(async (event) => {
   const refreshToken = getCookie(event, 'api_refresh')
 
-  console.log('Refresh cookie:', refreshToken)
-
   if (!refreshToken) {
-    console.log('❌ No refresh token found')
     throw createError({ statusCode: 401, message: 'No refresh token' })
   }
 
   const config = useRuntimeConfig()
-
-  console.log('API BASE:', config.apiBase)
+  const tenant = getTenant(event)
 
   try {
-    console.log('➡️ Calling backend /auth/refresh')
-
     const api = await $fetch<{
       user: any
       accessToken: string
       refreshToken: string
     }>(`${config.apiBase}/auth/refresh`, {
       method: 'POST',
-      body: { refreshToken }
+      body: { refreshToken },
+      headers: { 'x-tenant': tenant }
     })
 
-    console.log('✅ Backend refresh success')
-    console.log('User:', api.user)
-    console.log('Access token length:', api.accessToken?.length)
-    console.log('Refresh token length:', api.refreshToken?.length)
-
-    // =========================
-    // SET COOKIES
-    // =========================
-
-    console.log('🍪 Setting cookies')
     setCookie(event, 'api_access', api.accessToken, {
       ...getCookieOptions(),
       maxAge: 60 * 60 * 24
@@ -47,21 +32,17 @@ export default defineEventHandler(async (event) => {
       maxAge: 60 * 60 * 24 * 7
     })
 
-    console.log('✅ Cookies set')
-
-    console.log('================ REFRESH END ================')
-
     return {
       ok: true,
       user: api.user,
+      companies: (api as any).companies,
       accessToken: api.accessToken,
       refreshToken: api.refreshToken
     }
   } catch (e: any) {
-    console.error('REFRESH ERROR:', e?.data || e)
-
-    deleteCookie(event, 'api_access', { path: '/' })
-    deleteCookie(event, 'api_refresh', { path: '/' })
+    const cookieOpts = getCookieOptions()
+    deleteCookie(event, 'api_access', { path: cookieOpts.path, domain: cookieOpts.domain })
+    deleteCookie(event, 'api_refresh', { path: cookieOpts.path, domain: cookieOpts.domain })
 
     throw createError({
       statusCode: 401,

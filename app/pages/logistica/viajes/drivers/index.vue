@@ -1,16 +1,11 @@
 <script setup lang="ts">
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 import type { ButtonProps } from '@nuxt/ui'
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
-import type {
-  CreateDriverInput,
-  UpdateDriverInput
-} from '~/modulos/logistica/transport/drivers/drivers.types'
+definePageMeta({ middleware: ['auth'] })
+import type { CreateDriverInput, UpdateDriverInput } from '~/modulos/logistica/transport/drivers/drivers.types'
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 import { useDocumentTypesStore } from '~/modulos/logistica/documents/transport-documents-types/document-types.store'
 import { useChoferesStore } from '~/modulos/logistica/transport/drivers/choferes.store'
@@ -24,6 +19,8 @@ import { driverFormFields } from '~/modulos/logistica/transport/drivers/driverFo
 import ModalForm from '~/components/ModalForm.vue'
 //tabla
 import { driversColumns } from '~/modulos/logistica/transport/drivers/columns'
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 function toggleModuleSidebar() {
   moduleCollapsed.value = !moduleCollapsed.value
@@ -45,6 +42,7 @@ const metrics = useDriverMetrics(drivers)
 const modalOpen = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const editingRow = ref<any>(null)
+const sorting = ref<SortingState>([])
 
 function openCreate() {
   modalMode.value = 'create'
@@ -64,11 +62,38 @@ function openEdit(row: Driver) {
 }
 
 /* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('drivers')
+
+async function handleDeleteOne(row: Driver) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: Driver[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
+/* ---------------------------------------
    TABLE COLUMNS
 --------------------------------------- */
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [
+    {
+      id: columnId,
+      desc: current?.id === columnId ? !current.desc : false
+    }
+  ]
+}
 
 const columns = driversColumns({
   onEdit: openEdit,
+  onDelete: handleDeleteOne,
+  onSortFieldSelect,
   onToggleActive: async (row, value) => {
     const prev = row.active
     row.active = value
@@ -167,6 +192,47 @@ const links = ref<ButtonProps[]>([
     variant: 'solid'
   }
 ])
+
+const filterFields: FilterField[] = [
+  {
+    id: 'driver',
+    label: 'Filtrar por chofer...',
+    class: 'w-56'
+  },
+  {
+    id: 'document',
+    label: 'Filtrar por documento...',
+    class: 'w-40'
+  },
+  {
+    id: 'phone',
+    label: 'Filtrar por teléfono...',
+    class: 'w-40'
+  }
+]
+
+const sortFields: SortField[] = [
+  {
+    label: 'Chofer',
+    value: 'driver'
+  },
+  {
+    label: 'Documento',
+    value: 'document'
+  },
+  {
+    label: 'Teléfono',
+    value: 'phone'
+  },
+  {
+    label: 'Estado',
+    value: 'active'
+  },
+  {
+    label: 'Fecha Creación',
+    value: 'created_at'
+  }
+]
 </script>
 
 <template>
@@ -181,12 +247,7 @@ const links = ref<ButtonProps[]>([
           @click="toggleModuleSidebar"
         />
       </div>
-      <UPageHeader
-        title="Choferes"
-        description="Listado de Choferes"
-        :links="links"
-        class="mb-4 w-full"
-      />
+      <UPageHeader title="Choferes" description="Listado de Choferes" :links="links" class="mb-4 w-full" />
     </div>
     <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
       <UCard>
@@ -214,7 +275,15 @@ const links = ref<ButtonProps[]>([
         </div>
       </UCard>
     </div>
-    <LogisticaTable :loading="loading" :data="drivers" :columns="columns" />
+    <LogisticaTable
+      :loading="loading"
+      :data="drivers"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
+    />
   </UPage>
   <ModalForm
     v-model:open="modalOpen"

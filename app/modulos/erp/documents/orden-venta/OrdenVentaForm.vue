@@ -1,0 +1,159 @@
+<script setup lang="ts">
+import { useEmployeesStore } from '~/modulos/erp/employees/store/employees.store'
+import { useAuthStore } from '~/modulos/auth/auth.store'
+
+const props = defineProps<{
+  modelValue?: any
+  loading?: boolean
+  showActions?: boolean
+}>()
+
+const emit = defineEmits<{
+  submit: [any]
+  cancel: []
+}>()
+
+const employeesStore = useEmployeesStore()
+const authStore = useAuthStore()
+
+const form = reactive({
+  priority: 'MEDIA',
+  delivery_address: '',
+  delivery_contact: '',
+  delivery_phone: '',
+  delivery_time: '',
+  delivery_instructions: '',
+  transport_provider: '',
+  confirmed_delivery_date: '',
+  seller_id: '',
+  commission_rate: null as number | null,
+  commission_base: 'INVOICED' as string,
+})
+
+const activeEmployees = computed(() =>
+  (employeesStore.items ?? []).filter((e: any) => e.is_active && e.is_salesperson)
+)
+
+const employeeOptions = computed(() =>
+  activeEmployees.value.map((e: any) => ({
+    label: `${e.first_name} ${e.last_name}`,
+    value: e.id,
+    userId: e.user_id,
+    defaultCommissionRate: e.default_commission_rate ? Number(e.default_commission_rate) : null,
+    commissionBase: e.commission_base ?? 'INVOICED',
+  }))
+)
+
+const defaultSellerId = computed(() => {
+  const currentUserId = authStore.user?.id
+  if (!currentUserId || !employeeOptions.value.length) return ''
+  const match = employeeOptions.value.find((e: any) => e.userId === currentUserId)
+  return match?.value ?? ''
+})
+
+watch(() => props.modelValue, (val) => {
+  if (val) Object.assign(form, val)
+}, { immediate: true })
+
+// Set default seller when employees load and no seller is set
+watch(activeEmployees, (emps) => {
+  if (emps.length && !form.seller_id && defaultSellerId.value) {
+    form.seller_id = defaultSellerId.value
+    const emp = employeeOptions.value.find((e: any) => e.value === defaultSellerId.value)
+    if (emp?.defaultCommissionRate) form.commission_rate = emp.defaultCommissionRate
+    if (emp?.commissionBase) form.commission_base = emp.commissionBase
+  }
+}, { immediate: true })
+
+// Auto-fill commission_rate and commission_base from seller's defaults when seller changes
+watch(() => form.seller_id, (sellerId) => {
+  if (!sellerId) return
+  const emp = employeeOptions.value.find((e: any) => e.value === sellerId)
+  if (emp?.defaultCommissionRate) form.commission_rate = emp.defaultCommissionRate
+  if (emp?.commissionBase) form.commission_base = emp.commissionBase
+})
+
+onMounted(async () => {
+  if (!employeesStore.items?.length) {
+    await employeesStore.fetchAll()
+  }
+})
+
+// Expose form data for parent to read
+const getFormData = () => {
+  const data: Record<string, any> = { ...form }
+  // Los inputs date vacíos entregan ""; el backend espera una fecha ISO
+  // válida o que la propiedad no sea enviada.
+  if (!data.confirmed_delivery_date) data.confirmed_delivery_date = undefined
+  if (!data.seller_id) data.seller_id = undefined
+  if (!data.commission_rate) data.commission_rate = undefined
+  return data
+}
+defineExpose({ getFormData })
+</script>
+
+<template>
+  <UCard>
+    <template #header>
+      <h3 class="font-semibold">Información de entrega</h3>
+    </template>
+    <div class="space-y-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <UFormField label="Prioridad" name="priority">
+          <USelectMenu v-model="form.priority" :items="[
+            { label: 'Baja', value: 'BAJA' },
+            { label: 'Media', value: 'MEDIA' },
+            { label: 'Alta', value: 'ALTA' },
+            { label: 'Urgente', value: 'URGENTE' },
+          ]" value-key="value" class="w-full" />
+        </UFormField>
+        <UFormField label="Fecha comprometida" name="confirmed_delivery_date">
+          <UInput v-model="form.confirmed_delivery_date" type="date" class="w-full" />
+        </UFormField>
+      </div>
+      <UFormField label="Dirección de entrega" name="delivery_address">
+        <UInput v-model="form.delivery_address" placeholder="Dirección completa" class="w-full" />
+      </UFormField>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <UFormField label="Contacto" name="delivery_contact">
+          <UInput v-model="form.delivery_contact" placeholder="Nombre del contacto" class="w-full" />
+        </UFormField>
+        <UFormField label="Teléfono" name="delivery_phone">
+          <UInput v-model="form.delivery_phone" placeholder="11-1234-5678" class="w-full" />
+        </UFormField>
+        <UFormField label="Tiempo de entrega" name="delivery_time">
+          <UInput v-model="form.delivery_time" placeholder="Ej: 7-10 días" class="w-full" />
+        </UFormField>
+      </div>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <UFormField label="Transporte" name="transport_provider">
+          <UInput v-model="form.transport_provider" placeholder="Nombre del transporte" class="w-full" />
+        </UFormField>
+      </div>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <UFormField label="Vendedor" name="seller_id">
+          <USelectMenu
+            v-model="form.seller_id"
+            :items="employeeOptions"
+            value-key="value"
+            placeholder="Seleccionar vendedor..."
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Comisión (%)" name="commission_rate">
+          <UInput
+            v-model.number="form.commission_rate"
+            type="number"
+            placeholder="0.00"
+            :min="0"
+            :max="100"
+            class="w-full"
+          />
+        </UFormField>
+      </div>
+      <UFormField label="Instrucciones de entrega" name="delivery_instructions">
+        <UTextarea v-model="form.delivery_instructions" placeholder="Ej: Entregar por la mañana, llamar al llegar" class="w-full" :rows="2" />
+      </UFormField>
+    </div>
+  </UCard>
+</template>

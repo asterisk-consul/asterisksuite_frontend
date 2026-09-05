@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import { useTripsStore } from '~/modulos/logistica/transport/trips/trips.store'
 import type { CreateTripInput } from '~/modulos/logistica/transport/trips/types/trips.types'

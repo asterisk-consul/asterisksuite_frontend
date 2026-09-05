@@ -1,90 +1,156 @@
 import { h } from 'vue'
-import { UBadge } from '#components'
-import type { TableColumn } from '@nuxt/ui'
-import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
-
-import { useInlineEdit } from '~/composables/table/useInlineEdit'
-import type { EditableValue } from '~/composables/table/useInlineEdit'
-import { useDateColumn } from '~/composables/table/useDateColumn'
+import { UButton } from '#components'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
+import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 
-type Row = BusinessParty
-type EditableField = 'city' | 'province' | 'country' | 'postalCode'
+type Row = any
 
-const { editableCell } = useInlineEdit<BusinessParty, EditableField>()
-const createdDate = useDateColumn('es-AR')
+type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
+
+const typeConfig: Record<string, { label: string; color: BadgeColor }> = {
+  CUSTOMER: { label: 'Cliente', color: 'success' },
+  SUPPLIER: { label: 'Proveedor', color: 'info' },
+  EMPLOYEE: { label: 'Empleado', color: 'warning' },
+  PARTNER: { label: 'Socio', color: 'primary' },
+  TAX_AUTHORITY: { label: 'Ente impositivo', color: 'error' },
+  UTILITY: { label: 'Servicio', color: 'neutral' },
+  FINANCIAL: { label: 'Financiero', color: 'secondary' },
+  SERVICE_PROVIDER: { label: 'Prov. servicios', color: 'secondary' }
+}
+
+const ivaConfig: Record<string, { label: string; color: BadgeColor }> = {
+  RESPONSABLE_INSCRIPTO: { label: 'RI', color: 'info' },
+  MONOTRIBUTO: { label: 'Mono', color: 'warning' },
+  CONSUMIDOR_FINAL: { label: 'CF', color: 'neutral' },
+  EXENTO: { label: 'Exento', color: 'success' }
+}
 
 export const BusinessPartyColumns = (actions: {
-  // onToggleActive?: (row: Row, value: boolean) => void
-  // onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void
+  onSortFieldSelect?: (columnId: string) => void
   onEdit?: (row: Row) => void
-}): TableColumn<Row>[] => [
-  useSelectColumn<Row>(),
-  useIdColumn<Row>(actions.onEdit),
+  onDelete?: (row: Row) => void
+}): ExtendedColumn<Row>[] => {
+  const build = createTableBuilder<Row>({
+    locale: 'es-AR',
+    onSortFieldSelect: actions.onSortFieldSelect
+  })
 
-  {
-    accessorKey: 'name',
-    header: 'Razón Social'
-  },
+  return [
+    useSelectColumn(),
+    useIdColumn(actions.onEdit),
 
-  {
-    accessorKey: 'tax_id',
-    header: 'CUIT'
-  },
-
-  {
-    accessorKey: 'type',
-    header: 'Tipo',
-    cell: ({ row }) => {
-      const type = row.getValue('type') as 'client' | 'supplier'
-
-      const config = {
-        client: { label: 'Cliente', color: 'primary' },
-        supplier: { label: 'Proveedor', color: 'warning' }
-      } as const
-
-      const cfg = config[type]
-
-      return h(
-        UBadge,
-        {
-          variant: 'subtle',
-          color: cfg.color
+    ...build([
+      {
+        key: 'name',
+        label: 'Razón Social',
+        sortable: true
+      },
+      {
+        key: 'business_names',
+        label: 'Nombre Fantasía',
+        sortable: true
+      },
+      {
+        key: 'type',
+        label: 'Tipo',
+        sortable: true,
+        badge: {
+          resolve: (row) => typeConfig[row.type] ?? { label: row.type, color: 'neutral' }
         },
-        () => cfg.label
-      )
-    }
-  },
-
-  {
-    accessorKey: 'active',
-    header: 'Estado',
-    cell: ({ row }) => {
-      const active = row.getValue('active') as boolean
-
-      return h(
-        UBadge,
-        {
-          variant: 'subtle',
-          color: active ? 'success' : 'error'
+        meta: {
+          filter: {
+            type: 'select',
+            operators: ['equals'],
+            options: [
+              { label: 'Cliente', value: 'CUSTOMER' },
+              { label: 'Proveedor', value: 'SUPPLIER' },
+              { label: 'Empleado', value: 'EMPLOYEE' },
+              { label: 'Socio', value: 'PARTNER' },
+              { label: 'Ente impositivo', value: 'TAX_AUTHORITY' },
+              { label: 'Servicio', value: 'UTILITY' }
+            ]
+          }
+        }
+      },
+      {
+        key: 'document_type',
+        label: 'Doc. Tipo',
+        sortable: true
+      },
+      {
+        key: 'tax_id',
+        label: 'CUIT',
+        sortable: true
+      },
+      {
+        key: 'email',
+        label: 'Email',
+        sortable: true
+      },
+      {
+        key: 'vat_condition',
+        label: 'IVA',
+        badge: {
+          resolve: (row) => ivaConfig[row.vat_condition] ?? { label: row.vat_condition ?? '—', color: 'neutral' }
+        }
+      },
+      {
+        key: 'exemption_rate',
+        label: 'Exención',
+        sortable: true
+      },
+      {
+        key: 'active',
+        label: 'Estado',
+        sortable: true,
+        badge: {
+          resolve: (row) => ({
+            label: row.active ? 'Activo' : 'Inactivo',
+            color: row.active ? 'success' : 'error'
+          })
         },
-        () => (active ? 'Activo' : 'Inactivo')
-      )
-    }
-  },
+        meta: {
+          filter: {
+            type: 'select',
+            operators: ['equals'],
+            options: [
+              { label: 'Activo', value: true },
+              { label: 'Inactivo', value: false }
+            ]
+          }
+        }
+      },
+      {
+        key: 'created_at',
+        label: 'Creado',
+        sortable: true,
+        date: true
+      },
 
-  {
-    accessorKey: 'created_at',
-    header: 'Creado',
-    cell: ({ row }) => {
-      const date = row.getValue('created_at') as string
-
-      return new Date(date).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      })
-    }
-  }
-]
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            onClick: () => actions.onEdit?.(row.original)
+          }),
+          actions.onDelete
+            ? h(UButton, {
+                icon: 'i-lucide-trash-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'error',
+                onClick: () => actions.onDelete?.(row.original)
+              })
+            : null
+        ])
+      }
+    ])
+  ]
+}

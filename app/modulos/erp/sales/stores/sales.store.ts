@@ -26,6 +26,8 @@ export const useDocumentsSalesStore = defineStore(
     const fetchAll = async (params?: {
       status?: number
       documentTypeId?: string
+      category?: string
+      direction?: number
     }) => {
       loading.value = true
 
@@ -164,8 +166,6 @@ export const useDocumentsSalesStore = defineStore(
 
         return response
       } catch (err: any) {
-        console.error(err)
-
         error.value =
           err?.data?.message || err?.message || 'Error confirming document'
 
@@ -203,6 +203,102 @@ export const useDocumentsSalesStore = defineStore(
         error.value =
           err?.data?.message || err?.message || 'Error cancelling document'
 
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Accept (QUOTE → ORDER)
+    // ─────────────────────────────────────
+    const accept = async (id: string) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.accept(id)
+        items.value.unshift(response)
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error accepting document'
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Deliver (ORDER → REMITO)
+    // ─────────────────────────────────────
+    const deliver = async (id: string) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.deliver(id)
+        items.value.unshift(response)
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error delivering document'
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Partial Deliver
+    // ─────────────────────────────────────
+    const partialDeliver = async (id: string, itemsPayload: { document_item_id: string; quantity: number }[]) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.partialDeliver(id, itemsPayload)
+        const index = items.value.findIndex((i) => i.id === id)
+        if (index !== -1) items.value[index] = response
+        if (current.value?.id === id) current.value = response
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error in partial delivery'
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Partial Invoice
+    // ─────────────────────────────────────
+    const partialInvoice = async (id: string, itemsPayload: { document_item_id: string; quantity: number }[]) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.partialInvoice(id, itemsPayload)
+        const index = items.value.findIndex((i) => i.id === id)
+        if (index !== -1) items.value[index] = response
+        if (current.value?.id === id) current.value = response
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error in partial invoice'
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Change Status
+    // ─────────────────────────────────────
+    const changeStatus = async (id: string, status: number) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.changeStatus(id, status)
+        const index = items.value.findIndex((i) => i.id === id)
+        if (index !== -1) items.value[index] = response
+        if (current.value?.id === id) current.value = response
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error changing status'
         throw err
       } finally {
         loading.value = false
@@ -248,11 +344,42 @@ export const useDocumentsSalesStore = defineStore(
       try {
         return await DocumentsSalesService.generateFromAllTrips()
       } catch (err: any) {
-        // console.error(err)
-
         error.value =
           err?.data?.message || err?.message || 'Error generating documents'
 
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Get completed trips pending invoicing
+    // ─────────────────────────────────────
+    const getCompletedTripsPending = async () => {
+      try {
+        return await DocumentsSalesService.getCompletedTripsPending()
+      } catch (err: any) {
+        error.value =
+          err?.data?.message || err?.message || 'Error loading trips'
+        throw err
+      }
+    }
+
+    // ─────────────────────────────────────
+    // Generate from selected trips
+    // ─────────────────────────────────────
+    const generateFromTrips = async (payload: {
+      tripIds: string[]
+      documentTypeId: string
+    }) => {
+      loading.value = true
+      error.value = null
+      try {
+        return await DocumentsSalesService.generateFromTrips(payload)
+      } catch (err: any) {
+        error.value =
+          err?.data?.message || err?.message || 'Error generating documents'
         throw err
       } finally {
         loading.value = false
@@ -284,8 +411,15 @@ export const useDocumentsSalesStore = defineStore(
       update,
       confirm,
       cancel,
+      accept,
+      deliver,
+      partialDeliver,
+      partialInvoice,
+      changeStatus,
       remove,
       generateFromAllTrips,
+      getCompletedTripsPending,
+      generateFromTrips,
 
       // helpers
       clearCurrent,

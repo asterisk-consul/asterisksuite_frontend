@@ -1,17 +1,18 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 //stores
 import { useTransferRatesStore } from '~/modulos/logistica/transport/transfer-rates/transfer-rates.store'
 //form
 import { transferRatesFormFields } from '~/modulos/logistica/transport/transfer-rates/transfer-rates.form'
 import ModalForm from '~/components/ModalForm.vue'
-import { tarifasColumns } from '../../../../modulos/logistica/transport/transfer-rates/columns'
+import { tarifasColumns } from '~/modulos/logistica/transport/transfer-rates/columns'
+
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 import type {
   TransferRate,
@@ -20,11 +21,8 @@ import type {
 type EditableField = 'name' | 'description' | 'rate_type'
 type EditableValue = string | null | undefined
 
-const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 import type { ButtonProps } from '@nuxt/ui'
-function toggleModuleSidebar() {
-  moduleCollapsed.value = !moduleCollapsed.value
-}
+
 /* ---------------------------------------
    MODAL CONTROL
 --------------------------------------- */
@@ -32,6 +30,7 @@ function toggleModuleSidebar() {
 const modalOpen = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
 const editingRow = ref<any>(null)
+const sorting = ref<SortingState>([])
 
 function openCreate() {
   modalMode.value = 'create'
@@ -49,8 +48,36 @@ function openEdit(row: any) {
   modalOpen.value = true
 }
 
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [
+    {
+      id: columnId,
+      desc: current?.id === columnId ? !current.desc : false
+    }
+  ]
+}
+
+/* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('transfer_rates')
+
+async function handleDeleteOne(row: any) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: any[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
 const columns = tarifasColumns({
   onEdit: openEdit,
+  onSortFieldSelect,
+  onDelete: handleDeleteOne,
   onToggleActive: async (row, value) => {
     const prev = row.active
     row.active = value
@@ -123,28 +150,29 @@ const links = ref<ButtonProps[]>([
     variant: 'solid'
   }
 ])
+const filterFields: FilterField[] = [{ id: 'name', label: 'Filtrar por nombre...', class: 'w-56' }]
+
+const sortFields: SortField[] = [
+  { label: 'Nombre', value: 'name' },
+  { label: 'Tipo', value: 'rate_type' },
+  { label: 'Descripción', value: 'description' },
+  { label: 'Fecha Creación', value: 'created_at' }
+]
 </script>
 
 <template>
   <UPage class="space-y-4">
-    <div class="flex flex-col">
-      <div>
-        <UButton
-          icon="i-lucide-layout-panel-left"
-          variant="ghost"
-          color="neutral"
-          label="Menu"
-          @click="toggleModuleSidebar"
-        />
-      </div>
-      <UPageHeader
-        title="Tarifas de Transporte"
-        description="Listado de Tarifas de Transporte"
-        :links="links"
-        class="mb-4 w-full"
-      />
-    </div>
-    <LogisticaTable :loading="loading" :data="items" :columns="columns" />
+    <AppPageHeader title="Tarifas de Transporte" description="Listado de Tarifas de Transporte" :links="links" />
+
+    <LogisticaTable
+      :loading="loading"
+      :data="items"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
+    />
   </UPage>
   <ModalForm
     v-model:open="modalOpen"

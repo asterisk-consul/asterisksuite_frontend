@@ -56,8 +56,24 @@ export interface Document {
 
   number: number
   document_type_id: string
+  document_sequence_id?: string | null
+
+  document_sequences?: {
+    id: string
+    name: string
+    point_of_sale: string
+    prefix?: string | null
+    current_number?: number
+  } | null
 
   party_id: string | null
+  warehouse_id?: string | null
+
+  currency_code?: string | null
+
+  exchange_rate?: number | null
+
+  rate_type?: string | null
 
   date: string
 
@@ -74,6 +90,21 @@ export interface Document {
   descrip?: string | null
 
   ref?: string | null
+
+  document_types?: {
+    id: string
+    code: string
+    description: string
+    direction: number
+    category?: string | null
+  } | null
+
+  business_parties?: {
+    id: string
+    name: string
+    tax_id?: string | null
+  } | null
+
   items: FacturaItem[]
 
   document_items?: DocumentItem[]
@@ -104,6 +135,10 @@ export interface FacturaItem {
 
   product_id: string | null
 
+  variant_id?: string | null
+
+  warehouse_id?: string | null
+
   product_name?: string
 
   product_code?: string
@@ -128,7 +163,17 @@ export interface FacturaFormValues {
 
   document_type_id: string
 
+  document_sequence_id?: string | null
+
   party_id: string | null
+
+  warehouse_id?: string | null
+
+  currency_code?: string
+
+  exchange_rate?: number | null
+
+  rate_type?: string | null
 
   date: string
 

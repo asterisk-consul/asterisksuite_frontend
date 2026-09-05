@@ -1,18 +1,40 @@
 <script setup lang="ts">
+import DocumentPrintLayout from '~/components/documents/DocumentPrintLayout.vue'
+import ValePrint from '~/components/documents/ValePrint.vue'
+import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
+import { useCompaniesStore } from '~/modulos/companies/store/company.store'
+import { useAuthStore } from '~/modulos/auth/auth.store'
+
 interface Props {
   document: any
+  mode?: 'sale' | 'purchase'
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<{
+  document: any
+  mode?: 'sale' | 'purchase'
+}>(), {
+  mode: 'sale'
+})
+
+const companiesStore = useCompaniesStore()
+const auth = useAuthStore()
+
+onMounted(async () => {
+  const companyId = auth.selectedCompany?.id
+  if (companyId && !companiesStore.current) {
+    await companiesStore.fetchOne(companyId)
+  }
+})
 
 function fmt(n: any) {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency: 'ARS'
+    currency: props.document?.currency_code ?? 'ARS'
   }).format(Number(n ?? 0))
 }
 
-// Taxes de nivel LINE agrupadas por tax_id (vienen de document_item_taxes)
+// Taxes de nivel LINE agrupadas por tax_id
 const lineTaxesSummary = computed(() => {
   const map = new Map<string, { name: string; code: string; amount: number }>()
   for (const item of props.document.document_items ?? []) {
@@ -33,7 +55,7 @@ const lineTaxesSummary = computed(() => {
   return [...map.values()]
 })
 
-// Taxes de nivel DOCUMENT (vienen de document_taxes)
+// Taxes de nivel DOCUMENT
 const documentTaxesSummary = computed(() =>
   (props.document.document_taxes ?? []).map((t: any) => ({
     tax_id: t.tax_id,
@@ -45,56 +67,24 @@ const documentTaxesSummary = computed(() =>
   }))
 )
 
-// Subtotal total del documento para calcular proporciones
 const subtotalTotal = computed(() =>
   (props.document.document_items ?? []).reduce(
-    (acc: number, item: any) => acc + Number(item.price ?? 0),
-    0
+    (acc: number, item: any) => acc + Number(item.price ?? 0), 0
   )
 )
 
-// Por cada item, calcula los impuestos que le corresponden:
-// - LINE: directo de document_item_taxes
-// - DOCUMENT: proporcional según peso del item sobre el subtotal total
 function taxesForItem(item: any): { name: string; amount: number }[] {
-  const result: { name: string; amount: number }[] = []
-
-  // Taxes de línea propias del item
-  for (const t of item.document_item_taxes ?? []) {
-    result.push({
-      name: t.taxes?.name ?? t.tax_id,
-      amount: Number(t.tax_amount ?? 0)
-    })
-  }
-
-  // Taxes de documento: distribuir proporcionalmente
-  const itemPrice = Number(item.price ?? 0)
-  const total = subtotalTotal.value
-  if (total > 0) {
-    for (const docTax of documentTaxesSummary.value) {
-      const proportional =
-        Math.round((itemPrice / total) * docTax.amount * 100) / 100
-      result.push({
-        name: docTax.name,
-        amount: proportional
-      })
-    }
-  }
-
-  return result
+  return (item.document_item_taxes ?? []).map((t: any) => ({
+    name: t.taxes?.name ?? t.tax_id,
+    amount: Number(t.tax_amount ?? 0)
+  }))
 }
 
-// Items enriquecidos con taxes calculadas y total por item
 const enrichedItems = computed(() =>
   (props.document.document_items ?? []).map((item: any) => {
     const taxes = taxesForItem(item)
     const totalTaxes = taxes.reduce((acc, t) => acc + t.amount, 0)
-    return {
-      ...item,
-      _taxes: taxes,
-      _totalTaxes: totalTaxes,
-      _total: Number(item.price ?? 0) + totalTaxes
-    }
+    return { ...item, _taxes: taxes, _totalTaxes: totalTaxes, _total: Number(item.price ?? 0) + totalTaxes }
   })
 )
 
@@ -105,143 +95,187 @@ const statusLabel: Record<number, { label: string; color: string }> = {
   3: { label: 'Anulada', color: 'error' }
 }
 
-const statusInfo = computed(
-  () =>
-    statusLabel[props.document.status] ?? {
-      label: 'Desconocido',
-      color: 'neutral'
-    }
+const statusInfo = computed(() => statusLabel[props.document.status] ?? { label: 'Desconocido', color: 'neutral' })
+
+const allTaxes = computed(() =>
+  (props.document.document_taxes ?? []).map((t: any) => ({
+    name: t.taxes?.name ?? t.tax_id,
+    code: t.taxes?.code ?? '',
+    rate: Number(t.tax_rate ?? 0),
+    taxableBase: Number(t.taxable_base ?? 0),
+    amount: Number(t.tax_amount ?? 0)
+  }))
 )
+
+// SALE: header=mi empresa, customer=cliente
+// PURCHASE: header=proveedor, customer=mi empresa
+const currentCompany = computed(() => companiesStore.current)
+
+const printCompany = computed(() => {
+  if (props.mode === 'sale') {
+    return {
+      name: currentCompany.value?.name ?? 'Empresa',
+      tax_id: currentCompany.value?.tax_id ?? '—',
+      address: currentCompany.value?.address ?? '',
+      phone: currentCompany.value?.phone ?? '',
+      iva_condition: currentCompany.value?.vat_condition ?? '—'
+    }
+  }
+  // PURCHASE: el header muestra el proveedor
+  return {
+    name: props.document.business_parties?.name || 'Proveedor',
+    tax_id: props.document.business_parties?.tax_id || '—',
+    address: props.document.business_parties?.address || '—',
+    phone: props.document.business_parties?.phone || '',
+    iva_condition: props.document.business_parties?.iva_condition || '—'
+  }
+})
+
+const printCustomer = computed(() => {
+  if (props.mode === 'sale') {
+    // SALE: el cliente es el que compra
+    return {
+      name: props.document.business_parties?.name || '—',
+      tax_id: props.document.business_parties?.tax_id || '—',
+      address: props.document.business_parties?.address || '—',
+      iva_condition: props.document.business_parties?.iva_condition || '—'
+    }
+  }
+  // PURCHASE: "nuestra empresa" es el cliente
+  return {
+    name: currentCompany.value?.name ?? 'Empresa',
+    tax_id: currentCompany.value?.tax_id ?? '—',
+    address: currentCompany.value?.address ?? '',
+    iva_condition: currentCompany.value?.vat_condition ?? '—'
+  }
+})
+
+const printItems = computed(() =>
+  enrichedItems.value.map(item => ({
+    code: item.products?.code || '',
+    description: item.products?.name || item.products?.description || '—',
+    quantity: Number(item.quantity),
+    unit_price: Number(item.unit_price),
+    tax_rate: item._taxes.length > 0 ? Math.round((item._taxes[0].amount / Number(item.price)) * 100) : undefined,
+    total: item._total
+  }))
+)
+
+const printTotals = computed(() => ({
+  subtotal: Number(props.document.subtotal),
+  taxes: allTaxes.value.map(t => ({ name: t.name, amount: t.amount })),
+  total: Number(props.document.total)
+}))
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Cabecera -->
-    <UCard>
-      <template #header>
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="text-xl font-bold">Factura #{{ document.number }}</div>
-            <div class="text-sm text-gray-500">
-              {{ document.document_types?.description }}
+    <!-- ON-SCREEN VIEW -->
+    <div class="screen-only">
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-xl font-bold">{{ document.document_types?.description || 'Documento' }} #{{ document.number }}</div>
+              <div class="text-sm text-gray-500">{{ document.document_types?.description }}</div>
             </div>
+            <UBadge :color="statusInfo.color as any">{{ statusInfo.label }}</UBadge>
           </div>
-          <UBadge :color="statusInfo.color as any">
-            {{ statusInfo.label }}
-          </UBadge>
+        </template>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-sm text-gray-500">{{ mode === 'sale' ? 'Cliente' : 'Proveedor' }}</div>
+            <div class="font-medium">{{ document.business_parties?.name }}</div>
+          </div>
+          <div>
+            <div class="text-sm text-gray-500">Fecha</div>
+            <div class="font-medium">{{ document.date?.slice(0, 10) }}</div>
+          </div>
+          <div v-if="document.descrip">
+            <div class="text-sm text-gray-500">Descripción</div>
+            <div class="font-medium">{{ document.descrip }}</div>
+          </div>
+          <div v-if="document.ref">
+            <div class="text-sm text-gray-500">Referencia</div>
+            <div class="font-medium">{{ document.ref }}</div>
+          </div>
         </div>
-      </template>
+      </UCard>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <div class="text-sm text-gray-500">Cliente</div>
-          <div class="font-medium">{{ document.business_parties?.name }}</div>
-        </div>
-        <div>
-          <div class="text-sm text-gray-500">Fecha</div>
-          <div class="font-medium">{{ document.date?.slice(0, 10) }}</div>
-        </div>
-        <div v-if="document.descrip">
-          <div class="text-sm text-gray-500">Descripción</div>
-          <div class="font-medium">{{ document.descrip }}</div>
-        </div>
-        <div v-if="document.ref">
-          <div class="text-sm text-gray-500">Referencia</div>
-          <UTooltip text="Ver detalles del viaje">
-            <div
-              class="font-medium cursor-pointer text-blue-600 hover:underline"
-              @click="$router.push(`/logistica/viajes/${document.ref}`)"
-            >
-              {{ document.ref }}
-            </div>
-          </UTooltip>
-        </div>
-      </div>
-    </UCard>
+      <UCard>
+        <template #header>
+          <div class="font-medium">Ítems</div>
+        </template>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-200 text-left">
+              <th class="pb-2 font-medium text-gray-500">Producto</th>
+              <th class="pb-2 font-medium text-gray-500 text-right">Cant.</th>
+              <th class="pb-2 font-medium text-gray-500 text-right">P. Unitario</th>
+              <th class="pb-2 font-medium text-gray-500 text-right">Subtotal</th>
+              <th class="pb-2 font-medium text-gray-500 text-right">Impuestos</th>
+              <th class="pb-2 font-medium text-gray-500 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in enrichedItems" :key="item.id" class="border-b border-gray-100">
+              <td class="py-3 pr-4">{{ item.products?.name || item.products?.description || '—' }}</td>
+              <td class="py-3 text-right">{{ Number(item.quantity) }}</td>
+              <td class="py-3 text-right">{{ fmt(item.unit_price) }}</td>
+              <td class="py-3 text-right">{{ fmt(item.price) }}</td>
+              <td class="py-3 text-right">
+                <div v-for="tax in item._taxes" :key="tax.name" class="text-xs text-gray-500">{{ fmt(tax.amount) }}</div>
+                <span v-if="!item._taxes.length" class="text-gray-400">—</span>
+              </td>
+              <td class="py-3 text-right font-medium">{{ fmt(item._total) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </UCard>
 
-    <!-- Items -->
-    <UCard>
-      <template #header>
-        <div class="font-medium">Ítems</div>
-      </template>
+      <DocumentTotals :document="document" />
+    </div>
 
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-gray-200 dark:border-gray-700 text-left">
-            <th class="pb-2 font-medium text-gray-500">Producto</th>
-            <th class="pb-2 font-medium text-gray-500 text-right">Cant.</th>
-            <th class="pb-2 font-medium text-gray-500 text-right">
-              P. Unitario
-            </th>
-            <th class="pb-2 font-medium text-gray-500 text-right">Subtotal</th>
-            <th class="pb-2 font-medium text-gray-500 text-right">Impuestos</th>
-            <th class="pb-2 font-medium text-gray-500 text-right">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="item in enrichedItems"
-            :key="item.id"
-            class="border-b border-gray-100 dark:border-gray-800"
-          >
-            <td class="py-3 pr-4">
-              {{ item.products?.name || item.products?.description || '—' }}
-            </td>
-            <td class="py-3 text-right">{{ Number(item.quantity) }}</td>
-            <td class="py-3 text-right">{{ fmt(item.unit_price) }}</td>
-            <td class="py-3 text-right">{{ fmt(item.price) }}</td>
-            <td class="py-3 text-right">
-              <div
-                v-for="tax in item._taxes"
-                :key="tax.name"
-                class="text-xs text-gray-500"
-              >
-                {{ fmt(tax.amount) }}
-              </div>
-              <span v-if="!item._taxes.length" class="text-gray-400">—</span>
-            </td>
-            <td class="py-3 text-right font-medium">{{ fmt(item._total) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </UCard>
-
-    <!-- Totales -->
-    <UCard>
-      <div class="space-y-2 max-w-sm ml-auto">
-        <div class="flex justify-between">
-          <span class="text-gray-500">Subtotal</span>
-          <span>{{ fmt(document.subtotal) }}</span>
-        </div>
-
-        <!-- Taxes de línea -->
-        <div
-          v-for="tax in lineTaxesSummary"
-          :key="'line-' + tax.code"
-          class="flex justify-between text-sm"
-        >
-          <span>{{ fmt(tax.amount) }}</span>
-        </div>
-
-        <!-- Taxes de documento -->
-        <div
-          v-for="tax in documentTaxesSummary"
-          :key="'doc-' + tax.code"
-          class="flex justify-between text-sm"
-        >
-          <span class="text-gray-500">
-            {{ tax.name }}
-          </span>
-          <span>{{ fmt(tax.amount) }}</span>
-        </div>
-
-        <UDivider />
-
-        <div class="flex justify-between text-lg font-bold">
-          <span>Total</span>
-          <span>{{ fmt(document.total) }}</span>
-        </div>
-      </div>
-    </UCard>
+    <!-- PRINT VIEW -->
+    <div id="printable-document" class="print-only">
+      <ValePrint
+        v-if="document.document_types?.category === 'VALE'"
+        :type="mode"
+        :number="String(document.number || '—')"
+        :date="document.date"
+        :company="printCompany"
+        :customer="printCustomer"
+        :items="printItems"
+        :totals="printTotals"
+        :observations="document.descrip || document.notes || ''"
+        :document="document"
+      />
+      <DocumentPrintLayout
+        v-else
+        :type="mode"
+        :letter="document.document_types?.letter_type ?? 'X'"
+        :number="document.number || '—'"
+        :date="document.date"
+        :company="printCompany"
+        :customer="printCustomer"
+        :items="printItems"
+        :totals="printTotals"
+        :observations="document.descrip || document.notes || ''"
+        :cae="document.cae || ''"
+        :cae-due="document.cae_due || ''"
+      />
+    </div>
   </div>
 </template>
+
+<style>
+/* SCREEN / PRINT TOGGLE */
+.screen-only { display: block; }
+.print-only { display: none; }
+
+@media print {
+  .screen-only { display: none !important; }
+  .print-only { display: block !important; }
+  .print-only .doc-print { max-width: 210mm; margin: 0 auto; }
+}
+</style>

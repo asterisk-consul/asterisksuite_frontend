@@ -11,6 +11,7 @@ import type {
 
 export const useDocumentsTypesStore = defineStore('documents-types', () => {
   const items = ref<DocumentsType[]>([])
+
   const current = ref<DocumentsType | null>(null)
 
   const loading = ref(false)
@@ -31,6 +32,8 @@ export const useDocumentsTypesStore = defineStore('documents-types', () => {
       loading.value = false
     }
   }
+
+ 
 
   const fetchOne = async (id: string) => {
     loading.value = true
@@ -100,6 +103,8 @@ export const useDocumentsTypesStore = defineStore('documents-types', () => {
     }
   }
 
+ 
+
   const clearError = () => {
     error.value = null
   }
@@ -114,7 +119,7 @@ export const useDocumentsTypesStore = defineStore('documents-types', () => {
     fetchOne,
     create,
     update,
-
     clearError
+    
   }
 })

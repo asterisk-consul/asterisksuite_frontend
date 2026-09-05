@@ -1,66 +1,92 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 definePageMeta({
   middleware: ['auth']
 })
 
-const links = [
-  [
-    {
-      label: 'General',
-      icon: 'i-lucide-user',
-      to: '/settings',
-      exact: true
-    },
-    {
-      label: 'Members',
-      icon: 'i-lucide-users',
-      to: '/settings/members'
-    },
-    {
-      label: 'Notifications',
-      icon: 'i-lucide-bell',
-      to: '/settings/notifications'
-    },
-    {
-      label: 'Security',
-      icon: 'i-lucide-shield',
-      to: '/settings/security'
-    }
-  ],
-  [
-    {
-      label: 'Documentation',
-      icon: 'i-lucide-book-open',
-      to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-      target: '_blank'
-    }
+const { isOwnerOrAdmin } = useCompanyRole()
+
+const links = computed<NavigationMenuItem[][]>(() => {
+  const base: NavigationMenuItem[][] = [
+    [
+      {
+        label: 'General',
+        icon: 'i-lucide-user',
+        to: '/settings',
+        exact: true
+      },
+      {
+        label: 'Members',
+        icon: 'i-lucide-users',
+        to: '/settings/members'
+      },
+      ...(isOwnerOrAdmin.value
+        ? [
+            {
+              label: 'Empresa',
+              icon: 'i-lucide-building',
+              to: '/settings/company'
+            },
+            {
+              label: 'Usuarios',
+              icon: 'i-lucide-user-cog',
+              to: '/settings/users'
+            },
+            {
+              label: 'Roles',
+              icon: 'i-lucide-shield',
+              to: '/settings/roles'
+            },
+            {
+              label: 'Tipos de Documento',
+              icon: 'i-lucide-file-text',
+              to: '/erp/settings/document-types'
+            },
+            {
+              label: 'Secuencias',
+              icon: 'i-lucide-hash',
+              to: '/erp/settings/document-sequences'
+            }
+          ]
+        : []),
+      {
+        label: 'Notificaciones',
+        icon: 'i-lucide-bell',
+        to: '/settings/notifications'
+      },
+      {
+        label: 'Seguridad',
+        icon: 'i-lucide-shield-check',
+        to: '/settings/security'
+      },
+      {
+        label: 'Impuestos',
+        icon: 'i-lucide-percent',
+        to: '/settings/taxes'
+      },
+      {
+        label: 'Monedas',
+        icon: 'i-lucide-banknote',
+        to: '/settings/monedas'
+      }
+    ],
+    [
+      {
+        label: 'Documentación',
+        icon: 'i-lucide-book-open',
+        to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
+        target: '_blank'
+      }
+    ]
   ]
-] satisfies NavigationMenuItem[][]
+  return base
+})
 </script>
 
 <template>
-  <UDashboardPanel id="settings" :ui="{ body: 'lg:py-12' }">
-    <template #header>
-      <UDashboardNavbar title="Settings">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
-
-      <UDashboardToolbar>
-        <!-- NOTE: The `-mx-1` class is used to align with the `DashboardSidebarCollapse` button here. -->
-        <UNavigationMenu :items="links" highlight class="-mx-1 flex-1" />
-      </UDashboardToolbar>
-    </template>
-
-    <template #body>
-      <div
-        class="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full lg:max-w-2xl mx-auto"
-      >
-        <NuxtPage />
-      </div>
-    </template>
-  </UDashboardPanel>
+  <div class="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full mx-auto">
+    <NuxtPage />
+  </div>
 </template>

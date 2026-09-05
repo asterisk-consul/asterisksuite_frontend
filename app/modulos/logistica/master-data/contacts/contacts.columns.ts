@@ -1,77 +1,150 @@
+import { h } from 'vue'
+import { UButton } from '#components'
 import type { TableColumn } from '@nuxt/ui'
+
 import type { PartyContact } from './types/contacts.types'
 
-import { useInlineEdit } from '~/composables/table/useInlineEdit'
-import { useDateColumn } from '~/composables/table/useDateColumn'
+import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 
-type Row = PartyContact
-
-type EditableField = 'first_name' | 'last_name' | 'role' | 'phone' | 'email'
+export type EditableField = 'first_name' | 'last_name' | 'role' | 'phone' | 'email'
 
 type EditableValue = string | null | undefined
 
-const { editableCell } = useInlineEdit<PartyContact, EditableField>()
-const createdDate = useDateColumn('es-AR')
+type Row = PartyContact
 
 export const PartyContactColumns = (actions: {
   onToggleActive?: (row: Row, value: boolean) => void
   onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void
   onEdit?: (row: Row) => void
-}): TableColumn<Row>[] => [
-  useSelectColumn<Row>(),
+  onDelete?: (row: Row) => void
+  onSortFieldSelect?: (columnId: string) => void
+}): TableColumn<Row>[] => {
+  const build = createTableBuilder<Row, EditableField>({
+    locale: 'es-AR',
+    onInlineSave: actions.onInlineSave,
+    onSortFieldSelect: actions.onSortFieldSelect
+  })
 
-  useIdColumn<Row>(actions.onEdit),
-  {
-    id: 'business_party_name',
-    header: 'Empresa',
-    cell: ({ row }) => row.original.business_parties?.name ?? '—'
-  },
+  return [
+    useSelectColumn(),
 
-  {
-    accessorKey: 'first_name',
-    header: 'Nombre',
-    cell: ({ row }) => editableCell('first_name', row.original, actions)
-  },
-  {
-    accessorKey: 'last_name',
-    header: 'Apellido',
-    cell: ({ row }) => editableCell('last_name', row.original, actions)
-  },
-  {
-    accessorKey: 'role',
-    header: 'Rol',
-    cell: ({ row }) => editableCell('role', row.original, actions)
-  },
-  {
-    accessorKey: 'phone',
-    header: 'Teléfono',
-    cell: ({ row }) => editableCell('phone', row.original, actions)
-  },
-  {
-    accessorKey: 'email',
-    header: 'Email',
-    cell: ({ row }) => editableCell('email', row.original, actions)
-  },
+    useIdColumn(actions.onEdit),
 
-  /**
-   * Columna derivada: nombre completo
-   */
-  {
-    id: 'full_name',
-    header: 'Nombre completo',
-    cell: ({ row }) => `${row.original.first_name} ${row.original.last_name}`
-  },
+    ...build([
+      {
+        id: 'business_party_name',
 
-  /**
-   * Fecha de creación
-   */
-  {
-    accessorKey: 'created_at',
-    header: 'Creado',
-    meta: createdDate.meta,
-    filterFn: createdDate.filterFn,
-    cell: ({ row }) => createdDate.format(row.getValue<string>('created_at'))
-  }
-]
+        label: 'Empresa',
+
+        accessorFn: (row) => row.business_parties?.name ?? '—',
+
+        cell: ({ row }) => row.original.business_parties?.name ?? '—'
+      },
+
+      {
+        key: 'first_name',
+
+        label: 'Nombre',
+
+        sortable: true,
+
+        editable: true,
+
+        editField: 'first_name'
+      },
+
+      {
+        key: 'last_name',
+
+        label: 'Apellido',
+
+        sortable: true,
+
+        editable: true,
+
+        editField: 'last_name'
+      },
+
+      {
+        key: 'role',
+
+        label: 'Rol',
+
+        sortable: true,
+
+        editable: true,
+
+        editField: 'role'
+      },
+
+      {
+        key: 'phone',
+
+        label: 'Teléfono',
+
+        sortable: true,
+
+        editable: true,
+
+        editField: 'phone'
+      },
+
+      {
+        key: 'email',
+
+        label: 'Email',
+
+        sortable: true,
+
+        editable: true,
+
+        editField: 'email'
+      },
+
+      {
+        id: 'full_name',
+
+        label: 'Nombre completo',
+
+        accessorFn: (row) => `${row.first_name} ${row.last_name}`,
+
+        cell: ({ row }) => `${row.original.first_name} ${row.original.last_name}`
+      },
+
+      {
+        key: 'created_at',
+
+        label: 'Creado',
+
+        sortable: true,
+
+        date: true
+      },
+
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            onClick: () => actions.onEdit?.(row.original)
+          }),
+          actions.onDelete
+            ? h(UButton, {
+                icon: 'i-lucide-trash-2',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'error',
+                onClick: () => actions.onDelete?.(row.original)
+              })
+            : null
+        ])
+      }
+    ])
+  ]
+}

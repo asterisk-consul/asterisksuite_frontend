@@ -698,7 +698,7 @@ function crearVehiculo() {
     tipo: formVehiculo.value.tipo,
     chofer: formVehiculo.value.chofer || '—',
     km: formVehiculo.value.km,
-    ultimoService: new Date().toISOString().split('T')[0],
+    ultimoService: today(),
     estado: 'Disponible',
     tempActual: '—'
   })
@@ -2160,7 +2160,7 @@ const pickingOrdenSeleccionada = computed(() =>
   display: flex;
   min-height: 100vh;
   background: #080c12;
-  font-family: 'DM Sans', 'Geist', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
   color: #e2e8f0;
 }
 

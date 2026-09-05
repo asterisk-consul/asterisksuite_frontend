@@ -1,6 +1,8 @@
 import type { H3Event } from 'h3'
 import type { FetchOptions } from 'ofetch'
 
+import { getTenant } from '~~/server/utils/tenant'
+
 type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD'
 
 interface TokenCache {
@@ -24,7 +26,7 @@ function getTokenPrefix(token: string): string {
 }
 
 function getCachedTokens(refreshToken: string): TokenCache | null {
-  console.log('[CACHE] lookup for refreshToken:', refreshToken?.slice(0, 8))
+  // console.log('[CACHE] lookup for refreshToken:', refreshToken?.slice(0, 8))
 
   // 1. Buscar directamente con el token actual
   let cached = tokenCache.get(refreshToken)
@@ -36,24 +38,24 @@ function getCachedTokens(refreshToken: string): TokenCache | null {
     if (rotatedToken) {
       cached = tokenCache.get(rotatedToken)
       if (cached) {
-        console.log('[CACHE] hit via rotation map')
+        // console.log('[CACHE] hit via rotation map')
       }
     }
   }
 
   if (!cached) {
-    console.log('[CACHE] miss')
+    // console.log('[CACHE] miss')
     return null
   }
 
   if (Date.now() > cached.expiresAt) {
-    console.log('[CACHE] expired → deleting')
+    // console.log('[CACHE] expired → deleting')
     tokenCache.delete(refreshToken)
     tokenCache.delete(cached.refreshToken)
     return null
   }
 
-  console.log('[CACHE] hit → accessToken cached')
+  // console.log('[CACHE] hit → accessToken cached')
   return cached
 }
 
@@ -64,56 +66,93 @@ export async function apiProxy(
     method?: HTTPMethod
     body?: any
     query?: FetchOptions['query']
+    rawResponse?: boolean
   } = {}
 ) {
   const config = useRuntimeConfig()
   const method = options.method ?? 'GET'
+  const tenant = getTenant(event)
 
-  console.log('\n================ API PROXY START ================')
-  console.log('[REQUEST]', method, path)
+  // console.log('\n================ API PROXY START ================')
+  // console.log('[REQUEST]', method, path)
 
   const refreshToken = getCookie(event, 'api_refresh')
   const accessCookie = getCookie(event, 'api_access')
 
-  console.log('[COOKIE] refresh:', refreshToken?.slice(0, 10))
-  console.log('[COOKIE] access:', accessCookie?.slice(0, 10))
+  // console.log('[COOKIE] refresh:', refreshToken?.slice(0, 10))
+  // console.log('[COOKIE] access:', accessCookie?.slice(0, 10))
 
   if (!refreshToken) {
-    console.log('[AUTH] No refresh cookie')
+    // console.log('[AUTH] No refresh cookie')
     throw createError({ statusCode: 401, message: 'No autenticado' })
   }
 
   let tokens = getCachedTokens(refreshToken)
   let accessToken = tokens?.accessToken ?? accessCookie
 
-  console.log('[TOKEN] using accessToken:', accessToken?.slice(0, 10))
+  // console.log('[TOKEN] using accessToken:', accessToken?.slice(0, 10))
 
   const doFetch = async (token?: string) => {
-    console.log('[FETCH] →', `${config.apiBase}${path}`)
-    console.log('[FETCH] token:', token?.slice(0, 10))
+    const url = `${config.apiBase}${path}`
+    console.log('[FETCH] →', method, url)
+    console.log('[FETCH] x-tenant:', tenant)
+    console.log('[FETCH] token:', token?.slice(0, 20))
+    console.log('[FETCH] body:', JSON.stringify(options.body)?.substring(0, 500))
 
-    return await $fetch(`${config.apiBase}${path}`, {
+    const fetchOptions = {
       method,
       body: options.body,
       query: options.query,
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined
-    })
+      headers: {
+        ...(token && {
+          Authorization: `Bearer ${token}`
+        }),
+        'x-tenant': tenant
+      }
+    }
+
+    if (options.rawResponse) {
+      const response = await $fetch.raw<ArrayBuffer>(url, {
+        ...fetchOptions,
+        responseType: 'arrayBuffer'
+      })
+      for (const header of ['content-type', 'content-disposition', 'content-length', 'cache-control']) {
+        const value = response.headers.get(header)
+        if (value) setResponseHeader(event, header, value)
+      }
+      const binary = Buffer.from(response._data)
+      setResponseHeader(event, 'content-length', String(binary.length))
+      return binary
+    }
+
+    return await $fetch(url, fetchOptions)
   }
 
   if (accessToken) {
     try {
       const res = await doFetch(accessToken)
-      console.log('[FETCH] success')
-      console.log('================ API PROXY END ================\n')
+      // console.log('[FETCH] success')
+      // console.log('================ API PROXY END ================\n')
       return res
     } catch (err: any) {
       console.log('[FETCH] error status:', err?.response?.status)
+      console.log('[FETCH] error data:', JSON.stringify(err?.data || err?.response?._data))
+      console.log('[FETCH] error message:', err?.message)
 
       if (err?.response?.status !== 401) {
-        throw err
+        const status = err?.response?.status || 500
+        const upstreamData = err?.data || err?.response?._data
+        const statusMessage = upstreamData?.message || err?.response?.statusText || 'Server Error'
+        const msg = Array.isArray(statusMessage) ? statusMessage[0] : statusMessage
+
+        throw createError({
+          statusCode: status,
+          statusMessage: typeof msg === 'string' ? msg : JSON.stringify(msg),
+          data: upstreamData,
+        })
       }
 
-      console.log('[AUTH] access token invalid → refresh required')
+      // console.log('[AUTH] access token invalid → refresh required')
       tokenCache.delete(refreshToken)
     }
   }
@@ -121,31 +160,27 @@ export async function apiProxy(
   return await doRefreshAndRetry(event, refreshToken, doFetch)
 }
 
-async function doRefreshAndRetry(
-  event: H3Event,
-  refreshToken: string,
-  doFetch: (token: string) => Promise<any>
-) {
-  console.log('\n=========== REFRESH FLOW START ===========')
+async function doRefreshAndRetry(event: H3Event, refreshToken: string, doFetch: (token: string) => Promise<any>) {
+  // console.log('\n=========== REFRESH FLOW START ===========')
 
   // Usar prefijo como key del mutex para sobrevivir la rotación
   const mutexKey = getTokenPrefix(refreshToken)
 
   if (refreshMutex.has(mutexKey)) {
-    console.log('[REFRESH] waiting existing refresh mutex')
+    // console.log('[REFRESH] waiting existing refresh mutex')
 
     const tokens = await refreshMutex.get(mutexKey)!
 
     if (!tokens) {
-      console.log('[REFRESH] mutex result = null → session expired')
+      // console.log('[REFRESH] mutex result = null → session expired')
       throw createError({ statusCode: 401, message: 'Sesión expirada' })
     }
 
-    console.log('[REFRESH] mutex resolved → retry request')
+    // console.log('[REFRESH] mutex resolved → retry request')
     return await doFetch(tokens.accessToken)
   }
 
-  console.log('[REFRESH] creating new refresh promise')
+  // console.log('[REFRESH] creating new refresh promise')
 
   let resolveRefresh!: (t: TokenCache | null) => void
 
@@ -159,36 +194,36 @@ async function doRefreshAndRetry(
     // ✅ Re-verificar el cache DENTRO del mutex (otra request pudo haber refrescado primero)
     const alreadyCached = getCachedTokens(refreshToken)
     if (alreadyCached) {
-      console.log('[REFRESH] cache hit inside mutex → skip refresh')
+      // console.log('[REFRESH] cache hit inside mutex → skip refresh')
       resolveRefresh(alreadyCached)
       return await doFetch(alreadyCached.accessToken)
     }
 
     const cookieHeader = getRequestHeader(event, 'cookie') ?? ''
-    console.log(
-      `[${new Date().toLocaleTimeString()}] [REFRESH] cookie header: ${cookieHeader}`
-    )
+    // console.log(
+    //   `[${new Date().toLocaleTimeString()}] [REFRESH] cookie header: ${cookieHeader}`
+    // )
 
-    console.log('================ REFRESH START ================')
-    console.log(
-      `[${new Date().toLocaleTimeString()}] Refresh cookie: ${refreshToken}`
-    )
-    console.log('API BASE:', useRuntimeConfig().apiBase)
-    console.log('➡️ Calling backend /auth/refresh')
+    //  console.log('================ REFRESH START ================')
+    // console.log(
+    //  `[${new Date().toLocaleTimeString()}] Refresh cookie: ${refreshToken}`
+    // )
+    //console.log('API BASE:', useRuntimeConfig().apiBase)
+    //console.log('➡️ Calling backend /auth/refresh')
 
     const refreshRes: any = await $fetch('/api/auth/refresh', {
       method: 'POST',
       headers: { cookie: cookieHeader }
     })
 
-    console.log('✅ Backend refresh success')
+    //console.log('✅ Backend refresh success')
 
     const newAccessToken: string = refreshRes.accessToken
     const newRefreshToken: string = refreshRes.refreshToken ?? refreshToken
 
-    console.log('[REFRESH] backend response received')
-    console.log('[REFRESH] newAccessToken:', newAccessToken?.slice(0, 10))
-    console.log('[REFRESH] newRefreshToken:', newRefreshToken?.slice(0, 10))
+    //console.log('[REFRESH] backend response received')
+    //console.log('[REFRESH] newAccessToken:', newAccessToken?.slice(0, 10))
+    //console.log('[REFRESH] newRefreshToken:', newRefreshToken?.slice(0, 10))
 
     if (!newAccessToken) throw new Error('Refresh sin accessToken')
 
@@ -198,7 +233,7 @@ async function doRefreshAndRetry(
       expiresAt: Date.now() + ACCESS_TOKEN_TTL_MS
     }
 
-    console.log('[CACHE] storing tokens')
+    //console.log('[CACHE] storing tokens')
 
     // Guardar con el nuevo refresh token
     tokenCache.delete(refreshToken)
@@ -208,30 +243,27 @@ async function doRefreshAndRetry(
     tokenRotationMap.set(mutexKey, newRefreshToken)
 
     // Limpiar el mapa de rotación después del TTL para no acumular entradas
-    setTimeout(
-      () => tokenRotationMap.delete(mutexKey),
-      ACCESS_TOKEN_TTL_MS + 5_000
-    )
+    setTimeout(() => tokenRotationMap.delete(mutexKey), ACCESS_TOKEN_TTL_MS + 5_000)
 
     resolveRefresh(cached)
 
-    console.log('[REFRESH] retrying original request')
+    //console.log('[REFRESH] retrying original request')
     const res = await doFetch(newAccessToken)
 
-    console.log('[REFRESH] retry success')
-    console.log('=========== REFRESH FLOW END ===========\n')
+    //console.log('[REFRESH] retry success')
+    //console.log('=========== REFRESH FLOW END ===========\n')
 
     return res
   } catch (error: any) {
-    console.log('[REFRESH] FAILED')
-    console.log('[REFRESH] status:', error?.response?.status)
-    console.log('[REFRESH] message:', error?.message)
+    //console.log('[REFRESH] FAILED')
+    //console.log('[REFRESH] status:', error?.response?.status)
+    //console.log('[REFRESH] message:', error?.message)
 
     resolveRefresh(null)
 
     throw createError({ statusCode: 401, message: 'Sesión expirada' })
   } finally {
-    console.log('[REFRESH] mutex released')
+    //console.log('[REFRESH] mutex released')
     refreshMutex.delete(mutexKey)
   }
 }

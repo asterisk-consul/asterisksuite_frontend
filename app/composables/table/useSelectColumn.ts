@@ -1,8 +1,8 @@
 import { h } from 'vue'
 import { UCheckbox } from '#components'
-import type { TableColumn } from '@nuxt/ui'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 
-export function useSelectColumn<T>(): TableColumn<T> {
+export function useSelectColumn<T>(): ExtendedColumn<T> {
   return {
     id: 'select',
     header: ({ table }) =>

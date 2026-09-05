@@ -2,7 +2,6 @@
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 definePageMeta({
   middleware: ['auth'],
-  layout: 'logistica'
 })
 
 import { useCorridorsStore } from '~/modulos/logistica/transport/corridors/corridors.store'

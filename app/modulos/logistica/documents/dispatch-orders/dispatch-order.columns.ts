@@ -12,21 +12,11 @@ import { useIdColumn } from '@/composables/table/useIdColumn'
 type Row = DispatchOrder
 import type { EditableValue } from '~/composables/table/useInlineEdit'
 
-type BadgeColor =
-  | 'error'
-  | 'primary'
-  | 'warning'
-  | 'secondary'
-  | 'success'
-  | 'info'
-  | 'neutral'
+type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
 export type EditableField = 'order_number'
 
-const dispatchStatusConfig: Record<
-  DispatchStatus,
-  { label: string; color: BadgeColor }
-> = {
+const dispatchStatusConfig: Record<DispatchStatus, { label: string; color: BadgeColor }> = {
   PENDING: { label: 'Pendiente', color: 'warning' },
   ASSIGNED: { label: 'Asignado', color: 'info' },
   IN_PROGRESS: { label: 'En curso', color: 'primary' },
@@ -38,10 +28,12 @@ export const dispatchOrdersColumns = (actions: {
   onToggleStatus?: (row: Row, value: DispatchStatus) => void
   onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void
   onEdit?: (row: Row) => void
+  onSortFieldSelect?: (columnId: string) => void
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row, EditableField>({
     locale: 'es-AR',
-    onInlineSave: actions.onInlineSave
+    onInlineSave: actions.onInlineSave,
+    onSortFieldSelect: actions.onSortFieldSelect
   })
 
   return [
@@ -62,37 +54,52 @@ export const dispatchOrdersColumns = (actions: {
         label: 'Estado',
         sortable: true,
         enum: {
-          options: Object.entries(dispatchStatusConfig).map(
-            ([value, config]) => ({
-              value,
-              label: config.label,
-              color: config.color
-            })
-          ),
+          options: Object.entries(dispatchStatusConfig).map(([value, config]) => ({
+            value,
+            label: config.label,
+            color: config.color
+          })),
           toggle: {
             component: StatusToggle,
             title: 'Cambiar estado',
-            onChange: (row, value) =>
-              actions.onToggleStatus?.(row, value as DispatchStatus)
+            onChange: (row, value) => actions.onToggleStatus?.(row, value as DispatchStatus)
           }
         }
       },
 
       {
         id: 'customer',
+
         label: 'Cliente',
+
+        sortable: true,
+
+        accessorFn: (row) => row.customers?.name ?? '',
+
         cell: ({ row }) => row.original.customers?.name || '—'
       },
 
       {
         id: 'origin',
+
         label: 'Origen',
+
+        sortable: true,
+
+        accessorFn: (row) => row.origin_location?.city ?? '',
+
         cell: ({ row }) => row.original.origin_location?.city || '—'
       },
 
       {
         id: 'destination',
+
         label: 'Destino',
+
+        sortable: true,
+
+        accessorFn: (row) => row.destination_location?.city ?? '',
+
         cell: ({ row }) => row.original.destination_location?.city || '—'
       },
 
@@ -107,10 +114,15 @@ export const dispatchOrdersColumns = (actions: {
         label: 'Tarifas',
         multiBadge: {
           resolve: (row) =>
-            row.dispatch_rates?.map((r) => ({
-              label: `${r.transfer_rates?.name ?? '—'}: $${r.value ?? '0'}`,
-              color: 'primary'
-            })) || []
+            row.dispatch_items?.length
+              ? row.dispatch_items.map((item) => ({
+                  label: `${item.product?.name ?? 'Producto'}: ${item.currency_code ?? 'ARS'} ${Number(item.quantity) * Number(item.unit_price)}`,
+                  color: 'primary'
+                }))
+              : row.dispatch_rates?.map((r) => ({
+                  label: `${r.transfer_rates?.name ?? 'Tarifa anterior'}: $${r.value ?? '0'}`,
+                  color: 'neutral'
+                })) || []
         }
       },
 

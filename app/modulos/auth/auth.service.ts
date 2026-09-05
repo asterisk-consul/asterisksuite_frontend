@@ -1,6 +1,8 @@
 import type {
   ApiLoginResponse,
   AuthUser,
+  CompanyMembership,
+  ApiMeResponse,
   ApiRegisterDto,
   ApiChangePasswordDto,
   ApiMessageResponse
@@ -11,8 +13,8 @@ export const authService = {
     return useRequestFetch()
   },
 
-  login(email: string, password: string) {
-    return this.getFetch()<ApiLoginResponse>('/api/auth/login', {
+  async login(email: string, password: string) {
+    return await this.getFetch()<ApiLoginResponse>('/api/auth/login', {
       method: 'POST',
       body: { email, password }
     })
@@ -52,6 +54,6 @@ export const authService = {
   },
 
   me() {
-    return this.getFetch()<AuthUser>('/api/auth/me')
+    return this.getFetch()<ApiMeResponse>('/api/auth/me')
   }
 }

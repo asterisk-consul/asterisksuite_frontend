@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 import { useRouter } from 'vue-router'
 import BusinessPartyForm from '~/modulos/logistica/master-data/bussiness-parties/components/BusinessPartyForm.vue'
 
@@ -38,6 +35,11 @@ const handleSubmit = async (form: FormType) => {
   <div class="p-4 max-w-3xl mx-auto">
     <h1 class="text-xl font-semibold mb-4">Crear Cliente / Proveedor</h1>
 
-    <BusinessPartyForm @submit="handleSubmit" />
+    <BusinessPartyForm
+      :loading="saving"
+      :error="store.error"
+      :errors="store.errors"
+      @submit="handleSubmit"
+    />
   </div>
 </template>

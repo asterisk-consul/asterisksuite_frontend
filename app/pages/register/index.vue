@@ -31,7 +31,13 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       color: 'success'
     })
 
-    await navigateTo('/')
+    if (auth.companies.length === 0) {
+      await navigateTo('/create-company')
+    } else if (auth.needsCompanySelection) {
+      await navigateTo('/select-company')
+    } else {
+      await navigateTo('/')
+    }
   } catch (err: any) {
     errorMessage.value =
       err?.message || err?.data?.message || 'Error al registrarse'

@@ -1,8 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
 
 import type { CreatePartyContactDto } from '~/modulos/logistica/master-data/contacts/types/contacts.types'
 import { usePartyContactsStore } from '~/modulos/logistica/master-data/contacts/store/contacts.store'

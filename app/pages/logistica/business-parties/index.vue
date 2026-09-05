@@ -1,23 +1,19 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'logistica',
-  middleware: ['auth']
-})
+definePageMeta({ middleware: ['auth'] })
+import type { SortingState } from '@tanstack/vue-table'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import { BusinessPartyColumns } from '~/modulos/logistica/master-data/bussiness-parties/columns'
-import { useAuthStore } from '~/modulos/auth/auth.store'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 import type { ButtonProps } from '@nuxt/ui'
-function toggleModuleSidebar() {
-  moduleCollapsed.value = !moduleCollapsed.value
-}
 
 const store = useBusinessPartiesStore()
-const authStore = useAuthStore()
 const router = useRouter()
 const { items } = storeToRefs(store)
+const sorting = ref<SortingState>([])
 
 const loading = ref(true)
 
@@ -25,6 +21,7 @@ onMounted(async () => {
   await store.fetchAll()
   loading.value = store.loading
 })
+
 const openCreate = () => {
   router.push('/logistica/business-parties/create')
 }
@@ -32,8 +29,37 @@ const openCreate = () => {
 const openEdit = (row: any) => {
   router.push(`/logistica/business-parties/${row.id}/edit`)
 }
+
+/* ---------------------------------------
+   DELETE
+--------------------------------------- */
+
+const { deleteOne, deleteMany } = useTableDelete('business_parties')
+
+async function handleDeleteOne(row: any) {
+  await deleteOne(row.id)
+  await store.fetchAll()
+}
+
+async function handleBulkDelete(rows: any[]) {
+  await deleteMany(rows.map(r => r.id))
+  await store.fetchAll()
+}
+
+function onSortFieldSelect(columnId: string) {
+  const current = sorting.value[0]
+  sorting.value = [
+    {
+      id: columnId,
+      desc: current?.id === columnId ? !current.desc : false
+    }
+  ]
+}
+
 const columns = BusinessPartyColumns({
-  onEdit: openEdit
+  onEdit: openEdit,
+  onSortFieldSelect,
+  onDelete: handleDeleteOne
 })
 
 const links: ButtonProps[] = [
@@ -45,28 +71,31 @@ const links: ButtonProps[] = [
     onClick: openCreate
   }
 ]
+const filterFields: FilterField[] = [
+  { id: 'name', label: 'Filtrar por Razón Social...', class: 'w-40' },
+  { id: 'tax_id', label: 'Filtrar por CUIT...', class: 'w-56' }
+]
+
+const sortFields: SortField[] = [
+  { value: 'name', label: 'Razón Social' },
+  { value: 'tax_id', label: 'CUIT' },
+  { value: 'type', label: 'Tipo' },
+  { value: 'created_at', label: 'Fecha Creación' }
+]
 </script>
 
 <template>
   <UPage class="space-y-4">
-    <div class="flex flex-col">
-      <div>
-        <UButton
-          icon="i-lucide-layout-panel-left"
-          variant="ghost"
-          color="neutral"
-          label="Menu"
-          @click="toggleModuleSidebar"
-        />
-      </div>
-      <UPageHeader
-        title="Partes Interesadas"
-        description="Listado de Partes Interesadas"
-        :links="links"
-        class="mb-4 w-full"
-      />
-    </div>
+    <AppPageHeader title="Partes Interesadas" description="Listado de Partes Interesadas" :links="links" />
 
-    <LogisticaTable :loading="loading" :data="items" :columns="columns" />
+    <LogisticaTable
+      :loading="loading"
+      :data="items"
+      :columns="columns"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
+    />
   </UPage>
 </template>

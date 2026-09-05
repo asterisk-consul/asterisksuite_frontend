@@ -24,8 +24,10 @@ const saving = ref(false)
 
 const loading = ref(true)
 
-const factura = computed(() => documentsSalesStore.current)
-console.log(factura)
+const factura = computed(() => {
+  const doc = documentsSalesStore.current
+  return doc ? mapDocumentToFacturaForm(doc) : null
+})
 
 const formRef = ref<InstanceType<typeof FacturaForm> | null>(null)
 
@@ -95,12 +97,13 @@ async function handleSubmit(payload: any) {
           ]"
         />
 
-        <UPageBody>
+        <UPageBody class="mx-auto w-full max-w-screen-2xl">
           <FacturaForm
             v-if="factura"
             ref="formRef"
             :initial-values="factura"
             :loading="saving"
+            module-code="SALES"
             @submit="handleSubmit"
           />
 
