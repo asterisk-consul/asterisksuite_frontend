@@ -128,6 +128,12 @@ const {
         </div>
         <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" :show-tracking="category === 'ORDER'" />
         <DocumentTotals v-if="doc" :document="doc" />
+        <UiAttachmentManager
+          v-if="doc"
+          entity-type="document"
+          :entity-id="doc.id"
+          :readonly="Number(doc.status) !== 0"
+        />
       </div>
   </UPage>
 

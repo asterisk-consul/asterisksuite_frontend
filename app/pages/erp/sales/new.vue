@@ -19,6 +19,7 @@ const ordenVentaRef = ref<InstanceType<typeof OrdenVentaForm> | null>(null)
 const partyId = computed(() => (route.query.party_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
 const parentOrderId = computed(() => (route.query.parent_order_id as string) || undefined)
+const intakeId = computed(() => route.query.intakeId as string | undefined)
 
 const isQuote = computed(() => category.value === 'QUOTE')
 const isOrder = computed(() => category.value === 'ORDER')
@@ -90,7 +91,22 @@ async function handleSubmit(payload: any) {
       ...extensionData,
       parent_document_id: parentOrderId.value || undefined
     }
-    const created = await DocumentsSalesService.create(fullPayload)
+
+    // Los controles opcionales usan '' cuando están vacíos. Class-validator
+    // considera ese valor presente y rechaza UUID/fechas opcionales; omitirlos
+    // permite que el backend los persista como null.
+    const normalizedPayload = Object.fromEntries(
+      Object.entries(fullPayload).filter(([key, value]) =>
+        value !== '' || key === 'document_type_id' || key === 'date'
+      )
+    )
+
+    const created = await DocumentsSalesService.create(normalizedPayload)
+    if (intakeId.value) {
+      await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
+        method: 'POST', body: { target_type: 'SALES_DOCUMENT', target_id: created.id }
+      })
+    }
     toast.add({ title: `${pageTitle.value} creado`, color: 'success' })
     router.push(`/erp/sales/${created.id}`)
   } catch (e: any) {

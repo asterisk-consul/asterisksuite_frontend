@@ -128,11 +128,23 @@ export const navigationTree: DrilldownNode[] = [
         to: '/erp/treasury/payments',
         permission: 'payments.read'
       },
+      {
+        label: 'Capturas pendientes',
+        icon: 'i-lucide-inbox',
+        to: '/erp/treasury/intake',
+        permission: 'intake.read'
+      },
       { label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', permission: 'payments.read' },
       {
         label: 'Cuentas corrientes',
         icon: 'i-lucide-file-text',
         to: '/erp/treasury/current-accounts',
+        permission: 'payments.read'
+      },
+      {
+        label: 'Impuestos y servicios',
+        icon: 'i-lucide-landmark',
+        to: '/erp/treasury/taxes-services',
         permission: 'payments.read'
       },
       {
@@ -150,18 +162,6 @@ export const navigationTree: DrilldownNode[] = [
             label: 'Pagos por usuario',
             icon: 'i-lucide-users',
             to: '/erp/treasury/reports/by-user',
-            permission: 'payments.read'
-          },
-          {
-            label: 'Entes reguladores',
-            icon: 'i-lucide-building-2',
-            to: '/erp/treasury/reports/regulatory-payments',
-            permission: 'payments.read'
-          },
-          {
-            label: 'Servicios mensuales',
-            icon: 'i-lucide-zap',
-            to: '/erp/treasury/reports/utility-payments',
             permission: 'payments.read'
           }
         ]
@@ -308,13 +308,7 @@ export const navigationTree: DrilldownNode[] = [
             to: '/logistica/viajes/corridors',
             permission: 'corridors.read'
           },
-          { label: 'Choferes', icon: 'i-lucide-user', to: '/logistica/viajes/drivers', permission: 'drivers.read' },
-          {
-            label: 'Locaciones',
-            icon: 'i-lucide-map-pin',
-            to: '/logistica/viajes/locaciones',
-            permission: 'trips.read'
-          }
+          { label: 'Choferes', icon: 'i-lucide-user', to: '/logistica/viajes/drivers', permission: 'drivers.read' }
         ]
       },
       {
@@ -487,8 +481,8 @@ export const navigationTree: DrilldownNode[] = [
         icon: 'i-lucide-percent',
         to: '/settings/fiscal-config',
         permission: 'companies.read'
-      },
-      { label: 'Miembros', icon: 'i-lucide-users', to: '/settings/members', permission: 'companies.read' }
+      }
+      // { label: 'Miembros', icon: 'i-lucide-users', to: '/settings/members', permission: 'companies.read' }
     ]
   },
 
@@ -505,6 +499,7 @@ export const navigationTree: DrilldownNode[] = [
       { label: 'Seguridad', icon: 'i-lucide-shield-check', to: '/settings/security' },
       { label: 'Impuestos', icon: 'i-lucide-percent', to: '/settings/taxes', permission: 'taxes.read' },
       { label: 'Monedas', icon: 'i-lucide-banknote', to: '/settings/monedas', permission: 'currencies.read' },
+      { label: 'Locaciones', icon: 'i-lucide-map-pin', to: '/ajustes/locaciones', permission: 'locations.read' },
       { label: 'Notificaciones', icon: 'i-lucide-bell', to: '/settings/notifications' },
       { label: 'Papelera', icon: 'i-lucide-trash-2', to: '/settings/trash', permission: 'trash.read' }
     ]

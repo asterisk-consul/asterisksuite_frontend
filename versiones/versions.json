@@ -1,5 +1,62 @@
 [
   {
+    "version": "0.44.0-alpha",
+    "date": "2026-09-05",
+    "stage": "alpha",
+    "notes": "Estados por categoría y nueva UX en documentos, fixes en mis ventas y reporte por PV, datos laborales unificados entre stakeholders y empleados, locaciones en Ajustes y módulo de adjuntos/intake",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Ventas y compras: filtros y estadísticas por categoría de documento con estado correcto por tipo (QUOTE/ORDER/REMITO/INVOICE/NC/ND)"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Columnas reordenadas: Estado, Nº clickeable, Cliente, Descripción acortada con tooltip, Total, Fecha, Punto de venta"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Reporte ventas por punto de venta agrupa por document_documents.document_sequence_id (PV real del documento)"
+      },
+      {
+        "type": "fix",
+        "scope": "mis-ventas",
+        "title": "Relaciones Prisma corregidas: business_parties, orden_venta_doc y document_types en my-sales"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Import Prisma faltante en documents-purchases y cliente regenerado (relación warehouse en documents)"
+      },
+      {
+        "type": "fix",
+        "scope": "auth",
+        "title": "Cache de vendedor (is_salesperson) se resetea al cambiar usuario o empresa: Mis ventas aparece/desaparece sin recargar"
+      },
+      {
+        "type": "refactor",
+        "scope": "partes-interesadas",
+        "title": "Datos laborales sincronizados entre stakeholders y empleados: findOne incluye employee+user y update persiste"
+      },
+      {
+        "type": "refactor",
+        "scope": "nav",
+        "title": "Locaciones como master data: movida a Ajustes (/ajustes/locaciones) fuera de Viajes"
+      },
+      {
+        "type": "feat",
+        "scope": "media",
+        "title": "Gestión de adjuntos (AttachmentManager, view/download/thumb) e intake records con permisos y migraciones"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Estados por categoría en ventas/compras, fixes de mis ventas y reporte PV, datos laborales unificados, locaciones en Ajustes y módulo de adjuntos"
+  },
+  {
     "version": "0.43.0-alpha",
     "date": "2026-09-03",
     "stage": "alpha",

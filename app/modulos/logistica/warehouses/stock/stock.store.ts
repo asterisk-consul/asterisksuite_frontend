@@ -80,6 +80,10 @@ export const useStockStore = defineStore('stock', () => {
       }
     }
 
+    // La vista de producto consume productStock. Recargarlo después del
+    // movimiento permite mostrar inmediatamente el depósito recién agregado.
+    await fetchProductStock(payload.product_id)
+
     return movement
   }
 

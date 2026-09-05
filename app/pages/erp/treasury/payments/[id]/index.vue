@@ -304,6 +304,12 @@ const handleAdvanceSuccess = async () => {
           @submit="handleSubmit"
           @cancel="router.push('/erp/treasury/payments')"
         />
+        <UiAttachmentManager
+          class="mt-4"
+          entity-type="payment"
+          :entity-id="paymentId"
+          :readonly="!isDraft"
+        />
       </div>
     </template>
 

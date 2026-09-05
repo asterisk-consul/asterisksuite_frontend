@@ -128,3 +128,36 @@ export function getValidTransitions(category: string | null | undefined, current
   }
   return transitions[category ?? '']?.[currentStatus] ?? []
 }
+
+// ─── Categorías de documento ───────────────────────────────
+
+export const CATEGORY_LABELS: Record<string, string> = {
+  QUOTE: 'Presupuestos',
+  ORDER: 'Órdenes',
+  REMITO: 'Remitos',
+  INVOICE: 'Facturas',
+  CREDIT_NOTE: 'Notas de crédito',
+  DEBIT_NOTE: 'Notas de débito',
+  RECEIPT: 'Recibos',
+  OPENING_BALANCE: 'Saldo inicial',
+  VALE: 'Vales',
+}
+
+const CATEGORY_STATUS_MAPS: Record<string, Record<number, string>> = {
+  QUOTE: QUOTE_STATUSES,
+  ORDER: ORDER_STATUSES,
+  REMITO: REMITO_STATUSES,
+  INVOICE: INVOICE_STATUSES,
+  CREDIT_NOTE: INVOICE_STATUSES,
+  DEBIT_NOTE: INVOICE_STATUSES,
+  RECEIPT: INVOICE_STATUSES,
+}
+
+export function getCategoryStatuses(category: string | null | undefined): { value: number; label: string }[] {
+  const map = CATEGORY_STATUS_MAPS[category ?? '']
+  if (!map) return []
+  return Object.keys(map)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((value) => ({ value, label: map[value] ?? `Status ${value}` }))
+}

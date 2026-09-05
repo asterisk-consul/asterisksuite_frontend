@@ -21,6 +21,8 @@ export function mapFormToEmployeeDto(form: BusinessPartyForm): CreateEmployeeInp
     salary: form.salary ? String(form.salary) : undefined,
     currency_code: form.currency_code || 'ARS',
     default_commission_rate: form.default_commission_rate || undefined,
+    is_salesperson: form.is_salesperson ?? false,
+    commission_base: form.commission_base || 'INVOICED',
     is_active: form.active ?? true,
     // ─── Business party fields ──
     business_name: form.name || [firstName, lastName].filter(Boolean).join(' '),
@@ -75,6 +77,8 @@ export function mapEmployeeToForm(employee: Employee): BusinessPartyForm {
     salary: employee.salary || '',
     currency_code: employee.currency_code || 'ARS',
     default_commission_rate: Number(employee.default_commission_rate ?? 0),
+    is_salesperson: employee.is_salesperson ?? false,
+    commission_base: employee.commission_base ?? 'INVOICED',
     // ─── Party relations ──
     locations:
       party?.party_locations?.map((l) => ({

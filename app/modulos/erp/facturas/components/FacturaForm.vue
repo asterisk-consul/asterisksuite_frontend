@@ -12,11 +12,12 @@ import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import BusinessPartyModal from '~/modulos/logistica/master-data/bussiness-parties/components/BusinnesPartyModal.vue'
-import { useBusinessParties } from '~/modulos/logistica/master-data/bussiness-parties/composable/useBusinessParties'
 
 // Products
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
+import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
+import { useStockService } from '~/modulos/logistica/warehouses/stock/stock.service'
 
 // Currencies
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
@@ -61,13 +62,32 @@ const showBusinessPartiesModal = ref(false)
 const partiesStore = useBusinessPartiesStore()
 const productsStore = useProductsStore()
 const documentsTypesStore = useDocumentsTypesStore()
+const depositosStore = useDepositosStore()
+const stockService = useStockService()
 const { items: parties } = storeToRefs(partiesStore)
 const { items: products } = storeToRefs(productsStore)
 const { items: documentsTypes } = storeToRefs(documentsTypesStore)
+const { warehouses } = storeToRefs(depositosStore)
 
 // Filtrar parties por tipo según módulo
-const partyType = computed(() => props.moduleCode === 'SALES' ? 'CUSTOMER' : 'SUPPLIER')
-const { items: partyOptions } = useBusinessParties(parties, partyType.value)
+const payablePartyTypes = new Set(['SUPPLIER', 'SERVICE_PROVIDER', 'UTILITY', 'TAX_AUTHORITY', 'FINANCIAL'])
+const partyTypeLabels: Record<string, string> = {
+  SUPPLIER: 'Proveedor',
+  SERVICE_PROVIDER: 'Proveedor de servicios',
+  UTILITY: 'Servicio público',
+  TAX_AUTHORITY: 'Ente impositivo',
+  FINANCIAL: 'Entidad financiera'
+}
+const partyOptions = computed(() => parties.value
+  .filter(party => props.moduleCode === 'SALES'
+    ? party.type === 'CUSTOMER'
+    : payablePartyTypes.has(party.type))
+  .map(party => ({
+    label: props.moduleCode === 'SALES'
+      ? party.name
+      : `${party.name} · ${partyTypeLabels[party.type] ?? party.type}${party.tax_id ? ` · ${party.tax_id}` : ''}`,
+    value: party.id
+  })))
 
 // Filtrar productos según módulo (venta/compra)
 const usageFilter = computed(() => {
@@ -99,6 +119,58 @@ const form = reactive({
   currency_code: 'ARS',
   exchange_rate: null as number | null,
   rate_type: 'OFFICIAL' as string,
+  warehouse_id: '' as string,
+})
+const advancedWarehouseAssignment = ref(false)
+const allWarehouseOptions = computed(() => warehouses.value
+  .filter(warehouse => warehouse.active)
+  .map(warehouse => ({ label: warehouse.name, value: warehouse.id })))
+const stockByWarehouse = ref<Record<string, Record<string, number>>>({})
+
+async function loadStockAvailability() {
+  if (props.moduleCode !== 'SALES') return
+  const activeWarehouses = warehouses.value.filter(warehouse => warehouse.active)
+  const entries = await Promise.all(activeWarehouses.map(async warehouse => {
+    const stock = await stockService.getStock(warehouse.id)
+    return [warehouse.id, Object.fromEntries(stock.map(item => [
+      item.product_id,
+      Number(item.quantity) - Number(item.reserved_quantity)
+    ]))] as const
+  }))
+  stockByWarehouse.value = Object.fromEntries(entries)
+}
+
+const requiredByProduct = computed(() => {
+  const required: Record<string, number> = {}
+  for (const item of items.value) {
+    if (!item.product_id) continue
+    required[item.product_id] = (required[item.product_id] ?? 0) + Number(item.quantity || 0)
+  }
+  return required
+})
+
+const warehouseOptions = computed(() => {
+  if (props.moduleCode !== 'SALES') return allWarehouseOptions.value
+  return allWarehouseOptions.value
+    .filter(option => Object.entries(requiredByProduct.value).every(([productId, quantity]) =>
+      (stockByWarehouse.value[option.value]?.[productId] ?? 0) >= quantity
+    ))
+    .map(option => ({ ...option, label: `${option.label} · stock suficiente` }))
+})
+
+function warehouseOptionsForItem(item: FacturaItem) {
+  if (props.moduleCode !== 'SALES' || !item.product_id) return allWarehouseOptions.value
+  return allWarehouseOptions.value
+    .map(option => ({
+      ...option,
+      available: stockByWarehouse.value[option.value]?.[item.product_id] ?? 0
+    }))
+    .filter(option => option.available >= Number(item.quantity || 0))
+    .map(option => ({ ...option, label: `${option.label} · disponible: ${option.available}` }))
+}
+const affectsStock = computed(() => {
+  const type = documentsTypes.value.find(item => item.id === form.document_type_id)
+  return type?.affects_stock === true
 })
 
 // ─── Reference Document (NC/ND → Factura) ────────────
@@ -380,6 +452,7 @@ watch(
     form.currency_code = val.currency_code ?? 'ARS'
     form.exchange_rate = val.exchange_rate ? Number(val.exchange_rate) : null
     form.rate_type = val.rate_type ?? 'OFFICIAL'
+    form.warehouse_id = (val as any).warehouse_id ?? ''
     const seqId = (val as any).document_sequence_id
     selectedSequenceId.value = seqId && sequenceOptions.value.some(s => s.value === seqId) ? seqId : ''
 
@@ -422,6 +495,7 @@ watch(
 
         return {
           product_id: item.product_id,
+          warehouse_id: item.warehouse_id ?? null,
           product_name: item.products?.name || item.products?.description || 'Producto',
           quantity: Number(item.quantity ?? 0),
           unit_price: Number(item.unit_price ?? 0),
@@ -542,8 +616,10 @@ onMounted(async () => {
     documentsTypesStore.fetchAll(),
     initCurrencies(),
     fetchIssuerCondition(),
-    documentSequencesService.findAll().then(s => { sequences.value = s })
+    documentSequencesService.findAll().then(s => { sequences.value = s }),
+    depositosStore.fetchAll()
   ])
+  await loadStockAvailability()
 })
 
 // Restaurar secuencia cuando sequences se carga (edit mode)
@@ -664,6 +740,7 @@ async function addItem(prod: any) {
 
   items.value.push({
     product_id: prod.product_id,
+    warehouse_id: advancedWarehouseAssignment.value ? null : (form.warehouse_id || null),
     variant_id: prod.variant_id ?? null,
     product_name: prod.product_name,
     quantity,
@@ -699,8 +776,12 @@ function submit() {
     rate_type: form.rate_type,
     parent_document_id: referenceDocumentId.value || props.parentDocumentId || undefined,
     document_sequence_id: selectedSequenceId.value || undefined,
+    warehouse_id: affectsStock.value ? (form.warehouse_id || undefined) : undefined,
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
+      warehouse_id: affectsStock.value
+        ? (advancedWarehouseAssignment.value ? (i.warehouse_id || undefined) : (form.warehouse_id || undefined))
+        : undefined,
       quantity: Number(i.quantity),
       unit_price: Number(i.unit_price),
       taxes: previewPayload?.items?.[idx]?.taxes?.map((t: any) => ({
@@ -731,12 +812,12 @@ defineExpose({ submit })
     <!-- Header: Party + Document Type + PV + Currency + Date -->
     <UCard>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
-        <UFormField label="Cliente / Proveedor" class="min-w-0 md:col-span-2 xl:col-span-4">
+        <UFormField :label="moduleCode === 'SALES' ? 'Cliente' : 'Proveedor o entidad'" class="min-w-0 md:col-span-2 xl:col-span-4">
           <div class="flex min-w-0 gap-2">
             <USelectMenu
               v-model="selectedCustomer"
               :items="partyOptions"
-              placeholder="Buscar cliente o proveedor..."
+              :placeholder="moduleCode === 'SALES' ? 'Buscar cliente...' : 'Buscar proveedor, servicio o ente impositivo...'"
               searchable
               class="min-w-0 flex-1"
             />
@@ -778,6 +859,9 @@ defineExpose({ submit })
             placeholder="Moneda"
             class="w-full min-w-0"
           />
+          <p v-if="moduleCode === 'SALES' && items.length > 0 && warehouseOptions.length === 0" class="mt-2 text-sm text-warning">
+            Ningún depósito puede cubrir todos los productos. Activá “Depósito por producto”.
+          </p>
         </UFormField>
 
         <UFormField label="Fecha" class="min-w-0 xl:col-span-2">
@@ -823,6 +907,24 @@ defineExpose({ submit })
         <UInput v-model="form.descrip" placeholder="Referencia u observación breve (opcional)" class="w-full min-w-0" />
       </UFormField>
 
+      <div v-if="affectsStock" class="mt-4 rounded-lg border border-default bg-muted/30 p-4 space-y-3">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="font-medium">Movimiento de stock</p>
+            <p class="text-sm text-muted">Se aplicará recién cuando confirmes el remito.</p>
+          </div>
+          <USwitch v-model="advancedWarehouseAssignment" label="Depósito por producto" />
+        </div>
+        <UFormField :label="moduleCode === 'SALES' ? 'Depósito de salida' : 'Depósito receptor'" required>
+          <USelect
+            v-model="form.warehouse_id"
+            :items="warehouseOptions"
+            placeholder="Seleccionar depósito"
+            class="w-full md:max-w-md"
+          />
+        </UFormField>
+      </div>
+
       <!-- Validación de comprobante -->
       <div v-if="documentTypeValidation" class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
         {{ documentTypeValidation }}
@@ -861,6 +963,10 @@ defineExpose({ submit })
         :items="items"
         :product-options="productOptions"
         :currency-code="form.currency_code"
+        :warehouses="warehouseOptions"
+        :warehouse-options-for-item="warehouseOptionsForItem"
+        :show-warehouse-column="affectsStock && advancedWarehouseAssignment"
+        :default-warehouse-id="form.warehouse_id"
         @remove="removeItem"
         @add="addItem"
       />

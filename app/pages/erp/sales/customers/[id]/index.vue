@@ -4,22 +4,16 @@ import { UBadge } from '#components'
 import { NuxtLink } from '#components'
 definePageMeta({ middleware: ['auth'] })
 
-import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import CustomerHistoryTimeline from '~/components/CustomerHistoryTimeline.vue'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import CurrentAccountEntryTable from '~/components/current-account/CurrentAccountEntryTable.vue'
-import { paymentColumns } from '~/modulos/erp/payments/columns'
 import { createTableBuilder } from '@/composables/table/createColumns'
-import { storeToRefs } from 'pinia'
 import type { SortingState } from '@tanstack/vue-table'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const id = route.params.id as string
-
-const store = useBusinessPartiesStore()
-const { loading } = storeToRefs(store)
 
 const party = ref<any>(null)
 const documents = ref<any[]>([])
@@ -185,12 +179,78 @@ const docColumns = buildDocs([
   }
 ])
 
-const paymentTableColumns = computed(() => paymentColumns({
-  onSortFieldSelect: (colId) => {
-    const current = sorting.value[0]
-    sorting.value = [{ id: colId, desc: current?.id === colId ? !current.desc : false }]
+const paymentTableColumns = buildDocs([
+  {
+    key: 'number',
+    label: 'N°',
+    sortable: true
+  },
+  {
+    key: 'date',
+    label: 'Fecha',
+    sortable: true,
+    date: true
+  },
+  {
+    key: 'type',
+    label: 'Tipo',
+    sortable: true,
+    badge: {
+      resolve: (row: any) => {
+        const map: Record<string, { label: string; color: string }> = {
+          PAYMENT: { label: 'Pago', color: 'error' },
+          COLLECTION: { label: 'Cobro', color: 'success' }
+        }
+        if (row.payment_mode === 'ADVANCE') return { label: 'Anticipo', color: 'warning' }
+        return map[row.type] ?? { label: row.type, color: 'neutral' }
+      }
+    }
+  },
+  {
+    key: 'payment_method',
+    label: 'Método',
+    badge: {
+      resolve: (row: any) => {
+        const map: Record<string, { label: string; color: string }> = {
+          CASH: { label: 'Efectivo', color: 'neutral' },
+          CHECK: { label: 'Cheque', color: 'warning' },
+          BANK_TRANSFER: { label: 'Transferencia', color: 'primary' }
+        }
+        return map[row.payment_method] ?? { label: row.payment_method, color: 'neutral' }
+      }
+    }
+  },
+  {
+    key: 'amount',
+    label: 'Monto',
+    sortable: true,
+    cell: ({ row }: any) => {
+      const value = row.original.amount
+      if (value == null) return '—'
+      return new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: row.original.currency_code || 'ARS',
+        maximumFractionDigits: 2
+      }).format(Number(value))
+    }
+  },
+  {
+    key: 'status',
+    label: 'Estado',
+    badge: {
+      resolve: (row: any) => {
+        const map: Record<string, { label: string; color: string }> = {
+          DRAFT: { label: 'Borrador', color: 'neutral' },
+          CONFIRMED: { label: 'Confirmado', color: 'info' },
+          PAID: { label: 'Pagado', color: 'success' },
+          REVERSED: { label: 'Rechazado', color: 'warning' },
+          CANCELLED: { label: 'Anulado', color: 'error' }
+        }
+        return map[row.status] ?? { label: row.status, color: 'neutral' }
+      }
+    }
   }
-}))
+])
 </script>
 
 <template>

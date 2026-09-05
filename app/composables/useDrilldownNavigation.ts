@@ -66,7 +66,13 @@ export const useDrilldownNavigation = () => {
   const route = useRoute()
   const { hasPermission } = useRoles()
   const { isOwnerOrAdmin } = useCompanyRole()
-  const { isSalesperson } = useCurrentUserEmployee()
+  const { isSalesperson, fetchIfNeeded } = useCurrentUserEmployee()
+
+  // Cargar el empleado del usuario actual (define is_salesperson para visibleIf)
+  // Solo hace el fetch una vez; el watch de filteredTree reconstruye el nav cuando llega
+  onMounted(() => {
+    fetchIfNeeded()
+  })
 
   const filteredTree = computed(() => filterByPermissions(navigationTree, hasPermission, isOwnerOrAdmin.value, isSalesperson.value))
 

@@ -8,6 +8,8 @@ const props = defineProps<{
   productId: string
 }>()
 
+const toast = useToast()
+
 const productStock = useProductStock(props.productId)
 
 const showAddModal = ref(false)
@@ -50,8 +52,23 @@ onMounted(async () => {
 })
 
 const handleAdd = async (warehouseId: string, quantity: string) => {
-  await productStock.addStock(warehouseId, quantity)
-  showAddModal.value = false
+  try {
+    await productStock.addStock(warehouseId, quantity)
+    showAddModal.value = false
+    toast.add({
+      title: 'Stock agregado',
+      description: `Se agregaron ${Number(quantity).toLocaleString('es-AR')} unidades al depósito.`,
+      color: 'success',
+      icon: 'i-lucide-circle-check'
+    })
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo agregar el stock',
+      description: error?.data?.message || error?.message || 'Intentá nuevamente.',
+      color: 'error',
+      icon: 'i-lucide-circle-alert'
+    })
+  }
 }
 
 const handleTransfer = async (data: { from_warehouse_id: string; to_warehouse_id: string; quantity: string }) => {

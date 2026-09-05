@@ -67,6 +67,7 @@ export interface Document {
   } | null
 
   party_id: string | null
+  warehouse_id?: string | null
 
   currency_code?: string | null
 
@@ -89,6 +90,21 @@ export interface Document {
   descrip?: string | null
 
   ref?: string | null
+
+  document_types?: {
+    id: string
+    code: string
+    description: string
+    direction: number
+    category?: string | null
+  } | null
+
+  business_parties?: {
+    id: string
+    name: string
+    tax_id?: string | null
+  } | null
+
   items: FacturaItem[]
 
   document_items?: DocumentItem[]
@@ -121,6 +137,8 @@ export interface FacturaItem {
 
   variant_id?: string | null
 
+  warehouse_id?: string | null
+
   product_name?: string
 
   product_code?: string
@@ -148,6 +166,8 @@ export interface FacturaFormValues {
   document_sequence_id?: string | null
 
   party_id: string | null
+
+  warehouse_id?: string | null
 
   currency_code?: string
 

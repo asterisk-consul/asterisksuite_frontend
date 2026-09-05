@@ -66,6 +66,7 @@ export async function apiProxy(
     method?: HTTPMethod
     body?: any
     query?: FetchOptions['query']
+    rawResponse?: boolean
   } = {}
 ) {
   const config = useRuntimeConfig()
@@ -98,7 +99,7 @@ export async function apiProxy(
     console.log('[FETCH] token:', token?.slice(0, 20))
     console.log('[FETCH] body:', JSON.stringify(options.body)?.substring(0, 500))
 
-    return await $fetch(url, {
+    const fetchOptions = {
       method,
       body: options.body,
       query: options.query,
@@ -108,7 +109,23 @@ export async function apiProxy(
         }),
         'x-tenant': tenant
       }
-    })
+    }
+
+    if (options.rawResponse) {
+      const response = await $fetch.raw<ArrayBuffer>(url, {
+        ...fetchOptions,
+        responseType: 'arrayBuffer'
+      })
+      for (const header of ['content-type', 'content-disposition', 'content-length', 'cache-control']) {
+        const value = response.headers.get(header)
+        if (value) setResponseHeader(event, header, value)
+      }
+      const binary = Buffer.from(response._data)
+      setResponseHeader(event, 'content-length', String(binary.length))
+      return binary
+    }
+
+    return await $fetch(url, fetchOptions)
   }
 
   if (accessToken) {

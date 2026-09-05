@@ -8,7 +8,9 @@ import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vu
 import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
 
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
+const intakeId = computed(() => route.query.intakeId as string | undefined)
 
 const { create } = useChecks()
 const { selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
@@ -19,7 +21,7 @@ const saving = ref(false)
 const handleSubmit = async (formData: CheckFormData) => {
   saving.value = true
   try {
-    await create({
+    const created = await create({
       check_number: formData.check_number,
       bank_name: formData.bank_name,
       bank_branch: formData.bank_branch || undefined,
@@ -35,7 +37,12 @@ const handleSubmit = async (formData: CheckFormData) => {
       notes: formData.notes || undefined,
     })
     toast.add({ title: 'Cheque creado', color: 'success' })
-    router.push('/erp/treasury/checks')
+    if (intakeId.value && created?.id) {
+      await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
+        method: 'POST', body: { target_type: 'CHECK', target_id: created.id }
+      })
+    }
+    router.push(created?.id ? `/erp/treasury/checks/${created.id}/edit` : '/erp/treasury/checks')
   } catch (error: any) {
     toast.add({ title: 'Error al crear cheque', description: error?.data?.message, color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {

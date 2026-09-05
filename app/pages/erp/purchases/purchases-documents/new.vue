@@ -18,6 +18,28 @@ const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
 const partyId = computed(() => (route.query.party_id as string) || undefined)
 const parentOrderId = computed(() => (route.query.parent_order_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
+const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
+const captureLoading = ref(false)
+
+async function enableCapture() {
+  if (intakeId.value) return
+  captureLoading.value = true
+  try {
+    const capture = await $fetch<{ id: string }>('/api/intake-records', {
+      method: 'POST',
+      body: {
+        title: 'Comprobante de compra pendiente de carga',
+        suggested_type: 'PURCHASE_DOCUMENT',
+      },
+    })
+    intakeId.value = capture.id
+    toast.add({ title: 'Captura preparada', description: 'Ahora podés adjuntar una foto o un PDF.', color: 'success' })
+  } catch (e: any) {
+    toast.add({ title: 'No se pudo preparar la captura', description: e?.data?.message || e?.message, color: 'error' })
+  } finally {
+    captureLoading.value = false
+  }
+}
 
 const pageTitle = computed(() => {
   const labels: Record<string, string> = {
@@ -74,6 +96,11 @@ async function handleSubmit(payload: any) {
       parent_document_id: parentOrderId.value || undefined
     }
     const created = await DocumentsPurchasesService.create(fullPayload)
+    if (intakeId.value) {
+      await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
+        method: 'POST', body: { target_type: 'PURCHASE_DOCUMENT', target_id: created.id }
+      })
+    }
     toast.add({ title: `${pageTitle.value} creado`, color: 'success' })
     router.push(`/erp/purchases/purchases-documents/${created.id}`)
   } catch (e: any) {
@@ -119,6 +146,34 @@ async function handleSubmit(payload: any) {
         />
 
         <UPageBody class="mx-auto w-full max-w-screen-2xl">
+          <UCard v-if="!intakeId" class="mb-4">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex items-start gap-3">
+                <div class="rounded-lg bg-primary/10 p-2 text-primary">
+                  <UIcon name="i-lucide-camera" class="size-5" />
+                </div>
+                <div>
+                  <p class="font-medium">Captura del comprobante (opcional)</p>
+                  <p class="text-sm text-muted">Adjuntá una foto o PDF. El archivo quedará asociado al documento cuando lo guardes.</p>
+                </div>
+              </div>
+              <UButton
+                label="Agregar captura"
+                icon="i-lucide-paperclip"
+                variant="outline"
+                :loading="captureLoading"
+                @click="enableCapture"
+              />
+            </div>
+          </UCard>
+
+          <UiAttachmentManager
+            v-else-if="intakeId"
+            class="mb-4"
+            entity-type="intake"
+            :entity-id="intakeId"
+          />
+
           <SalesDocumentForm
             ref="formRef"
             :loading="saving"

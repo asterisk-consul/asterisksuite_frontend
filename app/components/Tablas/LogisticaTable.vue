@@ -1,7 +1,8 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { ref, computed } from 'vue'
+import { ref, computed, h } from 'vue'
 import { getPaginationRowModel } from '@tanstack/vue-table'
 import type { SortingState } from '@tanstack/vue-table'
+import { UCheckbox } from '#components'
 
 import type { UTableInstance, ExtendedColumn } from './types/tablas.types'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
@@ -23,6 +24,9 @@ const props = defineProps<{
   filterFields?: FilterField[]
   sortFields?: SortField[]
   onDelete?: (rows: T[]) => Promise<void>
+  deletePermanently?: boolean
+  selectable?: boolean
+  canSelectRow?: (row: T) => boolean
 }>()
 const sorting = defineModel<SortingState>('sorting', {
   default: () => []
@@ -45,14 +49,56 @@ const showDeleteModal = ref(false)
 
 const { columnVisibility, columnVisibilityItems } = useColumnVisibility(table)
 
+const tableColumns = computed<ExtendedColumn<T>[]>(() => {
+  if (!props.selectable) return props.columns
+
+  const selectColumn: ExtendedColumn<T> = {
+    id: 'select',
+    header: ({ table: tableApi }: any) => {
+      const eligibleRows = tableApi
+        .getRowModel()
+        .rows.filter((row: any) => props.canSelectRow?.(row.original) ?? true)
+      const allSelected = eligibleRows.length > 0 && eligibleRows.every((row: any) => row.getIsSelected())
+      const someSelected = eligibleRows.some((row: any) => row.getIsSelected())
+
+      return h(UCheckbox, {
+        modelValue: someSelected && !allSelected ? 'indeterminate' : allSelected,
+        disabled: eligibleRows.length === 0,
+        'aria-label': 'Seleccionar filas permitidas',
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
+          eligibleRows.forEach((row: any) => row.toggleSelected(!!value))
+      })
+    },
+    cell: ({ row }: any) => {
+      const enabled = props.canSelectRow?.(row.original) ?? true
+      return h(UCheckbox, {
+        modelValue: row.getIsSelected(),
+        disabled: !enabled,
+        'aria-label': enabled ? 'Seleccionar fila' : 'Esta fila no se puede seleccionar',
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value)
+      })
+    }
+  }
+
+  return [
+    selectColumn,
+    ...props.columns.filter(column => !('id' in column) || column.id !== 'select')
+  ]
+})
+
 /* ========================
    Selección
 ======================== */
 
-const selectedRows = computed<T[]>(
-  () => table.value?.tableApi?.getFilteredSelectedRowModel().rows.map((r) => r.original) ?? []
+const selectedCount = computed<number>(
+  () => Object.values(rowSelection.value).filter(Boolean).length
 )
-const selectedCount = computed<number>(() => selectedRows.value.length)
+
+const selectedRows = computed<T[]>(() => {
+  // La dependencia explícita hace reactiva la consulta al modelo interno de UTable.
+  void rowSelection.value
+  return table.value?.tableApi?.getFilteredSelectedRowModel().rows.map(row => row.original) ?? []
+})
 const totalCount = computed<number>(() => table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0)
 
 /* ========================
@@ -89,10 +135,17 @@ async function confirmDelete(): Promise<void> {
     <TableToolbar
       v-if="filterFields?.length || sortFields?.length"
       :table="table"
-      :columns="columns"
+      :columns="tableColumns"
       v-model:sorting="sorting"
       :filter-fields="filterFields ?? []"
       :sort-fields="sortFields ?? []"
+    />
+
+    <TableSelectionBar
+      v-if="onDelete && selectedCount > 0"
+      :count="selectedCount"
+      class="mb-2"
+      @open-delete="showDeleteModal = true"
     />
 
     <!-- ========================
@@ -108,7 +161,7 @@ async function confirmDelete(): Promise<void> {
       sticky
       :get-row-id="(row: T) => (row as any).id"
       :data="props.data"
-      :columns="props.columns"
+      :columns="tableColumns"
       :loading="props.loading"
       :pagination-options="{
         getPaginationRowModel: getPaginationRowModel(),
@@ -141,12 +194,6 @@ async function confirmDelete(): Promise<void> {
     </div>
 
     <!-- ========================
-         Selection Bar
-    ========================= -->
-
-    <TableSelectionBar v-if="onDelete" :count="selectedCount" @open-delete="showDeleteModal = true" />
-
-    <!-- ========================
          Delete Modal
     ========================= -->
 
@@ -155,6 +202,7 @@ async function confirmDelete(): Promise<void> {
       :open="showDeleteModal"
       :count="selectedCount"
       :loading="deleting"
+      :permanent="deletePermanently"
       @confirm="confirmDelete"
       @cancel="showDeleteModal = false"
     />

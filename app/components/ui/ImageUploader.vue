@@ -5,12 +5,14 @@ interface Props {
   photoType?: string
   maxFiles?: number
   maxSizeMb?: number
+  allowDocuments?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   photoType: 'default',
   maxFiles: 5,
   maxSizeMb: 5,
+  allowDocuments: false,
 })
 
 const emit = defineEmits<{
@@ -49,13 +51,15 @@ function handleFileSelect(e: Event) {
 }
 
 function processFile(file: File) {
-  if (!file.type.startsWith('image/')) {
-    emit('error', 'Solo se permiten archivos de imagen')
+  const allowed = file.type.startsWith('image/') || (props.allowDocuments && file.type === 'application/pdf')
+  if (!allowed) {
+    emit('error', props.allowDocuments ? 'Solo se permiten imágenes o archivos PDF' : 'Solo se permiten archivos de imagen')
     return
   }
 
-  if (file.size > maxSizeBytes.value) {
-    emit('error', `El archivo excede ${props.maxSizeMb}MB`)
+  const allowedSizeMb = file.type === 'application/pdf' ? 10 : Math.min(props.maxSizeMb, 5)
+  if (file.size > allowedSizeMb * 1024 * 1024) {
+    emit('error', `El archivo excede ${allowedSizeMb} MB`)
     return
   }
 
@@ -64,7 +68,7 @@ function processFile(file: File) {
   reader.onload = (e) => {
     preview.value = e.target?.result as string
   }
-  reader.readAsDataURL(file)
+  if (file.type.startsWith('image/')) reader.readAsDataURL(file)
 
   uploadFile(file)
 }
@@ -108,7 +112,7 @@ async function uploadFile(file: File) {
     <input
       ref="fileInput"
       type="file"
-      accept="image/jpeg,image/png,image/webp,image/gif"
+      :accept="allowDocuments ? 'image/jpeg,image/png,image/webp,image/gif,application/pdf' : 'image/jpeg,image/png,image/webp,image/gif'"
       class="hidden"
       @change="handleFileSelect"
     />
@@ -127,8 +131,8 @@ async function uploadFile(file: File) {
     <!-- Idle -->
     <div v-else>
       <UIcon name="i-lucide-upload" class="size-8 mx-auto mb-2 text-muted" />
-      <p class="text-sm font-medium">Arrastrá una imagen o hacé click</p>
-      <p class="text-xs text-muted mt-1">JPEG, PNG, WebP, GIF — Max {{ maxSizeMb }}MB</p>
+      <p class="text-sm font-medium">Arrastrá {{ allowDocuments ? 'una imagen o PDF' : 'una imagen' }} o hacé click</p>
+      <p class="text-xs text-muted mt-1">{{ allowDocuments ? 'Imágenes hasta 5 MB · PDF hasta 10 MB' : 'Imágenes hasta 5 MB' }}</p>
     </div>
   </div>
 </template>

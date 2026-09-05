@@ -108,5 +108,11 @@ const handleSubmit = async (formData: CheckFormData) => {
         @cancel="router.push('/erp/treasury/checks')"
       />
     </UPageCard>
+    <UiAttachmentManager
+      v-if="check"
+      entity-type="check"
+      :entity-id="route.params.id as string"
+      :readonly="false"
+    />
   </UPage>
 </template>

@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
 import { authService } from './auth.service'
 import type { AuthUser, CompanyMembership } from './auth.types'
+import { useCurrentUserEmployee } from '~/composables/useCurrentUserEmployee'
 
 export const useAuthStore = defineStore('auth', () => {
+  const { fetchIfNeeded, $reset: resetEmployeeCache } = useCurrentUserEmployee()
   const user = ref<AuthUser | null>(null)
   const companies = ref<CompanyMembership[]>([])
   const selectedCompany = ref<CompanyMembership | null>(null)
@@ -109,6 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const res = await authService.login(email, password)
+      resetEmployeeCache()
       user.value = res.user
       companies.value = res.companies ?? []
       if (companies.value.length === 1) {
@@ -137,6 +140,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       console.log(data)
       const res = await authService.register(data)
+      resetEmployeeCache()
       user.value = res.user
       companies.value = res.companies ?? []
       if (companies.value.length === 1) {
@@ -204,6 +208,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     await authService.logout()
+    resetEmployeeCache()
     user.value = null
     companies.value = []
     selectedCompany.value = null
@@ -217,6 +222,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function selectCompany(company: CompanyMembership) {
+    // El empleado/vendedor es por empresa (tenant), invalidar cache y refetch
+    resetEmployeeCache()
+    fetchIfNeeded().catch(() => {})
     selectedCompany.value = company
     persistSelectedCompany(company)
     if (import.meta.client) {

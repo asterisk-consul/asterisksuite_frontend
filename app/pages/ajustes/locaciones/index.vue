@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
-import { LocationColumns } from '../../../../modulos/logistica/master-data/locations/columns'
+import { LocationColumns } from '~/modulos/logistica/master-data/locations/columns'
 import { locationFormFields } from '~/modulos/logistica/master-data/locations/locationsFormFields'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useTableDelete } from '~/composables/table/useTableDelete'

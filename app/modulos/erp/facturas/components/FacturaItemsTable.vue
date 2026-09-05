@@ -22,6 +22,10 @@ interface Props {
   }[]
 
   currencyCode?: string
+  warehouses?: { value: string, label: string }[]
+  showWarehouseColumn?: boolean
+  defaultWarehouseId?: string | null
+  warehouseOptionsForItem?: (item: FacturaItem) => { value: string, label: string }[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -120,8 +124,9 @@ function handleAdd() {
 const UInput = resolveComponent('UInput')
 
 const UButton = resolveComponent('UButton')
+const USelect = resolveComponent('USelect')
 
-const columns = [
+const columns = computed(() => [
   {
     accessorKey: 'product_name',
     header: 'Producto'
@@ -156,6 +161,17 @@ const columns = [
         }
       })
   },
+  ...(props.showWarehouseColumn ? [{
+    accessorKey: 'warehouse_id',
+    header: 'Depósito',
+    cell: ({ row }: any) => h(USelect, {
+      modelValue: row.original.warehouse_id || props.defaultWarehouseId || undefined,
+      items: props.warehouseOptionsForItem?.(row.original) ?? props.warehouses ?? [],
+      placeholder: 'Seleccionar depósito',
+      class: 'min-w-48',
+      'onUpdate:modelValue': (value: string) => { row.original.warehouse_id = value }
+    })
+  }] : []),
   {
     accessorKey: 'unit_price',
     header: 'Precio Unitario',
@@ -210,7 +226,7 @@ const columns = [
         onClick: () => emit('remove', row.index)
       })
   }
-]
+])
 </script>
 
 <template>

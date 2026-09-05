@@ -3,6 +3,7 @@ const props = defineProps<{
   open: boolean
   count: number
   loading?: boolean
+  permanent?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -43,13 +44,14 @@ function onClose() {
 
           <div>
             <h3 class="text-base font-semibold text-highlighted">
-              ¿Enviar {{ count }} fila{{ count !== 1 ? 's' : '' }} a la papelera?
+              {{ permanent ? '¿Eliminar definitivamente' : '¿Enviar' }} {{ count }} fila{{ count !== 1 ? 's' : '' }}{{ permanent ? '?' : ' a la papelera?' }}
             </h3>
 
             <p class="text-sm text-muted mt-0.5">
-              Los elementos se enviarán a la
+              <template v-if="permanent">Esta acción no se puede deshacer.</template>
+              <template v-else>Los elementos se enviarán a la
               <strong>papelera</strong>. Podés recuperarlos desde
-              <strong>Ajustes → Papelera</strong>.
+              <strong>Ajustes → Papelera</strong>.</template>
             </p>
           </div>
         </div>
@@ -59,7 +61,7 @@ function onClose() {
           class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-4 py-3"
         >
           <p class="text-sm text-amber-700 dark:text-amber-300 font-medium">
-            Los elementos dejarán de aparecer en el listado pero podrán recuperarse desde la papelera.
+            {{ permanent ? 'Solo se eliminarán documentos en estado Borrador.' : 'Los elementos dejarán de aparecer en el listado pero podrán recuperarse desde la papelera.' }}
           </p>
         </div>
 
@@ -95,7 +97,7 @@ function onClose() {
             :loading="loading"
             @click="onConfirm"
           >
-            Enviar a la papelera
+            {{ permanent ? 'Eliminar definitivamente' : 'Enviar a la papelera' }}
           </UButton>
         </div>
       </div>

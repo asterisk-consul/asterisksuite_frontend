@@ -75,6 +75,20 @@ export interface BusinessParty {
   party_locations?: PartyLocation[]
   party_contacts?: PartyContact[]
   party_bank_accounts?: PartyBankAccount[]
+  employee?: {
+    id: string
+    user_id?: string | null
+    position?: string | null
+    department?: string | null
+    hire_date?: string | null
+    salary?: string | null
+    currency_code?: string | null
+    is_salesperson: boolean
+    default_commission_rate?: number | null
+    commission_base?: 'INVOICED' | 'PAID' | null
+    is_active: boolean
+    user?: { id: string; name: string; email: string; active: boolean } | null
+  } | null
 }
 
 // ------------------
@@ -91,6 +105,16 @@ export type CreateBusinessPartyInput = {
   exemption_rate?: number
 
   active?: boolean
+
+  // ─── Employee labor fields (persisted on linked employee when type=EMPLOYEE) ──
+  position?: string
+  department?: string
+  hire_date?: string
+  salary?: string
+  currency_code?: string
+  is_salesperson?: boolean
+  default_commission_rate?: number
+  commission_base?: string
 
   locations?: {
     location_id: string
@@ -167,6 +191,8 @@ export interface BusinessPartyForm {
   salary?: string
   currency_code?: string
   default_commission_rate?: number
+  is_salesperson?: boolean
+  commission_base?: 'INVOICED' | 'PAID'
 
   // ─── Partner fields (optional, shown when type=PARTNER) ──
   share_percentage?: string

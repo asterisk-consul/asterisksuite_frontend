@@ -30,6 +30,7 @@ export interface PaymentFormData {
   description: string
   reference: string
   party_id: string
+  party_type?: string
   bank_account_id: string
   cash_box_id: string
   account_id: string
@@ -142,11 +143,27 @@ const calculateSuggestedWithholdings = async (baseAmount: number) => {
 // Parties for ADVANCE mode selector
 const allParties = ref<Array<{ id: string; name: string; tax_id?: string; type: string }>>([])
 const partySearch = ref('')
+const payablePartyTypes = new Set(['SUPPLIER', 'SERVICE_PROVIDER', 'UTILITY', 'TAX_AUTHORITY', 'FINANCIAL'])
+const partyTypeLabels: Record<string, string> = {
+  SUPPLIER: 'Proveedor',
+  SERVICE_PROVIDER: 'Prestador de servicios',
+  UTILITY: 'Servicio público',
+  TAX_AUTHORITY: 'Ente impositivo',
+  FINANCIAL: 'Entidad financiera',
+  CUSTOMER: 'Cliente'
+}
+
+const formatPartyLabel = (party: { name: string; tax_id?: string; type: string }) => {
+  const typeLabel = partyTypeLabels[party.type] ?? party.type
+  const taxId = party.tax_id ? ` · ${party.tax_id}` : ''
+  return isPayment.value ? `${party.name} · ${typeLabel}${taxId}` : `${party.name}${taxId}`
+}
 
 const filteredParties = computed(() => {
-  const partyType = isPayment.value ? 'SUPPLIER' : 'CUSTOMER'
   const q = partySearch.value.toLowerCase().trim()
-  let filtered = allParties.value.filter(p => p.type === partyType)
+  let filtered = allParties.value.filter(p =>
+    isPayment.value ? payablePartyTypes.has(p.type) : p.type === 'CUSTOMER'
+  )
   if (q) {
     filtered = filtered.filter(p =>
       p.name.toLowerCase().includes(q) ||
@@ -154,7 +171,7 @@ const filteredParties = computed(() => {
     )
   }
   return filtered.map(p => ({
-    label: p.tax_id ? `${p.name} (${p.tax_id})` : p.name,
+    label: formatPartyLabel(p),
     value: p.id
   }))
 })
@@ -164,13 +181,14 @@ const selectedParty = computed({
     const party = allParties.value.find(p => p.id === form.party_id)
     if (!party) return null
     return {
-      label: party.tax_id ? `${party.name} (${party.tax_id})` : party.name,
+      label: formatPartyLabel(party),
       value: party.id
     }
   },
   set: (val: any) => {
     form.party_id = val?.value ?? ''
-    form.party_type = isPayment.value ? 'SUPPLIER' : 'CUSTOMER'
+    form.party_type = allParties.value.find(p => p.id === form.party_id)?.type
+      ?? (isPayment.value ? 'SUPPLIER' : 'CUSTOMER')
   }
 })
 
@@ -186,6 +204,7 @@ const defaultForm: PaymentFormData = {
   description: '',
   reference: '',
   party_id: '',
+  party_type: undefined,
   bank_account_id: '',
   cash_box_id: '',
   account_id: '',
@@ -240,6 +259,9 @@ onMounted(async () => {
   accountsStore.fetchAll()
   try {
     allParties.value = await partiesService.findAll()
+    if (form.party_id) {
+      form.party_type = allParties.value.find(p => p.id === form.party_id)?.type ?? form.party_type
+    }
   } catch (e) {
     console.error('Error loading parties:', e)
   }
@@ -682,7 +704,9 @@ const toggleDoc = (doc: PendingDocument) => {
     const firstDoc = selectedDocs.value.values().next().value?.doc
     if (firstDoc?.party_id) {
       form.party_id = firstDoc.party_id
-      form.party_type = isPayment.value ? 'SUPPLIER' : 'CUSTOMER'
+      form.party_type = firstDoc.party_type
+        ?? allParties.value.find(p => p.id === firstDoc.party_id)?.type
+        ?? (isPayment.value ? 'SUPPLIER' : 'CUSTOMER')
     }
   } else {
     form.party_id = ''
@@ -983,11 +1007,11 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
 
     <!-- SELECTOR DE TERCERO (solo para modo ADVANCE — en NORMAL se toma del documento) -->
     <div v-if="form.payment_mode === 'ADVANCE'" class="grid grid-cols-2 gap-4">
-      <UFormField :label="isPayment ? 'Proveedor' : 'Cliente'" name="party_id" required>
+      <UFormField :label="isPayment ? 'Proveedor o entidad' : 'Cliente'" name="party_id" required>
         <USelectMenu
           v-model="selectedParty"
           :items="filteredParties"
-          :placeholder="isPayment ? 'Buscar proveedor...' : 'Buscar cliente...'"
+          :placeholder="isPayment ? 'Buscar proveedor, impuesto o servicio...' : 'Buscar cliente...'"
           searchable
           class="w-full"
           @update:search="partySearch = $event"

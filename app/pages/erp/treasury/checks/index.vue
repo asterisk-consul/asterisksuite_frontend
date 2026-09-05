@@ -15,6 +15,8 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
+const intakeId = computed(() => route.query.intakeId as string | undefined)
 
 const {
   checks,
@@ -109,6 +111,12 @@ const handleDeposit = async () => {
       bank_account_id: depositBankAccountId.value,
       amount: depositAmount.value
     })
+    if (intakeId.value) {
+      await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
+        method: 'POST',
+        body: { target_type: 'CHECK_DEPOSIT', target_id: depositingCheck.value.id }
+      })
+    }
     toast.add({ title: `Cheque #${depositingCheck.value.check_number} depositado correctamente`, color: 'success' })
     depositModalOpen.value = false
     await init()
@@ -190,6 +198,15 @@ const sortFields: SortField[] = [
 
 <template>
   <UPage class="space-y-4">
+    <UCard v-if="intakeId">
+      <template #header>
+        <div>
+          <p class="font-medium">Comprobante recibido para depositar</p>
+          <p class="text-sm text-muted">Revisá el archivo y elegí en la tabla el cheque correspondiente para depositarlo.</p>
+        </div>
+      </template>
+      <UiAttachmentManager entity-type="intake" :entity-id="intakeId" readonly :allow-upload="false" />
+    </UCard>
     <AppPageHeader
       title="Cheques"
       description="Gestión de cheques propios y de terceros"
@@ -248,6 +265,12 @@ const sortFields: SortField[] = [
               placeholder="Monto"
             />
           </div>
+
+          <UiAttachmentManager
+            entity-type="check_deposit"
+            :entity-id="depositingCheck.id"
+            :max-files="5"
+          />
 
           <div class="flex justify-end gap-2 pt-2">
             <UButton label="Cancelar" variant="ghost" @click="depositModalOpen = false" />

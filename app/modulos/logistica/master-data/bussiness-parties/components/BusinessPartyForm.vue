@@ -53,6 +53,8 @@ const form = reactive<BusinessPartyForm & { createUser?: boolean; user_name?: st
   salary: '',
   currency_code: 'ARS',
   default_commission_rate: 0,
+  is_salesperson: false,
+  commission_base: 'INVOICED',
   share_percentage: '',
   capital_contributed: '',
   createUser: false,

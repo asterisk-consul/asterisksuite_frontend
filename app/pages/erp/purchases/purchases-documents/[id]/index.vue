@@ -105,6 +105,13 @@ const {
           <div v-if="factura" id="printable-document">
             <FacturaView :document="factura" mode="purchase" />
           </div>
+          <UiAttachmentManager
+            v-if="factura"
+            class="mt-4"
+            entity-type="document"
+            :entity-id="factura.id"
+            :readonly="!isDraft"
+          />
           <div v-else-if="loading" class="p-10 text-center">Cargando...</div>
         </UPageBody>
       </UPage>

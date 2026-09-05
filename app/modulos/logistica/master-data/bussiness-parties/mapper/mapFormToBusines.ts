@@ -44,13 +44,25 @@ export const mapFormToBusinessPartyDto = (form: BusinessPartyForm): CreateBusine
         description: b.description || undefined,
         holder_name: b.holder_name || undefined,
         is_default: b.is_default ?? false
-      }))
+      })),
+
+    // ─── Datos laborales (solo aplica si se está editando un EMPLOYEE;
+    // el backend los persiste en el employees vinculado) ──
+    position: form.position || undefined,
+    department: form.department || undefined,
+    hire_date: form.hire_date || undefined,
+    salary: form.salary ? String(form.salary) : undefined,
+    currency_code: form.currency_code || undefined,
+    is_salesperson: form.is_salesperson ?? undefined,
+    default_commission_rate: form.default_commission_rate ?? undefined,
+    commission_base: form.commission_base || undefined
   }
 }
 
 export const mapBusinessPartyToForm = (party: BusinessParty): BusinessPartyForm => {
   const isPerson = party.type === 'EMPLOYEE' || party.type === 'PARTNER'
   const nameParts = (party.name ?? '').split(' ')
+  const employee = party.employee
 
   return {
     id: party.id,
@@ -91,6 +103,16 @@ export const mapBusinessPartyToForm = (party: BusinessParty): BusinessPartyForm 
         description: b.description ?? '',
         holder_name: b.holder_name ?? '',
         is_default: b.is_default ?? false
-      })) ?? []
+      })) ?? [],
+
+    // ─── Datos laborales prellenados desde el employees vinculado (type=EMPLOYEE) ──
+    position: employee?.position ?? '',
+    department: employee?.department ?? '',
+    hire_date: employee?.hire_date ?? '',
+    salary: employee?.salary ?? '',
+    currency_code: employee?.currency_code ?? 'ARS',
+    is_salesperson: employee?.is_salesperson ?? false,
+    default_commission_rate: Number(employee?.default_commission_rate ?? 0),
+    commission_base: employee?.commission_base ?? 'INVOICED'
   }
 }

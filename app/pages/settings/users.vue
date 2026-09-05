@@ -181,9 +181,47 @@ const savePassword = async () => {
 // ─── Link Employee/Partner ──────────────────────────
 const openLinkModal = (user: CompanyUser) => {
   selectedUser.value = user
-  linkType.value = 'existing_employee'
+  // Pre-seleccionar el tipo según el vínculo que ya tenga el usuario
+  const hasEmployee = employees.value.some(e => e.user_id === user.id)
+  const hasPartner = partners.value.some(p => p.user_id === user.id)
+  linkType.value = hasEmployee ? 'existing_employee' : hasPartner ? 'existing_partner' : 'existing_employee'
   linkSelectedId.value = ''
   showLinkModal.value = true
+}
+
+// Vínculos existentes del usuario seleccionado
+const linkedEmployee = computed(() =>
+  selectedUser.value
+    ? employees.value.find(e => e.user_id === selectedUser.value!.id) ?? null
+    : null
+)
+
+const linkedPartner = computed(() =>
+  selectedUser.value
+    ? partners.value.find(p => p.user_id === selectedUser.value!.id) ?? null
+    : null
+)
+
+const unlinking = ref<string | null>(null)
+
+const unlinkEntity = async (type: 'employee' | 'partner') => {
+  if (!selectedUser.value) return
+  unlinking.value = type
+  try {
+    if (type === 'employee' && linkedEmployee.value) {
+      await $fetch(`/api/erp/employees/${linkedEmployee.value.id}/unlink-user`, { method: 'PATCH' })
+    } else if (type === 'partner' && linkedPartner.value) {
+      await $fetch(`/api/erp/partners/${linkedPartner.value.id}/unlink-user`, { method: 'PATCH' })
+    }
+    toast.add({ title: type === 'employee' ? 'Empleado desvinculado' : 'Socio desvinculado', color: 'success' })
+    await loadEmployeesAndPartners()
+  } catch (e: any) {
+    const data = e?.data?.data || e?.data
+    const msg = Array.isArray(data?.message) ? data.message[0] : (data?.message || 'Error')
+    toast.add({ title: 'Error al desvincular', description: msg, color: 'error', icon: 'i-lucide-alert-circle' })
+  } finally {
+    unlinking.value = null
+  }
 }
 
 const linkOptions = computed(() => {
@@ -211,7 +249,7 @@ const saveLink = async () => {
     }
     toast.add({ title: 'Vinculado correctamente', color: 'success' })
     showLinkModal.value = false
-    await loadUsers()
+    await Promise.all([loadUsers(), loadEmployeesAndPartners()])
   } catch (e: any) {
     const data = e?.data?.data || e?.data
     const msg = Array.isArray(data?.message) ? data.message[0] : (data?.message || 'Error')
@@ -664,6 +702,58 @@ onMounted(async () => {
           <p class="text-sm text-muted">
             Vincular <strong>{{ selectedUser?.name || selectedUser?.email }}</strong> a:
           </p>
+
+          <!-- Vínculos existentes -->
+          <UAlert
+            v-if="linkedEmployee || linkedPartner"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-link"
+          >
+            <template #title>
+              <span class="text-sm">Este usuario ya está vinculado a:</span>
+            </template>
+            <template #description>
+              <div class="flex flex-wrap gap-2 mt-1">
+                <div
+                  v-if="linkedEmployee"
+                  class="flex items-center gap-2 px-2 py-1 rounded-md bg-info-50 dark:bg-info-950 border border-info-200 dark:border-info-800"
+                >
+                  <UIcon name="i-lucide-user" class="text-info shrink-0" />
+                  <span class="text-xs">
+                    <strong>Empleado:</strong> {{ linkedEmployee.first_name }} {{ linkedEmployee.last_name }}
+                  </span>
+                  <UButton
+                    icon="i-lucide-unlink"
+                    size="xs"
+                    variant="ghost"
+                    color="error"
+                    title="Desvincular empleado"
+                    :loading="unlinking === 'employee'"
+                    @click="unlinkEntity('employee')"
+                  />
+                </div>
+                <div
+                  v-if="linkedPartner"
+                  class="flex items-center gap-2 px-2 py-1 rounded-md bg-info-50 dark:bg-info-950 border border-info-200 dark:border-info-800"
+                >
+                  <UIcon name="i-lucide-handshake" class="text-info shrink-0" />
+                  <span class="text-xs">
+                    <strong>Socio:</strong> {{ linkedPartner.first_name }} {{ linkedPartner.last_name }}
+                  </span>
+                  <UButton
+                    icon="i-lucide-unlink"
+                    size="xs"
+                    variant="ghost"
+                    color="error"
+                    title="Desvincular socio"
+                    :loading="unlinking === 'partner'"
+                    @click="unlinkEntity('partner')"
+                  />
+                </div>
+              </div>
+            </template>
+          </UAlert>
 
           <div class="flex gap-2">
             <UButton
