@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DocumentAssignment from './DocumentAssignment.vue'
 import { getStatusLabel, getStatusColor, getStatusDescription } from '~/modulos/erp/documents/types/document-statuses'
 
 const props = defineProps<{
@@ -71,6 +72,8 @@ function resolveDocLink(doc: any): string {
       <UBadge v-else :label="statusLabel" :color="statusColor" variant="subtle" size="lg" />
     </div>
 
+    <DocumentAssignment :key="document.id" :document-id="document.id" />
+
     <!-- Documento padre -->
     <UAlert v-if="document.parent_document" color="info" variant="soft" icon="i-lucide-link">
       <template #title>
@@ -81,18 +84,5 @@ function resolveDocLink(doc: any): string {
       </template>
     </UAlert>
 
-    <!-- Documentos hijos -->
-    <UAlert v-if="document.child_documents?.length > 0" color="success" variant="soft" icon="i-lucide-arrow-right-circle">
-      <template #title>
-        <span>Documentos generados ({{ document.child_documents.length }})</span>
-      </template>
-      <template #description>
-        <div class="flex flex-wrap gap-2 mt-1">
-          <NuxtLink v-for="child in document.child_documents" :key="child.id" :to="resolveDocLink(child)" class="underline text-sm">
-            {{ child.document_types?.description }} #{{ child.document_types?.code }}-{{ String(child.number).padStart(8, '0') }}
-          </NuxtLink>
-        </div>
-      </template>
-    </UAlert>
   </div>
 </template>

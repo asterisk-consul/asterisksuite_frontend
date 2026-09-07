@@ -7,10 +7,14 @@ import type { CashBoxFormData } from '~/modulos/erp/cash-boxes/components/CashBo
 
 const router = useRouter()
 const { create, addUserRole } = useCashBoxes()
+const toast = useToast()
+const saving = ref(false)
 
 const formRef = ref<InstanceType<typeof CashBoxForm> | null>(null)
 
 const handleSubmit = async (formData: CashBoxFormData) => {
+  if (saving.value) return
+  saving.value = true
   try {
     const created = await create({
       name: formData.name,
@@ -28,23 +32,31 @@ const handleSubmit = async (formData: CashBoxFormData) => {
     }
 
     router.push('/erp/treasury/cash-boxes')
-  } catch (error) {
-    console.error(error)
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo crear la caja',
+      description: error?.data?.message || error?.message,
+      color: 'error',
+      icon: 'i-lucide-circle-alert'
+    })
+  } finally {
+    saving.value = false
   }
 }
 </script>
 
 <template>
-  <UPage class="space-y-4">
+  <UPage class="mx-auto w-full max-w-5xl space-y-6">
     <AppPageHeader
       title="Nueva caja"
-      description="Crear una nueva caja"
+      description="Configurá la moneda, el saldo inicial y quiénes podrán operar con ella."
     />
 
-    <div class="max-w-3xl">
+    <div>
       <CashBoxForm
         ref="formRef"
         :is-edit="false"
+        :loading="saving"
         @submit="handleSubmit"
         @cancel="router.push('/erp/treasury/cash-boxes')"
       />

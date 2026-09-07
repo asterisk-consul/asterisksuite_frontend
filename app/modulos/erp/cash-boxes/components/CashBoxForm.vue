@@ -23,6 +23,7 @@ const props = defineProps<{
   modelValue?: CashBoxFormData
   isEdit?: boolean
   boxId?: string
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -250,38 +251,66 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <form class="space-y-4" @submit.prevent="handleSubmit">
-    <div class="grid grid-cols-2 gap-4">
-      <UFormField label="Nombre" name="name" required>
-        <UInput v-model="form.name" placeholder="Nombre de la caja" />
-      </UFormField>
-      <UFormField label="Tipo" name="type">
-        <USelectMenu v-model="selectedType" :items="boxTypes" />
-      </UFormField>
-    </div>
-    <div class="grid grid-cols-2 gap-4">
-      <UFormField label="Moneda" name="currency_code" required>
-        <USelect
-          v-model="form.currency_code"
-          :items="currencyOptions"
-          placeholder="Seleccioná una moneda"
-          :disabled="isEdit"
-        />
-      </UFormField>
-      <UFormField label="Saldo de apertura" name="opening_balance">
-        <UInput v-model.number="form.opening_balance" type="number" />
-      </UFormField>
-    </div>
-    <div class="grid grid-cols-2 gap-4">
-      <div class="flex items-end gap-4 pb-1">
+  <form class="space-y-6" @submit.prevent="handleSubmit">
+    <UPageCard>
+      <div class="space-y-6">
+        <div class="flex items-start gap-3">
+          <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <UIcon name="i-lucide-wallet-cards" class="size-5" />
+          </div>
+          <div>
+            <h2 class="font-semibold text-highlighted">Datos de la caja</h2>
+            <p class="mt-0.5 text-sm text-muted">Información general y saldo con el que comienza a operar.</p>
+          </div>
+        </div>
+
+        <div class="grid gap-5 sm:grid-cols-2">
+          <UFormField label="Nombre" name="name" required description="Usá un nombre fácil de reconocer.">
+            <UInput v-model="form.name" placeholder="Ej: Caja administración" class="w-full" icon="i-lucide-wallet" />
+          </UFormField>
+          <UFormField label="Tipo" name="type" description="Define cómo se utilizará esta caja.">
+            <USelectMenu v-model="selectedType" :items="boxTypes" class="w-full" />
+          </UFormField>
+          <UFormField label="Moneda" name="currency_code" required description="Moneda en la que registrará sus movimientos.">
+            <USelect
+              v-model="form.currency_code"
+              :items="currencyOptions"
+              placeholder="Seleccioná una moneda"
+              :disabled="isEdit"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Saldo de apertura" name="opening_balance" description="Importe disponible al iniciar esta caja.">
+            <UInput v-model.number="form.opening_balance" type="number" step="0.01" class="w-full" icon="i-lucide-banknote" />
+          </UFormField>
+        </div>
+
+        <div class="flex items-center justify-between gap-4 rounded-lg border border-default bg-elevated/50 p-4">
+          <div>
+            <p class="text-sm font-medium text-highlighted">Caja activa</p>
+            <p class="text-xs text-muted">Estará disponible para registrar operaciones.</p>
+          </div>
+          <USwitch v-model="form.active" color="success" aria-label="Caja activa" />
+        </div>
+
+        <!-- Configuración temporalmente oculta hasta definir el circuito de caja principal.
         <UCheckbox v-model="form.is_main" label="Caja principal" />
-        <UCheckbox v-model="form.active" label="Activa" />
+        -->
       </div>
-    </div>
+    </UPageCard>
 
     <!-- USER ROLES -->
-    <div class="border border-default rounded-lg p-4 space-y-3">
-      <h4 class="text-sm font-medium">Usuarios con acceso</h4>
+    <UPageCard>
+      <div class="space-y-5">
+        <div class="flex items-start gap-3">
+          <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-info/10 text-info">
+            <UIcon name="i-lucide-users" class="size-5" />
+          </div>
+          <div>
+            <h2 class="font-semibold text-highlighted">Usuarios con acceso</h2>
+            <p class="mt-0.5 text-sm text-muted">Asigná quién puede administrar, operar o consultar esta caja.</p>
+          </div>
+        </div>
 
       <!-- Existing users -->
       <div v-if="boxUsers.length > 0" class="space-y-2">
@@ -326,18 +355,20 @@ const handleSubmit = () => {
         </div>
       </div>
 
-      <div v-if="boxUsers.length === 0 && pendingUsers.length === 0" class="text-sm text-muted">
-        No hay usuarios asignados a esta caja.
+      <div v-if="boxUsers.length === 0 && pendingUsers.length === 0" class="rounded-lg border border-dashed border-default px-4 py-6 text-center">
+        <UIcon name="i-lucide-user-plus" class="mx-auto mb-2 size-6 text-dimmed" />
+        <p class="text-sm font-medium text-highlighted">Todavía no hay usuarios asignados</p>
+        <p class="mt-1 text-xs text-muted">Podés agregarlos ahora o hacerlo más adelante.</p>
       </div>
 
       <!-- Add user section -->
       <div class="border-t border-default pt-3 space-y-2">
-        <div class="flex items-end gap-2">
+        <div class="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
           <UFormField label="Buscar usuario" class="flex-1">
-            <UInput v-model="userSearch" placeholder="Nombre o email..." @input="searchUsers" />
+            <UInput v-model="userSearch" placeholder="Nombre o email..." class="w-full" icon="i-lucide-search" @input="searchUsers" />
           </UFormField>
           <UFormField label="Rol">
-            <USelectMenu v-model="selectedUserRole" :items="userRoleOptions" />
+            <USelectMenu v-model="selectedUserRole" :items="userRoleOptions" class="w-full" />
           </UFormField>
         </div>
 
@@ -385,11 +416,12 @@ const handleSubmit = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </UPageCard>
 
-    <div class="flex justify-end gap-2 pt-4">
-      <UButton label="Cancelar" variant="ghost" @click="emit('cancel')" />
-      <UButton label="Guardar" type="submit" />
+    <div class="sticky bottom-0 z-20 -mx-2 flex flex-col-reverse gap-3 border-t border-default bg-default/95 px-2 py-4 shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.45)] backdrop-blur sm:flex-row sm:justify-end">
+      <UButton label="Cancelar" variant="ghost" color="neutral" :disabled="loading" class="justify-center" @click="emit('cancel')" />
+      <UButton :label="isEdit ? 'Guardar cambios' : 'Crear caja'" type="submit" icon="i-lucide-check" :loading="loading" class="justify-center" />
     </div>
   </form>
 

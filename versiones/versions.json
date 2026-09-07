@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.44.1-alpha",
+    "date": "2026-09-07",
+    "stage": "alpha",
+    "notes": "Fix de cadena de documentos duplicada, proxy user-roles para bank-accounts y modal de cuentas bancarias estilizado",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Eliminada duplicación de 'Documentos generados' en DocumentHeader: la cadena ahora solo se muestra en DocumentChain"
+      },
+      {
+        "type": "feat",
+        "scope": "api",
+        "title": "Proxy server-side para user-roles de bank-accounts (GET/POST/DELETE)"
+      },
+      {
+        "type": "refactor",
+        "scope": "treasury",
+        "title": "Modal de cuentas bancarias estilizado al aesthetic de cash-boxes: cards, iconos, descripciones y submit sticky"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Fix de cadena duplicada, proxy de user-roles para cuentas bancarias y modal rediseñado"
+  },
+  {
     "version": "0.44.0-alpha",
     "date": "2026-09-05",
     "stage": "alpha",

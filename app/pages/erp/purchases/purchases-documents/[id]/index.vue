@@ -5,6 +5,7 @@ definePageMeta({
 })
 
 import FacturaView from '~/modulos/erp/facturas/components/FacturaView.vue'
+import DocumentAssignment from '~/modulos/erp/documents/shared/DocumentAssignment.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
@@ -103,6 +104,7 @@ const {
 
         <UPageBody>
           <div v-if="factura" id="printable-document">
+            <DocumentAssignment :key="factura.id" :document-id="factura.id" />
             <FacturaView :document="factura" mode="purchase" />
           </div>
           <UiAttachmentManager
