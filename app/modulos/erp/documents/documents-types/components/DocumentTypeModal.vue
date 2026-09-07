@@ -19,14 +19,13 @@ const handleSubmit = (form: DocumentTypeFormData) => {
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="documentType?.id ? 'Editar tipo de documento' : 'Nuevo tipo de documento'" :ui="{ width: 'max-w-2xl' }">
+  <UModal
+    v-model:open="open"
+    :title="documentType?.id ? 'Editar tipo de documento' : 'Nuevo tipo de documento'"
+    :ui="{ content: 'max-w-4xl' }"
+  >
     <template #body>
-      <DocumentTypeForm
-        :model-value="documentType"
-        :loading="loading"
-        @submit="handleSubmit"
-        @cancel="open = false"
-      />
+      <DocumentTypeForm :model-value="documentType" :loading="loading" @submit="handleSubmit" @cancel="open = false" />
     </template>
   </UModal>
 </template>

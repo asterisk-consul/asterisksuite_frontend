@@ -30,8 +30,10 @@ const filterCategory = ref<string | null>(null)
 const saving = ref(false)
 
 const selectedCategory = computed({
-  get: () => categoryOptions.find(o => o.value === filterCategory.value) ?? categoryOptions[0],
-  set: (val) => { filterCategory.value = val?.value ?? '' }
+  get: () => categoryOptions.find((o) => o.value === filterCategory.value) ?? categoryOptions[0],
+  set: (val) => {
+    filterCategory.value = val?.value ?? ''
+  }
 })
 
 onMounted(() => docTypes.init())
@@ -262,21 +264,22 @@ const badgeForTab = (index: number) => {
             </div>
             <p class="text-sm font-medium">{{ type.description }}</p>
             <div class="flex items-center gap-2 mt-2 text-xs text-muted flex-wrap">
-               <span v-if="type.affects_stock">📦 Stock</span>
-               <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
-               <span v-if="type.affects_tax_book">📋 IVA</span>
-               <span v-if="type.affects_payment">💰 Pagos</span>
+              <span v-if="type.affects_stock">📦 Stock</span>
+              <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
+              <span v-if="type.affects_tax_book">📋 IVA</span>
+              <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
-               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
-               <template v-if="type.document_type_sequences?.length">
-                 <span v-for="dts in type.document_type_sequences" :key="dts.id" class="text-primary font-medium">
-                   🔢 {{ dts.document_sequences?.point_of_sale }}{{ dts.document_sequences?.prefix ? `-${dts.document_sequences.prefix}` : '' }}
-                 </span>
-               </template>
-               <span v-else-if="type.document_sequences" class="text-primary">
-                 🔢 Seq: {{ type.document_sequences.point_of_sale }}
-               </span>
+              <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
+              <template v-if="type.document_type_sequences?.length">
+                <span v-for="dts in type.document_type_sequences" :key="dts.id" class="text-primary font-medium">
+                  🔢 {{ dts.document_sequences?.point_of_sale
+                  }}{{ dts.document_sequences?.prefix ? `-${dts.document_sequences.prefix}` : '' }}
+                </span>
+              </template>
+              <span v-else-if="type.document_sequences" class="text-primary">
+                🔢 Seq: {{ type.document_sequences.point_of_sale }}
+              </span>
             </div>
             <div class="flex items-center gap-1 mt-3">
               <UButton icon="i-lucide-settings" variant="ghost" size="xs" @click.stop="openCustomFields(type)" />
@@ -319,21 +322,22 @@ const badgeForTab = (index: number) => {
             </div>
             <p class="text-sm font-medium">{{ type.description }}</p>
             <div class="flex items-center gap-2 mt-2 text-xs text-muted flex-wrap">
-               <span v-if="type.affects_stock">📦 Stock</span>
-               <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
-               <span v-if="type.affects_tax_book">📋 IVA</span>
-               <span v-if="type.affects_payment">💰 Pagos</span>
+              <span v-if="type.affects_stock">📦 Stock</span>
+              <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
+              <span v-if="type.affects_tax_book">📋 IVA</span>
+              <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
-               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
-               <template v-if="type.document_type_sequences?.length">
-                 <span v-for="dts in type.document_type_sequences" :key="dts.id" class="text-primary font-medium">
-                   🔢 {{ dts.document_sequences?.point_of_sale }}{{ dts.document_sequences?.prefix ? `-${dts.document_sequences.prefix}` : '' }}
-                 </span>
-               </template>
-               <span v-else-if="type.document_sequences" class="text-primary">
-                 🔢 Seq: {{ type.document_sequences.point_of_sale }}
-               </span>
+              <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
+              <template v-if="type.document_type_sequences?.length">
+                <span v-for="dts in type.document_type_sequences" :key="dts.id" class="text-primary font-medium">
+                  🔢 {{ dts.document_sequences?.point_of_sale
+                  }}{{ dts.document_sequences?.prefix ? `-${dts.document_sequences.prefix}` : '' }}
+                </span>
+              </template>
+              <span v-else-if="type.document_sequences" class="text-primary">
+                🔢 Seq: {{ type.document_sequences.point_of_sale }}
+              </span>
             </div>
             <div class="flex items-center gap-1 mt-3">
               <UButton icon="i-lucide-settings" variant="ghost" size="xs" @click.stop="openCustomFields(type)" />
@@ -379,21 +383,22 @@ const badgeForTab = (index: number) => {
             </div>
             <p class="text-sm font-medium">{{ type.description }}</p>
             <div class="flex items-center gap-2 mt-2 text-xs text-muted flex-wrap">
-               <span v-if="type.affects_stock">📦 Stock</span>
-               <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
-               <span v-if="type.affects_tax_book">📋 IVA</span>
-               <span v-if="type.affects_payment">💰 Pagos</span>
+              <span v-if="type.affects_stock">📦 Stock</span>
+              <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
+              <span v-if="type.affects_tax_book">📋 IVA</span>
+              <span v-if="type.affects_payment">💰 Pagos</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
-               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
-               <template v-if="type.document_type_sequences?.length">
-                 <span v-for="dts in type.document_type_sequences" :key="dts.id" class="text-primary font-medium">
-                   🔢 {{ dts.document_sequences?.point_of_sale }}{{ dts.document_sequences?.prefix ? `-${dts.document_sequences.prefix}` : '' }}
-                 </span>
-               </template>
-               <span v-else-if="type.document_sequences" class="text-primary">
-                 🔢 Seq: {{ type.document_sequences.point_of_sale }}
-               </span>
+              <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
+              <template v-if="type.document_type_sequences?.length">
+                <span v-for="dts in type.document_type_sequences" :key="dts.id" class="text-primary font-medium">
+                  🔢 {{ dts.document_sequences?.point_of_sale
+                  }}{{ dts.document_sequences?.prefix ? `-${dts.document_sequences.prefix}` : '' }}
+                </span>
+              </template>
+              <span v-else-if="type.document_sequences" class="text-primary">
+                🔢 Seq: {{ type.document_sequences.point_of_sale }}
+              </span>
             </div>
             <div class="flex items-center gap-1 mt-3">
               <UButton icon="i-lucide-settings" variant="ghost" size="xs" @click.stop="openCustomFields(type)" />
@@ -417,7 +422,7 @@ const badgeForTab = (index: number) => {
       @success="handleSubmit"
     />
 
-    <UModal v-model:open="customFieldsModalOpen" title="Campos personalizados" :ui="{ width: 'max-w-2xl' }">
+    <UModal v-model:open="customFieldsModalOpen" title="Campos personalizados" :ui="{ content: 'max-w-5xl' }">
       <template #body>
         <div class="space-y-4">
           <p class="text-sm text-muted">
@@ -447,7 +452,7 @@ const badgeForTab = (index: number) => {
       </template>
     </UModal>
 
-    <UModal v-model:open="deleteModalOpen" title="Eliminar tipo">
+    <UModal v-model:open="deleteModalOpen" title="Eliminar tipo" :ui="{ content: 'max-w-5xl' }">
       <template #body>
         <p>
           ¿Eliminar

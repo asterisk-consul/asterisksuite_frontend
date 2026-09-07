@@ -184,132 +184,146 @@ const selectedCategory = computed({
 </script>
 
 <template>
-  <form class="space-y-5" @submit.prevent="handleSubmit">
+  <form class="space-y-6" @submit.prevent="handleSubmit">
     <!-- DATOS GENERALES -->
-    <div class="space-y-4">
-      <p class="text-xs font-semibold text-muted uppercase tracking-wide">Datos generales</p>
-      <div class="grid grid-cols-2 gap-4">
-        <UFormField label="Código" name="code" required>
-          <UInput v-model="form.code" placeholder="Ej: FA-A" :disabled="!!form.id" />
-        </UFormField>
-        <UFormField label="Dirección" name="direction" required>
-          <USelectMenu v-model="selectedDirection" :items="directionOptions" />
-        </UFormField>
-      </div>
-      <UFormField label="Descripción" name="description" required>
-        <UInput v-model="form.description" placeholder="Ej: Factura A Venta" />
-      </UFormField>
-      <div class="grid grid-cols-2 gap-4">
-        <UFormField label="Categoría" name="category">
-          <USelectMenu v-model="selectedCategory" :items="categoryOptions" placeholder="Seleccionar..." />
-        </UFormField>
-        <UFormField label="Letra AFIP" name="letter_type">
-          <USelectMenu v-model="form.letter_type" :items="letterOptions" placeholder="A, B, C, X" />
-        </UFormField>
-      </div>
-      <UFormField label="Código AFIP" name="afip_code">
-        <UInput v-model="form.afip_code" placeholder="Ej: 01, 06, 11" />
-      </UFormField>
-    </div>
+    <UPageCard>
+      <div class="space-y-6">
+        <div class="flex items-start gap-3">
+          <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <UIcon name="i-lucide-file-text" class="size-5" />
+          </div>
+          <div>
+            <h2 class="font-semibold text-highlighted">Datos generales</h2>
+            <p class="mt-0.5 text-sm text-muted">Identificación y configuración básica del tipo de documento.</p>
+          </div>
+        </div>
 
-    <USeparator />
+        <div class="grid gap-5 sm:grid-cols-2">
+          <UFormField label="Código" name="code" required description="Identificador corto del tipo (ej: FA-A, OV, REM).">
+            <UInput v-model="form.code" placeholder="Ej: FA-A" :disabled="!!form.id" class="w-full" icon="i-lucide-hash" />
+          </UFormField>
+          <UFormField label="Dirección" name="direction" required description="Si es de emisión o recepción.">
+            <USelectMenu v-model="selectedDirection" :items="directionOptions" class="w-full" />
+          </UFormField>
+          <UFormField label="Descripción" name="description" required description="Nombre completo que se muestra al usuario.">
+            <UInput v-model="form.description" placeholder="Ej: Factura A Venta" class="w-full" icon="i-lucide-type" />
+          </UFormField>
+          <UFormField label="Categoría" name="category" description="Tipo de comprobante fiscal.">
+            <USelectMenu v-model="selectedCategory" :items="categoryOptions" placeholder="Seleccionar..." class="w-full" />
+          </UFormField>
+          <UFormField label="Letra AFIP" name="letter_type" description="Letra del comprobante (A, B, C, X).">
+            <USelectMenu v-model="form.letter_type" :items="letterOptions" placeholder="A, B, C, X" class="w-full" />
+          </UFormField>
+          <UFormField label="Código AFIP" name="afip_code" description="Código numérico ante ARCA/AFIP.">
+            <UInput v-model="form.afip_code" placeholder="Ej: 01, 06, 11" class="w-full" icon="i-lucide-stamp" />
+          </UFormField>
+        </div>
+      </div>
+    </UPageCard>
 
     <!-- SECUENCIAS -->
-    <div class="space-y-2">
-      <div class="flex items-center justify-between">
-        <div>
-          <p class="text-xs font-semibold text-muted uppercase tracking-wide">Secuencias de numeración</p>
-          <p class="text-xs text-muted mt-0.5">Define cómo se numeran los comprobantes (punto de venta, prefijo y rango).</p>
-        </div>
-        <UButton label="Crear secuencia" variant="outline" size="xs" icon="i-lucide-plus" @click="openSeqCreate" />
-      </div>
-      <UFormField name="document_sequence_ids">
-        <USelectMenu
-          v-model="selectedSequences"
-          :items="sequenceOptions"
-          placeholder="Seleccionar secuencias..."
-          multiple
-          searchable
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-
-    <USeparator />
-
-    <!-- FACTURACIÓN ELECTRÓNICA -->
-    <div class="space-y-3">
-      <p class="text-xs font-semibold text-muted uppercase tracking-wide">Facturación electrónica</p>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
-          <div>
-            <p class="text-sm font-medium">Requiere CAE</p>
-            <p class="text-xs text-muted">Solicita CAE a ARCA/AFIP</p>
+    <UPageCard>
+      <div class="space-y-5">
+        <div class="flex items-start gap-3">
+          <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-warn/10 text-warn">
+            <UIcon name="i-lucide-list-ordered" class="size-5" />
           </div>
-          <USwitch v-model="form.requires_cae" />
-        </div>
-        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
-          <div>
-            <p class="text-sm font-medium">Electrónico</p>
-            <p class="text-xs text-muted">Comprobante electrónico</p>
+          <div class="flex-1">
+            <h2 class="font-semibold text-highlighted">Secuencias de numeración</h2>
+            <p class="mt-0.5 text-sm text-muted">Define cómo se numeran los comprobantes (punto de venta, prefijo y rango).</p>
           </div>
-          <USwitch v-model="form.is_electronic" />
+          <UButton label="Crear secuencia" variant="outline" size="xs" icon="i-lucide-plus" @click="openSeqCreate" />
         </div>
+
+        <UFormField name="document_sequence_ids">
+          <USelectMenu
+            v-model="selectedSequences"
+            :items="sequenceOptions"
+            placeholder="Seleccionar secuencias..."
+            multiple
+            searchable
+            class="w-full"
+          />
+        </UFormField>
       </div>
-    </div>
+    </UPageCard>
 
     <!-- COMPORTAMIENTO -->
-    <div class="space-y-3">
-      <p class="text-xs font-semibold text-muted uppercase tracking-wide">Comportamiento</p>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
-          <div>
-            <p class="text-sm font-medium">Afecta stock</p>
-            <p class="text-xs text-muted">Movimenta inventario</p>
+    <UPageCard>
+      <div class="space-y-5">
+        <div class="flex items-start gap-3">
+          <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-info/10 text-info">
+            <UIcon name="i-lucide-settings" class="size-5" />
           </div>
-          <USwitch v-model="form.affects_stock" />
-        </div>
-        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
           <div>
-          <p class="text-sm font-medium">Afecta cuenta corriente</p>
-          <p class="text-xs text-muted">Genera movimientos en la cuenta corriente del tercero al confirmar/anular</p>
+            <h2 class="font-semibold text-highlighted">Comportamiento</h2>
+            <p class="mt-0.5 text-sm text-muted">Define qué afecta este tipo de documento en el sistema.</p>
           </div>
-          <USwitch v-model="form.affects_accounting" />
         </div>
-        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
-          <div>
-            <p class="text-sm font-medium">Libro IVA</p>
-            <p class="text-xs text-muted">Se informa en libro IVA</p>
-          </div>
-          <USwitch v-model="form.affects_tax_book" />
-        </div>
-        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
-          <div>
-            <p class="text-sm font-medium">Afecta pagos</p>
-            <p class="text-xs text-muted">Se aplica en pagos/cobros</p>
-          </div>
-          <USwitch v-model="form.affects_payment" />
-        </div>
-        <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3 col-span-2">
-          <div>
-            <p class="text-sm font-medium">Calcula impuestos</p>
-            <p class="text-xs text-muted">El motor fiscal calcula impuestos para este tipo</p>
-          </div>
-          <USwitch :model-value="form.calculates_taxes ?? true" @update:model-value="(v: boolean | 'indeterminate') => form.calculates_taxes = v === true" />
-        </div>
-      </div>
-      <UAlert
-        v-if="form.calculates_taxes === false"
-        color="warning"
-        variant="soft"
-        icon="i-lucide-alert-triangle"
-        class="text-xs"
-        title="Comprobante sin desglose de impuestos"
-        description="El motor fiscal no calculará impuestos para documentos de este tipo (ej: comprobantes X o internos)."
-      />
-    </div>
 
-    <USeparator />
+        <div class="grid grid-cols-2 gap-3">
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+            <div>
+              <p class="text-sm font-medium">Requiere CAE</p>
+              <p class="text-xs text-muted">Solicita CAE a ARCA/AFIP</p>
+            </div>
+            <USwitch v-model="form.requires_cae" />
+          </div>
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+            <div>
+              <p class="text-sm font-medium">Electrónico</p>
+              <p class="text-xs text-muted">Comprobante electrónico</p>
+            </div>
+            <USwitch v-model="form.is_electronic" />
+          </div>
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+            <div>
+              <p class="text-sm font-medium">Afecta stock</p>
+              <p class="text-xs text-muted">Movimenta inventario</p>
+            </div>
+            <USwitch v-model="form.affects_stock" />
+          </div>
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+            <div>
+              <p class="text-sm font-medium">Afecta cuenta corriente</p>
+              <p class="text-xs text-muted">Genera movimientos en la cuenta corriente del tercero</p>
+            </div>
+            <USwitch v-model="form.affects_accounting" />
+          </div>
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+            <div>
+              <p class="text-sm font-medium">Libro IVA</p>
+              <p class="text-xs text-muted">Se informa en libro IVA</p>
+            </div>
+            <USwitch v-model="form.affects_tax_book" />
+          </div>
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
+            <div>
+              <p class="text-sm font-medium">Afecta pagos</p>
+              <p class="text-xs text-muted">Se aplica en pagos/cobros</p>
+            </div>
+            <USwitch v-model="form.affects_payment" />
+          </div>
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3 col-span-2">
+            <div>
+              <p class="text-sm font-medium">Calcula impuestos</p>
+              <p class="text-xs text-muted">El motor fiscal calcula impuestos para este tipo</p>
+            </div>
+            <USwitch :model-value="form.calculates_taxes ?? true" @update:model-value="(v: boolean | 'indeterminate') => form.calculates_taxes = v === true" />
+          </div>
+        </div>
+
+        <UAlert
+          v-if="form.calculates_taxes === false"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-alert-triangle"
+          class="text-xs"
+          title="Comprobante sin desglose de impuestos"
+          description="El motor fiscal no calculará impuestos para documentos de este tipo (ej: comprobantes X o internos)."
+        />
+      </div>
+    </UPageCard>
 
     <!-- ESTADO -->
     <div class="flex items-center justify-between gap-3 rounded-lg border p-3"
@@ -327,57 +341,64 @@ const selectedCategory = computed({
     </div>
 
     <!-- IMPUESTOS -->
-    <div class="border border-default rounded-lg p-4 space-y-3">
-      <div class="flex items-center gap-2">
-        <UIcon name="i-lucide-receipt" class="size-4" />
-        <h4 class="text-sm font-semibold">Impuestos del tipo de documento</h4>
-      </div>
-      <p class="text-xs text-muted">
-        Estos impuestos se aplican automáticamente al crear documentos de este tipo.
-      </p>
+    <UPageCard>
+      <div class="space-y-5">
+        <div class="flex items-start gap-3">
+          <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-error/10 text-error">
+            <UIcon name="i-lucide-receipt" class="size-5" />
+          </div>
+          <div>
+            <h2 class="font-semibold text-highlighted">Impuestos del tipo de documento</h2>
+            <p class="mt-0.5 text-sm text-muted">Estos impuestos se aplican automáticamente al crear documentos de este tipo.</p>
+          </div>
+        </div>
 
-      <!-- ITEM-LEVEL TAXES -->
-      <div v-if="itemTaxes.length > 0">
-        <p class="text-xs font-medium text-muted mb-2">Impuestos por ítem (se calculan por producto)</p>
-        <div class="flex flex-wrap gap-2">
-          <button
-            v-for="tax in itemTaxes"
-            :key="tax.id"
-            type="button"
-            class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
-            :class="isTaxSelected(tax.id) ? 'border-primary bg-primary/10 text-primary' : 'border-default hover:border-primary/50'"
-            @click="toggleTax(tax.id)"
-          >
-            {{ tax.name }} ({{ tax.rate }}%)
-          </button>
+        <!-- ITEM-LEVEL TAXES -->
+        <div v-if="itemTaxes.length > 0">
+          <p class="text-xs font-medium text-muted mb-2">Impuestos por ítem (se calculan por producto)</p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="tax in itemTaxes"
+              :key="tax.id"
+              type="button"
+              class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
+              :class="isTaxSelected(tax.id) ? 'border-primary bg-primary/10 text-primary' : 'border-default hover:border-primary/50'"
+              @click="toggleTax(tax.id)"
+            >
+              {{ tax.name }} ({{ tax.rate }}%)
+            </button>
+          </div>
+        </div>
+
+        <!-- DOCUMENT-LEVEL TAXES -->
+        <div v-if="documentTaxes.length > 0">
+          <p class="text-xs font-medium text-muted mb-2">Impuestos por documento (se aplican al total)</p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="tax in documentTaxes"
+              :key="tax.id"
+              type="button"
+              class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
+              :class="isTaxSelected(tax.id) ? 'border-primary bg-primary/10 text-primary' : 'border-default hover:border-primary/50'"
+              @click="toggleTax(tax.id)"
+            >
+              {{ tax.name }} ({{ tax.rate }}%)
+            </button>
+          </div>
+        </div>
+
+        <div v-if="itemTaxes.length === 0 && documentTaxes.length === 0" class="rounded-lg border border-dashed border-default px-4 py-6 text-center">
+          <UIcon name="i-lucide-receipt" class="mx-auto mb-2 size-6 text-dimmed" />
+          <p class="text-sm font-medium text-highlighted">No hay impuestos configurados</p>
+          <p class="mt-1 text-xs text-muted">Configurá impuestos en Ajustes > Impuestos para asignarlos aquí.</p>
         </div>
       </div>
+    </UPageCard>
 
-      <!-- DOCUMENT-LEVEL TAXES -->
-      <div v-if="documentTaxes.length > 0">
-        <p class="text-xs font-medium text-muted mb-2">Impuestos por documento (se aplican al total)</p>
-        <div class="flex flex-wrap gap-2">
-          <button
-            v-for="tax in documentTaxes"
-            :key="tax.id"
-            type="button"
-            class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
-            :class="isTaxSelected(tax.id) ? 'border-primary bg-primary/10 text-primary' : 'border-default hover:border-primary/50'"
-            @click="toggleTax(tax.id)"
-          >
-            {{ tax.name }} ({{ tax.rate }}%)
-          </button>
-        </div>
-      </div>
-
-      <div v-if="itemTaxes.length === 0 && documentTaxes.length === 0" class="text-xs text-muted">
-        No hay impuestos configurados en el sistema
-      </div>
-    </div>
-
-    <div class="flex justify-end gap-2 pt-2 border-t border-default">
-      <UButton label="Cancelar" variant="ghost" @click="emit('cancel')" />
-      <UButton label="Guardar" type="submit" :loading="loading" />
+    <!-- SUBMIT BAR -->
+    <div class="sticky bottom-0 z-20 -mx-2 flex flex-col-reverse gap-3 border-t border-default bg-default/95 px-2 py-4 shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.45)] backdrop-blur sm:flex-row sm:justify-end">
+      <UButton label="Cancelar" variant="ghost" color="neutral" :disabled="loading" class="justify-center" @click="emit('cancel')" />
+      <UButton label="Guardar" type="submit" icon="i-lucide-check" :loading="loading" class="justify-center" />
     </div>
 
     <!-- Inline Sequence Creation -->
