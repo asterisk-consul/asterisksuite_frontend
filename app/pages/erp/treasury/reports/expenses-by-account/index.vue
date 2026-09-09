@@ -116,8 +116,8 @@ onMounted(async () => {
 <template>
   <UPage class="space-y-4">
     <AppPageHeader
-      title="Gastos por Cuenta Contable"
-      description="Pagos confirmados agrupados por cuenta contable del plan de cuentas"
+      title="Movimientos por Cuenta Contable"
+      description="Pagos y cobros confirmados agrupados por cuenta contable del plan de cuentas"
     >
       <template #links>
         <UButton label="Volver" icon="i-lucide-arrow-left" variant="ghost" @click="navigateTo('/erp/treasury/reports')" />
@@ -177,7 +177,7 @@ onMounted(async () => {
         </UCard>
         <UCard>
           <div class="text-center">
-            <p class="text-xs text-muted">Pagos sin cuenta</p>
+            <p class="text-xs text-muted">Movimientos sin cuenta</p>
             <p class="text-2xl font-bold" :class="data.unassigned.count > 0 ? 'text-warning' : 'text-success'">
               {{ data.unassigned.count }}
             </p>
@@ -194,7 +194,7 @@ onMounted(async () => {
       <!-- Top 5 -->
       <UCard v-if="top5.length > 0">
         <template #header>
-          <h3 class="text-sm font-semibold">Top 5 cuentas por gasto</h3>
+          <h3 class="text-sm font-semibold">Top 5 cuentas por monto</h3>
         </template>
         <div class="space-y-2">
           <div v-for="acc in top5" :key="acc.account_id" class="flex items-center gap-3">
@@ -222,7 +222,7 @@ onMounted(async () => {
 
         <div v-if="data.accounts.length === 0" class="py-8 text-center text-sm text-muted">
           <UIcon name="i-lucide-bar-chart-3" class="mx-auto mb-2 text-2xl opacity-30" />
-          <p>Sin pagos con cuenta contable en el período seleccionado</p>
+          <p>Sin movimientos con cuenta contable en el período seleccionado</p>
         </div>
 
         <div v-else class="space-y-2">
@@ -248,7 +248,7 @@ onMounted(async () => {
                 variant="subtle"
                 size="xs"
               />
-              <UBadge :label="`${acc.count} pagos`" variant="soft" size="xs" />
+              <UBadge :label="`${acc.count} movimientos`" variant="soft" size="xs" />
               <span class="text-sm font-semibold w-36 text-right">{{ fmtMoney(acc.total_base) }}</span>
             </div>
 
@@ -294,7 +294,7 @@ onMounted(async () => {
             />
             <UIcon name="i-lucide-alert-triangle" class="text-warning shrink-0" />
             <span class="text-sm font-medium flex-1">Sin cuenta contable asignada</span>
-            <UBadge :label="`${data.unassigned.count} pagos`" color="warning" variant="subtle" size="xs" />
+            <UBadge :label="`${data.unassigned.count} movimientos`" color="warning" variant="subtle" size="xs" />
             <span class="text-sm font-semibold w-36 text-right">{{ fmtMoney(data.unassigned.total_base) }}</span>
           </div>
           <div v-if="expanded.has('unassigned')" class="border-t border-default bg-muted/20">

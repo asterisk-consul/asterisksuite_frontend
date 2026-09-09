@@ -143,6 +143,8 @@ const calculateSuggestedWithholdings = async (baseAmount: number) => {
 // Parties for ADVANCE mode selector
 const allParties = ref<Array<{ id: string; name: string; tax_id?: string; type: string }>>([])
 const partySearch = ref('')
+const cashBoxSearch = ref('')
+const bankAccountSearch = ref('')
 const payablePartyTypes = new Set(['SUPPLIER', 'SERVICE_PROVIDER', 'UTILITY', 'TAX_AUTHORITY', 'FINANCIAL'])
 const partyTypeLabels: Record<string, string> = {
   SUPPLIER: 'Proveedor',
@@ -325,7 +327,8 @@ const paymentMethods = [
 
 const typeOptions = [
   { label: 'Pago (a proveedor)', value: 'PAYMENT' },
-  { label: 'Cobro (de cliente)', value: 'COLLECTION' }
+  { label: 'Cobro (de cliente)', value: 'COLLECTION' },
+  { label: 'Gasto varios', value: 'EXPENSE' }
 ]
 
 const paymentModeOptions = [
@@ -377,7 +380,7 @@ const suggestedWithheld = (wh: any) => {
 }
 
 const isCollection = computed(() => form.type === 'COLLECTION')
-const isPayment = computed(() => form.type === 'PAYMENT')
+const isPayment = computed(() => form.type === 'PAYMENT' || form.type === 'EXPENSE')
 const isCheck = computed(() => form.payment_method === 'CHECK')
 const isCollectingCheck = computed(() => isCollection.value && isCheck.value)
 const isPayingWithCheck = computed(() => isPayment.value && isCheck.value)
@@ -386,9 +389,11 @@ const isPayingWithCheck = computed(() => isPayment.value && isCheck.value)
 // LABELS SOLO LECTURA
 // ═══════════════════════════════════════════
 
-const readonlyTypeLabel = computed(() =>
-  form.type === 'COLLECTION' ? 'Cobro (de cliente)' : 'Pago (a proveedor)'
-)
+const readonlyTypeLabel = computed(() => {
+  if (form.type === 'COLLECTION') return 'Cobro (de cliente)'
+  if (form.type === 'EXPENSE') return 'Gasto varios'
+  return 'Pago (a proveedor)'
+})
 
 const readonlyModeLabel = computed(() =>
   form.payment_mode === 'ADVANCE' ? 'A cuenta (anticipo)' : 'Normal'
@@ -470,15 +475,31 @@ const availableChecks = computed(() => {
 })
 
 const filteredCashBoxes = computed(() => {
-  if (!form.currency_code) return cashBoxes.value
-  return cashBoxes.value.filter(cb =>
-    cb.balances?.some(b => b.currency_code === form.currency_code)
-  )
+  let list = cashBoxes.value
+  if (form.currency_code) {
+    list = list.filter(cb => cb.balances?.some(b => b.currency_code === form.currency_code))
+  }
+  const q = cashBoxSearch.value.toLowerCase().trim()
+  if (q) {
+    list = list.filter(cb => cb.name.toLowerCase().includes(q))
+  }
+  return list
 })
 
 const filteredBankAccounts = computed(() => {
-  if (!form.currency_code) return bankAccounts.value
-  return bankAccounts.value.filter(ba => ba.currency_code === form.currency_code)
+  let list = bankAccounts.value
+  if (form.currency_code) {
+    list = list.filter(ba => ba.currency_code === form.currency_code)
+  }
+  const q = bankAccountSearch.value.toLowerCase().trim()
+  if (q) {
+    list = list.filter(ba =>
+      ba.bank_name?.toLowerCase().includes(q) ||
+      ba.name?.toLowerCase().includes(q) ||
+      ba.account_number?.toLowerCase().includes(q)
+    )
+  }
+  return list
 })
 
 const totalApplied = computed(() => {
@@ -1005,8 +1026,8 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       </UFormField>
     </div>
 
-    <!-- SELECTOR DE TERCERO (solo para modo ADVANCE — en NORMAL se toma del documento) -->
-    <div v-if="form.payment_mode === 'ADVANCE'" class="grid grid-cols-2 gap-4">
+    <!-- SELECTOR DE TERCERO (ADVANCE o EXPENSE) -->
+    <div v-if="form.payment_mode === 'ADVANCE' || form.type === 'EXPENSE'" class="grid grid-cols-2 gap-4">
       <UFormField :label="isPayment ? 'Proveedor o entidad' : 'Cliente'" name="party_id" required>
         <USelectMenu
           v-model="selectedParty"
@@ -1021,56 +1042,66 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
 
     <!-- SELECTOR DE CAJA (EFECTIVO) -->
     <div v-if="selectedPaymentMethod?.value === 'CASH'" class="border border-default rounded-lg p-4 space-y-3">
-      <h4 class="text-sm font-medium">Seleccionar caja</h4>
+      <div class="flex items-center justify-between">
+        <h4 class="text-sm font-medium">Seleccionar caja</h4>
+        <div v-if="form.cash_box_id" class="text-sm font-semibold text-primary">
+          Seleccionada
+        </div>
+      </div>
+      <UInput
+        v-model="cashBoxSearch"
+        placeholder="Buscar caja..."
+        icon="i-lucide-search"
+        size="sm"
+      />
       <div v-if="filteredCashBoxes.length === 0" class="text-center py-4 text-muted text-sm">
         {{ form.currency_code ? `No hay cajas con saldo en ${form.currency_code}` : 'No hay cajas disponibles' }}
       </div>
-      <div v-else class="max-h-48 overflow-y-auto space-y-2">
+      <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[130px] overflow-y-auto">
         <div
           v-for="cb in filteredCashBoxes"
           :key="cb.id"
-          class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
-          :class="form.cash_box_id === cb.id ? 'border-primary bg-primary/5' : 'border-default hover:border-muted'"
+          class="relative flex flex-col p-3 rounded-lg border cursor-pointer transition-colors"
+          :class="form.cash_box_id === cb.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-default hover:border-muted'"
           @click="selectCashBox(cb.id)"
         >
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium">{{ cb.name }}</span>
-              <UBadge
-                :label="cb.is_main ? 'Principal' : 'Secundaria'"
-                :color="cb.is_main ? 'primary' : 'gray'"
-                size="xs"
-              />
-              <UBadge
-                :label="cb.status === 'OPEN' ? 'Abierta' : 'Cerrada'"
-                :color="cb.status === 'OPEN' ? 'success' : 'warning'"
-                size="xs"
-              />
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-sm font-medium truncate">{{ cb.name }}</span>
+            <UBadge
+              :label="cb.is_main ? 'Ppal' : 'Sec'"
+              :color="cb.is_main ? 'primary' : 'gray'"
+              size="xs"
+            />
+          </div>
+          <UBadge
+            :label="cb.status === 'OPEN' ? 'Abierta' : 'Cerrada'"
+            :color="cb.status === 'OPEN' ? 'success' : 'warning'"
+            size="xs"
+            class="self-start mb-2"
+          />
+          <div class="text-xs text-muted">
+            <div v-if="getCashBoxBalances(cb).length === 0" class="font-semibold text-primary">
+              Sin saldo
             </div>
-            <div class="text-xs text-muted mt-1">
-              <div v-if="getCashBoxBalances(cb).length === 0" class="font-semibold text-primary">
-                Sin saldo
-              </div>
-              <div v-else class="flex flex-wrap gap-x-3 gap-y-0.5">
-                <span v-for="bal in getCashBoxBalances(cb)" :key="bal.currency_code" class="inline-flex items-center gap-1.5 font-semibold text-primary">
-                  <UBadge :label="bal.currency_code" size="xs" variant="soft" color="info" />
-                  {{ formatCurrency(bal.balance, bal.currency_code) }}
-                </span>
-              </div>
-            </div>
-            <div v-if="cb.status === 'CLOSED'" class="mt-2">
-              <p class="text-xs text-warning mb-1">La caja está cerrada. Debe abrirla antes de usar.</p>
-              <UButton
-                label="Abrir sesión"
-                icon="i-lucide-lock-open"
-                color="success"
-                variant="outline"
-                size="xs"
-                @click.stop="openBoxSession(cb)"
-              />
+            <div v-else class="flex flex-col gap-0.5">
+              <span v-for="bal in getCashBoxBalances(cb)" :key="bal.currency_code" class="inline-flex items-center gap-1.5 font-semibold text-primary">
+                <UBadge :label="bal.currency_code" size="xs" variant="soft" color="info" />
+                {{ formatCurrency(bal.balance, bal.currency_code) }}
+              </span>
             </div>
           </div>
-          <div v-if="form.cash_box_id === cb.id" class="text-primary">
+          <div v-if="cb.status === 'CLOSED'" class="mt-2">
+            <UButton
+              label="Abrir sesión"
+              icon="i-lucide-lock-open"
+              color="success"
+              variant="outline"
+              size="xs"
+              class="w-full"
+              @click.stop="openBoxSession(cb)"
+            />
+          </div>
+          <div v-if="form.cash_box_id === cb.id" class="absolute top-2 right-2 text-primary">
             <span class="i-heroicons-check-circle text-lg"></span>
           </div>
         </div>
@@ -1135,30 +1166,40 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
 
     <!-- SELECTOR DE CUENTA BANCARIA (TRANSFERENCIA) -->
     <div v-if="selectedPaymentMethod?.value === 'BANK_TRANSFER'" class="border border-default rounded-lg p-4 space-y-3">
-      <h4 class="text-sm font-medium">Seleccionar cuenta bancaria</h4>
+      <div class="flex items-center justify-between">
+        <h4 class="text-sm font-medium">Seleccionar cuenta bancaria</h4>
+        <div v-if="form.bank_account_id" class="text-sm font-semibold text-primary">
+          Seleccionada
+        </div>
+      </div>
+      <UInput
+        v-model="bankAccountSearch"
+        placeholder="Buscar banco, cuenta o alias..."
+        icon="i-lucide-search"
+        size="sm"
+      />
       <div v-if="filteredBankAccounts.length === 0" class="text-center py-4 text-muted text-sm">
         {{ form.currency_code ? `No hay cuentas bancarias en ${form.currency_code}` : 'No hay cuentas bancarias disponibles' }}
       </div>
-      <div v-else class="max-h-48 overflow-y-auto space-y-2">
+      <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[130px] overflow-y-auto">
         <div
           v-for="ba in filteredBankAccounts"
           :key="ba.id"
-          class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
-          :class="form.bank_account_id === ba.id ? 'border-primary bg-primary/5' : 'border-default hover:border-muted'"
+          class="relative flex flex-col p-3 rounded-lg border cursor-pointer transition-colors"
+          :class="form.bank_account_id === ba.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-default hover:border-muted'"
           @click="selectBankAccount(ba.id)"
         >
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium">{{ ba.bank_name }}</span>
-              <span class="text-xs text-muted">{{ ba.account_number || ba.name }}</span>
-            </div>
-            <div class="flex items-center gap-4 text-xs text-muted mt-1">
-              <span>Moneda: {{ ba.currency_code }}</span>
-              <span>Tipo: {{ ba.account_type }}</span>
-              <span>Saldo: <span class="font-semibold text-primary">{{ formatCurrency(Number(ba.balance), ba.currency_code) }}</span></span>
-            </div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-sm font-medium truncate">{{ ba.bank_name }}</span>
           </div>
-          <div v-if="form.bank_account_id === ba.id" class="text-primary">
+          <span class="text-xs text-muted truncate">{{ ba.account_number || ba.name }}</span>
+          <div class="text-xs text-muted mt-1">
+            <span>{{ ba.currency_code }} · {{ ba.account_type }}</span>
+          </div>
+          <div class="text-xs font-semibold text-primary mt-1">
+            {{ formatCurrency(Number(ba.balance), ba.currency_code) }}
+          </div>
+          <div v-if="form.bank_account_id === ba.id" class="absolute top-2 right-2 text-primary">
             <span class="i-heroicons-check-circle text-lg"></span>
           </div>
         </div>
@@ -1176,9 +1217,9 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       </div>
     </div>
 
-    <!-- DOCUMENTOS PENDIENTES (oculto en modo ADVANCE — se aplica después) -->
+    <!-- DOCUMENTOS PENDIENTES (oculto en modo ADVANCE y EXPENSE) -->
     <PendingDocumentsList
-      v-if="form.payment_mode !== 'ADVANCE'"
+      v-if="form.payment_mode !== 'ADVANCE' && form.type !== 'EXPENSE'"
       :documents="filteredDocs"
       :selected-docs="selectedDocs"
       :currency-code="form.currency_code"
@@ -1284,8 +1325,8 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
         <UInput v-model="form.reference" placeholder="N° de referencia" />
       </UFormField>
     </div>
-    <UFormField label="Descripción" name="description">
-      <UInput v-model="form.description" placeholder="Descripción del pago/cobro" />
+    <UFormField label="Descripción" name="description" :required="form.type === 'EXPENSE'">
+      <UInput v-model="form.description" placeholder="Descripción del gasto" />
     </UFormField>
 
     <div class="sticky bottom-0 bg-default border-t border-default -mx-4 px-4 py-3 flex items-center justify-between">

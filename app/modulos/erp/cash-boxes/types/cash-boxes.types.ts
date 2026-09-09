@@ -20,6 +20,7 @@ export interface CashBoxSession {
   closing_balance?: number | null
   actual_balance?: number | null
   difference?: number | null
+  difference_reason?: string | null
   total_income: number
   total_expenses: number
   movement_count: number

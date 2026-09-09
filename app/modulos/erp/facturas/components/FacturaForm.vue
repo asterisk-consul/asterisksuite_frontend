@@ -22,6 +22,8 @@ import { useStockService } from '~/modulos/logistica/warehouses/stock/stock.serv
 // Currencies
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
+import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
+import type { BusinessPartyIibbRegistration, CompanyTaxJurisdiction, TaxRule } from '~/modulos/erp/fiscal/types/fiscal.types'
 
 // Document Types
 import { useDocumentsTypesStore } from '~/modulos/erp/documents/documents-types/store/documents-types.store'
@@ -64,6 +66,7 @@ const productsStore = useProductsStore()
 const documentsTypesStore = useDocumentsTypesStore()
 const depositosStore = useDepositosStore()
 const stockService = useStockService()
+const fiscalService = useFiscalService()
 const { items: parties } = storeToRefs(partiesStore)
 const { items: products } = storeToRefs(productsStore)
 const { items: documentsTypes } = storeToRefs(documentsTypesStore)
@@ -120,6 +123,7 @@ const form = reactive({
   exchange_rate: null as number | null,
   rate_type: 'OFFICIAL' as string,
   warehouse_id: '' as string,
+  fiscal_jurisdiction_id: '' as string,
 })
 const advancedWarehouseAssignment = ref(false)
 const allWarehouseOptions = computed(() => warehouses.value
@@ -167,6 +171,17 @@ function warehouseOptionsForItem(item: FacturaItem) {
     }))
     .filter(option => option.available >= Number(item.quantity || 0))
     .map(option => ({ ...option, label: `${option.label} · disponible: ${option.available}` }))
+}
+
+function singleWarehouseForProduct(productId: string): string | null {
+  if (props.moduleCode !== 'SALES') return form.warehouse_id || null
+  const options = allWarehouseOptions.value
+    .map(option => ({
+      ...option,
+      available: stockByWarehouse.value[option.value]?.[productId] ?? 0
+    }))
+    .filter(option => option.available > 0)
+  return options.length === 1 ? options[0].value : null
 }
 const affectsStock = computed(() => {
   const type = documentsTypes.value.find(item => item.id === form.document_type_id)
@@ -309,6 +324,11 @@ const documentTypeValidation = ref<string | null>(null)
 
 // ─── Tax Engine Preview ───────────────────────────────
 const lastPreview = ref<any>(null)
+const partyIibbRegistrations = ref<BusinessPartyIibbRegistration[]>([])
+const iibbPerceptionRules = ref<TaxRule[]>([])
+const companyIibbJurisdictions = ref<CompanyTaxJurisdiction[]>([])
+const manualIibbAmount = ref<number | null>(null)
+const manualIibbReason = ref('')
 const previewLoading = ref(false)
 let isRecalculating = false
 let previewDebounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -334,11 +354,12 @@ async function fetchPreview() {
         documentLetterType: currentDocType?.letter_type,
         currency: form.currency_code,
         date: form.date,
+        jurisdictionId: form.fiscal_jurisdiction_id || undefined,
         operationType: props.moduleCode === 'SALES' ? 'SALE' : 'PURCHASE',
         items: items.value.map((i) => ({
           productId: i.product_id || undefined,
           quantity: Number(i.quantity),
-          unitPrice: Number(i.unit_price)
+          unitPrice: Number(i.unit_price) * (1 - Math.min(100, Math.max(0, Number(i.discount_percentage || 0))) / 100)
         }))
       }
     })
@@ -380,10 +401,47 @@ function debouncedFetchPreview() {
 
 // Totales del preview
 const subtotal = computed(() => lastPreview.value?.document?.subtotal ?? 0)
-const totalTaxes = computed(() => lastPreview.value?.document?.totalTaxes ?? 0)
-const total = computed(() => lastPreview.value?.document?.total ?? 0)
-const taxesSummary = computed(() => lastPreview.value?.document?.documentTaxes ?? [])
+const automaticTaxesSummary = computed(() => lastPreview.value?.document?.documentTaxes ?? [])
+const automaticIibbTax = computed(() => automaticTaxesSummary.value.find((tax: any) =>
+  String(tax.code ?? '').includes('IIBB')
+))
+const taxesSummary = computed(() => automaticTaxesSummary.value.map((tax: any) =>
+  tax.tax_id === automaticIibbTax.value?.tax_id && manualIibbAmount.value != null
+    ? { ...tax, amount: Number(manualIibbAmount.value) }
+    : tax
+))
+const iibbDelta = computed(() => manualIibbAmount.value == null || !automaticIibbTax.value
+  ? 0
+  : Number(manualIibbAmount.value) - Number(automaticIibbTax.value.amount))
+const totalTaxes = computed(() => (lastPreview.value?.document?.totalTaxes ?? 0) + iibbDelta.value)
+const total = computed(() => (lastPreview.value?.document?.total ?? 0) + iibbDelta.value)
 const showTaxBreakdown = computed(() => lastPreview.value?.document?.settings?.showTaxBreakdown ?? true)
+const activeIibbJurisdictionIds = computed(() => {
+  const documentDate = new Date(`${form.date}T12:00:00`)
+  const activeRuleIds = new Set(iibbPerceptionRules.value
+    .filter(rule => rule.application_type === 'PERCEPTION' && rule.is_active)
+    .filter(rule => !rule.operation_type || rule.operation_type === (props.moduleCode === 'SALES' ? 'SALE' : 'PURCHASE'))
+    .filter(rule => new Date(`${rule.valid_from.slice(0, 10)}T12:00:00`) <= documentDate)
+    .filter(rule => !rule.valid_to || new Date(`${rule.valid_to.slice(0, 10)}T12:00:00`) >= documentDate)
+    .map(rule => rule.jurisdiction_id)
+    .filter((id): id is string => Boolean(id)))
+  return new Set(companyIibbJurisdictions.value
+    .filter(config => config.tax_type === 'IIBB' && config.is_perception_agent)
+    .filter(config => !config.valid_from || new Date(`${config.valid_from.slice(0, 10)}T12:00:00`) <= documentDate)
+    .filter(config => !config.valid_to || new Date(`${config.valid_to.slice(0, 10)}T12:00:00`) >= documentDate)
+    .map(config => config.jurisdiction_id)
+    .filter(id => activeRuleIds.has(id)))
+})
+const jurisdictionOptions = computed(() => partyIibbRegistrations.value
+  .filter(r => r.is_active && r.jurisdiction_id)
+  .map(r => ({
+    label: activeIibbJurisdictionIds.value.has(r.jurisdiction_id as string)
+      ? r.jurisdiction?.name ?? 'Jurisdicción IIBB'
+      : `${r.jurisdiction?.name ?? 'Jurisdicción IIBB'} · percepción inactiva`,
+    value: r.jurisdiction_id as string,
+    disabled: !activeIibbJurisdictionIds.value.has(r.jurisdiction_id as string)
+  })))
+const selectableJurisdictionOptions = computed(() => jurisdictionOptions.value.filter(j => !j.disabled))
 
 // Watch para recalcular cuando cambien precios o cantidades
 watch(
@@ -453,6 +511,7 @@ watch(
     form.exchange_rate = val.exchange_rate ? Number(val.exchange_rate) : null
     form.rate_type = val.rate_type ?? 'OFFICIAL'
     form.warehouse_id = (val as any).warehouse_id ?? ''
+    form.fiscal_jurisdiction_id = (val as any).fiscal_jurisdiction_id ?? ''
     const seqId = (val as any).document_sequence_id
     selectedSequenceId.value = seqId && sequenceOptions.value.some(s => s.value === seqId) ? seqId : ''
 
@@ -498,7 +557,8 @@ watch(
           warehouse_id: item.warehouse_id ?? null,
           product_name: item.products?.name || item.products?.description || 'Producto',
           quantity: Number(item.quantity ?? 0),
-          unit_price: Number(item.unit_price ?? 0),
+          unit_price: Number(item.original_unit_price ?? item.unit_price ?? 0),
+          discount_percentage: Number(item.discount_percentage ?? 0),
           price: subtotal,
           subtotal,
           taxes,
@@ -609,17 +669,22 @@ watch(() => form.document_type_id, (newId) => {
   }
 })
 
-onMounted(async () => {
-  await Promise.all([
-    partiesStore.fetchAll(),
-    productsStore.fetchAll(),
-    documentsTypesStore.fetchAll(),
-    initCurrencies(),
-    fetchIssuerCondition(),
-    documentSequencesService.findAll().then(s => { sequences.value = s }),
-    depositosStore.fetchAll()
-  ])
-  await loadStockAvailability()
+onMounted(() => {
+  partiesStore.fetchAll()
+  productsStore.fetchAll()
+  documentsTypesStore.fetchAll()
+  initCurrencies()
+  fetchIssuerCondition()
+  documentSequencesService.findAll().then(s => { sequences.value = s })
+  depositosStore.fetchAll().then(() => loadStockAvailability())
+  fiscalService.getTaxRules('IIBB').then(rows => { iibbPerceptionRules.value = rows })
+  fiscalService.getCompanyJurisdictions().then(rows => { companyIibbJurisdictions.value = rows })
+})
+
+watch(() => form.fiscal_jurisdiction_id, () => {
+  manualIibbAmount.value = null
+  manualIibbReason.value = ''
+  if (items.value.length) fetchPreview()
 })
 
 // Restaurar secuencia cuando sequences se carga (edit mode)
@@ -707,14 +772,29 @@ async function resolvePartyPrice(productId: string, currencyCode = form.currency
 watch(
   () => form.party_id,
   async (newParty, oldParty) => {
-    if (!newParty || !oldParty || newParty === oldParty || !items.value.length) return
+    partyIibbRegistrations.value = newParty
+      ? await fiscalService.getPartyIibbRegistrations(newParty)
+      : []
+    const currentJurisdictionExists = jurisdictionOptions.value.some(j => j.value === form.fiscal_jurisdiction_id)
+    if (!currentJurisdictionExists) {
+      form.fiscal_jurisdiction_id = selectableJurisdictionOptions.value.length === 1
+        ? selectableJurisdictionOptions.value[0]?.value ?? ''
+        : ''
+    }
+    manualIibbAmount.value = null
+    manualIibbReason.value = ''
+    if (!newParty || !oldParty || newParty === oldParty || !items.value.length) {
+      if (items.value.length) await fetchPreview()
+      return
+    }
 
     await Promise.all(items.value.map(async (item) => {
       const price = await resolvePartyPrice(item.product_id)
       if (price !== null) item.unit_price = price
     }))
     await fetchPreview()
-  }
+  },
+  { immediate: true }
 )
 
 async function addItem(prod: any) {
@@ -740,11 +820,12 @@ async function addItem(prod: any) {
 
   items.value.push({
     product_id: prod.product_id,
-    warehouse_id: advancedWarehouseAssignment.value ? null : (form.warehouse_id || null),
+    warehouse_id: singleWarehouseForProduct(prod.product_id),
     variant_id: prod.variant_id ?? null,
     product_name: prod.product_name,
     quantity,
     unit_price: unitPrice,
+    discount_percentage: 0,
     price: quantity * unitPrice,
     subtotal: quantity * unitPrice,
     taxes: [],
@@ -762,6 +843,14 @@ function removeItem(index: number) {
 }
 
 function submit() {
+  if (manualIibbAmount.value != null && !manualIibbReason.value.trim()) {
+    toast.add({
+      title: 'Motivo requerido',
+      description: 'Indicá por qué modificaste el importe automático de IIBB.',
+      color: 'warning'
+    })
+    return
+  }
   // Usar el payload del último preview para enviar al backend
   const previewPayload = lastPreview.value?.document
 
@@ -776,14 +865,24 @@ function submit() {
     rate_type: form.rate_type,
     parent_document_id: referenceDocumentId.value || props.parentDocumentId || undefined,
     document_sequence_id: selectedSequenceId.value || undefined,
+    fiscal_jurisdiction_id: form.fiscal_jurisdiction_id || undefined,
     warehouse_id: affectsStock.value ? (form.warehouse_id || undefined) : undefined,
+    taxes: automaticIibbTax.value ? [{
+      tax_id: automaticIibbTax.value.tax_id,
+      tax_rate: Number(automaticIibbTax.value.rate),
+      taxable_base: Number(automaticIibbTax.value.taxableBase),
+      tax_amount: manualIibbAmount.value ?? Number(automaticIibbTax.value.amount),
+      manual: manualIibbAmount.value != null,
+      modification_reason: manualIibbAmount.value != null ? manualIibbReason.value : undefined
+    }] : [],
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
       warehouse_id: affectsStock.value
-        ? (advancedWarehouseAssignment.value ? (i.warehouse_id || undefined) : (form.warehouse_id || undefined))
+        ? (moduleCode === 'SALES' ? (i.warehouse_id || undefined) : (advancedWarehouseAssignment.value ? (i.warehouse_id || undefined) : (form.warehouse_id || undefined)))
         : undefined,
       quantity: Number(i.quantity),
       unit_price: Number(i.unit_price),
+      discount_percentage: Math.min(100, Math.max(0, Number(i.discount_percentage || 0))),
       taxes: previewPayload?.items?.[idx]?.taxes?.map((t: any) => ({
         tax_id: t.tax_id,
         tax_rate: t.rate,
@@ -811,14 +910,21 @@ defineExpose({ submit })
   <div class="w-full min-w-0 space-y-5">
     <!-- Header: Party + Document Type + PV + Currency + Date -->
     <UCard>
+      <template #header>
+        <div>
+          <h2 class="text-base font-semibold">Datos del comprobante</h2>
+          <p class="mt-1 text-sm text-muted">Seleccioná el tercero y los datos que determinan la numeración y el cálculo fiscal.</p>
+        </div>
+      </template>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
-        <UFormField :label="moduleCode === 'SALES' ? 'Cliente' : 'Proveedor o entidad'" class="min-w-0 md:col-span-2 xl:col-span-4">
+        <UFormField :label="moduleCode === 'SALES' ? 'Cliente' : 'Proveedor o entidad'" class="min-w-0 md:col-span-2 xl:col-span-3">
           <div class="flex min-w-0 gap-2">
             <USelectMenu
               v-model="selectedCustomer"
               :items="partyOptions"
               :placeholder="moduleCode === 'SALES' ? 'Buscar cliente...' : 'Buscar proveedor, servicio o ente impositivo...'"
               searchable
+              size="lg"
               class="min-w-0 flex-1"
             />
             <UButton icon="i-lucide-plus" variant="outline" class="shrink-0" aria-label="Crear cliente o proveedor" @click="showBusinessPartiesModal = true" />
@@ -838,6 +944,7 @@ defineExpose({ submit })
             v-model="selectedDocumentType"
             :items="documentTypeOptions"
             placeholder="Seleccionar tipo..."
+            size="lg"
             class="w-full min-w-0"
           />
         </UFormField>
@@ -848,15 +955,17 @@ defineExpose({ submit })
             :items="sequenceOptions"
             value-key="value"
             placeholder="Seleccionar PV..."
+            size="lg"
             class="w-full min-w-0"
           />
         </UFormField>
 
-        <UFormField label="Moneda" class="min-w-0 xl:col-span-1">
+        <UFormField label="Moneda del comprobante" class="min-w-0 xl:col-span-2">
           <USelect
             v-model="form.currency_code"
             :items="currencyOptions"
             placeholder="Moneda"
+            size="lg"
             class="w-full min-w-0"
           />
           <p v-if="moduleCode === 'SALES' && items.length > 0 && warehouseOptions.length === 0" class="mt-2 text-sm text-warning">
@@ -865,8 +974,32 @@ defineExpose({ submit })
         </UFormField>
 
         <UFormField label="Fecha" class="min-w-0 xl:col-span-2">
-          <UInput v-model="form.date" type="date" class="w-full min-w-0" />
+          <UInput v-model="form.date" type="date" size="lg" class="w-full min-w-0" />
         </UFormField>
+      </div>
+
+      <div v-if="form.party_id && partyIibbRegistrations.length > 0" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <UFormField
+          label="Jurisdicción / domicilio de la operación"
+          description="Define qué inscripción y alícuota de IIBB se aplican."
+        >
+          <USelectMenu
+            v-model="form.fiscal_jurisdiction_id"
+            :items="jurisdictionOptions"
+            value-key="value"
+            searchable
+            placeholder="Seleccionar provincia..."
+            size="lg"
+            class="w-full"
+          />
+        </UFormField>
+        <UAlert
+          v-if="selectableJurisdictionOptions.length === 0"
+          color="warning"
+          variant="soft"
+          title="Percepción de IIBB inactiva"
+          description="El tercero tiene inscripción, pero falta habilitar la misma jurisdicción para la empresa o activar su regla de percepción."
+        />
       </div>
 
       <!-- Exchange Rate (solo si moneda extranjera) -->
@@ -907,7 +1040,7 @@ defineExpose({ submit })
         <UInput v-model="form.descrip" placeholder="Referencia u observación breve (opcional)" class="w-full min-w-0" />
       </UFormField>
 
-      <div v-if="affectsStock" class="mt-4 rounded-lg border border-default bg-muted/30 p-4 space-y-3">
+      <div v-if="affectsStock && moduleCode !== 'SALES'" class="mt-4 rounded-lg border border-default bg-muted/30 p-4 space-y-3">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p class="font-medium">Movimiento de stock</p>
@@ -915,7 +1048,7 @@ defineExpose({ submit })
           </div>
           <USwitch v-model="advancedWarehouseAssignment" label="Depósito por producto" />
         </div>
-        <UFormField :label="moduleCode === 'SALES' ? 'Depósito de salida' : 'Depósito receptor'" required>
+        <UFormField v-if="moduleCode !== 'SALES'" :label="moduleCode === 'SALES' ? 'Depósito de salida' : 'Depósito receptor'" required>
           <USelect
             v-model="form.warehouse_id"
             :items="warehouseOptions"
@@ -959,13 +1092,24 @@ defineExpose({ submit })
 
     <!-- Items Table -->
     <UCard>
+      <template #header>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-base font-semibold">Detalle de productos</h2>
+            <p class="mt-1 text-sm text-muted">La bonificación se aplica sobre cada artículo antes de calcular IVA e IIBB.</p>
+          </div>
+          <UBadge color="neutral" variant="soft">
+            {{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}
+          </UBadge>
+        </div>
+      </template>
       <FacturaItemsTable
         :items="items"
         :product-options="productOptions"
         :currency-code="form.currency_code"
         :warehouses="warehouseOptions"
         :warehouse-options-for-item="warehouseOptionsForItem"
-        :show-warehouse-column="affectsStock && advancedWarehouseAssignment"
+        :show-warehouse-column="moduleCode === 'SALES' ? affectsStock : affectsStock && advancedWarehouseAssignment"
         :default-warehouse-id="form.warehouse_id"
         @remove="removeItem"
         @add="addItem"
@@ -973,8 +1117,47 @@ defineExpose({ submit })
     </UCard>
 
     <!-- Totals -->
-    <div class="sticky bottom-0 z-10 min-w-0">
-      <UCard class="shadow-lg border-t-2 border-primary">
+    <div class="flex min-w-0 justify-end">
+      <UCard class="w-full border-t-2 border-primary lg:max-w-xl">
+        <details v-if="automaticIibbTax" class="group mb-4 rounded-lg border border-default bg-muted/20 p-3">
+          <summary class="flex cursor-pointer list-none items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-medium">{{ automaticIibbTax.name }}</p>
+              <p class="text-xs text-muted">
+                {{ Number(manualIibbAmount ?? automaticIibbTax.amount).toLocaleString('es-AR', { style: 'currency', currency: form.currency_code }) }}
+                · {{ automaticIibbTax.rate }}%
+              </p>
+            </div>
+            <span class="flex items-center gap-1 text-xs font-medium text-primary">
+              Ajustar
+              <UIcon name="i-lucide-chevron-down" class="size-4 transition-transform group-open:rotate-180" />
+            </span>
+          </summary>
+          <div class="mt-3 grid grid-cols-1 gap-3 border-t border-default pt-3 md:grid-cols-2">
+              <UFormField label="Importe IIBB" description="Podés corregir el cálculo automático.">
+                <UInput
+                  :model-value="manualIibbAmount ?? automaticIibbTax.amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="w-full"
+                  @update:model-value="manualIibbAmount = Number($event)"
+                />
+              </UFormField>
+              <UFormField v-if="manualIibbAmount != null" label="Motivo del ajuste">
+                <UInput v-model="manualIibbReason" placeholder="Ej.: alícuota informada por padrón" class="w-full" />
+              </UFormField>
+              <div v-if="manualIibbAmount != null" class="md:col-span-2">
+                <UButton
+                  label="Restaurar cálculo automático"
+                  size="xs"
+                  variant="ghost"
+                  @click="manualIibbAmount = null; manualIibbReason = ''"
+                />
+              </div>
+          </div>
+        </details>
+
         <FacturaTotals
           :subtotal="subtotal"
           :taxes="taxesSummary"

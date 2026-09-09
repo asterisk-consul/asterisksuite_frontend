@@ -5,7 +5,6 @@ definePageMeta({
 })
 
 import { useAuthStore } from '~/modulos/auth/auth.store'
-import CompanyAgentConfig from '~/modulos/erp/fiscal/components/CompanyAgentConfig.vue'
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -100,8 +99,6 @@ onMounted(() => {
     </div>
 
     <div v-else class="space-y-6">
-      <CompanyAgentConfig />
-
       <div v-if="settings">
       <!-- Modo Fiscal -->
       <UCard>
@@ -188,6 +185,7 @@ onMounted(() => {
         />
       </div>
       </div>
+
     </div>
   </div>
 </template>

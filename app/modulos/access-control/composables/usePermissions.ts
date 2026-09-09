@@ -69,6 +69,10 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
       stock: 'Stock'
     }
   },
+  intake: {
+    label: 'Capturas y adjuntos', icon: 'i-lucide-paperclip', order: 35,
+    modules: ['intake']
+  },
   treasury: {
     label: 'Tesorería', icon: 'i-lucide-wallet', order: 40,
     modules: ['treasury', 'cash_boxes', 'cash_box_movements', 'cash_box_renditions', 'cash_box_transfers', 'bank_accounts', 'payments', 'currency_rates', 'checks'],

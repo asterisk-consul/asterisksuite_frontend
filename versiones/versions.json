@@ -1,5 +1,42 @@
 [
   {
+    "version": "0.45.0-alpha",
+    "date": "2026-09-09",
+    "stage": "alpha",
+    "notes": "Gastos varios en pagos, fix de saldos de caja, endpoint de recálculo y selectores de caja/banco rediseñados",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Nuevo tipo de pago 'Gastos varios' (EXPENSE): sin documentos, cuenta contable requerida, descripción requerida"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "Header de caja: Ingresos/Egresos sesión ahora usa total_income/total_expenses del backend en vez de filtrar por signo de amount"
+      },
+      {
+        "type": "feat",
+        "scope": "api",
+        "title": "Endpoint POST /api/logistica/cash-boxes/:id/recalculate para corregir divergencias de saldos"
+      },
+      {
+        "type": "refactor",
+        "scope": "payments",
+        "title": "Selectores de caja y bancos en PaymentForm: grid 2-3 columnas, buscador, scroll con max-height"
+      },
+      {
+        "type": "fix",
+        "scope": "api",
+        "title": "Mapeo EXPENSE → PAYMENT para type de movimientos de caja/banco (AccountEntryType no incluye EXPENSE)"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Gastos varios, fix de saldos de caja y selectores rediseñados"
+  },
+  {
     "version": "0.44.1-alpha",
     "date": "2026-09-07",
     "stage": "alpha",

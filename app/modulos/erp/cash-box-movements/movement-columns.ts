@@ -66,15 +66,19 @@ export const cashBoxMovementColumns = (actions: {
         label: 'Monto',
         sortable: true,
         cell: ({ row }) => {
-          const value = row.original.amount
-          if (value == null) return '—'
-          const numValue = Number(value)
+          const movement = row.original
+          if (movement.amount == null) return '—'
+          const balanceDelta = Number(movement.balance_after) - Number(movement.balance_before)
+          const configuredSide = MOVEMENT_TYPE_CONFIG[movement.type]?.side
+          const signedValue = Number.isFinite(balanceDelta) && Math.abs(balanceDelta) > 0.001
+            ? balanceDelta
+            : configuredSide === 'out' ? -Math.abs(Number(movement.amount)) : Math.abs(Number(movement.amount))
           const formatted = new Intl.NumberFormat('es-AR', {
             style: 'currency',
-            currency: row.original.currency_code || 'ARS',
+            currency: movement.currency_code || 'ARS',
             maximumFractionDigits: 2
-          }).format(Math.abs(numValue))
-          return `${numValue >= 0 ? '+' : '-'} ${formatted}`
+          }).format(Math.abs(signedValue))
+          return `${signedValue >= 0 ? '+' : '-'} ${formatted}`
         }
       },
       {

@@ -24,6 +24,13 @@ const reports = [
     to: '/erp/treasury/reports/libro-iva'
   },
   {
+    title: 'Registro IIBB',
+    description: 'Percepciones por jurisdicción y ajustes manuales',
+    icon: 'i-lucide-landmark',
+    color: 'info',
+    to: '/erp/treasury/reports/iibb'
+  },
+  {
     title: 'Reportes Contables',
     description: 'Estados contables y reportes financieros',
     icon: 'i-lucide-calculator',
@@ -36,6 +43,13 @@ const reports = [
     icon: 'i-lucide-file-text',
     color: 'secondary',
     to: '/erp/treasury/reports/consolidated'
+  },
+  {
+    title: 'Movimientos por Cuenta',
+    description: 'Pagos y cobros agrupados por cuenta contable',
+    icon: 'i-lucide-bar-chart-3',
+    color: 'primary',
+    to: '/erp/treasury/reports/expenses-by-account'
   }
 ]
 </script>

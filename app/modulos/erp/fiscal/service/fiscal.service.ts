@@ -51,9 +51,20 @@ export function useFiscalService() {
   }
 
   function putCompanyJurisdictions(jurisdictions: CompanyTaxJurisdiction[]) {
+    const payload = jurisdictions.map((row) => ({
+      jurisdiction_id: row.jurisdiction_id,
+      tax_type: row.tax_type,
+      is_withholding_agent: row.is_withholding_agent,
+      is_perception_agent: row.is_perception_agent,
+      registration_number: row.registration_number ?? null,
+      default_perception_rate: row.default_perception_rate ?? null,
+      default_retention_rate: row.default_retention_rate ?? null,
+      valid_from: row.valid_from || null,
+      valid_to: row.valid_to || null,
+    }))
     return $fetch(`${urlBase}/company-jurisdictions`, {
       method: 'PUT',
-      body: { jurisdictions },
+      body: { jurisdictions: payload },
     })
   }
 

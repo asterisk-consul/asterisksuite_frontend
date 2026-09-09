@@ -11,6 +11,7 @@ const {
   remove,
   openSession,
   closeSession,
+  forceCloseSession,
   fetchCurrentSession,
   fetchBalances,
   balances,
@@ -184,34 +185,30 @@ const handleDelete = async () => {
   }
 }
 
-const openSessionModal = (box: CashBox) => {
+const openSessionModal = async (box: CashBox) => {
   if (isSessionFromDifferentDay(box)) {
     forceCloseBox.value = box
-    forceCloseForm.actual_balance = 0
+    const currentBalances = await fetchBalances(box.id)
+    forceCloseForm.actual_balance = Number(currentBalances.find(balance => balance.currency_code === box.currency_code)?.balance ?? 0)
     forceCloseForm.reason = ''
     forceCloseModalOpen.value = true
     return
   }
   sessionBox.value = box
   sessionAction.value = 'open'
-  sessionForm.opening_balance = box.opening_balance ?? 0
+  const currentBalances = await fetchBalances(box.id)
+  sessionForm.opening_balance = Number(currentBalances.find(balance => balance.currency_code === box.currency_code)?.balance ?? 0)
   sessionModalOpen.value = true
 }
 
 const closeSessionModal = async (box: CashBox) => {
   sessionBox.value = box
   sessionAction.value = 'close'
-  sessionForm.actual_balance = 0
   sessionForm.notes = ''
 
-  // Calculate expected balance from session data
-  const session = box.current_session
-  if (session) {
-    expectedBalance.value =
-      Number(session.opening_balance || 0) + Number(session.total_income || 0) - Number(session.total_expenses || 0)
-  } else {
-    expectedBalance.value = getCashBoxBalance(box)
-  }
+  const currentBalances = await fetchBalances(box.id)
+  expectedBalance.value = Number(currentBalances.find(balance => balance.currency_code === box.currency_code)?.balance ?? 0)
+  sessionForm.actual_balance = expectedBalance.value
   balanceDifference.value = 0
 
   sessionModalOpen.value = true
@@ -225,7 +222,10 @@ const handleSession = async () => {
       await openSession(sessionBox.value.id, { opening_balance: Number(sessionForm.opening_balance) || 0 })
       toast.add({ title: 'Sesión abierta', color: 'success' })
     } else {
-      await closeSession(sessionBox.value.id, { actual_balance: Number(sessionForm.actual_balance) || 0 })
+      await closeSession(sessionBox.value.id, {
+        actual_balance: Number(sessionForm.actual_balance) || 0,
+        notes: sessionForm.notes.trim() || undefined
+      })
       toast.add({ title: 'Sesión cerrada', color: 'success' })
     }
     sessionModalOpen.value = false
@@ -240,7 +240,10 @@ const handleForceClose = async () => {
   if (!forceCloseBox.value) return
   forceCloseSaving.value = true
   try {
-    await closeSession(forceCloseBox.value.id, { actual_balance: forceCloseForm.actual_balance })
+    await forceCloseSession(forceCloseBox.value.id, {
+      actual_balance: Number(forceCloseForm.actual_balance) || 0,
+      reason: forceCloseForm.reason.trim()
+    })
     toast.add({ title: 'Sesión cerrada (forzado)', color: 'warning' })
     forceCloseModalOpen.value = false
     forceCloseBox.value = null
@@ -485,8 +488,8 @@ const goToEdit = (box: CashBox) => {
         <UForm :state="sessionForm" class="space-y-4" @submit="handleSession">
           <!-- OPEN SESSION -->
           <template v-if="sessionAction === 'open'">
-            <UFormField label="Saldo de apertura" name="opening_balance">
-              <UInput v-model.number="sessionForm.opening_balance" type="number" />
+            <UFormField label="Saldo de apertura" name="opening_balance" description="Saldo final disponible de la caja en su moneda.">
+              <UInput v-model.number="sessionForm.opening_balance" type="number" readonly class="w-full" />
             </UFormField>
           </template>
 
@@ -595,7 +598,7 @@ const goToEdit = (box: CashBox) => {
           </UFormField>
           <div class="flex justify-end gap-2 pt-4">
             <UButton label="Cancelar" variant="ghost" @click="forceCloseModalOpen = false" />
-            <UButton label="Cerrar sesión" color="warning" :loading="forceCloseSaving" @click="handleForceClose" />
+            <UButton label="Cerrar sesión" color="warning" :loading="forceCloseSaving" :disabled="!forceCloseForm.reason.trim()" @click="handleForceClose" />
           </div>
         </div>
       </template>

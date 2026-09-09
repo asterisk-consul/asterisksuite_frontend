@@ -9,6 +9,20 @@ import type {
 const props = defineProps<{
   partyId?: string
 }>()
+const vatCondition = defineModel<string>('vatCondition', { default: 'CF' })
+const exemptionRate = defineModel<number>('exemptionRate', { default: 0 })
+const activeSection = ref<'vat' | 'iibb' | 'withholdings'>('vat')
+const sectionTabs = [
+  { label: 'IVA', value: 'vat', icon: 'i-lucide-percent' },
+  { label: 'Ingresos Brutos', value: 'iibb', icon: 'i-lucide-map-pinned' },
+  { label: 'Retenciones y otros', value: 'withholdings', icon: 'i-lucide-receipt-text' }
+]
+const vatConditionOptions = [
+  { label: 'Responsable Inscripto', value: 'RI' },
+  { label: 'Monotributista', value: 'MONO' },
+  { label: 'Consumidor Final', value: 'CF' },
+  { label: 'Exento', value: 'EX' }
+]
 
 const toast = useToast()
 const fiscalService = useFiscalService()
@@ -42,6 +56,7 @@ const TAX_TYPES = [
 const registrations = ref<BusinessPartyIibbRegistration[]>([])
 const jurisdictions = ref<TaxJurisdiction[]>([])
 const registrationsLoading = ref(false)
+const showAdvancedIibb = ref(false)
 
 const registrationTypeOptions = [
   { label: 'Directo', value: 'DIRECTO' },
@@ -70,6 +85,11 @@ const addRegistration = () => {
     jurisdiction_id: null,
     registration_number: null,
     prorrate_percentage: null,
+    perception_rate: null,
+    retention_rate: null,
+    valid_from: null,
+    valid_to: null,
+    source: 'MANUAL',
     is_active: true
   })
 }
@@ -103,6 +123,11 @@ const loadAll = async () => {
       jurisdiction_id: r.jurisdiction_id,
       registration_number: r.registration_number,
       prorrate_percentage: r.prorrate_percentage != null ? Number(r.prorrate_percentage) : null,
+      perception_rate: r.perception_rate != null ? Number(r.perception_rate) : null,
+      retention_rate: r.retention_rate != null ? Number(r.retention_rate) : null,
+      valid_from: r.valid_from?.slice(0, 10) ?? null,
+      valid_to: r.valid_to?.slice(0, 10) ?? null,
+      source: r.source ?? 'MANUAL',
       is_active: r.is_active
     }))
   } catch (e: any) {
@@ -134,14 +159,11 @@ const save = async () => {
     return
   }
 
-  // Validación: CM sin jurisdicción
-  const invalidRows = registrations.value.filter(
-    r => r.registration_type !== 'EXENTO' && !r.jurisdiction_id
-  )
+  const invalidRows = registrations.value.filter(r => !r.jurisdiction_id)
   if (invalidRows.length > 0) {
     toast.add({
       title: 'Jurisdicción requerida',
-      description: 'Completá la jurisdicción en todas las inscripciones IIBB (excepto Exento).',
+      description: 'Completá la jurisdicción en todas las inscripciones IIBB.',
       color: 'warning'
     })
     return
@@ -170,9 +192,13 @@ watch(() => props.partyId, loadAll, { immediate: true })
 <template>
   <UCard>
     <template #header>
-      <div class="flex items-center justify-between">
-        <h3 class="font-semibold">Perfil Fiscal — Retenciones</h3>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0">
+          <h3 class="font-semibold">Configuración impositiva</h3>
+          <p class="mt-0.5 text-xs text-muted">IVA, Ingresos Brutos y condiciones para retenciones.</p>
+        </div>
         <UButton
+          v-if="activeSection !== 'vat'"
           label="Guardar perfil fiscal"
           size="sm"
           :loading="saving"
@@ -182,15 +208,29 @@ watch(() => props.partyId, loadAll, { immediate: true })
       </div>
     </template>
 
+    <UTabs v-model="activeSection" :items="sectionTabs" :content="false" variant="link" class="mb-5 w-full" />
+
+    <div v-if="activeSection === 'vat'" class="space-y-5">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <UFormField label="Condición frente al IVA" description="Se utiliza para elegir el tipo de comprobante y calcular IVA.">
+          <USelectMenu v-model="vatCondition" :items="vatConditionOptions" value-key="value" class="w-full" />
+        </UFormField>
+        <UFormField label="Porcentaje de exención" description="Completalo solamente cuando corresponda una exención parcial.">
+          <UInput v-model.number="exemptionRate" type="number" min="0" max="100" step="0.01" suffix="%" class="w-full" />
+        </UFormField>
+      </div>
+      <UAlert color="neutral" variant="soft" title="El IVA se guarda con los datos generales del tercero" />
+    </div>
+
     <UAlert
-      v-if="!partyId"
+      v-else-if="!partyId"
       color="info"
       variant="soft"
       title="Guardá el tercero primero"
-      description="El perfil fiscal se configura después de crear el registro, cuando ya tenga su identificador."
+      description="Ingresos Brutos y retenciones se habilitan después de crear el cliente o proveedor."
     />
 
-    <div v-else class="space-y-6">
+    <div v-else-if="activeSection === 'withholdings'" class="space-y-6">
       <!-- SUJETO PASIBLE -->
       <div>
         <h4 class="text-sm font-medium mb-3">Sujeto pasible de retención</h4>
@@ -198,13 +238,13 @@ watch(() => props.partyId, loadAll, { immediate: true })
           <div
             v-for="p in profiles"
             :key="p.tax_type"
-            class="grid grid-cols-12 gap-3 items-center p-3 rounded-lg border border-default"
+            class="grid grid-cols-1 gap-3 rounded-lg border border-default p-3 md:grid-cols-12 md:items-center"
           >
-            <div class="col-span-3 font-medium text-sm">{{ TAX_TYPES.find(t => t.type === p.tax_type)?.label ?? p.tax_type }}</div>
-            <div class="col-span-3">
+            <div class="text-sm font-medium md:col-span-3">{{ TAX_TYPES.find(t => t.type === p.tax_type)?.label ?? p.tax_type }}</div>
+            <div class="md:col-span-3">
               <UCheckbox v-model="p.is_subject" label="Sujeto pasible" />
             </div>
-            <div class="col-span-4">
+            <div class="md:col-span-4">
               <USelectMenu
                 v-model="p.status"
                 :items="statusOptions"
@@ -213,7 +253,7 @@ watch(() => props.partyId, loadAll, { immediate: true })
                 placeholder="Estado"
               />
             </div>
-            <div class="col-span-2">
+            <div class="md:col-span-2">
               <UCheckbox
                 v-if="p.tax_type === 'SUSS'"
                 v-model="p.is_pyme"
@@ -227,76 +267,69 @@ watch(() => props.partyId, loadAll, { immediate: true })
         </p>
       </div>
 
+    </div>
+
+    <div v-else class="space-y-6">
       <!-- INSCRIPCIONES IIBB -->
       <div>
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="text-sm font-medium">Inscripciones Ingresos Brutos</h4>
-          <UButton label="Agregar" size="xs" icon="i-lucide-plus" @click="addRegistration" />
+        <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="min-w-0">
+            <h4 class="text-sm font-medium">Inscripciones de Ingresos Brutos</h4>
+            <p class="text-xs text-muted">Agregá las provincias del tercero. Las alícuotas vacías usan la configuración general.</p>
+          </div>
+          <div class="flex gap-2">
+            <UButton :label="showAdvancedIibb ? 'Ocultar vigencias' : 'Vigencias'" size="xs" variant="ghost" @click="showAdvancedIibb = !showAdvancedIibb" />
+            <UButton label="Agregar" size="xs" icon="i-lucide-plus" @click="addRegistration" />
+          </div>
         </div>
 
         <div v-if="registrations.length === 0" class="text-xs text-muted">
-          Sin inscripciones. Sin esto, el motor no calculará retenciones de IIBB para este tercero.
+          Sin inscripciones. Sin esto, el motor no calculará percepciones ni retenciones de IIBB para este tercero.
         </div>
 
         <div v-else class="space-y-2">
           <div
             v-for="(r, i) in registrations"
             :key="i"
-            class="grid grid-cols-12 gap-2 items-center p-2 rounded-lg border border-default"
+            class="rounded-lg border border-default p-4"
           >
-            <div class="col-span-3">
-              <USelectMenu
-                v-model="r.registration_type"
-                :items="registrationTypeOptions"
-                value-key="value"
-                size="sm"
-                placeholder="Tipo"
-              />
+            <div class="mb-4 flex items-center justify-between gap-3">
+              <div class="text-sm font-medium">
+                {{ jurisdictions.find(j => j.id === r.jurisdiction_id)?.name ?? 'Nueva jurisdicción' }}
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-muted">Activa</span>
+                <USwitch v-model="r.is_active" />
+                <UButton icon="i-lucide-trash-2" size="xs" variant="ghost" color="error" @click="removeRegistration(i)" />
+              </div>
             </div>
-            <div class="col-span-3">
-              <USelectMenu
-                v-model="r.jurisdiction_id"
-                :items="jurisdictionOptions"
-                value-key="value"
-                size="sm"
-                placeholder="Jurisdicción"
-                searchable
-                :disabled="r.registration_type === 'EXENTO'"
-              />
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <UFormField label="Condición">
+                <USelectMenu v-model="r.registration_type" :items="registrationTypeOptions" value-key="value" class="w-full" />
+              </UFormField>
+              <UFormField label="Jurisdicción">
+                <USelectMenu v-model="r.jurisdiction_id" :items="jurisdictionOptions" value-key="value" searchable class="w-full" />
+              </UFormField>
+              <UFormField label="N.º de inscripción">
+                <UInput v-model="r.registration_number" placeholder="CUIT o inscripción" class="w-full" />
+              </UFormField>
+              <UFormField v-if="r.registration_type === 'CONVENIO_MULTILATERAL'" label="% prorrateo">
+                <UInput v-model.number="r.prorrate_percentage" type="number" min="0" max="100" step="0.0001" class="w-full" />
+              </UFormField>
+              <UFormField label="Percepción particular" hint="%">
+                <UInput v-model.number="r.perception_rate" type="number" min="0" max="100" step="0.0001" placeholder="Usar general" class="w-full" />
+              </UFormField>
+              <UFormField label="Retención particular" hint="%">
+                <UInput v-model.number="r.retention_rate" type="number" min="0" max="100" step="0.0001" placeholder="Usar general" class="w-full" />
+              </UFormField>
+              <UFormField v-if="showAdvancedIibb" label="Vigente desde">
+                <UInput v-model="r.valid_from" type="date" class="w-full" />
+              </UFormField>
+              <UFormField v-if="showAdvancedIibb" label="Vigente hasta">
+                <UInput v-model="r.valid_to" type="date" class="w-full" />
+              </UFormField>
             </div>
-            <div class="col-span-2">
-              <UInput
-                v-if="r.registration_type === 'CONVENIO_MULTILATERAL'"
-                v-model.number="r.prorrate_percentage"
-                type="number"
-                size="sm"
-                placeholder="% prorrateo"
-              />
-              <UInput
-                v-else
-                v-model="r.registration_number"
-                size="sm"
-                placeholder="N° inscripción"
-              />
-            </div>
-            <div class="col-span-3">
-              <UInput
-                v-if="r.registration_type === 'CONVENIO_MULTILATERAL'"
-                v-model="r.registration_number"
-                size="sm"
-                placeholder="N° inscripción CM"
-              />
-              <span v-else class="text-xs text-muted">—</span>
-            </div>
-            <div class="col-span-1 flex justify-end">
-              <UButton
-                icon="i-lucide-x"
-                size="xs"
-                variant="ghost"
-                color="error"
-                @click="removeRegistration(i)"
-              />
-            </div>
+            <p class="mt-3 text-xs text-muted">Dejá la alícuota vacía para usar la general de {{ jurisdictions.find(j => j.id === r.jurisdiction_id)?.name ?? 'la provincia' }}. Escribí 0 solamente para forzar importe $0.</p>
           </div>
 
           <div

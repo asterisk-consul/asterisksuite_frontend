@@ -4,8 +4,22 @@ definePageMeta({ middleware: ['auth'] })
 import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
 import PaymentForm from '~/modulos/erp/payments/components/PaymentForm.vue'
 import type { PaymentFormData } from '~/modulos/erp/payments/components/PaymentForm.vue'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 const route = useRoute()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+const canCreateCapture = computed(() => isOwnerOrAdmin.value || hasPermission('intake.create'))
+const canUploadCapture = computed(() => isOwnerOrAdmin.value || hasPermission('intake.upload'))
+const canProcessCapture = computed(() => isOwnerOrAdmin.value || hasPermission('intake.process'))
+const canSendCapture = computed(() => isOwnerOrAdmin.value || hasPermission('intake.send'))
+const canAttachToPayment = computed(() => canCreateCapture.value && canUploadCapture.value && canProcessCapture.value)
+const missingAttachmentPermissions = computed(() => [
+  !canCreateCapture.value && 'Crear capturas',
+  !canUploadCapture.value && 'Adjuntar imágenes o PDF a capturas',
+  !canProcessCapture.value && 'Procesar capturas asignadas'
+].filter(Boolean).join(', '))
 
 const {
   create,
@@ -173,22 +187,36 @@ const handleSubmit = async (formData: PaymentFormData) => {
           icon="i-lucide-paperclip"
           variant="outline"
           :loading="quickCaptureLoading"
+          :disabled="!canAttachToPayment"
           @click="enableQuickCapture"
         />
       </div>
+      <UAlert
+        v-if="!quickCaptureActive && !canAttachToPayment"
+        class="mt-4"
+        color="warning"
+        variant="soft"
+        title="No tenés permisos para adjuntar comprobantes"
+        :description="`Un administrador debe habilitar en Capturas y adjuntos: ${missingAttachmentPermissions}.`"
+      />
       <div v-else-if="intakeId" class="space-y-4">
         <div>
           <p class="font-medium">Adjuntos del pago</p>
           <p class="text-sm text-muted">Estos archivos acompañarán al pago cuando lo guardes.</p>
         </div>
-        <UiAttachmentManager entity-type="intake" :entity-id="intakeId" @uploaded="hasUploadedFile = true" />
+        <UiAttachmentManager
+          entity-type="intake"
+          :entity-id="intakeId"
+          :allow-upload="canUploadCapture"
+          @uploaded="hasUploadedFile = true"
+        />
 
         <div v-if="!showAssignment" class="flex justify-end border-t border-default pt-4">
           <UButton
             label="Enviar a otro usuario para completar"
             icon="i-lucide-send"
             variant="outline"
-            :disabled="!hasUploadedFile"
+            :disabled="!hasUploadedFile || !canSendCapture"
             @click="showAssignment = true"
           />
         </div>

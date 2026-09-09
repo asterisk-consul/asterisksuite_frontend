@@ -191,13 +191,6 @@ function validateDocument(): boolean {
   return true
 }
 
-const vatConditionOptions: SelectMenuItem[] = [
-  { label: 'Responsable Inscripto', value: 'RI' },
-  { label: 'Monotributista', value: 'MONO' },
-  { label: 'Consumidor Final', value: 'CF' },
-  { label: 'Exento', value: 'EX' }
-]
-
 // ─── Locations ──────────────────────────────────────────
 const locationsStore = useLocationsStore()
 const showLocationModal = ref(false)
@@ -278,8 +271,7 @@ const baseTabs = [
   { label: 'Impuestos', slot: 'taxes' },
   { label: 'Direcciones', slot: 'locations' },
   { label: 'Contactos', slot: 'contacts' },
-  { label: 'Cuentas Bancarias', slot: 'bankAccounts' },
-  { label: 'Retenciones', slot: 'fiscalProfile' }
+  { label: 'Cuentas Bancarias', slot: 'bankAccounts' }
 ]
 
 // Tabs internos según el tipo seleccionado
@@ -301,7 +293,7 @@ const allExtraTabs = computed(() => [
 
 const tabs = computed(() => {
   const hideTaxes = form.type === 'EMPLOYEE' || form.type === 'PARTNER'
-  const filtered = hideTaxes ? baseTabs.filter(t => t.slot !== 'taxes' && t.slot !== 'fiscalProfile') : baseTabs
+  const filtered = hideTaxes ? baseTabs.filter(t => t.slot !== 'taxes') : baseTabs
   const createUserTab = (form.type === 'EMPLOYEE' || form.type === 'PARTNER')
     ? [{ label: 'Usuario de Acceso', slot: 'createUser' }]
     : []
@@ -412,39 +404,11 @@ const displayTitle = computed(() => {
     <UTabs :items="tabs" variant="link" class="w-full">
       <!-- TAXES -->
       <template #taxes>
-        <UCard>
-          <template #header>
-            <h3 class="font-semibold">Impuestos</h3>
-          </template>
-
-          <div class="space-y-4">
-            <UAlert
-              color="info"
-              variant="soft"
-              title="La jurisdicción de IIBB se obtiene de las direcciones vinculadas"
-              description="La provincia para Ingresos Brutos se toma automáticamente de la ubicación asociada a esta parte interesada."
-            />
-
-            <div class="grid grid-cols-2 gap-4">
-              <UFormField label="Condición IVA" name="vat_condition">
-                <USelectMenu
-                  v-model="form.vat_condition"
-                  :items="vatConditionOptions"
-                  value-key="value"
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField label="Porcentaje Exención" name="exemption_rate">
-                <UInput
-                  v-model="form.exemption_rate"
-                  type="number"
-                  class="w-full"
-                />
-              </UFormField>
-            </div>
-          </div>
-        </UCard>
+        <PartyFiscalProfileTab
+          v-model:vat-condition="form.vat_condition"
+          v-model:exemption-rate="form.exemption_rate"
+          :party-id="form.id"
+        />
       </template>
 
       <!-- LOCATIONS -->
@@ -621,11 +585,6 @@ const displayTitle = computed(() => {
             />
           </div>
         </UCard>
-      </template>
-
-      <!-- FISCAL PROFILE (Retenciones) -->
-      <template #fiscalProfile>
-        <PartyFiscalProfileTab :party-id="form.id" />
       </template>
 
       <!-- INTERNAL TABS: Employee -->

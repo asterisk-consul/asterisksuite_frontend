@@ -75,6 +75,11 @@ export interface BusinessPartyIibbRegistration {
   jurisdiction?: { id: string; code: string; name: string } | null
   registration_number?: string | null
   prorrate_percentage?: number | null
+  perception_rate?: number | null
+  retention_rate?: number | null
+  valid_from?: string | null
+  valid_to?: string | null
+  source?: string
   is_active: boolean
 }
 
@@ -86,6 +91,10 @@ export interface CompanyTaxJurisdiction {
   is_withholding_agent: boolean
   is_perception_agent: boolean
   registration_number?: string | null
+  default_perception_rate?: number | null
+  default_retention_rate?: number | null
+  valid_from?: string | null
+  valid_to?: string | null
 }
 
 export interface TaxRuleBracket {

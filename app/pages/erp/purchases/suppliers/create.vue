@@ -17,8 +17,8 @@ const handleSubmit = async (form: FormType) => {
   try {
     saving.value = true
     const payload = mapFormToBusinessPartyDto(form)
-    await store.create(payload)
-    await router.push('/erp/purchases/suppliers')
+    const created = await store.create(payload)
+    await router.push(`/erp/purchases/suppliers/${created.id}/edit?section=taxes&created=1`)
   } catch (error) {
     console.error(error)
   } finally {

@@ -47,7 +47,9 @@ export function mapDocumentToFacturaForm(
 
         quantity: Number(item.quantity ?? 0),
 
-        unit_price: Number(item.unit_price ?? 0),
+        unit_price: Number(item.original_unit_price ?? item.unit_price ?? 0),
+
+        discount_percentage: Number(item.discount_percentage ?? 0),
 
         price: subtotal,
 
@@ -86,6 +88,8 @@ export function mapDocumentToFacturaForm(
     document_sequence_id: document.document_sequence_id ?? null,
 
     party_id: document.party_id,
+
+    fiscal_jurisdiction_id: document.fiscal_jurisdiction_id ?? null,
 
     currency_code: document.currency_code ?? 'ARS',
 

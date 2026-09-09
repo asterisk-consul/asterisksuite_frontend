@@ -32,6 +32,11 @@ export interface DocumentItem {
 
   unit_price: number
 
+  original_unit_price?: number
+
+  /** Bonificación comercial aplicada sobre el precio unitario de lista. */
+  discount_percentage?: number
+
   price: number
 
   products?: Product | null
@@ -68,6 +73,8 @@ export interface Document {
 
   party_id: string | null
   warehouse_id?: string | null
+
+  fiscal_jurisdiction_id?: string | null
 
   currency_code?: string | null
 
@@ -147,6 +154,8 @@ export interface FacturaItem {
 
   unit_price: number
 
+  discount_percentage?: number
+
   price: number
 
   subtotal?: number
@@ -166,6 +175,8 @@ export interface FacturaFormValues {
   document_sequence_id?: string | null
 
   party_id: string | null
+
+  fiscal_jurisdiction_id?: string | null
 
   warehouse_id?: string | null
 

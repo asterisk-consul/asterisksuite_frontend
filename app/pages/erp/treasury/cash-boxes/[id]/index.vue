@@ -145,19 +145,15 @@ const sessionSaving = ref(false)
 const expectedBalance = ref(0)
 const balanceDifference = ref(0)
 
-const openSessionModal = (action: 'open' | 'close') => {
+const openSessionModal = async (action: 'open' | 'close') => {
   sessionAction.value = action
   if (action === 'open') {
-    sessionForm.opening_balance = Number(box.value?.opening_balance) || 0
+    const currentBalances = await fetchBalances(boxId)
+    sessionForm.opening_balance = Number(currentBalances.find(balance => balance.currency_code === box.value?.currency_code)?.balance ?? 0)
   } else {
     sessionForm.notes = ''
-    const session = currentSession.value
-    if (session) {
-      expectedBalance.value =
-        Number(session.opening_balance || 0) + Number(session.total_income || 0) - Number(session.total_expenses || 0)
-    } else {
-      expectedBalance.value = Number(box.value?.opening_balance || 0)
-    }
+    const currentBalances = await fetchBalances(boxId)
+    expectedBalance.value = Number(currentBalances.find(balance => balance.currency_code === box.value?.currency_code)?.balance ?? 0)
     sessionForm.actual_balance = expectedBalance.value
     balanceDifference.value = 0
   }
@@ -173,7 +169,10 @@ const handleSession = async () => {
       await openSession(boxId, payload)
       toast.add({ title: 'Sesión abierta', color: 'success' })
     } else {
-      await closeSession(boxId, { actual_balance: Number(sessionForm.actual_balance) || 0 })
+      await closeSession(boxId, {
+        actual_balance: Number(sessionForm.actual_balance) || 0,
+        notes: sessionForm.notes.trim() || undefined
+      })
       toast.add({ title: 'Sesión cerrada', color: 'success' })
     }
     sessionModalOpen.value = false
@@ -236,17 +235,8 @@ const sessionMovements = computed(() =>
   movements.value.filter(m => m.session_id === currentSession.value?.id)
 )
 
-const realIncome = computed(() =>
-  sessionMovements.value
-    .filter(m => Number(m.amount) > 0)
-    .reduce((sum, m) => sum + Number(m.amount), 0)
-)
-
-const realExpenses = computed(() =>
-  sessionMovements.value
-    .filter(m => Number(m.amount) < 0)
-    .reduce((sum, m) => sum + Math.abs(Number(m.amount)), 0)
-)
+const sessionIncome = computed(() => Number(currentSession.value?.total_income ?? 0))
+const sessionExpenses = computed(() => Number(currentSession.value?.total_expenses ?? 0))
 
 const links = computed(() => [
   {
@@ -320,11 +310,11 @@ const links = computed(() => [
         </div>
         <div>
           <p class="text-xs text-muted font-medium uppercase">Ingresos</p>
-          <p class="text-sm font-semibold text-success">+{{ formatCurrency(realIncome) }}</p>
+          <p class="text-sm font-semibold text-success">+{{ formatCurrency(sessionIncome) }}</p>
         </div>
         <div>
           <p class="text-xs text-muted font-medium uppercase">Egresos</p>
-          <p class="text-sm font-semibold text-error">-{{ formatCurrency(realExpenses) }}</p>
+          <p class="text-sm font-semibold text-error">-{{ formatCurrency(sessionExpenses) }}</p>
         </div>
       </div>
 
@@ -362,11 +352,11 @@ const links = computed(() => [
       </div>
       <div class="p-4 rounded-xl border border-default bg-default">
         <p class="text-xs text-muted font-medium uppercase">Ingresos sesión</p>
-        <p class="text-xl font-bold mt-1 text-success">+{{ formatCurrency(realIncome) }}</p>
+        <p class="text-xl font-bold mt-1 text-success">+{{ formatCurrency(sessionIncome) }}</p>
       </div>
       <div class="p-4 rounded-xl border border-default bg-default">
         <p class="text-xs text-muted font-medium uppercase">Egresos sesión</p>
-        <p class="text-xl font-bold mt-1 text-error">-{{ formatCurrency(realExpenses) }}</p>
+        <p class="text-xl font-bold mt-1 text-error">-{{ formatCurrency(sessionExpenses) }}</p>
       </div>
       <div class="p-4 rounded-xl border border-default bg-default">
         <p class="text-xs text-muted font-medium uppercase">Saldo sesión</p>
@@ -374,8 +364,8 @@ const links = computed(() => [
           {{
             formatCurrency(
               Number(currentSession?.opening_balance ?? box.opening_balance ?? 0) +
-                realIncome -
-                realExpenses
+                sessionIncome -
+                sessionExpenses
             )
           }}
         </p>
@@ -530,8 +520,8 @@ const links = computed(() => [
       <template #body>
         <UForm :state="sessionForm" class="space-y-4" @submit="handleSession">
           <template v-if="sessionAction === 'open'">
-            <UFormField label="Saldo de apertura" name="opening_balance">
-              <UInput v-model.number="sessionForm.opening_balance" type="number" />
+            <UFormField label="Saldo de apertura" name="opening_balance" description="Saldo final disponible de la caja en su moneda.">
+              <UInput v-model.number="sessionForm.opening_balance" type="number" readonly class="w-full" />
             </UFormField>
           </template>
           <template v-else>

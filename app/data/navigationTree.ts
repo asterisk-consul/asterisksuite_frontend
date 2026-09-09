@@ -201,13 +201,19 @@ export const navigationTree: DrilldownNode[] = [
             permission: 'payments.read'
           },
           {
+            label: 'Registro IIBB',
+            icon: 'i-lucide-landmark',
+            to: '/erp/treasury/reports/iibb',
+            permission: 'payments.read'
+          },
+          {
             label: 'Reportes contables',
             icon: 'i-lucide-bar-chart-3',
             to: '/erp/treasury/reports/accounting',
             permission: 'payments.read'
           },
           {
-            label: 'Gastos por cuenta',
+            label: 'Movimientos por Cuenta Contable',
             icon: 'i-lucide-chart-pie',
             to: '/erp/treasury/reports/expenses-by-account',
             permission: 'payments.read'
