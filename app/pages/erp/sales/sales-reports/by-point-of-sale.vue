@@ -5,6 +5,7 @@ definePageMeta({
 })
 
 import { useSalesReports } from '~/modulos/erp/sales-reports/composables/useSalesReports'
+import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 import type { SummaryFilters } from '~/modulos/erp/sales-reports/types/sales-reports.types'
 
 const { byPointOfSaleData, loading, error, fetchByPointOfSale } = useSalesReports()

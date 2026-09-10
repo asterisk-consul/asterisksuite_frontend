@@ -153,11 +153,33 @@ const CATEGORY_STATUS_MAPS: Record<string, Record<number, string>> = {
   RECEIPT: INVOICE_STATUSES,
 }
 
-export function getCategoryStatuses(category: string | null | undefined): { value: number; label: string }[] {
+const CATEGORY_COLOR_MAPS: Record<string, Record<number, BadgeColor>> = {
+  QUOTE: QUOTE_STATUS_COLORS,
+  ORDER: ORDER_STATUS_COLORS,
+  REMITO: REMITO_STATUS_COLORS,
+  INVOICE: INVOICE_STATUS_COLORS,
+  CREDIT_NOTE: INVOICE_STATUS_COLORS,
+  DEBIT_NOTE: INVOICE_STATUS_COLORS,
+  RECEIPT: INVOICE_STATUS_COLORS,
+}
+
+export function getCategoryStatuses(
+  category: string | null | undefined,
+  enabled_statuses?: number[] | null,
+): { value: number; label: string; color: BadgeColor }[] {
   const map = CATEGORY_STATUS_MAPS[category ?? '']
+  const colors = CATEGORY_COLOR_MAPS[category ?? '']
   if (!map) return []
-  return Object.keys(map)
+
+  const entries = Object.keys(map)
     .map(Number)
     .sort((a, b) => a - b)
-    .map((value) => ({ value, label: map[value] ?? `Status ${value}` }))
+    .map((value) => ({
+      value,
+      label: map[value] ?? `Status ${value}`,
+      color: colors?.[value] ?? 'neutral',
+    }))
+
+  if (!enabled_statuses || enabled_statuses.length === 0) return entries
+  return entries.filter(s => enabled_statuses.includes(s.value))
 }

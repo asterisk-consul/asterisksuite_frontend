@@ -18,6 +18,21 @@ const documents = computed(() => documentsSalesStore.items)
 const pending = computed(() => documentsSalesStore.loading)
 const error = computed(() => documentsSalesStore.error)
 
+// ─── Tipos de documento (para enabled_statuses) ─────────────────────────────
+const docTypes = ref<any[]>([])
+onMounted(async () => {
+  try {
+    docTypes.value = await $fetch<any[]>('/api/erp/documents-types')
+  } catch { /* ignore */ }
+})
+
+const getEnabledStatusesForCategory = (category: string): number[] | null => {
+  const types = docTypes.value.filter(dt => dt.category === category)
+  if (types.length === 0) return null
+  const allEnabled = types.flatMap(dt => dt.enabled_statuses ?? [])
+  return allEnabled.length > 0 ? [...new Set(allEnabled)] : null
+}
+
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 const categoryFilter = ref<string | undefined>(undefined)
 const statusFilter = ref<number | undefined>(undefined)
@@ -74,14 +89,16 @@ const statusTextClass = (color: string) => STATUS_TEXT_CLASSES[color] ?? 'text-m
 
 // ─── Filtros de estado (según categoría) ─────────────────────────────────────
 const statusOptions = computed(() =>
-  categoryFilter.value ? getCategoryStatuses(categoryFilter.value) : []
+  categoryFilter.value
+    ? getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
+    : []
 )
 
 // ─── Estadísticas ─────────────────────────────────────────────────────────────
 const stats = computed(() => {
   const docs = documents.value ?? []
   if (categoryFilter.value) {
-    const statuses = getCategoryStatuses(categoryFilter.value)
+    const statuses = getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
     return {
       byCategory: [],
       byStatus: statuses.map((s) => {

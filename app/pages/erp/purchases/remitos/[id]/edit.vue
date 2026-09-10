@@ -2,10 +2,10 @@
 definePageMeta({ middleware: ['auth'] })
 
 import FacturaForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
-import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
+import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { mapDocumentToFacturaForm } from '~/modulos/erp/facturas/mappers/factura.mapper'
 
-const store = useDocumentsSalesStore()
+const store = useDocumentsPurchasesStore()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()

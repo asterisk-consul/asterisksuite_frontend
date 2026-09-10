@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { FileService } from '~/services/fileApi'
+import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 
 const activeKey = ref<string | null>(null)
 const { canImport } = useDataTransferPermissions()

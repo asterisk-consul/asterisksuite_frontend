@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, watch, computed, onMounted } from 'vue'
 import { useDocumentSequencesStore } from '~/modulos/erp/document-sequences/store/document-sequences.store'
+import { getCategoryStatuses } from '~/modulos/erp/documents/types/document-statuses'
 
 export interface DocumentTypeFormData {
   id?: string
@@ -20,6 +21,7 @@ export interface DocumentTypeFormData {
   is_electronic: boolean
   document_sequence_ids: string[]
   tax_ids?: string[]
+  enabled_statuses?: number[] | null
 }
 
 const props = withDefaults(defineProps<{
@@ -52,7 +54,8 @@ const defaultForm: DocumentTypeFormData = {
   affects_stock: false, affects_accounting: true, affects_tax_book: false, affects_payment: false,
   calculates_taxes: true,
   active: true, category: '', letter_type: '', afip_code: '',
-  requires_cae: false, is_electronic: false, document_sequence_ids: [], tax_ids: []
+  requires_cae: false, is_electronic: false, document_sequence_ids: [], tax_ids: [],
+  enabled_statuses: null
 }
 
 const form = reactive<DocumentTypeFormData>({ ...defaultForm })
@@ -88,6 +91,7 @@ const handleSubmit = () => {
     is_electronic: form.is_electronic,
     document_sequence_ids: (form.document_sequence_ids ?? []).map((item: any) => typeof item === 'string' ? item : item.value),
     tax_ids: form.tax_ids?.length ? form.tax_ids : undefined,
+    enabled_statuses: form.enabled_statuses?.length ? form.enabled_statuses : null,
   }
   emit('submit', payload)
 }
@@ -131,6 +135,36 @@ const toggleTax = (taxId: string) => {
 
 const isTaxSelected = (taxId: string) => {
   return form.tax_ids?.includes(taxId) ?? false
+}
+
+// ─── Estados configurables ───────────────────────────────
+const availableStatuses = computed(() => {
+  if (!form.category) return []
+  return getCategoryStatuses(form.category)
+})
+
+const isStatusEnabled = (statusValue: number) => {
+  if (!form.enabled_statuses || form.enabled_statuses.length === 0) return true
+  return form.enabled_statuses.includes(statusValue)
+}
+
+const toggleStatus = (statusValue: number) => {
+  if (!form.enabled_statuses) {
+    form.enabled_statuses = availableStatuses.value
+      .map(s => s.value)
+      .filter(v => v !== statusValue)
+  } else {
+    const idx = form.enabled_statuses.indexOf(statusValue)
+    if (idx === -1) {
+      form.enabled_statuses.push(statusValue)
+    } else {
+      form.enabled_statuses.splice(idx, 1)
+    }
+  }
+}
+
+const enableAllStatuses = () => {
+  form.enabled_statuses = null
 }
 
 const directionOptions = [
@@ -321,6 +355,47 @@ const selectedCategory = computed({
           class="text-xs"
           title="Comprobante sin desglose de impuestos"
           description="El motor fiscal no calculará impuestos para documentos de este tipo (ej: comprobantes X o internos)."
+        />
+      </div>
+    </UPageCard>
+
+    <!-- ESTADOS DISPONIBLES -->
+    <UPageCard v-if="form.category">
+      <div class="space-y-5">
+        <div class="flex items-start gap-3">
+          <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
+            <UIcon name="i-lucide-list-checks" class="size-5" />
+          </div>
+          <div class="flex-1">
+            <h2 class="font-semibold text-highlighted">Estados disponibles</h2>
+            <p class="mt-0.5 text-sm text-muted">Elegí qué estados podrá usar este tipo de documento. Si no seleccionás ninguno, se habilitan todos.</p>
+          </div>
+          <UButton label="Habilitar todos" variant="ghost" size="xs" @click="enableAllStatuses" />
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="status in availableStatuses"
+            :key="status.value"
+            type="button"
+            class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
+            :class="isStatusEnabled(status.value)
+              ? 'border-primary bg-primary/10 text-primary'
+              : 'border-default text-muted hover:border-primary/50'"
+            @click="toggleStatus(status.value)"
+          >
+            {{ status.label }}
+          </button>
+        </div>
+
+        <UAlert
+          v-if="form.enabled_statuses && form.enabled_statuses.length > 0"
+          color="info"
+          variant="soft"
+          icon="i-lucide-info"
+          class="text-xs"
+          :title="`${form.enabled_statuses.length} de ${availableStatuses.length} estados habilitados`"
+          description="Los estados deshabilitados no aparecerán al filtrar documentos de este tipo."
         />
       </div>
     </UPageCard>

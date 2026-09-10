@@ -14,6 +14,7 @@ import {
   toCreateProductPayload
 } from '~/modulos/logistica/master-data/product/utils/product-form.utils'
 import { useExcelExport } from '~/composables/useExcelExport'
+import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 
 import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'

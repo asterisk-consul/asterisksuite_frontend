@@ -1,5 +1,74 @@
 [
   {
+    "version": "0.48.1-alpha",
+    "date": "2026-09-10",
+    "stage": "alpha",
+    "notes": "Fix de imports faltantes y páginas de compras usando store incorrecto",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "ui",
+        "title": "Agregado import faltante de useDataTransferPermissions en 10 páginas (productos, reportes, contabilidad, etc.)"
+      },
+      {
+        "type": "fix",
+        "scope": "erp",
+        "title": "Páginas de compras (remitos, órdenes) ahora usan useDocumentsPurchasesStore en vez de useDocumentsSalesStore"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Fix de imports faltantes y store incorrecto en páginas de compras"
+  },
+  {
+    "version": "0.48.0-alpha",
+    "date": "2026-09-10",
+    "stage": "alpha",
+    "notes": "Estados configurables por tipo de documento, gastos varios en pagos y fix de saldos de caja",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Estados configurables por tipo de documento: cada tipo puede habilitar/deshabilitar estados individuales"
+      },
+      {
+        "type": "feat",
+        "scope": "erp",
+        "title": "Nuevo campo enabled_statuses en document_types para filtrar estados disponibles por tipo"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Tipo de pago 'Gastos varios' (EXPENSE): sin documentos, cuenta contable y descripción requeridas"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "Header de caja usa total_income/total_expenses del backend en vez de calcular por signo de amount"
+      },
+      {
+        "type": "feat",
+        "scope": "api",
+        "title": "Endpoint POST /api/logistica/cash-boxes/:id/recalculate para corregir divergencias de saldos"
+      },
+      {
+        "type": "refactor",
+        "scope": "payments",
+        "title": "Selectores de caja y bancos en PaymentForm: grid, buscador y scroll"
+      },
+      {
+        "type": "fix",
+        "scope": "api",
+        "title": "Mapeo EXPENSE → PAYMENT para movimientos de caja/banco"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Estados configurables por tipo de documento, gastos varios y fix de saldos de caja"
+  },
+  {
     "version": "0.47.0-alpha",
     "date": "2026-09-10",
     "stage": "alpha",

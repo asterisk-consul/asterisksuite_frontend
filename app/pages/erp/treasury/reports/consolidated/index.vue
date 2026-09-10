@@ -2,6 +2,7 @@
 import type { DateRange } from '~/components/compras/FiltroDateCompras.vue'
 import DateRangePicker from '~/components/compras/FiltroDateCompras.vue'
 import { useExcelExport } from '~/composables/useExcelExport'
+import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 
 definePageMeta({ middleware: ['auth'] })
 

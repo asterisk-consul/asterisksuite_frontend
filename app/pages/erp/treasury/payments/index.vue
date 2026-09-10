@@ -6,6 +6,7 @@ import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
+import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 import { paymentColumns } from '~/modulos/erp/payments/columns'
 import type { Payment } from '~/modulos/erp/payments/types/payments.types'
 import { useAuthStore } from '~/modulos/auth/auth.store'

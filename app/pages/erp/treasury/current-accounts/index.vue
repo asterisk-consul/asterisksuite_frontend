@@ -2,6 +2,7 @@
 definePageMeta({ middleware: ['auth'] })
 
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
+import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 import type { CurrentAccount } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 import { useExcelExport } from '~/composables/useExcelExport'
 import { isReceivable, getBalanceInfo } from '~/modulos/erp/current-accounts/balance-utils'

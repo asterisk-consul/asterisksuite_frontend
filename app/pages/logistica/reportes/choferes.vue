@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 import { getReporteChoferes } from '~/modulos/reportes/services/choferes.service'
+import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 import type { ButtonProps } from '@nuxt/ui'
 
 // --- Types ---

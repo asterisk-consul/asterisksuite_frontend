@@ -2,6 +2,7 @@
 import type { TreeItem } from '@nuxt/ui'
 import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 import { useAccountsService } from '~/modulos/contabilidad/service/accounts.service'
+import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 import type { Account, AccountType } from '~/modulos/contabilidad/types/accounts.types'
 
 definePageMeta({ middleware: ['auth'] })

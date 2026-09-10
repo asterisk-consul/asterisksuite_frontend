@@ -6,13 +6,13 @@ import DocumentChain from '~/modulos/erp/documents/shared/DocumentChain.vue'
 import DocumentItemsTable from '~/modulos/erp/documents/shared/DocumentItemsTable.vue'
 import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
 import DocumentPrintSelector from '~/components/documents/DocumentPrintSelector.vue'
-import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
+import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocumentActions'
 import { usePrint } from '~/composables/usePrint'
 
-const store = useDocumentsSalesStore()
+const store = useDocumentsPurchasesStore()
 const companiesStore = useCompaniesStore()
 const auth = useAuthStore()
 const route = useRoute()

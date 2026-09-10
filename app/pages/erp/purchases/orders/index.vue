@@ -2,11 +2,11 @@
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
-import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
+import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 
 const router = useRouter()
-const store = useDocumentsSalesStore()
+const store = useDocumentsPurchasesStore()
 
 const statusFilter = ref<number | undefined>(undefined)
 const documents = computed(() => store.items ?? [])

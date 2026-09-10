@@ -6,6 +6,7 @@ definePageMeta({
 
 import { Chart, registerables } from 'chart.js'
 import { PurchasesService } from '~/modulos/erp/purchases/purchases.service'
+import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 import type {
   SummaryFilters,
   PurchaseSummaryResponse
