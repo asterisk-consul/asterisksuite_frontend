@@ -1,5 +1,27 @@
 [
   {
+    "version": "0.46.0-alpha",
+    "date": "2026-09-10",
+    "stage": "alpha",
+    "notes": "Actualización documentación a Nuxt 4 y estructura de changelog",
+    "changes": [
+      {
+        "type": "docs",
+        "scope": "frontend",
+        "title": "Actualización de Nuxt 3 a Nuxt 4 en AGENTS.md, agents y skills"
+      },
+      {
+        "type": "chore",
+        "scope": "frontend",
+        "title": "Agregado de changelog page en estructura del frontend"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Documentación actualizada a Nuxt 4 y estructura de changelog agregada"
+  },
+  {
     "version": "0.45.0-alpha",
     "date": "2026-09-09",
     "stage": "alpha",
