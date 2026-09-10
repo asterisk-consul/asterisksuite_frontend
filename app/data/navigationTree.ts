@@ -4,6 +4,7 @@ export interface DrilldownNode {
   to?: string
   exact?: boolean
   permission?: string
+  permissions?: string[]
   visibleIf?: 'is_salesperson'
   children?: DrilldownNode[]
 }
@@ -37,17 +38,17 @@ export const navigationTree: DrilldownNode[] = [
   {
     label: 'Ventas',
     icon: 'i-lucide-receipt',
-    permission: 'sales.read',
     children: [
-      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/erp/sales' },
-      { label: 'Presupuestos', icon: 'i-lucide-file-text', to: '/erp/budgets' },
-      { label: 'Órdenes de Venta', icon: 'i-lucide-shopping-cart', to: '/erp/orders' },
-      { label: 'Comprobantes', icon: 'i-lucide-file-check', to: '/erp/sales' },
-      { label: 'Remitos', icon: 'i-lucide-truck', to: '/erp/remitos' },
+      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/erp/sales', permissions: ['sales.read', 'documents.read'] },
+      { label: 'Presupuestos', icon: 'i-lucide-file-text', to: '/erp/budgets', permissions: ['sales.quotes.read', 'sales.read', 'documents.read'] },
+      { label: 'Órdenes de Venta', icon: 'i-lucide-shopping-cart', to: '/erp/orders', permissions: ['sales.orders.read', 'sales.read', 'documents.read'] },
+      { label: 'Comprobantes', icon: 'i-lucide-file-check', to: '/erp/sales', permissions: ['sales.invoices.read', 'sales.credit_notes.read', 'sales.debit_notes.read', 'sales.receipts.read', 'sales.read', 'documents.read'] },
+      { label: 'Remitos', icon: 'i-lucide-truck', to: '/erp/remitos', permissions: ['sales.delivery_notes.read', 'sales.read', 'documents.read'] },
       {
         label: 'Clientes',
         icon: 'i-lucide-users',
         to: '/erp/sales/customers',
+        permission: 'business_parties.read',
         children: [
           { label: 'Listado', icon: 'i-lucide-list', to: '/erp/sales/customers' },
           { label: 'Nuevo cliente', icon: 'i-lucide-user-plus', to: '/erp/sales/customers/create' }
@@ -56,12 +57,14 @@ export const navigationTree: DrilldownNode[] = [
       {
         label: 'Resumen de productos vendidos',
         icon: 'i-lucide-bar-chart-3',
-        to: '/erp/sales/sales-reports/salesProducts'
+        to: '/erp/sales/sales-reports/salesProducts',
+        permissions: ['sales.read', 'documents.read']
       },
       {
         label: 'Ventas por Punto de Venta',
         icon: 'i-lucide-map-pin',
-        to: '/erp/sales/sales-reports/by-point-of-sale'
+        to: '/erp/sales/sales-reports/by-point-of-sale',
+        permissions: ['sales.read', 'documents.read']
       }
     ]
   },
@@ -70,22 +73,22 @@ export const navigationTree: DrilldownNode[] = [
   {
     label: 'Compras',
     icon: 'i-lucide-folder-closed',
-    permission: 'purchases.read',
     children: [
-      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/erp/purchases/' },
-      { label: 'Órdenes de Compra', icon: 'i-lucide-shopping-cart', to: '/erp/purchases/orders' },
-      { label: 'Remitos de Compra', icon: 'i-lucide-truck', to: '/erp/purchases/remitos' },
-      { label: 'Comprobantes', icon: 'i-lucide-file-check', to: '/erp/purchases' },
+      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/erp/purchases/', permissions: ['purchases.read', 'documents-purchases.read', 'documents.read'] },
+      { label: 'Órdenes de Compra', icon: 'i-lucide-shopping-cart', to: '/erp/purchases/orders', permissions: ['purchases.orders.read', 'purchases.read', 'documents-purchases.read', 'documents.read'] },
+      { label: 'Remitos de Compra', icon: 'i-lucide-truck', to: '/erp/purchases/remitos', permissions: ['purchases.delivery_notes.read', 'purchases.read', 'documents-purchases.read', 'documents.read'] },
+      { label: 'Comprobantes', icon: 'i-lucide-file-check', to: '/erp/purchases', permissions: ['purchases.invoices.read', 'purchases.credit_notes.read', 'purchases.debit_notes.read', 'purchases.receipts.read', 'purchases.opening_balances.read', 'purchases.read', 'documents-purchases.read', 'documents.read'] },
       {
         label: 'Proveedores',
         icon: 'i-lucide-building-2',
         to: '/erp/purchases/suppliers',
+        permission: 'business_parties.read',
         children: [
           { label: 'Listado', icon: 'i-lucide-list', to: '/erp/purchases/suppliers' },
           { label: 'Nuevo proveedor', icon: 'i-lucide-user-plus', to: '/erp/purchases/suppliers/create' }
         ]
       },
-      { label: 'Resumen de productos comprados', icon: 'i-lucide-bar-chart-3', to: '/productdash' }
+      { label: 'Resumen de productos comprados', icon: 'i-lucide-bar-chart-3', to: '/productdash', permissions: ['purchases.read', 'documents-purchases.read', 'documents.read'] }
     ]
   },
 

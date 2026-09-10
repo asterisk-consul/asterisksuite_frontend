@@ -10,6 +10,7 @@ import SaldoInicialModal from '~/components/current-account/SaldoInicialModal.vu
 
 const { activeAccounts, allAccounts, loading, fetchActive, fetchAll } = useCurrentAccounts()
 const { exportToExcel } = useExcelExport()
+const { canExport } = useDataTransferPermissions()
 const router = useRouter()
 
 const showSaldoInicialModal = ref(false)
@@ -254,7 +255,7 @@ const exportHistory = () => {
           <div class="flex items-center gap-3">
             <UInput v-model="searchQuery" placeholder="Buscar cliente o proveedor..." icon="i-lucide-search" class="flex-1" />
             <UButton label="Nuevo saldo inicial" icon="i-lucide-plus" color="primary" variant="solid" size="sm" @click="showSaldoInicialModal = true" />
-            <UButton label="Exportar Excel" icon="i-lucide-download" variant="outline" size="sm" @click="exportActive" />
+            <UButton v-if="canExport('treasury.reports.export')" label="Exportar Excel" icon="i-lucide-download" variant="outline" size="sm" @click="exportActive" />
           </div>
 
           <!-- ======================== CLIENTES + PROVEEDORES ======================== -->
@@ -417,7 +418,7 @@ const exportHistory = () => {
             <UInput v-model="historySearch" placeholder="Buscar por nombre o CUIT..." icon="i-lucide-search" class="flex-1 min-w-[200px]" />
             <USelectMenu v-model="filterPartyType" :items="partyTypeOptions" placeholder="Tipo" class="w-40" />
             <USelectMenu v-model="filterBalance" :items="balanceFilterOptions" placeholder="Saldo" class="w-44" />
-            <UButton label="Exportar Excel" icon="i-lucide-download" variant="outline" size="sm" @click="exportHistory" />
+            <UButton v-if="canExport('treasury.reports.export')" label="Exportar Excel" icon="i-lucide-download" variant="outline" size="sm" @click="exportHistory" />
           </div>
 
           <p class="text-xs text-muted">{{ filteredHistory.length }} cuentas</p>

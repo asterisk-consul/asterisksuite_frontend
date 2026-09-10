@@ -8,6 +8,9 @@ definePageMeta({ middleware: ['auth'] })
 
 const service = useAccountsService()
 const toast = useToast()
+const { canImport, canExport } = useDataTransferPermissions()
+const allowImport = computed(() => canImport('accounts.import'))
+const allowExport = computed(() => canExport('accounts.export'))
 
 const accounts = ref<Account[]>([])
 const loading = ref(true)
@@ -204,12 +207,12 @@ const selectedType = computed({
   <UPage class="space-y-6 px-4">
     <AppPageHeader title="Plan de Cuentas" description="Plan contable de la empresa">
       <template #links>
-        <UDropdownMenu :items="[
+        <UDropdownMenu v-if="allowExport" :items="[
           [{ label: 'Excel (.xlsx)', icon: 'i-lucide-file-spreadsheet', onSelect: handleExportExcel }, { label: 'CSV', icon: 'i-lucide-file-text', onSelect: handleExportCSV }]
         ]">
           <UButton label="Exportar" icon="i-lucide-download" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-down" />
         </UDropdownMenu>
-        <UButton label="Importar" icon="i-lucide-upload" color="neutral" variant="outline" @click="showImportDialog = true" />
+        <UButton v-if="allowImport" label="Importar" icon="i-lucide-upload" color="neutral" variant="outline" @click="showImportDialog = true" />
         <UButton label="Nueva cuenta" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate()" />
       </template>
     </AppPageHeader>
@@ -328,6 +331,7 @@ const selectedType = computed({
     </UModal>
 
     <ExcelImportDialog
+      v-if="allowImport"
       v-model:open="showImportDialog"
       title="Importar plan de cuentas"
       description="Importar cuentas contables desde Excel. Las columnas son: Código, Nombre, Tipo, Cuenta padre"

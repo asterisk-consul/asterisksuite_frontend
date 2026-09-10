@@ -8,6 +8,7 @@ import { useSalesReports } from '~/modulos/erp/sales-reports/composables/useSale
 import type { SummaryFilters } from '~/modulos/erp/sales-reports/types/sales-reports.types'
 
 const { byPointOfSaleData, loading, error, fetchByPointOfSale } = useSalesReports()
+const { canExport } = useDataTransferPermissions()
 
 const filters = ref<SummaryFilters>({
   startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -88,6 +89,7 @@ onMounted(fetchData)
         </template>
         <template #right>
           <UButton
+            v-if="canExport('sales.reports.export')"
             label="Exportar CSV"
             icon="i-heroicons-arrow-down-tray"
             color="neutral"

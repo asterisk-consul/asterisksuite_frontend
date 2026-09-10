@@ -6,6 +6,7 @@ import { useExcelExport } from '~/composables/useExcelExport'
 definePageMeta({ middleware: ['auth'] })
 
 const { exportToExcel } = useExcelExport()
+const { canExport } = useDataTransferPermissions()
 const loading = ref(false)
 const accounts = ref<any[]>([])
 const movements = ref<any[]>([])
@@ -134,7 +135,7 @@ const handleExportExcel = () => {
       description="Estado de situación patrimonial y resultados"
     >
       <template #links>
-        <UButton label="Exportar" icon="i-lucide-download" variant="outline" @click="handleExportExcel" />
+        <UButton v-if="canExport('treasury.reports.export')" label="Exportar" icon="i-lucide-download" variant="outline" @click="handleExportExcel" />
       </template>
     </AppPageHeader>
 

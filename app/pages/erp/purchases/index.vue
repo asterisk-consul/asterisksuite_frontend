@@ -5,11 +5,13 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
 import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
+import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 const documentsPurchasesStore = useDocumentsPurchasesStore()
 const router = useRouter()
 const toast = useToast()
+const { can: canDocument } = useDocumentPermissions()
 
 const documents = computed(() => documentsPurchasesStore.items)
 const pending = computed(() => documentsPurchasesStore.loading)
@@ -41,7 +43,7 @@ const PURCHASE_CATEGORIES = ['ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT
 
 const categoryOptions = computed(() => [
   { label: 'Todos', value: undefined },
-  ...PURCHASE_CATEGORIES.map((cat) => ({
+  ...PURCHASE_CATEGORIES.filter(cat => canDocument('purchases', cat, 'read')).map((cat) => ({
     label: CATEGORY_LABELS[cat] ?? cat,
     value: cat
   }))
@@ -102,6 +104,11 @@ function openDocument(row: any) {
 }
 
 async function deleteDrafts(rows: any[]) {
+  const unauthorized = rows.filter(row => !canDocument('purchases', row.document_types?.category, 'delete'))
+  if (unauthorized.length) {
+    toast.add({ title: 'No tenés permiso para eliminar uno o más tipos de documento', color: 'warning' })
+    return
+  }
   const drafts = rows.filter(row => row.status === 0)
   if (drafts.length !== rows.length) {
     toast.add({ title: 'Solo se pueden eliminar documentos en borrador', color: 'warning' })
@@ -139,6 +146,7 @@ const sortFields = [
     <AppPageHeader title="Comprobantes de compra" description="Gestión de documentos de compra">
       <template #links>
         <UButton
+          v-if="canDocument('purchases', 'INVOICE', 'create')"
           icon="i-lucide-plus"
           label="Nueva factura"
           to="/erp/purchases/purchases-documents/new"

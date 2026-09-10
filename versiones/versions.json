@@ -1,5 +1,62 @@
 [
   {
+    "version": "0.47.0-alpha",
+    "date": "2026-09-10",
+    "stage": "alpha",
+    "notes": "Permisos de documentos granulares: por tipo (presupuestos, OV, facturas, remitos, notas) con resolución de conflictos y @RequireAnyPermission",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Nuevo decorator @RequireAnyPermission para permisos OR (anyPermission en vez de all)"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "DocumentAccessService: verificación de permisos por categoría/tipo de documento con assertCategory, assertDocumentType, assertDocument"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Controllers de ventas y compras actualizados con permisos granulares por tipo de documento"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Seeds de permisos: data-transfer, document-permissions e iibb-perceptions"
+      },
+      {
+        "type": "fix",
+        "scope": "rbac",
+        "title": "PermissionsGuard soporta anyPermissions junto a requiredPermissions"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Frontend: subgrupos de documentos reestructurados (ventas por tipo, compras por tipo, importación/exportación)"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Navigation tree usa permissions (array) en vez de permission (string) para soporte OR"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "UI de permisos: alerta de permisos generales, resolución de conflictos al seleccionar específicos"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "Nuevos subgrupos de logística (exportación reportes) y tesorería (importación/exportación, reportes)"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Permisos de documentos granulares por tipo con resolución de conflictos y nuevo decorator @RequireAnyPermission"
+  },
+  {
     "version": "0.46.0-alpha",
     "date": "2026-09-10",
     "stage": "alpha",

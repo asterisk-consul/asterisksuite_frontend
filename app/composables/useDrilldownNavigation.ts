@@ -51,6 +51,9 @@ function filterByPermissions(
     if (node.permission && !isOwnerOrAdmin && !hasPermission(node.permission)) {
       return false
     }
+    if (node.permissions?.length && !isOwnerOrAdmin && !node.permissions.some(hasPermission)) {
+      return false
+    }
     if (node.visibleIf === 'is_salesperson' && !isSalesperson) {
       return false
     }

@@ -1,7 +1,6 @@
 import type { Ref, ComputedRef } from 'vue'
 import { getStatusLabel, getStatusColor, getValidTransitions } from '~/modulos/erp/documents/types/document-statuses'
-import { useRoles } from '~/modulos/access-control/composables/useRoles'
-import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useDocumentPermissions } from './useDocumentPermissions'
 
 type Doc = Record<string, any> | null
 
@@ -31,8 +30,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const module = config.module ?? 'sales'
 
   const toast = useToast()
-  const { hasPermission } = useRoles()
-  const { isOwnerOrAdmin } = useCompanyRole()
+  const { can: canDocument } = useDocumentPermissions()
 
   // ─── State ──────────────────────────────────────────────
   const processing = ref(false)
@@ -80,7 +78,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const primaryActions = computed(() => {
     const items: any[] = []
 
-    if ((isDraft.value || isPending.value) && (isOwnerOrAdmin.value || hasPermission('documents.update'))) {
+    if ((isDraft.value || isPending.value) && canDocument(module, category.value, 'update')) {
       items.push({
         label: 'Editar',
         icon: 'i-lucide-pencil',
@@ -109,7 +107,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       }
     })
 
-    if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.confirm'))) {
+    if (isDraft.value && canDocument(module, category.value, 'confirm')) {
       items.push({
         label: 'Confirmar',
         icon: 'i-lucide-check-circle',
@@ -154,29 +152,30 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const secondaryActions = computed(() => {
     const items: any[] = []
     const isOrderActive = category.value === 'ORDER' && doc.value?.status >= 1 && doc.value?.status < 7
-    const canCreateSalesDocument = isOwnerOrAdmin.value || hasPermission(`${module === 'sales' ? 'sales' : 'purchases'}.create`)
+    const canCreateRemito = canDocument(module, 'REMITO', 'create')
+    const canCreateInvoice = canDocument(module, 'INVOICE', 'create')
 
-    if (isDraft.value && (isOwnerOrAdmin.value || hasPermission('documents.cancel'))) {
+    if (isDraft.value && canDocument(module, category.value, 'cancel')) {
       items.push([{ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onClick: () => { cancelModalOpen.value = true } }])
     }
 
-    if (validTransitions.value.length > 0) {
+    if (validTransitions.value.length > 0 && canDocument(module, category.value, 'update')) {
       items.push([{ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', onClick: () => { statusModalOpen.value = true } }])
     }
 
     // Sales-specific: Aceptar → OV
-    if (category.value === 'QUOTE' && isConfirmed.value && module === 'sales') {
+    if (category.value === 'QUOTE' && isConfirmed.value && module === 'sales' && canDocument('sales', 'QUOTE', 'update') && canDocument('sales', 'ORDER', 'create')) {
       items.push([{ label: 'Aceptar → OV', icon: 'i-lucide-check-circle', color: 'success', onClick: () => { acceptModalOpen.value = true } }])
     }
 
     // Desde una OV activa se puede elegir Remito o Factura.
-    if (isOrderActive && module === 'sales' && canCreateSalesDocument) {
+    if (isOrderActive && module === 'sales' && canCreateRemito) {
       items.push([{ label: 'Crear Remito', icon: 'i-lucide-truck', color: 'success', onClick: () => { deliverModalOpen.value = true } }])
     }
 
     // Crear Factura (from ORDER active or REMITO confirmed)
     const isRemitoConfirmed = category.value === 'REMITO' && isConfirmed.value
-    if ((isOrderActive || isRemitoConfirmed) && canCreateSalesDocument) {
+    if ((isOrderActive || isRemitoConfirmed) && canCreateInvoice) {
       const createUrl = module === 'sales'
         ? `/erp/sales/new?category=INVOICE&parent_order_id=${id.value}`
         : `/erp/purchases/purchases-documents/new?parent_order_id=${id.value}`
@@ -184,15 +183,15 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     }
 
     // Crear NC/ND (from INVOICE confirmed)
-    if (isConfirmed.value && category.value === 'INVOICE' && (isOwnerOrAdmin.value || hasPermission(`${module === 'sales' ? 'sales' : 'purchases'}.create`))) {
+    if (isConfirmed.value && category.value === 'INVOICE') {
       const ncUrl = module === 'sales'
         ? `/erp/sales/new?category=CREDIT_NOTE&parent_order_id=${id.value}`
         : `/erp/purchases/purchases-documents/new?category=CREDIT_NOTE&parent_order_id=${id.value}`
       const ndUrl = module === 'sales'
         ? `/erp/sales/new?category=DEBIT_NOTE&parent_order_id=${id.value}`
         : `/erp/purchases/purchases-documents/new?category=DEBIT_NOTE&parent_order_id=${id.value}`
-      items.push([{ label: 'Crear NC', icon: 'i-lucide-file-text', color: 'warning', onClick: () => router.push(ncUrl) }])
-      items.push([{ label: 'Crear ND', icon: 'i-lucide-file-text', color: 'info', onClick: () => router.push(ndUrl) }])
+      if (canDocument(module, 'CREDIT_NOTE', 'create')) items.push([{ label: 'Crear NC', icon: 'i-lucide-file-text', color: 'warning', onClick: () => router.push(ncUrl) }])
+      if (canDocument(module, 'DEBIT_NOTE', 'create')) items.push([{ label: 'Crear ND', icon: 'i-lucide-file-text', color: 'info', onClick: () => router.push(ndUrl) }])
     }
 
     // Cuenta corriente

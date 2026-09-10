@@ -2,15 +2,17 @@
 import { FileService } from '~/services/fileApi'
 
 const activeKey = ref<string | null>(null)
+const { canImport } = useDataTransferPermissions()
 
-const importers = [
+const allImporters = [
   {
     key: 'compras',
     title: 'Importar Compras',
     description: 'Importar facturas de compra desde archivo Excel o CSV',
     icon: 'i-lucide-file-plus',
     heading: 'Importar Facturas de compra',
-    handler: FileService.importCompras // 👈
+    handler: FileService.importCompras,
+    permission: 'purchases.documents.import'
   },
   {
     key: 'Ventas',
@@ -18,7 +20,8 @@ const importers = [
     description: 'Importar facturas de compra desde archivo Excel o CSV',
     icon: 'i-lucide-file-plus',
     heading: 'Importar Facturas de ventas',
-    handler: FileService.importVentas // 👈
+    handler: FileService.importVentas,
+    permission: 'sales.documents.import'
   },
   {
     key: 'nc',
@@ -26,7 +29,8 @@ const importers = [
     description: 'Importar notas de crédito de proveedores',
     icon: 'i-lucide-rotate-ccw',
     heading: 'Importar Notas de Crédito',
-    handler: FileService.importNotaCredito // 👈
+    handler: FileService.importNotaCredito,
+    permission: 'purchases.documents.import'
   },
   {
     key: 'nd',
@@ -34,9 +38,11 @@ const importers = [
     description: 'Importar notas de débito de proveedores',
     icon: 'i-lucide-rotate-cw',
     heading: 'Importar Notas de Débito',
-    handler: FileService.importNotaDebito // 👈
+    handler: FileService.importNotaDebito,
+    permission: 'purchases.documents.import'
   }
 ]
+const importers = computed(() => allImporters.filter(item => canImport(item.permission)))
 const states = reactive<
   Record<
     string,
@@ -49,7 +55,7 @@ const states = reactive<
   >
 >(
   Object.fromEntries(
-    importers.map((i) => [
+    allImporters.map((i) => [
       i.key,
       { file: null, loading: false, result: null, error: null }
     ])
@@ -60,7 +66,7 @@ function select(key: string) {
   activeKey.value = activeKey.value === key ? null : key
 }
 
-async function upload(importer: (typeof importers)[0]) {
+async function upload(importer: (typeof allImporters)[number]) {
   const s = states[importer.key]
   if (!s.file) return
 
@@ -79,7 +85,7 @@ async function upload(importer: (typeof importers)[0]) {
 }
 
 const active = computed(
-  () => importers.find((i) => i.key === activeKey.value) ?? null
+  () => importers.value.find((i) => i.key === activeKey.value) ?? null
 )
 </script>
 

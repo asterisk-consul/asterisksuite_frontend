@@ -32,6 +32,9 @@ const open = ref(false)
 const importOpen = ref(false)
 const router = useRouter()
 const toast = useToast()
+const { canImport, canExport } = useDataTransferPermissions()
+const allowImport = computed(() => canImport('products.import'))
+const allowExport = computed(() => canExport('products.export'))
 
 // =========================
 // PRODUCT_COLUMNS — Fuente única de verdad
@@ -238,12 +241,16 @@ const importColumns = PRODUCT_COLUMNS.map(c => ({
 // ACCIONES
 // =========================
 
-const dataActions = [
-  { label: 'Exportar Excel (.xlsx)', icon: 'i-lucide-file-spreadsheet', onSelect: handleExportExcel },
-  { label: 'Exportar CSV', icon: 'i-lucide-file-text', onSelect: handleExportCSV },
-  { label: 'Descargar plantilla Excel', icon: 'i-lucide-file-down', onSelect: downloadTemplate },
-  { label: 'Importar datos', icon: 'i-lucide-upload', onSelect: () => { importOpen.value = true } }
-]
+const dataActions = computed(() => [
+  ...(allowExport.value ? [
+    { label: 'Exportar Excel (.xlsx)', icon: 'i-lucide-file-spreadsheet', onSelect: handleExportExcel },
+    { label: 'Exportar CSV', icon: 'i-lucide-file-text', onSelect: handleExportCSV }
+  ] : []),
+  ...(allowImport.value ? [
+    { label: 'Descargar plantilla Excel', icon: 'i-lucide-file-down', onSelect: downloadTemplate },
+    { label: 'Importar datos', icon: 'i-lucide-upload', onSelect: () => { importOpen.value = true } }
+  ] : [])
+])
 
 const links: ButtonProps[] = [
   {
@@ -273,7 +280,7 @@ const sortFields: SortField[] = [
   <UPage class="space-y-4">
     <AppPageHeader title="Productos" description="Listado de Productos">
       <template #links>
-        <UFieldGroup>
+        <UFieldGroup v-if="dataActions.length">
           <UButton color="neutral" variant="subtle" label="Importar / Exportar" icon="i-lucide-database" />
           <UDropdownMenu :items="dataActions">
             <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" />
@@ -310,6 +317,7 @@ const sortFields: SortField[] = [
   </UPage>
   <ProductModalForm v-model:open="open" v-model:form="form" @submit="saveLocation" />
   <ExcelImportDialog
+    v-if="allowImport"
     v-model:open="importOpen"
     title="Importar Productos"
     description="Selecciona un archivo Excel con los productos a importar"

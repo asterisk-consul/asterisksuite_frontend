@@ -25,7 +25,29 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
   access: { label: 'Acceso', icon: 'i-lucide-shield', order: 0, modules: ['roles', 'users', 'permissions'] },
   documents: {
     label: 'Documentos', icon: 'i-lucide-file-text', order: 10, modules: ['sales', 'purchases', 'documents', 'document_types', 'document_sequences'],
-    subgroups: { sales: 'Ventas', purchases: 'Compras', documents: 'General', document_types: 'Tipos de Documento', document_sequences: 'Secuencias' }
+    subgroups: {
+      documents: 'Todos los documentos · Ventas y compras',
+      sales: 'Ventas · Todos los tipos',
+      'sales.quotes': 'Ventas · Presupuestos',
+      'sales.orders': 'Ventas · Órdenes de venta',
+      'sales.invoices': 'Ventas · Facturas',
+      'sales.delivery_notes': 'Ventas · Remitos',
+      'sales.credit_notes': 'Ventas · Notas de crédito',
+      'sales.debit_notes': 'Ventas · Notas de débito',
+      'sales.documents': 'Ventas · Importación y exportación',
+      'sales.reports': 'Ventas · Exportación de reportes',
+      purchases: 'Compras · Todos los tipos',
+      'purchases.orders': 'Compras · Órdenes de compra',
+      'purchases.invoices': 'Compras · Facturas',
+      'purchases.delivery_notes': 'Compras · Remitos',
+      'purchases.credit_notes': 'Compras · Notas de crédito',
+      'purchases.debit_notes': 'Compras · Notas de débito',
+      'purchases.opening_balances': 'Compras · Saldos iniciales',
+      'purchases.documents': 'Compras · Importación y exportación',
+      'purchases.reports': 'Compras · Exportación de reportes',
+      document_types: 'Configuración · Tipos de documento',
+      document_sequences: 'Configuración · Secuencias'
+    }
   },
   master: {
     label: 'Maestros', icon: 'i-lucide-package', order: 20,
@@ -52,7 +74,7 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
   },
   logistics: {
     label: 'Logística', icon: 'i-lucide-route', order: 30,
-    modules: ['trips', 'warehouses', 'drivers', 'vehicles', 'vehicle_combinations', 'corridors', 'transfer_rates', 'dispatch_orders', 'delivery_notes', 'transport_document_types', 'pallets', 'picking', 'stock'],
+    modules: ['trips', 'warehouses', 'drivers', 'vehicles', 'vehicle_combinations', 'corridors', 'transfer_rates', 'dispatch_orders', 'delivery_notes', 'transport_document_types', 'pallets', 'picking', 'stock', 'logistics'],
     subgroups: {
       trips: 'Viajes',
       drivers: 'Choferes',
@@ -66,7 +88,8 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
       warehouses: 'Almacenes',
       pallets: 'Pallets',
       picking: 'Picking',
-      stock: 'Stock'
+      stock: 'Stock',
+      'logistics.reports': 'Exportación de reportes'
     }
   },
   intake: {
@@ -78,6 +101,8 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
     modules: ['treasury', 'cash_boxes', 'cash_box_movements', 'cash_box_renditions', 'cash_box_transfers', 'bank_accounts', 'payments', 'currency_rates', 'checks'],
     subgroups: {
       payments: 'Pagos',
+      'treasury.payments': 'Pagos · Importación y exportación',
+      'treasury.reports': 'Exportación de reportes',
       cash_boxes: 'Cajas',
       cash_box_movements: 'Movimientos de Caja',
       cash_box_renditions: 'Rendiciones de Caja',
@@ -155,7 +180,10 @@ export function usePermissions() {
       if (meta.subgroups) {
         group.subgroups = []
         for (const [prefix, subLabel] of Object.entries(meta.subgroups)) {
-          const subPerms = perms.filter(p => p.code.startsWith(prefix + '.'))
+          const subPerms = perms.filter((p) => {
+            if (prefix.includes('.')) return p.code.startsWith(prefix + '.')
+            return p.code.startsWith(prefix + '.') && p.code.split('.').length === 2
+          })
           if (subPerms.length > 0) {
             group.subgroups.push({
               label: subLabel,

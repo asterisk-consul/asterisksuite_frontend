@@ -13,6 +13,7 @@ import type {
 import type { ButtonProps } from '@nuxt/ui'
 
 Chart.register(...registerables)
+const { canExport } = useDataTransferPermissions()
 
 // --- Estado ---
 const loading = ref(false)
@@ -47,7 +48,7 @@ const PALETTE = [
   '#5F5E5A'
 ]
 
-const links = ref<ButtonProps[]>([
+const links = computed<ButtonProps[]>(() => canExport('purchases.reports.export') ? [
   {
     label: 'Exportar CSV',
     icon: 'i-heroicons-arrow-down-tray',
@@ -55,7 +56,7 @@ const links = ref<ButtonProps[]>([
     color: 'neutral',
     variant: 'outline'
   }
-])
+] : [])
 
 // --- Fetch ---
 async function fetchData() {

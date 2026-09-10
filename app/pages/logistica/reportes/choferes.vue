@@ -325,7 +325,8 @@ function shortName(nombre?: string | null) {
   const parts = nombre.split(' ')
   return `${parts[0] || ''} ${parts[1]?.[0] || ''}.`
 }
-const links = ref<ButtonProps[]>([
+const { canExport } = useDataTransferPermissions()
+const links = computed<ButtonProps[]>(() => canExport('logistics.reports.export') ? [
   {
     label: 'Exportar CSV',
     icon: 'i-heroicons-arrow-down-tray',
@@ -333,7 +334,7 @@ const links = ref<ButtonProps[]>([
     color: 'neutral',
     variant: 'outline'
   }
-])
+] : [])
 function exportCSV() {
   if (!viajes.value.length) return
 

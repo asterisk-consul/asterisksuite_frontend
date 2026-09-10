@@ -13,7 +13,7 @@ import { usePartiesImportExport } from '~/modulos/logistica/master-data/bussines
 const router = useRouter()
 const store = useBusinessPartiesStore()
 const { items: allParties, loading } = storeToRefs(store)
-const { importOpen, dataActions } = usePartiesImportExport()
+const { importOpen, allowImport, dataActions } = usePartiesImportExport()
 
 const sorting = ref<SortingState>([])
 
@@ -73,7 +73,7 @@ const importColumns = [
   <UPage class="space-y-4">
     <AppPageHeader title="Proveedores" description="Gestión de proveedores del sistema">
       <template #links>
-        <UFieldGroup>
+        <UFieldGroup v-if="dataActions.length">
           <UButton color="neutral" variant="subtle" label="Importar / Exportar" icon="i-lucide-database" />
           <UDropdownMenu :items="dataActions">
             <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" />
@@ -94,6 +94,7 @@ const importColumns = [
   </UPage>
 
   <ExcelImportDialog
+    v-if="allowImport"
     v-model:open="importOpen"
     title="Importar Proveedores"
     description="Selecciona un archivo Excel con los proveedores a importar. Se pueden incluir contactos y cuentas bancarias en la misma fila."

@@ -6,11 +6,13 @@ import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import GenerateFromTripsModal from '~/components/sales/GenerateFromTripsModal.vue'
 import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
+import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 const documentsSalesStore = useDocumentsSalesStore()
 const router = useRouter()
 const toast = useToast()
+const { can: canDocument } = useDocumentPermissions()
 
 const documents = computed(() => documentsSalesStore.items)
 const pending = computed(() => documentsSalesStore.loading)
@@ -51,7 +53,7 @@ const categoryOptions = computed(() => {
   }
   return [
     { label: 'Todos', value: undefined },
-    ...SALES_CATEGORIES.map((cat) => ({
+    ...SALES_CATEGORIES.filter(cat => canDocument('sales', cat, 'read')).map((cat) => ({
       label: CATEGORY_LABELS[cat] ?? cat,
       value: cat
     }))
@@ -117,6 +119,11 @@ async function onGenerateSaved() {
 }
 
 async function deleteDrafts(rows: any[]) {
+  const unauthorized = rows.filter(row => !canDocument('sales', row.document_types?.category, 'delete'))
+  if (unauthorized.length) {
+    toast.add({ title: 'No tenés permiso para eliminar uno o más tipos de documento', color: 'warning' })
+    return
+  }
   const drafts = rows.filter(row => row.status === 0)
   if (drafts.length !== rows.length) {
     toast.add({ title: 'Solo se pueden eliminar documentos en borrador', color: 'warning' })
@@ -154,6 +161,7 @@ const sortFields = [
     <AppPageHeader title="Comprobantes de venta" description="Gestión de documentos de venta">
       <template #links>
         <UButton
+          v-if="canDocument('sales', 'INVOICE', 'create')"
           label="Crear Factura"
           icon="i-lucide-file-plus"
           color="primary"

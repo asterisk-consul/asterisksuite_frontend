@@ -16,6 +16,9 @@ import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 const { payments, loading, init, confirm: confirmPayment, markAsPaid, reject, reverse, remove } = usePayments()
 const authStore = useAuthStore()
 const toast = useToast()
+const { canImport, canExport } = useDataTransferPermissions()
+const allowImport = computed(() => canImport('treasury.payments.import'))
+const allowExport = computed(() => canExport('treasury.payments.export'))
 const showCreator = computed(() => {
   const role = authStore.selectedCompany?.role
   return role === 'OWNER' || role === 'ADMIN'
@@ -157,12 +160,16 @@ const importColumns = [
   { key: 'descripcion', label: 'descripcion', required: false }
 ]
 
-const dataActions = [
-  { label: 'Exportar Excel (.xlsx)', icon: 'i-lucide-file-spreadsheet', onSelect: () => handleExport('xlsx') },
-  { label: 'Exportar CSV', icon: 'i-lucide-file-text', onSelect: () => handleExport('csv') },
-  { label: 'Descargar plantilla', icon: 'i-lucide-file-down', onSelect: handleDownloadTemplate },
-  { label: 'Importar datos', icon: 'i-lucide-upload', onSelect: () => { importOpen.value = true } }
-]
+const dataActions = computed(() => [
+  ...(allowExport.value ? [
+    { label: 'Exportar Excel (.xlsx)', icon: 'i-lucide-file-spreadsheet', onSelect: () => handleExport('xlsx') },
+    { label: 'Exportar CSV', icon: 'i-lucide-file-text', onSelect: () => handleExport('csv') }
+  ] : []),
+  ...(allowImport.value ? [
+    { label: 'Descargar plantilla', icon: 'i-lucide-file-down', onSelect: handleDownloadTemplate },
+    { label: 'Importar datos', icon: 'i-lucide-upload', onSelect: () => { importOpen.value = true } }
+  ] : [])
+])
 </script>
 
 <template>
@@ -172,7 +179,7 @@ const dataActions = [
       description="Gestión de pagos realizados y cobros recibidos"
     >
       <template #links>
-        <UFieldGroup>
+        <UFieldGroup v-if="dataActions.length">
           <UButton color="neutral" variant="subtle" label="Exportar" icon="i-lucide-download" />
           <UDropdownMenu :items="dataActions">
             <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" />
@@ -240,6 +247,7 @@ const dataActions = [
     </UModal>
 
     <ExcelImportDialog
+      v-if="allowImport"
       v-model:open="importOpen"
       title="Importar Pagos y Cobros"
       description="Selecciona un archivo Excel con los pagos a importar"
