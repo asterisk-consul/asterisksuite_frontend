@@ -3,6 +3,14 @@ const props = defineProps<{
   document: any
 }>()
 
+const sourceWarehouses = computed(() => {
+  const values = (props.document?.document_items ?? [])
+    .map((item: any) => item.warehouse)
+    .filter(Boolean)
+  if (props.document?.warehouse) values.unshift(props.document.warehouse)
+  return [...new Map(values.map((warehouse: any) => [warehouse.id, warehouse])).values()]
+})
+
 function fmtDate(d?: string) {
   return d ? d.slice(0, 10) : '-'
 }
@@ -22,6 +30,14 @@ function fmtDate(d?: string) {
         <div v-if="document.descrip">
           <p class="text-muted">Descripción</p>
           <p class="font-medium">{{ document.descrip }}</p>
+        </div>
+        <div v-if="sourceWarehouses.length" class="col-span-2">
+          <p class="text-muted">Depósito de salida</p>
+          <div class="mt-1 flex flex-wrap gap-2">
+            <UBadge v-for="warehouse in sourceWarehouses" :key="warehouse.id" color="neutral" variant="subtle">
+              {{ warehouse.name }}
+            </UBadge>
+          </div>
         </div>
       </div>
     </UCard>

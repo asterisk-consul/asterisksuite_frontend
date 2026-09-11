@@ -1,10 +1,16 @@
 <script setup lang="ts">
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   items: any[]
   currency?: string
   showTracking?: boolean
+  showAmounts?: boolean
+  quantityLabel?: string
+  title?: string
+  showWarehouse?: boolean
   editable?: boolean
-}>()
+}>(), {
+  showAmounts: true
+})
 
 const emit = defineEmits<{
   'update:quantity': [index: number, quantity: number]
@@ -19,10 +25,16 @@ function fmt(n: number) {
 const columns = computed(() => {
   const cols = [
     { id: 'product', header: 'Producto' },
-    { id: 'quantity', header: 'Cantidad' },
-    { id: 'unit_price', header: 'P. Unitario' },
-    { id: 'total', header: 'Total' },
+    { id: 'quantity', header: props.quantityLabel ?? 'Cantidad' },
   ]
+
+  if (props.showAmounts !== false) {
+    cols.push({ id: 'unit_price', header: 'P. Unitario' }, { id: 'total', header: 'Total' })
+  }
+
+  if (props.showWarehouse) {
+    cols.splice(2, 0, { id: 'warehouse', header: 'Depósito de salida' })
+  }
 
   if (props.showTracking) {
     cols.splice(3, 0, { id: 'delivered', header: 'Entregado' })
@@ -43,7 +55,10 @@ const subtotal = computed(() => props.items.reduce((sum, item) => sum + Number(i
   <UCard>
     <template #header>
       <div class="flex items-center justify-between">
-        <h3 class="font-semibold">Ítems</h3>
+        <div>
+          <h3 class="font-semibold">{{ title ?? 'Ítems' }}</h3>
+          <p v-if="showAmounts === false" class="text-xs text-muted mt-0.5">{{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}</p>
+        </div>
         <UButton v-if="editable" size="sm" icon="i-heroicons-plus" @click="emit('add')">Agregar</UButton>
       </div>
     </template>
@@ -75,6 +90,13 @@ const subtotal = computed(() => props.items.reduce((sum, item) => sum + Number(i
         {{ fmt(Number(row.original.unit_price)) }}
       </template>
 
+      <template #warehouse-cell="{ row }">
+        <UBadge v-if="row.original.warehouse?.name" color="neutral" variant="subtle">
+          {{ row.original.warehouse.name }}
+        </UBadge>
+        <span v-else class="font-medium text-warning">Sin depósito</span>
+      </template>
+
       <template #delivered-cell="{ row }">
         <div class="text-sm">
           <span class="font-medium">{{ row.original.quantity_delivered ?? 0 }}</span>
@@ -98,7 +120,7 @@ const subtotal = computed(() => props.items.reduce((sum, item) => sum + Number(i
       </template>
     </UTable>
 
-    <div class="flex justify-end pt-4 border-t">
+    <div v-if="showAmounts !== false" class="flex justify-end pt-4 border-t">
       <div class="text-right space-y-1">
         <p class="text-sm text-muted">Subtotal: <span class="font-medium text-default">{{ fmt(subtotal) }}</span></p>
       </div>

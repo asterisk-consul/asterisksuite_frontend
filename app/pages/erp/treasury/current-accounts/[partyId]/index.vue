@@ -25,19 +25,44 @@ const entries = computed(() => {
   const fromStatement = statement.value?.entries ?? []
   const fromStore = storeEntries.value ?? []
   const list = fromStatement.length > 0 ? fromStatement : fromStore
-  return [...list].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  return list
+    .map((entry) => {
+      if (entry.reference_type === 'order_invoice_replacement') {
+        return { ...entry, type: 'ORDER_INVOICE_REPLACEMENT' }
+      }
+      if (entry.reference_type === 'order_invoice_replacement_reversal') {
+        return { ...entry, type: 'ORDER_INVOICE_REPLACEMENT_REVERSAL' }
+      }
+      return entry
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 })
 
 const balance = computed(() => Number(statement.value?.balance ?? 0))
 
-const totalDebit = computed(() =>
-  entries.value
-    .filter((e) => resolveSide(e.type, account.value?.party_type ?? '') === 'debit')
+const activeReplacementAmount = computed(() => {
+  const replacements = entries.value
+    .filter((e) => e.type === 'ORDER_INVOICE_REPLACEMENT')
     .reduce((sum, e) => sum + (Number(e.converted_amount ?? e.amount) || 0), 0)
+  const reversals = entries.value
+    .filter((e) => e.type === 'ORDER_INVOICE_REPLACEMENT_REVERSAL')
+    .reduce((sum, e) => sum + (Number(e.converted_amount ?? e.amount) || 0), 0)
+  return Math.max(0, replacements - reversals)
+})
+
+const totalDebit = computed(() =>
+  Math.max(0,
+    entries.value
+      .filter((e) => e.type !== 'ORDER_INVOICE_REPLACEMENT_REVERSAL')
+      .filter((e) => resolveSide(e.type, account.value?.party_type ?? '') === 'debit')
+      .reduce((sum, e) => sum + (Number(e.converted_amount ?? e.amount) || 0), 0)
+      - activeReplacementAmount.value
+  )
 )
 
 const totalCredit = computed(() =>
   entries.value
+    .filter((e) => e.type !== 'ORDER_INVOICE_REPLACEMENT')
     .filter((e) => resolveSide(e.type, account.value?.party_type ?? '') === 'credit')
     .reduce((sum, e) => sum + (Number(e.converted_amount ?? e.amount) || 0), 0)
 )

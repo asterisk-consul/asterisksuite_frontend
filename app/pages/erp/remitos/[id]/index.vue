@@ -8,7 +8,6 @@ import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocum
 import { usePrint } from '~/composables/usePrint'
 import DocumentHeader from '~/modulos/erp/documents/shared/DocumentHeader.vue'
 import DocumentItemsTable from '~/modulos/erp/documents/shared/DocumentItemsTable.vue'
-import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
 import DocumentChain from '~/modulos/erp/documents/shared/DocumentChain.vue'
 import DocumentPrintSelector from '~/components/documents/DocumentPrintSelector.vue'
 import RemitoView from '~/modulos/erp/documents/remito/RemitoView.vue'
@@ -25,6 +24,9 @@ const loading = ref(true)
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
+const itemsWithoutWarehouse = computed(() =>
+  (doc.value?.document_items ?? []).filter((item: any) => !item.warehouse_id && !doc.value?.warehouse_id)
+)
 
 onMounted(async () => {
   try {
@@ -41,9 +43,11 @@ onMounted(async () => {
 const {
   primaryActions,
   secondaryActions,
+  confirmModalOpen,
   statusModalOpen,
   processing,
   validTransitions,
+  handleConfirm,
   handleStatus,
 } = useDocumentActions({
   doc,
@@ -82,14 +86,51 @@ const {
         <DocumentHeader :document="doc" :loading="loading" />
         <DocumentChain v-if="doc" :document="doc" />
         <RemitoView v-if="doc" :document="doc" />
+        <UAlert
+          v-if="doc && itemsWithoutWarehouse.length > 0"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-triangle-alert"
+          title="Falta seleccionar un depósito de salida"
+          :description="`${itemsWithoutWarehouse.length} ${itemsWithoutWarehouse.length === 1 ? 'producto no tiene' : 'productos no tienen'} depósito. El remito no podrá confirmarse ni descontar stock hasta completarlo.`"
+        >
+          <template #actions>
+            <UButton label="Completar depósitos" icon="i-lucide-warehouse" color="warning" variant="outline" :to="`/erp/sales/${doc.id}/edit`" />
+          </template>
+        </UAlert>
         <div v-if="doc && company" id="printable-document" class="print-only">
           <DocumentPrintSelector :document="doc" :company="company" />
         </div>
-        <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" />
-        <DocumentTotals v-if="doc" :document="doc" />
+        <DocumentItemsTable
+          v-if="doc"
+          :items="doc.document_items ?? []"
+          :show-amounts="false"
+          show-warehouse
+          :quantity-label="Number(doc.status) === 2 ? 'Cantidad entregada' : 'Cantidad a entregar'"
+          title="Productos del remito"
+        />
       </div>
     </template>
   </UDashboardPanel>
+
+  <UModal v-model:open="confirmModalOpen" title="Confirmar remito">
+    <template #body>
+      <p>¿Confirmar este remito y registrar la salida de mercadería?</p>
+      <p class="text-sm text-muted mt-2">
+        Se descontará el stock de los depósitos seleccionados en cada producto.
+      </p>
+      <div class="flex justify-end gap-2 pt-4">
+        <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
+        <UButton
+          label="Confirmar remito"
+          color="success"
+          :loading="processing"
+          :disabled="itemsWithoutWarehouse.length > 0"
+          @click="handleConfirm"
+        />
+      </div>
+    </template>
+  </UModal>
 
   <UModal v-model:open="statusModalOpen" title="Cambiar estado">
     <template #body>

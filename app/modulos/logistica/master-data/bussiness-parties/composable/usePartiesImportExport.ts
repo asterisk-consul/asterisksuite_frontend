@@ -1,3 +1,5 @@
+import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
+
 export function usePartiesImportExport() {
   const importOpen = ref(false)
   const { canImport, canExport } = useDataTransferPermissions()

@@ -21,6 +21,8 @@ export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; 
   INVOICE: { label: 'Factura', color: 'primary', side: 'debit' },
   SUELDO: { label: 'Recibo de sueldo', color: 'primary', side: 'credit' },
   CREDIT_NOTE: { label: 'Nota de crédito', color: 'success', side: 'credit' },
+  ORDER_INVOICE_REPLACEMENT: { label: 'Reemplazo OV → factura', color: 'info', side: 'credit' },
+  ORDER_INVOICE_REPLACEMENT_REVERSAL: { label: 'Reversión reemplazo OV → factura', color: 'warning', side: 'debit' },
   DEBIT_NOTE: { label: 'Nota de débito', color: 'secondary', side: 'debit' },
   NO_DEBIT: { label: 'No débito', color: 'neutral', side: 'credit' },
   DEBIT: { label: 'Débito', color: 'warning', side: 'debit' },
@@ -39,6 +41,9 @@ function resolveReferenceLink(entry: CurrentAccountEntry, partyType?: string): {
       return { to: `/erp/sales/${entry.reference_id}`, label: 'Factura' }
     }
     return { to: `/erp/purchases/purchases-documents/${entry.reference_id}`, label: 'Factura' }
+  }
+  if (entry.reference_type === 'order_invoice_replacement' && entry.reference_id) {
+    return { to: `/erp/sales/${entry.reference_id}`, label: 'Factura' }
   }
   return null
 }
@@ -76,6 +81,10 @@ export const currentAccountEntryColumns = (actions: {
           resolve: (row) => {
             const config = ENTRY_TYPE_CONFIG[row.type]
             let label = config?.label ?? row.type
+
+            if (row.reference_type === 'order_invoice_replacement') {
+              label = 'Reemplazo OV → factura'
+            }
 
             if (row.type === 'INVOICE' && (actions?.partyType === 'EMPLOYEE' || actions?.partyType === 'PARTNER')) {
               label = 'Recibo de sueldo'

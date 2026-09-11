@@ -18,18 +18,45 @@ const formatCurrency = (amount: number) => {
   }).format(num)
 }
 
+const replacementByDocument = computed(() => {
+  const map = new Map<string, number>()
+  for (const entry of props.entries) {
+    if (!entry.reference_id) continue
+    const amount = Number(entry.converted_amount ?? entry.amount) || 0
+    if (entry.type === 'ORDER_INVOICE_REPLACEMENT') {
+      map.set(entry.reference_id, (map.get(entry.reference_id) ?? 0) + amount)
+    } else if (entry.type === 'ORDER_INVOICE_REPLACEMENT_REVERSAL') {
+      map.set(entry.reference_id, Math.max(0, (map.get(entry.reference_id) ?? 0) - amount))
+    }
+  }
+  return map
+})
+
+const activeReplacementAmount = computed(() =>
+  Array.from(replacementByDocument.value.values()).reduce((sum, amount) => sum + amount, 0)
+)
+
 // Gráfico de evolución del saldo (line chart)
 const balanceChartData = computed(() => {
-  const sorted = [...props.entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const sorted = [...props.entries]
+    .filter(e => !['ORDER_INVOICE_REPLACEMENT', 'ORDER_INVOICE_REPLACEMENT_REVERSAL'].includes(e.type))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   const color = balanceChartColor(props.balance, props.partyType)
   const areaColor = balanceChartAreaColor(props.balance, props.partyType)
 
   // Agregar punto inicial en 0 antes de la primera entrada
   const dates: string[] = ['Inicio']
   const values: number[] = [0]
+  let runningBalance = 0
   for (const e of sorted) {
+    const amount = Number(e.converted_amount ?? e.amount) || 0
+    const replacement = e.type === 'INVOICE' && e.reference_id
+      ? replacementByDocument.value.get(e.reference_id) ?? 0
+      : 0
+    const visibleAmount = Math.max(0, amount - replacement)
+    runningBalance += resolveSide(e.type, props.partyType) === 'debit' ? visibleAmount : -visibleAmount
     dates.push(e.date?.split('T')[0] ?? '')
-    values.push(Number(e.balance_after))
+    values.push(runningBalance)
   }
 
   return {
@@ -67,6 +94,7 @@ const balanceChartData = computed(() => {
 const entryTypeSummary = computed(() => {
   const map = new Map<string, { count: number; total: number; type: string }>()
   for (const e of props.entries) {
+    if (['ORDER_INVOICE_REPLACEMENT', 'ORDER_INVOICE_REPLACEMENT_REVERSAL'].includes(e.type)) continue
     const config = ENTRY_TYPE_CONFIG[e.type]
     const label = config?.label ?? e.type
     const existing = map.get(label) || { count: 0, total: 0, type: e.type }
@@ -74,6 +102,8 @@ const entryTypeSummary = computed(() => {
     existing.total += Number(e.converted_amount ?? e.amount) || 0
     map.set(label, existing)
   }
+  const invoice = map.get(ENTRY_TYPE_CONFIG.INVOICE.label)
+  if (invoice) invoice.total = Math.max(0, invoice.total - activeReplacementAmount.value)
   return Array.from(map.entries())
     .map(([name, data]) => ({ name, ...data }))
     .sort((a, b) => b.total - a.total)

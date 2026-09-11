@@ -12,7 +12,6 @@ import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
 import DocumentPrintSelector from '~/components/documents/DocumentPrintSelector.vue'
 import PresupuestoView from '~/modulos/erp/documents/presupuesto/PresupuestoView.vue'
 import OrdenVentaView from '~/modulos/erp/documents/orden-venta/OrdenVentaView.vue'
-import EntregasParciales from '~/modulos/erp/documents/orden-venta/EntregasParciales.vue'
 import RemitoView from '~/modulos/erp/documents/remito/RemitoView.vue'
 import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
 
@@ -43,6 +42,11 @@ onMounted(async () => {
       store.fetchOne(route.params.id as string),
       companyId && companiesStore.fetchOne(companyId),
     ])
+
+    if (store.current?.document_types?.category === 'REMITO') {
+      await router.replace(`/erp/remitos/${route.params.id as string}`)
+      return
+    }
   } finally {
     loading.value = false
   }
@@ -120,14 +124,22 @@ const {
 
         <PresupuestoView v-if="doc && category === 'QUOTE'" :document="doc" />
         <OrdenVentaView v-if="doc && category === 'ORDER'" :document="doc" />
-        <EntregasParciales v-if="doc && category === 'ORDER'" :document="doc" />
+        <!-- Tracking de entregas y facturación oculto temporalmente.
+             El componente EntregasParciales se conserva para retomarlo más adelante. -->
         <RemitoView v-if="doc && category === 'REMITO'" :document="doc" />
 
         <div v-if="doc && company" id="printable-document" class="print-only">
           <DocumentPrintSelector :document="doc" :company="company" />
         </div>
-        <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" :show-tracking="category === 'ORDER'" />
-        <DocumentTotals v-if="doc" :document="doc" />
+        <DocumentItemsTable
+          v-if="doc"
+          :items="doc.document_items ?? []"
+          :currency="doc.currency_code"
+          :show-tracking="category === 'ORDER'"
+          :show-amounts="category !== 'REMITO'"
+          :show-warehouse="category === 'REMITO'"
+        />
+        <DocumentTotals v-if="doc && category !== 'REMITO'" :document="doc" />
         <UiAttachmentManager
           v-if="doc"
           entity-type="document"

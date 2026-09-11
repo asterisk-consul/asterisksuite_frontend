@@ -21,10 +21,39 @@ const formatCurrency = (amount: number) => {
   }).format(num)
 }
 
+const normalizedEntries = computed(() => {
+  const replacementByDocument = new Map<string, number>()
+  for (const entry of props.entries) {
+    if (!entry.reference_id) continue
+    const amount = Number(entry.converted_amount ?? entry.amount) || 0
+    if (entry.type === 'ORDER_INVOICE_REPLACEMENT') {
+      replacementByDocument.set(entry.reference_id, (replacementByDocument.get(entry.reference_id) ?? 0) + amount)
+    } else if (entry.type === 'ORDER_INVOICE_REPLACEMENT_REVERSAL') {
+      replacementByDocument.set(entry.reference_id, Math.max(0, (replacementByDocument.get(entry.reference_id) ?? 0) - amount))
+    }
+  }
+
+  let runningBalance = 0
+  return [...props.entries]
+    .filter(entry => !['ORDER_INVOICE_REPLACEMENT', 'ORDER_INVOICE_REPLACEMENT_REVERSAL'].includes(entry.type))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .map((entry) => {
+      const amount = Number(entry.converted_amount ?? entry.amount) || 0
+      const replacement = entry.type === 'INVOICE' && entry.reference_id
+        ? replacementByDocument.get(entry.reference_id) ?? 0
+        : 0
+      const visibleAmount = Math.max(0, amount - replacement)
+      runningBalance += resolveSide(entry.type, props.account?.party_type ?? '') === 'debit'
+        ? visibleAmount
+        : -visibleAmount
+      return { ...entry, visible_amount: visibleAmount, visible_balance: runningBalance }
+    })
+})
+
 // Exportar a Excel
 const exportEntries = () => {
   const partyName = props.account?.party?.name ?? 'tercero'
-  const sorted = [...props.entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const sorted = normalizedEntries.value
   
   exportToExcel({
     filename: `movimientos_${partyName.replace(/\s+/g, '_')}`,
@@ -44,8 +73,9 @@ const exportEntries = () => {
       ...e,
       type_label: ENTRY_TYPE_CONFIG[e.type]?.label ?? e.type,
       original_amount: `${e.currency_code || 'ARS'} ${Number(e.amount).toFixed(2)}`,
-      debit: resolveSide(e.type, props.account?.party_type ?? '') === 'debit' ? Number(e.converted_amount ?? e.amount) : null,
-      credit: resolveSide(e.type, props.account?.party_type ?? '') === 'credit' ? Number(e.converted_amount ?? e.amount) : null,
+      debit: resolveSide(e.type, props.account?.party_type ?? '') === 'debit' ? e.visible_amount : null,
+      credit: resolveSide(e.type, props.account?.party_type ?? '') === 'credit' ? e.visible_amount : null,
+      balance_after: e.visible_balance,
     }))
   })
 }
@@ -53,19 +83,19 @@ const exportEntries = () => {
 // Imprimir
 const printStatement = () => {
   const partyName = props.account?.party?.name ?? 'Tercero'
-  const sorted = [...props.entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const sorted = normalizedEntries.value
   
   const entriesHtml = sorted.map(e => {
     const config = ENTRY_TYPE_CONFIG[e.type]
     const isDebit = resolveSide(e.type, props.account?.party_type ?? '') === 'debit'
-    const amountInBase = Number(e.converted_amount ?? e.amount)
+    const amountInBase = e.visible_amount
     return `<tr>
       <td style="padding:6px 8px;border-bottom:1px solid #eee">${new Date(e.date).toLocaleDateString('es-AR')}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #eee">${config?.label ?? e.type}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #eee">${e.currency_code || 'ARS'} ${Number(e.amount).toFixed(2)}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${isDebit ? formatCurrency(amountInBase) : ''}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${!isDebit ? formatCurrency(amountInBase) : ''}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold">${formatCurrency(e.balance_after)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold">${formatCurrency(e.visible_balance)}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #eee">${e.description || ''}</td>
     </tr>`
   }).join('')

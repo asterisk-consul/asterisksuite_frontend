@@ -45,6 +45,8 @@ export function mapDocumentToFacturaForm(
 
         product_code: item.products?.code ?? '',
 
+        warehouse_id: item.warehouse_id ?? document.warehouse_id ?? null,
+
         quantity: Number(item.quantity ?? 0),
 
         unit_price: Number(item.original_unit_price ?? item.unit_price ?? 0),

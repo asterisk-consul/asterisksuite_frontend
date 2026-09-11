@@ -1,5 +1,62 @@
 [
   {
+    "version": "0.49.0-alpha",
+    "date": "2026-09-11",
+    "stage": "alpha",
+    "notes": "Circuito comercial configurable, remitos operativos y cuentas corrientes netas sin duplicar OV y facturas",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "sales",
+        "title": "Nueva configuración del circuito de ventas para definir el origen de la deuda, documentos habilitados para cobros y condiciones para remitir"
+      },
+      {
+        "type": "feat",
+        "scope": "sales",
+        "title": "OV, facturas, cobros y remitos comparten una operación comercial con saldo único y seguimiento de facturación, pagos y entrega"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "La factura reemplaza proporcionalmente la deuda provisoria de la OV sin duplicar el saldo de cuenta corriente"
+      },
+      {
+        "type": "refactor",
+        "scope": "current-accounts",
+        "title": "Totales, gráficos, impresión y exportación Excel presentan importes netos y omiten movimientos internos de reemplazo OV a factura"
+      },
+      {
+        "type": "feat",
+        "scope": "inventory",
+        "title": "Los remitos requieren depósito por producto, descuentan stock al confirmarse y recalculan las cantidades entregadas de la OV"
+      },
+      {
+        "type": "refactor",
+        "scope": "ui",
+        "title": "Vista específica de remitos centrada en cantidades y depósitos, sin precios, impuestos ni totales económicos"
+      },
+      {
+        "type": "fix",
+        "scope": "sales",
+        "title": "Rutas y enlaces documentales distinguen facturas, OV y remitos; los remitos se abren siempre en /erp/remitos"
+      },
+      {
+        "type": "feat",
+        "scope": "rbac",
+        "title": "La cadena documental muestra todos los documentos relacionados, pero bloquea la navegación cuando falta permiso de lectura para su categoría"
+      },
+      {
+        "type": "fix",
+        "scope": "sales",
+        "title": "Los remitos no generan facturas ni ofrecen la acción de facturar por defecto"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Circuito comercial configurable con remitos operativos y cuentas corrientes netas"
+  },
+  {
     "version": "0.48.1-alpha",
     "date": "2026-09-10",
     "stage": "alpha",

@@ -9,7 +9,8 @@ type Row = Payment
 
 const typeConfig: Record<string, { label: string; color?: string }> = {
   PAYMENT: { label: 'Pago', color: 'error' },
-  COLLECTION: { label: 'Cobro', color: 'success' }
+  COLLECTION: { label: 'Cobro', color: 'success' },
+  EXPENSE: { label: 'Gastos varios', color: 'warning' }
 }
 
 const statusConfig: Record<string, { label: string; color?: string }> = {

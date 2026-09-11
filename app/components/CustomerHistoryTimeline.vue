@@ -51,6 +51,7 @@ function fmtMoney(amount?: number, currency?: string) {
 }
 
 function resolveDocLink(doc: any): string {
+  if (doc.document_types?.category === 'REMITO') return `/erp/remitos/${doc.id}`
   return `/erp/sales/${doc.id}`
 }
 
@@ -90,7 +91,7 @@ const allNodes = computed<TimelineNode[]>(() => {
       status: doc.status,
       statusLabel: getStatusLabel(cat, doc.status),
       statusColor: getStatusColor(cat, doc.status),
-      amount: doc.total,
+      amount: cat === 'REMITO' ? undefined : doc.total,
       currency: doc.currency_code,
       link: resolveDocLink(doc),
       icon: config.icon,

@@ -21,7 +21,7 @@ const error = computed(() => documentsPurchasesStore.error)
 const docTypes = ref<any[]>([])
 onMounted(async () => {
   try {
-    docTypes.value = await $fetch<any[]>('/api/erp/documents-types')
+    docTypes.value = await $fetch<any[]>('/api/erp/documents/documents-types')
   } catch { /* ignore */ }
 })
 

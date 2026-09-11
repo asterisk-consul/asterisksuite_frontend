@@ -24,19 +24,21 @@ const stats = computed(() => {
     borrador: docs.filter(d => d.status === 0).length,
     pendiente: docs.filter(d => d.status === 1).length,
     confirmado: docs.filter(d => d.status === 2).length,
-    totalConfirmado: docs.filter(d => d.status === 2).reduce((a, d) => a + Number(d.total), 0),
+    unidadesPendientes: docs
+      .filter(doc => doc.status === 0 || doc.status === 1)
+      .reduce(
+        (total, doc) => total + (doc.document_items ?? [])
+          .reduce((sum: number, item: any) => sum + Number(item.quantity ?? 0), 0),
+        0
+      )
   }
 })
-
-function fmt(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
-}
 
 function openDocument(row: any) {
   router.push(`/erp/remitos/${row.id}`)
 }
 
-const columns = createSalesColumns({ onOpen: openDocument })
+const columns = createSalesColumns({ onOpen: openDocument, showAmounts: false })
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },
@@ -47,8 +49,7 @@ const filterFields = [
 const sortFields = [
   { label: 'N°', value: 'number' },
   { label: 'Fecha', value: 'date' },
-  { label: 'Cliente', value: 'client' },
-  { label: 'Total', value: 'total' }
+  { label: 'Cliente', value: 'client' }
 ]
 
 const statusOptions = [
@@ -86,13 +87,13 @@ const statusOptions = [
           <div class="space-y-1">
             <p class="text-xs text-muted">Confirmados</p>
             <p class="text-2xl font-semibold text-success-500">{{ stats.confirmado }}</p>
-            <p class="text-xs text-muted">{{ fmt(stats.totalConfirmado) }}</p>
+            <p class="text-xs text-muted">Remitos completados</p>
           </div>
         </UPageCard>
         <UPageCard variant="subtle">
           <div class="space-y-1">
-            <p class="text-xs text-muted">Total</p>
-            <p class="text-2xl font-semibold">{{ stats.total }}</p>
+            <p class="text-xs text-muted">Unidades a entregar</p>
+            <p class="text-2xl font-semibold">{{ stats.unidadesPendientes }}</p>
           </div>
         </UPageCard>
       </div>

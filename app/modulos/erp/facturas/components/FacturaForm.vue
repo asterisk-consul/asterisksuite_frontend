@@ -48,6 +48,7 @@ interface Props {
   moduleCode?: string
   category?: string
   parentDocumentId?: string
+  operationalMode?: boolean
 }
 
 const props = defineProps<Props>()
@@ -842,7 +843,24 @@ function removeItem(index: number) {
   fetchPreview()
 }
 
+function updateItemWarehouse(index: number, warehouseId: string | null) {
+  const item = items.value[index]
+  if (item) item.warehouse_id = warehouseId
+}
+
 function submit() {
+  if (props.operationalMode && affectsStock.value) {
+    const missingWarehouse = items.value.filter(item => !item.warehouse_id && !form.warehouse_id)
+    if (missingWarehouse.length > 0) {
+      toast.add({
+        title: 'Falta seleccionar el depósito',
+        description: `Completá el depósito de salida de ${missingWarehouse.length === 1 ? 'este producto' : 'todos los productos'} antes de guardar.`,
+        color: 'warning'
+      })
+      return
+    }
+  }
+
   if (manualIibbAmount.value != null && !manualIibbReason.value.trim()) {
     toast.add({
       title: 'Motivo requerido',
@@ -877,9 +895,11 @@ function submit() {
     }] : [],
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
-      warehouse_id: affectsStock.value
-        ? (moduleCode === 'SALES' ? (i.warehouse_id || undefined) : (advancedWarehouseAssignment.value ? (i.warehouse_id || undefined) : (form.warehouse_id || undefined)))
-        : undefined,
+      warehouse_id: props.operationalMode
+        ? (i.warehouse_id || form.warehouse_id || undefined)
+        : affectsStock.value
+          ? (moduleCode === 'SALES' ? (i.warehouse_id || undefined) : (advancedWarehouseAssignment.value ? (i.warehouse_id || undefined) : (form.warehouse_id || undefined)))
+          : undefined,
       quantity: Number(i.quantity),
       unit_price: Number(i.unit_price),
       discount_percentage: Math.min(100, Math.max(0, Number(i.discount_percentage || 0))),
@@ -960,7 +980,7 @@ defineExpose({ submit })
           />
         </UFormField>
 
-        <UFormField label="Moneda del comprobante" class="min-w-0 xl:col-span-2">
+        <UFormField v-if="!operationalMode" label="Moneda del comprobante" class="min-w-0 xl:col-span-2">
           <USelect
             v-model="form.currency_code"
             :items="currencyOptions"
@@ -978,7 +998,7 @@ defineExpose({ submit })
         </UFormField>
       </div>
 
-      <div v-if="form.party_id && partyIibbRegistrations.length > 0" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div v-if="!operationalMode && form.party_id && partyIibbRegistrations.length > 0" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <UFormField
           label="Jurisdicción / domicilio de la operación"
           description="Define qué inscripción y alícuota de IIBB se aplican."
@@ -1003,7 +1023,7 @@ defineExpose({ submit })
       </div>
 
       <!-- Exchange Rate (solo si moneda extranjera) -->
-      <div v-if="isForeignCurrency" class="mt-4 grid grid-cols-1 gap-4 rounded-lg bg-muted/40 p-4 md:grid-cols-3">
+      <div v-if="!operationalMode && isForeignCurrency" class="mt-4 grid grid-cols-1 gap-4 rounded-lg bg-muted/40 p-4 md:grid-cols-3">
         <UFormField label="Tipo de cambio" class="min-w-0">
           <USelect
             v-model="form.rate_type"
@@ -1096,7 +1116,7 @@ defineExpose({ submit })
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 class="text-base font-semibold">Detalle de productos</h2>
-            <p class="mt-1 text-sm text-muted">La bonificación se aplica sobre cada artículo antes de calcular IVA e IIBB.</p>
+            <p class="mt-1 text-sm text-muted">{{ operationalMode ? 'Indicá las cantidades y el depósito desde el que sale cada producto.' : 'La bonificación se aplica sobre cada artículo antes de calcular IVA e IIBB.' }}</p>
           </div>
           <UBadge color="neutral" variant="soft">
             {{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}
@@ -1111,13 +1131,15 @@ defineExpose({ submit })
         :warehouse-options-for-item="warehouseOptionsForItem"
         :show-warehouse-column="moduleCode === 'SALES' ? affectsStock : affectsStock && advancedWarehouseAssignment"
         :default-warehouse-id="form.warehouse_id"
+        :show-amounts="!operationalMode"
         @remove="removeItem"
         @add="addItem"
+        @update:warehouse="updateItemWarehouse"
       />
     </UCard>
 
     <!-- Totals -->
-    <div class="flex min-w-0 justify-end">
+    <div v-if="!operationalMode" class="flex min-w-0 justify-end">
       <UCard class="w-full border-t-2 border-primary lg:max-w-xl">
         <details v-if="automaticIibbTax" class="group mb-4 rounded-lg border border-default bg-muted/20 p-3">
           <summary class="flex cursor-pointer list-none items-center justify-between gap-3">

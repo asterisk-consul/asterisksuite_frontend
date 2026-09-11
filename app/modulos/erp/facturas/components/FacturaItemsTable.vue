@@ -26,6 +26,7 @@ interface Props {
   showWarehouseColumn?: boolean
   defaultWarehouseId?: string | null
   warehouseOptionsForItem?: (item: FacturaItem) => { value: string, label: string }[]
+  showAmounts?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -36,6 +37,8 @@ const emit = defineEmits<{
   remove: [index: number]
 
   add: [product: any]
+
+  'update:warehouse': [index: number, warehouseId: string | null]
 }>()
 
 const selectedProduct = ref<any>(null)
@@ -170,12 +173,17 @@ const columns = computed(() => [
     cell: ({ row }: any) => h(USelect, {
       modelValue: row.original.warehouse_id || props.defaultWarehouseId || undefined,
       items: props.warehouseOptionsForItem?.(row.original) ?? props.warehouses ?? [],
+      valueKey: 'value',
       placeholder: 'Seleccionar depósito',
       class: 'min-w-48',
-      'onUpdate:modelValue': (value: string) => { row.original.warehouse_id = value }
+      'onUpdate:modelValue': (value: string | { value?: string }) => {
+        const warehouseId = typeof value === 'string' ? value : value?.value ?? null
+        row.original.warehouse_id = warehouseId
+        emit('update:warehouse', row.index, warehouseId)
+      }
     })
   }] : []),
-  {
+  ...(props.showAmounts === false ? [] : [{
     accessorKey: 'unit_price',
     header: 'Precio unitario',
     meta: {
@@ -240,7 +248,7 @@ const columns = computed(() => [
       }
     },
     cell: ({ row }: any) => fmt(Number(row.original.total || 0))
-  },
+  }]),
   {
     id: 'actions',
     header: '',

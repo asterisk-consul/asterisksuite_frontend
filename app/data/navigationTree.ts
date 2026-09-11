@@ -507,6 +507,7 @@ export const navigationTree: DrilldownNode[] = [
       { label: 'Roles', icon: 'i-lucide-shield', to: '/settings/roles', permission: 'roles.read' },
       { label: 'Seguridad', icon: 'i-lucide-shield-check', to: '/settings/security' },
       { label: 'Impuestos', icon: 'i-lucide-percent', to: '/settings/taxes', permission: 'taxes.read' },
+      { label: 'Circuito de ventas', icon: 'i-lucide-git-branch', to: '/settings/sales-flow', permission: 'document_types.read' },
       { label: 'Monedas', icon: 'i-lucide-banknote', to: '/settings/monedas', permission: 'currencies.read' },
       { label: 'Locaciones', icon: 'i-lucide-map-pin', to: '/ajustes/locaciones', permission: 'locations.read' },
       { label: 'Notificaciones', icon: 'i-lucide-bell', to: '/settings/notifications' },

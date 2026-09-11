@@ -8,6 +8,7 @@ type Row = Document
 
 export const createSalesColumns = (actions: {
   onOpen: (row: Row) => void
+  showAmounts?: boolean
 }) => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
   const fmtNumber = (row: Row) => {
@@ -80,7 +81,7 @@ export const createSalesColumns = (actions: {
           )
         }
       },
-      {
+      ...(actions.showAmounts === false ? [] : [{
         key: 'total',
         label: 'Total',
         sortable: true,
@@ -88,7 +89,7 @@ export const createSalesColumns = (actions: {
           new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
             Number(row.original.total)
           )
-      },
+      }]),
       { key: 'date', label: 'Fecha', sortable: true, date: true },
       {
         id: 'point_of_sale',

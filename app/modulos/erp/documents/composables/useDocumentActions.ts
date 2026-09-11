@@ -46,6 +46,36 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const isPending = computed(() => doc.value?.status === 1)
   const isConfirmed = computed(() => doc.value?.status === 2)
 
+  const operationAccountingApplies = computed(() => {
+    const basis = doc.value?.commercial_operation?.accounting_basis
+    if (!basis) return Boolean(doc.value?.document_types?.affects_accounting)
+    if (category.value === 'ORDER') return ['ORDER', 'ORDER_THEN_INVOICE'].includes(basis)
+    if (category.value === 'INVOICE') return ['INVOICE', 'ORDER_THEN_INVOICE'].includes(basis)
+    return Boolean(doc.value?.document_types?.affects_accounting)
+  })
+
+  const operationPaymentApplies = computed(() => {
+    const basis = doc.value?.commercial_operation?.payment_document_basis
+    if (!basis) return Boolean(doc.value?.document_types?.affects_payment)
+    if (basis === 'BOTH') return ['ORDER', 'INVOICE'].includes(category.value ?? '')
+    return basis === category.value
+  })
+
+  const hasPendingBalance = computed(() => {
+    const operation = doc.value?.commercial_operation
+    const total = Number(operation?.ordered_total ?? doc.value?.total ?? 0)
+    const paid = Number(operation?.paid_total ?? doc.value?.paid_amount ?? 0)
+    return total - paid > 0.01
+  })
+
+  const settlementDocumentId = computed(() => {
+    const operation = doc.value?.commercial_operation
+    if (operation?.payment_document_basis === 'BOTH' && category.value === 'INVOICE') {
+      return operation.root_document_id ?? doc.value?.id
+    }
+    return doc.value?.id
+  })
+
   const validTransitions = computed(() => {
     if (config.customTransitions) return config.customTransitions
     if (!doc.value) return []
@@ -61,7 +91,12 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     const invoices = children.filter((c: any) => c.document_types?.category === 'INVOICE' && c.status >= 1)
     if (!invoices.length) return null
     const hasDraft = invoices.some((c: any) => c.status < 2)
-    return hasDraft ? 'partial' : 'invoiced'
+    if (hasDraft) return 'partial'
+
+    const operation = doc.value?.commercial_operation
+    const orderedTotal = Number(operation?.ordered_total ?? doc.value?.total ?? 0)
+    const invoicedTotal = Number(operation?.invoiced_total ?? invoices.reduce((sum: number, invoice: any) => sum + Number(invoice.total ?? 0), 0))
+    return invoicedTotal + 0.01 >= orderedTotal ? 'invoiced' : 'partial'
   })
 
   // Number of print copies: facturas/OV=2 (DUPLICADO+ORIGINAL), remitos=3 (TRIPLICADO+DUPLICADO+ORIGINAL)
@@ -117,23 +152,23 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       })
     }
 
-    // Cobrar: factura confirmada sin cobro asociado
-    if (isConfirmed.value && module === 'sales' && category.value === 'INVOICE'
-      && doc.value?.party_id && !doc.value?.payment_documents?.length) {
+    // En una operación configurada, OV y factura pueden cobrar contra un único saldo.
+    if (isConfirmed.value && module === 'sales' && operationPaymentApplies.value
+      && doc.value?.party_id && hasPendingBalance.value) {
       items.push({
-        label: 'Cobrar',
+        label: 'Registrar cobro',
         icon: 'i-lucide-wallet',
         color: 'success',
-        help: 'Creá un cobro para esta factura.',
+        help: 'El cobro se descuenta del saldo único de la operación comercial.',
         onClick: () => {
-          router.push(`/erp/treasury/payments/create?party_id=${doc.value!.party_id}&document_id=${doc.value!.id}&type=COLLECTION`)
+          router.push(`/erp/treasury/payments/create?party_id=${doc.value!.party_id}&document_id=${settlementDocumentId.value}&type=COLLECTION`)
         }
       })
     }
 
     // Pagar: factura confirmada sin pago asociado (compras)
     if (isConfirmed.value && module === 'purchases' && category.value === 'INVOICE'
-      && doc.value?.party_id && !doc.value?.payment_documents?.length) {
+      && operationPaymentApplies.value && doc.value?.party_id && hasPendingBalance.value) {
       items.push({
         label: 'Pagar',
         icon: 'i-lucide-wallet',
@@ -173,9 +208,8 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       items.push([{ label: 'Crear Remito', icon: 'i-lucide-truck', color: 'success', onClick: () => { deliverModalOpen.value = true } }])
     }
 
-    // Crear Factura (from ORDER active or REMITO confirmed)
-    const isRemitoConfirmed = category.value === 'REMITO' && isConfirmed.value
-    if ((isOrderActive || isRemitoConfirmed) && canCreateInvoice) {
+    // Por defecto la factura nace desde la OV. Un remito no origina facturas.
+    if (isOrderActive && canCreateInvoice) {
       const createUrl = module === 'sales'
         ? `/erp/sales/new?category=INVOICE&parent_order_id=${id.value}`
         : `/erp/purchases/purchases-documents/new?parent_order_id=${id.value}`
@@ -195,7 +229,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     }
 
     // Cuenta corriente
-    if (isConfirmed.value && doc.value?.party_id && ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'].includes(doc.value?.document_types?.category)) {
+    if (isConfirmed.value && doc.value?.party_id && operationAccountingApplies.value) {
       items.push([{
         label: 'Cuenta corriente',
         icon: 'i-lucide-arrow-right-circle',

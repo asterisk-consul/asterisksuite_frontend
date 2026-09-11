@@ -28,6 +28,7 @@ const factura = computed(() => {
   const doc = documentsSalesStore.current
   return doc ? mapDocumentToFacturaForm(doc) : null
 })
+const isRemito = computed(() => documentsSalesStore.current?.document_types?.category === 'REMITO')
 
 const formRef = ref<InstanceType<typeof FacturaForm> | null>(null)
 
@@ -46,12 +47,14 @@ async function handleSubmit(payload: any) {
     await documentsSalesStore.update(route.params.id as string, payload)
 
     toast.add({
-      title: 'Factura actualizada',
-      description: 'Factura actualizada con exito',
+      title: isRemito.value ? 'Remito actualizado' : 'Factura actualizada',
+      description: isRemito.value ? 'Se guardaron las cantidades y depósitos de salida.' : 'Factura actualizada con éxito',
       color: 'success'
     })
 
-    router.push(`/erp/sales/${route.params.id}`)
+    router.push(isRemito.value
+      ? `/erp/remitos/${route.params.id}`
+      : `/erp/sales/${route.params.id}`)
   } catch (e: any) {
     toast.add({
       title: 'Error al actualizar',
@@ -67,7 +70,7 @@ async function handleSubmit(payload: any) {
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar title="Editar Factura">
+      <UDashboardNavbar :title="isRemito ? 'Editar remito' : 'Editar factura'">
         <template #leading>
           <UButton
             icon="i-lucide-panel-left-close"
@@ -82,8 +85,8 @@ async function handleSubmit(payload: any) {
     <template #body>
       <UPage>
         <UPageHeader
-          title="Editar Factura"
-          description="Modificá la factura"
+          :title="isRemito ? 'Preparar remito' : 'Editar factura'"
+          :description="isRemito ? 'Revisá cantidades y elegí el depósito de salida de cada producto.' : 'Modificá la factura'"
           :links="[
             {
               label: 'Guardar Cambios',
@@ -104,6 +107,7 @@ async function handleSubmit(payload: any) {
             :initial-values="factura"
             :loading="saving"
             module-code="SALES"
+            :operational-mode="isRemito"
             @submit="handleSubmit"
           />
 

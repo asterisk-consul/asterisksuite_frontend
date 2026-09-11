@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import DocumentAssignment from './DocumentAssignment.vue'
 import { getStatusLabel, getStatusColor, getStatusDescription } from '~/modulos/erp/documents/types/document-statuses'
+import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 
 const props = defineProps<{
   document: any
@@ -10,6 +11,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   action: [name: string]
 }>()
+
+const { can: canDocument } = useDocumentPermissions()
+
+function canOpenDocument(doc: any): boolean {
+  if (!doc) return false
+  const scope = doc.document_types?.direction === -1 ? 'purchases' : 'sales'
+  return canDocument(scope, doc.document_types?.category, 'read')
+}
 
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: props.document?.currency_code ?? 'ARS' }).format(n ?? 0)
@@ -44,6 +53,7 @@ function resolveDocLink(doc: any): string {
     return `/erp/purchases/purchases-documents/${id}`
   }
 
+  if (cat === 'REMITO') return `/erp/remitos/${id}`
   return `/erp/sales/${id}`
 }
 </script>
@@ -78,9 +88,13 @@ function resolveDocLink(doc: any): string {
     <UAlert v-if="document.parent_document" color="info" variant="soft" icon="i-lucide-link">
       <template #title>
         <span>Generado desde: </span>
-        <NuxtLink :to="resolveDocLink(document.parent_document)" class="underline font-medium">
+        <NuxtLink v-if="canOpenDocument(document.parent_document)" :to="resolveDocLink(document.parent_document)" class="underline font-medium">
           {{ document.parent_document.document_types?.description }} #{{ document.parent_document.number }}
         </NuxtLink>
+        <span v-else class="inline-flex items-center gap-1 font-medium text-muted" title="No tenés permiso para abrir este tipo de documento">
+          <UIcon name="i-lucide-lock" class="size-3.5" />
+          {{ document.parent_document.document_types?.description }} #{{ document.parent_document.number }}
+        </span>
       </template>
     </UAlert>
 

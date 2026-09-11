@@ -48,6 +48,11 @@ const links = computed<NavigationMenuItem[][]>(() => {
               label: 'Secuencias',
               icon: 'i-lucide-hash',
               to: '/erp/settings/document-sequences'
+            },
+            {
+              label: 'Circuito de ventas',
+              icon: 'i-lucide-git-branch',
+              to: '/settings/sales-flow'
             }
           ]
         : []),
