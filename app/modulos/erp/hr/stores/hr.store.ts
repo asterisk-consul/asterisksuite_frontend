@@ -16,8 +16,11 @@ export interface CommissionReport {
       document_id: string
       ov_number: number
       subtotal: number
+      sold_subtotal: number
+      settled_amount: number
       commission_rate: number
       commission_amount: number
+      commission_base: 'INVOICED' | 'PAID'
       date: string
     }[]
   }[]
@@ -43,7 +46,6 @@ export const useHrStore = defineStore('hr', () => {
     error.value = null
     try {
       vales.value = await HrService.getVales(params)
-      console.log('Fetched vales:', vales.value)
       return vales.value
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al cargar vales'
@@ -79,11 +81,11 @@ export const useHrStore = defineStore('hr', () => {
     }
   }
 
-  const confirmVale = async (id: string) => {
+  const confirmVale = async (id: string, treasury?: { treasury_target_type: 'CASH_BOX' | 'BANK_ACCOUNT'; treasury_target_id: string }) => {
     loading.value = true
     error.value = null
     try {
-      const updated = await HrService.confirmVale(id)
+      const updated = await HrService.confirmVale(id, treasury)
       const index = vales.value.findIndex((v) => v.id === id)
       if (index !== -1) vales.value[index] = updated
       return updated

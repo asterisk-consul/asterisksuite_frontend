@@ -1,5 +1,72 @@
 [
   {
+    "version": "0.50.0-alpha",
+    "date": "2026-09-12",
+    "stage": "alpha",
+    "notes": "Comisiones por facturación o cobro y nuevo circuito de aportes, retiros y reportes de socios integrado con tesorería",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "hr",
+        "title": "Las comisiones configuradas sobre lo cobrado toman las aplicaciones reales de pagos y las configuradas sobre lo facturado consideran la facturación parcial"
+      },
+      {
+        "type": "fix",
+        "scope": "hr",
+        "title": "El reporte de comisiones aplica el criterio configurado también sobre los documentos y liquidaciones existentes"
+      },
+      {
+        "type": "feat",
+        "scope": "partners",
+        "title": "Los aportes y retiros de socios se registran directamente en la caja o cuenta bancaria seleccionada al confirmar el vale"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Los vales de socios con movimiento directo de tesorería quedan pagados y dejan de aparecer como obligaciones pendientes"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Los movimientos directos de socios no generan una deuda duplicada en la cuenta corriente general"
+      },
+      {
+        "type": "feat",
+        "scope": "partners",
+        "title": "Nuevo reporte individual del socio con aportes, retiros, saldo, evolución y distribución por tipo de movimiento"
+      },
+      {
+        "type": "feat",
+        "scope": "currencies",
+        "title": "El reporte del socio muestra cada movimiento y sus totales en ARS y USD usando el tipo de cambio registrado"
+      },
+      {
+        "type": "fix",
+        "scope": "partners",
+        "title": "El reporte incluye vales confirmados y pagados, y excluye borradores y movimientos cancelados"
+      },
+      {
+        "type": "refactor",
+        "scope": "ui",
+        "title": "El modal de vales ordena los datos del movimiento, amplía los selectores de tesorería y facilita la elección de caja o banco"
+      },
+      {
+        "type": "feat",
+        "scope": "currencies",
+        "title": "Los vales precargan el último tipo de cambio disponible y permiten modificarlo antes de confirmar"
+      },
+      {
+        "type": "feat",
+        "scope": "navigation",
+        "title": "El reporte de socios se encuentra disponible desde el menú de reportes de RRHH"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Comisiones corregidas y circuito de socios integrado con tesorería"
+  },
+  {
     "version": "0.49.0-alpha",
     "date": "2026-09-11",
     "stage": "alpha",

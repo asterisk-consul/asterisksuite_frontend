@@ -24,6 +24,11 @@ const showCommissionModal = ref(false)
 const selectedVale = ref<any>(null)
 const cancellingVale = ref<any>(null)
 const cancelConfirmText = ref('')
+const showTreasuryModal = ref(false)
+const confirmingVale = ref<any>(null)
+const treasuryTargetType = ref<'CASH_BOX' | 'BANK_ACCOUNT'>('CASH_BOX')
+const treasuryTargetId = ref('')
+const treasuryTargets = ref<any[]>([])
 
 async function loadVales() {
   await hrStore.fetchVales({
@@ -77,7 +82,20 @@ function fmtDate(d: string) {
 // ACCIONES
 // =========================
 
+const availableTreasuryTargets = computed(() => treasuryTargets.value
+  .filter(item => item.currency_code === confirmingVale.value?.currency_code && item.active !== false && (treasuryTargetType.value !== 'CASH_BOX' || item.current_session_id))
+  .map(item => ({ label: `${item.name}${item.bank_name ? ` · ${item.bank_name}` : ' · caja abierta'}`, value: item.id })))
+
 async function handleConfirm(id: string) {
+  const vale = vales.value.find(v => v.id === id)
+  if (vale?.party_type === 'PARTNER') {
+    confirmingVale.value = vale
+    treasuryTargetType.value = 'CASH_BOX'
+    treasuryTargetId.value = ''
+    treasuryTargets.value = await $fetch<any[]>('/api/logistica/cash-boxes')
+    showTreasuryModal.value = true
+    return
+  }
   try {
     await hrStore.confirmVale(id)
     await loadVales()
@@ -86,6 +104,29 @@ async function handleConfirm(id: string) {
     toast.add({ title: 'Error al confirmar vale', color: 'error' })
   }
 }
+
+async function confirmPartnerVale() {
+  if (!confirmingVale.value || !treasuryTargetId.value) return
+  try {
+    await hrStore.confirmVale(confirmingVale.value.id, {
+      treasury_target_type: treasuryTargetType.value,
+      treasury_target_id: treasuryTargetId.value
+    })
+    showTreasuryModal.value = false
+    await loadVales()
+    toast.add({ title: 'Vale confirmado y movimiento registrado', color: 'success' })
+  } catch (e: any) {
+    toast.add({ title: 'Error al confirmar vale', description: e?.data?.message || e?.message, color: 'error' })
+  }
+}
+
+watch(treasuryTargetType, async type => {
+  treasuryTargetId.value = ''
+  if (!showTreasuryModal.value) return
+  treasuryTargets.value = type === 'CASH_BOX'
+    ? await $fetch<any[]>('/api/logistica/cash-boxes')
+    : await $fetch<any[]>('/api/erp/bank-accounts')
+})
 
 function handleCancel(id: string) {
   cancellingVale.value = vales.value.find(v => v.id === id)
@@ -214,6 +255,31 @@ const columns = [
       v-model:open="showCreateModal"
       @success="loadVales"
     />
+
+    <UModal v-model:open="showTreasuryModal" title="Confirmar movimiento del socio">
+      <template #body>
+        <div class="space-y-4">
+          <UAlert
+            :title="['RETIRO', 'REEMBOLSO', 'PRESTAMO'].includes(confirmingVale?.type) ? 'El dinero saldrá de Tesorería' : 'El dinero ingresará en Tesorería'"
+            :description="`Vale #${confirmingVale?.number ?? ''} · ${fmtCurrency(Number(confirmingVale?.amount ?? 0), confirmingVale?.currency_code)}`"
+            :color="['RETIRO', 'REEMBOLSO', 'PRESTAMO'].includes(confirmingVale?.type) ? 'error' : 'success'"
+            variant="subtle"
+          />
+          <UFormField label="Medio" required>
+            <USelect v-model="treasuryTargetType" :items="[{ label: 'Caja', value: 'CASH_BOX' }, { label: 'Cuenta bancaria', value: 'BANK_ACCOUNT' }]" />
+          </UFormField>
+          <UFormField :label="treasuryTargetType === 'CASH_BOX' ? 'Caja' : 'Cuenta bancaria'" required>
+            <USelect v-model="treasuryTargetId" :items="availableTreasuryTargets" :placeholder="availableTreasuryTargets.length ? 'Seleccionar...' : `No hay opciones disponibles en ${confirmingVale?.currency_code}`" />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton label="Cancelar" variant="ghost" @click="showTreasuryModal = false" />
+          <UButton label="Confirmar y registrar" color="success" :loading="loading" :disabled="!treasuryTargetId" @click="confirmPartnerVale" />
+        </div>
+      </template>
+    </UModal>
 
     <!-- ========================= -->
     <!-- MODAL ANULAR VALE         -->

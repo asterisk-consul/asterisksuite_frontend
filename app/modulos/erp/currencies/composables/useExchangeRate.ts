@@ -45,7 +45,7 @@ export function useExchangeRate() {
     try {
       // Ensure currency rates store is loaded
       if (!ratesLoaded.value) {
-        await fetchRates()
+        await Promise.all([initCurrencies(), fetchRates()])
         ratesLoaded.value = true
       }
 
@@ -64,7 +64,7 @@ export function useExchangeRate() {
 
       // Fallback: try the server API
       const result = await $fetch('/api/erp/pricing/exchange/convert', {
-        query: { from: fromCode, to: toCode, rateType: type ?? rateType.value },
+        query: { from: fromCode, to: toCode, amount: 1, rateType: type ?? rateType.value },
       })
 
       if (result?.rate) {

@@ -2,5 +2,6 @@ import { apiProxy } from '~~/server/utils/api-proxy'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
-  return apiProxy(event, `/hr/vales/${id}/confirm`, { method: 'PATCH' })
+  const body = await readBody(event)
+  return apiProxy(event, `/hr/vales/${id}/confirm`, { method: 'PATCH', body })
 })

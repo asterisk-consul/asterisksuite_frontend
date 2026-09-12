@@ -36,9 +36,10 @@ export const HrService = {
     })
   },
 
-  async confirmVale(id: string): Promise<HrVale> {
+  async confirmVale(id: string, treasury?: { treasury_target_type: 'CASH_BOX' | 'BANK_ACCOUNT'; treasury_target_id: string }): Promise<HrVale> {
     return $fetch(`/api/erp/hr/vales/${id}/confirm`, {
       method: 'PATCH' as any,
+      body: treasury,
     })
   },
 
@@ -77,8 +78,11 @@ export const HrService = {
         document_id: string
         ov_number: number
         subtotal: number
+        sold_subtotal: number
+        settled_amount: number
         commission_rate: number
         commission_amount: number
+        commission_base: 'INVOICED' | 'PAID'
         date: string
       }[]
     }[]

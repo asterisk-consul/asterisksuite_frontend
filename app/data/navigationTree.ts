@@ -255,6 +255,12 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'employees.read',
         children: [
           {
+            label: 'Reporte de socios',
+            icon: 'i-lucide-chart-no-axes-combined',
+            to: '/erp/rrhh/reports/socios',
+            permission: 'partners.read'
+          },
+          {
             label: 'Vales por período',
             icon: 'i-lucide-calendar',
             to: '/erp/rrhh/reports/vales-periodo',

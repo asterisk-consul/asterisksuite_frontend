@@ -27,7 +27,14 @@ const sellerName = computed(() => {
 const commissionAmount = computed(() => {
   const ov = props.document?.orden_venta_doc
   if (!ov?.commission_rate || !props.document?.subtotal) return null
-  return Number(props.document.subtotal) * Number(ov.commission_rate) / 100
+  const operation = props.document?.commercial_operation
+  const subtotal = Number(props.document.subtotal)
+  const total = Number(operation?.ordered_total ?? props.document.total ?? 0)
+  const accruedGross = ov.commission_base === 'PAID'
+    ? Number(operation?.paid_total ?? props.document.paid_amount ?? 0)
+    : Number(operation?.invoiced_total ?? 0)
+  const baseAmount = total > 0 ? subtotal * Math.min(accruedGross / total, 1) : 0
+  return baseAmount * Number(ov.commission_rate) / 100
 })
 </script>
 

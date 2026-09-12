@@ -114,10 +114,13 @@ export interface PartnerReport {
     converted_balance: number | null
   }[]
   summary: {
-    total_aportes: number
-    total_retiros: number
-    total_reembolsos: number
-    total_prestamos: number
+    by_currency: Record<string, {
+      total_aportes: number
+      total_retiros: number
+      total_reembolsos: number
+      total_prestamos: number
+      saldo_neto: number
+    }>
     saldo_neto_ars: number
     saldo_neto_usd: number
   }

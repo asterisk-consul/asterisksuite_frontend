@@ -18,6 +18,14 @@ const loading = ref(true)
 const filterDateFrom = ref('')
 const filterDateTo = ref('')
 const filterType = ref<string | undefined>(undefined)
+const selectedCurrency = ref<'ARS' | 'USD'>('ARS')
+const currencySummary = computed(() => report.value?.summary?.by_currency?.[selectedCurrency.value] ?? {
+  total_aportes: 0,
+  total_retiros: 0,
+  total_reembolsos: 0,
+  total_prestamos: 0,
+  saldo_neto: 0
+})
 
 const filterTypeOptions = [
   { label: 'Todos', value: undefined },
@@ -58,6 +66,14 @@ const fmtCurrency = (n: number, code: string = 'ARS') =>
 
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('es-AR') : '-'
 
+const movementAmount = (vale: any, currency: 'ARS' | 'USD') => {
+  const amount = Number(vale.amount) || 0
+  const rate = Number(vale.exchange_rate) || 0
+  if (vale.currency_code === currency) return amount
+  if (!rate) return null
+  return currency === 'ARS' ? amount * rate : amount / rate
+}
+
 // ═══════════════════════════════════════════
 // GRÁFICO: EVOLUCIÓN DEL SALDO (line chart)
 // ═══════════════════════════════════════════
@@ -67,18 +83,14 @@ const balanceChartData = computed(() => {
   if (evo.length === 0) return null
 
   const dates = evo.map(e => e.date)
-  const arsValues = evo.map(e => e.balance_ars)
-  const usdValues = evo.map(e => e.balance_usd)
+  const values = evo.map(e => selectedCurrency.value === 'ARS' ? e.balance_ars : e.balance_usd)
 
   return {
     tooltip: {
       trigger: 'axis',
       formatter: (params: any) => {
         let text = `${params[0].axisValue}<br/>`
-        for (const p of params) {
-          const currency = p.seriesName === 'ARS' ? 'ARS' : 'USD'
-          text += `${p.marker} ${p.seriesName}: ${fmtCurrency(p.value, currency)}<br/>`
-        }
+        for (const p of params) text += `${p.marker} ${p.seriesName}: ${fmtCurrency(p.value, selectedCurrency.value)}<br/>`
         return text
       }
     },
@@ -91,26 +103,17 @@ const balanceChartData = computed(() => {
     },
     yAxis: {
       type: 'value',
-      axisLabel: { fontSize: 10, formatter: (v: number) => fmtCurrency(v, 'ARS') }
+      axisLabel: { fontSize: 10, formatter: (v: number) => fmtCurrency(v, selectedCurrency.value) }
     },
     series: [
       {
-        name: 'ARS',
+        name: selectedCurrency.value,
         type: 'line',
-        data: arsValues,
+        data: values,
         smooth: true,
         lineStyle: { width: 2, color: '#22c55e' },
         areaStyle: { color: 'rgba(34,197,94,0.1)' },
         itemStyle: { color: '#22c55e' }
-      },
-      {
-        name: 'USD',
-        type: 'line',
-        data: usdValues,
-        smooth: true,
-        lineStyle: { width: 2, color: '#3b82f6' },
-        areaStyle: { color: 'rgba(59,130,246,0.1)' },
-        itemStyle: { color: '#3b82f6' }
       }
     ]
   }
@@ -121,14 +124,14 @@ const balanceChartData = computed(() => {
 // ═══════════════════════════════════════════
 
 const aportesVsRetirosData = computed(() => {
-  const vales = report.value?.vales ?? []
+  const vales = (report.value?.vales ?? []).filter(v => ['CONFIRMED', 'PAID'].includes(v.status))
   if (vales.length === 0) return null
 
   const monthlyMap = new Map<string, { aportes: number; retiros: number }>()
   for (const v of vales) {
     const month = v.date?.substring(0, 7) ?? 'unknown'
     const existing = monthlyMap.get(month) ?? { aportes: 0, retiros: 0 }
-    const amount = Number(v.amount) || 0
+    const amount = movementAmount(v, selectedCurrency.value) ?? 0
     if (v.type === 'APORTE') existing.aportes += amount
     if (['RETIRO', 'REEMBOLSO', 'PRESTAMO'].includes(v.type)) existing.retiros += amount
     monthlyMap.set(month, existing)
@@ -144,7 +147,7 @@ const aportesVsRetirosData = computed(() => {
       formatter: (params: any) => {
         let text = `${params[0].axisValue}<br/>`
         for (const p of params) {
-          text += `${p.marker} ${p.seriesName}: ${fmtCurrency(p.value)}<br/>`
+          text += `${p.marker} ${p.seriesName}: ${fmtCurrency(p.value, selectedCurrency.value)}<br/>`
         }
         return text
       }
@@ -152,7 +155,7 @@ const aportesVsRetirosData = computed(() => {
     legend: { bottom: 0, textStyle: { fontSize: 11 } },
     grid: { left: 80, right: 20, top: 10, bottom: 40 },
     xAxis: { type: 'category', data: months, axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: (v: number) => fmtCurrency(v) } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: (v: number) => fmtCurrency(v, selectedCurrency.value) } },
     series: [
       {
         name: 'Aportes',
@@ -177,7 +180,7 @@ const aportesVsRetirosData = computed(() => {
 // ═══════════════════════════════════════════
 
 const compositionData = computed(() => {
-  const summary = report.value?.summary
+  const summary = currencySummary.value
   if (!summary) return null
 
   const items = [
@@ -190,7 +193,7 @@ const compositionData = computed(() => {
   if (items.length === 0) return null
 
   return {
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    tooltip: { trigger: 'item', formatter: (p: any) => `${p.name}: ${fmtCurrency(p.value, selectedCurrency.value)} (${p.percent}%)` },
     legend: { bottom: 0, textStyle: { fontSize: 11 } },
     series: [
       {
@@ -219,43 +222,50 @@ const compositionData = computed(() => {
       </template>
     </AppPageHeader>
 
+    <div class="flex justify-end">
+      <UFieldGroup>
+        <UButton label="Pesos (ARS)" :variant="selectedCurrency === 'ARS' ? 'solid' : 'outline'" @click="selectedCurrency = 'ARS'" />
+        <UButton label="Dólares (USD)" :variant="selectedCurrency === 'USD' ? 'solid' : 'outline'" @click="selectedCurrency = 'USD'" />
+      </UFieldGroup>
+    </div>
+
     <!-- KPI CARDS -->
     <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
       <UPageCard variant="subtle">
         <div class="text-center">
           <p class="text-xs text-muted font-medium uppercase">Total Aportes</p>
-          <p class="text-lg font-bold text-success">{{ fmtCurrency(report?.summary?.total_aportes ?? 0) }}</p>
+          <p class="text-lg font-bold text-success">{{ fmtCurrency(currencySummary.total_aportes, selectedCurrency) }}</p>
         </div>
       </UPageCard>
 
       <UPageCard variant="subtle">
         <div class="text-center">
           <p class="text-xs text-muted font-medium uppercase">Total Retiros</p>
-          <p class="text-lg font-bold text-error">{{ fmtCurrency(report?.summary?.total_retiros ?? 0) }}</p>
+          <p class="text-lg font-bold text-error">{{ fmtCurrency(currencySummary.total_retiros, selectedCurrency) }}</p>
         </div>
       </UPageCard>
 
       <UPageCard variant="subtle">
         <div class="text-center">
           <p class="text-xs text-muted font-medium uppercase">Reembolsos</p>
-          <p class="text-lg font-bold text-warning">{{ fmtCurrency(report?.summary?.total_reembolsos ?? 0) }}</p>
+          <p class="text-lg font-bold text-warning">{{ fmtCurrency(currencySummary.total_reembolsos, selectedCurrency) }}</p>
         </div>
       </UPageCard>
 
       <UPageCard variant="subtle">
         <div class="text-center">
-          <p class="text-xs text-muted font-medium uppercase">Saldo ARS</p>
-          <p class="text-lg font-bold" :class="(report?.summary?.saldo_neto_ars ?? 0) >= 0 ? 'text-success' : 'text-error'">
-            {{ fmtCurrency(report?.summary?.saldo_neto_ars ?? 0, 'ARS') }}
+          <p class="text-xs text-muted font-medium uppercase">Saldo {{ selectedCurrency }}</p>
+          <p class="text-lg font-bold" :class="currencySummary.saldo_neto >= 0 ? 'text-success' : 'text-error'">
+            {{ fmtCurrency(currencySummary.saldo_neto, selectedCurrency) }}
           </p>
         </div>
       </UPageCard>
 
       <UPageCard variant="subtle">
         <div class="text-center">
-          <p class="text-xs text-muted font-medium uppercase">Saldo USD</p>
-          <p class="text-lg font-bold" :class="(report?.summary?.saldo_neto_usd ?? 0) >= 0 ? 'text-success' : 'text-error'">
-            {{ fmtCurrency(report?.summary?.saldo_neto_usd ?? 0, 'USD') }}
+          <p class="text-xs text-muted font-medium uppercase">Préstamos</p>
+          <p class="text-lg font-bold text-info">
+            {{ fmtCurrency(currencySummary.total_prestamos, selectedCurrency) }}
           </p>
         </div>
       </UPageCard>
@@ -324,8 +334,9 @@ const compositionData = computed(() => {
         :columns="[
           { id: 'number', header: 'Nº' },
           { id: 'type', header: 'Tipo' },
-          { id: 'amount', header: 'Monto' },
-          { id: 'converted', header: 'Equivalente' },
+          { id: 'amount', header: 'Monto original' },
+          { id: 'ars', header: 'Pesos (ARS)' },
+          { id: 'usd', header: 'Dólares (USD)' },
           { id: 'date', header: 'Fecha' },
           { id: 'status', header: 'Estado' }
         ]"
@@ -346,14 +357,19 @@ const compositionData = computed(() => {
           <span class="font-medium">{{ fmtCurrency(Number(row.original.amount), row.original.currency_code) }}</span>
         </template>
 
-        <template #converted-cell="{ row }">
-          <span v-if="row.original.converted_amount" class="text-sm text-muted">
-            {{ fmtCurrency(Number(row.original.converted_amount), row.original.currency_code === 'USD' ? 'ARS' : 'USD') }}
+        <template #ars-cell="{ row }">
+          <span v-if="movementAmount(row.original, 'ARS') != null" class="font-medium">
+            {{ fmtCurrency(movementAmount(row.original, 'ARS') ?? 0, 'ARS') }}
           </span>
-          <span v-else-if="row.original.exchange_rate" class="text-sm text-muted">
-            TC: {{ row.original.exchange_rate }}
-          </span>
-          <span v-else class="text-xs text-muted">-</span>
+          <span v-else class="text-xs text-warning">Sin cotización</span>
+        </template>
+
+        <template #usd-cell="{ row }">
+          <div v-if="movementAmount(row.original, 'USD') != null">
+            <span class="font-medium">{{ fmtCurrency(movementAmount(row.original, 'USD') ?? 0, 'USD') }}</span>
+            <p v-if="row.original.exchange_rate" class="text-xs text-muted">TC {{ Number(row.original.exchange_rate).toLocaleString('es-AR') }}</p>
+          </div>
+          <span v-else class="text-xs text-warning">Sin cotización</span>
         </template>
 
         <template #date-cell="{ row }">
