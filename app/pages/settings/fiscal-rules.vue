@@ -42,19 +42,20 @@ const filteredRules = computed(() =>
     if (filterTaxType.value && rule.tax_type !== filterTaxType.value) return false
     const query = search.value.trim().toLocaleLowerCase('es')
     if (!query) return true
-    return [rule.name, rule.tax_type, rule.jurisdiction?.name, rule.jurisdiction?.code]
-      .some(value => value?.toLocaleLowerCase('es').includes(query))
+    return [rule.name, rule.tax_type, rule.jurisdiction?.name, rule.jurisdiction?.code].some((value) =>
+      value?.toLocaleLowerCase('es').includes(query)
+    )
   })
 )
 
-const historicalRulesCount = computed(() =>
-  filteredRules.value.filter(rule => ['historical', 'disabled'].includes(getRuleStatus(rule).key)).length
+const historicalRulesCount = computed(
+  () => filteredRules.value.filter((rule) => ['historical', 'disabled'].includes(getRuleStatus(rule).key)).length
 )
 
 const visibleRules = computed(() => {
   const statusOrder: Record<string, number> = { current: 0, upcoming: 1, historical: 2, disabled: 3 }
   return filteredRules.value
-    .filter(rule => showHistoricalRules.value || !['historical', 'disabled'].includes(getRuleStatus(rule).key))
+    .filter((rule) => showHistoricalRules.value || !['historical', 'disabled'].includes(getRuleStatus(rule).key))
     .slice()
     .sort((a, b) => {
       const statusDifference = statusOrder[getRuleStatus(a).key]! - statusOrder[getRuleStatus(b).key]!
@@ -131,11 +132,14 @@ const applicationTypeOptions = [
   { label: 'Retención en pago/cobro', value: 'WITHHOLDING' }
 ]
 
-watch(() => form.value.application_type, (application, previousApplication) => {
-  if (!modalOpen.value || application === previousApplication) return
-  if (application === 'PERCEPTION' && form.value.operation_type === 'PURCHASE') form.value.operation_type = 'SALE'
-  if (application === 'WITHHOLDING' && form.value.operation_type === 'SALE') form.value.operation_type = 'PURCHASE'
-})
+watch(
+  () => form.value.application_type,
+  (application, previousApplication) => {
+    if (!modalOpen.value || application === previousApplication) return
+    if (application === 'PERCEPTION' && form.value.operation_type === 'PURCHASE') form.value.operation_type = 'SALE'
+    if (application === 'WITHHOLDING' && form.value.operation_type === 'SALE') form.value.operation_type = 'PURCHASE'
+  }
+)
 
 const addBracket = () => {
   if (!form.value.brackets) form.value.brackets = []
@@ -264,8 +268,18 @@ onMounted(fetchRules)
         <p class="text-sm text-muted">Creá y modificá alícuotas generales por impuesto, jurisdicción y vigencia</p>
       </div>
       <div class="flex min-w-0 flex-col gap-2 sm:flex-row">
-        <UInput v-model="search" icon="i-lucide-search" placeholder="Buscar regla o jurisdicción..." class="w-full sm:w-64" />
-        <USelectMenu v-model="filterTaxType" :items="taxTypeOptions" placeholder="Todos los impuestos" class="w-full sm:w-48" />
+        <UInput
+          v-model="search"
+          icon="i-lucide-search"
+          placeholder="Buscar regla o jurisdicción..."
+          class="w-full sm:w-64"
+        />
+        <USelectMenu
+          v-model="filterTaxType"
+          :items="taxTypeOptions"
+          placeholder="Todos los impuestos"
+          class="w-full sm:w-48"
+        />
         <UButton label="Nueva regla" icon="i-lucide-plus" class="justify-center" @click="openCreate" />
       </div>
     </div>
@@ -309,52 +323,65 @@ onMounted(fetchRules)
         Sin reglas en esta pestaña{{ filterTaxType ? ` para ${filterTaxType}` : '' }}. Creá una nueva.
       </div>
       <div v-else class="max-h-[560px] w-full max-w-full overflow-auto overscroll-contain">
-      <UTable
-        :data="visibleRules"
-        :columns="columns"
-        class="min-w-[1050px] [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-20 [&_thead]:bg-default [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-30 [&_th:first-child]:bg-default [&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:z-10 [&_td:first-child]:bg-default"
-      >
-        <template #actions-cell="{ row }">
-          <div class="flex min-w-20 gap-1">
-            <UButton icon="i-lucide-pencil" size="xs" variant="ghost" aria-label="Editar regla" @click="openEdit(row.original)" />
-            <UButton icon="i-lucide-trash-2" size="xs" variant="ghost" color="error" aria-label="Eliminar regla" @click="remove(row.original)" />
-          </div>
-        </template>
-        <template #tax_type-cell="{ row }">
-          <UBadge :label="row.original.tax_type" variant="subtle" size="xs" />
-        </template>
-        <template #jurisdiction-cell="{ row }">
-          {{ row.original.jurisdiction?.name ?? 'Todas' }}
-        </template>
-        <template #calculation_method-cell="{ row }">
-          {{
-            row.original.calculation_method === 'SCALE'
-              ? 'Escala'
-              : row.original.calculation_method === 'FIXED'
-                ? 'Fijo'
-                : 'Alícuota'
-          }}
-        </template>
-        <template #rate-cell="{ row }">
-          {{ row.original.rate != null ? `${Number(row.original.rate)}%` : '—' }}
-        </template>
-        <template #minimum_amount-cell="{ row }">
-          {{ formatCurrency(row.original.minimum_amount != null ? Number(row.original.minimum_amount) : null) }}
-        </template>
-        <template #validity-cell="{ row }">
-          <span class="text-xs">
-            {{ row.original.valid_from?.slice(0, 10) }} → {{ row.original.valid_to?.slice(0, 10) ?? 'vigente' }}
-          </span>
-        </template>
-        <template #is_active-cell="{ row }">
-          <UBadge
-            :label="getRuleStatus(row.original).label"
-            :color="getRuleStatus(row.original).color"
-            variant="subtle"
-            size="xs"
-          />
-        </template>
-      </UTable>
+        <UTable
+          :data="visibleRules"
+          :columns="columns"
+          class="min-w-[1050px] [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-20 [&_thead]:bg-default [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-30 [&_th:first-child]:bg-default [&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:z-10 [&_td:first-child]:bg-default"
+        >
+          <template #actions-cell="{ row }">
+            <div class="flex min-w-20 gap-1">
+              <UButton
+                icon="i-lucide-pencil"
+                size="xs"
+                variant="ghost"
+                aria-label="Editar regla"
+                @click="openEdit(row.original)"
+              />
+              <UButton
+                icon="i-lucide-trash-2"
+                size="xs"
+                variant="ghost"
+                color="error"
+                aria-label="Eliminar regla"
+                @click="remove(row.original)"
+              />
+            </div>
+          </template>
+          <template #tax_type-cell="{ row }">
+            <UBadge :label="row.original.tax_type" variant="subtle" size="xs" />
+          </template>
+          <template #jurisdiction-cell="{ row }">
+            {{ row.original.jurisdiction?.name ?? 'Todas' }}
+          </template>
+          <template #calculation_method-cell="{ row }">
+            {{
+              row.original.calculation_method === 'SCALE'
+                ? 'Escala'
+                : row.original.calculation_method === 'FIXED'
+                  ? 'Fijo'
+                  : 'Alícuota'
+            }}
+          </template>
+          <template #rate-cell="{ row }">
+            {{ row.original.rate != null ? `${Number(row.original.rate)}%` : '—' }}
+          </template>
+          <template #minimum_amount-cell="{ row }">
+            {{ formatCurrency(row.original.minimum_amount != null ? Number(row.original.minimum_amount) : null) }}
+          </template>
+          <template #validity-cell="{ row }">
+            <span class="text-xs">
+              {{ row.original.valid_from?.slice(0, 10) }} → {{ row.original.valid_to?.slice(0, 10) ?? 'vigente' }}
+            </span>
+          </template>
+          <template #is_active-cell="{ row }">
+            <UBadge
+              :label="getRuleStatus(row.original).label"
+              :color="getRuleStatus(row.original).color"
+              variant="subtle"
+              size="xs"
+            />
+          </template>
+        </UTable>
       </div>
     </UCard>
 
@@ -368,7 +395,9 @@ onMounted(fetchRules)
         <div class="max-h-[calc(100vh-13rem)] space-y-5 overflow-y-auto overscroll-contain px-1 pb-1">
           <div class="rounded-xl border border-default bg-elevated/40 p-4 sm:p-5">
             <div class="mb-4 flex items-start gap-3">
-              <div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-file-cog" class="size-5" /></div>
+              <div class="rounded-lg bg-primary/10 p-2 text-primary">
+                <UIcon name="i-lucide-file-cog" class="size-5" />
+              </div>
               <div>
                 <h3 class="font-semibold">Identificación y alcance</h3>
                 <p class="text-sm text-muted">Definí qué impuesto es y en qué operaciones debe aplicarse.</p>
@@ -376,14 +405,29 @@ onMounted(fetchRules)
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2">
-              <UFormField label="Nombre de la regla" description="Usá un nombre que permita reconocerla en el historial." required class="sm:col-span-2">
+              <UFormField
+                label="Nombre de la regla"
+                description="Usá un nombre que permita reconocerla en el historial."
+                required
+                class="sm:col-span-2"
+              >
                 <UInput v-model="form.name" placeholder="Ej.: Percepción IIBB Córdoba 2026" class="w-full" />
               </UFormField>
               <UFormField label="Impuesto" required>
-                <USelectMenu v-model="form.tax_type" :items="taxTypeOptions" placeholder="Seleccionar impuesto" class="w-full" />
+                <USelectMenu
+                  v-model="form.tax_type"
+                  :items="taxTypeOptions"
+                  placeholder="Seleccionar impuesto"
+                  class="w-full"
+                />
               </UFormField>
               <UFormField label="Aplicación" description="Indica en qué momento se calcula." required>
-                <USelectMenu v-model="form.application_type" :items="applicationTypeOptions" value-key="value" class="w-full" />
+                <USelectMenu
+                  v-model="form.application_type"
+                  :items="applicationTypeOptions"
+                  value-key="value"
+                  class="w-full"
+                />
               </UFormField>
               <UFormField label="Jurisdicción" description="Provincia a la que corresponde la alícuota.">
                 <USelectMenu
@@ -396,14 +440,21 @@ onMounted(fetchRules)
                 />
               </UFormField>
               <UFormField label="Tipo de operación" description="Venta para percepciones; compra para retenciones.">
-                <USelectMenu v-model="form.operation_type" :items="operationTypeOptions" value-key="value" class="w-full" />
+                <USelectMenu
+                  v-model="form.operation_type"
+                  :items="operationTypeOptions"
+                  value-key="value"
+                  class="w-full"
+                />
               </UFormField>
             </div>
           </div>
 
           <div class="rounded-xl border border-default p-4 sm:p-5">
             <div class="mb-4 flex items-start gap-3">
-              <div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-calculator" class="size-5" /></div>
+              <div class="rounded-lg bg-primary/10 p-2 text-primary">
+                <UIcon name="i-lucide-calculator" class="size-5" />
+              </div>
               <div>
                 <h3 class="font-semibold">Cálculo</h3>
                 <p class="text-sm text-muted">Configurá cómo se obtiene el importe de esta regla.</p>
@@ -412,28 +463,71 @@ onMounted(fetchRules)
 
             <div class="grid gap-4 sm:grid-cols-2">
               <UFormField label="Método de cálculo" required>
-                <USelectMenu v-model="form.calculation_method" :items="methodOptions" value-key="value" class="w-full" />
+                <USelectMenu
+                  v-model="form.calculation_method"
+                  :items="methodOptions"
+                  value-key="value"
+                  class="w-full"
+                />
               </UFormField>
-              <UFormField v-if="!isScale && !isFixedAmount" label="Alícuota" description="Porcentaje aplicado sobre la base.">
+              <UFormField
+                v-if="!isScale && !isFixedAmount"
+                label="Alícuota"
+                description="Porcentaje aplicado sobre la base."
+              >
                 <UInput v-model.number="form.rate" type="number" min="0" step="0.01" placeholder="0,00" class="w-full">
                   <template #trailing><span class="text-sm text-muted">%</span></template>
                 </UInput>
               </UFormField>
               <UFormField v-if="isFixedAmount" label="Monto fijo" description="Importe aplicado en cada cálculo.">
-                <UInput v-model.number="form.fixed_amount" type="number" min="0" step="0.01" placeholder="0,00" class="w-full">
+                <UInput
+                  v-model.number="form.fixed_amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0,00"
+                  class="w-full"
+                >
                   <template #leading><span class="text-sm text-muted">$</span></template>
                 </UInput>
               </UFormField>
               <UFormField label="Mínimo no sujeto" description="No se calcula por debajo de este monto.">
-                <UInput v-model.number="form.minimum_amount" type="number" min="0" step="0.01" placeholder="Sin mínimo" class="w-full">
+                <UInput
+                  v-model.number="form.minimum_amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Sin mínimo"
+                  class="w-full"
+                >
                   <template #leading><span class="text-sm text-muted">$</span></template>
                 </UInput>
               </UFormField>
-              <UFormField v-if="isWithholding && form.tax_type === 'GANANCIAS'" label="Grupo de CUIT" description="Segmentación opcional para Ganancias.">
-                <USelectMenu v-model="form.cuit_suffix_group" :items="cuitGroupOptions" value-key="value" placeholder="Cualquier CUIT" class="w-full" />
+              <UFormField
+                v-if="isWithholding && form.tax_type === 'GANANCIAS'"
+                label="Grupo de CUIT"
+                description="Segmentación opcional para Ganancias."
+              >
+                <USelectMenu
+                  v-model="form.cuit_suffix_group"
+                  :items="cuitGroupOptions"
+                  value-key="value"
+                  placeholder="Cualquier CUIT"
+                  class="w-full"
+                />
               </UFormField>
-              <UFormField v-if="isWithholding && ['SUSS', 'GANANCIAS'].includes(form.tax_type || '')" label="Concepto" description="Concepto fiscal al que corresponde.">
-                <USelectMenu v-model="form.withholding_concept_id" :items="conceptOptions" value-key="value" placeholder="Cualquier concepto" class="w-full" />
+              <UFormField
+                v-if="isWithholding && ['SUSS', 'GANANCIAS'].includes(form.tax_type || '')"
+                label="Concepto"
+                description="Concepto fiscal al que corresponde."
+              >
+                <USelectMenu
+                  v-model="form.withholding_concept_id"
+                  :items="conceptOptions"
+                  value-key="value"
+                  placeholder="Cualquier concepto"
+                  class="w-full"
+                />
               </UFormField>
             </div>
 
@@ -443,7 +537,11 @@ onMounted(fetchRules)
                 <h4 class="text-sm font-medium">Escala por pagos acumulados del mes</h4>
                 <UButton label="Agregar tramo" size="xs" variant="outline" icon="i-lucide-plus" @click="addBracket" />
               </div>
-              <div v-for="(b, i) in form.brackets" :key="i" class="grid items-end gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+              <div
+                v-for="(b, i) in form.brackets"
+                :key="i"
+                class="grid items-end gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]"
+              >
                 <UFormField label="Desde">
                   <UInput v-model.number="b.accumulated_from" type="number" size="sm" class="w-full" />
                 </UFormField>
@@ -459,7 +557,14 @@ onMounted(fetchRules)
                 <UFormField label="Alícuota %">
                   <UInput v-model.number="b.rate" type="number" step="0.01" size="sm" class="w-full" />
                 </UFormField>
-                <UButton icon="i-lucide-trash-2" size="sm" variant="ghost" color="error" aria-label="Eliminar tramo" @click="removeBracket(i)" />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  size="sm"
+                  variant="ghost"
+                  color="error"
+                  aria-label="Eliminar tramo"
+                  @click="removeBracket(i)"
+                />
               </div>
               <p class="text-xs text-muted">
                 Tramos sobre el total acumulado del mes. Ej: 0 → 200.000 (0%), 200.000 → sin tope (2%).
@@ -469,7 +574,9 @@ onMounted(fetchRules)
 
           <div class="rounded-xl border border-default p-4 sm:p-5">
             <div class="mb-4 flex items-start gap-3">
-              <div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-calendar-range" class="size-5" /></div>
+              <div class="rounded-lg bg-primary/10 p-2 text-primary">
+                <UIcon name="i-lucide-calendar-range" class="size-5" />
+              </div>
               <div>
                 <h3 class="font-semibold">Vigencia</h3>
                 <p class="text-sm text-muted">Las reglas anteriores quedan disponibles en el historial.</p>
@@ -492,7 +599,11 @@ onMounted(fetchRules)
             </div>
             <details class="mt-3 text-sm">
               <summary class="cursor-pointer select-none font-medium text-muted">Opciones avanzadas</summary>
-              <UFormField class="mt-3" label="Prioridad" description="Si coinciden varias reglas, se evalúa primero la de mayor prioridad.">
+              <UFormField
+                class="mt-3"
+                label="Prioridad"
+                description="Si coinciden varias reglas, se evalúa primero la de mayor prioridad."
+              >
                 <UInput v-model.number="form.priority" type="number" min="0" class="w-full sm:w-48" />
               </UFormField>
             </details>
@@ -505,7 +616,12 @@ onMounted(fetchRules)
           <p class="text-xs text-muted">Los cambios solo afectan cálculos nuevos.</p>
           <div class="flex justify-end gap-2">
             <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
-            <UButton :label="isEditing ? 'Guardar cambios' : 'Crear regla'" icon="i-lucide-check" :loading="saving" @click="save" />
+            <UButton
+              :label="isEditing ? 'Guardar cambios' : 'Crear regla'"
+              icon="i-lucide-check"
+              :loading="saving"
+              @click="save"
+            />
           </div>
         </div>
       </template>
