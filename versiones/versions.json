@@ -1,5 +1,52 @@
 [
   {
+    "version": "0.51.0-alpha",
+    "date": "2026-09-14",
+    "stage": "alpha",
+    "notes": "Saldos iniciales multimoneda y acceso a cuentas bancarias según el rol de la empresa",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Los saldos iniciales se registran mediante el circuito propio de cuentas corrientes sin depender de documentos ni permisos de ventas"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "El alta de saldo inicial conserva el tercero seleccionado y redirige correctamente al detalle de su cuenta"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "El saldo inicial permite seleccionar cualquier moneda activa y guarda la cotización utilizada como valor histórico"
+      },
+      {
+        "type": "feat",
+        "scope": "currencies",
+        "title": "Las monedas extranjeras cargan la última cotización disponible, permiten modificarla y muestran el equivalente en moneda base"
+      },
+      {
+        "type": "refactor",
+        "scope": "ui",
+        "title": "El modal de saldo inicial organiza la cuenta, el importe y la referencia en una carga más clara y adaptable"
+      },
+      {
+        "type": "fix",
+        "scope": "bank-accounts",
+        "title": "Los roles OWNER y ADMIN acceden a todas las cuentas bancarias sin asociación individual"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "Los usuarios con rol USER quedan limitados a sus cuentas asociadas en listado, detalle, movimientos y operaciones"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Saldos iniciales multimoneda y acceso bancario por rol"
+  },
+  {
     "version": "0.50.0-alpha",
     "date": "2026-09-12",
     "stage": "alpha",

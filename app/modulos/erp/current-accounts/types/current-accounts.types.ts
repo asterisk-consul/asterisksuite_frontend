@@ -81,6 +81,7 @@ export interface CreateCurrentAccountEntryInput {
   type: AccountEntryType
   amount: number
   exchange_rate?: number
+  rate_type?: string
   description?: string
   reference_type?: string
   reference_id?: string

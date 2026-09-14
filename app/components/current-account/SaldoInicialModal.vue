@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
 
 const props = defineProps<{ open: boolean }>()
@@ -9,8 +10,14 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 const toast = useToast()
 const router = useRouter()
 const partiesService = useBusinessPartiesService()
-const { baseCurrency, fetchBaseCurrency } = useCurrencies()
-const { fetchActive, fetchAll } = useCurrentAccounts()
+const { baseCurrency, activeCurrencies, codeSelectItems, init: initCurrencies } = useCurrencies()
+const {
+  autoResolve: resolveExchangeRate,
+  isAutoResolved,
+  loading: loadingExchangeRate,
+  setManualRate,
+} = useExchangeRate()
+const { addEntry, fetchActive, fetchAll } = useCurrentAccounts()
 
 const loading = ref(false)
 const allParties = ref<Array<{ id: string; name: string; tax_id?: string; type: string }>>([])
@@ -19,6 +26,9 @@ const form = reactive({
   party_type: 'CUSTOMER' as 'CUSTOMER' | 'SUPPLIER',
   party_id: '',
   amount: 0,
+  currency_code: 'ARS',
+  exchange_rate: null as number | null,
+  rate_type: 'OFFICIAL',
   date: today(),
   description: 'Saldo inicial',
 })
@@ -30,7 +40,11 @@ const partyTypeOptions = [
 
 const selectedPartyType = computed({
   get: () => partyTypeOptions.find(o => o.value === form.party_type) ?? null,
-  set: (val) => { form.party_type = (val?.value as 'CUSTOMER' | 'SUPPLIER') ?? 'CUSTOMER' },
+  set: (val) => {
+    form.party_type = (val?.value as 'CUSTOMER' | 'SUPPLIER') ?? 'CUSTOMER'
+    form.party_id = ''
+    partySearch.value = ''
+  },
 })
 
 const partySearch = ref('')
@@ -59,17 +73,56 @@ const selectedParty = computed({
   set: (val) => { form.party_id = val?.value ?? '' },
 })
 
-const docTypeCode = computed(() =>
-  form.party_type === 'CUSTOMER' ? 'SI-C' : 'SI-P'
+const selectedCurrency = computed(() =>
+  activeCurrencies.value.find(currency => currency.code === form.currency_code) ?? null
 )
+
+const baseCurrencyCode = computed(() => baseCurrency.value?.code ?? 'ARS')
+const isForeignCurrency = computed(() =>
+  form.currency_code.toUpperCase() !== baseCurrencyCode.value.toUpperCase()
+)
+const convertedAmount = computed(() => {
+  if (!isForeignCurrency.value) return form.amount
+  if (!form.exchange_rate || form.amount <= 0) return null
+  return Number((form.amount * form.exchange_rate).toFixed(2))
+})
+
+function formatAmount(amount: number, currencyCode: string) {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
+async function loadLatestExchangeRate() {
+  if (!isForeignCurrency.value) {
+    form.exchange_rate = null
+    return
+  }
+  const rate = await resolveExchangeRate(form.currency_code, baseCurrencyCode.value, form.rate_type)
+  form.exchange_rate = rate ? Number(rate) : null
+}
+
+function markExchangeRateAsManual(value: number | string) {
+  const rate = Number(value)
+  form.exchange_rate = rate > 0 ? rate : null
+  if (rate > 0) setManualRate(rate)
+}
 
 onMounted(async () => {
   try {
-    const [parties] = await Promise.all([partiesService.findAll(), fetchBaseCurrency()])
+    const [parties] = await Promise.all([partiesService.findAll(), initCurrencies()])
     allParties.value = parties as any
+    form.currency_code = baseCurrencyCode.value
   } catch (e) {
     console.error('Error loading parties:', e)
   }
+})
+
+watch(() => form.currency_code, () => {
+  form.exchange_rate = null
+  if (isForeignCurrency.value) loadLatestExchangeRate()
 })
 
 function close() {
@@ -77,6 +130,9 @@ function close() {
   form.party_id = ''
   form.amount = 0
   partySearch.value = ''
+  form.currency_code = baseCurrencyCode.value
+  form.exchange_rate = null
+  form.rate_type = 'OFFICIAL'
   form.date = today()
   form.description = 'Saldo inicial'
 }
@@ -90,40 +146,33 @@ async function handleSubmit() {
     toast.add({ title: 'El monto debe ser mayor a 0', color: 'error' })
     return
   }
+  if (isForeignCurrency.value && (!form.exchange_rate || form.exchange_rate <= 0)) {
+    toast.add({ title: 'Ingresá un tipo de cambio válido', color: 'error' })
+    return
+  }
 
   try {
     loading.value = true
 
-    const docTypes = await $fetch<any[]>('/api/erp/documents/documents-types', {
-      query: { category: 'OPENING_BALANCE' }
+    const partyId = form.party_id
+    await addEntry({
+      party_id: partyId,
+      party_type: form.party_type,
+      currency_code: form.currency_code,
+      type: 'OPENING_BALANCE',
+      amount: form.amount,
+      exchange_rate: isForeignCurrency.value ? form.exchange_rate ?? undefined : undefined,
+      rate_type: isForeignCurrency.value ? form.rate_type : undefined,
+      date: form.date,
+      description: form.description || 'Saldo inicial',
+      reference_type: 'opening_balance',
     })
-    const docType = docTypes.find((dt: any) => dt.code === docTypeCode.value)
-    if (!docType) {
-      toast.add({ title: `Tipo de documento ${docTypeCode.value} no encontrado`, color: 'error' })
-      return
-    }
-
-    const doc = await $fetch<any>('/api/erp/documents/sales', {
-      method: 'POST',
-      body: {
-        document_type_id: docType.id,
-        party_id: form.party_id,
-        date: form.date,
-        currency_code: baseCurrency.value?.code ?? 'ARS',
-        total: form.amount,
-        subtotal: form.amount,
-        descrip: form.description || 'Saldo inicial',
-        items: [],
-      }
-    })
-
-    await $fetch(`/api/erp/documents/sales/${doc.id}/confirm`, { method: 'PATCH' })
 
     await Promise.all([fetchActive(), fetchAll()])
 
     toast.add({ title: 'Saldo inicial registrado', color: 'success' })
     close()
-    router.push(`/erp/treasury/current-accounts/${form.party_id}`)
+    await router.push(`/erp/treasury/current-accounts/${partyId}`)
   } catch (e: any) {
     toast.add({ title: 'Error', description: e?.data?.message ?? e.message, color: 'error' })
   } finally {
@@ -137,45 +186,136 @@ async function handleSubmit() {
     :open="props.open"
     title="Nuevo saldo inicial"
     description="Cargá el saldo de apertura para un cliente o proveedor"
+    :ui="{ content: 'w-[calc(100vw-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto' }"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
-      <form class="space-y-4" @submit.prevent="handleSubmit">
-        <UFormField label="Tipo de tercero" required>
-          <USelectMenu
-            v-model="selectedPartyType"
-            :items="partyTypeOptions"
-            placeholder="Seleccionar tipo"
-          />
-        </UFormField>
+      <form class="space-y-5" @submit.prevent="handleSubmit">
+        <UPageCard variant="subtle" class="space-y-4">
+          <div>
+            <p class="font-medium">1. Cuenta corriente</p>
+            <p class="text-sm text-muted">Elegí si el saldo corresponde a un cliente o proveedor.</p>
+          </div>
 
-        <UFormField label="Tercero" required>
-          <USelectMenu
-            v-model="selectedParty"
-            :items="filteredParties"
-            placeholder="Buscar cliente o proveedor..."
-            searchable
-            @update:search="partySearch = $event"
-          />
-        </UFormField>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <UFormField label="Tipo de tercero" required>
+              <USelectMenu
+                v-model="selectedPartyType"
+                :items="partyTypeOptions"
+                placeholder="Seleccionar tipo"
+                size="lg"
+                class="w-full"
+              />
+            </UFormField>
 
-        <UFormField label="Monto" required>
-          <UInput
-            v-model.number="form.amount"
-            type="number"
-            :min="0.01"
-            :step="0.01"
-            placeholder="0.00"
-          />
-        </UFormField>
+            <UFormField label="Tercero" required>
+              <USelectMenu
+                v-model="selectedParty"
+                :items="filteredParties"
+                placeholder="Buscar cliente o proveedor..."
+                searchable
+                size="lg"
+                class="w-full"
+                @update:search="partySearch = $event"
+              />
+            </UFormField>
+          </div>
+        </UPageCard>
 
-        <UFormField label="Fecha">
-          <UInput v-model="form.date" type="date" />
-        </UFormField>
+        <UPageCard variant="subtle" class="space-y-4">
+          <div>
+            <p class="font-medium">2. Importe de apertura</p>
+            <p class="text-sm text-muted">La cotización queda guardada con el movimiento y no cambia aunque se actualicen los tipos de cambio.</p>
+          </div>
 
-        <UFormField label="Descripción">
-          <UInput v-model="form.description" placeholder="Saldo inicial" />
-        </UFormField>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(220px,0.7fr)]">
+            <UFormField label="Monto" required>
+              <UInput
+                v-model.number="form.amount"
+                type="number"
+                :min="0.01"
+                :step="0.01"
+                placeholder="0,00"
+                size="lg"
+                class="w-full"
+              >
+                <template #leading>
+                  <span class="text-sm text-muted">{{ selectedCurrency?.symbol ?? form.currency_code }}</span>
+                </template>
+              </UInput>
+            </UFormField>
+
+            <UFormField label="Moneda" required>
+              <USelect
+                v-model="form.currency_code"
+                :items="codeSelectItems"
+                placeholder="Seleccionar moneda"
+                size="lg"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+
+          <div v-if="isForeignCurrency" class="rounded-xl border border-default bg-default p-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+              <UFormField
+                label="Tipo de cambio"
+                :description="`Valor de 1 ${form.currency_code} expresado en ${baseCurrencyCode}. Podés modificarlo para este saldo.`"
+                required
+              >
+                <UInput
+                  :model-value="form.exchange_rate"
+                  type="number"
+                  :min="0.000001"
+                  step="0.000001"
+                  placeholder="Ingresar cotización"
+                  size="lg"
+                  class="w-full"
+                  :loading="loadingExchangeRate"
+                  @update:model-value="markExchangeRateAsManual"
+                />
+              </UFormField>
+
+              <UButton
+                type="button"
+                label="Restaurar última"
+                icon="i-lucide-refresh-cw"
+                variant="outline"
+                :loading="loadingExchangeRate"
+                @click="loadLatestExchangeRate"
+              />
+            </div>
+
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <UBadge
+                :label="isAutoResolved ? 'Última cotización cargada' : 'Cotización modificada'"
+                :color="isAutoResolved ? 'info' : 'warning'"
+                variant="subtle"
+              />
+              <p v-if="convertedAmount !== null && form.amount > 0" class="text-sm font-medium">
+                {{ formatAmount(form.amount, form.currency_code) }} ≈
+                {{ formatAmount(convertedAmount, baseCurrencyCode) }}
+              </p>
+            </div>
+          </div>
+        </UPageCard>
+
+        <UPageCard variant="subtle" class="space-y-4">
+          <div>
+            <p class="font-medium">3. Referencia</p>
+            <p class="text-sm text-muted">Indicá la fecha de corte y una descripción para reconocer el origen del saldo.</p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+            <UFormField label="Fecha" required>
+              <UInput v-model="form.date" type="date" size="lg" class="w-full" />
+            </UFormField>
+
+            <UFormField label="Descripción">
+              <UInput v-model="form.description" placeholder="Ej.: saldo anterior a la implementación" size="lg" class="w-full" />
+            </UFormField>
+          </div>
+        </UPageCard>
       </form>
     </template>
 
@@ -186,7 +326,7 @@ async function handleSubmit() {
           label="Guardar"
           color="primary"
           :loading="loading"
-          :disabled="!form.party_id || form.amount <= 0"
+          :disabled="!form.party_id || form.amount <= 0 || (isForeignCurrency && (!form.exchange_rate || form.exchange_rate <= 0))"
           @click="handleSubmit"
         />
       </div>
