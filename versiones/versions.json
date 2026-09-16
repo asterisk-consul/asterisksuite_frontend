@@ -1,5 +1,52 @@
 [
   {
+    "version": "0.52.0-alpha",
+    "date": "2026-09-16",
+    "stage": "alpha",
+    "notes": "Saldos iniciales con deuda o saldo a favor, eliminación protegida, ajustes trazables y nueva experiencia visual de cuentas corrientes",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "El saldo inicial permite indicar si representa una deuda o un saldo a favor para clientes y proveedores"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "El saldo inicial puede eliminarse con confirmación cuando es el único movimiento activo de la cuenta"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Nueva acción para registrar ajustes de saldo con importe objetivo, fecha y motivo obligatorio sin modificar el historial"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Débitos y créditos se resuelven mediante la variación real entre el saldo anterior y posterior"
+      },
+      {
+        "type": "fix",
+        "scope": "api-proxy",
+        "title": "Nuevo proxy DELETE para eliminar el saldo inicial desde el detalle de la cuenta corriente"
+      },
+      {
+        "type": "refactor",
+        "scope": "ui",
+        "title": "La vista de cuenta corriente destaca el saldo actual y reorganiza métricas, gráficos, acciones e historial de movimientos"
+      },
+      {
+        "type": "refactor",
+        "scope": "ui",
+        "title": "Las acciones excepcionales de ajuste y eliminación se agrupan en el menú Acciones de cuenta"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Saldos iniciales flexibles y nueva experiencia de cuentas corrientes"
+  },
+  {
     "version": "0.51.0-alpha",
     "date": "2026-09-14",
     "stage": "alpha",

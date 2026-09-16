@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
 import { useExcelExport } from '~/composables/useExcelExport'
-import { resolveSide } from '~/modulos/erp/current-accounts/utils'
+import { resolveEntrySide } from '~/modulos/erp/current-accounts/utils'
 import { balanceChartColor } from '~/modulos/erp/current-accounts/balance-utils'
 
 const props = defineProps<{
@@ -43,7 +43,7 @@ const normalizedEntries = computed(() => {
         ? replacementByDocument.get(entry.reference_id) ?? 0
         : 0
       const visibleAmount = Math.max(0, amount - replacement)
-      runningBalance += resolveSide(entry.type, props.account?.party_type ?? '') === 'debit'
+      runningBalance += resolveEntrySide(entry, props.account?.party_type ?? '') === 'debit'
         ? visibleAmount
         : -visibleAmount
       return { ...entry, visible_amount: visibleAmount, visible_balance: runningBalance }
@@ -73,8 +73,8 @@ const exportEntries = () => {
       ...e,
       type_label: ENTRY_TYPE_CONFIG[e.type]?.label ?? e.type,
       original_amount: `${e.currency_code || 'ARS'} ${Number(e.amount).toFixed(2)}`,
-      debit: resolveSide(e.type, props.account?.party_type ?? '') === 'debit' ? e.visible_amount : null,
-      credit: resolveSide(e.type, props.account?.party_type ?? '') === 'credit' ? e.visible_amount : null,
+      debit: resolveEntrySide(e, props.account?.party_type ?? '') === 'debit' ? e.visible_amount : null,
+      credit: resolveEntrySide(e, props.account?.party_type ?? '') === 'credit' ? e.visible_amount : null,
       balance_after: e.visible_balance,
     }))
   })
@@ -87,7 +87,7 @@ const printStatement = () => {
   
   const entriesHtml = sorted.map(e => {
     const config = ENTRY_TYPE_CONFIG[e.type]
-    const isDebit = resolveSide(e.type, props.account?.party_type ?? '') === 'debit'
+    const isDebit = resolveEntrySide(e, props.account?.party_type ?? '') === 'debit'
     const amountInBase = e.visible_amount
     return `<tr>
       <td style="padding:6px 8px;border-bottom:1px solid #eee">${new Date(e.date).toLocaleDateString('es-AR')}</td>

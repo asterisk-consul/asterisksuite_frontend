@@ -26,6 +26,7 @@ const form = reactive({
   party_type: 'CUSTOMER' as 'CUSTOMER' | 'SUPPLIER',
   party_id: '',
   amount: 0,
+  balance_effect: 'INCREASE' as 'INCREASE' | 'DECREASE',
   currency_code: 'ARS',
   exchange_rate: null as number | null,
   rate_type: 'OFFICIAL',
@@ -38,11 +39,27 @@ const partyTypeOptions = [
   { label: 'Proveedor', value: 'SUPPLIER' },
 ]
 
+const balanceNatureOptions = computed(() => form.party_type === 'CUSTOMER'
+  ? [
+      { label: 'El cliente nos debe', description: 'Quedará como deuda a cobrar', value: 'INCREASE' },
+      { label: 'El cliente tiene saldo a favor', description: 'Quedará como saldo a favor del cliente', value: 'DECREASE' },
+    ]
+  : [
+      { label: 'Le debemos al proveedor', description: 'Quedará como deuda a pagar', value: 'INCREASE' },
+      { label: 'Tenemos saldo a favor', description: 'Quedará como crédito a nuestro favor', value: 'DECREASE' },
+    ])
+
+const resultingAmount = computed(() => {
+  const amount = convertedAmount.value ?? form.amount
+  return form.balance_effect === 'DECREASE' ? -amount : amount
+})
+
 const selectedPartyType = computed({
   get: () => partyTypeOptions.find(o => o.value === form.party_type) ?? null,
   set: (val) => {
     form.party_type = (val?.value as 'CUSTOMER' | 'SUPPLIER') ?? 'CUSTOMER'
     form.party_id = ''
+    form.balance_effect = 'INCREASE'
     partySearch.value = ''
   },
 })
@@ -129,6 +146,7 @@ function close() {
   emit('update:open', false)
   form.party_id = ''
   form.amount = 0
+  form.balance_effect = 'INCREASE'
   partySearch.value = ''
   form.currency_code = baseCurrencyCode.value
   form.exchange_rate = null
@@ -161,6 +179,7 @@ async function handleSubmit() {
       currency_code: form.currency_code,
       type: 'OPENING_BALANCE',
       amount: form.amount,
+      balance_effect: form.balance_effect,
       exchange_rate: isForeignCurrency.value ? form.exchange_rate ?? undefined : undefined,
       rate_type: isForeignCurrency.value ? form.rate_type : undefined,
       date: form.date,
@@ -227,6 +246,17 @@ async function handleSubmit() {
             <p class="font-medium">2. Importe de apertura</p>
             <p class="text-sm text-muted">La cotización queda guardada con el movimiento y no cambia aunque se actualicen los tipos de cambio.</p>
           </div>
+
+          <UFormField label="Naturaleza del saldo" required>
+            <URadioGroup
+              v-model="form.balance_effect"
+              :items="balanceNatureOptions"
+              value-key="value"
+              label-key="label"
+              description-key="description"
+              class="grid grid-cols-1 gap-3 md:grid-cols-2"
+            />
+          </UFormField>
 
           <div class="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(220px,0.7fr)]">
             <UFormField label="Monto" required>
@@ -297,6 +327,12 @@ async function handleSubmit() {
                 {{ formatAmount(convertedAmount, baseCurrencyCode) }}
               </p>
             </div>
+          </div>
+
+          <div v-if="form.amount > 0" class="rounded-xl border border-primary/25 bg-primary/5 p-4">
+            <p class="text-xs font-medium uppercase tracking-wide text-muted">Saldo resultante</p>
+            <p class="mt-1 text-lg font-semibold">{{ formatAmount(resultingAmount, baseCurrencyCode) }}</p>
+            <p class="text-sm text-muted">{{ balanceNatureOptions.find(option => option.value === form.balance_effect)?.description }}</p>
           </div>
         </UPageCard>
 

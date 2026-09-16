@@ -37,15 +37,23 @@ const sortFields: SortField[] = [
 </script>
 
 <template>
-  <UPageCard variant="subtle">
+  <UPageCard variant="subtle" class="overflow-hidden">
     <template #header>
-      <div class="flex items-center justify-between">
-        <p class="text-sm font-medium">Movimientos</p>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <UIcon name="i-lucide-list-ordered" class="size-4" />
+          </div>
+          <div>
+            <p class="font-semibold">Historial de movimientos</p>
+            <p class="text-xs text-muted">Comprobantes, pagos y ajustes registrados</p>
+          </div>
+        </div>
         <UBadge :label="`${entries.length} movimientos`" variant="soft" size="sm" />
       </div>
     </template>
 
-    <div class="overflow-x-auto">
+    <div class="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
       <LogisticaTable
         :loading="loading"
         :data="entries"

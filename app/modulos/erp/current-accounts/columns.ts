@@ -3,7 +3,7 @@ import { NuxtLink } from '#components'
 import type { CurrentAccountEntry } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
-import { resolveSide } from './utils'
+import { resolveEntrySide } from './utils'
 import DocumentChainPopover from '~/components/current-account/DocumentChainPopover.vue'
 
 type Row = CurrentAccountEntry
@@ -159,7 +159,7 @@ export const currentAccountEntryColumns = (actions: {
         key: 'debit',
         label: 'Debito',
         cell: ({ row }) => {
-          if (resolveSide(row.original.type, actions?.partyType) !== 'debit') return '—'
+          if (resolveEntrySide(row.original, actions?.partyType) !== 'debit') return '—'
           const value = row.original.converted_amount ?? row.original.amount
           if (value == null) return '—'
           return h('span', { class: 'font-medium' }, formatCurrency(value, baseCurrency))
@@ -169,7 +169,7 @@ export const currentAccountEntryColumns = (actions: {
         key: 'credit',
         label: 'Credito',
         cell: ({ row }) => {
-          if (resolveSide(row.original.type, actions?.partyType) !== 'credit') return '—'
+          if (resolveEntrySide(row.original, actions?.partyType) !== 'credit') return '—'
           const value = row.original.converted_amount ?? row.original.amount
           if (value == null) return '—'
           return h('span', { class: 'font-medium' }, formatCurrency(value, baseCurrency))

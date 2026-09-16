@@ -30,46 +30,52 @@ const iconColor = computed(() => balanceIconColor(props.balance, props.partyType
 </script>
 
 <template>
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-    <!-- TOTAL CRÉDITO -->
-    <UPageCard variant="subtle">
-      <div class="flex items-center gap-4">
-        <div class="size-10 rounded-lg flex items-center justify-center shrink-0" :class="creditBg">
-          <UIcon name="i-lucide-arrow-down-left" class="size-5" :class="creditColor" />
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <UPageCard variant="subtle" class="relative overflow-hidden lg:col-span-6">
+      <div class="absolute -right-12 -top-12 size-40 rounded-full bg-primary/5" />
+      <div class="relative flex min-h-32 items-center gap-5">
+        <div class="flex size-14 shrink-0 items-center justify-center rounded-2xl" :class="iconBg">
+          <UIcon name="i-lucide-scale" class="size-7" :class="iconColor" />
         </div>
-        <div>
-          <p class="text-xs text-muted font-medium uppercase">Total Crédito</p>
-          <p class="text-lg font-bold" :class="creditColor">{{ formatCurrency(totalCredit) }}</p>
-          <p v-if="accountCount" class="text-xs text-muted">{{ accountCount }} movimientos</p>
-        </div>
-      </div>
-    </UPageCard>
-
-    <!-- TOTAL DÉBITO -->
-    <UPageCard variant="subtle">
-      <div class="flex items-center gap-4">
-        <div class="size-10 rounded-lg flex items-center justify-center shrink-0" :class="debitBg">
-          <UIcon name="i-lucide-arrow-up-right" class="size-5" :class="debitColor" />
-        </div>
-        <div>
-          <p class="text-xs text-muted font-medium uppercase">Total Débito</p>
-          <p class="text-lg font-bold" :class="debitColor">{{ formatCurrency(totalDebit) }}</p>
-        </div>
-      </div>
-    </UPageCard>
-
-    <!-- SALDO NETO -->
-    <UPageCard variant="subtle">
-      <div class="flex items-center gap-4">
-        <div class="size-10 rounded-lg flex items-center justify-center shrink-0" :class="iconBg">
-          <UIcon name="i-lucide-scale" class="size-5" :class="iconColor" />
-        </div>
-        <div>
-          <p class="text-xs text-muted font-medium uppercase">Saldo neto — {{ bLabel }}</p>
-          <p class="text-lg font-bold" :class="bColor">
-            {{ formatCurrency(balance) }}
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <p class="text-xs font-semibold uppercase tracking-wider text-muted">Saldo actual</p>
+            <UBadge :label="bLabel" variant="subtle" size="sm" />
+          </div>
+          <p class="mt-1 text-3xl font-bold tracking-tight" :class="bColor">{{ formatCurrency(balance) }}</p>
+          <p class="mt-1 text-sm text-muted">
+            {{ partyTypeLabel }}<span v-if="accountCount"> · {{ accountCount }} movimiento{{ accountCount === 1 ? '' : 's' }}</span>
           </p>
-          <p v-if="partyTypeLabel" class="text-xs text-muted">{{ partyTypeLabel }}</p>
+        </div>
+      </div>
+    </UPageCard>
+
+    <UPageCard variant="subtle" class="lg:col-span-3">
+      <div class="flex min-h-32 flex-col justify-between gap-4">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold uppercase tracking-wider text-muted">Total débito</p>
+          <div class="flex size-9 items-center justify-center rounded-xl" :class="debitBg">
+            <UIcon name="i-lucide-arrow-up-right" class="size-4" :class="debitColor" />
+          </div>
+        </div>
+        <div>
+          <p class="text-xl font-bold" :class="debitColor">{{ formatCurrency(totalDebit) }}</p>
+          <p class="mt-1 text-xs text-muted">Movimientos que incrementan el débito</p>
+        </div>
+      </div>
+    </UPageCard>
+
+    <UPageCard variant="subtle" class="lg:col-span-3">
+      <div class="flex min-h-32 flex-col justify-between gap-4">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold uppercase tracking-wider text-muted">Total crédito</p>
+          <div class="flex size-9 items-center justify-center rounded-xl" :class="creditBg">
+            <UIcon name="i-lucide-arrow-down-left" class="size-4" :class="creditColor" />
+          </div>
+        </div>
+        <div>
+          <p class="text-xl font-bold" :class="creditColor">{{ formatCurrency(totalCredit) }}</p>
+          <p class="mt-1 text-xs text-muted">Movimientos que incrementan el crédito</p>
         </div>
       </div>
     </UPageCard>
