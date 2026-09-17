@@ -3,7 +3,6 @@ import { useFileParser } from '@/composables/useFileParser'
 import { fetchData, postData } from '../composables/apiService'
 
 import { formatearFecha } from '@/utils/formatearFecha'
-import * as XLSX from 'xlsx'
 
 export const useKilometrosStore = defineStore('csv', {
   state: () => ({
@@ -156,7 +155,7 @@ export const useKilometrosStore = defineStore('csv', {
       return true
     },
 
-    exportXLSX(filteredData: TransformedRow[] | null = null): boolean {
+    async exportXLSX(filteredData: TransformedRow[] | null = null): Promise<boolean> {
       const data = filteredData || this.transformedData
       if (data.length === 0) {
         console.warn('⚠️ No hay datos para exportar')
@@ -164,6 +163,7 @@ export const useKilometrosStore = defineStore('csv', {
       }
 
       try {
+        const XLSX = await import('xlsx/xlsx.mjs')
         const worksheet = XLSX.utils.json_to_sheet(
           data.map((row) => ({
             Descripción: row.descripcion,

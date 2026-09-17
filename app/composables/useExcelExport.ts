@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx'
-
 export interface ExportColumn {
   key: string
   label: string
@@ -15,7 +13,8 @@ export interface ExportOptions {
 }
 
 export function useExcelExport() {
-  const exportToExcel = (options: ExportOptions) => {
+  const exportToExcel = async (options: ExportOptions) => {
+    const XLSX = await import('xlsx/xlsx.mjs')
     const { filename, sheetName = 'Datos', columns, data } = options
 
     // Build header row
@@ -49,7 +48,8 @@ export function useExcelExport() {
     XLSX.writeFile(wb, `${filename}.xlsx`)
   }
 
-  const exportWithTemplate = (options: ExportOptions & { template?: any[] }) => {
+  const exportWithTemplate = async (options: ExportOptions & { template?: any[] }) => {
+    const XLSX = await import('xlsx/xlsx.mjs')
     const { filename, sheetName = 'Datos', columns, data, template = [] } = options
 
     // Template row (headers)

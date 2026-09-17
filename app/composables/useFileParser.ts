@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx'
 import Papa from 'papaparse'
 
 export type SupportedFileType = 'excel' | 'csv' | 'json'
@@ -53,7 +52,9 @@ export function useFileParser() {
   /* =========================
    * Excel → SOLO Hoja 1
    * ========================= */
-  const parseExcel = (file: File): Promise<ParseResult<any[]>> => {
+  const parseExcel = async (file: File): Promise<ParseResult<any[]>> => {
+    const XLSX = await import('xlsx/xlsx.mjs')
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
 

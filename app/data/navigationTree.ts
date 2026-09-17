@@ -156,6 +156,12 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'payments.read',
         children: [
           {
+            label: 'Reporte gerencial',
+            icon: 'i-lucide-chart-no-axes-combined',
+            to: '/erp/reports/management',
+            permission: 'treasury.reports.read'
+          },
+          {
             label: 'Movimientos',
             icon: 'i-lucide-activity',
             to: '/erp/treasury/reports/movements',

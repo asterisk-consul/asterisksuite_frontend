@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import * as XLSX from 'xlsx'
-
 interface ImportColumn {
   key: string
   label: string
@@ -62,8 +60,9 @@ const handleFileSelect = (event: Event) => {
 
   // Read and preview
   const reader = new FileReader()
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
+      const XLSX = await import('xlsx/xlsx.mjs')
       const data = new Uint8Array(e.target?.result as ArrayBuffer)
       const workbook = XLSX.read(data, { type: 'array' })
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
@@ -163,7 +162,8 @@ const handleImport = async () => {
   }
 }
 
-const downloadTemplate = () => {
+const downloadTemplate = async () => {
+  const XLSX = await import('xlsx/xlsx.mjs')
   const headers = props.columns.map(col => col.label)
   const exampleRow = props.columns.map(col => {
     if (col.type === 'number') return 0

@@ -19,7 +19,7 @@ ARG NODE_MEMORY=6144
 ENV NODE_OPTIONS="--max-old-space-size=${NODE_MEMORY}"
 ENV CI=true
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .

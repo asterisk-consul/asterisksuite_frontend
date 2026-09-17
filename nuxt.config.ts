@@ -67,7 +67,7 @@ export default defineNuxtConfig({
   },
 
   devtools: {
-    enabled: true
+    enabled: process.env.NODE_ENV !== 'production'
   },
   app: {
     baseURL: '/', // Relative paths for filesystem routing in Capacitor
@@ -95,6 +95,7 @@ export default defineNuxtConfig({
 
   nitro: {
     preset: 'node-server',
+    compressPublicAssets: true,
     // ✅ CORS va acá
     routeRules: {
       '/api/**': {
