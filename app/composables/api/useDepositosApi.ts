@@ -6,25 +6,25 @@ import type {
 
 export const useDepositosApi = () => {
   const getAll = () =>
-    useFetch<Warehouse[]>('/api/logistica/warehouse/warehouses')
+    useFetch<Warehouse[]>('/api/backend/warehouse/warehouses')
 
   const getById = (id: string) =>
-    useFetch<Warehouse>(`/api/logistica/warehouse/warehouses/${id}`)
+    useFetch<Warehouse>(`/api/backend/warehouse/warehouses/${id}`)
 
   const create = (data: CreateWarehouseInput) =>
-    useFetch<Warehouse>('/api/logistica/warehouse/warehouses', {
+    useFetch<Warehouse>('/api/backend/warehouse/warehouses', {
       method: 'POST',
       body: data
     })
 
   const update = (id: string, data: UpdateWarehouseInput) =>
-    useFetch<Warehouse>(`/api/logistica/warehouse/warehouses/${id}`, {
+    useFetch<Warehouse>(`/api/backend/warehouse/warehouses/${id}`, {
       method: 'PATCH',
       body: data
     })
 
   const remove = (id: string) =>
-    useFetch<void>(`/api/logistica/warehouse/warehouses/${id}`, {
+    useFetch<void>(`/api/backend/warehouse/warehouses/${id}`, {
       method: 'DELETE' as any
     })
 

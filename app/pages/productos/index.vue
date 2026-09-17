@@ -143,7 +143,7 @@ const saveLocation = async () => {
 }
 
 const handleExportExcel = async () => {
-  const allProducts = await $fetch<any[]>('/api/logistica/master-data/products')
+  const allProducts = await $fetch<any[]>('/api/backend/master-data/products')
   exportToExcel({
     filename: 'productos',
     sheetName: 'Productos',
@@ -162,7 +162,7 @@ const handleExportExcel = async () => {
 }
 
 const handleExportCSV = async () => {
-  const allProducts = await $fetch<any[]>('/api/logistica/master-data/products')
+  const allProducts = await $fetch<any[]>('/api/backend/master-data/products')
   const headers = ['ID', ...PRODUCT_COLUMNS.map(c => c.header), 'Creacion']
   const rows = allProducts.map(p => [
     p.id || '',

@@ -28,10 +28,10 @@ onMounted(async () => {
   loadingData.value = true
   try {
     const [partyData, docsData, paymentsData, statementData] = await Promise.all([
-      $fetch<any>(`/api/logistica/master-data/business-parties/${id}`),
-      $fetch<any[]>(`/api/erp/documents/sales?party_id=${id}`),
-      $fetch<any[]>(`/api/erp/payments?party_id=${id}`),
-      $fetch<any>(`/api/erp/current-accounts/party/${id}/statement`).catch(() => null)
+      $fetch<any>(`/api/backend/master-data/business-parties/${id}`),
+      $fetch<any[]>(`/api/backend/documents/sales?party_id=${id}`),
+      $fetch<any[]>(`/api/backend/payments?party_id=${id}`),
+      $fetch<any>(`/api/backend/current-accounts/party/${id}/statement`).catch(() => null)
     ])
     party.value = partyData
     documents.value = docsData || []

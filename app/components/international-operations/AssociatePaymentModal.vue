@@ -82,7 +82,7 @@ const handleAssociate = async () => {
   if (!selectedPaymentId.value) return
   try {
     loading.value = true
-    await $fetch(`/api/international-operations/${props.operationId}/payments`, {
+    await $fetch(`/api/backend/${props.operationId}/payments`, {
       method: 'POST',
       body: { payment_id: selectedPaymentId.value, container_id: selectedContainerId.value || undefined }
     })

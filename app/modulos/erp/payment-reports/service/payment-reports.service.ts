@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   PaymentReportQuery,
   PaymentByUserReport,
   CashBoxDailyReport,
@@ -6,7 +6,7 @@ import type {
   DailySummaryReport
 } from '~/modulos/erp/payment-reports/types/payment-reports.types'
 
-const urlBase = '/api/erp/payment-reports'
+const urlBase = '/api/backend/payment-reports'
 
 export const usePaymentReportsService = () => {
   const findByUser = (params?: PaymentReportQuery) => {

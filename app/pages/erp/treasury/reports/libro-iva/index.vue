@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { DateRange } from '~/components/compras/FiltroDateCompras.vue'
 import DateRangePicker from '~/components/compras/FiltroDateCompras.vue'
 import { useCompanyRole } from '~/composables/useCompanyRole'
@@ -18,7 +18,7 @@ const formatCurrency = (amount: number | string | null | undefined) => {
 }
 
 const formatDate = (d: string) => {
-  if (!d) return '—'
+  if (!d) return 'â€”'
   return new Date(d).toLocaleDateString('es-AR')
 }
 
@@ -41,7 +41,7 @@ const toLocalDateString = (d: Date) => {
 const fetchLibro = async () => {
   loading.value = true
   try {
-    libroData.value = await $fetch<any[]>('/api/erp/treasury/libro-iva', {
+    libroData.value = await $fetch<any[]>('/api/backend/treasury/libro-iva', {
       query: {
         date_from: toLocalDateString(dateRange.value.start),
         date_to: toLocalDateString(dateRange.value.end)
@@ -91,7 +91,7 @@ const handleExportExcel = () => {
     sheetName: activeTab.value === 0 ? 'Ventas' : 'Compras',
     columns: [
       { key: 'date', label: 'Fecha', width: 12 },
-      { key: 'number', label: 'N° Comprobante', width: 15 },
+      { key: 'number', label: 'NÂ° Comprobante', width: 15 },
       { key: 'party_name', label: activeTab.value === 0 ? 'Cliente' : 'Proveedor', width: 25 },
       { key: 'party_tax_id', label: 'CUIT', width: 15 },
       { key: 'subtotal', label: 'Neto Gravado', width: 15 },
@@ -138,11 +138,11 @@ const dataActions: DropdownMenuItem[] = [
         <p class="text-lg font-bold text-primary">{{ formatCurrency(totalVentasGravado) }}</p>
       </div>
       <div class="p-4 rounded-xl border border-default bg-default">
-        <p class="text-xs text-muted font-medium uppercase">IVA Débito Fiscal</p>
+        <p class="text-xs text-muted font-medium uppercase">IVA DÃ©bito Fiscal</p>
         <p class="text-lg font-bold text-success">{{ formatCurrency(totalVentasIVA) }}</p>
       </div>
       <div class="p-4 rounded-xl border border-default bg-default">
-        <p class="text-xs text-muted font-medium uppercase">IVA Crédito Fiscal</p>
+        <p class="text-xs text-muted font-medium uppercase">IVA CrÃ©dito Fiscal</p>
         <p class="text-lg font-bold text-error">{{ formatCurrency(totalComprasIVA) }}</p>
       </div>
       <div class="p-4 rounded-xl border border-default bg-default">
@@ -161,13 +161,13 @@ const dataActions: DropdownMenuItem[] = [
           <template #header>
             <h3 class="text-sm font-semibold">Libro de Ventas</h3>
           </template>
-          <div v-if="libroVentas.length === 0" class="text-center py-8 text-muted text-sm">No hay facturas de venta en el período</div>
+          <div v-if="libroVentas.length === 0" class="text-center py-8 text-muted text-sm">No hay facturas de venta en el perÃ­odo</div>
           <div v-else class="overflow-auto max-h-[60vh]">
             <table class="w-full text-sm">
               <thead class="sticky top-0 bg-default z-10">
                 <tr class="border-b border-default">
                   <th class="text-left py-2 px-2 text-xs font-medium text-muted">Fecha</th>
-                  <th class="text-left py-2 px-2 text-xs font-medium text-muted">N° Comp.</th>
+                  <th class="text-left py-2 px-2 text-xs font-medium text-muted">NÂ° Comp.</th>
                   <th class="text-left py-2 px-2 text-xs font-medium text-muted">Cliente</th>
                   <th class="text-left py-2 px-2 text-xs font-medium text-muted">CUIT</th>
                   <th class="text-right py-2 px-2 text-xs font-medium text-muted">Neto</th>
@@ -205,13 +205,13 @@ const dataActions: DropdownMenuItem[] = [
           <template #header>
             <h3 class="text-sm font-semibold">Libro de Compras</h3>
           </template>
-          <div v-if="libroCompras.length === 0" class="text-center py-8 text-muted text-sm">No hay facturas de compra en el período</div>
+          <div v-if="libroCompras.length === 0" class="text-center py-8 text-muted text-sm">No hay facturas de compra en el perÃ­odo</div>
           <div v-else class="overflow-auto max-h-[60vh]">
             <table class="w-full text-sm">
               <thead class="sticky top-0 bg-default z-10">
                 <tr class="border-b border-default">
                   <th class="text-left py-2 px-2 text-xs font-medium text-muted">Fecha</th>
-                  <th class="text-left py-2 px-2 text-xs font-medium text-muted">N° Comp.</th>
+                  <th class="text-left py-2 px-2 text-xs font-medium text-muted">NÂ° Comp.</th>
                   <th class="text-left py-2 px-2 text-xs font-medium text-muted">Proveedor</th>
                   <th class="text-left py-2 px-2 text-xs font-medium text-muted">CUIT</th>
                   <th class="text-right py-2 px-2 text-xs font-medium text-muted">Neto</th>

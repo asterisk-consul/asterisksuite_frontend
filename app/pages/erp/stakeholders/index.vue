@@ -98,7 +98,7 @@ const importColumns = [
     title="Importar Partes Interesadas"
     description="Selecciona un archivo Excel con las partes interesadas a importar. Se pueden incluir contactos y cuentas bancarias en la misma fila."
     :columns="importColumns"
-    endpoint="/api/master-data/business-parties/import"
+    endpoint="/api/backend/business-parties/import"
     @success="store.fetchAll"
   />
 </template>

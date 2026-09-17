@@ -96,10 +96,10 @@ async function fetchAssets() {
   loadingAssets.value = true
   try {
     if (form.asset_type === MaintenanceAssetType.VEHICLE) {
-      const data = await $fetch<any[]>('/api/logistica/vehicles')
+      const data = await $fetch<any[]>('/api/backend/vehicles')
       vehicles.value = data
     } else if (form.asset_type === MaintenanceAssetType.TIRE) {
-      const data = await $fetch<any>('/api/logistica/maintenance/tires', { params: { limit: 500 } })
+      const data = await $fetch<any>('/api/backend/maintenance/tires', { params: { limit: 500 } })
       tires.value = data.data ?? data
     }
   } catch {

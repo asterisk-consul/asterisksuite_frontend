@@ -11,13 +11,13 @@ const axleCount = ref(2)
 
 async function fetchVehicle() {
   try {
-    vehicle.value = await $fetch(`/api/logistica/vehicles/${id}`)
+    vehicle.value = await $fetch(`/api/backend/vehicles/${id}`)
   } catch { /* */ }
 }
 
 async function fetchTirePositions() {
   try {
-    tirePositions.value = await $fetch(`/api/logistica/maintenance/vehicles/${id}/tire-positions`)
+    tirePositions.value = await $fetch(`/api/backend/maintenance/vehicles/${id}/tire-positions`)
   } catch { /* */ }
 }
 

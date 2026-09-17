@@ -4,7 +4,7 @@ import type {
   UpdateProductPriceInput
 } from '~/modulos/logistica/master-data/product-price/types/product-price.types'
 
-const baseUrl = '/api/logistica/master-data/product-prices'
+const baseUrl = '/api/backend/master-data/product-prices'
 
 export const useProductPriceService = () => {
   // =========================

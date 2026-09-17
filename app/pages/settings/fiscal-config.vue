@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({
   layout: 'default',
   middleware: ['auth']
@@ -25,7 +25,7 @@ const loading = ref(true)
 const saving = ref(false)
 
 const fiscalModeOptions = [
-  { label: 'Simples', value: 'SIMPLE', description: 'Sin discriminación de impuestos. Precio final.' },
+  { label: 'Simples', value: 'SIMPLE', description: 'Sin discriminaciÃ³n de impuestos. Precio final.' },
   { label: 'Completos', value: 'COMPLETE', description: 'Motor fiscal completo: IVA, percepciones, retenciones.' }
 ]
 
@@ -34,12 +34,12 @@ async function fetchSettings() {
 
   loading.value = true
   try {
-    settings.value = await $fetch<TaxSettings>('/api/erp/tax-engine/company-settings', {
+    settings.value = await $fetch<TaxSettings>('/api/backend/tax-engine/company-settings', {
       query: { company_id: companyId.value }
     })
   } catch (e) {
     console.error('Error fetching tax settings:', e)
-    toast.add({ title: 'Error al cargar configuración', color: 'error' })
+    toast.add({ title: 'Error al cargar configuraciÃ³n', color: 'error' })
   } finally {
     loading.value = false
   }
@@ -50,7 +50,7 @@ async function saveSettings() {
 
   saving.value = true
   try {
-    await $fetch('/api/erp/tax-engine/company-settings', {
+    await $fetch('/api/backend/tax-engine/company-settings', {
       method: 'PATCH',
       body: {
         company_id: companyId.value,
@@ -60,10 +60,10 @@ async function saveSettings() {
         country: settings.value.country
       }
     })
-    toast.add({ title: 'Configuración guardada', color: 'success' })
+    toast.add({ title: 'ConfiguraciÃ³n guardada', color: 'success' })
   } catch (e) {
     console.error('Error saving tax settings:', e)
-    toast.add({ title: 'Error al guardar configuración', color: 'error' })
+    toast.add({ title: 'Error al guardar configuraciÃ³n', color: 'error' })
   } finally {
     saving.value = false
   }
@@ -77,10 +77,10 @@ onMounted(() => {
 <template>
   <div class="max-w-4xl mx-auto p-6">
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">Configuración Fiscal</h1>
+      <h1 class="text-2xl font-bold">ConfiguraciÃ³n Fiscal</h1>
       <div class="flex gap-2">
         <UButton
-          label="Reglas y alícuotas"
+          label="Reglas y alÃ­cuotas"
           variant="outline"
           icon="i-lucide-list-tree"
           to="/settings/fiscal-rules"
@@ -95,7 +95,7 @@ onMounted(() => {
     </div>
 
     <div v-if="loading" class="text-center py-8 text-muted">
-      Cargando configuración...
+      Cargando configuraciÃ³n...
     </div>
 
     <div v-else class="space-y-6">
@@ -107,7 +107,7 @@ onMounted(() => {
         </template>
 
         <p class="text-sm text-muted mb-4">
-          Seleccioná cómo funciona el motor de impuestos en tu empresa.
+          SeleccionÃ¡ cÃ³mo funciona el motor de impuestos en tu empresa.
         </p>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -157,10 +157,10 @@ onMounted(() => {
         </div>
       </UCard>
 
-      <!-- País -->
+      <!-- PaÃ­s -->
       <UCard>
         <template #header>
-          <h2 class="text-lg font-semibold">País</h2>
+          <h2 class="text-lg font-semibold">PaÃ­s</h2>
         </template>
 
         <USelect
@@ -178,7 +178,7 @@ onMounted(() => {
       <!-- Guardar -->
       <div class="flex justify-end">
         <UButton
-          label="Guardar configuración"
+          label="Guardar configuraciÃ³n"
           color="primary"
           :loading="saving"
           @click="saveSettings"

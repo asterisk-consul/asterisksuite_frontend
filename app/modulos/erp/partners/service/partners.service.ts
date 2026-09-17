@@ -1,6 +1,6 @@
-import type { Partner, CreatePartnerInput, UpdatePartnerInput } from '~/modulos/erp/partners/types/partners.types'
+﻿import type { Partner, CreatePartnerInput, UpdatePartnerInput } from '~/modulos/erp/partners/types/partners.types'
 
-const baseUrl = '/api/erp/partners'
+const baseUrl = '/api/backend/partners'
 
 export const usePartnersService = () => {
   const findAll = () => $fetch<Partner[]>(baseUrl)

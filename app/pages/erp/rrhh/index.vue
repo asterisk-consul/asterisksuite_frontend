@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
 import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
@@ -28,8 +28,8 @@ const balanceByCurrency = ref<Record<string, CurrencyBalance>>({})
 async function loadDashboard() {
   try {
     const [employees, partners, vales] = await Promise.all([
-      $fetch<any[]>('/api/erp/employees'),
-      $fetch<any[]>('/api/erp/partners'),
+      $fetch<any[]>('/api/backend/employees'),
+      $fetch<any[]>('/api/backend/partners'),
       hrStore.fetchVales(),
     ])
 
@@ -73,7 +73,7 @@ function fmt(n: number, currency = 'ARS') {
 
 <template>
   <UPage class="space-y-6 px-4">
-    <AppPageHeader title="RRHH" description="Gestión de recursos humanos" />
+    <AppPageHeader title="RRHH" description="GestiÃ³n de recursos humanos" />
 
     <!-- Resumen principal -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 py-4">

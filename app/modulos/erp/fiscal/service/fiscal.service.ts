@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   BusinessPartyIibbRegistration,
   BusinessPartyWithholdingProfile,
   CalculateWithholdingsInput,
@@ -10,7 +10,7 @@ import type {
 } from '../types/fiscal.types'
 
 export function useFiscalService() {
-  const urlBase = '/api/erp/fiscal'
+  const urlBase = '/api/backend/fiscal'
 
   function previewWithholdings(input: CalculateWithholdingsInput): Promise<WithholdingPreviewResult> {
     return $fetch(`${urlBase}/withholdings/preview`, { method: 'POST', body: input })

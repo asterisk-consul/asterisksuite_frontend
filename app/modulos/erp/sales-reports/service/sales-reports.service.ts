@@ -1,6 +1,6 @@
-import type { PointOfSaleReportResponse, SummaryFilters } from '../types/sales-reports.types'
+﻿import type { PointOfSaleReportResponse, SummaryFilters } from '../types/sales-reports.types'
 
-const urlBase = '/api/erp/sales-reports'
+const urlBase = '/api/backend/sales-reports'
 
 export const useSalesReportsService = () => {
   const byPointOfSale = (filters?: SummaryFilters) => {

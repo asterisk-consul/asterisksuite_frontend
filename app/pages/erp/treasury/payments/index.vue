@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 import type { ButtonProps } from '@nuxt/ui'
@@ -35,11 +35,11 @@ const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse' | 'delete'>('con
 const actionPayment = ref<Payment | null>(null)
 
 const actionLabels: Record<string, { title: string; button: string; color: string; description: string }> = {
-  confirm: { title: 'Confirmar pago', button: 'Confirmar', color: 'info', description: 'Se aplicarán los efectos: documentos, caja/banco y cuenta corriente.' },
-  pay: { title: 'Marcar como pagado', button: 'Marcar pagado', color: 'success', description: 'El pago pasará a estado Pagado.' },
-  reject: { title: 'Rechazar pago', button: 'Rechazar', color: 'warning', description: 'Se revertirán todos los efectos (documentos, caja/banco, cuenta corriente).' },
-  reverse: { title: 'Anular pago', button: 'Anular', color: 'error', description: 'Se revertirán todos los efectos y el pago quedará anulado.' },
-  delete: { title: 'Eliminar pago', button: 'Eliminar', color: 'error', description: 'Se eliminará permanentemente el registro.' }
+  confirm: { title: 'Confirmar pago', button: 'Confirmar', color: 'info', description: 'Se aplicarÃ¡n los efectos: documentos, caja/banco y cuenta corriente.' },
+  pay: { title: 'Marcar como pagado', button: 'Marcar pagado', color: 'success', description: 'El pago pasarÃ¡ a estado Pagado.' },
+  reject: { title: 'Rechazar pago', button: 'Rechazar', color: 'warning', description: 'Se revertirÃ¡n todos los efectos (documentos, caja/banco, cuenta corriente).' },
+  reverse: { title: 'Anular pago', button: 'Anular', color: 'error', description: 'Se revertirÃ¡n todos los efectos y el pago quedarÃ¡ anulado.' },
+  delete: { title: 'Eliminar pago', button: 'Eliminar', color: 'error', description: 'Se eliminarÃ¡ permanentemente el registro.' }
 }
 
 function onSortFieldSelect(columnId: string) {
@@ -82,7 +82,7 @@ const handleAction = async () => {
     actionModalOpen.value = false
 
     toast.add({
-      title: actionLabels[actionType.value]?.title ?? 'Acción completada',
+      title: actionLabels[actionType.value]?.title ?? 'AcciÃ³n completada',
       color: actionType.value === 'delete' ? 'warning' : 'success'
     })
   } catch (e: any) {
@@ -126,28 +126,28 @@ const links: ButtonProps[] = [
 ]
 
 const filterFields: FilterField[] = [
-  { id: 'number', label: 'Filtrar por N°...', class: 'w-32' },
-  { id: 'description', label: 'Filtrar por descripción...', class: 'w-56' },
+  { id: 'number', label: 'Filtrar por NÂ°...', class: 'w-32' },
+  { id: 'description', label: 'Filtrar por descripciÃ³n...', class: 'w-56' },
   { id: 'account', label: 'Filtrar por cuenta...', class: 'w-48' }
 ]
 
 const sortFields: SortField[] = [
-  { label: 'N°', value: 'number' },
+  { label: 'NÂ°', value: 'number' },
   { label: 'Fecha', value: 'date' },
   { label: 'Tipo', value: 'type' },
-  { label: 'Método', value: 'payment_method' },
+  { label: 'MÃ©todo', value: 'payment_method' },
   { label: 'Monto', value: 'amount' },
   { label: 'Cuenta', value: 'account' },
   { label: 'Estado', value: 'status' },
-  { label: 'Fecha Creación', value: 'created_at' }
+  { label: 'Fecha CreaciÃ³n', value: 'created_at' }
 ]
 
 const handleExport = (format: string) => {
-  window.open(`/api/erp/payments/export?format=${format}`, '_blank')
+  window.open(`/api/backend/payments/export?format=${format}`, '_blank')
 }
 
 const handleDownloadTemplate = () => {
-  window.open('/api/erp/payments/export/template', '_blank')
+  window.open('/api/backend/payments/export/template', '_blank')
 }
 
 const importColumns = [
@@ -177,7 +177,7 @@ const dataActions = computed(() => [
   <UPage class="space-y-4">
     <AppPageHeader
       title="Pagos y Cobros"
-      description="Gestión de pagos realizados y cobros recibidos"
+      description="GestiÃ³n de pagos realizados y cobros recibidos"
     >
       <template #links>
         <UFieldGroup v-if="dataActions.length">
@@ -235,7 +235,7 @@ const dataActions = computed(() => [
     <UModal v-model:open="actionModalOpen" :title="actionLabels[actionType]?.title">
       <template #body>
         <p>{{ actionLabels[actionType]?.description }}</p>
-        <p class="mt-2">Pago N° <strong>{{ actionPayment?.number }}</strong></p>
+        <p class="mt-2">Pago NÂ° <strong>{{ actionPayment?.number }}</strong></p>
         <div class="flex justify-end gap-2 pt-4">
           <UButton label="Cancelar" variant="ghost" @click="actionModalOpen = false" />
           <UButton
@@ -253,7 +253,7 @@ const dataActions = computed(() => [
       title="Importar Pagos y Cobros"
       description="Selecciona un archivo Excel con los pagos a importar"
       :columns="importColumns"
-      endpoint="/api/erp/payments/import"
+      endpoint="/api/backend/payments/import"
       @success="init"
     />
   </UPage>

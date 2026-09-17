@@ -24,8 +24,8 @@ const currencies = ref<any[]>([])
 
 onMounted(async () => {
   const [suppliersData, currenciesData] = await Promise.all([
-    $fetch<any[]>('/api/logistica/master-data/business-parties'),
-    $fetch<any[]>('/api/erp/currencies')
+    $fetch<any[]>('/api/backend/master-data/business-parties'),
+    $fetch<any[]>('/api/backend/currencies')
   ])
   suppliers.value = suppliersData.filter((s: any) => s.type === 'SUPPLIER')
   currencies.value = currenciesData
@@ -118,7 +118,7 @@ function handleSubmit() {
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-          <UFormField label="Días de entrega">
+          <UFormField label="DÃ­as de entrega">
             <UInput
               v-model="leadTimeDays"
               type="number"
@@ -127,7 +127,7 @@ function handleSubmit() {
             />
           </UFormField>
 
-          <UFormField label="Cantidad mín. pedido">
+          <UFormField label="Cantidad mÃ­n. pedido">
             <UInput
               v-model="minOrderQuantity"
               type="text"

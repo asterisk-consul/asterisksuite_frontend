@@ -4,7 +4,7 @@ import type {
   UpdatePartyContactDto
 } from '../types/contacts.types'
 
-const urlBase = '/api/logistica/master-data/contacts'
+const urlBase = '/api/backend/master-data/contacts'
 
 export const partyContactsService = {
   async getAll(party_id?: string) {

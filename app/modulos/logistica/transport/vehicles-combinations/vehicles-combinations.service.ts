@@ -7,22 +7,22 @@ import type {
 export const useVehicleCombinationsService = () => {
   const getAll = () =>
     $fetch<VehicleCombination[]>(
-      '/api/logistica/transport/vehicles-combinations'
+      '/api/backend/transport/vehicles-combinations'
     )
 
   const getActive = () =>
     $fetch<VehicleCombination[]>(
-      '/api/logistica/transport/vehicles-combinations/active'
+      '/api/backend/transport/vehicles-combinations/active'
     )
 
   const getById = (id: string) =>
     $fetch<VehicleCombination>(
-      `/api/logistica/transport/vehicles-combinations/${id}`
+      `/api/backend/transport/vehicles-combinations/${id}`
     )
 
   const create = (body: CreateVehicleCombinationInput) =>
     $fetch<VehicleCombination>(
-      '/api/logistica/transport/vehicles-combinations',
+      '/api/backend/transport/vehicles-combinations',
       {
         method: 'POST',
         body
@@ -31,7 +31,7 @@ export const useVehicleCombinationsService = () => {
 
   const update = (id: string, body: UpdateVehicleCombinationInput) =>
     $fetch<VehicleCombination>(
-      `/api/logistica/transport/vehicles-combinations/${id}`,
+      `/api/backend/transport/vehicles-combinations/${id}`,
       {
         method: 'PATCH',
         body
@@ -40,7 +40,7 @@ export const useVehicleCombinationsService = () => {
 
   const finish = (id: string) =>
     $fetch<VehicleCombination>(
-      `/api/logistica/transport/vehicles-combinations/${id}/finish`,
+      `/api/backend/transport/vehicles-combinations/${id}/finish`,
       {
         method: 'PATCH'
       }
@@ -48,14 +48,14 @@ export const useVehicleCombinationsService = () => {
 
   const activate = (id: string) =>
     $fetch<VehicleCombination>(
-      `/api/logistica/transport/vehicles-combinations/${id}/activate`,
+      `/api/backend/transport/vehicles-combinations/${id}/activate`,
       {
         method: 'PATCH'
       }
     )
   const getAvailable = (date: string) =>
     $fetch<VehicleCombination[]>(
-      '/api/logistica/transport/vehicles-combinations/available',
+      '/api/backend/transport/vehicles-combinations/available',
       {
         query: {
           date
@@ -65,7 +65,7 @@ export const useVehicleCombinationsService = () => {
 
   const remove = (id: string) =>
     $fetch<{ deleted: boolean }>(
-      `/api/logistica/transport/vehicles-combinations/${id}`,
+      `/api/backend/transport/vehicles-combinations/${id}`,
       {
         method: 'DELETE'
       }
@@ -73,7 +73,7 @@ export const useVehicleCombinationsService = () => {
 
   const historyByVehicle = (vehicle_id: string) =>
     $fetch<VehicleCombination[]>(
-      `/api/logistica/transport/vehicles-combinations/vehicle/${vehicle_id}`
+      `/api/backend/transport/vehicles-combinations/vehicle/${vehicle_id}`
     )
 
   return {

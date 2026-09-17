@@ -43,7 +43,7 @@ const taxes = ref<any[]>([])
 onMounted(async () => {
   await sequencesStore.fetchAll()
   try {
-    taxes.value = await $fetch<any[]>('/api/erp/taxes')
+    taxes.value = await $fetch<any[]>('/api/backend/taxes')
   } catch (e) {
     console.error('Error loading taxes:', e)
   }

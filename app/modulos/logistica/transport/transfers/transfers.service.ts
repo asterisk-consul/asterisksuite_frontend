@@ -7,14 +7,14 @@ import type {
 
 export const useTransfersService = () => {
   const create = (data: CreateTransferInput) =>
-    $fetch<Transfer>('/api/logistica/transport/transfers', {
+    $fetch<Transfer>('/api/backend/transport/transfers', {
       method: 'POST',
       body: data
     })
 
   const addItem = (transferId: string, data: AddTransferItemInput) =>
     $fetch<TransferItem>(
-      `/api/logistica/transport/transfers/${transferId}/items`,
+      `/api/backend/transport/transfers/${transferId}/items`,
       {
         method: 'POST',
         body: data

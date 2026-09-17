@@ -113,7 +113,7 @@ const handleSubmit = async () => {
         taxes: []
       }))
     })
-    await $fetch(`/api/international-operations/${props.operationId}/quotes`, {
+    await $fetch(`/api/backend/${props.operationId}/quotes`, {
       method: 'POST',
       body: { document_id: created.id }
     })

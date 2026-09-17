@@ -160,11 +160,11 @@ const accountTypeOptions = [
 
 // Export
 const handleExportExcel = () => {
-  window.open('/api/contabilidad/accounts/export?format=xlsx', '_blank')
+  window.open('/api/backend/accounts/export?format=xlsx', '_blank')
 }
 
 const handleExportCSV = () => {
-  window.open('/api/contabilidad/accounts/export?format=csv', '_blank')
+  window.open('/api/backend/accounts/export?format=csv', '_blank')
 }
 
 // Import
@@ -175,7 +175,7 @@ const importColumns = [
   { key: 'parent_code', label: 'Cuenta padre', required: false, type: 'string' as const }
 ]
 
-const importEndpoint = '/api/contabilidad/accounts/import'
+const importEndpoint = '/api/backend/accounts/import'
 
 const onImportSuccess = async () => {
   accounts.value = await service.findAll()

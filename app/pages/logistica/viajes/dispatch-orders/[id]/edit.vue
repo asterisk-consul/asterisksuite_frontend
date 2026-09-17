@@ -36,7 +36,7 @@ const submit = async (dto: CreateDispatchOrderDto) => {
 async function createRemito() {
   creatingRemito.value = true
   try {
-    const remito = await $fetch<any>(`/api/erp/documents/sales/dispatch/${id}/create-remito`, { method: 'POST' })
+    const remito = await $fetch<any>(`/api/backend/documents/sales/dispatch/${id}/create-remito`, { method: 'POST' })
     useToast().add({ title: 'Remito creado', description: 'Se copiaron el cliente y los productos del despacho.', color: 'success' })
     await router.push(`/erp/remitos/${remito.id}`)
   } catch (error: any) {

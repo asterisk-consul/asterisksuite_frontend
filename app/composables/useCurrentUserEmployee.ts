@@ -1,4 +1,4 @@
-import type { Employee } from '~/modulos/erp/employees/types/employees.types'
+﻿import type { Employee } from '~/modulos/erp/employees/types/employees.types'
 
 const employee = ref<Employee | null>(null)
 const fetched = ref(false)
@@ -9,7 +9,7 @@ export function useCurrentUserEmployee() {
   const fetchIfNeeded = async () => {
     if (fetched.value) return
     try {
-      const data = await $fetch<Employee | null>('/api/erp/employees/me')
+      const data = await $fetch<Employee | null>('/api/backend/employees/me')
       employee.value = data
     } catch {
       employee.value = null

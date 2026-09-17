@@ -21,8 +21,8 @@ const fetchData = async () => {
   loading.value = true
   try {
     const [accountsData, movementsData] = await Promise.all([
-      $fetch<any[]>('/api/contabilidad/accounts'),
-      $fetch<any[]>('/api/erp/treasury/movements', {
+      $fetch<any[]>('/api/backend/accounts'),
+      $fetch<any[]>('/api/backend/treasury/movements', {
         query: {
           date_from: dateRange.value.start.toISOString().split('T')[0],
           date_to: dateRange.value.end.toISOString().split('T')[0]
@@ -121,8 +121,8 @@ const handleExportExcel = () => {
       { concept: 'COSTOS', amount: costos.value },
       { concept: 'GASTOS', amount: gastos.value },
       { concept: 'RESULTADO NETO', amount: resultadoNeto.value },
-      { concept: 'IVA DÉBITO FISCAL', amount: ivaDebito.value },
-      { concept: 'IVA CRÉDITO FISCAL', amount: ivaCredito.value },
+      { concept: 'IVA DÃ‰BITO FISCAL', amount: ivaDebito.value },
+      { concept: 'IVA CRÃ‰DITO FISCAL', amount: ivaCredito.value },
       { concept: 'SALDO IVA A PAGAR', amount: saldoIVA.value }
     ]
   })
@@ -133,7 +133,7 @@ const handleExportExcel = () => {
   <UPage class="space-y-6 px-4">
     <AppPageHeader
       title="Informe Contable Consolidado"
-      description="Estado de situación patrimonial y resultados"
+      description="Estado de situaciÃ³n patrimonial y resultados"
     >
       <template #links>
         <UButton v-if="canExport('treasury.reports.export')" label="Exportar" icon="i-lucide-download" variant="outline" @click="handleExportExcel" />
@@ -146,11 +146,11 @@ const handleExportExcel = () => {
       <UButton label="Buscar" icon="i-lucide-search" @click="fetchData" :loading="loading" />
     </div>
 
-    <!-- 1. ESTADO DE SITUACIÓN PATRIMONIAL -->
+    <!-- 1. ESTADO DE SITUACIÃ“N PATRIMONIAL -->
     <div>
       <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
         <UIcon name="i-lucide-scale" class="size-4 text-primary" />
-        Estado de Situación Patrimonial
+        Estado de SituaciÃ³n Patrimonial
       </h3>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <!-- ACTIVOS -->
@@ -204,9 +204,9 @@ const handleExportExcel = () => {
           </div>
           <div class="mt-3 pt-3 border-t border-default">
             <div class="flex items-center justify-between text-sm font-semibold">
-              <span>Verificación</span>
+              <span>VerificaciÃ³n</span>
               <span :class="activos === (pasivos + patrimonio) ? 'text-success' : 'text-error'">
-                {{ activos === (pasivos + patrimonio) ? '✅' : '❌' }}
+                {{ activos === (pasivos + patrimonio) ? 'âœ…' : 'âŒ' }}
                 {{ formatCurrency(activos) }} = {{ formatCurrency(pasivos + patrimonio) }}
               </span>
             </div>
@@ -300,16 +300,16 @@ const handleExportExcel = () => {
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <UPageCard variant="subtle">
           <div class="text-center">
-            <p class="text-xs text-muted font-medium uppercase">IVA Débito Fiscal</p>
+            <p class="text-xs text-muted font-medium uppercase">IVA DÃ©bito Fiscal</p>
             <p class="text-xl font-bold text-success">{{ formatCurrency(ivaDebito) }}</p>
-            <p class="text-xs text-muted">Lo que cobrás</p>
+            <p class="text-xs text-muted">Lo que cobrÃ¡s</p>
           </div>
         </UPageCard>
         <UPageCard variant="subtle">
           <div class="text-center">
-            <p class="text-xs text-muted font-medium uppercase">IVA Crédito Fiscal</p>
+            <p class="text-xs text-muted font-medium uppercase">IVA CrÃ©dito Fiscal</p>
             <p class="text-xl font-bold text-error">{{ formatCurrency(ivaCredito) }}</p>
-            <p class="text-xs text-muted">Lo que pagás</p>
+            <p class="text-xs text-muted">Lo que pagÃ¡s</p>
           </div>
         </UPageCard>
         <UPageCard variant="subtle">

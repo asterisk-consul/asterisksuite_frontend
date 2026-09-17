@@ -154,7 +154,7 @@ const handleAssociate = async () => {
       }
       body.exchange_rate = customExchangeRate.value
     }
-    await $fetch(`/api/international-operations/${props.operationId}/documents`, {
+    await $fetch(`/api/backend/${props.operationId}/documents`, {
       method: 'POST',
       body
     })

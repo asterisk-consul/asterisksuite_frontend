@@ -145,7 +145,7 @@ watch(selectedInstallVehicle, async (val) => {
   if (val?.value) {
     loadingPositions.value = true
     try {
-      const data = await $fetch<any[]>(`/api/logistica/maintenance/vehicles/${val.value}/tire-positions`)
+      const data = await $fetch<any[]>(`/api/backend/maintenance/vehicles/${val.value}/tire-positions`)
       vehiclePositions.value = data
     } catch { vehiclePositions.value = [] } finally {
       loadingPositions.value = false
@@ -175,21 +175,21 @@ watch(selectedRemoveDestination, (val) => {
 async function fetchVehicles() {
   loadingVehicles.value = true
   try {
-    vehicles.value = await $fetch<any[]>('/api/logistica/vehicles')
+    vehicles.value = await $fetch<any[]>('/api/backend/vehicles')
   } catch { /* */ } finally { loadingVehicles.value = false }
 }
 
 async function fetchSuppliers() {
   loadingSuppliers.value = true
   try {
-    suppliers.value = await $fetch<any[]>('/api/logistica/master-data/business-parties', { params: { type: 'SUPPLIER' } })
+    suppliers.value = await $fetch<any[]>('/api/backend/master-data/business-parties', { params: { type: 'SUPPLIER' } })
   } catch { /* */ } finally { loadingSuppliers.value = false }
 }
 
 async function fetchCustomers() {
   loadingCustomers.value = true
   try {
-    customers.value = await $fetch<any[]>('/api/logistica/master-data/business-parties', { params: { type: 'CUSTOMER' } })
+    customers.value = await $fetch<any[]>('/api/backend/master-data/business-parties', { params: { type: 'CUSTOMER' } })
   } catch { /* */ } finally { loadingCustomers.value = false }
 }
 

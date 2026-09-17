@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 import { useAccountsStore } from '~/modulos/contabilidad/store/accounts.store'
@@ -54,8 +54,8 @@ const METHOD_LABELS: Record<string, string> = {
   CASH: 'Efectivo',
   CHECK: 'Cheque',
   BANK_TRANSFER: 'Transferencia',
-  CREDIT_CARD: 'Tarjeta crédito',
-  DEBIT_CARD: 'Tarjeta débito',
+  CREDIT_CARD: 'Tarjeta crÃ©dito',
+  DEBIT_CARD: 'Tarjeta dÃ©bito',
   VIRTUAL_WALLET: 'Billetera virtual',
 }
 
@@ -65,7 +65,7 @@ function fmtMoney(amount?: number | null, currency = 'ARS') {
 }
 
 function fmtDate(d?: string) {
-  if (!d) return '—'
+  if (!d) return 'â€”'
   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
@@ -85,7 +85,7 @@ async function loadData() {
     if (dateTo.value) params.date_to = dateTo.value
     if (accountFilter.value) params.account_id = accountFilter.value
     if (typeFilter.value !== 'ALL') params.type = typeFilter.value
-    data.value = await $fetch<any>('/api/erp/treasury/expenses-by-account', { params })
+    data.value = await $fetch<any>('/api/backend/treasury/expenses-by-account', { params })
   } catch (e: any) {
     toast.add({ title: 'Error al cargar reporte', description: e?.data?.message || e.message, color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
@@ -165,7 +165,7 @@ onMounted(async () => {
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <UCard>
           <div class="text-center">
-            <p class="text-xs text-muted">Total del período</p>
+            <p class="text-xs text-muted">Total del perÃ­odo</p>
             <p class="text-2xl font-bold text-primary">{{ fmtMoney(data.total_base) }}</p>
           </div>
         </UCard>
@@ -222,7 +222,7 @@ onMounted(async () => {
 
         <div v-if="data.accounts.length === 0" class="py-8 text-center text-sm text-muted">
           <UIcon name="i-lucide-bar-chart-3" class="mx-auto mb-2 text-2xl opacity-30" />
-          <p>Sin movimientos con cuenta contable en el período seleccionado</p>
+          <p>Sin movimientos con cuenta contable en el perÃ­odo seleccionado</p>
         </div>
 
         <div v-else class="space-y-2">
@@ -266,7 +266,7 @@ onMounted(async () => {
                   #{{ String(p.number).padStart(8, '0') }}
                 </NuxtLink>
                 <span class="text-xs text-muted w-24 shrink-0">{{ fmtDate(p.date) }}</span>
-                <span class="flex-1 truncate">{{ p.party_name ?? '—' }}</span>
+                <span class="flex-1 truncate">{{ p.party_name ?? 'â€”' }}</span>
                 <span class="text-xs text-muted w-28 shrink-0">{{ METHOD_LABELS[p.payment_method] ?? p.payment_method }}</span>
                 <span class="w-32 text-right font-medium">
                   {{ fmtMoney(p.converted_amount ?? p.amount) }}
@@ -310,7 +310,7 @@ onMounted(async () => {
                 #{{ String(p.number).padStart(8, '0') }}
               </NuxtLink>
               <span class="text-xs text-muted w-24 shrink-0">{{ fmtDate(p.date) }}</span>
-              <span class="flex-1 truncate">{{ p.party_name ?? '—' }}</span>
+              <span class="flex-1 truncate">{{ p.party_name ?? 'â€”' }}</span>
               <span class="text-xs text-muted w-28 shrink-0">{{ METHOD_LABELS[p.payment_method] ?? p.payment_method }}</span>
               <span class="w-32 text-right font-medium">
                 {{ fmtMoney(p.converted_amount ?? p.amount) }}

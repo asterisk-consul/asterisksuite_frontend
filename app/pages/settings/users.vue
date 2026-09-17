@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({
   middleware: ['auth']
 })
@@ -117,7 +117,7 @@ const loadEmployeesAndPartners = async () => {
   }
 }
 
-// ─── Edit User ──────────────────────────────────────
+// â”€â”€â”€ Edit User â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const openEditModal = (user: CompanyUser) => {
   selectedUser.value = user
   editUser.value = { name: user.name || '', email: user.email || '' }
@@ -148,7 +148,7 @@ const saveUser = async () => {
   }
 }
 
-// ─── Change Password ──────────────────────────────
+// â”€â”€â”€ Change Password â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const openPasswordModal = (user: CompanyUser) => {
   selectedUser.value = user
   newPassword.value = ''
@@ -167,21 +167,21 @@ const savePassword = async () => {
       method: 'PATCH',
       body: { company_id: companyId, newPassword: newPassword.value },
     })
-    toast.add({ title: 'Contraseña actualizada', color: 'success' })
+    toast.add({ title: 'ContraseÃ±a actualizada', color: 'success' })
     showPasswordModal.value = false
   } catch (e: any) {
     const data = e?.data?.data || e?.data
     const msg = Array.isArray(data?.message) ? data.message[0] : (data?.message || 'Error')
-    toast.add({ title: 'Error al cambiar contraseña', description: msg, color: 'error', icon: 'i-lucide-alert-circle' })
+    toast.add({ title: 'Error al cambiar contraseÃ±a', description: msg, color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
     changingPassword.value = false
   }
 }
 
-// ─── Link Employee/Partner ──────────────────────────
+// â”€â”€â”€ Link Employee/Partner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const openLinkModal = (user: CompanyUser) => {
   selectedUser.value = user
-  // Pre-seleccionar el tipo según el vínculo que ya tenga el usuario
+  // Pre-seleccionar el tipo segÃºn el vÃ­nculo que ya tenga el usuario
   const hasEmployee = employees.value.some(e => e.user_id === user.id)
   const hasPartner = partners.value.some(p => p.user_id === user.id)
   linkType.value = hasEmployee ? 'existing_employee' : hasPartner ? 'existing_partner' : 'existing_employee'
@@ -189,7 +189,7 @@ const openLinkModal = (user: CompanyUser) => {
   showLinkModal.value = true
 }
 
-// Vínculos existentes del usuario seleccionado
+// VÃ­nculos existentes del usuario seleccionado
 const linkedEmployee = computed(() =>
   selectedUser.value
     ? employees.value.find(e => e.user_id === selectedUser.value!.id) ?? null
@@ -209,9 +209,9 @@ const unlinkEntity = async (type: 'employee' | 'partner') => {
   unlinking.value = type
   try {
     if (type === 'employee' && linkedEmployee.value) {
-      await $fetch(`/api/erp/employees/${linkedEmployee.value.id}/unlink-user`, { method: 'PATCH' })
+      await $fetch(`/api/backend/employees/${linkedEmployee.value.id}/unlink-user`, { method: 'PATCH' })
     } else if (type === 'partner' && linkedPartner.value) {
-      await $fetch(`/api/erp/partners/${linkedPartner.value.id}/unlink-user`, { method: 'PATCH' })
+      await $fetch(`/api/backend/partners/${linkedPartner.value.id}/unlink-user`, { method: 'PATCH' })
     }
     toast.add({ title: type === 'employee' ? 'Empleado desvinculado' : 'Socio desvinculado', color: 'success' })
     await loadEmployeesAndPartners()
@@ -237,12 +237,12 @@ const saveLink = async () => {
   linking.value = true
   try {
     if (linkType.value === 'existing_employee') {
-      await $fetch(`/api/erp/employees/${linkSelectedId.value}/link-user`, {
+      await $fetch(`/api/backend/employees/${linkSelectedId.value}/link-user`, {
         method: 'PATCH',
         body: { user_id: selectedUser.value.id },
       })
     } else {
-      await $fetch(`/api/erp/partners/${linkSelectedId.value}/link-user`, {
+      await $fetch(`/api/backend/partners/${linkSelectedId.value}/link-user`, {
         method: 'PATCH',
         body: { user_id: selectedUser.value.id },
       })
@@ -323,7 +323,7 @@ const openCreateModal = () => {
 
 const goToCreateEmployee = () => {
   if (!newUser.value.name || !newUser.value.email || !newUser.value.password) {
-    toast.add({ title: 'Completá nombre, email y contraseña primero', color: 'warning', icon: 'i-lucide-alert-circle' })
+    toast.add({ title: 'CompletÃ¡ nombre, email y contraseÃ±a primero', color: 'warning', icon: 'i-lucide-alert-circle' })
     return
   }
   localStorage.setItem('pendingUser', JSON.stringify({
@@ -338,7 +338,7 @@ const goToCreateEmployee = () => {
 
 const goToCreatePartner = () => {
   if (!newUser.value.name || !newUser.value.email || !newUser.value.password) {
-    toast.add({ title: 'Completá nombre, email y contraseña primero', color: 'warning', icon: 'i-lucide-alert-circle' })
+    toast.add({ title: 'CompletÃ¡ nombre, email y contraseÃ±a primero', color: 'warning', icon: 'i-lucide-alert-circle' })
     return
   }
   localStorage.setItem('pendingUser', JSON.stringify({
@@ -353,7 +353,7 @@ const goToCreatePartner = () => {
 
 const createUser = async () => {
   if (!newUser.value.name || !newUser.value.email || !newUser.value.password) {
-    toast.add({ title: 'Completá todos los campos', color: 'warning', icon: 'i-lucide-alert-circle' })
+    toast.add({ title: 'CompletÃ¡ todos los campos', color: 'warning', icon: 'i-lucide-alert-circle' })
     return
   }
 
@@ -472,7 +472,7 @@ onMounted(async () => {
                 @click="openEditModal(user)"
               />
             </UTooltip>
-            <UTooltip text="Cambiar la contraseña del usuario">
+            <UTooltip text="Cambiar la contraseÃ±a del usuario">
               <UButton
                 v-if="isOwnerOrAdmin"
                 icon="i-lucide-key"
@@ -517,8 +517,8 @@ onMounted(async () => {
           </p>
 
           <div v-if="roles.length === 0" class="text-sm text-muted py-4 text-center">
-            No hay roles creados. Creá uno desde
-            <NuxtLink to="/settings/roles" class="text-primary underline">Gestión de roles</NuxtLink>
+            No hay roles creados. CreÃ¡ uno desde
+            <NuxtLink to="/settings/roles" class="text-primary underline">GestiÃ³n de roles</NuxtLink>
             .
           </div>
 
@@ -556,8 +556,8 @@ onMounted(async () => {
           <UFormField label="Email" name="email">
             <UInput v-model="newUser.email" placeholder="usuario@empresa.com" type="email" />
           </UFormField>
-          <UFormField label="Contraseña" name="password">
-            <UInput v-model="newUser.password" placeholder="Mínimo 6 caracteres" type="password" />
+          <UFormField label="ContraseÃ±a" name="password">
+            <UInput v-model="newUser.password" placeholder="MÃ­nimo 6 caracteres" type="password" />
           </UFormField>
 
           <UFormField label="Rol" name="role">
@@ -615,10 +615,10 @@ onMounted(async () => {
           <!-- Redirigir a crear empleado -->
           <div v-if="newUser.linkType === 'new_employee'" class="p-4 rounded-lg bg-muted/30 text-center">
             <p class="text-sm text-muted mb-3">
-              Se abrirá el formulario completo de empleados con los datos precargados.
+              Se abrirÃ¡ el formulario completo de empleados con los datos precargados.
             </p>
             <UButton
-              label="Ir a crear empleado →"
+              label="Ir a crear empleado â†’"
               icon="i-lucide-arrow-right"
               color="primary"
               @click="goToCreateEmployee"
@@ -628,10 +628,10 @@ onMounted(async () => {
           <!-- Redirigir a crear socio -->
           <div v-if="newUser.linkType === 'new_partner'" class="p-4 rounded-lg bg-muted/30 text-center">
             <p class="text-sm text-muted mb-3">
-              Se abrirá el formulario completo de socios con los datos precargados.
+              Se abrirÃ¡ el formulario completo de socios con los datos precargados.
             </p>
             <UButton
-              label="Ir a crear socio →"
+              label="Ir a crear socio â†’"
               icon="i-lucide-arrow-right"
               color="primary"
               @click="goToCreatePartner"
@@ -676,21 +676,21 @@ onMounted(async () => {
     </UModal>
 
     <!-- Change Password Modal -->
-    <UModal v-model:open="showPasswordModal" title="Cambiar contraseña" :ui="{ width: 'max-w-lg' }">
+    <UModal v-model:open="showPasswordModal" title="Cambiar contraseÃ±a" :ui="{ width: 'max-w-lg' }">
       <template #body>
         <div class="space-y-4">
           <p class="text-sm text-muted">
-            Cambiar contraseña de <strong>{{ selectedUser?.name || selectedUser?.email }}</strong>
+            Cambiar contraseÃ±a de <strong>{{ selectedUser?.name || selectedUser?.email }}</strong>
           </p>
-          <UFormField label="Nueva contraseña" name="password">
-            <UInput v-model="newPassword" placeholder="Mínimo 6 caracteres" type="password" />
+          <UFormField label="Nueva contraseÃ±a" name="password">
+            <UInput v-model="newPassword" placeholder="MÃ­nimo 6 caracteres" type="password" />
           </UFormField>
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
           <UButton label="Cancelar" variant="ghost" @click="showPasswordModal = false" />
-          <UButton label="Cambiar contraseña" :loading="changingPassword" :disabled="newPassword.length < 6" @click="savePassword" />
+          <UButton label="Cambiar contraseÃ±a" :loading="changingPassword" :disabled="newPassword.length < 6" @click="savePassword" />
         </div>
       </template>
     </UModal>
@@ -703,7 +703,7 @@ onMounted(async () => {
             Vincular <strong>{{ selectedUser?.name || selectedUser?.email }}</strong> a:
           </p>
 
-          <!-- Vínculos existentes -->
+          <!-- VÃ­nculos existentes -->
           <UAlert
             v-if="linkedEmployee || linkedPartner"
             color="info"
@@ -711,7 +711,7 @@ onMounted(async () => {
             icon="i-lucide-link"
           >
             <template #title>
-              <span class="text-sm">Este usuario ya está vinculado a:</span>
+              <span class="text-sm">Este usuario ya estÃ¡ vinculado a:</span>
             </template>
             <template #description>
               <div class="flex flex-wrap gap-2 mt-1">

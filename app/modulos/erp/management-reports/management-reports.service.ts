@@ -1,4 +1,4 @@
-import type { ManagementReportMetadata, ManagementReportResponse, PaymentState, ProgressState, ReportBasis, ReportGroupBy } from './management-reports.types'
+﻿import type { ManagementReportMetadata, ManagementReportResponse, PaymentState, ProgressState, ReportBasis, ReportGroupBy } from './management-reports.types'
 
 export interface ManagementReportQuery {
   basis: ReportBasis
@@ -16,8 +16,8 @@ export interface ManagementReportQuery {
 }
 
 export const useManagementReportsService = () => ({
-  getReport: (query: ManagementReportQuery) => $fetch<ManagementReportResponse>('/api/erp/reports/management', {
+  getReport: (query: ManagementReportQuery) => $fetch<ManagementReportResponse>('/api/backend/reports/management', {
     query
   }),
-  getMetadata: () => $fetch<ManagementReportMetadata>('/api/erp/reports/management/metadata')
+  getMetadata: () => $fetch<ManagementReportMetadata>('/api/backend/reports/management/metadata')
 })

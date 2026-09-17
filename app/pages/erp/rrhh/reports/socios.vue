@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 const router = useRouter()
@@ -10,7 +10,7 @@ const search = ref('')
 
 onMounted(async () => {
   try {
-    partners.value = await $fetch<any[]>('/api/erp/hr/partner-report-options')
+    partners.value = await $fetch<any[]>('/api/backend/hr/partner-report-options')
   } catch (error: any) {
     loadError.value = error?.data?.message || error?.message || 'No se pudo cargar la lista de socios.'
   } finally {
@@ -42,14 +42,14 @@ function openReport(partyId = selectedPartyId.value) {
   <UPage class="space-y-6 px-4">
     <AppPageHeader
       title="Reporte de socios"
-      description="Elegí un socio para consultar sus aportes, retiros y evolución por moneda."
+      description="ElegÃ­ un socio para consultar sus aportes, retiros y evoluciÃ³n por moneda."
     />
 
     <UPageCard variant="subtle" class="max-w-3xl">
       <div class="space-y-4">
         <div>
           <h2 class="font-semibold">Seleccionar socio</h2>
-          <p class="text-sm text-muted mt-1">El reporte mantiene separados los movimientos en pesos y dólares.</p>
+          <p class="text-sm text-muted mt-1">El reporte mantiene separados los movimientos en pesos y dÃ³lares.</p>
         </div>
 
         <div class="flex flex-col sm:flex-row gap-3">
@@ -77,7 +77,7 @@ function openReport(partyId = selectedPartyId.value) {
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <p class="font-medium">Socios activos</p>
-            <p class="text-sm text-muted">También podés abrir el reporte directamente desde esta lista.</p>
+            <p class="text-sm text-muted">TambiÃ©n podÃ©s abrir el reporte directamente desde esta lista.</p>
           </div>
           <UInput v-model="search" icon="i-lucide-search" placeholder="Filtrar socios..." class="sm:w-72" />
         </div>

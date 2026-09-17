@@ -1,10 +1,10 @@
-import type {
+﻿import type {
   Check,
   CreateCheckInput,
   UpdateCheckInput
 } from '~/modulos/erp/checks/types/checks.types'
 
-const urlBase = '/api/erp/checks'
+const urlBase = '/api/backend/checks'
 
 export const useChecksService = () => {
   const findAll = (params?: {

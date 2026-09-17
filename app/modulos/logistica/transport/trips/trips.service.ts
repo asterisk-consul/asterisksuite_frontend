@@ -6,7 +6,7 @@ import type {
 } from '~/modulos/logistica/transport/trips/types/trips.types'
 
 export const useTripsService = () => {
-  const base = '/api/logistica/transport/trips'
+  const base = '/api/backend/transport/trips'
 
   const getAll = () => $fetch<Trip[]>(base)
 

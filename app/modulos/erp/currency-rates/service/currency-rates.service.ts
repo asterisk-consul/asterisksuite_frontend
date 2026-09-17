@@ -1,10 +1,10 @@
-import type {
+﻿import type {
   CurrencyRate,
   CreateCurrencyRateInput,
   UpdateCurrencyRateInput
 } from '~/modulos/erp/currency-rates/types/currency-rates.types'
 
-const urlBase = '/api/erp/currencies-rate'
+const urlBase = '/api/backend/currencies-rate'
 
 export const useCurrencyRatesService = () => {
   const findAll = () => {

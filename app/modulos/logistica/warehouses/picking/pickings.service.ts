@@ -6,13 +6,13 @@ import type {
 
 export const usePickingService = () => {
   const create = (body: CreatePickingInput) =>
-    $fetch<PickingResponse>('/api/logistica/picking', {
+    $fetch<PickingResponse>('/api/backend/picking', {
       method: 'POST',
       body
     })
 
   const transfer = (body: TransferPalletInput) =>
-    $fetch<void>('/api/logistica/picking/transfer', {
+    $fetch<void>('/api/backend/picking/transfer', {
       method: 'PATCH',
       body
     })

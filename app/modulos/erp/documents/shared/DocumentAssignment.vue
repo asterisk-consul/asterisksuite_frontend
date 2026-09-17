@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 
@@ -24,7 +24,7 @@ watch(() => props.documentId, async (id, _, onCleanup) => {
   error.value = false
   loading.value = true
   try {
-    const result = await $fetch<User | null>(`/api/erp/documents/assignment/${id}`)
+    const result = await $fetch<User | null>(`/api/backend/documents/assignment/${id}`)
     if (!stale) current.value = result
   } catch {
     if (!stale) error.value = true
@@ -36,7 +36,7 @@ watch(() => props.documentId, async (id, _, onCleanup) => {
 async function choose() {
   loading.value = true
   try {
-    users.value = await $fetch<User[]>('/api/erp/documents/assignment/users')
+    users.value = await $fetch<User[]>('/api/backend/documents/assignment/users')
     selected.value = current.value?.id
     open.value = true
   } catch {
@@ -48,7 +48,7 @@ async function save() {
   if (!selected.value || saving.value) return
   saving.value = true
   try {
-    current.value = await $fetch<User>(`/api/erp/documents/assignment/${props.documentId}`, {
+    current.value = await $fetch<User>(`/api/backend/documents/assignment/${props.documentId}`, {
       method: 'PATCH', body: { user_id: selected.value }
     })
     error.value = false
@@ -62,11 +62,11 @@ async function save() {
 
 <template>
   <div class="flex flex-wrap items-center gap-3 print:hidden">
-    <span class="text-sm text-muted">Responsable: {{ loading ? 'Cargando…' : error ? 'No se pudo cargar' : current?.name || 'Sin asignar' }}</span>
+    <span class="text-sm text-muted">Responsable: {{ loading ? 'Cargandoâ€¦' : error ? 'No se pudo cargar' : current?.name || 'Sin asignar' }}</span>
     <UButton v-if="canAssign" icon="i-lucide-user-round-pen" variant="soft" size="sm" :loading="loading" @click="choose">
       {{ current ? 'Cambiar responsable' : 'Asignar responsable' }}
     </UButton>
-    <UModal v-model:open="open" title="Asignar responsable" description="Elegí quién debe ocuparse de este documento.">
+    <UModal v-model:open="open" title="Asignar responsable" description="ElegÃ­ quiÃ©n debe ocuparse de este documento.">
       <template #body>
         <UFormField label="Usuario de la empresa">
           <USelectMenu v-model="selected" :items="users" label-key="name" value-key="id" placeholder="Seleccionar usuario" class="w-full" :disabled="saving" />

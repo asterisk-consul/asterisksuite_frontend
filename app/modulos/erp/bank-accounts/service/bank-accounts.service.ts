@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   BankAccount,
   BankAccountMovement,
   BankAccountUserRole,
@@ -6,7 +6,7 @@ import type {
   UpdateBankAccountInput
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 
-const urlBase = '/api/erp/bank-accounts'
+const urlBase = '/api/backend/bank-accounts'
 
 export const useBankAccountsService = () => {
   const findAll = () => {

@@ -1,11 +1,11 @@
-import type {
+﻿import type {
   CurrentAccount,
   CurrentAccountEntry,
   CreateCurrentAccountEntryInput,
   CurrentAccountStatement
 } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 
-const urlBase = '/api/erp/current-accounts'
+const urlBase = '/api/backend/current-accounts'
 
 export const useCurrentAccountsService = () => {
   const addEntry = (data: CreateCurrentAccountEntryInput) => {

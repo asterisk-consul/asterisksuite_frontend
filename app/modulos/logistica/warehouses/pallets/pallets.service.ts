@@ -6,27 +6,27 @@ import type {
 
 export const usePalletsService = () => {
   const getAll = (company_id: string) =>
-    $fetch<Pallet[]>('/api/logistica/warehouse/pallets', {
+    $fetch<Pallet[]>('/api/backend/warehouse/pallets', {
       query: { company_id }
     })
 
   const getById = (id: string) =>
-    $fetch<Pallet>(`/api/logistica/warehouse/pallets/${id}`)
+    $fetch<Pallet>(`/api/backend/warehouse/pallets/${id}`)
 
   const create = (body: CreatePalletInput) =>
-    $fetch<Pallet>('/api/logistica/warehouse/pallets', {
+    $fetch<Pallet>('/api/backend/warehouse/pallets', {
       method: 'POST',
       body
     })
 
   const update = (id: string, body: UpdatePalletInput) =>
-    $fetch<Pallet>(`/api/logistica/warehouse/pallets/${id}`, {
+    $fetch<Pallet>(`/api/backend/warehouse/pallets/${id}`, {
       method: 'PATCH',
       body
     })
 
   const remove = (id: string) =>
-    $fetch<void>(`/api/logistica/warehouse/pallets/${id}`, {
+    $fetch<void>(`/api/backend/warehouse/pallets/${id}`, {
       method: 'DELETE'
     })
 

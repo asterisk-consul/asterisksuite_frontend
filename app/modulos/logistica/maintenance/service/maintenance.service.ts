@@ -34,11 +34,11 @@ import type {
 } from '~/modulos/logistica/maintenance/types/maintenance.types'
 
 export const useMaintenanceService = () => {
-  const ordersBaseUrl = '/api/logistica/maintenance/orders'
-  const tiresBaseUrl = '/api/logistica/maintenance/tires'
-  const plansBaseUrl = '/api/logistica/maintenance/plans'
-  const dashboardBaseUrl = '/api/logistica/maintenance/dashboard'
-  const reportsBaseUrl = '/api/logistica/maintenance/reports'
+  const ordersBaseUrl = '/api/backend/maintenance/orders'
+  const tiresBaseUrl = '/api/backend/maintenance/tires'
+  const plansBaseUrl = '/api/backend/maintenance/plans'
+  const dashboardBaseUrl = '/api/backend/maintenance/dashboard'
+  const reportsBaseUrl = '/api/backend/maintenance/reports'
 
   // ================= ORDERS =================
 

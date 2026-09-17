@@ -5,7 +5,7 @@ import type {
 } from '../types/dispatch-orders.types'
 
 export const useDispatchOrdersService = () => {
-  const urlBase = '/api/logistica/dispatch-orders'
+  const urlBase = '/api/backend/dispatch-orders'
   const fetch = useRequestFetch() // mantiene cookies / auth
 
   const create = (data: CreateDispatchOrderDto) =>

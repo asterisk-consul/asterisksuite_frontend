@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 import { useCompanyRole } from '~/composables/useCompanyRole'
@@ -44,7 +44,7 @@ const documentTypeOptions = computed(() => {
 const fetchSequences = async () => {
   loading.value = true
   try {
-    sequences.value = await $fetch<any[]>('/api/erp/document-sequences')
+    sequences.value = await $fetch<any[]>('/api/backend/document-sequences')
   } catch (e: any) {
     toast.add({ title: 'Error al cargar secuencias', color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
@@ -102,13 +102,13 @@ const handleSubmit = async () => {
       document_type_ids: form.document_type_ids.map((item: any) => typeof item === 'string' ? item : item.value)
     }
     if (editingSequence.value) {
-      await $fetch(`/api/erp/document-sequences/${editingSequence.value.id}`, {
+      await $fetch(`/api/backend/document-sequences/${editingSequence.value.id}`, {
         method: 'PATCH',
         body: payload
       })
       toast.add({ title: 'Secuencia actualizada', color: 'success' })
     } else {
-      await $fetch('/api/erp/document-sequences', {
+      await $fetch('/api/backend/document-sequences', {
         method: 'POST',
         body: payload
       })
@@ -136,7 +136,7 @@ const confirmDelete = (seq: any) => {
 const handleDelete = async () => {
   if (!deletingSequence.value) return
   try {
-    await $fetch(`/api/erp/document-sequences/${deletingSequence.value.id}`, { method: 'DELETE' })
+    await $fetch(`/api/backend/document-sequences/${deletingSequence.value.id}`, { method: 'DELETE' })
     toast.add({ title: 'Secuencia eliminada', color: 'success' })
     deleteModalOpen.value = false
     await fetchSequences()
@@ -153,8 +153,8 @@ function getLinkedDocTypes(seq: any) {
 <template>
   <UPage class="space-y-6 px-4">
     <AppPageHeader
-      title="Secuencias de Numeración"
-      description="Configurar numeración de comprobantes por punto de venta"
+      title="Secuencias de NumeraciÃ³n"
+      description="Configurar numeraciÃ³n de comprobantes por punto de venta"
     >
       <template #links>
         <UButton label="Nueva secuencia" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate" />
@@ -179,10 +179,10 @@ function getLinkedDocTypes(seq: any) {
         <div class="flex items-start justify-between mb-3">
           <div>
             <p class="text-sm font-semibold">{{ seq.name }}</p>
-            <p class="text-xs text-muted">PV: {{ seq.point_of_sale }} | Prefijo: {{ seq.prefix || '—' }}</p>
+            <p class="text-xs text-muted">PV: {{ seq.point_of_sale }} | Prefijo: {{ seq.prefix || 'â€”' }}</p>
           </div>
           <UBadge
-            :label="seq.automatic ? 'Automática' : 'Manual'"
+            :label="seq.automatic ? 'AutomÃ¡tica' : 'Manual'"
             :color="seq.automatic ? 'success' : 'neutral'"
             variant="soft"
             size="xs"
@@ -192,7 +192,7 @@ function getLinkedDocTypes(seq: any) {
         <div class="grid grid-cols-3 gap-3 mb-3">
           <div class="text-center p-2 rounded bg-muted/30">
             <p class="text-xs text-muted">Inicio</p>
-            <p class="text-sm font-semibold">{{ seq.range_start || '—' }}</p>
+            <p class="text-sm font-semibold">{{ seq.range_start || 'â€”' }}</p>
           </div>
           <div class="text-center p-2 rounded bg-muted/30">
             <p class="text-xs text-muted">Actual</p>
@@ -200,7 +200,7 @@ function getLinkedDocTypes(seq: any) {
           </div>
           <div class="text-center p-2 rounded bg-muted/30">
             <p class="text-xs text-muted">Fin</p>
-            <p class="text-sm font-semibold">{{ seq.range_end || '—' }}</p>
+            <p class="text-sm font-semibold">{{ seq.range_end || 'â€”' }}</p>
           </div>
         </div>
 
@@ -252,7 +252,7 @@ function getLinkedDocTypes(seq: any) {
               <UInput v-model.number="form.range_end" type="number" />
             </UFormField>
           </div>
-          <UCheckbox v-model="form.automatic" label="Numeración automática" />
+          <UCheckbox v-model="form.automatic" label="NumeraciÃ³n automÃ¡tica" />
           <UFormField label="Tipos de documento asociados" name="document_type_ids">
             <USelectMenu
               v-model="form.document_type_ids"
@@ -274,7 +274,7 @@ function getLinkedDocTypes(seq: any) {
     <UModal v-model:open="deleteModalOpen" title="Eliminar secuencia">
       <template #body>
         <p>
-          ¿Estás seguro de que deseas eliminar la secuencia
+          Â¿EstÃ¡s seguro de que deseas eliminar la secuencia
           <strong>{{ deletingSequence?.name }}</strong>
           ?
         </p>

@@ -4,7 +4,7 @@ import type {
   ApproveRenditionInput
 } from '~/modulos/erp/cash-box-renditions/types/cash-box-renditions.types'
 
-const urlBase = '/api/logistica/cash-box-renditions'
+const urlBase = '/api/backend/cash-box-renditions'
 
 export const useCashBoxRenditionsService = () => {
   const findAll = (params?: { cash_box_id?: string }) => {

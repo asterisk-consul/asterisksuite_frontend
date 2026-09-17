@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
 import { formatDate } from '~/utils/dates'
 
@@ -46,12 +46,12 @@ const taxTypeOptions = ['GANANCIAS', 'IIBB', 'SUSS', 'IVA']
 const columns = [
   { accessorKey: 'date', header: 'Fecha' },
   { accessorKey: 'party', header: 'Tercero' },
-  { accessorKey: 'direction', header: 'Dirección' },
+  { accessorKey: 'direction', header: 'DirecciÃ³n' },
   { accessorKey: 'tax_type', header: 'Impuesto' },
-  { accessorKey: 'jurisdiction', header: 'Jurisdicción' },
+  { accessorKey: 'jurisdiction', header: 'JurisdicciÃ³n' },
   { accessorKey: 'base_amount', header: 'Base' },
-  { accessorKey: 'rate', header: 'Alíc.' },
-  { accessorKey: 'withheld_amount', header: 'Retención' },
+  { accessorKey: 'rate', header: 'AlÃ­c.' },
+  { accessorKey: 'withheld_amount', header: 'RetenciÃ³n' },
   { accessorKey: 'certificate_number', header: 'Certificado' },
   { accessorKey: 'status', header: 'Estado' }
 ]
@@ -69,7 +69,7 @@ const fetchWithholdings = async () => {
     if (filters.tax_type) query.tax_type = filters.tax_type
     if (filters.date_from) query.date_from = filters.date_from
     if (filters.date_to) query.date_to = filters.date_to
-    const res = await $fetch<{ items: WithholdingRow[]; total_withheld: number }>('/api/erp/fiscal/withholdings', { query })
+    const res = await $fetch<{ items: WithholdingRow[]; total_withheld: number }>('/api/backend/fiscal/withholdings', { query })
     items.value = res.items
     totalWithheld.value = res.total_withheld
   } catch (e: any) {
@@ -88,7 +88,7 @@ onMounted(fetchWithholdings)
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold">Retenciones</h1>
-        <p class="text-sm text-muted">Histórico de retenciones practicadas y sufridas</p>
+        <p class="text-sm text-muted">HistÃ³rico de retenciones practicadas y sufridas</p>
       </div>
       <UBadge :label="`Total: ${formatCurrency(totalWithheld)}`" color="primary" size="lg" variant="subtle" />
     </div>
@@ -100,7 +100,7 @@ onMounted(fetchWithholdings)
           v-model="filters.direction"
           :items="directionOptions"
           value-key="value"
-          placeholder="Dirección"
+          placeholder="DirecciÃ³n"
         />
         <USelectMenu
           v-model="filters.tax_type"
@@ -117,7 +117,7 @@ onMounted(fetchWithholdings)
 
     <!-- Tabla -->
     <UCard>
-      <div v-if="loading" class="text-center py-8 text-muted">Cargando…</div>
+      <div v-if="loading" class="text-center py-8 text-muted">Cargandoâ€¦</div>
       <div v-else-if="items.length === 0" class="text-center py-8 text-muted text-sm">
         Sin retenciones registradas con estos filtros.
       </div>
@@ -127,7 +127,7 @@ onMounted(fetchWithholdings)
         </template>
         <template #party-cell="{ row }">
           <div>
-            <div class="font-medium">{{ row.original.business_party?.name ?? '—' }}</div>
+            <div class="font-medium">{{ row.original.business_party?.name ?? 'â€”' }}</div>
             <div class="text-xs text-muted">{{ row.original.business_party?.tax_id ?? '' }}</div>
           </div>
         </template>
@@ -143,19 +143,19 @@ onMounted(fetchWithholdings)
           {{ row.original.tax_type }}
         </template>
         <template #jurisdiction-cell="{ row }">
-          {{ row.original.jurisdiction?.name ?? '—' }}
+          {{ row.original.jurisdiction?.name ?? 'â€”' }}
         </template>
         <template #base_amount-cell="{ row }">
           {{ formatCurrency(row.original.base_amount) }}
         </template>
         <template #rate-cell="{ row }">
-          {{ row.original.rate != null ? `${Number(row.original.rate)}%` : '—' }}
+          {{ row.original.rate != null ? `${Number(row.original.rate)}%` : 'â€”' }}
         </template>
         <template #withheld_amount-cell="{ row }">
           <span class="font-medium">{{ formatCurrency(row.original.withheld_amount) }}</span>
         </template>
         <template #certificate_number-cell="{ row }">
-          {{ row.original.certificate_number ?? '—' }}
+          {{ row.original.certificate_number ?? 'â€”' }}
         </template>
         <template #status-cell="{ row }">
           <UBadge

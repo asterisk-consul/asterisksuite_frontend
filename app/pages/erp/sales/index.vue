@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
@@ -8,7 +8,7 @@ import GenerateFromTripsModal from '~/components/sales/GenerateFromTripsModal.vu
 import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 
-// ─── Store ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const documentsSalesStore = useDocumentsSalesStore()
 const router = useRouter()
 const toast = useToast()
@@ -18,11 +18,11 @@ const documents = computed(() => documentsSalesStore.items)
 const pending = computed(() => documentsSalesStore.loading)
 const error = computed(() => documentsSalesStore.error)
 
-// ─── Tipos de documento (para enabled_statuses) ─────────────────────────────
+// â”€â”€â”€ Tipos de documento (para enabled_statuses) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const docTypes = ref<any[]>([])
 onMounted(async () => {
   try {
-    docTypes.value = await $fetch<any[]>('/api/erp/documents/documents-types')
+    docTypes.value = await $fetch<any[]>('/api/backend/documents/documents-types')
   } catch { /* ignore */ }
 })
 
@@ -33,7 +33,7 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
   return allEnabled.length > 0 ? [...new Set(allEnabled)] : null
 }
 
-// ─── Filtros ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Filtros â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const categoryFilter = ref<string | undefined>(undefined)
 const statusFilter = ref<number | undefined>(undefined)
 const generateResult = ref<{ total_trips: number; results: any[] } | null>(null)
@@ -56,7 +56,7 @@ watch(categoryFilter, () => {
 
 watch(statusFilter, () => refresh())
 
-// ─── Filtros de categoría ─────────────────────────────────────────────────────
+// â”€â”€â”€ Filtros de categorÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SALES_CATEGORIES = ['QUOTE', 'ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
 
 const categoryOptions = computed(() => {
@@ -87,14 +87,14 @@ const STATUS_TEXT_CLASSES: Record<string, string> = {
 
 const statusTextClass = (color: string) => STATUS_TEXT_CLASSES[color] ?? 'text-muted'
 
-// ─── Filtros de estado (según categoría) ─────────────────────────────────────
+// â”€â”€â”€ Filtros de estado (segÃºn categorÃ­a) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const statusOptions = computed(() =>
   categoryFilter.value
     ? getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
     : []
 )
 
-// ─── Estadísticas ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ EstadÃ­sticas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const stats = computed(() => {
   const docs = documents.value ?? []
   if (categoryFilter.value) {
@@ -121,12 +121,12 @@ const stats = computed(() => {
   }
 })
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
 }
 
-// ─── Acciones ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Acciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function openDocument(row: any) {
   router.push(`/erp/sales/${row.id}`)
 }
@@ -138,7 +138,7 @@ async function onGenerateSaved() {
 async function deleteDrafts(rows: any[]) {
   const unauthorized = rows.filter(row => !canDocument('sales', row.document_types?.category, 'delete'))
   if (unauthorized.length) {
-    toast.add({ title: 'No tenés permiso para eliminar uno o más tipos de documento', color: 'warning' })
+    toast.add({ title: 'No tenÃ©s permiso para eliminar uno o mÃ¡s tipos de documento', color: 'warning' })
     return
   }
   const drafts = rows.filter(row => row.status === 0)
@@ -155,17 +155,17 @@ async function deleteDrafts(rows: any[]) {
   }
 }
 
-// ─── Columnas ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Columnas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const columns = createSalesColumns({ onOpen: openDocument })
 
 const filterFields = [
-  { id: 'number', label: 'Buscar por N°...' },
+  { id: 'number', label: 'Buscar por NÂ°...' },
   { id: 'client', label: 'Buscar por cliente...' },
-  { id: 'descrip', label: 'Buscar por descripción...' }
+  { id: 'descrip', label: 'Buscar por descripciÃ³n...' }
 ]
 
 const sortFields = [
-  { label: 'N°', value: 'number' },
+  { label: 'NÂ°', value: 'number' },
   { label: 'Fecha', value: 'date' },
   { label: 'Cliente', value: 'client' },
   { label: 'Total', value: 'total' }
@@ -175,7 +175,7 @@ const sortFields = [
 
 <template>
   <UPage class="space-y-4">
-    <AppPageHeader title="Comprobantes de venta" description="Gestión de documentos de venta">
+    <AppPageHeader title="Comprobantes de venta" description="GestiÃ³n de documentos de venta">
       <template #links>
         <UButton
           v-if="canDocument('sales', 'INVOICE', 'create')"
@@ -193,13 +193,13 @@ const sortFields = [
     </AppPageHeader>
 
     <div class="p-4 space-y-5">
-      <!-- Resultado de generación -->
+      <!-- Resultado de generaciÃ³n -->
       <UAlert
         v-if="generateResult"
         color="success"
         variant="subtle"
         icon="i-lucide-check-circle"
-        :title="`Generados: ${generateResult.results.reduce((a, r) => a + r.created, 0)} — Existentes: ${generateResult.results.reduce((a, r) => a + r.skipped, 0)}`"
+        :title="`Generados: ${generateResult.results.reduce((a, r) => a + r.created, 0)} â€” Existentes: ${generateResult.results.reduce((a, r) => a + r.skipped, 0)}`"
         closable
         @close="generateResult = null"
       />
@@ -212,7 +212,7 @@ const sortFields = [
         title="Error al cargar documentos"
       />
 
-      <!-- Estadísticas -->
+      <!-- EstadÃ­sticas -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <template v-if="categoryFilter">
           <UPageCard
@@ -247,7 +247,7 @@ const sortFields = [
         </template>
       </div>
 
-      <!-- Filtro por categoría -->
+      <!-- Filtro por categorÃ­a -->
       <div class="flex gap-2 flex-wrap">
         <UButton
           v-for="opt in categoryOptions"
@@ -260,7 +260,7 @@ const sortFields = [
         />
       </div>
 
-      <!-- Filtro por estado (solo con categoría seleccionada) -->
+      <!-- Filtro por estado (solo con categorÃ­a seleccionada) -->
       <div v-if="categoryFilter" class="flex gap-2 flex-wrap">
         <UButton
           :variant="statusFilter === undefined ? 'solid' : 'ghost'"

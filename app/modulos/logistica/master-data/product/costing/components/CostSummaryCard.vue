@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 
 const props = defineProps<{
@@ -22,7 +22,7 @@ onMounted(async () => {
 // USelectMenu v-model: guarda el objeto {label, value}
 const targetCurrencyOption = ref<{ label: string; value: string } | null>(null)
 
-// UUID string extraído del objeto
+// UUID string extraÃ­do del objeto
 const resolvedCurrencyId = computed(() => targetCurrencyOption.value?.value ?? '')
 
 const conversionRate = ref<number | null>(null)
@@ -93,17 +93,17 @@ watch(resolvedCurrencyId, async (id) => {
 
   converting.value = true
   try {
-    const result = await $fetch<{ converted_amount: number }>('/api/erp/pricing/exchange/convert', {
+    const result = await $fetch<{ converted_amount: number }>('/api/backend/pricing/exchange/convert', {
       method: 'GET',
       query: { amount: 1, from: props.originalCurrencyCode, to: tc.code }
     })
     conversionRate.value = result.converted_amount
   } catch (err: any) {
     conversionRate.value = null
-    const msg = err?.data?.message || err?.message || 'No existe cotización'
+    const msg = err?.data?.message || err?.message || 'No existe cotizaciÃ³n'
     toast.add({
-      title: 'Sin cotización',
-      description: `No se pudo convertir ${props.originalCurrencyCode} → ${tc.code}: ${msg}`,
+      title: 'Sin cotizaciÃ³n',
+      description: `No se pudo convertir ${props.originalCurrencyCode} â†’ ${tc.code}: ${msg}`,
       color: 'warning'
     })
   } finally {

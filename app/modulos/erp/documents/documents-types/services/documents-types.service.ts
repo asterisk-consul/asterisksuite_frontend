@@ -1,11 +1,11 @@
-import type {
+﻿import type {
   DocumentsType,
   CreateDocumentsTypeDto,
   UpdateDocumentsTypeDto
 } from '~/modulos/erp/documents/documents-types/types/documents-types.types'
 
 export const useDocumentsTypesService = () => {
-  const urlBase = '/api/erp/documents/documents-types'
+  const urlBase = '/api/backend/documents/documents-types'
 
   const fetch = useRequestFetch()
 

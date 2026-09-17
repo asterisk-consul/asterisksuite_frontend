@@ -10,7 +10,7 @@ import type {
   ForceCloseSessionInput
 } from '~/modulos/erp/cash-boxes/types/cash-boxes.types'
 
-const urlBase = '/api/logistica/cash-boxes'
+const urlBase = '/api/backend/cash-boxes'
 
 export const useCashBoxesService = () => {
   const findAll = () => {

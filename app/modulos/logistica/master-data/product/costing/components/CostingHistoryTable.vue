@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import { useCosting } from '../composables/useCosting'
@@ -29,7 +29,7 @@ const COST_SOURCE_COLORS: Record<string, string> = {
   RATE: 'orange'
 }
 
-// Conversión a moneda destino
+// ConversiÃ³n a moneda destino
 const conversionCache = new Map<string, number>()
 
 const convertCurrency = async (amount: number, fromCode: string, toCode: string): Promise<number | null> => {
@@ -39,7 +39,7 @@ const convertCurrency = async (amount: number, fromCode: string, toCode: string)
   if (conversionCache.has(cacheKey)) return conversionCache.get(cacheKey)!
 
   try {
-    const result = await $fetch<{ converted_amount: number }>('/api/erp/pricing/exchange/convert', {
+    const result = await $fetch<{ converted_amount: number }>('/api/backend/pricing/exchange/convert', {
       method: 'GET',
       query: { amount, from: fromCode, to: toCode }
     })
@@ -58,7 +58,7 @@ const targetCurrency = computed(() =>
 const snapshotConversions = ref<Record<string, string>>({})
 
 const getConvertedTotal = (row: CostHistoryRow) => {
-  return snapshotConversions.value[row.id] ?? '—'
+  return snapshotConversions.value[row.id] ?? 'â€”'
 }
 
 const recalculateConversions = async () => {
@@ -87,7 +87,7 @@ watch(
   { immediate: true }
 )
 
-// El backend ya devuelve breakdowns anidados (solo raíces con children)
+// El backend ya devuelve breakdowns anidados (solo raÃ­ces con children)
 const tableData = computed(() =>
   (history.value ?? []).map((item) => ({
     ...item,
@@ -130,7 +130,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
   },
   {
     id: 'version_or_component',
-    header: 'Versión / Componente',
+    header: 'VersiÃ³n / Componente',
     cell: ({ row }) => {
       const original = row.original as any
 
@@ -147,7 +147,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
               isSemiFinished(original)
                 ? h(UBadge, { label: 'Conjunto', color: 'warning', variant: 'subtle', size: 'xs' })
                 : h(UBadge, { label: 'Material', color: 'info', variant: 'subtle', size: 'xs' }),
-              h('span', { class: 'text-sm font-medium' }, original.component_product?.name ?? '—')
+              h('span', { class: 'text-sm font-medium' }, original.component_product?.name ?? 'â€”')
             ]),
             original.component_product?.sku
               ? h('span', { class: 'text-xs text-muted font-mono' }, original.component_product.sku)
@@ -159,7 +159,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
         )
       }
 
-      // Fila raíz (snapshot)
+      // Fila raÃ­z (snapshot)
       return h('div', { class: 'flex flex-col gap-0.5' }, [
         h('div', { class: 'flex items-center gap-2' }, [
           h('span', { class: 'font-semibold' }, `v${original.version}`),
@@ -180,7 +180,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
         return h(
           'span',
           { class: 'text-sm text-muted' },
-          `× ${Number(original.quantity).toLocaleString('es-AR', { maximumFractionDigits: 3 })}`
+          `Ã— ${Number(original.quantity).toLocaleString('es-AR', { maximumFractionDigits: 3 })}`
         )
       }
       return h(UBadge, {
@@ -199,7 +199,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
       const original = row.original as any
       if (isBreakdown(original)) {
         // Semi-terminados no tienen costo unitario propio
-        if (isSemiFinished(original)) return h('span', { class: 'text-muted text-sm' }, '—')
+        if (isSemiFinished(original)) return h('span', { class: 'text-muted text-sm' }, 'â€”')
         return h('span', { class: 'text-sm tabular-nums' }, formatCurrency(original.unit_cost))
       }
       return h('span', { class: 'tabular-nums' }, formatCurrency(original.material_cost))
@@ -211,7 +211,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
     meta: { class: { th: 'text-right', td: 'text-right' } },
     cell: ({ row }) => {
       const original = row.original as any
-      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, '—')
+      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, 'â€”')
       return h('span', { class: 'tabular-nums' }, formatCurrency(original.labor_cost))
     }
   },
@@ -221,7 +221,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
     meta: { class: { th: 'text-right', td: 'text-right' } },
     cell: ({ row }) => {
       const original = row.original as any
-      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, '—')
+      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, 'â€”')
       return h('span', { class: 'tabular-nums' }, formatCurrency(original.overhead_cost))
     }
   },
@@ -233,9 +233,9 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
       const original = row.original as any
 
       if (isBreakdown(original)) {
-        // Materia prima: no mostrar total (ya está en el conjunto padre)
+        // Materia prima: no mostrar total (ya estÃ¡ en el conjunto padre)
         if (!isSemiFinished(original)) {
-          return h('span', { class: 'text-muted text-sm' }, '—')
+          return h('span', { class: 'text-muted text-sm' }, 'â€”')
         }
         // Semi-terminado: mostrar su total
         return h(
@@ -245,7 +245,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
         )
       }
 
-      // Snapshot raíz: mostrar total con símbolo de moneda
+      // Snapshot raÃ­z: mostrar total con sÃ­mbolo de moneda
       const symbol = original.currencies?.symbol ?? '$'
       return h('span', { class: 'tabular-nums' }, formatCurrency(original.total_cost, symbol))
     }
@@ -256,10 +256,10 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
     meta: { class: { th: 'text-right', td: 'text-right' } },
     cell: ({ row }) => {
       const original = row.original as any
-      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, '—')
+      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, 'â€”')
 
       const converted = getConvertedTotal(original)
-      if (converted === '—') return h('span', { class: 'text-muted text-xs' }, '—')
+      if (converted === 'â€”') return h('span', { class: 'text-muted text-xs' }, 'â€”')
 
       return h('span', { class: 'text-xs tabular-nums text-muted' }, converted)
     }
@@ -298,7 +298,7 @@ const expanded = ref({})
       }"
     />
     <p v-if="!loading && !tableData.length" class="text-center text-sm text-muted py-8">
-      Sin historial de costos. Calculá el costo para generar el primer registro.
+      Sin historial de costos. CalculÃ¡ el costo para generar el primer registro.
     </p>
   </div>
 </template>

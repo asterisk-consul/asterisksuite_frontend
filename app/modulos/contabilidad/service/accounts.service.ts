@@ -4,7 +4,7 @@ import type {
   UpdateAccountInput
 } from '~/modulos/contabilidad/types/accounts.types'
 
-const urlBase = '/api/contabilidad/accounts'
+const urlBase = '/api/backend/accounts'
 
 export const useAccountsService = () => {
   const findAll = () => {

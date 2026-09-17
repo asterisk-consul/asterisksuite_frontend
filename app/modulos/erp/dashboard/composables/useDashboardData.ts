@@ -1,4 +1,4 @@
-import type { DashboardData, DashboardPersonal } from '../types/dashboard.types'
+﻿import type { DashboardData, DashboardPersonal } from '../types/dashboard.types'
 
 export function useDashboardData() {
   const data = ref<DashboardData | null>(null)
@@ -8,7 +8,7 @@ export function useDashboardData() {
   const fetchData = async () => {
     loading.value = true
     try {
-      data.value = await $fetch<DashboardData>('/api/erp/dashboard/data')
+      data.value = await $fetch<DashboardData>('/api/backend/dashboard/data')
     } catch {
     } finally {
       loading.value = false
@@ -17,7 +17,7 @@ export function useDashboardData() {
 
   const fetchPersonal = async () => {
     try {
-      personal.value = await $fetch<DashboardPersonal>('/api/erp/dashboard/personal')
+      personal.value = await $fetch<DashboardPersonal>('/api/backend/dashboard/personal')
     } catch {
     }
   }

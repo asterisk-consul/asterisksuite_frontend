@@ -141,7 +141,7 @@ const handleTransferAndDelete = async () => {
   transferSaving.value = true
   try {
     // Create transfer between boxes
-    await $fetch('/api/logistica/cash-box-transfers', {
+    await $fetch('/api/backend/cash-box-transfers', {
       method: 'POST',
       body: {
         from_cash_box_id: transferSourceBox.value.id,

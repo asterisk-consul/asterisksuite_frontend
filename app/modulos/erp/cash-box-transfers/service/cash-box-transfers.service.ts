@@ -3,7 +3,7 @@ import type {
   CreateCashBoxTransferInput
 } from '~/modulos/erp/cash-box-transfers/types/cash-box-transfers.types'
 
-const urlBase = '/api/logistica/cash-box-transfers'
+const urlBase = '/api/backend/cash-box-transfers'
 
 export const useCashBoxTransfersService = () => {
   const findAll = (params?: {

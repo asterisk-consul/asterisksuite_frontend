@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   Payment,
   PaymentStatus,
   CreatePaymentInput,
@@ -7,9 +7,9 @@ import type {
   AdvanceAvailable
 } from '~/modulos/erp/payments/types/payments.types'
 
-const urlBase = '/api/erp/payments'
-const urlDocsSales = '/api/erp/documents/sales'
-const urlDocsPurchases = '/api/erp/documents/purchases'
+const urlBase = '/api/backend/payments'
+const urlDocsSales = '/api/backend/documents/sales'
+const urlDocsPurchases = '/api/backend/documents/purchases'
 
 export interface PendingDocument {
   id: string
@@ -99,27 +99,27 @@ export const usePaymentsService = () => {
   }
 
   const findAvailableChecks = () => {
-    return $fetch<AvailableCheck[]>('/api/erp/checks/available', {
+    return $fetch<AvailableCheck[]>('/api/backend/checks/available', {
       method: 'GET'
     })
   }
 
   const findAvailableOwnChecks = () => {
-    return $fetch<AvailableCheck[]>('/api/erp/checks/available', {
+    return $fetch<AvailableCheck[]>('/api/backend/checks/available', {
       method: 'GET',
       query: { is_own: 'true' }
     })
   }
 
   const findAvailableCustomerChecks = () => {
-    return $fetch<AvailableCheck[]>('/api/erp/checks/available', {
+    return $fetch<AvailableCheck[]>('/api/backend/checks/available', {
       method: 'GET',
       query: { is_own: 'false' }
     })
   }
 
   const createLightCheck = (data: CreateCheckInput) => {
-    return $fetch<AvailableCheck>('/api/erp/checks', {
+    return $fetch<AvailableCheck>('/api/backend/checks', {
       method: 'POST',
       body: data
     })

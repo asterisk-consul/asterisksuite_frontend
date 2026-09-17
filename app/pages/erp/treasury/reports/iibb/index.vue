@@ -1,10 +1,10 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 const today = new Date()
 const dateFrom = ref(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`)
 const dateTo = ref(today.toISOString().slice(0, 10))
-const { data, status, refresh } = await useFetch<any>('/api/erp/fiscal/iibb-register', {
+const { data, status, refresh } = await useFetch<any>('/api/backend/fiscal/iibb-register', {
   query: computed(() => ({ date_from: dateFrom.value, date_to: dateTo.value }))
 })
 
@@ -12,7 +12,7 @@ const columns = [
   { accessorKey: 'date', header: 'Fecha' },
   { accessorKey: 'document', header: 'Comprobante' },
   { accessorKey: 'party', header: 'Cliente / proveedor' },
-  { accessorKey: 'jurisdiction', header: 'Jurisdicción' },
+  { accessorKey: 'jurisdiction', header: 'JurisdicciÃ³n' },
   { accessorKey: 'tax', header: 'Impuesto' },
   { accessorKey: 'taxable_base', header: 'Base' },
   { accessorKey: 'tax_amount', header: 'Importe' },
@@ -21,12 +21,12 @@ const columns = [
 const rows = computed(() => (data.value?.items ?? []).map((row: any) => ({
   date: new Date(row.documents.date).toLocaleDateString('es-AR'),
   document: `${row.documents.document_types.code} ${row.documents.number}`,
-  party: row.documents.business_parties?.name ?? '—',
-  jurisdiction: row.jurisdiction?.name ?? 'Sin jurisdicción',
+  party: row.documents.business_parties?.name ?? 'â€”',
+  jurisdiction: row.jurisdiction?.name ?? 'Sin jurisdicciÃ³n',
   tax: row.taxes.name,
   taxable_base: Number(row.taxable_base).toLocaleString('es-AR', { style: 'currency', currency: row.documents.currency_code ?? 'ARS' }),
   tax_amount: Number(row.tax_amount).toLocaleString('es-AR', { style: 'currency', currency: row.documents.currency_code ?? 'ARS' }),
-  origin: row.is_manual ? 'Manual' : 'Automático'
+  origin: row.is_manual ? 'Manual' : 'AutomÃ¡tico'
 })))
 </script>
 

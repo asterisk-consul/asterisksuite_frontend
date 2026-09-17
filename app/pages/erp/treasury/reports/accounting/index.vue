@@ -22,8 +22,8 @@ const fetchData = async () => {
   try {
     // Fetch accounts and movements in parallel
     const [accountsData, movementsData] = await Promise.all([
-      $fetch<any[]>('/api/contabilidad/accounts'),
-      $fetch<any[]>('/api/erp/treasury/movements', {
+      $fetch<any[]>('/api/backend/accounts'),
+      $fetch<any[]>('/api/backend/treasury/movements', {
         query: {
           date_from: dateRange.value.start.toISOString().split('T')[0],
           date_to: dateRange.value.end.toISOString().split('T')[0]
@@ -83,7 +83,7 @@ const handleExportExcel = () => {
     filename: 'reportes_contables',
     sheetName: 'Plan de Cuentas',
     columns: [
-      { key: 'code', label: 'Código', width: 12 },
+      { key: 'code', label: 'CÃ³digo', width: 12 },
       { key: 'name', label: 'Nombre', width: 30 },
       { key: 'account_type', label: 'Tipo', width: 15 },
       { key: 'movement_total', label: 'Total Movimientos', width: 20 }

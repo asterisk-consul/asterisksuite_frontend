@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 
@@ -59,7 +59,7 @@ const emit = defineEmits<{
 
 const toast = useToast()
 
-// ─── Stores ──────────────────────────────────────────
+// â”€â”€â”€ Stores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const selectedBusinessParty = ref<BusinessParty | undefined>(undefined)
 const showBusinessPartiesModal = ref(false)
 const partiesStore = useBusinessPartiesStore()
@@ -73,12 +73,12 @@ const { items: products } = storeToRefs(productsStore)
 const { items: documentsTypes } = storeToRefs(documentsTypesStore)
 const { warehouses } = storeToRefs(depositosStore)
 
-// Filtrar parties por tipo según módulo
+// Filtrar parties por tipo segÃºn mÃ³dulo
 const payablePartyTypes = new Set(['SUPPLIER', 'SERVICE_PROVIDER', 'UTILITY', 'TAX_AUTHORITY', 'FINANCIAL'])
 const partyTypeLabels: Record<string, string> = {
   SUPPLIER: 'Proveedor',
   SERVICE_PROVIDER: 'Proveedor de servicios',
-  UTILITY: 'Servicio público',
+  UTILITY: 'Servicio pÃºblico',
   TAX_AUTHORITY: 'Ente impositivo',
   FINANCIAL: 'Entidad financiera'
 }
@@ -89,11 +89,11 @@ const partyOptions = computed(() => parties.value
   .map(party => ({
     label: props.moduleCode === 'SALES'
       ? party.name
-      : `${party.name} · ${partyTypeLabels[party.type] ?? party.type}${party.tax_id ? ` · ${party.tax_id}` : ''}`,
+      : `${party.name} Â· ${partyTypeLabels[party.type] ?? party.type}${party.tax_id ? ` Â· ${party.tax_id}` : ''}`,
     value: party.id
   })))
 
-// Filtrar productos según módulo (venta/compra)
+// Filtrar productos segÃºn mÃ³dulo (venta/compra)
 const usageFilter = computed(() => {
   if (props.moduleCode === 'SALES') return 'sale' as const
   if (props.moduleCode === 'PURCHASES') return 'purchase' as const
@@ -110,10 +110,10 @@ const {
   convertAmount,
 } = useExchangeRate()
 
-// Usar composable para filtrar tipos de documento por dirección + condición del emisor/receptor
+// Usar composable para filtrar tipos de documento por direcciÃ³n + condiciÃ³n del emisor/receptor
 const moduleCode = computed(() => (props.moduleCode === 'SALES' ? 'SALES' : 'PURCHASES') as 'SALES' | 'PURCHASES')
 
-// ─── Form State ──────────────────────────────────────
+// â”€â”€â”€ Form State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const form = reactive({
   document_type_id: '',
   party_id: '',
@@ -160,7 +160,7 @@ const warehouseOptions = computed(() => {
     .filter(option => Object.entries(requiredByProduct.value).every(([productId, quantity]) =>
       (stockByWarehouse.value[option.value]?.[productId] ?? 0) >= quantity
     ))
-    .map(option => ({ ...option, label: `${option.label} · stock suficiente` }))
+    .map(option => ({ ...option, label: `${option.label} Â· stock suficiente` }))
 })
 
 function warehouseOptionsForItem(item: FacturaItem) {
@@ -171,7 +171,7 @@ function warehouseOptionsForItem(item: FacturaItem) {
       available: stockByWarehouse.value[option.value]?.[item.product_id] ?? 0
     }))
     .filter(option => option.available >= Number(item.quantity || 0))
-    .map(option => ({ ...option, label: `${option.label} · disponible: ${option.available}` }))
+    .map(option => ({ ...option, label: `${option.label} Â· disponible: ${option.available}` }))
 }
 
 function singleWarehouseForProduct(productId: string): string | null {
@@ -189,7 +189,7 @@ const affectsStock = computed(() => {
   return type?.affects_stock === true
 })
 
-// ─── Reference Document (NC/ND → Factura) ────────────
+// â”€â”€â”€ Reference Document (NC/ND â†’ Factura) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const referenceDocumentId = ref<string | undefined>(undefined)
 
 function applyReferenceDocument(doc: any) {
@@ -200,7 +200,7 @@ function applyReferenceDocument(doc: any) {
   form.descrip = doc.descrip ?? ''
   form.ref = doc.ref ?? ''
 
-  // Mapear ítems del documento padre (quantity - quantity_invoiced)
+  // Mapear Ã­tems del documento padre (quantity - quantity_invoiced)
   items.value = (doc.document_items ?? []).map((item: any) => {
     const remainingQty = Number(item.quantity ?? 0) - Number(item.quantity_invoiced ?? 0)
     const subtotal = remainingQty * Number(item.unit_price ?? 0)
@@ -240,7 +240,7 @@ const showReferencePicker = computed(() => {
   return selected?.category === 'CREDIT_NOTE' || selected?.category === 'DEBIT_NOTE'
 })
 
-// ─── Exchange Rate: auto-resolve on currency change ─────────
+// â”€â”€â”€ Exchange Rate: auto-resolve on currency change â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const isForeignCurrency = computed(() => {
   if (!baseCurrency.value) return false
   return form.currency_code.toUpperCase() !== baseCurrency.value.code.toUpperCase()
@@ -285,7 +285,7 @@ const {
 
 const items = ref<FacturaItem[]>([])
 
-// ─── Punto de Venta (Secuencias) ─────────────────────────
+// â”€â”€â”€ Punto de Venta (Secuencias) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const documentSequencesService = useDocumentSequencesService()
 const sequences = ref<DocumentSequence[]>([])
 // Keep only the UUID in the form state. USelectMenu can otherwise return either
@@ -310,7 +310,7 @@ const sequenceOptions = computed(() => {
       if (s.document_types?.length) {
         return s.document_types.some((dtSeq: any) => dtSeq.id === form.document_type_id)
       }
-      // Si no tiene ninguna vinculación, NO mostrar (ya hay tipo doc seleccionado)
+      // Si no tiene ninguna vinculaciÃ³n, NO mostrar (ya hay tipo doc seleccionado)
       return false
     })
     .map(s => ({
@@ -320,10 +320,10 @@ const sequenceOptions = computed(() => {
     }))
 })
 
-// ─── Validación de comprobante ─────────────────────────
+// â”€â”€â”€ ValidaciÃ³n de comprobante â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const documentTypeValidation = ref<string | null>(null)
 
-// ─── Tax Engine Preview ───────────────────────────────
+// â”€â”€â”€ Tax Engine Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const lastPreview = ref<any>(null)
 const partyIibbRegistrations = ref<BusinessPartyIibbRegistration[]>([])
 const iibbPerceptionRules = ref<TaxRule[]>([])
@@ -345,7 +345,7 @@ async function fetchPreview() {
   try {
     const authStore = useAuthStore()
     const currentDocType = documentsTypes.value.find((d) => d.id === form.document_type_id)
-    const result = await $fetch('/api/erp/tax-engine/calculate-preview', {
+    const result = await $fetch('/api/backend/tax-engine/calculate-preview', {
       method: 'POST',
       body: {
         issuerCompanyId: authStore.selectedCompany?.id ?? '',
@@ -366,7 +366,7 @@ async function fetchPreview() {
     })
     lastPreview.value = result
 
-    // Escribir impuestos por línea del backend de vuelta a items
+    // Escribir impuestos por lÃ­nea del backend de vuelta a items
     const previewItems = result.document?.items ?? []
     previewItems.forEach((previewItem: any, idx: number) => {
       if (items.value[idx]) {
@@ -437,8 +437,8 @@ const jurisdictionOptions = computed(() => partyIibbRegistrations.value
   .filter(r => r.is_active && r.jurisdiction_id)
   .map(r => ({
     label: activeIibbJurisdictionIds.value.has(r.jurisdiction_id as string)
-      ? r.jurisdiction?.name ?? 'Jurisdicción IIBB'
-      : `${r.jurisdiction?.name ?? 'Jurisdicción IIBB'} · percepción inactiva`,
+      ? r.jurisdiction?.name ?? 'JurisdicciÃ³n IIBB'
+      : `${r.jurisdiction?.name ?? 'JurisdicciÃ³n IIBB'} Â· percepciÃ³n inactiva`,
     value: r.jurisdiction_id as string,
     disabled: !activeIibbJurisdictionIds.value.has(r.jurisdiction_id as string)
   })))
@@ -482,11 +482,11 @@ watch(
       if (priceRecord) {
         item.unit_price = Number(priceRecord.price ?? 0)
       } else {
-        // No hay precio para esa currency → precio 0
+        // No hay precio para esa currency â†’ precio 0
         item.unit_price = 0
         toast.add({
           title: 'Precio no disponible',
-          description: `El producto "${item.product_name}" no tiene precio en ${newCurrency}. Ingresá el precio manualmente.`,
+          description: `El producto "${item.product_name}" no tiene precio en ${newCurrency}. IngresÃ¡ el precio manualmente.`,
           color: 'warning'
         })
       }
@@ -497,7 +497,7 @@ watch(
   }
 )
 
-// ─── Watch initialValues ──────────────────────────────────
+// â”€â”€â”€ Watch initialValues â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 watch(
   () => props.initialValues,
   (val) => {
@@ -572,8 +572,8 @@ watch(
   { immediate: true, deep: true }
 )
 
-// ─── Auto-select Document Type by Context (categoría) ──
-// ORDER → OV/OC, QUOTE → PRES, REMITO → REM-V/REM-C según dirección del módulo
+// â”€â”€â”€ Auto-select Document Type by Context (categorÃ­a) â”€â”€
+// ORDER â†’ OV/OC, QUOTE â†’ PRES, REMITO â†’ REM-V/REM-C segÃºn direcciÃ³n del mÃ³dulo
 function getContextDocumentTypeCode(): string | null {
   const direction = moduleCode.value === 'SALES' ? 1 : -1
   if (props.category === 'ORDER') return direction === 1 ? 'OV' : 'OC'
@@ -582,11 +582,11 @@ function getContextDocumentTypeCode(): string | null {
   return null
 }
 
-// ─── Auto-select Document Type by VAT Condition ───────
+// â”€â”€â”€ Auto-select Document Type by VAT Condition â”€â”€â”€â”€â”€â”€â”€
 watch(selectedParty, (party) => {
   if (!party || !props.moduleCode) return
 
-  // Comprobantes sin condición IVA (orden, presupuesto, remito): seleccionar por contexto
+  // Comprobantes sin condiciÃ³n IVA (orden, presupuesto, remito): seleccionar por contexto
   const contextCode = getContextDocumentTypeCode()
   if (contextCode) {
     const match = documentsTypes.value.find((d) => d.code?.toUpperCase() === contextCode.toUpperCase())
@@ -601,7 +601,7 @@ watch(selectedParty, (party) => {
 
   const direction = props.moduleCode === 'SALES' ? 'sale' : 'purchase'
 
-  // Obtener condición del emisor desde el store de companies
+  // Obtener condiciÃ³n del emisor desde el store de companies
   const companiesStore = useCompaniesStore()
   const issuerVat = companiesStore.current?.vat_condition ?? null
 
@@ -615,7 +615,7 @@ watch(selectedParty, (party) => {
       : (currentDoc?.category === 'CREDIT_NOTE' || currentDoc?.category === 'DEBIT_NOTE' ? currentDoc.category : null)
 
   if (noteCategory) {
-    // NC/ND: buscar tipo con misma categoría + letra derivada del tipo de factura sugerido
+    // NC/ND: buscar tipo con misma categorÃ­a + letra derivada del tipo de factura sugerido
     const suggestedInvoice = documentsTypes.value.find((d) => {
       if (!d.code) return false
       return d.code.toUpperCase() === suggestedCode.toUpperCase()
@@ -634,7 +634,7 @@ watch(selectedParty, (party) => {
     return
   }
 
-  // Factura: match exacto por código (ej: "FA-A", "FB-A", "FC-A")
+  // Factura: match exacto por cÃ³digo (ej: "FA-A", "FB-A", "FC-A")
   const match = documentsTypes.value.find((d) => {
     if (!d.code) return false
     return d.code.toUpperCase() === suggestedCode.toUpperCase()
@@ -647,7 +647,7 @@ watch(selectedParty, (party) => {
 
 // Recalcular preview cuando cambia el tipo de documento
 watch(() => form.document_type_id, (newId) => {
-  // Validar compatibilidad emisor ↔ comprobante
+  // Validar compatibilidad emisor â†” comprobante
   const selectedDoc = documentsTypes.value.find((d) => d.id === newId)
   if (selectedDoc) {
     const msg = getValidationMessage(selectedDoc.code, selectedDoc.letter_type)
@@ -656,8 +656,8 @@ watch(() => form.document_type_id, (newId) => {
     documentTypeValidation.value = null
   }
 
-  // En alta se propone la primera secuencia. En edición, un documento legado
-  // sin secuencia debe conservarse así hasta que el usuario elija una.
+  // En alta se propone la primera secuencia. En ediciÃ³n, un documento legado
+  // sin secuencia debe conservarse asÃ­ hasta que el usuario elija una.
   if (!props.initialValues?.id && newId && sequenceOptions.value.length > 0) {
     const currentSeqVal = selectedSequenceId.value
     if (!currentSeqVal || !sequenceOptions.value.some(s => s.value === currentSeqVal)) {
@@ -699,13 +699,13 @@ watch(sequences, () => {
   }
 }, { immediate: true })
 
-// Auto-seleccionar tipo de documento por categoría
+// Auto-seleccionar tipo de documento por categorÃ­a
 watch(
   () => [props.category, documentTypeOptions.value],
   () => {
     if (!props.category || !documentTypeOptions.value.length) return
 
-    // Si la categoría tiene un tipo fijo por contexto (ORDER/QUOTE/REMITO), usarlo
+    // Si la categorÃ­a tiene un tipo fijo por contexto (ORDER/QUOTE/REMITO), usarlo
     const contextCode = getContextDocumentTypeCode()
     if (contextCode) {
       const match = documentsTypes.value.find((d) => d.code?.toUpperCase() === contextCode.toUpperCase())
@@ -745,9 +745,9 @@ const partyInfo = computed(() => {
   const p = selectedParty.value
   return {
     name: p.name,
-    tax_id: p.tax_id || '—',
-    vat_condition: p.vat_condition || '—',
-    email: p.email || '—'
+    tax_id: p.tax_id || 'â€”',
+    vat_condition: p.vat_condition || 'â€”',
+    email: p.email || 'â€”'
   }
 })
 
@@ -755,7 +755,7 @@ async function resolvePartyPrice(productId: string, currencyCode = form.currency
   if (!form.party_id || !productId || !currencyCode) return null
 
   try {
-    const result = await $fetch<{ price: number | null }>('/api/erp/pricing/party-prices/resolve', {
+    const result = await $fetch<{ price: number | null }>('/api/backend/pricing/party-prices/resolve', {
       query: {
         productId,
         partyId: form.party_id,
@@ -814,7 +814,7 @@ async function addItem(prod: any) {
   if (partyPrice === null && !matchingPrice && prod.prices?.length > 0) {
     toast.add({
       title: 'Precio no disponible',
-      description: `El producto no tiene precio en ${form.currency_code}. Ingresá el precio manualmente.`,
+      description: `El producto no tiene precio en ${form.currency_code}. IngresÃ¡ el precio manualmente.`,
       color: 'warning'
     })
   }
@@ -853,8 +853,8 @@ function submit() {
     const missingWarehouse = items.value.filter(item => !item.warehouse_id && !form.warehouse_id)
     if (missingWarehouse.length > 0) {
       toast.add({
-        title: 'Falta seleccionar el depósito',
-        description: `Completá el depósito de salida de ${missingWarehouse.length === 1 ? 'este producto' : 'todos los productos'} antes de guardar.`,
+        title: 'Falta seleccionar el depÃ³sito',
+        description: `CompletÃ¡ el depÃ³sito de salida de ${missingWarehouse.length === 1 ? 'este producto' : 'todos los productos'} antes de guardar.`,
         color: 'warning'
       })
       return
@@ -864,12 +864,12 @@ function submit() {
   if (manualIibbAmount.value != null && !manualIibbReason.value.trim()) {
     toast.add({
       title: 'Motivo requerido',
-      description: 'Indicá por qué modificaste el importe automático de IIBB.',
+      description: 'IndicÃ¡ por quÃ© modificaste el importe automÃ¡tico de IIBB.',
       color: 'warning'
     })
     return
   }
-  // Usar el payload del último preview para enviar al backend
+  // Usar el payload del Ãºltimo preview para enviar al backend
   const previewPayload = lastPreview.value?.document
 
   const payload = {
@@ -933,7 +933,7 @@ defineExpose({ submit })
       <template #header>
         <div>
           <h2 class="text-base font-semibold">Datos del comprobante</h2>
-          <p class="mt-1 text-sm text-muted">Seleccioná el tercero y los datos que determinan la numeración y el cálculo fiscal.</p>
+          <p class="mt-1 text-sm text-muted">SeleccionÃ¡ el tercero y los datos que determinan la numeraciÃ³n y el cÃ¡lculo fiscal.</p>
         </div>
       </template>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
@@ -989,7 +989,7 @@ defineExpose({ submit })
             class="w-full min-w-0"
           />
           <p v-if="moduleCode === 'SALES' && items.length > 0 && warehouseOptions.length === 0" class="mt-2 text-sm text-warning">
-            Ningún depósito puede cubrir todos los productos. Activá “Depósito por producto”.
+            NingÃºn depÃ³sito puede cubrir todos los productos. ActivÃ¡ â€œDepÃ³sito por productoâ€.
           </p>
         </UFormField>
 
@@ -1000,8 +1000,8 @@ defineExpose({ submit })
 
       <div v-if="!operationalMode && form.party_id && partyIibbRegistrations.length > 0" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <UFormField
-          label="Jurisdicción / domicilio de la operación"
-          description="Define qué inscripción y alícuota de IIBB se aplican."
+          label="JurisdicciÃ³n / domicilio de la operaciÃ³n"
+          description="Define quÃ© inscripciÃ³n y alÃ­cuota de IIBB se aplican."
         >
           <USelectMenu
             v-model="form.fiscal_jurisdiction_id"
@@ -1017,8 +1017,8 @@ defineExpose({ submit })
           v-if="selectableJurisdictionOptions.length === 0"
           color="warning"
           variant="soft"
-          title="Percepción de IIBB inactiva"
-          description="El tercero tiene inscripción, pero falta habilitar la misma jurisdicción para la empresa o activar su regla de percepción."
+          title="PercepciÃ³n de IIBB inactiva"
+          description="El tercero tiene inscripciÃ³n, pero falta habilitar la misma jurisdicciÃ³n para la empresa o activar su regla de percepciÃ³n."
         />
       </div>
 
@@ -1037,7 +1037,7 @@ defineExpose({ submit })
             class="w-full min-w-0"
           />
         </UFormField>
-        <UFormField label="Cotización" class="min-w-0">
+        <UFormField label="CotizaciÃ³n" class="min-w-0">
           <UInput
             v-model.number="form.exchange_rate"
             type="number"
@@ -1057,28 +1057,28 @@ defineExpose({ submit })
       </div>
 
       <UFormField label="Referencia" class="mt-4 min-w-0">
-        <UInput v-model="form.descrip" placeholder="Referencia u observación breve (opcional)" class="w-full min-w-0" />
+        <UInput v-model="form.descrip" placeholder="Referencia u observaciÃ³n breve (opcional)" class="w-full min-w-0" />
       </UFormField>
 
       <div v-if="affectsStock && moduleCode !== 'SALES'" class="mt-4 rounded-lg border border-default bg-muted/30 p-4 space-y-3">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p class="font-medium">Movimiento de stock</p>
-            <p class="text-sm text-muted">Se aplicará recién cuando confirmes el remito.</p>
+            <p class="text-sm text-muted">Se aplicarÃ¡ reciÃ©n cuando confirmes el remito.</p>
           </div>
-          <USwitch v-model="advancedWarehouseAssignment" label="Depósito por producto" />
+          <USwitch v-model="advancedWarehouseAssignment" label="DepÃ³sito por producto" />
         </div>
-        <UFormField v-if="moduleCode !== 'SALES'" :label="moduleCode === 'SALES' ? 'Depósito de salida' : 'Depósito receptor'" required>
+        <UFormField v-if="moduleCode !== 'SALES'" :label="moduleCode === 'SALES' ? 'DepÃ³sito de salida' : 'DepÃ³sito receptor'" required>
           <USelect
             v-model="form.warehouse_id"
             :items="warehouseOptions"
-            placeholder="Seleccionar depósito"
+            placeholder="Seleccionar depÃ³sito"
             class="w-full md:max-w-md"
           />
         </UFormField>
       </div>
 
-      <!-- Validación de comprobante -->
+      <!-- ValidaciÃ³n de comprobante -->
       <div v-if="documentTypeValidation" class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
         {{ documentTypeValidation }}
       </div>
@@ -1093,7 +1093,7 @@ defineExpose({ submit })
           <span class="text-gray-500">IVA: </span>
           <span>{{ partyInfo.vat_condition }}</span>
         </div>
-        <div v-if="partyInfo.email !== '—'">
+        <div v-if="partyInfo.email !== 'â€”'">
           <span class="text-gray-500">Email: </span>
           <span>{{ partyInfo.email }}</span>
         </div>
@@ -1116,7 +1116,7 @@ defineExpose({ submit })
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 class="text-base font-semibold">Detalle de productos</h2>
-            <p class="mt-1 text-sm text-muted">{{ operationalMode ? 'Indicá las cantidades y el depósito desde el que sale cada producto.' : 'La bonificación se aplica sobre cada artículo antes de calcular IVA e IIBB.' }}</p>
+            <p class="mt-1 text-sm text-muted">{{ operationalMode ? 'IndicÃ¡ las cantidades y el depÃ³sito desde el que sale cada producto.' : 'La bonificaciÃ³n se aplica sobre cada artÃ­culo antes de calcular IVA e IIBB.' }}</p>
           </div>
           <UBadge color="neutral" variant="soft">
             {{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}
@@ -1147,7 +1147,7 @@ defineExpose({ submit })
               <p class="text-sm font-medium">{{ automaticIibbTax.name }}</p>
               <p class="text-xs text-muted">
                 {{ Number(manualIibbAmount ?? automaticIibbTax.amount).toLocaleString('es-AR', { style: 'currency', currency: form.currency_code }) }}
-                · {{ automaticIibbTax.rate }}%
+                Â· {{ automaticIibbTax.rate }}%
               </p>
             </div>
             <span class="flex items-center gap-1 text-xs font-medium text-primary">
@@ -1156,7 +1156,7 @@ defineExpose({ submit })
             </span>
           </summary>
           <div class="mt-3 grid grid-cols-1 gap-3 border-t border-default pt-3 md:grid-cols-2">
-              <UFormField label="Importe IIBB" description="Podés corregir el cálculo automático.">
+              <UFormField label="Importe IIBB" description="PodÃ©s corregir el cÃ¡lculo automÃ¡tico.">
                 <UInput
                   :model-value="manualIibbAmount ?? automaticIibbTax.amount"
                   type="number"
@@ -1167,11 +1167,11 @@ defineExpose({ submit })
                 />
               </UFormField>
               <UFormField v-if="manualIibbAmount != null" label="Motivo del ajuste">
-                <UInput v-model="manualIibbReason" placeholder="Ej.: alícuota informada por padrón" class="w-full" />
+                <UInput v-model="manualIibbReason" placeholder="Ej.: alÃ­cuota informada por padrÃ³n" class="w-full" />
               </UFormField>
               <div v-if="manualIibbAmount != null" class="md:col-span-2">
                 <UButton
-                  label="Restaurar cálculo automático"
+                  label="Restaurar cÃ¡lculo automÃ¡tico"
                   size="xs"
                   variant="ghost"
                   @click="manualIibbAmount = null; manualIibbReason = ''"

@@ -15,7 +15,7 @@ RUN echo "NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE" && \
     echo "NUXT_API_BASE=$NUXT_API_BASE"
 
 # Heap configurable del build (subir vía --build-arg NODE_MEMORY=8192 si hiciera falta)
-ARG NODE_MEMORY=6144
+ARG NODE_MEMORY=4096
 ENV NODE_OPTIONS="--max-old-space-size=${NODE_MEMORY}"
 ENV CI=true
 

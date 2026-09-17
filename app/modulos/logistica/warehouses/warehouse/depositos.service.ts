@@ -5,7 +5,7 @@ import type {
 } from '~/modulos/logistica/warehouses/warehouse/warehouse.types' // services/warehouse.service.ts
 
 export const useDepositosService = () => {
-  const urlBase = '/api/logistica/warehouse/warehouses'
+  const urlBase = '/api/backend/warehouse/warehouses'
   const getAll = () => $fetch<Warehouse[]>(`${urlBase}`)
 
   const getById = (id: string) => $fetch<Warehouse>(`${urlBase}/${id}`)

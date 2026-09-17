@@ -5,7 +5,7 @@ import type {
 } from '~/modulos/logistica/master-data/product/engineering/types/engineering.types'
 
 // engineering/services/engineering.service.ts
-const urlBase = '/api/logistica/master-data/engineering'
+const urlBase = '/api/backend/master-data/engineering'
 
 export const useEngineeringService = () => {
   const getTree = (productId: string) => $fetch<EngineeringTreeNode[]>(`${urlBase}/${productId}/tree`)
