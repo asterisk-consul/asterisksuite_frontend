@@ -1,5 +1,62 @@
 [
   {
+    "version": "0.53.0-alpha",
+    "date": "2026-09-18",
+    "stage": "alpha",
+    "notes": "Optimización del consumo de memoria del backend y del almacenamiento de imágenes y documentos.",
+    "changes": [
+      {
+        "type": "perf",
+        "scope": "backend",
+        "title": "PrismaService ahora se comparte como una única instancia global para evitar conexiones y memoria duplicadas entre módulos"
+      },
+      {
+        "type": "perf",
+        "scope": "api-docs",
+        "title": "Swagger y Scalar se cargan únicamente cuando la documentación de la API está habilitada"
+      },
+      {
+        "type": "feat",
+        "scope": "media",
+        "title": "Las imágenes y documentos se deduplican por hash dentro de cada empresa para evitar copias físicas repetidas"
+      },
+      {
+        "type": "perf",
+        "scope": "media",
+        "title": "Las imágenes nuevas conservan original, vista mediana y miniatura, eliminando la variante redundante de tamaño completo"
+      },
+      {
+        "type": "feat",
+        "scope": "media",
+        "title": "Los archivos sin referencias se programan para eliminación con un período de retención configurable"
+      },
+      {
+        "type": "feat",
+        "scope": "media",
+        "title": "Se incorporó una cuota opcional por empresa y una consulta del uso de almacenamiento"
+      },
+      {
+        "type": "refactor",
+        "scope": "media",
+        "title": "Los archivos nuevos se organizan por empresa y las vistas previas utilizan la versión mediana optimizada"
+      },
+      {
+        "type": "chore",
+        "scope": "docker",
+        "title": "Los archivos subidos quedan fuera de Git y de las imágenes Docker para utilizar almacenamiento persistente"
+      },
+      {
+        "type": "docs",
+        "scope": "fiscal",
+        "title": "Se documentó el plan para registrar vencimientos fiscales en remitos y configurar sus alertas"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Backend optimizado y almacenamiento de archivos deduplicado"
+  },
+  {
     "version": "0.52.0-alpha",
     "date": "2026-09-16",
     "stage": "alpha",

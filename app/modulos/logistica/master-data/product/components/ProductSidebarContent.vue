@@ -39,7 +39,7 @@ async function loadPhotos() {
         id: p.id,
         photo_type: p.photo_type,
         file_id: fileId,
-        url: p.url || `/uploads/products/${fileId}_full.webp`,
+        url: p.medium_url || p.url || `/api/media/files/${fileId}/medium`,
         thumb_url: p.thumb_url || `/uploads/products/${fileId}_thumb.webp`,
         medium_url: p.medium_url || `/uploads/products/${fileId}_medium.webp`,
         file_name: p.file_name || p.files?.file_name,
