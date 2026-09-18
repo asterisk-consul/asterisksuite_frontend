@@ -80,6 +80,7 @@ export interface CreateCurrentAccountEntryInput {
   currency_code: string
   type: AccountEntryType
   amount: number
+  balance_effect?: 'INCREASE' | 'DECREASE'
   exchange_rate?: number
   rate_type?: string
   description?: string

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
-import { resolveSide } from '~/modulos/erp/current-accounts/utils'
-import { isReceivable, balanceChartColor, balanceChartAreaColor, entryChartColor } from '~/modulos/erp/current-accounts/balance-utils'
+import { resolveEntrySide } from '~/modulos/erp/current-accounts/utils'
+import { balanceChartColor, balanceChartAreaColor, entryChartColor } from '~/modulos/erp/current-accounts/balance-utils'
 
 const props = defineProps<{
   entries: any[]
@@ -54,7 +54,7 @@ const balanceChartData = computed(() => {
       ? replacementByDocument.value.get(e.reference_id) ?? 0
       : 0
     const visibleAmount = Math.max(0, amount - replacement)
-    runningBalance += resolveSide(e.type, props.partyType) === 'debit' ? visibleAmount : -visibleAmount
+    runningBalance += resolveEntrySide(e, props.partyType) === 'debit' ? visibleAmount : -visibleAmount
     dates.push(e.date?.split('T')[0] ?? '')
     values.push(runningBalance)
   }
@@ -135,32 +135,48 @@ const entryTypePieData = computed(() => {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
     <!-- Gráfico de evolución -->
-    <UCard>
+    <UPageCard variant="subtle" class="overflow-hidden">
       <template #header>
-        <p class="text-sm font-medium">Evolución del saldo</p>
+        <div class="flex items-center gap-3">
+          <div class="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <UIcon name="i-lucide-chart-no-axes-combined" class="size-4" />
+          </div>
+          <div>
+            <p class="font-semibold">Evolución del saldo</p>
+            <p class="text-xs text-muted">Cambios acumulados en la cuenta</p>
+          </div>
+        </div>
       </template>
       <div v-if="entries.length === 0" class="text-center py-8 text-muted text-sm">
         Sin datos para graficar
       </div>
-      <div v-else class="h-64">
+      <div v-else class="h-72">
         <ClientOnly>
           <VChart :option="balanceChartData" autoresize />
         </ClientOnly>
       </div>
-    </UCard>
+    </UPageCard>
 
     <!-- Resumen por tipo -->
-    <UCard>
+    <UPageCard variant="subtle" class="overflow-hidden">
       <template #header>
-        <p class="text-sm font-medium">Movimientos por tipo</p>
+        <div class="flex items-center gap-3">
+          <div class="flex size-9 items-center justify-center rounded-xl bg-neutral/10 text-muted">
+            <UIcon name="i-lucide-chart-pie" class="size-4" />
+          </div>
+          <div>
+            <p class="font-semibold">Movimientos por tipo</p>
+            <p class="text-xs text-muted">Composición de la cuenta</p>
+          </div>
+        </div>
       </template>
       <div v-if="entryTypeSummary.length === 0" class="text-center py-8 text-muted text-sm">
         Sin movimientos
       </div>
       <div v-else class="space-y-3">
-        <div class="h-48">
+        <div class="h-44">
           <ClientOnly>
             <VChart :option="entryTypePieData" autoresize />
           </ClientOnly>
@@ -169,13 +185,13 @@ const entryTypePieData = computed(() => {
           <div
             v-for="item in entryTypeSummary"
             :key="item.name"
-            class="flex items-center justify-between text-xs"
+            class="flex items-center justify-between rounded-lg px-2 py-1.5 text-xs hover:bg-elevated/50"
           >
             <span class="text-muted">{{ item.name }}</span>
             <span class="font-medium">{{ formatCurrency(item.total) }}</span>
           </div>
         </div>
       </div>
-    </UCard>
+    </UPageCard>
   </div>
 </template>

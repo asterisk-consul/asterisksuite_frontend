@@ -16,6 +16,20 @@ export function resolveSide(type: string, partyType?: string): 'debit' | 'credit
   return 'debit'
 }
 
+export function resolveEntrySide(
+  entry: { type: string; balance_before?: number | string | null; balance_after?: number | string | null },
+  partyType?: string
+): 'debit' | 'credit' {
+  if (entry.balance_before != null && entry.balance_after != null) {
+    const change = Number(entry.balance_after) - Number(entry.balance_before)
+    if (Math.abs(change) > 0.000001) {
+      if (partyType === 'CUSTOMER') return change > 0 ? 'debit' : 'credit'
+      return change > 0 ? 'credit' : 'debit'
+    }
+  }
+  return resolveSide(entry.type, partyType)
+}
+
 const ENTRY_TYPE_LABELS: Record<string, string> = {
   INVOICE: 'Factura',
   CREDIT_NOTE: 'Nota de crédito',

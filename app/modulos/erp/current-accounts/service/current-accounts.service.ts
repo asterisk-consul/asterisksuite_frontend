@@ -31,6 +31,12 @@ export const useCurrentAccountsService = () => {
     return $fetch<{ currency_code: string; balance: number }>(`${urlBase}/party/${partyId}/balance`)
   }
 
+  const deleteOpeningBalance = (partyId: string) => {
+    return $fetch<{ success: boolean; balance: number }>(`${urlBase}/party/${partyId}/opening-balance`, {
+      method: 'DELETE'
+    })
+  }
+
   const findActive = () => {
     return $fetch<CurrentAccount[]>(`${urlBase}/active`, {
       method: 'GET',
@@ -50,6 +56,7 @@ export const useCurrentAccountsService = () => {
     getEntries,
     getStatement,
     getBalance,
+    deleteOpeningBalance,
     findActive,
     findAll
   }
