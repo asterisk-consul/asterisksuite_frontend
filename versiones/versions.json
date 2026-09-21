@@ -1,5 +1,57 @@
 [
   {
+    "version": "0.57.0-alpha",
+    "date": "2026-09-21",
+    "stage": "alpha",
+    "notes": "Reconstrucción cronológica de saldos bancarios y cuentas corrientes ante movimientos retroactivos.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "Los movimientos bancarios recalculan los saldos anteriores y posteriores según su fecha efectiva"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Las cuentas corrientes reconstruyen el saldo corrido cuando se incorpora un movimiento de una fecha anterior"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "El saldo actual y la fecha del último movimiento se sincronizan con el libro cronológico recalculado"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Los extractos se ordenan por fecha efectiva y utilizan fecha de creación e identificador para resolver empates"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "Los cheques vencidos cargados posteriormente conservan la fecha efectiva de pago, depósito o vencimiento"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "Solo los cheques propios confirmados se procesan automáticamente al vencimiento"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "La cancelación de un cheque confirmado revierte el banco únicamente cuando existió un débito real"
+      },
+      {
+        "type": "refactor",
+        "scope": "treasury",
+        "title": "Pagos, cobros, transferencias y movimientos de socios utilizan la reconstrucción centralizada de saldos"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Recálculo histórico de saldos bancarios y cuentas corrientes"
+  },
+  {
     "version": "0.56.0-alpha",
     "date": "2026-09-21",
     "stage": "alpha",
