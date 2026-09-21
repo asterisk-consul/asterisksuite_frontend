@@ -1348,6 +1348,8 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
     <CheckModal
       v-model:open="checkModalOpen"
       :bank-account-items="bankAccountItems"
+      :currency-items="currencyOptions"
+      :forced-type="isPayment ? 'OWN' : 'THIRD_PARTY'"
       @success="handleCheckCreated"
     />
 

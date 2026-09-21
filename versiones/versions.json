@@ -1,5 +1,114 @@
 [
   {
+    "version": "0.56.0-alpha",
+    "date": "2026-09-21",
+    "stage": "alpha",
+    "notes": "Carga más clara de cheques y procesamiento bancario automático según su fecha de vencimiento.",
+    "changes": [
+      {
+        "type": "refactor",
+        "scope": "checks",
+        "title": "Formulario reorganizado para distinguir el tipo de cheque, sus datos bancarios, importes y fechas"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "El banco emisor puede elegirse entre bancos frecuentes o escribirse libremente"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "La cuenta bancaria de débito o depósito se selecciona de forma independiente del banco emisor"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Los cheques propios confirmados se debitan automáticamente al alcanzar su vencimiento"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Los cheques de terceros cobrados se mantienen en cartera y se depositan automáticamente al vencimiento"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "Los cheques entregados a proveedores quedan excluidos del depósito automático"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "El procesamiento valida cuenta activa, moneda y saldo sin rechazar automáticamente cheques con incidencias"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "Los movimientos bancarios automáticos son idempotentes y no se duplican al reintentar el proceso"
+      },
+      {
+        "type": "fix",
+        "scope": "notifications",
+        "title": "Los avisos de cheques recorren todas las empresas y utilizan la fecha de vencimiento en horario argentino"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Cheques programados y movimientos bancarios al vencimiento"
+  },
+  {
+    "version": "0.55.0-alpha",
+    "date": "2026-09-21",
+    "stage": "alpha",
+    "notes": "Nueva lectura operativa y financiera de los comprobantes de ventas y compras.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "sales",
+        "title": "La tabla identifica documentos pendientes, con cobro parcial y completamente cobrados"
+      },
+      {
+        "type": "feat",
+        "scope": "purchases",
+        "title": "La tabla identifica documentos pendientes, con pago parcial y completamente pagados"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Nuevo indicador de avance con importe pendiente y porcentaje cobrado o pagado"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Switch para mostrar u ocultar comprobantes completamente saldados"
+      },
+      {
+        "type": "refactor",
+        "scope": "ui",
+        "title": "El número, la categoría y el tipo de comprobante se presentan juntos para distinguirlos con mayor facilidad"
+      },
+      {
+        "type": "refactor",
+        "scope": "ui",
+        "title": "Los indicadores superiores muestran documentos visibles, pendientes, parciales y saldados"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Los totales y saldos pendientes respetan la moneda de cada documento"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-flow",
+        "title": "Las órdenes de venta reflejan el saldo compartido de su operación comercial"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Estado de pagos y cobros visible en comprobantes"
+  },
+  {
     "version": "0.54.0-alpha",
     "date": "2026-09-21",
     "stage": "alpha",

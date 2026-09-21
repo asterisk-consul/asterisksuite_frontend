@@ -6,6 +6,7 @@ import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purch
 import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
 import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
+import { getDocumentPaymentSummary, isDocumentFullyPaid } from '~/modulos/erp/documents/utils/document-payment-status'
 
 // â”€â”€â”€ Store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const documentsPurchasesStore = useDocumentsPurchasesStore()
@@ -35,6 +36,7 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
 // â”€â”€â”€ Filtros â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const categoryFilter = ref<string | undefined>(undefined)
 const statusFilter = ref<number | undefined>(undefined)
+const showFullyPaid = ref(true)
 
 const refresh = () =>
   documentsPurchasesStore.fetchAll({
@@ -70,6 +72,22 @@ const statusOptions = computed(() =>
     ? getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
     : []
 )
+
+const visibleDocuments = computed(() => {
+  const rows = documents.value ?? []
+  return showFullyPaid.value ? rows : rows.filter(document => !isDocumentFullyPaid(document))
+})
+
+const financialStats = computed(() => {
+  const rows = documents.value ?? []
+  const summaries = rows.map(getDocumentPaymentSummary).filter(summary => summary.applies)
+  return {
+    visible: visibleDocuments.value.length,
+    pending: summaries.filter(summary => summary.state === 'UNPAID').length,
+    partial: summaries.filter(summary => summary.state === 'PARTIAL').length,
+    paid: summaries.filter(summary => summary.state === 'PAID').length
+  }
+})
 
 // â”€â”€â”€ Estadísticas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const stats = computed(() => {
@@ -180,39 +198,12 @@ const sortFields = [
         title="Error al cargar documentos"
       />
 
-      <!-- Estadísticas -->
+      <!-- Resumen operativo -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <template v-if="categoryFilter">
-          <UPageCard
-            v-for="s in stats.byStatus"
-            :key="s.label"
-            variant="subtle"
-          >
-            <div class="space-y-1">
-              <p class="text-xs text-muted">{{ s.label }}</p>
-              <p class="text-2xl font-semibold" :class="statusTextClass(s.color)">{{ s.count }}</p>
-              <p class="text-xs text-muted">{{ fmt(s.total) }}</p>
-            </div>
-          </UPageCard>
-        </template>
-        <template v-else>
-          <UPageCard variant="subtle">
-            <div class="space-y-1">
-              <p class="text-xs text-muted">Total documentos</p>
-              <p class="text-2xl font-semibold">{{ (documents ?? []).length }}</p>
-            </div>
-          </UPageCard>
-          <UPageCard
-            v-for="c in stats.byCategory"
-            :key="c.label"
-            variant="subtle"
-          >
-            <div class="space-y-1">
-              <p class="text-xs text-muted">{{ c.label }}</p>
-              <p class="text-2xl font-semibold">{{ c.count }}</p>
-            </div>
-          </UPageCard>
-        </template>
+        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-files" class="size-5" /></div><div><p class="text-xs text-muted">Documentos visibles</p><p class="text-2xl font-semibold">{{ financialStats.visible }}</p></div></div></UPageCard>
+        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-error/10 p-2 text-error"><UIcon name="i-lucide-circle-dollar-sign" class="size-5" /></div><div><p class="text-xs text-muted">Sin pagos</p><p class="text-2xl font-semibold text-error">{{ financialStats.pending }}</p></div></div></UPageCard>
+        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-warning/10 p-2 text-warning"><UIcon name="i-lucide-chart-no-axes-column-increasing" class="size-5" /></div><div><p class="text-xs text-muted">Pago parcial</p><p class="text-2xl font-semibold text-warning">{{ financialStats.partial }}</p></div></div></UPageCard>
+        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-success/10 p-2 text-success"><UIcon name="i-lucide-circle-check" class="size-5" /></div><div><p class="text-xs text-muted">Pagados</p><p class="text-2xl font-semibold text-success">{{ financialStats.paid }}</p></div></div></UPageCard>
       </div>
 
       <!-- Filtro por categoría -->
@@ -248,9 +239,20 @@ const sortFields = [
         />
       </div>
 
+      <div class="flex flex-col gap-3 rounded-xl border border-default bg-elevated/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="text-sm font-medium">Visibilidad de documentos saldados</p>
+          <p class="text-xs text-muted">Ocultalos para concentrarte en los pagos pendientes.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-muted">Mostrar pagados</span>
+          <USwitch v-model="showFullyPaid" />
+        </div>
+      </div>
+
       <!-- Tabla -->
       <LogisticaTable
-        :data="documents ?? []"
+        :data="visibleDocuments"
         :columns="columns"
         :loading="pending"
         :filter-fields="filterFields"
