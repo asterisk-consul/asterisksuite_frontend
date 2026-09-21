@@ -167,12 +167,12 @@ const savePassword = async () => {
       method: 'PATCH',
       body: { company_id: companyId, newPassword: newPassword.value },
     })
-    toast.add({ title: 'ContraseÃ±a actualizada', color: 'success' })
+    toast.add({ title: 'Contraseña actualizada', color: 'success' })
     showPasswordModal.value = false
   } catch (e: any) {
     const data = e?.data?.data || e?.data
     const msg = Array.isArray(data?.message) ? data.message[0] : (data?.message || 'Error')
-    toast.add({ title: 'Error al cambiar contraseÃ±a', description: msg, color: 'error', icon: 'i-lucide-alert-circle' })
+    toast.add({ title: 'Error al cambiar contraseña', description: msg, color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
     changingPassword.value = false
   }
@@ -181,7 +181,7 @@ const savePassword = async () => {
 // â”€â”€â”€ Link Employee/Partner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const openLinkModal = (user: CompanyUser) => {
   selectedUser.value = user
-  // Pre-seleccionar el tipo segÃºn el vÃ­nculo que ya tenga el usuario
+  // Pre-seleccionar el tipo según el vínculo que ya tenga el usuario
   const hasEmployee = employees.value.some(e => e.user_id === user.id)
   const hasPartner = partners.value.some(p => p.user_id === user.id)
   linkType.value = hasEmployee ? 'existing_employee' : hasPartner ? 'existing_partner' : 'existing_employee'
@@ -189,7 +189,7 @@ const openLinkModal = (user: CompanyUser) => {
   showLinkModal.value = true
 }
 
-// VÃ­nculos existentes del usuario seleccionado
+// Vínculos existentes del usuario seleccionado
 const linkedEmployee = computed(() =>
   selectedUser.value
     ? employees.value.find(e => e.user_id === selectedUser.value!.id) ?? null
@@ -323,7 +323,7 @@ const openCreateModal = () => {
 
 const goToCreateEmployee = () => {
   if (!newUser.value.name || !newUser.value.email || !newUser.value.password) {
-    toast.add({ title: 'CompletÃ¡ nombre, email y contraseÃ±a primero', color: 'warning', icon: 'i-lucide-alert-circle' })
+    toast.add({ title: 'Completá nombre, email y contraseña primero', color: 'warning', icon: 'i-lucide-alert-circle' })
     return
   }
   localStorage.setItem('pendingUser', JSON.stringify({
@@ -338,7 +338,7 @@ const goToCreateEmployee = () => {
 
 const goToCreatePartner = () => {
   if (!newUser.value.name || !newUser.value.email || !newUser.value.password) {
-    toast.add({ title: 'CompletÃ¡ nombre, email y contraseÃ±a primero', color: 'warning', icon: 'i-lucide-alert-circle' })
+    toast.add({ title: 'Completá nombre, email y contraseña primero', color: 'warning', icon: 'i-lucide-alert-circle' })
     return
   }
   localStorage.setItem('pendingUser', JSON.stringify({
@@ -353,7 +353,7 @@ const goToCreatePartner = () => {
 
 const createUser = async () => {
   if (!newUser.value.name || !newUser.value.email || !newUser.value.password) {
-    toast.add({ title: 'CompletÃ¡ todos los campos', color: 'warning', icon: 'i-lucide-alert-circle' })
+    toast.add({ title: 'Completá todos los campos', color: 'warning', icon: 'i-lucide-alert-circle' })
     return
   }
 
@@ -472,7 +472,7 @@ onMounted(async () => {
                 @click="openEditModal(user)"
               />
             </UTooltip>
-            <UTooltip text="Cambiar la contraseÃ±a del usuario">
+            <UTooltip text="Cambiar la contraseña del usuario">
               <UButton
                 v-if="isOwnerOrAdmin"
                 icon="i-lucide-key"
@@ -517,8 +517,8 @@ onMounted(async () => {
           </p>
 
           <div v-if="roles.length === 0" class="text-sm text-muted py-4 text-center">
-            No hay roles creados. CreÃ¡ uno desde
-            <NuxtLink to="/settings/roles" class="text-primary underline">GestiÃ³n de roles</NuxtLink>
+            No hay roles creados. Creá uno desde
+            <NuxtLink to="/settings/roles" class="text-primary underline">Gestión de roles</NuxtLink>
             .
           </div>
 
@@ -556,8 +556,8 @@ onMounted(async () => {
           <UFormField label="Email" name="email">
             <UInput v-model="newUser.email" placeholder="usuario@empresa.com" type="email" />
           </UFormField>
-          <UFormField label="ContraseÃ±a" name="password">
-            <UInput v-model="newUser.password" placeholder="MÃ­nimo 6 caracteres" type="password" />
+          <UFormField label="Contraseña" name="password">
+            <UInput v-model="newUser.password" placeholder="Mínimo 6 caracteres" type="password" />
           </UFormField>
 
           <UFormField label="Rol" name="role">
@@ -615,7 +615,7 @@ onMounted(async () => {
           <!-- Redirigir a crear empleado -->
           <div v-if="newUser.linkType === 'new_employee'" class="p-4 rounded-lg bg-muted/30 text-center">
             <p class="text-sm text-muted mb-3">
-              Se abrirÃ¡ el formulario completo de empleados con los datos precargados.
+              Se abrirá el formulario completo de empleados con los datos precargados.
             </p>
             <UButton
               label="Ir a crear empleado â†’"
@@ -628,7 +628,7 @@ onMounted(async () => {
           <!-- Redirigir a crear socio -->
           <div v-if="newUser.linkType === 'new_partner'" class="p-4 rounded-lg bg-muted/30 text-center">
             <p class="text-sm text-muted mb-3">
-              Se abrirÃ¡ el formulario completo de socios con los datos precargados.
+              Se abrirá el formulario completo de socios con los datos precargados.
             </p>
             <UButton
               label="Ir a crear socio â†’"
@@ -676,21 +676,21 @@ onMounted(async () => {
     </UModal>
 
     <!-- Change Password Modal -->
-    <UModal v-model:open="showPasswordModal" title="Cambiar contraseÃ±a" :ui="{ width: 'max-w-lg' }">
+    <UModal v-model:open="showPasswordModal" title="Cambiar contraseña" :ui="{ width: 'max-w-lg' }">
       <template #body>
         <div class="space-y-4">
           <p class="text-sm text-muted">
-            Cambiar contraseÃ±a de <strong>{{ selectedUser?.name || selectedUser?.email }}</strong>
+            Cambiar contraseña de <strong>{{ selectedUser?.name || selectedUser?.email }}</strong>
           </p>
-          <UFormField label="Nueva contraseÃ±a" name="password">
-            <UInput v-model="newPassword" placeholder="MÃ­nimo 6 caracteres" type="password" />
+          <UFormField label="Nueva contraseña" name="password">
+            <UInput v-model="newPassword" placeholder="Mínimo 6 caracteres" type="password" />
           </UFormField>
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
           <UButton label="Cancelar" variant="ghost" @click="showPasswordModal = false" />
-          <UButton label="Cambiar contraseÃ±a" :loading="changingPassword" :disabled="newPassword.length < 6" @click="savePassword" />
+          <UButton label="Cambiar contraseña" :loading="changingPassword" :disabled="newPassword.length < 6" @click="savePassword" />
         </div>
       </template>
     </UModal>
@@ -703,7 +703,7 @@ onMounted(async () => {
             Vincular <strong>{{ selectedUser?.name || selectedUser?.email }}</strong> a:
           </p>
 
-          <!-- VÃ­nculos existentes -->
+          <!-- Vínculos existentes -->
           <UAlert
             v-if="linkedEmployee || linkedPartner"
             color="info"
@@ -711,7 +711,7 @@ onMounted(async () => {
             icon="i-lucide-link"
           >
             <template #title>
-              <span class="text-sm">Este usuario ya estÃ¡ vinculado a:</span>
+              <span class="text-sm">Este usuario ya está vinculado a:</span>
             </template>
             <template #description>
               <div class="flex flex-wrap gap-2 mt-1">

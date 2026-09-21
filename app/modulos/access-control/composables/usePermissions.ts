@@ -24,7 +24,7 @@ export interface PermissionModuleGroup {
 const MODULE_META: Record<string, { label: string; icon: string; order: number; modules: string[]; subgroups?: Record<string, string> }> = {
   access: { label: 'Acceso', icon: 'i-lucide-shield', order: 0, modules: ['roles', 'users', 'permissions'] },
   documents: {
-    label: 'Documentos', icon: 'i-lucide-file-text', order: 10, modules: ['sales', 'purchases', 'documents', 'document_types', 'document_sequences'],
+    label: 'Documentos', icon: 'i-lucide-file-text', order: 10, modules: ['sales', 'purchases', 'documents', 'document_types', 'document_sequences', 'fiscal-authorizations'],
     subgroups: {
       documents: 'Todos los documentos · Ventas y compras',
       sales: 'Ventas · Todos los tipos',
@@ -46,6 +46,7 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
       'purchases.documents': 'Compras · Importación y exportación',
       'purchases.reports': 'Compras · Exportación de reportes',
       document_types: 'Configuración · Tipos de documento',
+      'fiscal-authorizations': 'Configuración · Autorizaciones fiscales',
       document_sequences: 'Configuración · Secuencias'
     }
   },

@@ -2,8 +2,11 @@
 import { ref, watch, computed } from 'vue'
 import type { InternationalExpenseType } from '~/modulos/international-operations/types/international-operations.types'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
+import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
+import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
+import { convertWithMarketRate, normalizeMarketRate } from '~/utils/currency'
 
 interface Props {
   open: boolean
@@ -22,6 +25,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const { expenseTypeOptions } = useInternationalOperations()
+const service = useInternationalOperationsService()
+const { autoResolve, isAutoResolved, loading: rateLoading } = useExchangeRate()
 
 const loading = ref(false)
 
@@ -112,9 +117,75 @@ const currencyMismatch = computed(() => {
   return docCurrency !== props.operationCurrencyCode
 })
 
-const showExchangeRateField = computed(() => currencyMismatch.value)
+const selectedDocumentData = computed(() =>
+  documents.value.find(d => d.id === selectedDocument.value?.value) ?? null
+)
+
+const marketForeignCurrency = computed(() => {
+  const docCurrency = selectedDocumentCurrency.value
+  const operationCurrency = props.operationCurrencyCode
+  if (!docCurrency || docCurrency === operationCurrency) return null
+  if (docCurrency === 'ARS') return operationCurrency
+  if (operationCurrency === 'ARS') return docCurrency
+  return null
+})
+
+const normalizedExchangeRate = computed(() => {
+  const docCurrency = selectedDocumentCurrency.value
+  if (!docCurrency) return null
+  return normalizeMarketRate(customExchangeRate.value, docCurrency, props.operationCurrencyCode)
+})
+
+const convertedPreview = computed(() => {
+  const document = selectedDocumentData.value
+  const docCurrency = selectedDocumentCurrency.value
+  if (!document || !docCurrency) return null
+  return convertWithMarketRate(
+    document.total,
+    docCurrency,
+    props.operationCurrencyCode,
+    normalizedExchangeRate.value
+  )
+})
+
+const formatMoney = (amount: number, currency: string) =>
+  new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(amount)
+
+const showExchangeRateField = computed(() => !!selectedDocument.value)
 
 const showCustomField = computed(() => selectedExpenseTypeValue.value === 'OTHER')
+
+// La cotización se guarda siempre con convención de mercado:
+// X ARS por una unidad de moneda extranjera, sin importar la dirección del cálculo.
+watch(selectedDocument, async (doc) => {
+  if (!doc) {
+    customExchangeRate.value = null
+    return
+  }
+  const docCurrency = documents.value.find(d => d.id === doc.value)?.currency_code
+  if (!docCurrency) return
+  if (docCurrency === props.operationCurrencyCode) {
+    customExchangeRate.value = 1
+    return
+  }
+  const foreignCurrency = docCurrency === 'ARS' ? props.operationCurrencyCode : docCurrency
+  const targetCurrency = docCurrency === 'ARS' || props.operationCurrencyCode === 'ARS' ? 'ARS' : props.operationCurrencyCode
+  const rate = await autoResolve(foreignCurrency, targetCurrency)
+  if (rate != null) {
+    customExchangeRate.value = normalizeMarketRate(rate, docCurrency, props.operationCurrencyCode)
+  }
+})
+
+const restoreRate = async () => {
+  const docCurrency = selectedDocumentCurrency.value
+  if (!docCurrency) return
+  const foreignCurrency = docCurrency === 'ARS' ? props.operationCurrencyCode : docCurrency
+  const targetCurrency = docCurrency === 'ARS' || props.operationCurrencyCode === 'ARS' ? 'ARS' : props.operationCurrencyCode
+  const rate = await autoResolve(foreignCurrency, targetCurrency)
+  if (rate != null) {
+    customExchangeRate.value = normalizeMarketRate(rate, docCurrency, props.operationCurrencyCode)
+  }
+}
 
 const documentOptions = computed(() => documents.value.map(d => ({
   label: `${d.document_type_code || ''} Nº ${String(d.number).padStart(8, '0')} — ${d.party_name || '—'} — ${new Date(d.date).toLocaleDateString('es-AR')} — ${d.currency_code} ${d.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
@@ -132,6 +203,7 @@ watch(() => props.open, (open) => {
     selectedDocument.value = undefined
     selectedExpenseType.value = undefined
     customExpenseDescription.value = ''
+    customExchangeRate.value = null
     selectedContainer.value = undefined
   }
 })
@@ -140,24 +212,20 @@ const handleAssociate = async () => {
   if (!selectedDocumentId.value) return
   try {
     loading.value = true
-    const body: any = {
-      document_id: selectedDocumentId.value,
-      expense_type: selectedExpenseTypeValue.value,
-      container_id: selectedContainerId.value || undefined,
-      custom_expense_description: showCustomField.value ? customExpenseDescription.value : undefined
+    // La cotización solo es obligatoria si hay diferencia de moneda
+    if (currencyMismatch.value && (!customExchangeRate.value || customExchangeRate.value <= 0)) {
+      alert('Debe ingresar un tipo de cambio válido')
+      loading.value = false
+      return
     }
-    if (showExchangeRateField.value) {
-      if (!customExchangeRate.value || customExchangeRate.value <= 0) {
-        alert('Debe ingresar un tipo de cambio válido')
-        loading.value = false
-        return
-      }
-      body.exchange_rate = customExchangeRate.value
-    }
-    await $fetch(`/api/backend/${props.operationId}/documents`, {
-      method: 'POST',
-      body
-    })
+    await service.associateDocument(
+      props.operationId,
+      selectedDocumentId.value,
+      selectedExpenseTypeValue.value,
+      selectedContainerId.value || undefined,
+      normalizedExchangeRate.value != null ? Number(normalizedExchangeRate.value) : undefined,
+      showCustomField.value ? customExpenseDescription.value : undefined
+    )
     emit('associated')
     emit('update:open', false)
   } catch (err) {
@@ -223,23 +291,57 @@ const handleAssociate = async () => {
 
         <UFormField
           v-if="showExchangeRateField"
-          label="Tipo de cambio (requerido)"
+          :label="marketForeignCurrency ? `Cotización: 1 ${marketForeignCurrency} en pesos` : (currencyMismatch ? 'Tipo de cambio (requerido)' : 'Tipo de cambio')"
           name="exchange_rate"
-          required
+          :required="currencyMismatch"
         >
-          <UInput
-            v-model.number="customExchangeRate"
-            type="number"
-            step="0.000001"
-            min="0.000001"
-            placeholder="Ej: 350.50 (1 USD = 350.50 ARS)"
-            class="w-full"
-          />
-          <p class="text-xs text-muted mt-1">
-            La factura está en {{ selectedDocumentCurrency }} pero la operación en {{ props.operationCurrencyCode }}.
-            Ingrese cuántos {{ props.operationCurrencyCode }} por 1 {{ selectedDocumentCurrency }}.
+          <div class="flex items-center gap-2">
+            <UInput
+              v-model.number="customExchangeRate"
+              type="number"
+              step="0.01"
+              min="0"
+              :placeholder="marketForeignCurrency ? 'Ej: 1530,00' : '1,00'"
+              class="flex-1"
+            />
+            <UButton
+              v-if="currencyMismatch"
+              icon="i-lucide-refresh-cw"
+              size="xs"
+              variant="ghost"
+              label="Restaurar"
+              :loading="rateLoading"
+              @click="restoreRate"
+            />
+          </div>
+          <p v-if="currencyMismatch" class="text-xs text-muted mt-1">
+            <template v-if="marketForeignCurrency">
+              Se guarda como 1 {{ marketForeignCurrency }} = ARS {{ normalizedExchangeRate?.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }}.
+            </template>
+            <template v-else>{{ selectedDocumentCurrency }} → {{ props.operationCurrencyCode }}.</template>
+            {{ isAutoResolved ? 'Cotización auto-detectada, puede modificarla.' : 'Puede modificar el valor.' }}
+          </p>
+          <p v-else class="text-xs text-muted mt-1">
+            Misma moneda ({{ props.operationCurrencyCode }}). Se guarda como referencia para ver el valor en ambas monedas.
           </p>
         </UFormField>
+
+        <div
+          v-if="currencyMismatch && selectedDocumentData"
+          class="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-default bg-muted/20 p-3"
+        >
+          <div>
+            <p class="text-xs text-muted">Monto original</p>
+            <p class="font-semibold">{{ formatMoney(selectedDocumentData.total, selectedDocumentCurrency!) }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-muted">Equivalente en la operación</p>
+            <p v-if="convertedPreview != null" class="font-semibold text-primary">
+              {{ formatMoney(convertedPreview, props.operationCurrencyCode) }}
+            </p>
+            <p v-else class="text-sm text-warning">Ingresá una cotización válida</p>
+          </div>
+        </div>
 
         <UFormField v-if="props.containers?.length" label="Contenedor (opcional)" name="container_id">
           <USelectMenu

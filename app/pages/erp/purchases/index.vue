@@ -53,7 +53,7 @@ watch(categoryFilter, () => {
 
 watch(statusFilter, () => refresh())
 
-// â”€â”€â”€ Filtros de categorÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€â”€ Filtros de categoría â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const PURCHASE_CATEGORIES = ['ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'OPENING_BALANCE'] as const
 
 const categoryOptions = computed(() => [
@@ -64,14 +64,14 @@ const categoryOptions = computed(() => [
   }))
 ])
 
-// â”€â”€â”€ Filtros de estado (segÃºn categorÃ­a) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€â”€ Filtros de estado (según categoría) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const statusOptions = computed(() =>
   categoryFilter.value
     ? getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
     : []
 )
 
-// â”€â”€â”€ EstadÃ­sticas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€â”€ Estadísticas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const stats = computed(() => {
   const docs = documents.value ?? []
   if (categoryFilter.value) {
@@ -123,7 +123,7 @@ function openDocument(row: any) {
 async function deleteDrafts(rows: any[]) {
   const unauthorized = rows.filter(row => !canDocument('purchases', row.document_types?.category, 'delete'))
   if (unauthorized.length) {
-    toast.add({ title: 'No tenÃ©s permiso para eliminar uno o mÃ¡s tipos de documento', color: 'warning' })
+    toast.add({ title: 'No tenés permiso para eliminar uno o más tipos de documento', color: 'warning' })
     return
   }
   const drafts = rows.filter(row => row.status === 0)
@@ -144,13 +144,13 @@ async function deleteDrafts(rows: any[]) {
 const columns = createPurchasesColumns({ onOpen: openDocument })
 
 const filterFields = [
-  { id: 'number', label: 'Buscar por NÂ°...' },
+  { id: 'number', label: 'Buscar por N°...' },
   { id: 'supplier', label: 'Buscar por proveedor...' },
-  { id: 'descrip', label: 'Buscar por descripciÃ³n...' }
+  { id: 'descrip', label: 'Buscar por descripción...' }
 ]
 
 const sortFields = [
-  { label: 'NÂ°', value: 'number' },
+  { label: 'N°', value: 'number' },
   { label: 'Fecha', value: 'date' },
   { label: 'Proveedor', value: 'supplier' },
   { label: 'Total', value: 'total' }
@@ -160,7 +160,7 @@ const sortFields = [
 
 <template>
   <UPage class="space-y-4">
-    <AppPageHeader title="Comprobantes de compra" description="GestiÃ³n de documentos de compra">
+    <AppPageHeader title="Comprobantes de compra" description="Gestión de documentos de compra">
       <template #links>
         <UButton
           v-if="canDocument('purchases', 'INVOICE', 'create')"
@@ -180,7 +180,7 @@ const sortFields = [
         title="Error al cargar documentos"
       />
 
-      <!-- EstadÃ­sticas -->
+      <!-- Estadísticas -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <template v-if="categoryFilter">
           <UPageCard
@@ -215,7 +215,7 @@ const sortFields = [
         </template>
       </div>
 
-      <!-- Filtro por categorÃ­a -->
+      <!-- Filtro por categoría -->
       <div class="flex gap-2 flex-wrap">
         <UButton
           v-for="opt in categoryOptions"
@@ -228,7 +228,7 @@ const sortFields = [
         />
       </div>
 
-      <!-- Filtro por estado (solo con categorÃ­a seleccionada) -->
+      <!-- Filtro por estado (solo con categoría seleccionada) -->
       <div v-if="categoryFilter" class="flex gap-2 flex-wrap">
         <UButton
           :variant="statusFilter === undefined ? 'solid' : 'ghost'"

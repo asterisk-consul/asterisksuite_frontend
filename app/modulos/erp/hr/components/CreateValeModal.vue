@@ -53,13 +53,13 @@ const valeTypeOptions: Record<string, { label: string; value: string; icon: stri
     { label: 'Retiro', value: 'RETIRO', icon: 'i-lucide-arrow-up-right', description: 'El socio retira dinero' },
     { label: 'Aporte', value: 'APORTE', icon: 'i-lucide-arrow-down-left', description: 'Aporte de capital del socio' },
     { label: 'Reembolso', value: 'REEMBOLSO', icon: 'i-lucide-receipt', description: 'Reembolso de gastos' },
-    { label: 'PrÃ©stamo', value: 'PRESTAMO', icon: 'i-lucide-hand-coins', description: 'PrÃ©stamo de la empresa' }
+    { label: 'Préstamo', value: 'PRESTAMO', icon: 'i-lucide-hand-coins', description: 'Préstamo de la empresa' }
   ]
 }
 
 const currencyOptions = [
   { label: 'Peso Argentino (ARS)', value: 'ARS' },
-  { label: 'DÃ³lar (USD)', value: 'USD' }
+  { label: 'Dólar (USD)', value: 'USD' }
 ]
 
 const availableTypeOptions = computed(() =>
@@ -74,16 +74,16 @@ const filteredPeople = computed(() =>
 
 const alertTitle = computed(() =>
   confirmAutomatically.value
-    ? 'El vale se crearÃ¡ y confirmarÃ¡ automÃ¡ticamente'
-    : 'El vale se crearÃ¡ como borrador'
+    ? 'El vale se creará y confirmará automáticamente'
+    : 'El vale se creará como borrador'
 )
 
 const alertDescription = computed(() =>
   confirmAutomatically.value
     ? (isPartner.value
-        ? 'Al confirmar se registrarÃ¡n juntos el vale, la cuenta del socio y el ingreso o egreso en TesorerÃ­a.'
-        : 'Una vez confirmado, generarÃ¡ un documento VALE e impactarÃ¡ la cuenta corriente.')
-    : 'PodÃ©s confirmarlo despuÃ©s desde la lista de vales.'
+        ? 'Al confirmar se registrarán juntos el vale, la cuenta del socio y el ingreso o egreso en Tesorería.'
+        : 'Una vez confirmado, generará un documento VALE e impactará la cuenta corriente.')
+    : 'Podés confirmarlo después desde la lista de vales.'
 )
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -167,11 +167,11 @@ const treasuryTargetOptions = computed(() => {
   if (treasuryTargetType.value === 'CASH_BOX') {
     return cashBoxes.value
       .filter(box => box.active && box.currency_code === currency && box.current_session_id)
-      .map(box => ({ label: `${box.name} Â· ${currency} Â· caja abierta`, value: box.id }))
+      .map(box => ({ label: `${box.name} · ${currency} · caja abierta`, value: box.id }))
   }
   return bankAccounts.value
     .filter(account => account.active && account.currency_code === currency)
-    .map(account => ({ label: `${account.name} Â· ${account.bank_name} Â· ${currency}`, value: account.id }))
+    .map(account => ({ label: `${account.name} · ${account.bank_name} · ${currency}`, value: account.id }))
 })
 
 const selectedTarget = computed(() => {
@@ -253,7 +253,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Nuevo vale" description="RegistrÃ¡ un movimiento de empleado o socio." :ui="{ content: 'w-[calc(100vw-2rem)] max-w-5xl max-h-[90vh] overflow-y-auto' }">
+  <UModal v-model:open="open" title="Nuevo vale" description="Registrá un movimiento de empleado o socio." :ui="{ content: 'w-[calc(100vw-2rem)] max-w-5xl max-h-[90vh] overflow-y-auto' }">
     <template #body>
       <UAlert
         v-if="!alertDismissed"
@@ -271,11 +271,11 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
       <div class="flex items-center justify-between gap-4 p-4 border border-default bg-muted/20 rounded-xl">
         <div>
           <p class="text-sm font-medium">Forma de registro</p>
-          <p class="text-xs text-muted">PodÃ©s dejarlo pendiente o registrar su impacto ahora.</p>
+          <p class="text-xs text-muted">Podés dejarlo pendiente o registrar su impacto ahora.</p>
         </div>
         <USwitch
           v-model="confirmAutomatically"
-          label="Confirmar automÃ¡ticamente"
+          label="Confirmar automáticamente"
         />
       </div>
 
@@ -283,7 +283,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
       <UPageCard variant="subtle" class="space-y-4">
         <div>
           <p class="font-medium">1. Persona y concepto</p>
-          <p class="text-sm text-muted">IndicÃ¡ quiÃ©n realiza el movimiento y por quÃ© concepto.</p>
+          <p class="text-sm text-muted">Indicá quién realiza el movimiento y por qué concepto.</p>
         </div>
       <UFormField label="Tipo de persona" required>
           <div class="flex gap-2">
@@ -353,7 +353,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
         <UPageCard variant="subtle" class="space-y-4">
           <div>
             <p class="font-medium">2. Importe</p>
-            <p class="text-sm text-muted">El tipo de cambio queda guardado como referencia histÃ³rica.</p>
+            <p class="text-sm text-muted">El tipo de cambio queda guardado como referencia histórica.</p>
           </div>
         <div class="grid grid-cols-1 md:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)] gap-4">
           <UFormField label="Monto" required>
@@ -367,7 +367,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
         <!-- Tipo de cambio -->
         <div class="space-y-2">
           <div class="grid grid-cols-1 md:grid-cols-[minmax(260px,0.65fr)_minmax(0,1.35fr)] gap-4">
-            <UFormField label="Tipo de cambio" description="CotizaciÃ³n ARS por USD. PodÃ©s modificarla para este vale." required>
+            <UFormField label="Tipo de cambio" description="Cotización ARS por USD. Podés modificarla para este vale." required>
               <UInput
                 v-model.number="createForm.exchange_rate"
                 type="number"
@@ -381,13 +381,13 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
               />
               <div class="flex items-center gap-2 mt-2">
                 <UBadge
-                  :label="isAutoResolved ? 'Ãšltima cotizaciÃ³n cargada' : 'CotizaciÃ³n modificada'"
+                  :label="isAutoResolved ? 'Ãšltima cotización cargada' : 'Cotización modificada'"
                   :color="isAutoResolved ? 'info' : 'warning'"
                   variant="subtle"
                   size="sm"
                 />
                 <UButton
-                  label="Restaurar Ãºltima"
+                  label="Restaurar última"
                   icon="i-lucide-refresh-cw"
                   variant="link"
                   size="xs"
@@ -412,7 +412,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           <div class="flex items-start justify-between gap-4">
             <div>
               <p class="font-medium">3. Movimiento financiero</p>
-              <p class="text-sm text-muted">ElegÃ­ dÃ³nde {{ isOutflow ? 'se debitarÃ¡' : 'se acreditarÃ¡' }} el dinero al confirmar.</p>
+              <p class="text-sm text-muted">Elegí dónde {{ isOutflow ? 'se debitará' : 'se acreditará' }} el dinero al confirmar.</p>
             </div>
             <UBadge
               :label="isOutflow ? 'Sale dinero' : 'Entra dinero'"
@@ -456,15 +456,15 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
         <!-- Fecha -->
         <UPageCard variant="subtle" class="space-y-4">
           <div>
-            <p class="font-medium">{{ isPartner ? '4' : '3' }}. InformaciÃ³n adicional</p>
-            <p class="text-sm text-muted">CompletÃ¡ la fecha y una referencia que permita identificar el movimiento.</p>
+            <p class="font-medium">{{ isPartner ? '4' : '3' }}. Información adicional</p>
+            <p class="text-sm text-muted">Completá la fecha y una referencia que permita identificar el movimiento.</p>
           </div>
         <UFormField label="Fecha" required>
           <UInput v-model="createForm.date" type="date" size="lg" class="w-full" />
         </UFormField>
 
-        <!-- DescripciÃ³n -->
-        <UFormField label="DescripciÃ³n">
+        <!-- Descripción -->
+        <UFormField label="Descripción">
           <UTextarea v-model="createForm.description" placeholder="Motivo del vale (sueldo, adelanto, etc.)" :rows="3" class="w-full" />
         </UFormField>
         </UPageCard>
@@ -474,7 +474,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
     <template #footer>
       <div class="flex w-full items-center justify-between gap-3">
         <p class="hidden sm:block text-xs text-muted">
-          {{ isPartner && confirmAutomatically ? `${isOutflow ? 'Se debitarÃ¡' : 'Se acreditarÃ¡'} en ${treasuryTargetType === 'CASH_BOX' ? 'caja' : 'banco'}.` : 'RevisÃ¡ los datos antes de guardar.' }}
+          {{ isPartner && confirmAutomatically ? `${isOutflow ? 'Se debitará' : 'Se acreditará'} en ${treasuryTargetType === 'CASH_BOX' ? 'caja' : 'banco'}.` : 'Revisá los datos antes de guardar.' }}
         </p>
         <div class="flex justify-end gap-2">
         <UButton label="Cancelar" variant="ghost" @click="open = false" />

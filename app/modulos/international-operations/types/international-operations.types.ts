@@ -83,6 +83,9 @@ export interface InternationalOperation {
   currency_code?: string
   incoterm?: Incoterm
   responsible_user_id?: string
+  customs_broker_op_number?: string
+  sim_number?: string
+  supplier_purchase_order?: string
   notes?: string
   containers?: InternationalContainer[]
   operation_documents?: OperationDocumentRelation[]
@@ -114,12 +117,65 @@ export interface InternationalContainer {
   estimated_arrival_date?: string
   actual_arrival_date?: string
   status: ContainerStatus
+  transit_warehouse_id?: string
   weight?: number
   volume?: number
   notes?: string
   events?: ContainerEvent[]
+  container_documents?: ContainerDocumentRelation[]
   created_at?: string
   updated_at?: string
+}
+
+export interface ContainerDocumentRelation {
+  operation_id: string
+  document_id: string
+  expense_type?: string
+  custom_expense_description?: string
+  container_id?: string
+  exchange_rate?: number
+  document?: {
+    id: string
+    number?: number
+    descrip?: string
+    date?: string
+    total?: number
+    status?: number
+    document_types?: { name?: string; category?: string }
+    document_items?: {
+      id: string
+      product_id?: string
+      quantity?: number | string
+      price?: number | string
+      products?: { id: string; name: string; sku?: string }
+    }[]
+  }
+}
+
+export interface IntlOpsSettings {
+  id: string
+  settings_key: string
+  container_fields: Record<string, boolean>
+  operation_fields: Record<string, boolean>
+  operation_statuses: string[] | null
+  container_statuses: string[] | null
+  created_at?: string
+  updated_at?: string
+}
+
+export type UpdateIntlOpsSettingsInput = {
+  container_fields?: Record<string, boolean>
+  operation_fields?: Record<string, boolean>
+  operation_statuses?: string[] | null
+  container_statuses?: string[] | null
+}
+
+export interface DeliverContainerResult {
+  container_id: string
+  container_number: string
+  destination_warehouse_id: string
+  destination_warehouse_name: string
+  moved: { product_id: string; quantity: string }[]
 }
 
 export interface ContainerEvent {
@@ -150,7 +206,14 @@ export interface OperationDocumentRelation {
     currency_code?: string
     party_id?: string
     business_parties?: { id: string; name: string }
-    document_types?: { code: string; description: string; category?: string }
+    document_types?: { code: string; description: string; category?: string; direction?: 'SALES' | 'PURCHASE' }
+    document_items?: Array<{
+      id: string
+      product_id?: string
+      quantity: number | string
+      price?: number | string
+      products?: { id: string; name: string; sku?: string }
+    }>
     payment_documents?: Array<{
       amount_applied: number
       payment_id: string
@@ -302,6 +365,9 @@ export type CreateOperationInput = {
   currency_code?: string
   incoterm?: Incoterm
   responsible_user_id?: string
+  customs_broker_op_number?: string
+  sim_number?: string
+  supplier_purchase_order?: string
   notes?: string
 }
 

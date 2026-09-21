@@ -47,13 +47,32 @@ export const useCurrencyRates = () => {
     toCurrencyId: string,
     rateType?: string
   ) => {
-    return sortByLatest(store.items).find((rate) => {
+    const sorted = sortByLatest(store.items)
+
+    // 1. Buscar dirección directa (ej: USD → ARS)
+    const direct = sorted.find((rate) => {
       return (
         rate.from_currency_id === fromCurrencyId &&
         rate.to_currency_id === toCurrencyId &&
         (!rateType || rate.rate_type === rateType)
       )
     })
+    if (direct) return direct
+
+    // 2. Buscar dirección inversa (ej: ARS → USD) y calcular 1/rate
+    // Igual que ExchangeService.convertAmount() en el backend
+    const inverse = sorted.find((rate) => {
+      return (
+        rate.from_currency_id === toCurrencyId &&
+        rate.to_currency_id === fromCurrencyId &&
+        (!rateType || rate.rate_type === rateType)
+      )
+    })
+    if (inverse && Number(inverse.rate) !== 0) {
+      return { ...inverse, rate: 1 / Number(inverse.rate) }
+    }
+
+    return null
   }
 
   // =========================

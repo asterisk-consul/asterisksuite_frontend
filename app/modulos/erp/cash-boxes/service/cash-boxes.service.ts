@@ -49,6 +49,13 @@ export const useCashBoxesService = () => {
     return $fetch<CashBoxBalance[]>(`${urlBase}/${id}/balances`)
   }
 
+  const setInitialBalance = (id: string, amount: number) => {
+    return $fetch(`${urlBase}/${id}/initial-balance`, {
+      method: 'POST',
+      body: { amount: Number(amount) }
+    })
+  }
+
   const openSession = (id: string, data: OpenSessionInput) => {
     return $fetch<CashBoxSession>(`${urlBase}/${id}/open`, {
       method: 'POST',
@@ -103,6 +110,7 @@ export const useCashBoxesService = () => {
     update,
     remove,
     getBalances,
+    setInitialBalance,
     openSession,
     closeSession,
     forceCloseSession,

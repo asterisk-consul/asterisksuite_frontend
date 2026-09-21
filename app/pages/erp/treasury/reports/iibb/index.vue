@@ -12,7 +12,7 @@ const columns = [
   { accessorKey: 'date', header: 'Fecha' },
   { accessorKey: 'document', header: 'Comprobante' },
   { accessorKey: 'party', header: 'Cliente / proveedor' },
-  { accessorKey: 'jurisdiction', header: 'JurisdicciÃ³n' },
+  { accessorKey: 'jurisdiction', header: 'Jurisdicción' },
   { accessorKey: 'tax', header: 'Impuesto' },
   { accessorKey: 'taxable_base', header: 'Base' },
   { accessorKey: 'tax_amount', header: 'Importe' },
@@ -22,11 +22,11 @@ const rows = computed(() => (data.value?.items ?? []).map((row: any) => ({
   date: new Date(row.documents.date).toLocaleDateString('es-AR'),
   document: `${row.documents.document_types.code} ${row.documents.number}`,
   party: row.documents.business_parties?.name ?? 'â€”',
-  jurisdiction: row.jurisdiction?.name ?? 'Sin jurisdicciÃ³n',
+  jurisdiction: row.jurisdiction?.name ?? 'Sin jurisdicción',
   tax: row.taxes.name,
   taxable_base: Number(row.taxable_base).toLocaleString('es-AR', { style: 'currency', currency: row.documents.currency_code ?? 'ARS' }),
   tax_amount: Number(row.tax_amount).toLocaleString('es-AR', { style: 'currency', currency: row.documents.currency_code ?? 'ARS' }),
-  origin: row.is_manual ? 'Manual' : 'AutomÃ¡tico'
+  origin: row.is_manual ? 'Manual' : 'Automático'
 })))
 </script>
 

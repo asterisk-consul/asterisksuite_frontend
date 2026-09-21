@@ -73,7 +73,7 @@ function fmt(n: number, currency = 'ARS') {
 
 <template>
   <UPage class="space-y-6 px-4">
-    <AppPageHeader title="RRHH" description="GestiÃ³n de recursos humanos" />
+    <AppPageHeader title="RRHH" description="Gestión de recursos humanos" />
 
     <!-- Resumen principal -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 py-4">

@@ -153,8 +153,8 @@ function getLinkedDocTypes(seq: any) {
 <template>
   <UPage class="space-y-6 px-4">
     <AppPageHeader
-      title="Secuencias de NumeraciÃ³n"
-      description="Configurar numeraciÃ³n de comprobantes por punto de venta"
+      title="Secuencias de Numeración"
+      description="Configurar numeración de comprobantes por punto de venta"
     >
       <template #links>
         <UButton label="Nueva secuencia" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate" />
@@ -182,7 +182,7 @@ function getLinkedDocTypes(seq: any) {
             <p class="text-xs text-muted">PV: {{ seq.point_of_sale }} | Prefijo: {{ seq.prefix || 'â€”' }}</p>
           </div>
           <UBadge
-            :label="seq.automatic ? 'AutomÃ¡tica' : 'Manual'"
+            :label="seq.automatic ? 'Automática' : 'Manual'"
             :color="seq.automatic ? 'success' : 'neutral'"
             variant="soft"
             size="xs"
@@ -252,7 +252,7 @@ function getLinkedDocTypes(seq: any) {
               <UInput v-model.number="form.range_end" type="number" />
             </UFormField>
           </div>
-          <UCheckbox v-model="form.automatic" label="NumeraciÃ³n automÃ¡tica" />
+          <UCheckbox v-model="form.automatic" label="Numeración automática" />
           <UFormField label="Tipos de documento asociados" name="document_type_ids">
             <USelectMenu
               v-model="form.document_type_ids"
@@ -274,7 +274,7 @@ function getLinkedDocTypes(seq: any) {
     <UModal v-model:open="deleteModalOpen" title="Eliminar secuencia">
       <template #body>
         <p>
-          Â¿EstÃ¡s seguro de que deseas eliminar la secuencia
+          ¿Estás seguro de que deseas eliminar la secuencia
           <strong>{{ deletingSequence?.name }}</strong>
           ?
         </p>

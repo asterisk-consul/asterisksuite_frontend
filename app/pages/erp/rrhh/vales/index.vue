@@ -52,7 +52,7 @@ const filterTypeOptions = [
   { label: 'Retiro', value: 'RETIRO' },
   { label: 'Aporte', value: 'APORTE' },
   { label: 'Reembolso', value: 'REEMBOLSO' },
-  { label: 'PrÃ©stamo', value: 'PRESTAMO' }
+  { label: 'Préstamo', value: 'PRESTAMO' }
 ]
 
 const statusOptions = [
@@ -84,7 +84,7 @@ function fmtDate(d: string) {
 
 const availableTreasuryTargets = computed(() => treasuryTargets.value
   .filter(item => item.currency_code === confirmingVale.value?.currency_code && item.active !== false && (treasuryTargetType.value !== 'CASH_BOX' || item.current_session_id))
-  .map(item => ({ label: `${item.name}${item.bank_name ? ` Â· ${item.bank_name}` : ' Â· caja abierta'}`, value: item.id })))
+  .map(item => ({ label: `${item.name}${item.bank_name ? ` · ${item.bank_name}` : ' · caja abierta'}`, value: item.id })))
 
 async function handleConfirm(id: string) {
   const vale = vales.value.find(v => v.id === id)
@@ -153,7 +153,7 @@ async function confirmCancel() {
 // =========================
 
 const columns = [
-  { id: 'number', header: 'NÂº' },
+  { id: 'number', header: 'Nº' },
   { id: 'person', header: 'Persona' },
   { id: 'type', header: 'Tipo' },
   { id: 'amount', header: 'Monto' },
@@ -260,8 +260,8 @@ const columns = [
       <template #body>
         <div class="space-y-4">
           <UAlert
-            :title="['RETIRO', 'REEMBOLSO', 'PRESTAMO'].includes(confirmingVale?.type) ? 'El dinero saldrÃ¡ de TesorerÃ­a' : 'El dinero ingresarÃ¡ en TesorerÃ­a'"
-            :description="`Vale #${confirmingVale?.number ?? ''} Â· ${fmtCurrency(Number(confirmingVale?.amount ?? 0), confirmingVale?.currency_code)}`"
+            :title="['RETIRO', 'REEMBOLSO', 'PRESTAMO'].includes(confirmingVale?.type) ? 'El dinero saldrá de Tesorería' : 'El dinero ingresará en Tesorería'"
+            :description="`Vale #${confirmingVale?.number ?? ''} · ${fmtCurrency(Number(confirmingVale?.amount ?? 0), confirmingVale?.currency_code)}`"
             :color="['RETIRO', 'REEMBOLSO', 'PRESTAMO'].includes(confirmingVale?.type) ? 'error' : 'success'"
             variant="subtle"
           />
@@ -289,18 +289,18 @@ const columns = [
         <div class="p-6 space-y-4">
           <div>
             <h2 class="text-lg font-semibold">Anular vale</h2>
-            <p class="text-sm text-muted mt-1">Esta acciÃ³n no se puede deshacer.</p>
+            <p class="text-sm text-muted mt-1">Esta acción no se puede deshacer.</p>
           </div>
 
           <p class="text-sm text-muted">
-            Â¿EstÃ¡s seguro que querÃ©s anular el vale
+            ¿Estás seguro que querés anular el vale
             <span class="font-medium text-highlighted">#{{ cancellingVale?.number }}</span>
             de <span class="font-medium text-highlighted">{{ cancellingVale?.party?.name }}</span>
             por <span class="font-medium text-highlighted">{{ fmtCurrency(Number(cancellingVale?.amount ?? 0), cancellingVale?.currency_code) }}</span>?
           </p>
 
           <p class="text-sm text-muted">
-            Para confirmar, escribÃ­
+            Para confirmar, escribí
             <span class="font-medium text-highlighted font-mono">anular</span>
             en el campo de abajo.
           </p>
@@ -348,7 +348,7 @@ const columns = [
                   <th class="text-left px-4 py-2 font-medium">OV #</th>
                   <th class="text-left px-4 py-2 font-medium">Fecha</th>
                   <th class="text-right px-4 py-2 font-medium">Subtotal</th>
-                  <th class="text-right px-4 py-2 font-medium">ComisiÃ³n %</th>
+                  <th class="text-right px-4 py-2 font-medium">Comisión %</th>
                   <th class="text-right px-4 py-2 font-medium">Monto</th>
                 </tr>
               </thead>

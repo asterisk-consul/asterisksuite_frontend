@@ -34,7 +34,7 @@ const eligibleParties = computed(() => parties.value.filter(party =>
   party.active !== false && party.type === (form.operation_type === 'SALE' ? 'CUSTOMER' : 'SUPPLIER')
 ))
 const partyOptions = computed(() => eligibleParties.value.map(party => ({
-  label: party.tax_id ? `${party.name} Â· ${party.tax_id}` : party.name,
+  label: party.tax_id ? `${party.name} · ${party.tax_id}` : party.name,
   value: party.id
 })))
 const currencyOptions = computed(() => activeCurrencies.value.map(currency => ({
@@ -149,7 +149,7 @@ async function save() {
       }
     }
 
-    toast.add({ title: 'RelaciÃ³n guardada', description: 'El precio quedÃ³ asignado a la parte interesada.', color: 'success' })
+    toast.add({ title: 'Relación guardada', description: 'El precio quedó asignado a la parte interesada.', color: 'success' })
     resetForm()
     await load()
   } finally {
@@ -162,7 +162,7 @@ async function remove(item: any) {
   if (item.supplier_data) {
     await $fetch(`/api/pricing/product-suppliers/${item.supplier_data.id}`, { method: 'DELETE' })
   }
-  toast.add({ title: 'RelaciÃ³n desactivada', color: 'success' })
+  toast.add({ title: 'Relación desactivada', color: 'success' })
   await load()
 }
 
@@ -181,7 +181,7 @@ onMounted(async () => {
   <div class="space-y-5 p-1">
     <div>
       <h3 class="text-sm font-semibold">Clientes y proveedores</h3>
-      <p class="mt-1 text-sm text-muted">AsignÃ¡ esta tarifa a una parte interesada y definÃ­ su precio. Si no tiene una asignaciÃ³n, se utiliza el precio general.</p>
+      <p class="mt-1 text-sm text-muted">Asigná esta tarifa a una parte interesada y definí su precio. Si no tiene una asignación, se utiliza el precio general.</p>
     </div>
 
     <div ref="formPanel" class="rounded-lg border p-4 transition-colors" :class="editingId ? 'border-primary bg-primary/5' : 'border-default'">
@@ -190,7 +190,7 @@ onMounted(async () => {
         <UButton type="button" label="Cancelar" color="neutral" variant="ghost" size="xs" @click="cancelEdit" />
       </div>
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(15rem,2fr)_minmax(9rem,1fr)_minmax(8rem,1fr)_auto]">
-      <UFormField label="Tipo de relaciÃ³n">
+      <UFormField label="Tipo de relación">
         <USelect v-model="form.operation_type" :items="operationOptions" class="w-full min-w-0" />
       </UFormField>
       <UFormField :label="form.operation_type === 'SALE' ? 'Cliente' : 'Proveedor'">
@@ -202,10 +202,10 @@ onMounted(async () => {
       <UFormField label="Precio acordado">
         <UInput v-model.number="form.price" type="number" min="0" step="0.01" class="w-full" />
       </UFormField>
-      <UFormField v-if="form.operation_type === 'PURCHASE'" label="DÃ­as de entrega">
+      <UFormField v-if="form.operation_type === 'PURCHASE'" label="Días de entrega">
         <UInput v-model.number="form.lead_time_days" type="number" min="0" placeholder="Ej: 7" class="w-full" />
       </UFormField>
-      <UFormField v-if="form.operation_type === 'PURCHASE'" label="Cantidad mÃ­n.">
+      <UFormField v-if="form.operation_type === 'PURCHASE'" label="Cantidad mín.">
         <UInput v-model="form.min_order_quantity" type="text" inputmode="decimal" placeholder="0.00" class="w-full" />
       </UFormField>
       <div v-if="form.operation_type === 'PURCHASE'" class="flex items-end pb-1">
@@ -225,7 +225,7 @@ onMounted(async () => {
             <th class="p-3">Uso</th>
             <th class="p-3 text-right">Precio</th>
             <th v-if="hasSuppliersData" class="p-3">Entrega</th>
-            <th v-if="hasSuppliersData" class="p-3">MÃ­n. pedido</th>
+            <th v-if="hasSuppliersData" class="p-3">Mín. pedido</th>
             <th v-if="hasSuppliersData" class="p-3">Principal</th>
             <th class="p-3">Vigente desde</th>
             <th class="p-3 text-right">Acciones</th>
@@ -237,7 +237,7 @@ onMounted(async () => {
             <td class="p-3"><UBadge :color="item.operation_type === 'SALE' ? 'primary' : 'info'" variant="subtle">{{ item.operation_type === 'SALE' ? 'Venta' : 'Compra' }}</UBadge></td>
             <td class="p-3 text-right tabular-nums">{{ money(item.price, item.currencies?.code) }}</td>
             <td v-if="hasSuppliersData" class="p-3">
-              <span v-if="item.supplier_data?.lead_time_days != null" class="text-muted">{{ item.supplier_data.lead_time_days }} dÃ­as</span>
+              <span v-if="item.supplier_data?.lead_time_days != null" class="text-muted">{{ item.supplier_data.lead_time_days }} días</span>
               <span v-else class="text-muted">â€”</span>
             </td>
             <td v-if="hasSuppliersData" class="p-3">
@@ -251,7 +251,7 @@ onMounted(async () => {
             <td class="p-3 text-muted">{{ new Date(item.effective_from).toLocaleDateString('es-AR') }}</td>
             <td class="p-3"><div class="flex justify-end gap-1"><UButton type="button" icon="i-lucide-pencil" color="neutral" variant="ghost" aria-label="Editar" @click="edit(item)" /><UButton type="button" icon="i-lucide-trash-2" color="error" variant="ghost" aria-label="Desactivar" @click="remove(item)" /></div></td>
           </tr>
-          <tr v-if="!loading && !prices.length"><td colspan="7" class="p-7 text-center text-muted">Esta tarifa todavÃ­a no tiene clientes ni proveedores asignados. Se usarÃ¡ su precio general.</td></tr>
+          <tr v-if="!loading && !prices.length"><td colspan="7" class="p-7 text-center text-muted">Esta tarifa todavía no tiene clientes ni proveedores asignados. Se usará su precio general.</td></tr>
         </tbody>
       </table>
     </div>
@@ -260,7 +260,7 @@ onMounted(async () => {
       <summary class="cursor-pointer text-sm font-medium">Historial de precios ({{ history.length }})</summary>
       <div class="mt-3 max-h-60 space-y-2 overflow-y-auto">
         <div v-for="entry in history" :key="entry.id" class="flex flex-wrap justify-between gap-2 rounded-md bg-elevated px-3 py-2 text-sm">
-          <span>{{ entry.business_parties?.name }} Â· {{ entry.operation_type === 'SALE' ? 'Venta' : 'Compra' }}</span>
+          <span>{{ entry.business_parties?.name }} · {{ entry.operation_type === 'SALE' ? 'Venta' : 'Compra' }}</span>
           <span>{{ entry.previous_price == null ? 'Nuevo' : money(entry.previous_price, entry.currencies?.code) }} â†’ <strong>{{ money(entry.new_price, entry.currencies?.code) }}</strong></span>
           <span class="text-muted">{{ new Date(entry.effective_at).toLocaleString('es-AR') }}</span>
         </div>

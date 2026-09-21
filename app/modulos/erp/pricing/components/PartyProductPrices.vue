@@ -23,7 +23,7 @@ const form = reactive({
 
 const productOptions = computed(() => products.value
   .filter((product: any) => product.active !== false && !product.deleted_at)
-  .map((product: any) => ({ label: product.sku ? `${product.name} Â· ${product.sku}` : product.name, value: product.id })))
+  .map((product: any) => ({ label: product.sku ? `${product.name} · ${product.sku}` : product.name, value: product.id })))
 const currencyOptions = computed(() => activeCurrencies.value.map(currency => ({
   label: `${currency.symbol} ${currency.code}`,
   value: currency.id
@@ -60,7 +60,7 @@ async function save() {
       method: 'POST',
       body: { ...form, party_id: props.partyId }
     })
-    toast.add({ title: 'Precio guardado', description: 'QuedÃ³ vigente para esta parte interesada.', color: 'success' })
+    toast.add({ title: 'Precio guardado', description: 'Quedó vigente para esta parte interesada.', color: 'success' })
     await load()
   } finally {
     saving.value = false
@@ -89,7 +89,7 @@ onMounted(async () => {
     <template #header>
       <div>
         <h2 class="text-base font-semibold">Precios por cliente o proveedor</h2>
-        <p class="mt-1 text-sm text-muted">El Ãºltimo precio confirmado tambiÃ©n se actualiza automÃ¡ticamente y conserva su historial.</p>
+        <p class="mt-1 text-sm text-muted">El último precio confirmado también se actualiza automáticamente y conserva su historial.</p>
       </div>
     </template>
 
@@ -97,7 +97,7 @@ onMounted(async () => {
       <UFormField label="Producto o tarifa">
         <USelectMenu v-model="form.product_id" :items="productOptions" value-key="value" searchable class="w-full min-w-0" />
       </UFormField>
-      <UFormField label="OperaciÃ³n">
+      <UFormField label="Operación">
         <USelect v-model="form.operation_type" :items="operationOptions" class="w-full min-w-0" />
       </UFormField>
       <UFormField label="Moneda">
@@ -114,7 +114,7 @@ onMounted(async () => {
     <div class="mt-6 overflow-x-auto rounded-lg border border-default">
       <table class="w-full min-w-[680px] text-sm">
         <thead class="bg-elevated text-left text-muted">
-          <tr><th class="p-3">Producto</th><th class="p-3">OperaciÃ³n</th><th class="p-3 text-right">Precio vigente</th><th class="p-3">Desde</th><th class="p-3 text-right">Acciones</th></tr>
+          <tr><th class="p-3">Producto</th><th class="p-3">Operación</th><th class="p-3 text-right">Precio vigente</th><th class="p-3">Desde</th><th class="p-3 text-right">Acciones</th></tr>
         </thead>
         <tbody>
           <tr v-for="price in prices" :key="price.id" class="border-t border-default">
@@ -124,7 +124,7 @@ onMounted(async () => {
             <td class="p-3 text-muted">{{ new Date(price.effective_from).toLocaleDateString('es-AR') }}</td>
             <td class="p-3"><div class="flex justify-end gap-1"><UButton icon="i-lucide-pencil" color="neutral" variant="ghost" aria-label="Editar" @click="edit(price)" /><UButton icon="i-lucide-trash-2" color="error" variant="ghost" aria-label="Desactivar" @click="remove(price)" /></div></td>
           </tr>
-          <tr v-if="!loading && !prices.length"><td colspan="5" class="p-6 text-center text-muted">TodavÃ­a no hay precios especÃ­ficos.</td></tr>
+          <tr v-if="!loading && !prices.length"><td colspan="5" class="p-6 text-center text-muted">Todavía no hay precios específicos.</td></tr>
         </tbody>
       </table>
     </div>
@@ -133,7 +133,7 @@ onMounted(async () => {
       <summary class="cursor-pointer text-sm font-medium">Ver historial de cambios ({{ history.length }})</summary>
       <div class="mt-3 max-h-64 space-y-2 overflow-y-auto">
         <div v-for="entry in history" :key="entry.id" class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-elevated px-3 py-2 text-sm">
-          <span>{{ entry.products?.name }} Â· {{ entry.operation_type === 'SALE' ? 'Venta' : 'Compra' }}</span>
+          <span>{{ entry.products?.name }} · {{ entry.operation_type === 'SALE' ? 'Venta' : 'Compra' }}</span>
           <span class="tabular-nums">{{ entry.previous_price == null ? 'Nuevo' : money(entry.previous_price, entry.currencies?.code) }} â†’ <strong>{{ money(entry.new_price, entry.currencies?.code) }}</strong></span>
           <span class="text-muted">{{ new Date(entry.effective_at).toLocaleString('es-AR') }}</span>
         </div>

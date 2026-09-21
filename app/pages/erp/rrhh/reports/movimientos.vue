@@ -88,7 +88,7 @@ const columns = movimientoColumns({ onSortFieldSelect })
 
 const filterFields: FilterField[] = [
   { id: 'type', label: 'Filtrar por tipo...', class: 'w-40' },
-  { id: 'description', label: 'Filtrar por descripciÃ³n...', class: 'w-56' }
+  { id: 'description', label: 'Filtrar por descripción...', class: 'w-56' }
 ]
 
 const sortFields: SortField[] = [

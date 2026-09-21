@@ -29,7 +29,7 @@ const COST_SOURCE_COLORS: Record<string, string> = {
   RATE: 'orange'
 }
 
-// ConversiÃ³n a moneda destino
+// Conversión a moneda destino
 const conversionCache = new Map<string, number>()
 
 const convertCurrency = async (amount: number, fromCode: string, toCode: string): Promise<number | null> => {
@@ -87,7 +87,7 @@ watch(
   { immediate: true }
 )
 
-// El backend ya devuelve breakdowns anidados (solo raÃ­ces con children)
+// El backend ya devuelve breakdowns anidados (solo raíces con children)
 const tableData = computed(() =>
   (history.value ?? []).map((item) => ({
     ...item,
@@ -130,7 +130,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
   },
   {
     id: 'version_or_component',
-    header: 'VersiÃ³n / Componente',
+    header: 'Versión / Componente',
     cell: ({ row }) => {
       const original = row.original as any
 
@@ -159,7 +159,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
         )
       }
 
-      // Fila raÃ­z (snapshot)
+      // Fila raíz (snapshot)
       return h('div', { class: 'flex flex-col gap-0.5' }, [
         h('div', { class: 'flex items-center gap-2' }, [
           h('span', { class: 'font-semibold' }, `v${original.version}`),
@@ -233,7 +233,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
       const original = row.original as any
 
       if (isBreakdown(original)) {
-        // Materia prima: no mostrar total (ya estÃ¡ en el conjunto padre)
+        // Materia prima: no mostrar total (ya está en el conjunto padre)
         if (!isSemiFinished(original)) {
           return h('span', { class: 'text-muted text-sm' }, 'â€”')
         }
@@ -245,7 +245,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
         )
       }
 
-      // Snapshot raÃ­z: mostrar total con sÃ­mbolo de moneda
+      // Snapshot raíz: mostrar total con símbolo de moneda
       const symbol = original.currencies?.symbol ?? '$'
       return h('span', { class: 'tabular-nums' }, formatCurrency(original.total_cost, symbol))
     }
@@ -298,7 +298,7 @@ const expanded = ref({})
       }"
     />
     <p v-if="!loading && !tableData.length" class="text-center text-sm text-muted py-8">
-      Sin historial de costos. CalculÃ¡ el costo para generar el primer registro.
+      Sin historial de costos. Calculá el costo para generar el primer registro.
     </p>
   </div>
 </template>

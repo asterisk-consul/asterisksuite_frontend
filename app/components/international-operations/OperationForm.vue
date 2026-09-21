@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useIntlOpsSettingsStore } from '~/modulos/international-operations/store/intl-ops-settings.store'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
@@ -36,10 +37,19 @@ const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies
 const locationsStore = useLocationsStore()
 const { items: locations } = storeToRefs(locationsStore)
 const { items: locationItems } = useLocations(locations)
+const settingsStore = useIntlOpsSettingsStore()
+const settingsReady = ref(false)
 
-onMounted(() => {
+onMounted(async () => {
   initCurrencies()
   locationsStore.fetchAll()
+  try {
+    await settingsStore.fetchSettings()
+  } catch {
+    // Si falla, se muestra el form con los valores por defecto
+  } finally {
+    settingsReady.value = true
+  }
 })
 
 const form = ref<CreateOperationInput>({
@@ -54,6 +64,9 @@ const form = ref<CreateOperationInput>({
   destination_location_id: undefined,
   currency_code: 'USD',
   incoterm: undefined,
+  customs_broker_op_number: '',
+  sim_number: '',
+  supplier_purchase_order: '',
   notes: '',
   ...props.initialData
 })
@@ -186,26 +199,53 @@ const onSubmit = () => {
 </script>
 
 <template>
-  <UForm :state="form" @submit="onSubmit" class="space-y-6">
-    <UPageCard>
+  <div v-if="!settingsReady" class="space-y-6">
+    <USkeleton class="h-48 w-full" />
+    <USkeleton class="h-36 w-full" />
+    <USkeleton class="h-36 w-full" />
+  </div>
+  <UForm v-else :state="form" @submit="onSubmit" class="space-y-6">
+    <UPageCard
+      v-if="settingsStore.isOperationFieldVisible('name') || settingsStore.isOperationFieldVisible('operation_type') || settingsStore.isOperationFieldVisible('transport_type') || settingsStore.isOperationFieldVisible('currency_code') || settingsStore.isOperationFieldVisible('incoterm')"
+    >
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <UFormField label="Nombre descriptivo" name="name">
+        <UFormField
+          v-if="settingsStore.isOperationFieldVisible('name')"
+          label="Nombre descriptivo"
+          name="name"
+        >
           <UInput v-model="form.name" placeholder="Ej: Importación-componentes-Shanghai" class="w-full" />
         </UFormField>
 
-        <UFormField label="Tipo de operación" name="operation_type">
+        <UFormField
+          v-if="settingsStore.isOperationFieldVisible('operation_type')"
+          label="Tipo de operación"
+          name="operation_type"
+        >
           <USelect v-model="form.operation_type" :items="operationTypes" class="w-full" />
         </UFormField>
 
-        <UFormField label="Medio de transporte" name="transport_type">
+        <UFormField
+          v-if="settingsStore.isOperationFieldVisible('transport_type')"
+          label="Medio de transporte"
+          name="transport_type"
+        >
           <USelect v-model="form.transport_type" :items="transportTypes" class="w-full" />
         </UFormField>
 
-        <UFormField label="Moneda" name="currency_code">
+        <UFormField
+          v-if="settingsStore.isOperationFieldVisible('currency_code')"
+          label="Moneda"
+          name="currency_code"
+        >
           <USelect v-model="form.currency_code" :items="currencyOptions" placeholder="Seleccionar moneda" class="w-full" />
         </UFormField>
 
-        <UFormField label="Incoterm" name="incoterm">
+        <UFormField
+          v-if="settingsStore.isOperationFieldVisible('incoterm')"
+          label="Incoterm"
+          name="incoterm"
+        >
           <div class="flex items-center gap-2">
             <USelect v-model="form.incoterm" :items="incotermOptions" placeholder="Seleccionar..." class="flex-1" />
             <UPopover>
@@ -229,7 +269,10 @@ const onSubmit = () => {
       </div>
     </UPageCard>
 
-    <UPageCard title="Origen">
+    <UPageCard
+      v-if="settingsStore.isOperationFieldVisible('origin_location_id')"
+      title="Origen"
+    >
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <UFormField label="Ubicación de origen" name="origin_location_id">
           <USelectMenu
@@ -252,7 +295,10 @@ const onSubmit = () => {
       </div>
     </UPageCard>
 
-    <UPageCard title="Destino">
+    <UPageCard
+      v-if="settingsStore.isOperationFieldVisible('destination_location_id')"
+      title="Destino"
+    >
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <UFormField label="Ubicación de destino" name="destination_location_id">
           <USelectMenu
@@ -275,18 +321,64 @@ const onSubmit = () => {
       </div>
     </UPageCard>
 
-    <UPageCard title="Fechas estimadas">
+    <UPageCard
+      v-if="settingsStore.isOperationFieldVisible('estimated_departure_date') || settingsStore.isOperationFieldVisible('estimated_arrival_date')"
+      title="Fechas estimadas"
+    >
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <UFormField label="Salida estimada" name="estimated_departure_date">
+        <UFormField
+          v-if="settingsStore.isOperationFieldVisible('estimated_departure_date')"
+          label="Salida estimada"
+          name="estimated_departure_date"
+        >
           <UInput v-model="form.estimated_departure_date" type="date" class="w-full" />
         </UFormField>
-        <UFormField label="Arribo estimado (ETA)" name="estimated_arrival_date">
+        <UFormField
+          v-if="settingsStore.isOperationFieldVisible('estimated_arrival_date')"
+          label="Arribo estimado (ETA)"
+          name="estimated_arrival_date"
+        >
           <UInput v-model="form.estimated_arrival_date" type="date" class="w-full" />
         </UFormField>
       </div>
     </UPageCard>
 
-    <UPageCard title="Notas">
+    <UPageCard
+      v-if="settingsStore.isOperationFieldVisible('customs_broker_op_number') || settingsStore.isOperationFieldVisible('sim_number') || settingsStore.isOperationFieldVisible('supplier_purchase_order')"
+      title="Datos aduaneros"
+      description="Referencias del despachante y documentos de la operación."
+    >
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <UFormField
+          v-if="settingsStore.isOperationFieldVisible('customs_broker_op_number')"
+          label="N° OP Despachante"
+          name="customs_broker_op_number"
+        >
+          <UInput v-model="form.customs_broker_op_number" placeholder="Ej: OP-2026-1234" class="w-full" />
+        </UFormField>
+
+        <UFormField
+          v-if="settingsStore.isOperationFieldVisible('sim_number')"
+          label="SIM"
+          name="sim_number"
+        >
+          <UInput v-model="form.sim_number" placeholder="Solicitud de internación" class="w-full" />
+        </UFormField>
+
+        <UFormField
+          v-if="settingsStore.isOperationFieldVisible('supplier_purchase_order')"
+          label="Orden de compra proveedor"
+          name="supplier_purchase_order"
+        >
+          <UInput v-model="form.supplier_purchase_order" placeholder="Referencia OC proveedor" class="w-full" />
+        </UFormField>
+      </div>
+    </UPageCard>
+
+    <UPageCard
+      v-if="settingsStore.isOperationFieldVisible('notes')"
+      title="Notas"
+    >
       <UFormField name="notes">
         <UTextarea v-model="form.notes" placeholder="Notas adicionales sobre la operación..." class="w-full" :rows="3" />
       </UFormField>

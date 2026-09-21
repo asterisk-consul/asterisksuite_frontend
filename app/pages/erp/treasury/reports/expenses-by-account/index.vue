@@ -54,8 +54,8 @@ const METHOD_LABELS: Record<string, string> = {
   CASH: 'Efectivo',
   CHECK: 'Cheque',
   BANK_TRANSFER: 'Transferencia',
-  CREDIT_CARD: 'Tarjeta crÃ©dito',
-  DEBIT_CARD: 'Tarjeta dÃ©bito',
+  CREDIT_CARD: 'Tarjeta crédito',
+  DEBIT_CARD: 'Tarjeta débito',
   VIRTUAL_WALLET: 'Billetera virtual',
 }
 
@@ -165,7 +165,7 @@ onMounted(async () => {
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <UCard>
           <div class="text-center">
-            <p class="text-xs text-muted">Total del perÃ­odo</p>
+            <p class="text-xs text-muted">Total del período</p>
             <p class="text-2xl font-bold text-primary">{{ fmtMoney(data.total_base) }}</p>
           </div>
         </UCard>
@@ -222,7 +222,7 @@ onMounted(async () => {
 
         <div v-if="data.accounts.length === 0" class="py-8 text-center text-sm text-muted">
           <UIcon name="i-lucide-bar-chart-3" class="mx-auto mb-2 text-2xl opacity-30" />
-          <p>Sin movimientos con cuenta contable en el perÃ­odo seleccionado</p>
+          <p>Sin movimientos con cuenta contable en el período seleccionado</p>
         </div>
 
         <div v-else class="space-y-2">

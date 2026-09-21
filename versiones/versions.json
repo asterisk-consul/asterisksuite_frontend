@@ -1,5 +1,67 @@
 [
   {
+    "version": "0.54.0-alpha",
+    "date": "2026-09-21",
+    "stage": "alpha",
+    "notes": "Autorizaciones fiscales para remitos, mejoras en operaciones internacionales y carga segura del saldo inicial de cajas.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "fiscal",
+        "title": "Nueva configuración de autorizaciones fiscales por tipo de remito, punto de venta, vigencia y rango de numeración"
+      },
+      {
+        "type": "feat",
+        "scope": "remitos",
+        "title": "Los remitos de venta validan el CAI al confirmarse y conservan una copia histórica de sus datos para impresión"
+      },
+      {
+        "type": "feat",
+        "scope": "notifications",
+        "title": "Alertas configurables por vencimiento y numeración restante de autorizaciones fiscales"
+      },
+      {
+        "type": "feat",
+        "scope": "access-control",
+        "title": "Nuevos permisos y datos iniciales para administrar autorizaciones fiscales"
+      },
+      {
+        "type": "fix",
+        "scope": "international-operations",
+        "title": "El tipo de cambio utiliza la cotización directa y normaliza cotizaciones inversas existentes"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Los documentos muestran importes en ambas monedas y los contenedores detallan los productos asociados"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Creación de facturas de compra desde la operación, asociación automática y accesos para editar o pagar documentos pendientes"
+      },
+      {
+        "type": "refactor",
+        "scope": "international-operations",
+        "title": "Encabezado compacto con número de operación visible y navegación fija que mejora el espacio de lectura"
+      },
+      {
+        "type": "feat",
+        "scope": "cash-boxes",
+        "title": "El saldo inicial puede asentarse después de crear la caja mientras todavía no tenga sesiones ni movimientos"
+      },
+      {
+        "type": "fix",
+        "scope": "cash-boxes",
+        "title": "El saldo de apertura genera el primer movimiento y actualiza el saldo real de la caja en una única transacción"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Autorizaciones fiscales, operaciones internacionales y saldo inicial de cajas"
+  },
+  {
     "version": "0.53.0-alpha",
     "date": "2026-09-18",
     "stage": "alpha",

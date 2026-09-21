@@ -37,6 +37,9 @@ export function useCashBoxes() {
   const forceCloseSession = async (id: string, payload: ForceCloseSessionInput) =>
     store.forceCloseSession(id, payload)
 
+  const setInitialBalance = async (id: string, amount: number) =>
+    store.setInitialBalance(id, amount)
+
   const selectItems = computed<SelectItem[]>(() =>
     store.activeItems.map((box) => ({
       label: `${box.name} (${box.status})`,
@@ -79,6 +82,7 @@ export function useCashBoxes() {
     fetchOne: store.fetchOne,
     fetchMain: store.fetchMain,
     fetchBalances: store.fetchBalances,
+    setInitialBalance,
     fetchCurrentSession: store.fetchCurrentSession,
     fetchSessions: store.fetchSessions,
     openSession,

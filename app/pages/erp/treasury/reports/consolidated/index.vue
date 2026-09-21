@@ -133,7 +133,7 @@ const handleExportExcel = () => {
   <UPage class="space-y-6 px-4">
     <AppPageHeader
       title="Informe Contable Consolidado"
-      description="Estado de situaciÃ³n patrimonial y resultados"
+      description="Estado de situación patrimonial y resultados"
     >
       <template #links>
         <UButton v-if="canExport('treasury.reports.export')" label="Exportar" icon="i-lucide-download" variant="outline" @click="handleExportExcel" />
@@ -150,7 +150,7 @@ const handleExportExcel = () => {
     <div>
       <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
         <UIcon name="i-lucide-scale" class="size-4 text-primary" />
-        Estado de SituaciÃ³n Patrimonial
+        Estado de Situación Patrimonial
       </h3>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <!-- ACTIVOS -->
@@ -204,7 +204,7 @@ const handleExportExcel = () => {
           </div>
           <div class="mt-3 pt-3 border-t border-default">
             <div class="flex items-center justify-between text-sm font-semibold">
-              <span>VerificaciÃ³n</span>
+              <span>Verificación</span>
               <span :class="activos === (pasivos + patrimonio) ? 'text-success' : 'text-error'">
                 {{ activos === (pasivos + patrimonio) ? 'âœ…' : 'âŒ' }}
                 {{ formatCurrency(activos) }} = {{ formatCurrency(pasivos + patrimonio) }}
@@ -300,16 +300,16 @@ const handleExportExcel = () => {
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <UPageCard variant="subtle">
           <div class="text-center">
-            <p class="text-xs text-muted font-medium uppercase">IVA DÃ©bito Fiscal</p>
+            <p class="text-xs text-muted font-medium uppercase">IVA Débito Fiscal</p>
             <p class="text-xl font-bold text-success">{{ formatCurrency(ivaDebito) }}</p>
-            <p class="text-xs text-muted">Lo que cobrÃ¡s</p>
+            <p class="text-xs text-muted">Lo que cobrás</p>
           </div>
         </UPageCard>
         <UPageCard variant="subtle">
           <div class="text-center">
-            <p class="text-xs text-muted font-medium uppercase">IVA CrÃ©dito Fiscal</p>
+            <p class="text-xs text-muted font-medium uppercase">IVA Crédito Fiscal</p>
             <p class="text-xl font-bold text-error">{{ formatCurrency(ivaCredito) }}</p>
-            <p class="text-xs text-muted">Lo que pagÃ¡s</p>
+            <p class="text-xs text-muted">Lo que pagás</p>
           </div>
         </UPageCard>
         <UPageCard variant="subtle">

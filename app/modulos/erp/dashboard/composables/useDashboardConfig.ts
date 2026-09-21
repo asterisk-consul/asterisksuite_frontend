@@ -18,10 +18,10 @@ export const AVAILABLE_WIDGETS: DashboardWidget[] = [
   { id: 'current_accounts', label: 'Cuentas Corrientes', icon: 'i-lucide-book-open', description: 'Top 5 cuentas por saldo', defaultEnabled: true, defaultPosition: 9, defaultSize: 'sm', permission: 'bank_accounts.read' },
   { id: 'picking', label: 'Picking Pendiente', icon: 'i-lucide-package-check', description: 'Ã“rdenes de picking sin ejecutar', defaultEnabled: true, defaultPosition: 10, defaultSize: 'sm', permission: 'picking.read' },
   { id: 'active_trips', label: 'Viajes Activos', icon: 'i-lucide-route', description: 'Viajes planificados y en curso', defaultEnabled: true, defaultPosition: 11, defaultSize: 'sm', permission: 'trips.read' },
-  { id: 'checks_due', label: 'Cheques a Vencer', icon: 'i-lucide-calendar-clock', description: 'Cheques propios a vencer en 30 dÃ­as', defaultEnabled: true, defaultPosition: 12, defaultSize: 'sm', permission: 'bank_accounts.read' },
+  { id: 'checks_due', label: 'Cheques a Vencer', icon: 'i-lucide-calendar-clock', description: 'Cheques propios a vencer en 30 días', defaultEnabled: true, defaultPosition: 12, defaultSize: 'sm', permission: 'bank_accounts.read' },
   { id: 'payments_due', label: 'Pagos/Cobros Pendientes', icon: 'i-lucide-hourglass', description: 'Pagos y cobros confirmados sin liquidar', defaultEnabled: true, defaultPosition: 13, defaultSize: 'sm', permission: 'payments.read' },
-  { id: 'quick_actions', label: 'Accesos Directos', icon: 'i-lucide-zap', description: 'Atajos a mÃ³dulos', defaultEnabled: true, defaultPosition: 14, defaultSize: 'lg' },
-  { id: 'chart', label: 'GrÃ¡fico', icon: 'i-lucide-bar-chart-3', description: 'GrÃ¡fico de resumen', defaultEnabled: true, defaultPosition: 15, defaultSize: 'lg' },
+  { id: 'quick_actions', label: 'Accesos Directos', icon: 'i-lucide-zap', description: 'Atajos a módulos', defaultEnabled: true, defaultPosition: 14, defaultSize: 'lg' },
+  { id: 'chart', label: 'Gráfico', icon: 'i-lucide-bar-chart-3', description: 'Gráfico de resumen', defaultEnabled: true, defaultPosition: 15, defaultSize: 'lg' },
 ]
 
 export const DEFAULT_WIDGETS: WidgetConfig[] = AVAILABLE_WIDGETS.map((w) => ({

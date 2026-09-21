@@ -46,12 +46,12 @@ const taxTypeOptions = ['GANANCIAS', 'IIBB', 'SUSS', 'IVA']
 const columns = [
   { accessorKey: 'date', header: 'Fecha' },
   { accessorKey: 'party', header: 'Tercero' },
-  { accessorKey: 'direction', header: 'DirecciÃ³n' },
+  { accessorKey: 'direction', header: 'Dirección' },
   { accessorKey: 'tax_type', header: 'Impuesto' },
-  { accessorKey: 'jurisdiction', header: 'JurisdicciÃ³n' },
+  { accessorKey: 'jurisdiction', header: 'Jurisdicción' },
   { accessorKey: 'base_amount', header: 'Base' },
-  { accessorKey: 'rate', header: 'AlÃ­c.' },
-  { accessorKey: 'withheld_amount', header: 'RetenciÃ³n' },
+  { accessorKey: 'rate', header: 'Alíc.' },
+  { accessorKey: 'withheld_amount', header: 'Retención' },
   { accessorKey: 'certificate_number', header: 'Certificado' },
   { accessorKey: 'status', header: 'Estado' }
 ]
@@ -88,7 +88,7 @@ onMounted(fetchWithholdings)
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold">Retenciones</h1>
-        <p class="text-sm text-muted">HistÃ³rico de retenciones practicadas y sufridas</p>
+        <p class="text-sm text-muted">Histórico de retenciones practicadas y sufridas</p>
       </div>
       <UBadge :label="`Total: ${formatCurrency(totalWithheld)}`" color="primary" size="lg" variant="subtle" />
     </div>
@@ -100,7 +100,7 @@ onMounted(fetchWithholdings)
           v-model="filters.direction"
           :items="directionOptions"
           value-key="value"
-          placeholder="DirecciÃ³n"
+          placeholder="Dirección"
         />
         <USelectMenu
           v-model="filters.tax_type"

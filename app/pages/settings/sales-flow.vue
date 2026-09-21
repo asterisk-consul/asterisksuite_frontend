@@ -32,7 +32,7 @@ async function load() {
   try {
     settings.value = await $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings')
   } catch {
-    toast.add({ title: 'No se pudo cargar la configuraciÃ³n', color: 'error' })
+    toast.add({ title: 'No se pudo cargar la configuración', color: 'error' })
   } finally {
     loading.value = false
   }
@@ -54,7 +54,7 @@ async function save() {
     settings.value = await $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings', {
       method: 'PATCH', body: payload
     })
-    toast.add({ title: 'Circuito de ventas guardado', description: 'Se aplicarÃ¡ a las nuevas Ã³rdenes de venta.', color: 'success' })
+    toast.add({ title: 'Circuito de ventas guardado', description: 'Se aplicará a las nuevas órdenes de venta.', color: 'success' })
   } catch (error: any) {
     toast.add({ title: 'No se pudo guardar', description: error?.data?.message, color: 'error' })
   } finally {
@@ -67,19 +67,19 @@ onMounted(load)
 
 <template>
   <div class="mx-auto w-full max-w-4xl space-y-6 pb-24">
-    <UPageHeader title="Circuito de ventas" description="DefinÃ­ cuÃ¡ndo nace la deuda, dÃ³nde se registran los cobros y cuÃ¡ndo se habilita la entrega." />
+    <UPageHeader title="Circuito de ventas" description="Definí cuándo nace la deuda, dónde se registran los cobros y cuándo se habilita la entrega." />
 
     <UAlert
       color="neutral"
       variant="subtle"
       icon="i-lucide-history"
       title="Las reglas se copian en cada nueva OV"
-      description="Cambiar esta configuraciÃ³n no recalcula documentos, pagos ni cuentas corrientes anteriores."
+      description="Cambiar esta configuración no recalcula documentos, pagos ni cuentas corrientes anteriores."
     />
 
-    <div v-if="loading" class="py-16 text-center text-muted">Cargando configuraciÃ³nâ€¦</div>
+    <div v-if="loading" class="py-16 text-center text-muted">Cargando configuraciónâ€¦</div>
     <template v-else-if="settings">
-      <UPageCard title="Cuenta corriente y cobros" description="Al guardar, tambiÃ©n se sincronizan los indicadores de las OV y facturas de venta.">
+      <UPageCard title="Cuenta corriente y cobros" description="Al guardar, también se sincronizan los indicadores de las OV y facturas de venta.">
         <div class="grid gap-5 md:grid-cols-2">
           <UFormField label="La deuda se registra desde" help="En el modo combinado, la factura reemplaza el importe provisorio de la OV.">
             <USelect v-model="settings.accounting_basis" :items="accountingOptions" value-key="value" label-key="label" class="w-full" />
@@ -94,17 +94,17 @@ onMounted(load)
           variant="subtle"
           icon="i-lucide-info"
           title="Los tipos documentales se mantienen sincronizados"
-          description="Factura activa solamente la factura; Orden de venta activa solamente la OV; las opciones combinadas activan ambos documentos. Los movimientos histÃ³ricos no se recalculan."
+          description="Factura activa solamente la factura; Orden de venta activa solamente la OV; las opciones combinadas activan ambos documentos. Los movimientos históricos no se recalculan."
         />
       </UPageCard>
 
-      <UPageCard title="CondiciÃ³n para remitir" description="El remito se habilita con las condiciones que definas para la operaciÃ³n.">
+      <UPageCard title="Condición para remitir" description="El remito se habilita con las condiciones que definas para la operación.">
         <div class="space-y-5">
           <div class="flex items-start justify-between gap-6">
             <div><p class="font-medium">Exigir un porcentaje cobrado</p><p class="text-sm text-muted">Suma los cobros aplicados a la OV o a sus facturas sin duplicarlos.</p></div>
             <USwitch v-model="settings.require_payment_for_delivery" />
           </div>
-          <UFormField v-if="settings.require_payment_for_delivery" label="Porcentaje mÃ­nimo cobrado">
+          <UFormField v-if="settings.require_payment_for_delivery" label="Porcentaje mínimo cobrado">
             <UInput v-model.number="settings.delivery_payment_percentage" type="number" min="0" max="100" step="0.01" class="w-48"><template #trailing>%</template></UInput>
           </UFormField>
           <USeparator />
@@ -114,7 +114,7 @@ onMounted(load)
           </div>
           <USeparator />
           <div class="flex items-start justify-between gap-6">
-            <div><p class="font-medium">Crear remito automÃ¡ticamente</p><p class="text-sm text-muted">Cuando se cumplen las condiciones, crea un borrador para el usuario de logÃ­stica.</p></div>
+            <div><p class="font-medium">Crear remito automáticamente</p><p class="text-sm text-muted">Cuando se cumplen las condiciones, crea un borrador para el usuario de logística.</p></div>
             <USwitch v-model="settings.auto_create_delivery_note" />
           </div>
           <USeparator />
@@ -127,7 +127,7 @@ onMounted(load)
     </template>
 
     <div class="sticky bottom-4 z-10 flex justify-end rounded-xl border border-default bg-default/95 p-3 shadow-lg backdrop-blur">
-      <UButton label="Guardar configuraciÃ³n" icon="i-lucide-save" :loading="saving" :disabled="loading || !settings" @click="save" />
+      <UButton label="Guardar configuración" icon="i-lucide-save" :loading="saving" :disabled="loading || !settings" @click="save" />
     </div>
   </div>
 </template>

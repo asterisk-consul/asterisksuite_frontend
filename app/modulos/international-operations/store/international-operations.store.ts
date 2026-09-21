@@ -141,11 +141,18 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
-  const associateDocument = async (operationId: string, documentId: string, expenseType?: InternationalExpenseType, containerId?: string) => {
+  const associateDocument = async (
+    operationId: string,
+    documentId: string,
+    expenseType?: InternationalExpenseType,
+    containerId?: string,
+    exchangeRate?: number,
+    customExpenseDescription?: string
+  ) => {
     try {
       loading.value = true
       error.value = null
-      await service.associateDocument(operationId, documentId, expenseType, containerId)
+      await service.associateDocument(operationId, documentId, expenseType, containerId, exchangeRate, customExpenseDescription)
       if (current.value?.id === operationId) {
         await fetchOne(operationId)
       }
@@ -301,6 +308,23 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
+  const deliverContainer = async (containerId: string, destinationWarehouseId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      const result = await service.deliverContainer(containerId, destinationWarehouseId)
+      if (current.value) {
+        await fetchOne(current.value.id)
+      }
+      return result
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al entregar contenedor'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   const createEvent = async (containerId: string, payload: CreateEventInput) => {
     try {
       loading.value = true
@@ -411,6 +435,7 @@ export const useInternationalOperationsStore = defineStore('international-operat
     findOneContainer,
     updateContainer,
     removeContainer,
+    deliverContainer,
     createEvent,
     removeEvent
   }

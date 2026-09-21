@@ -263,6 +263,25 @@ const links = computed(() => [
       :links="links"
     />
 
+    <UAlert
+      v-if="box.can_set_initial_balance"
+      color="info"
+      variant="soft"
+      icon="i-lucide-banknote"
+      title="Saldo inicial pendiente"
+      description="Esta caja todavía no tiene movimientos. Registrá el dinero disponible antes de abrir la primera sesión; después quedará bloqueado para preservar el historial."
+    >
+      <template #actions>
+        <UButton
+          label="Establecer saldo inicial"
+          icon="i-lucide-pencil"
+          color="info"
+          variant="outline"
+          :to="`/erp/treasury/cash-boxes/${boxId}/edit`"
+        />
+      </template>
+    </UAlert>
+
     <!-- SESSION STATUS -->
     <div
       v-if="boxHasActiveSession"

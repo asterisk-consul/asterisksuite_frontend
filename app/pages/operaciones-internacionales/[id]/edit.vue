@@ -33,6 +33,9 @@ const initialData = computed<Partial<CreateOperationInput>>(() => {
     estimated_arrival_date: operation.value.estimated_arrival_date?.split('T')[0] ?? '',
     currency_code: operation.value.currency_code ?? 'USD',
     incoterm: operation.value.incoterm ?? undefined,
+    customs_broker_op_number: operation.value.customs_broker_op_number ?? '',
+    sim_number: operation.value.sim_number ?? '',
+    supplier_purchase_order: operation.value.supplier_purchase_order ?? '',
     notes: operation.value.notes ?? ''
   }
 })

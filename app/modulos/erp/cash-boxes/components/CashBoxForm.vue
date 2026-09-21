@@ -24,6 +24,7 @@ const props = defineProps<{
   isEdit?: boolean
   boxId?: string
   loading?: boolean
+  canSetInitialBalance?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -280,10 +281,35 @@ const handleSubmit = () => {
               class="w-full"
             />
           </UFormField>
-          <UFormField label="Saldo de apertura" name="opening_balance" description="Importe disponible al iniciar esta caja.">
-            <UInput v-model.number="form.opening_balance" type="number" step="0.01" class="w-full" icon="i-lucide-banknote" />
+          <UFormField
+            :label="isEdit ? 'Saldo inicial' : 'Saldo de apertura (opcional)'"
+            name="opening_balance"
+            :description="isEdit && canSetInitialBalance
+              ? 'Será el primer movimiento de la caja y sólo puede registrarse una vez.'
+              : isEdit
+                ? 'El saldo inicial ya no puede modificarse porque la caja comenzó a operar.'
+                : 'Podés dejarlo en cero y establecerlo después, antes del primer movimiento.'"
+          >
+            <UInput
+              v-model.number="form.opening_balance"
+              type="number"
+              min="0"
+              step="0.01"
+              class="w-full"
+              icon="i-lucide-banknote"
+              :disabled="isEdit && !canSetInitialBalance"
+            />
           </UFormField>
         </div>
+
+        <UAlert
+          v-if="isEdit && canSetInitialBalance"
+          color="info"
+          variant="soft"
+          icon="i-lucide-info"
+          title="Esta caja todavía no comenzó a operar"
+          description="Podés registrar ahora el dinero disponible. Se asentará como el primer movimiento y luego quedará bloqueado."
+        />
 
         <div class="flex items-center justify-between gap-4 rounded-lg border border-default bg-elevated/50 p-4">
           <div>

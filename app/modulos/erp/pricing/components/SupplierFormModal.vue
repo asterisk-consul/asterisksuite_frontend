@@ -118,7 +118,7 @@ function handleSubmit() {
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-          <UFormField label="DÃ­as de entrega">
+          <UFormField label="Días de entrega">
             <UInput
               v-model="leadTimeDays"
               type="number"
@@ -127,7 +127,7 @@ function handleSubmit() {
             />
           </UFormField>
 
-          <UFormField label="Cantidad mÃ­n. pedido">
+          <UFormField label="Cantidad mín. pedido">
             <UInput
               v-model="minOrderQuantity"
               type="text"

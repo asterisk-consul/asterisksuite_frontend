@@ -21,6 +21,7 @@ const auth = useAuthStore()
 const { printElement } = usePrint()
 
 const loading = ref(true)
+const fiscalPreview = ref<any>(null)
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
@@ -35,6 +36,7 @@ onMounted(async () => {
       store.fetchOne(route.params.id as string),
       companyId && companiesStore.fetchOne(companyId),
     ])
+    fiscalPreview.value = await $fetch(`/api/backend/fiscal-authorizations/documents/${route.params.id}/preview`).catch(() => null)
   } finally {
     loading.value = false
   }
@@ -87,6 +89,14 @@ const {
         <DocumentChain v-if="doc" :document="doc" />
         <RemitoView v-if="doc" :document="doc" />
         <UAlert
+          v-if="doc?.status === 0 && fiscalPreview"
+          :color="fiscalPreview.status === 'BLOCKED' ? 'error' : fiscalPreview.status === 'WARNING' ? 'warning' : 'success'"
+          variant="soft"
+          icon="i-lucide-badge-check"
+          :title="fiscalPreview.status === 'BLOCKED' ? 'No se puede confirmar fiscalmente' : fiscalPreview.fiscal_authorization_code ? `${fiscalPreview.fiscal_authorization_type} ${fiscalPreview.fiscal_authorization_code}` : 'Control fiscal'"
+          :description="fiscalPreview.message || `Vence el ${String(fiscalPreview.fiscal_authorization_expires_at).slice(0, 10)} · ${fiscalPreview.days_remaining} día(s) restantes.`"
+        />
+        <UAlert
           v-if="doc && itemsWithoutWarehouse.length > 0"
           color="warning"
           variant="soft"
@@ -125,7 +135,7 @@ const {
           label="Confirmar remito"
           color="success"
           :loading="processing"
-          :disabled="itemsWithoutWarehouse.length > 0"
+          :disabled="itemsWithoutWarehouse.length > 0 || fiscalPreview?.status === 'BLOCKED'"
           @click="handleConfirm"
         />
       </div>

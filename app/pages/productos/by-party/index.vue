@@ -27,7 +27,7 @@ const tabOptions = [
 ]
 const partyOptions = computed(() => parties.value
   .filter(party => party.active !== false && party.type === partyType.value)
-  .map(party => ({ label: party.tax_id ? `${party.name} Â· ${party.tax_id}` : party.name, value: party.id })))
+  .map(party => ({ label: party.tax_id ? `${party.name} · ${party.tax_id}` : party.name, value: party.id })))
 const selectedParty = computed(() => parties.value.find(party => party.id === selectedPartyId.value))
 const normalizedSearch = computed(() => search.value.trim().toLocaleLowerCase())
 const filteredPrices = computed(() => prices.value.filter(item => {
@@ -78,7 +78,7 @@ function handleExportExcel() {
     columns: [
       { key: 'producto', label: 'Producto', width: 30 },
       { key: 'sku', label: 'SKU', width: 15 },
-      { key: 'operacion', label: 'OperaciÃ³n', width: 12 },
+      { key: 'operacion', label: 'Operación', width: 12 },
       { key: 'moneda', label: 'Moneda', width: 8 },
       { key: 'precio_acordado', label: 'Precio acordado', width: 15, format: (v: unknown) => Number(v).toFixed(2) },
       { key: 'precio_general', label: 'Precio general', width: 15, format: (v: unknown) => v != null ? Number(v).toFixed(2) : 'â€”' },
@@ -97,7 +97,7 @@ function handleExportExcel() {
 }
 
 function handleExportCSV() {
-  const headers = ['Producto', 'SKU', 'OperaciÃ³n', 'Moneda', 'Precio acordado', 'Precio general', 'Actualizado']
+  const headers = ['Producto', 'SKU', 'Operación', 'Moneda', 'Precio acordado', 'Precio general', 'Actualizado']
   const rows = filteredPrices.value.map(p => [
     p.products?.name || '',
     p.products?.sku || '',
@@ -144,7 +144,7 @@ async function loadPrices() {
 
 async function useGeneralPrice(item: any) {
   await $fetch(`/api/backend/pricing/party-prices/${item.id}`, { method: 'DELETE' })
-  toast.add({ title: 'Precio especÃ­fico desactivado', description: 'El producto volverÃ¡ a utilizar su precio general.', color: 'success' })
+  toast.add({ title: 'Precio específico desactivado', description: 'El producto volverá a utilizar su precio general.', color: 'success' })
   await loadPrices()
 }
 
@@ -168,7 +168,7 @@ onMounted(async () => {
 
 <template>
   <UPage class="space-y-5">
-    <UPageHeader title="Precios por cliente y proveedor" description="Listas acordadas, comparaciÃ³n con el precio general e historial por producto" />
+    <UPageHeader title="Precios por cliente y proveedor" description="Listas acordadas, comparación con el precio general e historial por producto" />
 
     <UCard>
       <div class="grid gap-4 md:grid-cols-[minmax(12rem,0.8fr)_minmax(18rem,2fr)_minmax(14rem,1fr)]">
@@ -189,7 +189,7 @@ onMounted(async () => {
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="font-semibold">{{ selectedParty?.name }}</h2>
-            <p class="text-sm text-muted">{{ prices.length }} precio{{ prices.length === 1 ? '' : 's' }} especÃ­fico{{ prices.length === 1 ? '' : 's' }}</p>
+            <p class="text-sm text-muted">{{ prices.length }} precio{{ prices.length === 1 ? '' : 's' }} específico{{ prices.length === 1 ? '' : 's' }}</p>
           </div>
           <div class="flex items-center gap-2">
             <UDropdownMenu :items="[
@@ -209,7 +209,7 @@ onMounted(async () => {
 
       <div v-else-if="activeTab === 'current'" class="overflow-x-auto rounded-lg border border-default">
         <table class="w-full min-w-[880px] text-sm">
-          <thead class="bg-elevated text-left text-muted"><tr><th class="p-3">Producto / tarifa</th><th class="p-3">OperaciÃ³n</th><th class="p-3 text-right">Precio general</th><th class="p-3 text-right">Precio acordado</th><th class="p-3 text-right">Diferencia</th><th class="p-3">Actualizado</th><th class="p-3 text-right">Acciones</th></tr></thead>
+          <thead class="bg-elevated text-left text-muted"><tr><th class="p-3">Producto / tarifa</th><th class="p-3">Operación</th><th class="p-3 text-right">Precio general</th><th class="p-3 text-right">Precio acordado</th><th class="p-3 text-right">Diferencia</th><th class="p-3">Actualizado</th><th class="p-3 text-right">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="item in filteredPrices" :key="item.id" class="border-t border-default">
               <td class="p-3"><NuxtLink :to="`/productos/${item.product_id}/edit`" class="font-medium hover:text-primary hover:underline">{{ item.products?.name }}</NuxtLink><div class="text-xs text-muted">{{ item.products?.sku || (item.products?.is_rate_type ? 'Tarifa' : 'Sin SKU') }}</div></td>
@@ -220,14 +220,14 @@ onMounted(async () => {
               <td class="p-3 text-muted">{{ new Date(item.effective_from).toLocaleDateString('es-AR') }}</td>
               <td class="p-3"><div class="flex justify-end gap-1"><UButton icon="i-lucide-pencil" color="neutral" variant="ghost" aria-label="Editar en producto" :to="`/productos/${item.product_id}/edit`" /><UButton icon="i-lucide-rotate-ccw" color="warning" variant="ghost" aria-label="Volver al precio general" title="Volver al precio general" @click="useGeneralPrice(item)" /></div></td>
             </tr>
-            <tr v-if="!filteredPrices.length"><td colspan="7" class="p-8 text-center text-muted">No hay precios especÃ­ficos. Los productos utilizarÃ¡n su precio general.</td></tr>
+            <tr v-if="!filteredPrices.length"><td colspan="7" class="p-8 text-center text-muted">No hay precios específicos. Los productos utilizarán su precio general.</td></tr>
           </tbody>
         </table>
       </div>
 
       <div v-else class="overflow-x-auto rounded-lg border border-default">
         <table class="w-full min-w-[850px] text-sm">
-          <thead class="bg-elevated text-left text-muted"><tr><th class="p-3">Producto / tarifa</th><th class="p-3">OperaciÃ³n</th><th class="p-3 text-right">Anterior</th><th class="p-3 text-right">Nuevo</th><th class="p-3">Origen</th><th class="p-3">Fecha</th></tr></thead>
+          <thead class="bg-elevated text-left text-muted"><tr><th class="p-3">Producto / tarifa</th><th class="p-3">Operación</th><th class="p-3 text-right">Anterior</th><th class="p-3 text-right">Nuevo</th><th class="p-3">Origen</th><th class="p-3">Fecha</th></tr></thead>
           <tbody>
             <tr v-for="entry in filteredHistory" :key="entry.id" class="border-t border-default">
               <td class="p-3"><NuxtLink :to="`/productos/${entry.product_id}/edit`" class="font-medium hover:text-primary hover:underline">{{ entry.products?.name }}</NuxtLink><div class="text-xs text-muted">{{ entry.products?.sku || 'â€”' }}</div></td>
@@ -243,7 +243,7 @@ onMounted(async () => {
       </div>
     </UCard>
 
-    <UCard v-else><div class="py-10 text-center text-muted"><UIcon name="i-lucide-contact-round" class="mx-auto mb-3 size-9 opacity-50" /><p>SeleccionÃ¡ un cliente o proveedor para consultar su lista de precios.</p></div></UCard>
+    <UCard v-else><div class="py-10 text-center text-muted"><UIcon name="i-lucide-contact-round" class="mx-auto mb-3 size-9 opacity-50" /><p>Seleccioná un cliente o proveedor para consultar su lista de precios.</p></div></UCard>
 
     <ExcelImportDialog
       v-model:open="showImportDialog"

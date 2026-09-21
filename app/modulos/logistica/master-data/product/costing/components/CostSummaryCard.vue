@@ -22,7 +22,7 @@ onMounted(async () => {
 // USelectMenu v-model: guarda el objeto {label, value}
 const targetCurrencyOption = ref<{ label: string; value: string } | null>(null)
 
-// UUID string extraÃ­do del objeto
+// UUID string extraído del objeto
 const resolvedCurrencyId = computed(() => targetCurrencyOption.value?.value ?? '')
 
 const conversionRate = ref<number | null>(null)
@@ -100,9 +100,9 @@ watch(resolvedCurrencyId, async (id) => {
     conversionRate.value = result.converted_amount
   } catch (err: any) {
     conversionRate.value = null
-    const msg = err?.data?.message || err?.message || 'No existe cotizaciÃ³n'
+    const msg = err?.data?.message || err?.message || 'No existe cotización'
     toast.add({
-      title: 'Sin cotizaciÃ³n',
+      title: 'Sin cotización',
       description: `No se pudo convertir ${props.originalCurrencyCode} â†’ ${tc.code}: ${msg}`,
       color: 'warning'
     })

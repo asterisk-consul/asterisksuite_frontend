@@ -66,7 +66,7 @@ async function save() {
     <UButton v-if="canAssign" icon="i-lucide-user-round-pen" variant="soft" size="sm" :loading="loading" @click="choose">
       {{ current ? 'Cambiar responsable' : 'Asignar responsable' }}
     </UButton>
-    <UModal v-model:open="open" title="Asignar responsable" description="ElegÃ­ quiÃ©n debe ocuparse de este documento.">
+    <UModal v-model:open="open" title="Asignar responsable" description="Elegí quién debe ocuparse de este documento.">
       <template #body>
         <UFormField label="Usuario de la empresa">
           <USelectMenu v-model="selected" :items="users" label-key="name" value-key="id" placeholder="Seleccionar usuario" class="w-full" :disabled="saving" />

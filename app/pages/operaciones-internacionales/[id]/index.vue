@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import AssociateDocumentModal from '~/components/international-operations/AssociateDocumentModal.vue'
 import AssociateQuoteModal from '~/components/international-operations/AssociateQuoteModal.vue'
@@ -15,6 +15,7 @@ import type {
 definePageMeta({ layout: 'default', middleware: ['auth'] })
 
 const route = useRoute()
+const router = useRouter()
 const id = route.params.id as string
 
 const {
@@ -52,10 +53,15 @@ const quoteStatusColor = (status: string): any =>
 const quoteStatusLabel = (status: string) =>
   status === 'ACCEPTED' ? 'Aceptado' : status === 'REJECTED' ? 'Rechazado' : 'Pendiente'
 
+const onResize = () => updateStickyOffsets()
+
 onMounted(async () => {
   await fetchOne(id)
   await fetchSummary(id)
+  await nextTick()
+  updateStickyOffsets()
   setupObserver()
+  window.addEventListener('resize', onResize)
 })
 
 const statusIcons: Record<OperationStatus, string> = {
@@ -89,14 +95,18 @@ const transportLabels: Record<string, string> = {
 
 const handleStatusChange = async (status: OperationStatus) => {
   const current = operation.value?.status
-  if (current && current !== status && confirm(`¿Cambiar estado de "${statusLabel(current)}" a "${statusLabel(status)}"?`)) {
+  if (
+    current &&
+    current !== status &&
+    confirm(`¿Cambiar estado de "${statusLabel(current)}" a "${statusLabel(status)}"?`)
+  ) {
     await updateStatus(id, status)
     await fetchSummary(id)
   }
 }
 
 const operationStatusItems = computed(() =>
-  statusOptions.map((s) => ({
+  statusOptions.value.map((s) => ({
     label: s.value === operation.value?.status ? `${s.label} (actual)` : s.label,
     icon: statusIcons[s.value as OperationStatus],
     disabled: s.value === operation.value?.status,
@@ -105,7 +115,7 @@ const operationStatusItems = computed(() =>
 )
 
 const getContainerStatusItems = (container: any) =>
-  containerStatusOptions.map((s) => ({
+  containerStatusOptions.value.map((s) => ({
     label: s.value === container.status ? `${s.label} (actual)` : s.label,
     disabled: s.value === container.status,
     onSelect: () => handleContainerStatusChange(container.id, s.value as ContainerStatus)
@@ -163,17 +173,71 @@ const handleDisassociateQuote = async (quote: any) => {
 const quoteAssociatedIds = computed(() => operation.value?.operation_quotes?.map((q) => q.document_id) ?? [])
 
 const getPaymentStatus = (doc: any): { label: string; color: any } => {
-  const paid = doc.paid_amount ?? 0
+  const paid = getDocumentPaid(doc)
   const total = doc.total ?? 0
   if (paid >= total && total > 0) return { label: 'Pagado', color: 'success' }
   if (paid > 0) return { label: 'Parcialmente pagado', color: 'warning' }
   return { label: 'Pendiente', color: 'error' }
 }
 
+const getDocumentPaid = (doc: any) =>
+  (doc?.payment_documents ?? []).reduce(
+    (sum: number, relation: any) => sum + Number(relation.amount_applied ?? 0),
+    0
+  )
+
+const getDocumentPending = (doc: any) =>
+  Math.max(0, Number(doc?.total ?? 0) - getDocumentPaid(doc))
+
+const editAssociatedDocument = (doc: any) => {
+  const direction = doc?.document_types?.direction
+  router.push(
+    direction === 'SALES'
+      ? `/erp/sales/${doc.id}/edit`
+      : `/erp/purchases/purchases-documents/${doc.id}/edit`
+  )
+}
+
+const payAssociatedDocument = (doc: any) => {
+  router.push({
+    path: '/erp/treasury/payments/create',
+    query: {
+      type: 'PAYMENT',
+      party_id: doc.party_id,
+      document_id: doc.id
+    }
+  })
+}
+
 const documentAssociatedIds = computed(() => operation.value?.operation_documents?.map((d) => d.document_id) ?? [])
 
 const containerDocuments = (containerId: string) =>
   (operation.value?.operation_documents ?? []).filter((d: any) => d.container_id === containerId)
+
+const containerMerchandiseItems = (containerId: string) => {
+  const grouped = new Map<string, { id: string; name: string; sku?: string; quantity: number; documents: number }>()
+  for (const rel of containerDocuments(containerId)) {
+    if (rel.expense_type !== 'MERCHANDISE') continue
+    for (const item of rel.document?.document_items ?? []) {
+      const product = item.products
+      const key = product?.id ?? item.product_id ?? item.id
+      const current = grouped.get(key)
+      if (current) {
+        current.quantity += Number(item.quantity ?? 0)
+        current.documents += 1
+      } else {
+        grouped.set(key, {
+          id: key,
+          name: product?.name ?? 'Producto sin nombre',
+          sku: product?.sku,
+          quantity: Number(item.quantity ?? 0),
+          documents: 1
+        })
+      }
+    }
+  }
+  return Array.from(grouped.values())
+}
 
 const fmtMoney = (amount: number, currency?: string) => {
   if (!currency || currency === '—') return amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })
@@ -187,12 +251,25 @@ const docCurrencyInfo = (rel: any) => {
   const docCurrency = rel.document?.currency_code
   if (!opCurrency || !docCurrency || docCurrency === opCurrency) return null
   const total = Number(rel.document?.total ?? 0)
-  const rate = rel.exchange_rate ? Number(rel.exchange_rate) : null
+  const rate = normalizeMarketRate(
+    rel.exchange_rate ? Number(rel.exchange_rate) : null,
+    docCurrency,
+    opCurrency
+  )
   const converted = convertWithMarketRate(total, docCurrency, opCurrency, rate)
   return { total, rate, converted, docCurrency, opCurrency }
 }
 
-const containerExpenseTotal = (containerId: string): { total: number; paid: number; pending: number; currency: string; unconvertedCount: number; unconvertedAmount: number } | null => {
+const containerExpenseTotal = (
+  containerId: string
+): {
+  total: number
+  paid: number
+  pending: number
+  currency: string
+  unconvertedCount: number
+  unconvertedAmount: number
+} | null => {
   const docs = containerDocuments(containerId)
   if (!docs.length) return null
   const opCurrency = operation.value?.currency_code ?? docs[0]!.document?.currency_code ?? 'USD'
@@ -204,7 +281,8 @@ const containerExpenseTotal = (containerId: string): { total: number; paid: numb
     const docCurrency = d.document?.currency_code ?? opCurrency
     const docTotal = Number(d.document?.total ?? 0)
     const docPaid = (d.document?.payment_documents ?? []).reduce(
-      (sum: number, pd: any) => sum + Number(pd.amount_applied ?? 0), 0
+      (sum: number, pd: any) => sum + Number(pd.amount_applied ?? 0),
+      0
     )
     const rate = d.exchange_rate ? Number(d.exchange_rate) : null
     const convertedTotal = convertWithMarketRate(docTotal, docCurrency, opCurrency, rate)
@@ -226,11 +304,35 @@ const getContainerField = (container: any) => {
   if (container.voyage_number) fields.push({ icon: 'i-lucide-hash', label: 'Viaje', value: container.voyage_number })
   if (container.seal_number) fields.push({ icon: 'i-lucide-lock', label: 'Sello', value: container.seal_number })
   if (container.origin_port || container.destination_port)
-    fields.push({ icon: 'i-lucide-map-pin', label: 'Ruta', value: `${container.origin_port ?? '—'} → ${container.destination_port ?? '—'}` })
-  if (container.estimated_departure_date) fields.push({ icon: 'i-lucide-calendar', label: 'Salida est.', value: formatDate(container.estimated_departure_date) })
-  if (container.estimated_arrival_date) fields.push({ icon: 'i-lucide-calendar-check', label: 'Arribo est. (ETA)', value: formatDate(container.estimated_arrival_date) })
-  if (container.actual_departure_date) fields.push({ icon: 'i-lucide-calendar-check-2', label: 'Salida real', value: formatDate(container.actual_departure_date) })
-  if (container.actual_arrival_date) fields.push({ icon: 'i-lucide-calendar-check-2', label: 'Arribo real', value: formatDate(container.actual_arrival_date) })
+    fields.push({
+      icon: 'i-lucide-map-pin',
+      label: 'Ruta',
+      value: `${container.origin_port ?? '—'} → ${container.destination_port ?? '—'}`
+    })
+  if (container.estimated_departure_date)
+    fields.push({
+      icon: 'i-lucide-calendar',
+      label: 'Salida est.',
+      value: formatDate(container.estimated_departure_date)
+    })
+  if (container.estimated_arrival_date)
+    fields.push({
+      icon: 'i-lucide-calendar-check',
+      label: 'Arribo est. (ETA)',
+      value: formatDate(container.estimated_arrival_date)
+    })
+  if (container.actual_departure_date)
+    fields.push({
+      icon: 'i-lucide-calendar-check-2',
+      label: 'Salida real',
+      value: formatDate(container.actual_departure_date)
+    })
+  if (container.actual_arrival_date)
+    fields.push({
+      icon: 'i-lucide-calendar-check-2',
+      label: 'Arribo real',
+      value: formatDate(container.actual_arrival_date)
+    })
   if (container.weight) fields.push({ icon: 'i-lucide-weight', label: 'Peso', value: `${container.weight} kg` })
   if (container.volume) fields.push({ icon: 'i-lucide-box', label: 'Volumen', value: `${container.volume} m³` })
   return fields
@@ -260,7 +362,7 @@ const toggleDocPayments = (docId: string) => {
 const sections = [
   { id: 'resumen', label: 'Resumen', icon: 'i-lucide-layout-dashboard' },
   { id: 'contenedores', label: 'Contenedores', icon: 'i-lucide-container' },
-  { id: 'presupuestos', label: 'Presupuestos', icon: 'i-lucide-file-chart' },
+  { id: 'presupuestos', label: 'Presupuestos', icon: 'i-lucide-file-chart-column' },
   { id: 'documentos', label: 'Documentos', icon: 'i-lucide-file-text' }
 ]
 
@@ -273,6 +375,17 @@ const sectionCounts = computed(() => ({
 const activeSection = ref('resumen')
 let observer: IntersectionObserver | null = null
 
+// Sólo la navegación de secciones permanece sticky. El encabezado completo
+// fluye con la página para no ocupar gran parte de la pantalla al desplazarse.
+const heroRef = ref<HTMLElement | null>(null)
+const subnavRef = ref<HTMLElement | null>(null)
+const subnavH = ref(0)
+const sectionScrollMt = computed(() => subnavH.value + 12)
+
+const updateStickyOffsets = () => {
+  subnavH.value = subnavRef.value?.offsetHeight ?? 0
+}
+
 const setupObserver = () => {
   if (typeof IntersectionObserver === 'undefined') return
   observer = new IntersectionObserver(
@@ -281,7 +394,7 @@ const setupObserver = () => {
         if (entry.isIntersecting) activeSection.value = entry.target.id
       }
     },
-    { rootMargin: '-96px 0px -70% 0px' }
+    { rootMargin: `-${subnavH.value + 8}px 0px -70% 0px` }
   )
   for (const s of sections) {
     const el = document.getElementById(s.id)
@@ -289,7 +402,10 @@ const setupObserver = () => {
   }
 }
 
-onBeforeUnmount(() => observer?.disconnect())
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  window.removeEventListener('resize', onResize)
+})
 
 const scrollTo = (sectionId: string) => {
   activeSection.value = sectionId
@@ -298,7 +414,7 @@ const scrollTo = (sectionId: string) => {
 </script>
 
 <template>
-  <UPage class="pb-8">
+  <UPage class="-mt-4 sm:-mt-6 pb-8">
     <div v-if="loading && !operation" class="space-y-4">
       <USkeleton class="h-8 w-48" />
       <USkeleton class="h-32 w-full" />
@@ -306,7 +422,10 @@ const scrollTo = (sectionId: string) => {
 
     <template v-if="operation">
       <!-- ═══════════════ HERO ═══════════════ -->
-      <div class="mb-4">
+      <div
+        ref="heroRef"
+        class="-mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-4 border-b border-default bg-gradient-to-b from-primary/5 to-transparent"
+      >
         <div class="flex items-start justify-between gap-4 flex-wrap">
           <div class="min-w-0">
             <UButton
@@ -318,8 +437,15 @@ const scrollTo = (sectionId: string) => {
               to="/operaciones-internacionales"
             />
             <div class="flex items-center gap-3 flex-wrap">
-              <h1 class="text-2xl font-bold font-mono tracking-tight">{{ operation.number }}</h1>
-              <UBadge :label="statusLabel(operation.status)" :color="statusColor(operation.status) as any" size="lg" icon="" />
+              <h1 class="text-2xl font-bold font-mono tracking-tight">
+                {{ operation.customs_broker_op_number || operation.number }}
+              </h1>
+              <UBadge
+                :label="statusLabel(operation.status)"
+                :color="statusColor(operation.status) as any"
+                size="lg"
+                icon=""
+              />
             </div>
             <p v-if="operation.name" class="text-muted mt-1">{{ operation.name }}</p>
           </div>
@@ -336,7 +462,18 @@ const scrollTo = (sectionId: string) => {
 
         <!-- Chips: tipo / transporte / incoterm / proveedor -->
         <div class="flex items-center gap-2 flex-wrap mt-3">
-          <UBadge :label="operation.operation_type === 'IMPORT' ? 'Importación' : operation.operation_type === 'EXPORT' ? 'Exportación' : 'Otro'" color="primary" variant="subtle" size="sm" />
+          <UBadge
+            :label="
+              operation.operation_type === 'IMPORT'
+                ? 'Importación'
+                : operation.operation_type === 'EXPORT'
+                  ? 'Exportación'
+                  : 'Otro'
+            "
+            color="primary"
+            variant="subtle"
+            size="sm"
+          />
           <UBadge
             v-if="operation.transport_type"
             :label="transportLabels[operation.transport_type] ?? operation.transport_type"
@@ -346,9 +483,12 @@ const scrollTo = (sectionId: string) => {
             :icon="transportIcons[operation.transport_type]"
           />
           <UBadge v-if="operation.incoterm" :label="operation.incoterm" color="neutral" variant="outline" size="sm" />
-          <span v-if="operation.currency_code" class="text-xs text-muted font-medium">en {{ operation.currency_code }}</span>
+          <span v-if="operation.currency_code" class="text-xs text-muted font-medium">
+            en {{ operation.currency_code }}
+          </span>
           <span v-if="operation.primary_supplier" class="text-xs text-muted flex items-center gap-1">
-            <UIcon name="i-lucide-building-2" class="size-3.5" /> {{ operation.primary_supplier.name }}
+            <UIcon name="i-lucide-building-2" class="size-3.5" />
+            {{ operation.primary_supplier.name }}
           </span>
         </div>
 
@@ -376,25 +516,44 @@ const scrollTo = (sectionId: string) => {
       </div>
 
       <!-- ═══════════════ SUB-NAV STICKY ═══════════════ -->
-      <div class="sticky top-0 z-20 -mx-4 px-4 py-2 bg-default/90 backdrop-blur border-b border-default">
-        <div class="flex items-center gap-1 overflow-x-auto">
-          <button
-            v-for="s in sections"
-            :key="s.id"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
-            :class="activeSection === s.id ? 'bg-primary/10 text-primary' : 'text-muted hover:bg-muted/50 hover:text-default'"
-            @click="scrollTo(s.id)"
-          >
-            <UIcon :name="s.icon" class="size-4" />
-            {{ s.label }}
-            <span
-              v-if="sectionCounts[s.id as keyof typeof sectionCounts]"
-              class="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-              :class="activeSection === s.id ? 'bg-primary/20 text-primary' : 'bg-muted/60 text-muted'"
-            >
-              {{ sectionCounts[s.id as keyof typeof sectionCounts] }}
+      <div
+        ref="subnavRef"
+        class="sticky -top-4 sm:-top-6 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-default/95 backdrop-blur border-b border-default shadow-sm"
+      >
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="flex items-center gap-2 shrink-0 pr-3 border-r border-default min-w-0">
+            <span class="font-mono text-sm font-bold max-w-28 sm:max-w-48 truncate" title="Número de operación">
+              {{ operation.customs_broker_op_number || operation.number }}
             </span>
-          </button>
+            <UBadge
+              :label="statusLabel(operation.status)"
+              :color="statusColor(operation.status) as any"
+              size="xs"
+              variant="subtle"
+              class="hidden sm:inline-flex"
+            />
+          </div>
+          <div class="flex items-center gap-1 overflow-x-auto min-w-0 scrollbar-none">
+            <button
+              v-for="s in sections"
+              :key="s.id"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+              :class="
+                activeSection === s.id ? 'bg-primary/10 text-primary' : 'text-muted hover:bg-muted/50 hover:text-default'
+              "
+              @click="scrollTo(s.id)"
+            >
+              <UIcon :name="s.icon" class="size-4" />
+              {{ s.label }}
+              <span
+                v-if="sectionCounts[s.id as keyof typeof sectionCounts]"
+                class="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                :class="activeSection === s.id ? 'bg-primary/20 text-primary' : 'bg-muted/60 text-muted'"
+              >
+                {{ sectionCounts[s.id as keyof typeof sectionCounts] }}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -419,7 +578,7 @@ const scrollTo = (sectionId: string) => {
       />
 
       <!-- ═══════════════ RESUMEN ═══════════════ -->
-      <div id="resumen" class="scroll-mt-20 mt-6 space-y-6">
+      <div id="resumen" :style="{ scrollMarginTop: sectionScrollMt + 'px' }" class="mt-6 space-y-6">
         <!-- STATS -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <button
@@ -463,7 +622,7 @@ const scrollTo = (sectionId: string) => {
             @click="scrollTo('presupuestos')"
           >
             <div class="size-10 rounded-lg bg-warning/10 flex items-center justify-center shrink-0">
-              <UIcon name="i-lucide-file-chart" class="size-5 text-warning" />
+              <UIcon name="i-lucide-file-chart-column" class="size-5 text-warning" />
             </div>
             <div>
               <p class="text-xs text-muted font-medium">Presupuestos</p>
@@ -477,7 +636,8 @@ const scrollTo = (sectionId: string) => {
           <div class="lg:col-span-2 rounded-xl border border-default p-5">
             <div class="flex items-center justify-between mb-4">
               <h2 class="font-semibold flex items-center gap-2">
-                <UIcon name="i-lucide-wallet" class="size-4 text-muted" /> Situación Financiera
+                <UIcon name="i-lucide-wallet" class="size-4 text-muted" />
+                Situación Financiera
               </h2>
               <UBadge
                 v-if="summary"
@@ -491,16 +651,28 @@ const scrollTo = (sectionId: string) => {
               <!-- Consolidado en moneda de la operación -->
               <div class="grid grid-cols-3 gap-2">
                 <div class="text-center rounded-lg border border-primary/30 bg-primary/5 p-3">
-                  <p class="text-[10px] text-muted font-medium uppercase tracking-wide">Total operación ({{ summary.financial.currency ?? operation.currency_code ?? 'USD' }})</p>
-                  <p class="text-lg font-bold">{{ fmtMoney(summary.financial.total.amount, summary.financial.currency ?? operation.currency_code) }}</p>
+                  <p class="text-[10px] text-muted font-medium uppercase tracking-wide">
+                    Total operación ({{ summary.financial.currency ?? operation.currency_code ?? 'USD' }})
+                  </p>
+                  <p class="text-lg font-bold">
+                    {{
+                      fmtMoney(summary.financial.total.amount, summary.financial.currency ?? operation.currency_code)
+                    }}
+                  </p>
                 </div>
                 <div class="text-center rounded-lg border border-success/30 bg-success/5 p-3">
                   <p class="text-[10px] text-muted font-medium uppercase tracking-wide">Pagado</p>
-                  <p class="text-lg font-bold text-success-500">{{ fmtMoney(summary.financial.paid.amount, summary.financial.currency ?? operation.currency_code) }}</p>
+                  <p class="text-lg font-bold text-success-500">
+                    {{ fmtMoney(summary.financial.paid.amount, summary.financial.currency ?? operation.currency_code) }}
+                  </p>
                 </div>
                 <div class="text-center rounded-lg border border-warning/30 bg-warning/5 p-3">
                   <p class="text-[10px] text-muted font-medium uppercase tracking-wide">Pendiente</p>
-                  <p class="text-lg font-bold text-warning-500">{{ fmtMoney(summary.financial.pending.amount, summary.financial.currency ?? operation.currency_code) }}</p>
+                  <p class="text-lg font-bold text-warning-500">
+                    {{
+                      fmtMoney(summary.financial.pending.amount, summary.financial.currency ?? operation.currency_code)
+                    }}
+                  </p>
                 </div>
               </div>
 
@@ -544,27 +716,64 @@ const scrollTo = (sectionId: string) => {
 
           <div class="rounded-xl border border-default p-5">
             <h2 class="font-semibold flex items-center gap-2 mb-4">
-              <UIcon name="i-lucide-info" class="size-4 text-muted" /> Información
+              <UIcon name="i-lucide-info" class="size-4 text-muted" />
+              Información
             </h2>
             <div class="space-y-3 text-sm">
               <div class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5"><UIcon name="i-lucide-map-pin" class="size-3.5" /> Origen</span>
+                <span class="text-muted flex items-center gap-1.5">
+                  <UIcon name="i-lucide-map-pin" class="size-3.5" />
+                  Origen
+                </span>
                 <span class="font-medium">{{ operation.origin_country ?? '—' }}</span>
               </div>
               <div class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5"><UIcon name="i-lucide-flag" class="size-3.5" /> Destino</span>
+                <span class="text-muted flex items-center gap-1.5">
+                  <UIcon name="i-lucide-flag" class="size-3.5" />
+                  Destino
+                </span>
                 <span class="font-medium">{{ operation.destination_country ?? '—' }}</span>
               </div>
               <div class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5"><UIcon name="i-lucide-calendar-check" class="size-3.5" /> ETA</span>
+                <span class="text-muted flex items-center gap-1.5">
+                  <UIcon name="i-lucide-calendar-check" class="size-3.5" />
+                  ETA
+                </span>
                 <span class="font-medium">{{ formatDate(operation.estimated_arrival_date) }}</span>
               </div>
               <div v-if="operation.actual_arrival_date" class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5"><UIcon name="i-lucide-check" class="size-3.5" /> Llegada real</span>
+                <span class="text-muted flex items-center gap-1.5">
+                  <UIcon name="i-lucide-check" class="size-3.5" />
+                  Llegada real
+                </span>
                 <span class="font-medium">{{ formatDate(operation.actual_arrival_date) }}</span>
               </div>
+              <div v-if="operation.customs_broker_op_number" class="flex items-center justify-between gap-3">
+                <span class="text-muted flex items-center gap-1.5">
+                  <UIcon name="i-lucide-file-badge" class="size-3.5" />
+                  N° OP Despachante
+                </span>
+                <span class="font-medium">{{ operation.customs_broker_op_number }}</span>
+              </div>
+              <div v-if="operation.sim_number" class="flex items-center justify-between gap-3">
+                <span class="text-muted flex items-center gap-1.5">
+                  <UIcon name="i-lucide-file-check" class="size-3.5" />
+                  SIM
+                </span>
+                <span class="font-medium">{{ operation.sim_number }}</span>
+              </div>
+              <div v-if="operation.supplier_purchase_order" class="flex items-center justify-between gap-3">
+                <span class="text-muted flex items-center gap-1.5">
+                  <UIcon name="i-lucide-shopping-cart" class="size-3.5" />
+                  OC Proveedor
+                </span>
+                <span class="font-medium">{{ operation.supplier_purchase_order }}</span>
+              </div>
               <div v-if="operation.notes" class="pt-3 border-t border-default">
-                <p class="text-muted flex items-center gap-1.5 mb-1"><UIcon name="i-lucide-sticky-note" class="size-3.5" /> Notas</p>
+                <p class="text-muted flex items-center gap-1.5 mb-1">
+                  <UIcon name="i-lucide-sticky-note" class="size-3.5" />
+                  Notas
+                </p>
                 <p class="text-sm whitespace-pre-wrap leading-relaxed">{{ operation.notes }}</p>
               </div>
             </div>
@@ -573,13 +782,20 @@ const scrollTo = (sectionId: string) => {
       </div>
 
       <!-- ═══════════════ CONTENEDORES ═══════════════ -->
-      <div id="contenedores" class="scroll-mt-20 mt-8">
+      <div id="contenedores" :style="{ scrollMarginTop: sectionScrollMt + 'px' }" class="mt-8">
         <div class="flex items-center justify-between mb-3">
           <h2 class="font-semibold text-base flex items-center gap-2">
-            <UIcon name="i-lucide-container" class="size-4 text-muted" /> Contenedores
+            <UIcon name="i-lucide-container" class="size-4 text-muted" />
+            Contenedores
             <UBadge :label="`${operation.containers?.length ?? 0}`" color="neutral" variant="outline" size="xs" />
           </h2>
-          <UButton label="Nuevo contenedor" icon="i-lucide-plus" size="xs" variant="outline" :to="`/operaciones-internacionales/${id}/containers/create`" />
+          <UButton
+            label="Nuevo contenedor"
+            icon="i-lucide-plus"
+            size="xs"
+            variant="outline"
+            :to="`/operaciones-internacionales/${id}/containers/create`"
+          />
         </div>
 
         <div v-if="operation.containers?.length" class="space-y-4">
@@ -589,12 +805,21 @@ const scrollTo = (sectionId: string) => {
             class="rounded-xl border border-default overflow-hidden bg-default hover:shadow-sm transition-shadow"
           >
             <!-- Header compacto -->
-            <div class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-default bg-muted/30">
+            <div
+              class="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-default bg-muted/30"
+            >
               <div class="flex items-center gap-3 min-w-0">
                 <UIcon name="i-lucide-container" class="size-4 text-muted shrink-0" />
                 <span class="font-mono font-bold">{{ container.container_number }}</span>
-                <UBadge :label="containerStatusLabel(container.status)" :color="containerStatusColor(container.status) as any" size="xs" variant="subtle" />
-                <span class="text-xs text-muted">{{ containerTypeLabel(container.container_type as ContainerType) }}</span>
+                <UBadge
+                  :label="containerStatusLabel(container.status)"
+                  :color="containerStatusColor(container.status) as any"
+                  size="xs"
+                  variant="subtle"
+                />
+                <span class="text-xs text-muted">
+                  {{ containerTypeLabel(container.container_type as ContainerType) }}
+                </span>
               </div>
               <div class="flex items-center gap-1 shrink-0">
                 <UDropdownMenu :items="getContainerStatusItems(container)">
@@ -645,15 +870,53 @@ const scrollTo = (sectionId: string) => {
 
             <!-- Gastos del contenedor -->
             <div v-if="containerDocuments(container.id).length" class="border-t border-default">
-              <div class="flex items-center justify-between flex-wrap gap-2 px-4 py-2 bg-muted/20 border-b border-default">
+              <div
+                class="flex items-center justify-between flex-wrap gap-2 px-4 py-2 bg-muted/20 border-b border-default"
+              >
                 <span class="text-xs font-semibold text-muted uppercase tracking-wide flex items-center gap-1.5">
-                  <UIcon name="i-lucide-receipt" class="size-3.5" /> Gastos
+                  <UIcon name="i-lucide-receipt" class="size-3.5" />
+                  Gastos
                 </span>
                 <div class="flex items-center gap-3" v-if="containerExpenseTotal(container.id)">
-                  <span class="text-xs"><span class="text-muted">Total:</span> <span class="font-bold">{{ fmtMoney(containerExpenseTotal(container.id)!.total, containerExpenseTotal(container.id)!.currency) }}</span></span>
-                  <span v-if="containerExpenseTotal(container.id)!.paid > 0" class="text-xs text-success-500 font-medium">Pagado: {{ fmtMoney(containerExpenseTotal(container.id)!.paid, containerExpenseTotal(container.id)!.currency) }}</span>
-                  <span v-if="containerExpenseTotal(container.id)!.pending > 0" class="text-xs text-warning-500 font-medium">Pendiente: {{ fmtMoney(containerExpenseTotal(container.id)!.pending, containerExpenseTotal(container.id)!.currency) }}</span>
-                  <span v-if="containerExpenseTotal(container.id)!.unconvertedCount > 0" class="text-xs text-error-500 font-medium" :title="`${containerExpenseTotal(container.id)!.unconvertedCount} documento(s) sin tipo de cambio`">· {{ containerExpenseTotal(container.id)!.unconvertedCount }} sin TC</span>
+                  <span class="text-xs">
+                    <span class="text-muted">Total:</span>
+                    <span class="font-bold">
+                      {{
+                        fmtMoney(
+                          containerExpenseTotal(container.id)!.total,
+                          containerExpenseTotal(container.id)!.currency
+                        )
+                      }}
+                    </span>
+                  </span>
+                  <span
+                    v-if="containerExpenseTotal(container.id)!.paid > 0"
+                    class="text-xs text-success-500 font-medium"
+                  >
+                    Pagado:
+                    {{
+                      fmtMoney(containerExpenseTotal(container.id)!.paid, containerExpenseTotal(container.id)!.currency)
+                    }}
+                  </span>
+                  <span
+                    v-if="containerExpenseTotal(container.id)!.pending > 0"
+                    class="text-xs text-warning-500 font-medium"
+                  >
+                    Pendiente:
+                    {{
+                      fmtMoney(
+                        containerExpenseTotal(container.id)!.pending,
+                        containerExpenseTotal(container.id)!.currency
+                      )
+                    }}
+                  </span>
+                  <span
+                    v-if="containerExpenseTotal(container.id)!.unconvertedCount > 0"
+                    class="text-xs text-error-500 font-medium"
+                    :title="`${containerExpenseTotal(container.id)!.unconvertedCount} documento(s) sin tipo de cambio`"
+                  >
+                    · {{ containerExpenseTotal(container.id)!.unconvertedCount }} sin TC
+                  </span>
                 </div>
               </div>
               <table class="w-full text-sm">
@@ -667,49 +930,143 @@ const scrollTo = (sectionId: string) => {
                       {{ rel.document?.document_types?.code }} Nº {{ rel.document?.number }}
                     </td>
                     <td class="px-4 py-2 text-muted text-xs min-w-0">
-                      <span class="truncate block">{{ expenseTypeLabel(rel.expense_type as InternationalExpenseType) }}<span v-if="rel.document?.business_parties"> — {{ rel.document.business_parties.name }}</span></span>
+                      <span class="truncate block">
+                        {{ expenseTypeLabel(rel.expense_type as InternationalExpenseType) }}
+                        <span v-if="rel.document?.business_parties">— {{ rel.document.business_parties.name }}</span>
+                      </span>
                     </td>
                     <td class="px-4 py-2 text-right whitespace-nowrap">
                       <div v-if="docCurrencyInfo(rel)">
-                        <p class="font-medium">{{ formatCurrency(docCurrencyInfo(rel)!.total, docCurrencyInfo(rel)!.docCurrency) }}</p>
+                        <p class="font-medium">
+                          {{ formatCurrency(docCurrencyInfo(rel)!.total, docCurrencyInfo(rel)!.docCurrency) }}
+                        </p>
                         <p class="text-[10px] text-muted">
-                          TC {{ docCurrencyInfo(rel)!.rate ?? '—' }} ·
-                          = <span v-if="docCurrencyInfo(rel)!.converted != null">{{ fmtMoney(docCurrencyInfo(rel)!.converted, docCurrencyInfo(rel)!.opCurrency) }}</span><span v-else class="text-warning-500">sin TC</span>
+                          TC {{ docCurrencyInfo(rel)!.rate ?? '—' }} · =
+                          <span v-if="docCurrencyInfo(rel)!.converted != null">
+                            {{ fmtMoney(docCurrencyInfo(rel)!.converted, docCurrencyInfo(rel)!.opCurrency) }}
+                          </span>
+                          <span v-else class="text-warning-500">sin TC</span>
                         </p>
                       </div>
-                      <span v-else class="font-medium">{{ formatCurrency(Number(rel.document?.total ?? 0), rel.document?.currency_code) }}</span>
+                      <span v-else class="font-medium">
+                        {{ formatCurrency(Number(rel.document?.total ?? 0), rel.document?.currency_code) }}
+                      </span>
                     </td>
                     <td class="px-4 py-2 text-right">
-                      <UBadge
-                        :label="getPaymentStatus(rel.document).label"
-                        :color="getPaymentStatus(rel.document).color"
-                        size="xs"
-                        variant="subtle"
-                      />
+                      <UPopover v-if="getDocumentPending(rel.document) > 0">
+                        <UButton
+                          :label="getPaymentStatus(rel.document).label"
+                          :color="getPaymentStatus(rel.document).color"
+                          size="xs"
+                          variant="soft"
+                          trailing-icon="i-lucide-chevron-down"
+                        />
+                        <template #content>
+                          <div class="w-64 p-3 space-y-3 text-left">
+                            <div>
+                              <p class="text-sm font-semibold">Documento pendiente</p>
+                              <p class="text-xs text-muted mt-0.5">
+                                Restan {{ formatCurrency(getDocumentPending(rel.document), rel.document?.currency_code) }}
+                              </p>
+                            </div>
+                            <div class="grid gap-1">
+                              <UButton label="Editar documento" icon="i-lucide-pencil" variant="ghost" block @click="editAssociatedDocument(rel.document)" />
+                              <UButton label="Registrar pago" icon="i-lucide-hand-coins" block @click="payAssociatedDocument(rel.document)" />
+                            </div>
+                          </div>
+                        </template>
+                      </UPopover>
+                      <UBadge v-else label="Pagado" color="success" size="xs" variant="subtle" />
                     </td>
-                  </tr>                </tbody>
+                  </tr>
+                </tbody>
               </table>
+
+              <div v-if="containerMerchandiseItems(container.id).length" class="border-t border-default p-4">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                  <span class="text-xs font-semibold text-muted uppercase tracking-wide flex items-center gap-1.5">
+                    <UIcon name="i-lucide-package-open" class="size-3.5" />
+                    Mercadería del contenedor
+                  </span>
+                  <UBadge
+                    :label="`${containerMerchandiseItems(container.id).length} producto(s)`"
+                    color="primary"
+                    variant="subtle"
+                    size="xs"
+                  />
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                  <div
+                    v-for="item in containerMerchandiseItems(container.id)"
+                    :key="item.id"
+                    class="flex items-center justify-between gap-3 rounded-lg border border-default bg-muted/10 px-3 py-2"
+                  >
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium truncate">{{ item.name }}</p>
+                      <p class="text-xs text-muted">
+                        <span v-if="item.sku">SKU: {{ item.sku }}</span>
+                        <span v-if="item.sku && item.documents > 1"> · </span>
+                        <span v-if="item.documents > 1">{{ item.documents }} líneas asociadas</span>
+                      </p>
+                    </div>
+                    <div class="text-right shrink-0">
+                      <p class="text-xs text-muted">Cantidad</p>
+                      <p class="font-bold text-primary">{{ item.quantity.toLocaleString('es-AR') }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
         <div v-else class="rounded-xl border border-dashed border-default text-center py-10">
           <UIcon name="i-lucide-container" class="size-8 text-muted mx-auto mb-2" />
           <p class="text-muted text-sm">No hay contenedores asociados.</p>
-          <UButton label="Agregar contenedor" variant="soft" size="xs" class="mt-3" icon="i-lucide-plus" :to="`/operaciones-internacionales/${id}/containers/create`" />
+          <UButton
+            label="Agregar contenedor"
+            variant="soft"
+            size="xs"
+            class="mt-3"
+            icon="i-lucide-plus"
+            :to="`/operaciones-internacionales/${id}/containers/create`"
+          />
         </div>
       </div>
 
       <!-- ═══════════════ PRESUPUESTOS ═══════════════ -->
-      <div id="presupuestos" class="scroll-mt-20 mt-8">
+      <div id="presupuestos" :style="{ scrollMarginTop: sectionScrollMt + 'px' }" class="mt-8">
         <div class="flex items-center justify-between gap-2 flex-wrap mb-3">
           <h2 class="font-semibold text-base flex items-center gap-2">
-            <UIcon name="i-lucide-file-chart" class="size-4 text-muted" /> Presupuestos
+            <UIcon name="i-lucide-file-chart-column" class="size-4 text-muted" />
+            Presupuestos
             <UBadge :label="`${operation.operation_quotes?.length ?? 0}`" color="neutral" variant="outline" size="xs" />
-            <span class="text-xs text-muted font-normal hidden sm:inline">— compará cotizaciones y elegí el ganador · no impactan en totales</span>
+            <span class="text-xs text-muted font-normal hidden sm:inline">
+              — compará cotizaciones y elegí el ganador · no impactan en totales
+            </span>
           </h2>
           <div class="flex gap-2">
-            <UButton label="Crear" icon="i-lucide-file-plus" size="xs" variant="outline" @click="() => { showCreateQuoteModal = true }" />
-            <UButton label="Asociar" icon="i-lucide-plus" size="xs" variant="outline" @click="() => { showQuoteModal = true }" />
+            <UButton
+              label="Crear"
+              icon="i-lucide-file-plus"
+              size="xs"
+              variant="outline"
+              @click="
+                () => {
+                  showCreateQuoteModal = true
+                }
+              "
+            />
+            <UButton
+              label="Asociar"
+              icon="i-lucide-plus"
+              size="xs"
+              variant="outline"
+              @click="
+                () => {
+                  showQuoteModal = true
+                }
+              "
+            />
           </div>
         </div>
 
@@ -724,13 +1081,20 @@ const scrollTo = (sectionId: string) => {
               <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap mb-1">
                   <span class="font-mono font-bold text-sm">
-                    {{ quote.document?.document_types?.code }} Nº {{ String(quote.document?.number ?? '').padStart(8, '0') }}
+                    {{ quote.document?.document_types?.code }} Nº
+                    {{ String(quote.document?.number ?? '').padStart(8, '0') }}
                   </span>
-                  <UBadge :label="quoteStatusLabel(quote.status)" :color="quoteStatusColor(quote.status)" size="xs" variant="subtle" />
+                  <UBadge
+                    :label="quoteStatusLabel(quote.status)"
+                    :color="quoteStatusColor(quote.status)"
+                    size="xs"
+                    variant="subtle"
+                  />
                 </div>
                 <div class="flex items-center gap-3 text-xs text-muted flex-wrap">
                   <span class="font-medium text-default flex items-center gap-1">
-                    <UIcon name="i-lucide-building-2" class="size-3" /> {{ quote.document?.business_parties?.name ?? '—' }}
+                    <UIcon name="i-lucide-building-2" class="size-3" />
+                    {{ quote.document?.business_parties?.name ?? '—' }}
                   </span>
                   <span>{{ formatDate(quote.document?.date) }}</span>
                 </div>
@@ -746,7 +1110,9 @@ const scrollTo = (sectionId: string) => {
             >
               <span v-for="(item, idx) in quote.document.document_items" :key="idx" class="text-xs text-muted">
                 {{ item.quantity }} × {{ item.products?.name ?? 'Producto' }}
-                <span class="font-medium text-default">{{ formatCurrency(item.quantity * item.price, quote.document?.currency_code) }}</span>
+                <span class="font-medium text-default">
+                  {{ formatCurrency(item.quantity * item.price, quote.document?.currency_code) }}
+                </span>
               </span>
             </div>
 
@@ -777,51 +1143,107 @@ const scrollTo = (sectionId: string) => {
                 size="xs"
                 @click="handleResetQuote(quote)"
               />
-              <UButton
-                icon="i-lucide-unlink"
-                variant="ghost"
-                size="xs"
-                @click="handleDisassociateQuote(quote)"
-              />
+              <UButton icon="i-lucide-unlink" variant="ghost" size="xs" @click="handleDisassociateQuote(quote)" />
             </div>
           </div>
         </div>
         <div v-else class="rounded-xl border border-dashed border-default text-center py-10">
-          <UIcon name="i-lucide-file-chart" class="size-8 text-muted mx-auto mb-2" />
+          <UIcon name="i-lucide-file-chart-column" class="size-8 text-muted mx-auto mb-2" />
           <p class="text-muted text-sm">No hay presupuestos asociados.</p>
-          <p class="text-xs text-muted mb-3">Creá uno rápido o asociá una cotización existente del módulo de compras.</p>
+          <p class="text-xs text-muted mb-3">
+            Creá uno rápido o asociá una cotización existente del módulo de compras.
+          </p>
           <div class="flex justify-center gap-2">
-            <UButton label="Crear presupuesto" variant="soft" size="xs" icon="i-lucide-file-plus" @click="() => { showCreateQuoteModal = true }" />
-            <UButton label="Asociar existente" variant="outline" size="xs" icon="i-lucide-plus" @click="() => { showQuoteModal = true }" />
+            <UButton
+              label="Crear presupuesto"
+              variant="soft"
+              size="xs"
+              icon="i-lucide-file-plus"
+              @click="
+                () => {
+                  showCreateQuoteModal = true
+                }
+              "
+            />
+            <UButton
+              label="Asociar existente"
+              variant="outline"
+              size="xs"
+              icon="i-lucide-plus"
+              @click="
+                () => {
+                  showQuoteModal = true
+                }
+              "
+            />
           </div>
         </div>
       </div>
 
       <!-- ═══════════════ DOCUMENTOS ═══════════════ -->
-      <div id="documentos" class="scroll-mt-20 mt-8">
+      <div id="documentos" :style="{ scrollMarginTop: sectionScrollMt + 'px' }" class="mt-8">
         <div class="flex items-center justify-between mb-3">
           <h2 class="font-semibold text-base flex items-center gap-2">
-            <UIcon name="i-lucide-file-text" class="size-4 text-muted" /> Documentos
+            <UIcon name="i-lucide-file-text" class="size-4 text-muted" />
+            Documentos
             <UBadge :label="`${summary?.stats.documentCount ?? 0}`" color="neutral" variant="outline" size="xs" />
           </h2>
-          <div class="flex gap-2">
-            <UButton label="Asociar documento" icon="i-lucide-plus" size="xs" variant="outline" @click="() => { showDocumentModal = true }" />
+          <div class="flex gap-2 flex-wrap justify-end">
+            <UButton
+              label="Nueva factura de compra"
+              icon="i-lucide-file-plus-2"
+              size="xs"
+              color="primary"
+              :to="`/erp/purchases/purchases-documents/new?category=INVOICE&international_operation_id=${id}`"
+            />
+            <UButton
+              label="Asociar documento"
+              icon="i-lucide-plus"
+              size="xs"
+              variant="outline"
+              @click="
+                () => {
+                  showDocumentModal = true
+                }
+              "
+            />
           </div>
         </div>
 
         <div v-if="summary?.expenseGroups?.length" class="space-y-4">
-          <div v-for="group in summary.expenseGroups" :key="group.type" class="rounded-xl border border-default overflow-hidden">
+          <div
+            v-for="group in summary.expenseGroups"
+            :key="group.type"
+            class="rounded-xl border border-default overflow-hidden"
+          >
             <!-- Header de grupo -->
-            <div class="bg-muted/30 px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap border-b border-default">
+            <div
+              class="bg-muted/30 px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap border-b border-default"
+            >
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-sm">{{ group.label }}</span>
                 <UBadge :label="`${group.documentCount} docs`" color="neutral" variant="outline" size="xs" />
               </div>
               <div class="flex items-center gap-4 text-xs">
-                <span><span class="text-muted">Total:</span> <span class="font-bold">{{ formatCurrency(group.total, group.currency ?? operation.currency_code) }}</span></span>
-                <span v-if="group.paid > 0" class="text-success-500 font-medium">Pagado: {{ formatCurrency(group.paid, group.currency ?? operation.currency_code) }}</span>
-                <span v-if="group.pending > 0" class="text-warning-500 font-medium">Pendiente: {{ formatCurrency(group.pending, group.currency ?? operation.currency_code) }}</span>
-                <span v-if="(group.unconvertedCount ?? 0) > 0" class="text-error-500 font-medium" :title="`${group.unconvertedCount} documento(s) sin tipo de cambio`">· {{ group.unconvertedCount }} sin TC</span>
+                <span>
+                  <span class="text-muted">Total:</span>
+                  <span class="font-bold">
+                    {{ formatCurrency(group.total, group.currency ?? operation.currency_code) }}
+                  </span>
+                </span>
+                <span v-if="group.paid > 0" class="text-success-500 font-medium">
+                  Pagado: {{ formatCurrency(group.paid, group.currency ?? operation.currency_code) }}
+                </span>
+                <span v-if="group.pending > 0" class="text-warning-500 font-medium">
+                  Pendiente: {{ formatCurrency(group.pending, group.currency ?? operation.currency_code) }}
+                </span>
+                <span
+                  v-if="(group.unconvertedCount ?? 0) > 0"
+                  class="text-error-500 font-medium"
+                  :title="`${group.unconvertedCount} documento(s) sin tipo de cambio`"
+                >
+                  · {{ group.unconvertedCount }} sin TC
+                </span>
               </div>
             </div>
 
@@ -855,7 +1277,8 @@ const scrollTo = (sectionId: string) => {
                     <div class="flex items-center gap-3 text-xs text-muted flex-wrap mt-1">
                       <span>{{ formatDate(rel.document?.date) }}</span>
                       <span v-if="rel.document?.business_parties" class="flex items-center gap-1">
-                        <UIcon name="i-lucide-building-2" class="size-3" /> {{ rel.document.business_parties.name }}
+                        <UIcon name="i-lucide-building-2" class="size-3" />
+                        {{ rel.document.business_parties.name }}
                       </span>
                       <button
                         v-if="rel.document?.payment_documents?.length"
@@ -873,33 +1296,63 @@ const scrollTo = (sectionId: string) => {
 
                   <div class="flex items-center gap-2 shrink-0 text-right">
                     <div v-if="docCurrencyInfo(rel)">
-                      <p class="font-bold">{{ formatCurrency(docCurrencyInfo(rel)!.total, docCurrencyInfo(rel)!.docCurrency) }}</p>
+                      <p class="font-bold">
+                        {{ formatCurrency(docCurrencyInfo(rel)!.total, docCurrencyInfo(rel)!.docCurrency) }}
+                      </p>
                       <p class="text-[10px] text-muted">
-                        TC {{ docCurrencyInfo(rel)!.rate ?? '—' }} ·
-                        = <span v-if="docCurrencyInfo(rel)!.converted != null">{{ fmtMoney(docCurrencyInfo(rel)!.converted, docCurrencyInfo(rel)!.opCurrency) }}</span><span v-else class="text-warning-500">sin TC</span>
+                        TC {{ docCurrencyInfo(rel)!.rate ?? '—' }} · =
+                        <span v-if="docCurrencyInfo(rel)!.converted != null">
+                          {{ fmtMoney(docCurrencyInfo(rel)!.converted, docCurrencyInfo(rel)!.opCurrency) }}
+                        </span>
+                        <span v-else class="text-warning-500">sin TC</span>
                       </p>
                     </div>
-                    <span v-else class="font-bold">{{ formatCurrency(Number(rel.document?.total ?? 0), rel.document?.currency_code) }}</span>
-                    <UBadge
-                      :label="getPaymentStatus(rel.document).label"
-                      :color="getPaymentStatus(rel.document).color"
-                      size="xs"
-                      variant="subtle"
-                    />
-                    <UDropdownMenu :items="[
-                      {
-                        label: 'Desasociar documento',
-                        icon: 'i-lucide-unlink',
-                        onSelect: () => handleDisassociateDocument(rel.document_id)
-                      }
-                    ]">
+                    <span v-else class="font-bold">
+                      {{ formatCurrency(Number(rel.document?.total ?? 0), rel.document?.currency_code) }}
+                    </span>
+                    <UPopover v-if="getDocumentPending(rel.document) > 0">
+                      <UButton
+                        :label="getPaymentStatus(rel.document).label"
+                        :color="getPaymentStatus(rel.document).color"
+                        size="xs"
+                        variant="soft"
+                        trailing-icon="i-lucide-chevron-down"
+                      />
+                      <template #content>
+                        <div class="w-64 p-3 space-y-3 text-left">
+                          <div>
+                            <p class="text-sm font-semibold">Documento pendiente</p>
+                            <p class="text-xs text-muted mt-0.5">
+                              Restan {{ formatCurrency(getDocumentPending(rel.document), rel.document?.currency_code) }}
+                            </p>
+                          </div>
+                          <div class="grid gap-1">
+                            <UButton label="Editar documento" icon="i-lucide-pencil" variant="ghost" block @click="editAssociatedDocument(rel.document)" />
+                            <UButton label="Registrar pago" icon="i-lucide-hand-coins" block @click="payAssociatedDocument(rel.document)" />
+                          </div>
+                        </div>
+                      </template>
+                    </UPopover>
+                    <UBadge v-else label="Pagado" color="success" size="xs" variant="subtle" />
+                    <UDropdownMenu
+                      :items="[
+                        {
+                          label: 'Desasociar documento',
+                          icon: 'i-lucide-unlink',
+                          onSelect: () => handleDisassociateDocument(rel.document_id)
+                        }
+                      ]"
+                    >
                       <UButton icon="i-lucide-more-horizontal" variant="ghost" size="xs" />
                     </UDropdownMenu>
                   </div>
                 </div>
 
                 <!-- Pagos colapsables -->
-                <div v-if="expandedDocs.has(rel.document_id) && rel.document?.payment_documents?.length" class="mt-3 ml-2 pl-4 border-l-2 border-primary/40 space-y-2">
+                <div
+                  v-if="expandedDocs.has(rel.document_id) && rel.document?.payment_documents?.length"
+                  class="mt-3 ml-2 pl-4 border-l-2 border-primary/40 space-y-2"
+                >
                   <div
                     v-for="pd in rel.document.payment_documents"
                     :key="pd.payment_id"
@@ -913,10 +1366,14 @@ const scrollTo = (sectionId: string) => {
                         size="xs"
                         variant="subtle"
                       />
-                      <span class="text-xs text-muted">{{ formatDate(pd.payment?.date) }} · {{ pd.payment?.payment_method }}</span>
+                      <span class="text-xs text-muted">
+                        {{ formatDate(pd.payment?.date) }} · {{ pd.payment?.payment_method }}
+                      </span>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                      <span class="text-xs font-medium">{{ formatCurrency(Number(pd.amount_applied ?? 0), pd.payment?.currency_code) }}</span>
+                      <span class="text-xs font-medium">
+                        {{ formatCurrency(Number(pd.amount_applied ?? 0), pd.payment?.currency_code) }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -927,7 +1384,18 @@ const scrollTo = (sectionId: string) => {
         <div v-else class="rounded-xl border border-dashed border-default text-center py-10">
           <UIcon name="i-lucide-file-text" class="size-8 text-muted mx-auto mb-2" />
           <p class="text-muted text-sm">No hay documentos asociados.</p>
-          <UButton label="Asociar documento" variant="soft" size="xs" class="mt-3" icon="i-lucide-plus" @click="() => { showDocumentModal = true }" />
+          <UButton
+            label="Asociar documento"
+            variant="soft"
+            size="xs"
+            class="mt-3"
+            icon="i-lucide-plus"
+            @click="
+              () => {
+                showDocumentModal = true
+              }
+            "
+          />
         </div>
       </div>
 

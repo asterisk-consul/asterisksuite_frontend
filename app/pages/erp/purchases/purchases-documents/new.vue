@@ -6,11 +6,13 @@ definePageMeta({
 import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
+import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 
 const { mainCollapsed } = useSidebarState()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const internationalOperationsService = useInternationalOperationsService()
 
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
@@ -19,6 +21,7 @@ const partyId = computed(() => (route.query.party_id as string) || undefined)
 const parentOrderId = computed(() => (route.query.parent_order_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
 const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
+const internationalOperationId = computed(() => (route.query.international_operation_id as string) || undefined)
 const captureLoading = ref(false)
 
 async function enableCapture() {
@@ -102,6 +105,28 @@ async function handleSubmit(payload: any) {
       })
     }
     toast.add({ title: `${pageTitle.value} creado`, color: 'success' })
+    if (internationalOperationId.value) {
+      try {
+        await internationalOperationsService.associateDocument(
+          internationalOperationId.value,
+          created.id,
+          'MERCHANDISE'
+        )
+        toast.add({
+          title: 'Documento asociado',
+          description: 'La factura quedó vinculada a la operación internacional.',
+          color: 'success'
+        })
+        await router.push(`/operaciones-internacionales/${internationalOperationId.value}`)
+        return
+      } catch (associationError: any) {
+        toast.add({
+          title: 'La factura fue creada, pero no pudo asociarse',
+          description: associationError?.data?.message || associationError?.message,
+          color: 'warning'
+        })
+      }
+    }
     router.push(`/erp/purchases/purchases-documents/${created.id}`)
   } catch (e: any) {
     toast.add({

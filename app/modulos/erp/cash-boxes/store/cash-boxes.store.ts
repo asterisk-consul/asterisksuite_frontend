@@ -106,6 +106,11 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
     }
   }
 
+  const setInitialBalance = async (id: string, amount: number) => {
+    await service.setInitialBalance(id, amount)
+    return fetchOne(id)
+  }
+
   // =========================
   // SESSIONS
   // =========================
@@ -291,6 +296,7 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
     fetchOne,
     fetchMain,
     fetchBalances,
+    setInitialBalance,
     fetchCurrentSession,
     fetchSessions,
     openSession,
