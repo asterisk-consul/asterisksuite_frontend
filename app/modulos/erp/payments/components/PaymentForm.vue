@@ -475,9 +475,18 @@ const availableChecks = computed(() => {
 })
 
 const filteredCashBoxes = computed(() => {
-  let list = cashBoxes.value
+  let list = cashBoxes.value.filter(cb => cb.active)
   if (form.currency_code) {
-    list = list.filter(cb => cb.balances?.some(b => b.currency_code === form.currency_code))
+    list = list.filter(cb =>
+      cb.currency_code === form.currency_code || cb.balances?.some(b => b.currency_code === form.currency_code)
+    )
+  }
+  if (isPayment.value) {
+    list = list.filter(cb => {
+      const balance = cb.balances?.find(b => b.currency_code === form.currency_code)
+      const available = Number(balance?.balance ?? 0)
+      return available > 0 && available >= Number(form.amount || 0)
+    })
   }
   const q = cashBoxSearch.value.toLowerCase().trim()
   if (q) {
@@ -487,9 +496,12 @@ const filteredCashBoxes = computed(() => {
 })
 
 const filteredBankAccounts = computed(() => {
-  let list = bankAccounts.value
+  let list = bankAccounts.value.filter(ba => ba.active)
   if (form.currency_code) {
     list = list.filter(ba => ba.currency_code === form.currency_code)
+  }
+  if (isPayment.value) {
+    list = list.filter(ba => Number(ba.balance ?? 0) > 0 && Number(ba.balance ?? 0) >= Number(form.amount || 0))
   }
   const q = bankAccountSearch.value.toLowerCase().trim()
   if (q) {
@@ -1055,7 +1067,7 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
         size="sm"
       />
       <div v-if="filteredCashBoxes.length === 0" class="text-center py-4 text-muted text-sm">
-        {{ form.currency_code ? `No hay cajas con saldo en ${form.currency_code}` : 'No hay cajas disponibles' }}
+        {{ isPayment ? `No hay cajas con saldo suficiente en ${form.currency_code}` : `No hay cajas activas en ${form.currency_code}` }}
       </div>
       <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[130px] overflow-y-auto">
         <div
@@ -1179,7 +1191,7 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
         size="sm"
       />
       <div v-if="filteredBankAccounts.length === 0" class="text-center py-4 text-muted text-sm">
-        {{ form.currency_code ? `No hay cuentas bancarias en ${form.currency_code}` : 'No hay cuentas bancarias disponibles' }}
+        {{ isPayment ? `No hay cuentas bancarias con saldo suficiente en ${form.currency_code}` : `No hay cuentas bancarias activas en ${form.currency_code}` }}
       </div>
       <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[130px] overflow-y-auto">
         <div

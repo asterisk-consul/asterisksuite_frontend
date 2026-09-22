@@ -1,5 +1,42 @@
 [
   {
+    "version": "0.59.0-alpha",
+    "date": "2026-09-22",
+    "stage": "alpha",
+    "notes": "Selección correcta de cajas y bancos según el tipo de operación y compatibilidad con los tipos generados por Prisma 7.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "collections",
+        "title": "Los cobros permiten seleccionar cajas y cuentas bancarias activas aunque tengan saldo cero o todavía no registren movimientos"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Los pagos y gastos muestran únicamente cajas y cuentas bancarias con saldo suficiente para cubrir el importe"
+      },
+      {
+        "type": "fix",
+        "scope": "bank-accounts",
+        "title": "El backend impide confirmar pagos bancarios que producirían un saldo negativo"
+      },
+      {
+        "type": "fix",
+        "scope": "pricing",
+        "title": "El servicio de cotizaciones utiliza el tipo de moneda exportado por el cliente generado de Prisma 7"
+      },
+      {
+        "type": "fix",
+        "scope": "backend",
+        "title": "La compilación deja de depender del tipo interno currency_ratesGetPayload eliminado por Prisma"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Medios de pago según saldo y compatibilidad con Prisma 7"
+  },
+  {
     "version": "0.58.0-alpha",
     "date": "2026-09-22",
     "stage": "alpha",
