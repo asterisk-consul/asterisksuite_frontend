@@ -24,6 +24,8 @@ const toast = useToast()
 const searchQuery = ref('')
 const deleteModalOpen = ref(false)
 const deletingBox = ref<CashBox | null>(null)
+const deleteForm = reactive({ confirmation: '', target_cash_box_id: '' })
+const deleteSaving = ref(false)
 
 const sessionModalOpen = ref(false)
 const sessionBox = ref<CashBox | null>(null)
@@ -45,8 +47,9 @@ const transferForm = reactive({ target_box_id: '', amount: 0, notes: '' })
 const transferSaving = ref(false)
 
 const availableTargetBoxes = computed(() => {
-  if (!transferSourceBox.value) return []
-  return cashBoxes.value.filter((b) => b.id !== transferSourceBox.value?.id && b.active && b.status === 'OPEN')
+  const source = deletingBox.value ?? transferSourceBox.value
+  if (!source) return []
+  return cashBoxes.value.filter((b) => b.id !== source.id && b.active && b.currency_code === source.currency_code)
 })
 
 onMounted(() => init())
@@ -121,17 +124,9 @@ const openSessionsCount = computed(() => openBoxes.value.length)
 const needAttention = computed(() => openBoxes.value.filter((b) => isSessionFromDifferentDay(b)))
 
 const confirmDelete = (box: CashBox) => {
-  const balance = getCashBoxBalance(box)
-  if (balance !== 0) {
-    // Has balance - show transfer modal first
-    transferSourceBox.value = box
-    transferForm.target_box_id = ''
-    transferForm.amount = getCashBoxBalance(box)
-    transferForm.notes = ''
-    transferModalOpen.value = true
-    return
-  }
   deletingBox.value = box
+  deleteForm.confirmation = ''
+  deleteForm.target_cash_box_id = ''
   deleteModalOpen.value = true
 }
 
@@ -155,7 +150,7 @@ const handleTransferAndDelete = async () => {
     transferModalOpen.value = false
 
     // Now delete the box
-    await remove(transferSourceBox.value.id)
+    await remove(transferSourceBox.value.id, { confirmation: 'ELIMINAR', target_cash_box_id: transferForm.target_box_id })
     toast.add({ title: 'Caja eliminada', color: 'success' })
   } catch (e: any) {
     toast.add({
@@ -171,8 +166,12 @@ const handleTransferAndDelete = async () => {
 
 const handleDelete = async () => {
   if (!deletingBox.value) return
+  deleteSaving.value = true
   try {
-    await remove(deletingBox.value.id)
+    await remove(deletingBox.value.id, {
+      confirmation: deleteForm.confirmation,
+      ...(deleteForm.target_cash_box_id ? { target_cash_box_id: deleteForm.target_cash_box_id } : {})
+    })
     toast.add({ title: 'Caja eliminada', color: 'success' })
     deleteModalOpen.value = false
   } catch (e: any) {
@@ -182,6 +181,8 @@ const handleDelete = async () => {
       color: 'error',
       icon: 'i-lucide-alert-circle'
     })
+  } finally {
+    deleteSaving.value = false
   }
 }
 
@@ -466,14 +467,23 @@ const goToEdit = (box: CashBox) => {
     <!-- DELETE MODAL -->
     <UModal v-model:open="deleteModalOpen" title="Eliminar caja">
       <template #body>
-        <p>
-          ¿Estás seguro de que deseas eliminar la caja
-          <strong>{{ deletingBox?.name }}</strong>
-          ?
-        </p>
+        <div class="space-y-4">
+          <UAlert icon="i-lucide-triangle-alert" color="error" variant="subtle" title="Esta acción requiere confirmación" description="La caja dejará de estar disponible para nuevas operaciones. Sus movimientos y sesiones se conservarán." />
+          <div class="rounded-lg border border-default bg-muted/30 p-3">
+            <p class="font-medium">{{ deletingBox?.name }}</p>
+            <p class="text-sm text-muted">Saldo: {{ formatCurrency(getCashBoxBalance(deletingBox), deletingBox?.currency_code) }}</p>
+          </div>
+          <UFormField v-if="getCashBoxBalance(deletingBox) !== 0 || deletingBox?.is_main" :label="deletingBox?.is_main ? 'Nueva caja principal y destino' : 'Caja que recibirá el saldo'" required description="Solo se muestran cajas activas de la misma moneda.">
+            <USelectMenu v-model="deleteForm.target_cash_box_id" :items="availableTargetBoxes.map(box => ({ label: `${box.name} · ${formatCurrency(getCashBoxBalance(box), box.currency_code)}`, value: box.id }))" value-key="value" class="w-full" placeholder="Seleccionar caja destino" />
+          </UFormField>
+          <UAlert v-if="(getCashBoxBalance(deletingBox) !== 0 || deletingBox?.is_main) && availableTargetBoxes.length === 0" color="warning" variant="subtle" title="No hay una caja destino compatible" description="Creá o activá otra caja con la misma moneda antes de eliminar esta caja." />
+          <UFormField label="Confirmación" description="Escribí ELIMINAR para continuar." required>
+            <UInput v-model="deleteForm.confirmation" autocomplete="off" placeholder="ELIMINAR" class="w-full" />
+          </UFormField>
+        </div>
         <div class="flex justify-end gap-2 pt-4">
           <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
-          <UButton label="Eliminar" color="error" :loading="sessionSaving" @click="handleDelete" />
+          <UButton :label="getCashBoxBalance(deletingBox) !== 0 ? 'Transferir y eliminar' : 'Eliminar caja'" color="error" :loading="deleteSaving" :disabled="deleteForm.confirmation !== 'ELIMINAR' || ((getCashBoxBalance(deletingBox) !== 0 || deletingBox?.is_main) && !deleteForm.target_cash_box_id)" @click="handleDelete" />
         </div>
       </template>
     </UModal>

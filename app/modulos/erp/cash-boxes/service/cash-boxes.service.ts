@@ -39,9 +39,10 @@ export const useCashBoxesService = () => {
     })
   }
 
-  const remove = (id: string) => {
+  const remove = (id: string, data: { confirmation: string; target_cash_box_id?: string }) => {
     return $fetch<void>(`${urlBase}/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      body: data
     })
   }
 

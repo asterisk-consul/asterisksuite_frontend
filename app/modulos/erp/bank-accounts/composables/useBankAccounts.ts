@@ -34,7 +34,7 @@ export function useBankAccounts() {
 
   const update = async (id: string, payload: UpdateBankAccountInput) => store.update(id, payload)
 
-  const remove = async (id: string) => store.remove(id)
+  const remove = async (id: string, data: { confirmation: string; target_bank_account_id?: string }) => store.remove(id, data)
 
   const fetchMovements = async (id: string) => store.fetchMovements(id)
 

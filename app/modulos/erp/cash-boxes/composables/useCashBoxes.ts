@@ -26,7 +26,7 @@ export function useCashBoxes() {
 
   const update = async (id: string, payload: UpdateCashBoxInput) => store.update(id, payload)
 
-  const remove = async (id: string) => store.remove(id)
+  const remove = async (id: string, data: { confirmation: string; target_cash_box_id?: string }) => store.remove(id, data)
 
   const openSession = async (id: string, payload: OpenSessionInput) =>
     store.openSession(id, payload)

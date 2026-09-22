@@ -22,6 +22,8 @@ const modalOpen = ref(false)
 const editingAccount = ref<BankAccount | null>(null)
 const deleteModalOpen = ref(false)
 const deletingAccount = ref<BankAccount | null>(null)
+const deleteForm = reactive({ confirmation: '', target_bank_account_id: '' })
+const deletingAccountBusy = ref(false)
 const searchQuery = ref('')
 
 const form = reactive<CreateBankAccountInput>({
@@ -326,14 +328,33 @@ const executeRemoveUser = async () => {
 
 const confirmDelete = (account: BankAccount) => {
   deletingAccount.value = account
+  deleteForm.confirmation = ''
+  deleteForm.target_bank_account_id = ''
   deleteModalOpen.value = true
 }
 
+const availableDeleteTargets = computed(() => bankAccounts.value.filter((account) =>
+  account.id !== deletingAccount.value?.id &&
+  account.active &&
+  account.currency_code === deletingAccount.value?.currency_code
+))
+
 const handleDelete = async () => {
   if (!deletingAccount.value) return
-  await remove(deletingAccount.value.id)
-  deleteModalOpen.value = false
-  deletingAccount.value = null
+  deletingAccountBusy.value = true
+  try {
+    await remove(deletingAccount.value.id, {
+      confirmation: deleteForm.confirmation,
+      ...(deleteForm.target_bank_account_id ? { target_bank_account_id: deleteForm.target_bank_account_id } : {})
+    })
+    toast.add({ title: 'Cuenta bancaria eliminada', color: 'success' })
+    deleteModalOpen.value = false
+    deletingAccount.value = null
+  } catch (e: any) {
+    toast.add({ title: 'No se pudo eliminar la cuenta', description: e?.data?.message || e?.message, color: 'error' })
+  } finally {
+    deletingAccountBusy.value = false
+  }
 }
 
 const handleExport = () => {
@@ -772,14 +793,23 @@ const selectedAccountType = computed({
     <!-- DELETE MODAL -->
     <UModal v-model:open="deleteModalOpen" title="Eliminar cuenta bancaria">
       <template #body>
-        <p>
-          ¿Estás seguro de que deseas eliminar la cuenta
-          <strong>{{ deletingAccount?.name }}</strong>
-          ?
-        </p>
+        <div class="space-y-4">
+          <UAlert icon="i-lucide-triangle-alert" color="error" variant="subtle" title="Esta acción requiere confirmación" description="La cuenta dejará de estar disponible para nuevas operaciones. Sus movimientos históricos se conservarán." />
+          <div class="rounded-lg border border-default bg-muted/30 p-3">
+            <p class="font-medium">{{ deletingAccount?.name }}</p>
+            <p class="text-sm text-muted">Saldo: {{ formatCurrency(deletingAccount?.balance, deletingAccount?.currency_code) }}</p>
+          </div>
+          <UFormField label="Cuenta de reemplazo" :required="Number(deletingAccount?.balance || 0) !== 0" description="Recibirá el saldo y los cheques pendientes. Solo se muestran cuentas activas de la misma moneda.">
+            <USelectMenu v-model="deleteForm.target_bank_account_id" :items="availableDeleteTargets.map(account => ({ label: `${account.name} · ${formatCurrency(account.balance, account.currency_code)}`, value: account.id }))" value-key="value" class="w-full" placeholder="Seleccionar cuenta destino" />
+          </UFormField>
+          <UAlert v-if="Number(deletingAccount?.balance || 0) !== 0 && availableDeleteTargets.length === 0" color="warning" variant="subtle" title="No hay una cuenta destino compatible" description="Creá o activá otra cuenta con la misma moneda antes de eliminar esta cuenta." />
+          <UFormField label="Confirmación" description="Escribí ELIMINAR para continuar." required>
+            <UInput v-model="deleteForm.confirmation" autocomplete="off" placeholder="ELIMINAR" class="w-full" />
+          </UFormField>
+        </div>
         <div class="flex justify-end gap-2 pt-4">
           <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
-          <UButton label="Eliminar" color="error" @click="handleDelete" />
+          <UButton label="Transferir y eliminar" color="error" :loading="deletingAccountBusy" :disabled="deleteForm.confirmation !== 'ELIMINAR' || (Number(deletingAccount?.balance || 0) !== 0 && !deleteForm.target_bank_account_id)" @click="handleDelete" />
         </div>
       </template>
     </UModal>

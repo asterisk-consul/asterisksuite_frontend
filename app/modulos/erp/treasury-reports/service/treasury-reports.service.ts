@@ -7,8 +7,10 @@
 const urlBase = '/api/backend/treasury'
 
 export const useTreasuryReportsService = () => {
-  const dashboard = () => {
-    return $fetch<TreasuryDashboard>(`${urlBase}/dashboard`)
+  const dashboard = (checksDays?: number) => {
+    return $fetch<TreasuryDashboard>(`${urlBase}/dashboard`, {
+      query: checksDays ? { checks_days: checksDays } : undefined
+    })
   }
 
   const movements = (params?: TreasuryMovementsQuery) => {

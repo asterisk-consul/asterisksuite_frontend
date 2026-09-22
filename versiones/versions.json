@@ -1,5 +1,57 @@
 [
   {
+    "version": "0.58.0-alpha",
+    "date": "2026-09-22",
+    "stage": "alpha",
+    "notes": "Avisos configurables de cheques y eliminación segura de cuentas bancarias y cajas.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "treasury-dashboard",
+        "title": "Los días de anticipación para vencimientos de cheques se configuran desde un popover en el dashboard"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "El panel de próximos cheques muestra solamente vencimientos desde hoy hasta el límite configurado"
+      },
+      {
+        "type": "refactor",
+        "scope": "checks",
+        "title": "Las fechas de vencimiento se presentan en formato legible con indicadores para hoy, mañana o cantidad de días"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "La eliminación de una cuenta bancaria exige escribir ELIMINAR y elegir un destino cuando tiene saldo"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "El saldo y los cheques pendientes se transfieren a una cuenta activa de la misma moneda antes de la baja"
+      },
+      {
+        "type": "feat",
+        "scope": "cash-boxes",
+        "title": "La eliminación de una caja exige confirmación escrita y transfiere su saldo a otra caja compatible"
+      },
+      {
+        "type": "fix",
+        "scope": "cash-boxes",
+        "title": "Las cajas con sesión abierta no pueden eliminarse y la caja principal requiere un reemplazo"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "La transferencia de saldo y la baja se ejecutan en una única transacción para evitar saldos incompletos"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Avisos de cheques y eliminación protegida de bancos y cajas"
+  },
+  {
     "version": "0.57.0-alpha",
     "date": "2026-09-21",
     "stage": "alpha",

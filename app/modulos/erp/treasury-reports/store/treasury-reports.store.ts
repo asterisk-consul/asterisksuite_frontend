@@ -21,10 +21,10 @@ export const useTreasuryReportsStore = defineStore('treasury-reports', () => {
   // DASHBOARD
   // =========================
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (checksDays?: number) => {
     try {
       loading.value = true
-      dashboard.value = await service.dashboard()
+      dashboard.value = await service.dashboard(checksDays)
       return dashboard.value
     } finally {
       loading.value = false
