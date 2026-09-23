@@ -3,12 +3,13 @@ import { UTooltip, UButton, UBadge, UProgress } from '#components'
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { CATEGORY_LABELS, getStatusLabel, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
 import type { Document } from '~/modulos/erp/facturas/types/factura.types'
-import { getDocumentPaymentSummary } from '~/modulos/erp/documents/utils/document-payment-status'
+import { canSettleDocument, getDocumentPaymentSummary } from '~/modulos/erp/documents/utils/document-payment-status'
 
 type Row = Document
 
 export const createPurchasesColumns = (actions: {
   onOpen: (row: Row) => void
+  onPay?: (row: Row) => void
 }) => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
   const fmtNumber = (row: Row) =>
@@ -57,12 +58,23 @@ export const createPurchasesColumns = (actions: {
               : { label: 'Pendiente', color: 'error' }
           const currency = row.original.currency_code ?? 'ARS'
           const amount = new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(summary.pending)
-          return h('div', { class: 'min-w-[140px] space-y-1.5' }, [
+          return h('div', { class: 'min-w-[170px] space-y-1.5' }, [
             h('div', { class: 'flex items-center justify-between gap-2' }, [
               h(UBadge, { label: config.label, color: config.color as any, variant: 'subtle', size: 'xs' }),
               summary.state !== 'PAID' ? h('span', { class: 'text-xs text-muted' }, `${amount} pend.`) : null
             ]),
-            h(UProgress, { modelValue: summary.percentage, color: config.color as any, size: 'xs' })
+            h(UProgress, { modelValue: summary.percentage, color: config.color as any, size: 'xs' }),
+            canSettleDocument(row.original) && actions.onPay
+              ? h(UButton, {
+                  label: summary.state === 'PARTIAL' ? 'Pagar saldo' : 'Pagar',
+                  icon: 'i-lucide-hand-coins',
+                  size: 'xs',
+                  variant: 'soft',
+                  color: 'primary',
+                  class: 'w-full justify-center',
+                  onClick: () => actions.onPay?.(row.original)
+                })
+              : null
           ])
         }
       },

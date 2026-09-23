@@ -12,6 +12,7 @@ const {
   openSession,
   closeSession,
   forceCloseSession,
+  fetchOne,
   fetchCurrentSession,
   fetchBalances,
   balances,
@@ -32,6 +33,7 @@ const sessionBox = ref<CashBox | null>(null)
 const sessionAction = ref<'open' | 'close'>('open')
 const sessionForm = reactive({ opening_balance: 0, actual_balance: 0, notes: '' })
 const sessionSaving = ref(false)
+const canEnterInitialBalance = ref(false)
 const expectedBalance = ref(0)
 const balanceDifference = ref(0)
 
@@ -195,10 +197,12 @@ const openSessionModal = async (box: CashBox) => {
     forceCloseModalOpen.value = true
     return
   }
-  sessionBox.value = box
+  const detailedBox = await fetchOne(box.id)
+  sessionBox.value = detailedBox
   sessionAction.value = 'open'
   const currentBalances = await fetchBalances(box.id)
   sessionForm.opening_balance = Number(currentBalances.find(balance => balance.currency_code === box.currency_code)?.balance ?? 0)
+  canEnterInitialBalance.value = detailedBox.can_set_initial_balance === true
   sessionModalOpen.value = true
 }
 
@@ -230,6 +234,7 @@ const handleSession = async () => {
       toast.add({ title: 'Sesión cerrada', color: 'success' })
     }
     sessionModalOpen.value = false
+    await init()
   } catch (e: any) {
     toast.add({ title: 'Error', description: e?.data?.message, color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
@@ -498,8 +503,12 @@ const goToEdit = (box: CashBox) => {
         <UForm :state="sessionForm" class="space-y-4" @submit="handleSession">
           <!-- OPEN SESSION -->
           <template v-if="sessionAction === 'open'">
-            <UFormField label="Saldo de apertura" name="opening_balance" description="Saldo final disponible de la caja en su moneda.">
-              <UInput v-model.number="sessionForm.opening_balance" type="number" readonly class="w-full" />
+            <UFormField
+              label="Saldo de apertura"
+              name="opening_balance"
+              :description="canEnterInitialBalance ? 'Primera apertura: ingresá el efectivo inicial o dejalo en cero.' : 'Se toma automáticamente el saldo disponible de la caja.'"
+            >
+              <UInput v-model.number="sessionForm.opening_balance" type="number" min="0" :readonly="!canEnterInitialBalance" class="w-full" />
             </UFormField>
           </template>
 

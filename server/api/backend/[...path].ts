@@ -188,8 +188,9 @@ export default defineEventHandler(async (event) => {
     rawResponse?: boolean
   } = { method }
 
-  // Body para POST/PUT/PATCH
-  if (['POST', 'PUT', 'PATCH'].includes(method)) {
+  // Reenviar el body también en DELETE: algunas bajas protegidas requieren
+  // confirmación y/o un destino para transferir el saldo.
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
     try {
       const contentType = getRequestHeader(event, 'content-type') || ''
 

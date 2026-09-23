@@ -1,5 +1,4 @@
 import rawVersions from '~~/versiones/versions.json'
-import { parseMarkdown } from '@nuxtjs/mdc/runtime'
 
 // 🔥 sorter
 function compareVersions(a?: string, b?: string): number {
@@ -14,92 +13,22 @@ function compareVersions(a?: string, b?: string): number {
   return 0
 }
 
-// 🧠 markdown generator
-function generateMarkdown(v: any) {
-  let md = ''
-  if (v.notes) md += `> ${v.notes}\n\n`
-
-  if (v.changes?.length) {
-    const grouped: Record<string, Record<string, any[]>> = {}
-    for (const c of v.changes) {
-      if (!c.type) continue
-      const type = c.type
-      const scope = c.scope || 'general'
-      grouped[type] ??= {}
-      grouped[type][scope] ??= []
-      grouped[type][scope].push(c)
-    }
-
-    const order = ['feat', 'fix', 'refactor', 'perf', 'docs']
-    const titleMap: Record<string, string> = {
-      feat: '✨ Features',
-      fix: '🐛 Bug Fixes',
-      refactor: '♻️ Refactor',
-      perf: '⚡ Performance',
-      docs: '📝 Docs'
-    }
-    const badgeMap: Record<string, string> = {
-      feat: '✨',
-      fix: '🐛',
-      refactor: '♻️',
-      perf: '⚡',
-      docs: '📝'
-    }
-
-    for (const type of order) {
-      const scopes = grouped[type]
-      if (!scopes) continue
-      md += `### ${titleMap[type] || type}\n\n`
-      for (const [scope, items] of Object.entries(scopes)) {
-        for (const c of items) {
-          const badge = badgeMap[type] || ''
-          if (c.url && c.id)
-            md += `- ${badge} [${c.id}](${c.url}) - ${c.title}\n`
-          else md += `- ${badge} ${c.title}\n`
-          if (c.description) md += `  - ${c.description}\n`
-        }
-      }
-      md += `\n`
-    }
-  }
-
-  if (v.modules?.length) {
-    md += `### 📦 Modules\n\n`
-    for (const m of v.modules) {
-      md += `- **${m.name}** → \`${m.version}\`\n`
-    }
-  }
-
-  if (!md.trim()) md = '_Sin contenido_'
-  return md
-}
-
-// 🧾 types
-type ChangelogVersion = {
-  tag: string
-  title: string
-  date: string
-  body: any // MDCRoot
-}
-
 // 🚀 handler
-export default defineEventHandler(async () => {
-  const sorted = rawVersions
+export default defineEventHandler(() => {
+  return rawVersions
     .slice()
     .sort((a, b) => compareVersions(a.version, b.version))
-  const parsed: ChangelogVersion[] = await Promise.all(
-    sorted.map(async (v: any) => {
-      const md = generateMarkdown(v)
-      const parsed = await parseMarkdown(md)
+    .map((version, index) => {
+      const tag = version.version || `sin-version-${index + 1}`
+
       return {
-        tag: v.version,
-        title: `v${v.version}`,
-        date: v.date,
-        body: parsed.body,
-        notes: v.notes || null,
-        message: v.message || null
+        tag,
+        title: version.version ? `v${version.version}` : 'Versión sin identificar',
+        date: version.date,
+        notes: version.notes || null,
+        message: version.message || null,
+        changes: version.changes || [],
+        modules: version.modules || []
       }
     })
-  )
-  return parsed
 })

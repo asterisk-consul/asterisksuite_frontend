@@ -35,6 +35,7 @@ export interface PaymentFormData {
   cash_box_id: string
   account_id: string
   check_ids: string[]
+  checks?: Array<{ check_id: string; amount_applied: number }>
   documents?: Array<{
     document_id: string
     amount_applied: number
@@ -384,6 +385,14 @@ const isPayment = computed(() => form.type === 'PAYMENT' || form.type === 'EXPEN
 const isCheck = computed(() => form.payment_method === 'CHECK')
 const isCollectingCheck = computed(() => isCollection.value && isCheck.value)
 const isPayingWithCheck = computed(() => isPayment.value && isCheck.value)
+const instrumentValidationAttempted = ref(false)
+const instrumentValidationMessage = computed(() => {
+  if (form.payment_method === 'CASH' && !form.cash_box_id) return 'Seleccioná una caja para continuar.'
+  if (form.payment_method === 'BANK_TRANSFER' && !form.bank_account_id) return 'Seleccioná una cuenta bancaria para continuar.'
+  if (form.payment_method === 'CHECK' && form.check_ids.length === 0) return 'Seleccioná al menos un cheque para continuar.'
+  return ''
+})
+const hasInstrumentSelection = computed(() => instrumentValidationMessage.value === '')
 
 // ═══════════════════════════════════════════
 // LABELS SOLO LECTURA
@@ -547,6 +556,7 @@ const redistributeAppliedAmounts = () => {
 }
 
 watch(selectedPaymentMethod, async (val) => {
+  instrumentValidationAttempted.value = false
   if (val?.value === 'CHECK') {
     await fetchAvailableChecks()
   } else {
@@ -642,6 +652,7 @@ const selectCheck = (check: AvailableCheck) => {
     selectedChecks.value.set(check.id, check)
   }
   form.check_ids = Array.from(selectedChecks.value.keys())
+  instrumentValidationAttempted.value = false
   redistributeAppliedAmounts()
   form.amount = selectedDocs.value.size > 0 ? totalApplied.value : totalChecksAmount.value
 }
@@ -652,6 +663,7 @@ const selectCashBox = (id: string) => {
   const box = cashBoxes.value.find(b => b.id === id)
   if (box?.status === 'CLOSED') return
   form.cash_box_id = id
+  instrumentValidationAttempted.value = false
 }
 
 const openBoxSession = async (box: any) => {
@@ -704,6 +716,7 @@ const getCurrencySymbol = (code: string): string => {
 
 const selectBankAccount = (id: string) => {
   form.bank_account_id = id
+  instrumentValidationAttempted.value = false
 }
 
 const toggleDoc = (doc: PendingDocument) => {
@@ -779,6 +792,17 @@ const handleCheckCreated = async (checkData: CheckFormData) => {
 }
 
 const handleSubmit = async () => {
+  instrumentValidationAttempted.value = true
+  if (!hasInstrumentSelection.value) {
+    toast.add({
+      title: 'Falta seleccionar dónde registrar el movimiento',
+      description: instrumentValidationMessage.value,
+      color: 'warning',
+      icon: 'i-lucide-circle-alert'
+    })
+    return
+  }
+
   const paymentAmount = totalApplied.value > 0 ? totalApplied.value : totalChecksAmount.value > 0 ? totalChecksAmount.value : form.amount
 
   // Retenciones: usar las cargadas/confirmadas en el formulario
@@ -987,6 +1011,15 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
         <DataPicker v-model="form.date" />
       </UFormField>
     </div>
+
+    <UAlert
+      v-if="instrumentValidationMessage"
+      color="warning"
+      variant="soft"
+      icon="i-lucide-circle-alert"
+      title="Selección obligatoria"
+      :description="instrumentValidationMessage"
+    />
     <div class="grid grid-cols-3 gap-4">
       <UFormField label="Método de pago" name="payment_method" required>
         <USelectMenu v-model="selectedPaymentMethod" :items="paymentMethods" class="w-full" />
@@ -1353,7 +1386,7 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       </div>
       <div class="flex gap-2">
         <UButton label="Cancelar" variant="ghost" @click="emit('cancel')" />
-        <UButton label="Guardar" type="submit" :disabled="selectedDocs.size > 0 && totalApplied <= 0" />
+        <UButton label="Guardar" type="submit" :disabled="(selectedDocs.size > 0 && totalApplied <= 0) || !hasInstrumentSelection" />
       </div>
     </div>
 

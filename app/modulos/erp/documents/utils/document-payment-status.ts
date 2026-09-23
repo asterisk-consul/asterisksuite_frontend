@@ -33,3 +33,8 @@ export function getDocumentPaymentSummary(document: any): DocumentPaymentSummary
 export function isDocumentFullyPaid(document: any) {
   return getDocumentPaymentSummary(document).state === 'PAID'
 }
+
+export function canSettleDocument(document: any) {
+  const summary = getDocumentPaymentSummary(document)
+  return document?.status === 2 && summary.applies && summary.pending > 0.01
+}

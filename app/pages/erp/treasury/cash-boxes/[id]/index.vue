@@ -142,6 +142,7 @@ const sessionModalOpen = ref(false)
 const sessionAction = ref<'open' | 'close'>('open')
 const sessionForm = reactive({ opening_balance: 0, actual_balance: 0, notes: '' })
 const sessionSaving = ref(false)
+const canEnterInitialBalance = computed(() => box.value?.can_set_initial_balance === true)
 const expectedBalance = ref(0)
 const balanceDifference = ref(0)
 
@@ -539,8 +540,12 @@ const links = computed(() => [
       <template #body>
         <UForm :state="sessionForm" class="space-y-4" @submit="handleSession">
           <template v-if="sessionAction === 'open'">
-            <UFormField label="Saldo de apertura" name="opening_balance" description="Saldo final disponible de la caja en su moneda.">
-              <UInput v-model.number="sessionForm.opening_balance" type="number" readonly class="w-full" />
+            <UFormField
+              label="Saldo de apertura"
+              name="opening_balance"
+              :description="canEnterInitialBalance ? 'Primera apertura: ingresá el efectivo inicial o dejalo en cero.' : 'Se toma automáticamente el saldo disponible de la caja.'"
+            >
+              <UInput v-model.number="sessionForm.opening_balance" type="number" min="0" :readonly="!canEnterInitialBalance" class="w-full" />
             </UFormField>
           </template>
           <template v-else>

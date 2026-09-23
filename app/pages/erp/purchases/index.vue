@@ -6,7 +6,7 @@ import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purch
 import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
 import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
-import { getDocumentPaymentSummary, isDocumentFullyPaid } from '~/modulos/erp/documents/utils/document-payment-status'
+import { canSettleDocument, getDocumentPaymentSummary, isDocumentFullyPaid } from '~/modulos/erp/documents/utils/document-payment-status'
 
 // â”€â”€â”€ Store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const documentsPurchasesStore = useDocumentsPurchasesStore()
@@ -14,7 +14,17 @@ const router = useRouter()
 const toast = useToast()
 const { can: canDocument } = useDocumentPermissions()
 
-const documents = computed(() => documentsPurchasesStore.items)
+const PURCHASE_CATEGORIES = ['ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
+const purchaseCategorySet = new Set<string>(PURCHASE_CATEGORIES)
+
+// El endpoint también abastece otros circuitos internos con dirección de compra
+// (por ejemplo, vales de RRHH y saldos iniciales). Este listado muestra sólo
+// comprobantes comerciales de compras.
+const documents = computed(() =>
+  (documentsPurchasesStore.items ?? []).filter(document =>
+    purchaseCategorySet.has(document.document_types?.category ?? '')
+  )
+)
 const pending = computed(() => documentsPurchasesStore.loading)
 const error = computed(() => documentsPurchasesStore.error)
 
@@ -56,8 +66,6 @@ watch(categoryFilter, () => {
 watch(statusFilter, () => refresh())
 
 // â”€â”€â”€ Filtros de categoría â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const PURCHASE_CATEGORIES = ['ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'OPENING_BALANCE'] as const
-
 const categoryOptions = computed(() => [
   { label: 'Todos', value: undefined },
   ...PURCHASE_CATEGORIES.filter(cat => canDocument('purchases', cat, 'read')).map((cat) => ({
@@ -138,6 +146,22 @@ function openDocument(row: any) {
   router.push(`/erp/purchases/purchases-documents/${row.id}`)
 }
 
+function payDocument(row: any) {
+  if (!canSettleDocument(row) || !row.party_id) {
+    openDocument(row)
+    return
+  }
+
+  router.push({
+    path: '/erp/treasury/payments/create',
+    query: {
+      type: 'PAYMENT',
+      party_id: row.party_id,
+      document_id: row.id
+    }
+  })
+}
+
 async function deleteDrafts(rows: any[]) {
   const unauthorized = rows.filter(row => !canDocument('purchases', row.document_types?.category, 'delete'))
   if (unauthorized.length) {
@@ -159,7 +183,7 @@ async function deleteDrafts(rows: any[]) {
 }
 
 // â”€â”€â”€ Columnas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const columns = createPurchasesColumns({ onOpen: openDocument })
+const columns = createPurchasesColumns({ onOpen: openDocument, onPay: payDocument })
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },

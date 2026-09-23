@@ -7,7 +7,7 @@ import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import GenerateFromTripsModal from '~/components/sales/GenerateFromTripsModal.vue'
 import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
-import { getDocumentPaymentSummary, isDocumentFullyPaid } from '~/modulos/erp/documents/utils/document-payment-status'
+import { canSettleDocument, getDocumentPaymentSummary, isDocumentFullyPaid } from '~/modulos/erp/documents/utils/document-payment-status'
 
 // â”€â”€â”€ Store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const documentsSalesStore = useDocumentsSalesStore()
@@ -149,6 +149,21 @@ function openDocument(row: any) {
   router.push(`/erp/sales/${row.id}`)
 }
 
+function collectDocument(row: any) {
+  if (!canSettleDocument(row) || !row.party_id) {
+    openDocument(row)
+    return
+  }
+  router.push({
+    path: '/erp/treasury/payments/create',
+    query: {
+      type: 'COLLECTION',
+      party_id: row.party_id,
+      document_id: row.id
+    }
+  })
+}
+
 async function onGenerateSaved() {
   await refresh()
 }
@@ -174,7 +189,7 @@ async function deleteDrafts(rows: any[]) {
 }
 
 // â”€â”€â”€ Columnas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const columns = createSalesColumns({ onOpen: openDocument })
+const columns = createSalesColumns({ onOpen: openDocument, onCollect: collectDocument })
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },

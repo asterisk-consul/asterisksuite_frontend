@@ -599,11 +599,19 @@ const selectedAccountType = computed({
                     icon="i-lucide-credit-card"
                   />
                 </UFormField>
-                <UFormField label="Saldo inicial" name="balance" description="Importe con el que inicia la cuenta.">
+                <UFormField
+                  label="Saldo inicial"
+                  name="balance"
+                  :description="editingAccount && !editingAccount.can_set_initial_balance
+                    ? 'Bloqueado porque la cuenta ya tiene saldo inicial o movimientos.'
+                    : 'Importe con el que inicia la cuenta. Sólo puede establecerse una vez.'"
+                >
                   <UInput
                     v-model.number="form.balance"
                     type="number"
                     step="0.01"
+                    min="0"
+                    :readonly="Boolean(editingAccount && !editingAccount.can_set_initial_balance)"
                     class="w-full"
                     icon="i-lucide-banknote"
                   />

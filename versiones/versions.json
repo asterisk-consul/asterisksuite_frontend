@@ -1,5 +1,72 @@
 [
   {
+    "version": "0.60.0-alpha",
+    "date": "2026-09-23",
+    "stage": "alpha",
+    "notes": "Controles más seguros para saldos iniciales, medios de pago, anulaciones y configuración del circuito comercial.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "cash-boxes",
+        "title": "La primera apertura de una caja permite registrar el saldo inicial o comenzar en cero desde el listado y el detalle"
+      },
+      {
+        "type": "fix",
+        "scope": "cash-boxes",
+        "title": "El saldo ingresado durante la primera apertura se registra como movimiento y no reemplaza saldos existentes en sesiones posteriores"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Pagos y cobros exigen seleccionar una caja, cuenta bancaria o cheque según el método elegido antes de guardar o confirmar"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Las asignaciones de cheques se envían correctamente al crear el pago y se reconocen al editar borradores existentes"
+      },
+      {
+        "type": "fix",
+        "scope": "api-proxy",
+        "title": "El proxy del frontend conserva el cuerpo de las solicitudes DELETE para enviar confirmaciones y destinos de transferencia"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "El saldo inicial bancario puede establecerse una sola vez y queda bloqueado cuando la cuenta comienza a operar"
+      },
+      {
+        "type": "fix",
+        "scope": "bank-accounts",
+        "title": "La carga del saldo inicial genera un movimiento bancario de apertura para mantener un historial consistente"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Al anular o rechazar un pago se retiran sus entradas de cuenta corriente y se reconstruyen los saldos restantes"
+      },
+      {
+        "type": "feat",
+        "scope": "sales",
+        "title": "Las ventas pendientes o parcialmente cobradas permiten iniciar el cobro con cliente, moneda, documento y saldo precargados"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-flow",
+        "title": "El circuito comercial aplica y sincroniza su configuración predeterminada desde el primer uso sin exigir guardarla manualmente"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Las facturas nuevas impactan en cuenta corriente según la base contable del circuito aunque la empresa aún no haya abierto su configuración"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Saldos iniciales protegidos y circuito de cobros consistente"
+  },
+  {
     "version": "0.59.0-alpha",
     "date": "2026-09-22",
     "stage": "alpha",
@@ -1208,6 +1275,7 @@
     "message": "Ahora en la lista de cuentas corrientes ves de un vistazo hace cuanto fue el ultimo movimiento de cada cliente o proveedor. El badge cambia de verde a rojo segun la antiguedad, y abajo aparece el tipo de documento y descripcion del ultimo movimiento."
   },
   {
+    "version": "0.39.3-alpha",
     "date": "2026-09-01",
     "stage": "alpha",
     "notes": "Cuenta corriente: cadena de documentos relacionados en cada movimiento",

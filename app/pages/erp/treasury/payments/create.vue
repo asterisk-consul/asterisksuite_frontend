@@ -87,8 +87,19 @@ onMounted(async () => {
     if (doc) {
       initialValues.value = {
         ...initialValues.value,
+        type: paymentType.value,
+        party_id: doc.party_id ?? partyId.value ?? '',
+        party_type: doc.party_type ?? 'CUSTOMER',
+        currency_code: doc.currency_code ?? 'ARS',
+        amount: doc.pending_amount,
         documents: [{ document_id: documentId.value, amount_applied: doc.pending_amount }]
       }
+    } else {
+      toast.add({
+        title: 'El documento ya no tiene saldo pendiente',
+        description: 'No se pudo precargar para el cobro.',
+        color: 'warning'
+      })
     }
   }
 })
@@ -146,6 +157,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       cash_box_id: formData.cash_box_id || undefined,
       account_id: formData.account_id || undefined,
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
+      checks: formData.checks?.length ? formData.checks : undefined,
       documents: formData.documents?.length ? formData.documents : undefined,
     }
     const created = await create(apiPayload)

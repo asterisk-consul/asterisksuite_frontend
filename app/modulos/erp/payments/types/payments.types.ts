@@ -83,6 +83,11 @@ export interface CreatePaymentDocumentInput {
   amount_applied: number
 }
 
+export interface CreatePaymentCheckInput {
+  check_id: string
+  amount_applied: number
+}
+
 export interface CreatePaymentInput {
   type: PaymentType
   payment_mode?: PaymentMode
@@ -102,6 +107,7 @@ export interface CreatePaymentInput {
   cash_box_id?: string
   account_id?: string
   check_ids?: string[]
+  checks?: CreatePaymentCheckInput[]
   documents?: CreatePaymentDocumentInput[]
   status?: PaymentStatus
 }
