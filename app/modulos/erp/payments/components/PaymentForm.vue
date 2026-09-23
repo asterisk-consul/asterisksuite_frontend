@@ -661,7 +661,15 @@ const isCheckSelected = (id: string) => selectedChecks.value.has(id)
 
 const selectCashBox = (id: string) => {
   const box = cashBoxes.value.find(b => b.id === id)
-  if (box?.status === 'CLOSED') return
+  if (box?.status === 'CLOSED') {
+    toast.add({
+      title: 'La caja está cerrada',
+      description: 'Abrí una sesión de caja antes de seleccionarla para el pago o cobro.',
+      color: 'warning',
+      icon: 'i-lucide-lock'
+    })
+    return
+  }
   form.cash_box_id = id
   instrumentValidationAttempted.value = false
 }
@@ -1102,54 +1110,67 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       <div v-if="filteredCashBoxes.length === 0" class="text-center py-4 text-muted text-sm">
         {{ isPayment ? `No hay cajas con saldo suficiente en ${form.currency_code}` : `No hay cajas activas en ${form.currency_code}` }}
       </div>
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[130px] overflow-y-auto">
-        <div
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[180px] overflow-y-auto">
+        <UTooltip
           v-for="cb in filteredCashBoxes"
           :key="cb.id"
-          class="relative flex flex-col p-3 rounded-lg border cursor-pointer transition-colors"
-          :class="form.cash_box_id === cb.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-default hover:border-muted'"
-          @click="selectCashBox(cb.id)"
+          :disabled="cb.status !== 'CLOSED'"
+          text="Caja cerrada: abrí una sesión antes de seleccionarla"
+          :content="{ side: 'top' }"
         >
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-sm font-medium truncate">{{ cb.name }}</span>
+          <div
+            class="relative flex h-full flex-col rounded-lg border p-3 transition-colors"
+            :class="[
+              form.cash_box_id === cb.id
+                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                : 'border-default',
+              cb.status === 'CLOSED'
+                ? 'cursor-not-allowed bg-muted/30 opacity-80'
+                : 'cursor-pointer hover:border-muted'
+            ]"
+            @click="selectCashBox(cb.id)"
+          >
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-sm font-medium truncate">{{ cb.name }}</span>
+              <UBadge
+                :label="cb.is_main ? 'Ppal' : 'Sec'"
+                :color="cb.is_main ? 'primary' : 'neutral'"
+                size="xs"
+              />
+            </div>
             <UBadge
-              :label="cb.is_main ? 'Ppal' : 'Sec'"
-              :color="cb.is_main ? 'primary' : 'gray'"
+              :label="cb.status === 'OPEN' ? 'Abierta' : 'Cerrada'"
+              :color="cb.status === 'OPEN' ? 'success' : 'warning'"
               size="xs"
+              class="self-start mb-2"
             />
-          </div>
-          <UBadge
-            :label="cb.status === 'OPEN' ? 'Abierta' : 'Cerrada'"
-            :color="cb.status === 'OPEN' ? 'success' : 'warning'"
-            size="xs"
-            class="self-start mb-2"
-          />
-          <div class="text-xs text-muted">
-            <div v-if="getCashBoxBalances(cb).length === 0" class="font-semibold text-primary">
-              Sin saldo
+            <div class="text-xs text-muted">
+              <div v-if="getCashBoxBalances(cb).length === 0" class="font-semibold text-primary">
+                Sin saldo
+              </div>
+              <div v-else class="flex flex-col gap-0.5">
+                <span v-for="bal in getCashBoxBalances(cb)" :key="bal.currency_code" class="inline-flex items-center gap-1.5 font-semibold text-primary">
+                  <UBadge :label="bal.currency_code" size="xs" variant="soft" color="info" />
+                  {{ formatCurrency(bal.balance, bal.currency_code) }}
+                </span>
+              </div>
             </div>
-            <div v-else class="flex flex-col gap-0.5">
-              <span v-for="bal in getCashBoxBalances(cb)" :key="bal.currency_code" class="inline-flex items-center gap-1.5 font-semibold text-primary">
-                <UBadge :label="bal.currency_code" size="xs" variant="soft" color="info" />
-                {{ formatCurrency(bal.balance, bal.currency_code) }}
-              </span>
+            <div v-if="cb.status === 'CLOSED'" class="mt-auto pt-3">
+              <UButton
+                label="Abrir sesión"
+                icon="i-lucide-lock-open"
+                color="success"
+                variant="outline"
+                size="xs"
+                class="w-full"
+                @click.stop="openBoxSession(cb)"
+              />
+            </div>
+            <div v-if="form.cash_box_id === cb.id" class="absolute top-2 right-2 text-primary">
+              <span class="i-heroicons-check-circle text-lg"></span>
             </div>
           </div>
-          <div v-if="cb.status === 'CLOSED'" class="mt-2">
-            <UButton
-              label="Abrir sesión"
-              icon="i-lucide-lock-open"
-              color="success"
-              variant="outline"
-              size="xs"
-              class="w-full"
-              @click.stop="openBoxSession(cb)"
-            />
-          </div>
-          <div v-if="form.cash_box_id === cb.id" class="absolute top-2 right-2 text-primary">
-            <span class="i-heroicons-check-circle text-lg"></span>
-          </div>
-        </div>
+        </UTooltip>
       </div>
     </div>
 
@@ -1362,16 +1383,31 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
-      <UFormField label="Monto total" name="amount" required>
-        <UInput v-model.number="form.amount" type="number" :disabled="selectedDocs.size > 0 || selectedChecks.size > 0" />
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <UFormField v-if="selectedDocs.size === 0 && selectedChecks.size === 0" label="Monto" name="amount" required>
+        <UInput
+          v-model.number="form.amount"
+          type="number"
+          min="0"
+          step="0.01"
+          size="lg"
+          class="w-full"
+          placeholder="0,00"
+        />
       </UFormField>
-      <UFormField label="Referencia" name="reference">
-        <UInput v-model="form.reference" placeholder="N° de referencia" />
+      <UFormField label="Referencia" name="reference" :class="selectedDocs.size > 0 || selectedChecks.size > 0 ? 'md:col-span-2' : ''">
+        <UInput v-model="form.reference" placeholder="Número de operación, recibo o referencia interna" size="lg" class="w-full" />
       </UFormField>
     </div>
     <UFormField label="Descripción" name="description" :required="form.type === 'EXPENSE'">
-      <UInput v-model="form.description" placeholder="Descripción del gasto" />
+      <UTextarea
+        v-model="form.description"
+        :placeholder="form.type === 'EXPENSE' ? 'Describí el motivo y detalle del gasto' : 'Agregá una observación opcional'"
+        :rows="3"
+        autoresize
+        size="lg"
+        class="w-full"
+      />
     </UFormField>
 
     <div class="sticky bottom-0 bg-default border-t border-default -mx-4 px-4 py-3 flex items-center justify-between">

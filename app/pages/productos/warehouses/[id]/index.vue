@@ -9,6 +9,7 @@ import { useLocations } from '~/modulos/logistica/master-data/locations/composab
 import { useExcelExport } from '~/composables/useExcelExport'
 import { warehouseFormFields } from '~/modulos/logistica/warehouses/warehouse/warehouseFormFields'
 import { movementColumns, MOVEMENT_TYPE_OPTIONS, DIRECTION_OPTIONS } from '~/modulos/logistica/warehouses/stock/movementColumns'
+import { warehouseStockColumns } from '~/modulos/logistica/warehouses/stock/stockColumns'
 import ModalForm from '~/components/ModalForm.vue'
 import TransferFromWarehouseModal from '~/modulos/logistica/warehouses/stock/components/TransferFromWarehouseModal.vue'
 import type { ButtonProps } from '@nuxt/ui'
@@ -247,16 +248,44 @@ function printMovements() {
   }
 }
 
-// Stock summary
-const totalStock = computed(() =>
-  stock.value.reduce((sum, item) => sum + parseFloat(item.quantity), 0)
-)
+// Resumen operativo por producto. No se suman cantidades de artículos distintos.
+const productsWithAvailability = computed(() => stock.value.filter(item =>
+  Number(item.quantity) - Number(item.reserved_quantity) > 0
+).length)
+const productsWithReservations = computed(() => stock.value.filter(item => Number(item.reserved_quantity) > 0).length)
+const productsWithoutAvailability = computed(() => stock.value.filter(item =>
+  Number(item.quantity) - Number(item.reserved_quantity) <= 0
+).length)
 
-const totalReserved = computed(() =>
-  stock.value.reduce((sum, item) => sum + parseFloat(item.reserved_quantity), 0)
-)
+type QuickStockFilter = 'reserved' | 'unavailable'
+const quickStockFilter = ref<QuickStockFilter | null>(null)
+const visibleStock = computed(() => {
+  if (quickStockFilter.value === 'reserved') {
+    return stock.value.filter(item => Number(item.reserved_quantity) > 0)
+  }
+  if (quickStockFilter.value === 'unavailable') {
+    return stock.value.filter(item => Number(item.quantity) - Number(item.reserved_quantity) <= 0)
+  }
+  return stock.value
+})
 
-const totalAvailable = computed(() => totalStock.value - totalReserved.value)
+function toggleQuickStockFilter(filter: QuickStockFilter) {
+  quickStockFilter.value = quickStockFilter.value === filter ? null : filter
+}
+
+const stockFilterFields = [
+  { id: 'products', label: 'Buscar por producto...', icon: 'i-lucide-search', class: 'w-64' },
+  { id: 'sku', label: 'Buscar por SKU...', icon: 'i-lucide-barcode', class: 'w-48' },
+  { id: 'availability_status', label: 'Filtrar por situación...', icon: 'i-lucide-package-check', class: 'w-48' }
+]
+
+const stockSortFields = [
+  { label: 'Producto', value: 'products' },
+  { label: 'SKU', value: 'sku' },
+  { label: 'Stock físico', value: 'quantity' },
+  { label: 'Reservado', value: 'reserved_quantity' },
+  { label: 'Disponible', value: 'available_quantity' }
+]
 
 const unitSymbol = computed(() => warehouse.value?.units?.symbol ?? '')
 
@@ -325,7 +354,8 @@ const links = ref<ButtonProps[]>([
 
     <!-- Loading -->
     <div v-if="stockLoading" class="space-y-4">
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <USkeleton class="h-24" />
         <USkeleton class="h-24" />
         <USkeleton class="h-24" />
         <USkeleton class="h-24" />
@@ -335,28 +365,37 @@ const links = ref<ButtonProps[]>([
 
     <template v-else>
       <!-- Summary Cards -->
-      <div class="grid grid-cols-3 gap-4">
-        <UCard>
-          <div class="text-sm text-muted">Stock Total</div>
-          <div class="text-2xl font-bold">
-            {{ totalStock.toFixed(2) }}
-            <span v-if="unitSymbol" class="text-sm font-normal text-muted">{{ unitSymbol }}</span>
-          </div>
-        </UCard>
-        <UCard>
-          <div class="text-sm text-muted">Reservado</div>
-          <div class="text-2xl font-bold text-amber-600">
-            {{ totalReserved.toFixed(2) }}
-            <span v-if="unitSymbol" class="text-sm font-normal text-muted">{{ unitSymbol }}</span>
-          </div>
-        </UCard>
-        <UCard>
-          <div class="text-sm text-muted">Disponible</div>
-          <div class="text-2xl font-bold text-green-600">
-            {{ totalAvailable.toFixed(2) }}
-            <span v-if="unitSymbol" class="text-sm font-normal text-muted">{{ unitSymbol }}</span>
-          </div>
-        </UCard>
+      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <UPageCard variant="subtle">
+          <div class="flex items-center gap-3"><div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-package" class="size-5" /></div><div><p class="text-xs text-muted">Productos almacenados</p><p class="text-2xl font-semibold">{{ stock.length }}</p></div></div>
+        </UPageCard>
+        <UPageCard variant="subtle">
+          <div class="flex items-center gap-3"><div class="rounded-lg bg-success/10 p-2 text-success"><UIcon name="i-lucide-package-check" class="size-5" /></div><div><p class="text-xs text-muted">Con disponibilidad</p><p class="text-2xl font-semibold text-success">{{ productsWithAvailability }}</p></div></div>
+        </UPageCard>
+        <UPageCard
+          variant="subtle"
+          role="button"
+          tabindex="0"
+          :aria-pressed="quickStockFilter === 'reserved'"
+          class="cursor-pointer transition hover:border-warning/50 hover:bg-warning/5 focus-visible:outline-2 focus-visible:outline-warning"
+          :class="quickStockFilter === 'reserved' ? 'border-warning bg-warning/10 ring-1 ring-warning' : ''"
+          @click="toggleQuickStockFilter('reserved')"
+          @keydown.enter.space.prevent="toggleQuickStockFilter('reserved')"
+        >
+          <div class="flex items-center gap-3"><div class="rounded-lg bg-warning/10 p-2 text-warning"><UIcon name="i-lucide-bookmark" class="size-5" /></div><div><p class="text-xs text-muted">Con reservas</p><p class="text-2xl font-semibold text-warning">{{ productsWithReservations }}</p></div></div>
+        </UPageCard>
+        <UPageCard
+          variant="subtle"
+          role="button"
+          tabindex="0"
+          :aria-pressed="quickStockFilter === 'unavailable'"
+          class="cursor-pointer transition hover:border-error/50 hover:bg-error/5 focus-visible:outline-2 focus-visible:outline-error"
+          :class="quickStockFilter === 'unavailable' ? 'border-error bg-error/10 ring-1 ring-error' : ''"
+          @click="toggleQuickStockFilter('unavailable')"
+          @keydown.enter.space.prevent="toggleQuickStockFilter('unavailable')"
+        >
+          <div class="flex items-center gap-3"><div class="rounded-lg bg-error/10 p-2 text-error"><UIcon name="i-lucide-package-x" class="size-5" /></div><div><p class="text-xs text-muted">Sin disponibilidad</p><p class="text-2xl font-semibold text-error">{{ productsWithoutAvailability }}</p></div></div>
+        </UPageCard>
       </div>
 
       <!-- Stock Table -->
@@ -364,7 +403,17 @@ const links = ref<ButtonProps[]>([
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-semibold">Productos en este depósito</h3>
-            <span class="text-sm text-muted">{{ stock.length }} producto{{ stock.length !== 1 ? 's' : '' }}</span>
+            <div class="flex items-center gap-2">
+              <UBadge
+                v-if="quickStockFilter"
+                :label="quickStockFilter === 'reserved' ? 'Con reservas' : 'Sin disponibilidad'"
+                :color="quickStockFilter === 'reserved' ? 'warning' : 'error'"
+                variant="subtle"
+              />
+              <span class="text-sm text-muted">
+                {{ visibleStock.length }} de {{ stock.length }} producto{{ stock.length !== 1 ? 's' : '' }}
+              </span>
+            </div>
           </div>
         </template>
 
@@ -372,42 +421,13 @@ const links = ref<ButtonProps[]>([
           <p>Este depósito no tiene stock registrado.</p>
         </div>
 
-        <div v-else class="space-y-2">
-          <div
-            v-for="item in stock"
-            :key="item.id"
-            class="flex items-center justify-between p-3 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
-          >
-            <div class="flex-1">
-              <NuxtLink
-                :to="`/productos/${item.products.id}`"
-                class="font-medium hover:text-primary hover:underline"
-              >
-                {{ item.products.name }}
-              </NuxtLink>
-              <span v-if="item.products.sku" class="text-sm text-muted ml-2">
-                ({{ item.products.sku }})
-              </span>
-            </div>
-
-            <div class="flex items-center gap-6">
-              <div class="text-right min-w-[80px]">
-                <div class="text-xs text-muted">Stock</div>
-                <div class="font-semibold">{{ parseFloat(item.quantity).toFixed(2) }}</div>
-              </div>
-              <div class="text-right min-w-[80px]">
-                <div class="text-xs text-muted">Reservado</div>
-                <div class="font-semibold text-amber-600">{{ parseFloat(item.reserved_quantity).toFixed(2) }}</div>
-              </div>
-              <div class="text-right min-w-[80px]">
-                <div class="text-xs text-muted">Disponible</div>
-                <div class="font-semibold text-green-600">
-                  {{ (parseFloat(item.quantity) - parseFloat(item.reserved_quantity)).toFixed(2) }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <LogisticaTable
+          v-else
+          :data="visibleStock"
+          :columns="warehouseStockColumns"
+          :filter-fields="stockFilterFields"
+          :sort-fields="stockSortFields"
+        />
       </UCard>
 
       <!-- Movements History -->

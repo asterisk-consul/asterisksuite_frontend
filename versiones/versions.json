@@ -3,7 +3,7 @@
     "version": "0.61.0-alpha",
     "date": "2026-09-23",
     "stage": "alpha",
-    "notes": "Changelog más estable y accesos rápidos seguros para pagar o cobrar documentos comerciales.",
+    "notes": "Navegación más clara, gestión visual del stock por depósito y formularios de pagos y cobros más comprensibles.",
     "changes": [
       {
         "type": "fix",
@@ -39,12 +39,32 @@
         "type": "fix",
         "scope": "payments",
         "title": "Los accesos rápidos para pagar o cobrar sólo aparecen cuando el documento está confirmado y conserva saldo pendiente"
+      },
+      {
+        "type": "style",
+        "scope": "payments",
+        "title": "El formulario amplía monto, referencia y descripción, e informa por qué una caja cerrada no puede seleccionarse"
+      },
+      {
+        "type": "feat",
+        "scope": "warehouses",
+        "title": "El detalle del depósito incorpora tabla con búsqueda, ordenamiento y filtros rápidos para reservas y productos sin disponibilidad"
+      },
+      {
+        "type": "fix",
+        "scope": "navigation",
+        "title": "El menú lateral selecciona la opción más específica y evita marcar simultáneamente el listado general de productos"
+      },
+      {
+        "type": "fix",
+        "scope": "breadcrumbs",
+        "title": "Las migas de navegación usan nombres en español y sólo enlazan páginas que realmente existen"
       }
     ],
     "contributors": [
       "agustin"
     ],
-    "message": "Changelog estable y pagos rápidos desde documentos confirmados"
+    "message": "Navegación clara, stock consultable y mejor experiencia en pagos"
   },
   {
     "version": "0.60.0-alpha",
