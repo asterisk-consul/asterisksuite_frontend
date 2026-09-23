@@ -1,5 +1,52 @@
 [
   {
+    "version": "0.61.0-alpha",
+    "date": "2026-09-23",
+    "stage": "alpha",
+    "notes": "Changelog más estable y accesos rápidos seguros para pagar o cobrar documentos comerciales.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "changelog",
+        "title": "El historial deja de compilar Markdown en cada petición y evita errores del servidor por dependencias internas de MDC"
+      },
+      {
+        "type": "fix",
+        "scope": "changelog",
+        "title": "Se completa la versión histórica faltante y la página tolera registros antiguos incompletos sin interrumpir la navegación"
+      },
+      {
+        "type": "style",
+        "scope": "changelog",
+        "title": "El buscador y el selector de etapa tienen etiquetas, dimensiones consistentes y una distribución adaptable"
+      },
+      {
+        "type": "fix",
+        "scope": "changelog",
+        "title": "El selector de etapa conserva el valor correcto y filtra versiones Alpha, Beta, RC o estables"
+      },
+      {
+        "type": "fix",
+        "scope": "purchases",
+        "title": "El listado de compras excluye vales de RRHH y documentos de saldo inicial de la tabla, filtros y estadísticas"
+      },
+      {
+        "type": "feat",
+        "scope": "purchases",
+        "title": "Los comprobantes de compra permiten iniciar el pago con proveedor, moneda, documento y saldo pendiente precargados"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Los accesos rápidos para pagar o cobrar sólo aparecen cuando el documento está confirmado y conserva saldo pendiente"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Changelog estable y pagos rápidos desde documentos confirmados"
+  },
+  {
     "version": "0.60.0-alpha",
     "date": "2026-09-23",
     "stage": "alpha",
