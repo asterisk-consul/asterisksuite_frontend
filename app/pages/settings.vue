@@ -1,97 +1,9 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui'
-import { useCompanyRole } from '~/composables/useCompanyRole'
-
-definePageMeta({
-  middleware: ['auth']
-})
-
-const { isOwnerOrAdmin } = useCompanyRole()
-
-const links = computed<NavigationMenuItem[][]>(() => {
-  const base: NavigationMenuItem[][] = [
-    [
-      {
-        label: 'General',
-        icon: 'i-lucide-user',
-        to: '/settings',
-        exact: true
-      },
-      {
-        label: 'Members',
-        icon: 'i-lucide-users',
-        to: '/settings/members'
-      },
-      ...(isOwnerOrAdmin.value
-        ? [
-            {
-              label: 'Empresa',
-              icon: 'i-lucide-building',
-              to: '/settings/company'
-            },
-            {
-              label: 'Usuarios',
-              icon: 'i-lucide-user-cog',
-              to: '/settings/users'
-            },
-            {
-              label: 'Roles',
-              icon: 'i-lucide-shield',
-              to: '/settings/roles'
-            },
-            {
-              label: 'Tipos de Documento',
-              icon: 'i-lucide-file-text',
-              to: '/erp/settings/document-types'
-            },
-            {
-              label: 'Secuencias',
-              icon: 'i-lucide-hash',
-              to: '/erp/settings/document-sequences'
-            },
-            {
-              label: 'Circuito de ventas',
-              icon: 'i-lucide-git-branch',
-              to: '/settings/sales-flow'
-            }
-          ]
-        : []),
-      {
-        label: 'Notificaciones',
-        icon: 'i-lucide-bell',
-        to: '/settings/notifications'
-      },
-      {
-        label: 'Seguridad',
-        icon: 'i-lucide-shield-check',
-        to: '/settings/security'
-      },
-      {
-        label: 'Impuestos',
-        icon: 'i-lucide-percent',
-        to: '/settings/taxes'
-      },
-      {
-        label: 'Monedas',
-        icon: 'i-lucide-banknote',
-        to: '/settings/monedas'
-      }
-    ],
-    [
-      {
-        label: 'Documentación',
-        icon: 'i-lucide-book-open',
-        to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-        target: '_blank'
-      }
-    ]
-  ]
-  return base
-})
+definePageMeta({ middleware: ['auth'] })
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full mx-auto">
+  <div class="flex w-full flex-col gap-4 sm:gap-6">
     <NuxtPage />
   </div>
 </template>

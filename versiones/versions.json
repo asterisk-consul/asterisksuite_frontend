@@ -1,5 +1,57 @@
 [
   {
+    "version": "0.62.0-alpha",
+    "date": "2026-09-24",
+    "stage": "alpha",
+    "notes": "Configuración documental centralizada y remitos operativos con numeración y autorización fiscal consistentes.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "settings",
+        "title": "La configuración de documentos se organiza en un centro único con accesos por módulo y pasos más fáciles de identificar"
+      },
+      {
+        "type": "feat",
+        "scope": "document-sequences",
+        "title": "Las secuencias se asocian al tipo de documento y permiten administrar numeraciones independientes aunque compartan punto de venta"
+      },
+      {
+        "type": "style",
+        "scope": "document-sequences",
+        "title": "El listado incorpora búsqueda y filtros por tipo de documento, y muestra correctamente los límites numéricos configurados"
+      },
+      {
+        "type": "fix",
+        "scope": "fiscal-authorizations",
+        "title": "La configuración de CAI filtra los puntos de venta y secuencias compatibles con el tipo de remito seleccionado"
+      },
+      {
+        "type": "feat",
+        "scope": "remitos",
+        "title": "La creación de remitos utiliza una vista operativa con cantidades y depósitos, sin precios, impuestos ni totales"
+      },
+      {
+        "type": "fix",
+        "scope": "remitos",
+        "title": "Los remitos creados desde una orden de venta toman la cantidad pendiente de entregar en lugar de la pendiente de facturar"
+      },
+      {
+        "type": "fix",
+        "scope": "remitos",
+        "title": "El paso de En tránsito a Entregado ejecuta el cierre completo, asigna el CAI, valida depósitos y registra la salida de stock"
+      },
+      {
+        "type": "feat",
+        "scope": "remitos",
+        "title": "La impresión muestra el número de CAI y su vencimiento en un recuadro ubicado sobre las firmas"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Configuración documental unificada y remitos con CAI"
+  },
+  {
     "version": "0.61.0-alpha",
     "date": "2026-09-23",
     "stage": "alpha",

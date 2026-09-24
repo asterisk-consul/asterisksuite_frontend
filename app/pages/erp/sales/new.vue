@@ -23,6 +23,12 @@ const intakeId = computed(() => route.query.intakeId as string | undefined)
 
 const isQuote = computed(() => category.value === 'QUOTE')
 const isOrder = computed(() => category.value === 'ORDER')
+const isRemito = computed(() => category.value === 'REMITO')
+
+const pageDescription = computed(() => isRemito.value
+  ? 'Indicá las cantidades y el depósito de salida de cada producto'
+  : 'Completá los datos y agregá los productos'
+)
 
 const pageTitle = computed(() => {
   const labels: Record<string, string> = {
@@ -59,11 +65,17 @@ const initialValues = computed(() => {
     base.currency_code = orderData.value.currency_code
     base.descrip = orderData.value.descrip || ''
     base.ref = orderData.value.ref || ''
-    base.items = (orderData.value.document_items ?? []).map((item: any) => ({
-      product_id: item.product_id,
-      quantity: Number(item.quantity) - Number(item.quantity_invoiced ?? 0),
-      unit_price: Number(item.unit_price),
-    })).filter((item: any) => item.quantity > 0)
+    base.items = (orderData.value.document_items ?? []).map((item: any) => {
+      const processedQuantity = isRemito.value
+        ? Number(item.quantity_delivered ?? 0)
+        : Number(item.quantity_invoiced ?? 0)
+
+      return {
+        product_id: item.product_id,
+        quantity: Number(item.quantity) - processedQuantity,
+        unit_price: Number(item.unit_price),
+      }
+    }).filter((item: any) => item.quantity > 0)
   }
 
   // Si viene party_id por query
@@ -141,7 +153,7 @@ async function handleSubmit(payload: any) {
       <UPage>
         <UPageHeader
           :title="`Crear ${pageTitle}`"
-          description="Completá los datos y agregá los productos"
+          :description="pageDescription"
           :links="[
             {
               label: `Guardar ${pageTitle}`,
@@ -154,7 +166,16 @@ async function handleSubmit(payload: any) {
 
         <UPageBody class="mx-auto w-full max-w-screen-2xl space-y-6">
           <!-- Form principal (genérico) -->
-          <SalesDocumentForm ref="formRef" :loading="saving" module-code="SALES" :category="category" :initial-values="initialValues" :parent-document-id="parentOrderId" @submit="handleSubmit" />
+          <SalesDocumentForm
+            ref="formRef"
+            :loading="saving"
+            module-code="SALES"
+            :category="category"
+            :operational-mode="isRemito"
+            :initial-values="initialValues"
+            :parent-document-id="parentOrderId"
+            @submit="handleSubmit"
+          />
 
           <!-- Extensión: Presupuesto -->
           <PresupuestoForm v-if="isQuote" ref="presupuestoRef" />
