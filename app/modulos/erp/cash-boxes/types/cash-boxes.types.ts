@@ -56,6 +56,7 @@ export interface CashBox {
   balances?: CashBoxBalance[]
   current_session?: CashBoxSession | null
   user_roles?: CashBoxUserRole[]
+  can_set_initial_balance?: boolean
 
   created_at?: string
   updated_at?: string
@@ -88,4 +89,8 @@ export interface CloseSessionInput {
 export interface ForceCloseSessionInput {
   actual_balance: number
   reason: string
+}
+
+export interface SetInitialBalanceInput {
+  amount: number
 }

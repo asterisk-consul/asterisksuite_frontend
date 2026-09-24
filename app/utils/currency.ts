@@ -15,8 +15,29 @@ export function convertWithMarketRate(
   rate: number | null | undefined
 ): number | null {
   if (from === to) return amount
-  if (!rate || rate <= 0) return null
-  if (from === 'ARS') return amount / rate
-  if (to === 'ARS') return amount * rate
+  const marketRate = normalizeMarketRate(rate, from, to)
+  if (!marketRate) return null
+  if (from === 'ARS') return amount / marketRate
+  if (to === 'ARS') return amount * marketRate
   return null
+}
+
+/**
+ * Normaliza cotizaciones históricas ARS/moneda extranjera a la convención
+ * de mercado: X ARS por una unidad de moneda extranjera.
+ *
+ * Algunas asociaciones antiguas guardaron la tasa direccional ARS → USD
+ * (por ejemplo 0,00065359). Para conservar esos registros, una tasa menor
+ * que uno se interpreta como inversa y se presenta como 1530 ARS/USD.
+ */
+export function normalizeMarketRate(
+  rate: number | null | undefined,
+  from: string,
+  to: string
+): number | null {
+  if (from === to) return 1
+  const numericRate = Number(rate)
+  if (rate == null || !Number.isFinite(numericRate) || numericRate <= 0) return null
+  if (from !== 'ARS' && to !== 'ARS') return numericRate
+  return numericRate < 1 ? 1 / numericRate : numericRate
 }

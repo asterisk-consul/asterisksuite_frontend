@@ -1,4 +1,4 @@
-const urlBase = '/api/erp/bank-concepts'
+﻿const urlBase = '/api/backend/bank-concepts'
 
 export const useBankConceptsService = () => {
   const findAll = () => $fetch<any[]>(urlBase, { method: 'GET' })

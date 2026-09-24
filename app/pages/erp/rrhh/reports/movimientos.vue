@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
@@ -21,8 +21,8 @@ const people = ref<any[]>([])
 async function loadPeople() {
   try {
     const [employees, partners] = await Promise.all([
-      $fetch<any[]>('/api/erp/employees'),
-      $fetch<any[]>('/api/erp/partners')
+      $fetch<any[]>('/api/backend/employees'),
+      $fetch<any[]>('/api/backend/partners')
     ])
     people.value = [
       ...employees.map((e: any) => ({

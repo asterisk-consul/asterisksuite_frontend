@@ -88,10 +88,10 @@ const handleSubmit = async (formData: CheckFormData) => {
 </script>
 
 <template>
-  <UPage class="space-y-4 max-w-2xl">
+  <UPage class="space-y-4 max-w-5xl mx-auto">
     <AppPageHeader
       title="Editar cheque"
-      description="Editar datos del cheque"
+      description="Revisá la identificación bancaria, el importe, el emisor y el vencimiento"
     />
 
     <div v-if="loadingData" class="flex justify-center py-12">

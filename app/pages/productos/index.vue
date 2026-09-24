@@ -4,8 +4,6 @@ definePageMeta({
   breadcrumb: [{ label: 'Stock', to: '/stock' }, { label: 'Productos' }]
 })
 import type { ButtonProps } from '@nuxt/ui'
-import * as XLSX from 'xlsx'
-
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { productColumns } from '~/modulos/logistica/master-data/product/columns'
@@ -145,7 +143,7 @@ const saveLocation = async () => {
 }
 
 const handleExportExcel = async () => {
-  const allProducts = await $fetch<any[]>('/api/logistica/master-data/products')
+  const allProducts = await $fetch<any[]>('/api/backend/master-data/products')
   exportToExcel({
     filename: 'productos',
     sheetName: 'Productos',
@@ -164,7 +162,7 @@ const handleExportExcel = async () => {
 }
 
 const handleExportCSV = async () => {
-  const allProducts = await $fetch<any[]>('/api/logistica/master-data/products')
+  const allProducts = await $fetch<any[]>('/api/backend/master-data/products')
   const headers = ['ID', ...PRODUCT_COLUMNS.map(c => c.header), 'Creacion']
   const rows = allProducts.map(p => [
     p.id || '',
@@ -187,7 +185,8 @@ const handleExportCSV = async () => {
 // DESCARGAR PLANTILLA
 // =========================
 
-const downloadTemplate = () => {
+const downloadTemplate = async () => {
+  const XLSX = await import('xlsx/xlsx.mjs')
   const headers = PRODUCT_COLUMNS.map(c => c.header)
   const exampleRow = PRODUCT_COLUMNS.map(c => {
     if (c.key === 'sku') return 'PROD-001'

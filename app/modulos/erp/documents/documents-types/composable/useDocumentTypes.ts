@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+﻿import { computed, ref } from 'vue'
 import type { DocumentsType, CreateDocumentsTypeDto } from '../types/documents-types.types'
 
 export interface DocumentTypeSelectItem {
@@ -14,7 +14,7 @@ export function useDocumentTypes() {
   const init = async () => {
     loading.value = true
     try {
-      items.value = await $fetch<DocumentsType[]>('/api/erp/documents/documents-types')
+      items.value = await $fetch<DocumentsType[]>('/api/backend/documents/documents-types')
     } catch (e: any) {
       error.value = e?.data?.message || 'Error al cargar tipos'
     } finally {
@@ -23,7 +23,7 @@ export function useDocumentTypes() {
   }
 
   const create = async (payload: CreateDocumentsTypeDto) => {
-    const created = await $fetch<DocumentsType>('/api/erp/documents/documents-types', {
+    const created = await $fetch<DocumentsType>('/api/backend/documents/documents-types', {
       method: 'POST', body: payload
     })
     items.value.push(created)
@@ -31,7 +31,7 @@ export function useDocumentTypes() {
   }
 
   const update = async (id: string, payload: Partial<CreateDocumentsTypeDto>) => {
-    const updated = await $fetch<DocumentsType>(`/api/erp/documents/documents-types/${id}`, {
+    const updated = await $fetch<DocumentsType>(`/api/backend/documents/documents-types/${id}`, {
       method: 'PATCH', body: payload
     })
     const index = items.value.findIndex(i => i.id === id)

@@ -102,8 +102,8 @@ export const useBankAccountsStore = defineStore('bank-accounts', () => {
   // DELETE
   // =========================
 
-  const remove = async (id: string) => {
-    await service.remove(id)
+  const remove = async (id: string, data: { confirmation: string; target_bank_account_id?: string }) => {
+    await service.remove(id, data)
     items.value = items.value.filter((i) => i.id !== id)
 
     if (current.value?.id === id) {

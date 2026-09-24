@@ -1,4 +1,4 @@
-import { ref, computed, watch } from 'vue'
+﻿import { ref, computed, watch } from 'vue'
 import { useCurrencies } from './useCurrencies'
 import { useCurrencyRates } from '~/modulos/erp/currency-rates/composables/useCurrencyRates'
 
@@ -63,7 +63,7 @@ export function useExchangeRate() {
       }
 
       // Fallback: try the server API
-      const result = await $fetch('/api/erp/pricing/exchange/convert', {
+      const result = await $fetch('/api/backend/pricing/exchange/convert', {
         query: { from: fromCode, to: toCode, amount: 1, rateType: type ?? rateType.value },
       })
 

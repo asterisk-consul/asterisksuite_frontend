@@ -1,6 +1,6 @@
 import type { ProductTag } from '~/modulos/logistica/master-data/product-tags/types/product-tags.types'
 
-const urlBase = '/api/logistica/master-data/product-tags'
+const urlBase = '/api/backend/master-data/product-tags'
 
 export const useProductTagsService = () => {
   const assign = (productId: string, tagId: string) => {

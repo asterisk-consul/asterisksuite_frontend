@@ -26,7 +26,7 @@ export function useCashBoxes() {
 
   const update = async (id: string, payload: UpdateCashBoxInput) => store.update(id, payload)
 
-  const remove = async (id: string) => store.remove(id)
+  const remove = async (id: string, data: { confirmation: string; target_cash_box_id?: string }) => store.remove(id, data)
 
   const openSession = async (id: string, payload: OpenSessionInput) =>
     store.openSession(id, payload)
@@ -36,6 +36,9 @@ export function useCashBoxes() {
 
   const forceCloseSession = async (id: string, payload: ForceCloseSessionInput) =>
     store.forceCloseSession(id, payload)
+
+  const setInitialBalance = async (id: string, amount: number) =>
+    store.setInitialBalance(id, amount)
 
   const selectItems = computed<SelectItem[]>(() =>
     store.activeItems.map((box) => ({
@@ -79,6 +82,7 @@ export function useCashBoxes() {
     fetchOne: store.fetchOne,
     fetchMain: store.fetchMain,
     fetchBalances: store.fetchBalances,
+    setInitialBalance,
     fetchCurrentSession: store.fetchCurrentSession,
     fetchSessions: store.fetchSessions,
     openSession,

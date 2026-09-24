@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
 import { getActivityInfo } from '~/modulos/erp/current-accounts/utils'
@@ -42,7 +42,7 @@ async function loadReport() {
   reportLoading.value = true
   try {
     const endpoint = activeView.value === 'regulatory' ? 'regulatory-payments' : 'utility-payments'
-    reports[activeView.value] = await $fetch(`/api/erp/treasury/${endpoint}`, { query: { date_from: dateFrom.value, date_to: dateTo.value } })
+    reports[activeView.value] = await $fetch(`/api/backend/treasury/${endpoint}`, { query: { date_from: dateFrom.value, date_to: dateTo.value } })
   } finally { reportLoading.value = false }
 }
 onMounted(async () => { await fetchAll({ party_type: types.join(',') }); await loadReport() })
@@ -71,7 +71,7 @@ const pay = (id: string) => router.push(`/erp/treasury/payments/create?type=PAYM
         <div v-else-if="accounts.length === 0" class="p-10 text-center text-sm text-muted">No hay cuentas. Se crearán al confirmar el primer documento de compra de una entidad.</div>
         <div v-else class="divide-y divide-default">
           <div v-for="account in accounts" :key="account.id" class="flex flex-wrap items-center gap-4 p-4 hover:bg-muted/30">
-            <button class="min-w-0 flex-1 text-left" @click="openAccount(account.party_id)"><p class="truncate font-medium">{{ account.party?.name ?? 'Sin nombre' }}</p><div class="mt-1 flex flex-wrap gap-2 text-xs text-muted"><UBadge :label="typeLabels[account.party_type] ?? account.party_type" variant="soft" color="neutral" size="xs" /><span>CUIT: {{ account.party?.tax_id ?? '—' }}</span><span>{{ getActivityInfo(account.last_entry_date, account.last_entry).lastMovementLabel }}</span></div></button>
+            <button class="min-w-0 flex-1 text-left" @click="openAccount(account.party_id)"><p class="truncate font-medium">{{ account.party?.name ?? 'Sin nombre' }}</p><div class="mt-1 flex flex-wrap gap-2 text-xs text-muted"><UBadge :label="typeLabels[account.party_type] ?? account.party_type" variant="soft" color="neutral" size="xs" /><span>CUIT: {{ account.party?.tax_id ?? 'â€”' }}</span><span>{{ getActivityInfo(account.last_entry_date, account.last_entry).lastMovementLabel }}</span></div></button>
             <div class="text-right"><p class="text-xs text-muted">Saldo pendiente</p><p class="font-bold" :class="Number(account.balance) > 0 ? 'text-error' : 'text-success'">{{ fmt(account.balance) }}</p></div>
             <UButton label="Ver cuenta" variant="outline" size="sm" @click="openAccount(account.party_id)" />
             <UButton label="Registrar pago" icon="i-lucide-hand-coins" size="sm" :disabled="Number(account.balance) <= 0" @click="pay(account.party_id)" />
@@ -89,7 +89,7 @@ const pay = (id: string) => router.push(`/erp/treasury/payments/create?type=PAYM
         <UPageCard variant="subtle"><template #header><h3 class="text-sm font-semibold">Detalle por entidad y mes</h3></template>
           <div class="max-h-[60vh] overflow-auto"><table class="w-full text-sm">
             <thead class="sticky top-0 z-10 bg-default"><tr class="border-b border-default"><th class="px-3 py-2 text-left text-xs text-muted">Entidad</th><th v-for="month in currentReport.months" :key="month" class="px-3 py-2 text-right text-xs text-muted">{{ fmtMonth(month) }}</th><th class="px-3 py-2 text-right text-xs text-muted">Total</th><th /></tr></thead>
-            <tbody><tr v-for="party in currentReport.parties" :key="party.party_id" class="border-b border-default hover:bg-muted/30"><td class="px-3 py-2"><p class="font-medium">{{ party.party_name }}</p><UBadge v-if="party.party_type" :label="typeLabels[party.party_type] ?? party.party_type" variant="soft" color="neutral" size="xs" /></td><td v-for="month in currentReport.months" :key="month" class="px-3 py-2 text-right font-mono text-xs">{{ party.months[month] ? fmt(party.months[month]) : '—' }}</td><td class="px-3 py-2 text-right font-semibold">{{ fmt(party.total) }}</td><td class="whitespace-nowrap px-3 py-2"><UButton label="Cuenta" variant="ghost" size="xs" @click="openAccount(party.party_id)" /><UButton label="Pagar" variant="ghost" size="xs" @click="pay(party.party_id)" /></td></tr></tbody>
+            <tbody><tr v-for="party in currentReport.parties" :key="party.party_id" class="border-b border-default hover:bg-muted/30"><td class="px-3 py-2"><p class="font-medium">{{ party.party_name }}</p><UBadge v-if="party.party_type" :label="typeLabels[party.party_type] ?? party.party_type" variant="soft" color="neutral" size="xs" /></td><td v-for="month in currentReport.months" :key="month" class="px-3 py-2 text-right font-mono text-xs">{{ party.months[month] ? fmt(party.months[month]) : 'â€”' }}</td><td class="px-3 py-2 text-right font-semibold">{{ fmt(party.total) }}</td><td class="whitespace-nowrap px-3 py-2"><UButton label="Cuenta" variant="ghost" size="xs" @click="openAccount(party.party_id)" /><UButton label="Pagar" variant="ghost" size="xs" @click="pay(party.party_id)" /></td></tr></tbody>
             <tfoot><tr class="border-t-2 border-default font-semibold"><td class="px-3 py-2 text-right">Total mensual:</td><td v-for="month in currentReport.months" :key="month" class="px-3 py-2 text-right font-mono text-xs">{{ fmt(monthlyTotals[month] ?? 0) }}</td><td class="px-3 py-2 text-right text-primary">{{ fmt(reportTotal) }}</td><td /></tr></tfoot>
           </table></div>
         </UPageCard>

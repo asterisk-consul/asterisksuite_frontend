@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
@@ -37,8 +37,8 @@ async function load() {
   loading.value = true
   try {
     [prices.value, history.value] = await Promise.all([
-      $fetch<any[]>(`/api/erp/pricing/party-prices/party/${props.partyId}`),
-      $fetch<any[]>(`/api/erp/pricing/party-prices/party/${props.partyId}/history`)
+      $fetch<any[]>(`/api/backend/pricing/party-prices/party/${props.partyId}`),
+      $fetch<any[]>(`/api/backend/pricing/party-prices/party/${props.partyId}/history`)
     ])
   } finally {
     loading.value = false
@@ -56,7 +56,7 @@ async function save() {
   if (!form.product_id || !form.currency_id || form.price < 0) return
   saving.value = true
   try {
-    await $fetch('/api/erp/pricing/party-prices', {
+    await $fetch('/api/backend/pricing/party-prices', {
       method: 'POST',
       body: { ...form, party_id: props.partyId }
     })
@@ -68,7 +68,7 @@ async function save() {
 }
 
 async function remove(price: any) {
-  await $fetch(`/api/erp/pricing/party-prices/${price.id}`, { method: 'DELETE' })
+  await $fetch(`/api/backend/pricing/party-prices/${price.id}`, { method: 'DELETE' })
   toast.add({ title: 'Precio desactivado', color: 'success' })
   await load()
 }
@@ -134,7 +134,7 @@ onMounted(async () => {
       <div class="mt-3 max-h-64 space-y-2 overflow-y-auto">
         <div v-for="entry in history" :key="entry.id" class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-elevated px-3 py-2 text-sm">
           <span>{{ entry.products?.name }} · {{ entry.operation_type === 'SALE' ? 'Venta' : 'Compra' }}</span>
-          <span class="tabular-nums">{{ entry.previous_price == null ? 'Nuevo' : money(entry.previous_price, entry.currencies?.code) }} → <strong>{{ money(entry.new_price, entry.currencies?.code) }}</strong></span>
+          <span class="tabular-nums">{{ entry.previous_price == null ? 'Nuevo' : money(entry.previous_price, entry.currencies?.code) }} â†’ <strong>{{ money(entry.new_price, entry.currencies?.code) }}</strong></span>
           <span class="text-muted">{{ new Date(entry.effective_at).toLocaleString('es-AR') }}</span>
         </div>
       </div>

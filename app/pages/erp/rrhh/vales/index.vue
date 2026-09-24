@@ -92,7 +92,7 @@ async function handleConfirm(id: string) {
     confirmingVale.value = vale
     treasuryTargetType.value = 'CASH_BOX'
     treasuryTargetId.value = ''
-    treasuryTargets.value = await $fetch<any[]>('/api/logistica/cash-boxes')
+    treasuryTargets.value = await $fetch<any[]>('/api/backend/cash-boxes')
     showTreasuryModal.value = true
     return
   }
@@ -124,8 +124,8 @@ watch(treasuryTargetType, async type => {
   treasuryTargetId.value = ''
   if (!showTreasuryModal.value) return
   treasuryTargets.value = type === 'CASH_BOX'
-    ? await $fetch<any[]>('/api/logistica/cash-boxes')
-    : await $fetch<any[]>('/api/erp/bank-accounts')
+    ? await $fetch<any[]>('/api/backend/cash-boxes')
+    : await $fetch<any[]>('/api/backend/bank-accounts')
 })
 
 function handleCancel(id: string) {
@@ -200,7 +200,7 @@ const columns = [
           <div>
             <span class="font-medium">{{ fmtCurrency(Number(row.original.amount), row.original.currency_code) }}</span>
             <p v-if="row.original.converted_amount" class="text-xs text-muted">
-              ≈ {{ fmtCurrency(Number(row.original.converted_amount), row.original.currency_code === 'USD' ? 'ARS' : 'USD') }}
+              â‰ˆ {{ fmtCurrency(Number(row.original.converted_amount), row.original.currency_code === 'USD' ? 'ARS' : 'USD') }}
             </p>
           </div>
         </template>
@@ -331,7 +331,7 @@ const columns = [
             <div>
               <h2 class="text-lg font-semibold">Detalle de comisiones</h2>
               <p class="text-sm text-muted mt-1">
-                Vale #{{ selectedVale?.number }} — {{ selectedVale?.party?.name }}
+                Vale #{{ selectedVale?.number }} â€” {{ selectedVale?.party?.name }}
               </p>
             </div>
             <UBadge

@@ -1,13 +1,15 @@
 import { h } from 'vue'
-import { UTooltip, UButton } from '#components'
+import { UTooltip, UButton, UBadge, UProgress } from '#components'
 import { createTableBuilder } from '~/composables/table/createColumns'
-import { getStatusLabel, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
+import { CATEGORY_LABELS, getStatusLabel, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
 import type { Document } from '~/modulos/erp/facturas/types/factura.types'
+import { canSettleDocument, getDocumentPaymentSummary } from '~/modulos/erp/documents/utils/document-payment-status'
 
 type Row = Document
 
 export const createSalesColumns = (actions: {
   onOpen: (row: Row) => void
+  onCollect?: (row: Row) => void
   showAmounts?: boolean
 }) => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
@@ -36,21 +38,52 @@ export const createSalesColumns = (actions: {
       },
       {
         key: 'number',
-        label: 'Nº',
+        label: 'Comprobante',
         sortable: true,
         accessorFn: (row) => fmtNumber(row),
         cell: ({ row }) => {
           const label = fmtNumber(row.original)
-          return h(
-            UButton,
-            {
-              label,
-              variant: 'link',
-              size: 'sm',
-              class: 'font-mono px-0',
-              onClick: () => actions.onOpen(row.original)
-            }
-          )
+          const category = row.original.document_types?.category ?? ''
+          return h('div', { class: 'min-w-[190px] space-y-1' }, [
+            h(UButton, { label, variant: 'link', size: 'sm', class: 'font-mono px-0 h-auto', onClick: () => actions.onOpen(row.original) }),
+            h('div', { class: 'flex items-center gap-2' }, [
+              h(UBadge, { label: CATEGORY_LABELS[category] ?? category, color: 'neutral', variant: 'subtle', size: 'xs' }),
+              h('span', { class: 'max-w-[150px] truncate text-xs text-muted' }, row.original.document_types?.description ?? '')
+            ])
+          ])
+        }
+      },
+      {
+        id: 'payment_status',
+        label: 'Cobro',
+        cell: ({ row }) => {
+          const summary = getDocumentPaymentSummary(row.original)
+          if (!summary.applies) return h('span', { class: 'text-xs text-muted' }, 'No aplica')
+          const config = summary.state === 'PAID'
+            ? { label: 'Cobrado', color: 'success' }
+            : summary.state === 'PARTIAL'
+              ? { label: 'Cobro parcial', color: 'warning' }
+              : { label: 'Pendiente', color: 'error' }
+          const currency = row.original.currency_code ?? 'ARS'
+          const amount = new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(summary.pending)
+          return h('div', { class: 'min-w-[170px] space-y-1.5' }, [
+            h('div', { class: 'flex items-center justify-between gap-2' }, [
+              h(UBadge, { label: config.label, color: config.color as any, variant: 'subtle', size: 'xs' }),
+              summary.state !== 'PAID' ? h('span', { class: 'text-xs text-muted' }, `${amount} pend.`) : null
+            ]),
+            h(UProgress, { modelValue: summary.percentage, color: config.color as any, size: 'xs' }),
+            canSettleDocument(row.original) && actions.onCollect
+              ? h(UButton, {
+                  label: summary.state === 'PARTIAL' ? 'Cobrar saldo' : 'Cobrar',
+                  icon: 'i-lucide-hand-coins',
+                  size: 'xs',
+                  variant: 'soft',
+                  color: 'primary',
+                  class: 'w-full justify-center',
+                  onClick: () => actions.onCollect?.(row.original)
+                })
+              : null
+          ])
         }
       },
       {
@@ -86,7 +119,7 @@ export const createSalesColumns = (actions: {
         label: 'Total',
         sortable: true,
         cell: ({ row }) =>
-          new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
+          new Intl.NumberFormat('es-AR', { style: 'currency', currency: row.original.currency_code ?? 'ARS' }).format(
             Number(row.original.total)
           )
       }]),

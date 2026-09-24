@@ -9,6 +9,7 @@ export interface BankAccount {
   currency_code: string
   balance: number
   active: boolean
+  can_set_initial_balance?: boolean
 
   created_at?: string
   updated_at?: string

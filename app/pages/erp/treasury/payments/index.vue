@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 import type { ButtonProps } from '@nuxt/ui'
@@ -143,11 +143,11 @@ const sortFields: SortField[] = [
 ]
 
 const handleExport = (format: string) => {
-  window.open(`/api/erp/payments/export?format=${format}`, '_blank')
+  window.open(`/api/backend/payments/export?format=${format}`, '_blank')
 }
 
 const handleDownloadTemplate = () => {
-  window.open('/api/erp/payments/export/template', '_blank')
+  window.open('/api/backend/payments/export/template', '_blank')
 }
 
 const importColumns = [
@@ -253,7 +253,7 @@ const dataActions = computed(() => [
       title="Importar Pagos y Cobros"
       description="Selecciona un archivo Excel con los pagos a importar"
       :columns="importColumns"
-      endpoint="/api/erp/payments/import"
+      endpoint="/api/backend/payments/import"
       @success="init"
     />
   </UPage>

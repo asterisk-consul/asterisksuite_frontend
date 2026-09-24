@@ -30,7 +30,7 @@ export const FileService = {
     })
   },
   async importParties(file: File) {
-    return await $fetch('/api/master-data/business-parties/import', {
+    return await $fetch('/api/backend/business-parties/import', {
       method: 'POST',
       body: buildForm(file)
     })

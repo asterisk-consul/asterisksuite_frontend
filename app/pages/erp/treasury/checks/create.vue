@@ -57,10 +57,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <UPage class="space-y-4 max-w-2xl">
+  <UPage class="space-y-4 max-w-5xl mx-auto">
     <AppPageHeader
       title="Nuevo cheque"
-      description="Crear un nuevo cheque propio o de terceros"
+      description="Registrá un cheque propio o recibido de terceros con sus datos bancarios y vencimiento"
     />
 
     <UPageCard>

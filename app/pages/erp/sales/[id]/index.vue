@@ -56,7 +56,7 @@ async function createDispatchOrder() {
   if (!doc.value) return
   creatingDispatch.value = true
   try {
-    const dispatch = await $fetch<any>(`/api/erp/documents/sales/${doc.value.id}/create-dispatch`, { method: 'POST' })
+    const dispatch = await $fetch<any>(`/api/backend/documents/sales/${doc.value.id}/create-dispatch`, { method: 'POST' })
     useToast().add({ title: 'Orden de Despacho creada', description: 'Ya puede planificarse en un viaje y generar su remito.', color: 'success' })
     await router.push(`/logistica/viajes/dispatch-orders/${dispatch.id}/edit`)
   } catch (error: any) {

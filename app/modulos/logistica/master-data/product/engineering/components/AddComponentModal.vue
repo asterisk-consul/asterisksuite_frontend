@@ -115,7 +115,7 @@ const handleSave = async () => {
 
   saving.value = true
   try {
-    await $fetch('/api/logistica/master-data/engineering/components', {
+    await $fetch('/api/backend/master-data/engineering/components', {
       method: 'POST',
       body: {
         parent_product_id: props.parentId ?? props.productId,

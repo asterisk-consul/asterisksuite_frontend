@@ -172,7 +172,7 @@ async function fetchLookups() {
       warehousesStore.fetchAll(),
       partiesStore.fetchAll(),
       employeesStore.fetchAll(),
-      $fetch<any>('/api/erp/documents/purchases?category=INVOICE&status=2')
+      $fetch<any>('/api/backend/documents/purchases?category=INVOICE&status=2')
     ])
     documents.value = docData?.data ?? docData ?? []
   } catch {

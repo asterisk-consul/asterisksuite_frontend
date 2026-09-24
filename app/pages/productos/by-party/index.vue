@@ -53,7 +53,7 @@ function difference(item: any) {
 
 function differenceLabel(item: any) {
   const value = difference(item)
-  return value === null ? '—' : `${value.toFixed(1)}%`
+  return value === null ? 'â€”' : `${value.toFixed(1)}%`
 }
 
 function differenceClass(item: any) {
@@ -81,7 +81,7 @@ function handleExportExcel() {
       { key: 'operacion', label: 'Operación', width: 12 },
       { key: 'moneda', label: 'Moneda', width: 8 },
       { key: 'precio_acordado', label: 'Precio acordado', width: 15, format: (v: unknown) => Number(v).toFixed(2) },
-      { key: 'precio_general', label: 'Precio general', width: 15, format: (v: unknown) => v != null ? Number(v).toFixed(2) : '—' },
+      { key: 'precio_general', label: 'Precio general', width: 15, format: (v: unknown) => v != null ? Number(v).toFixed(2) : 'â€”' },
       { key: 'actualizado', label: 'Actualizado', width: 12 }
     ],
     data: filteredPrices.value.map(p => ({
@@ -121,7 +121,7 @@ const importColumns = [
   { key: 'price', label: 'Precio acordado', required: true, type: 'number' as const }
 ]
 
-const importEndpoint = computed(() => `/api/erp/pricing/party-prices/import?party_id=${selectedPartyId.value}&operation_type=${partyType.value === 'CUSTOMER' ? 'SALE' : 'PURCHASE'}`)
+const importEndpoint = computed(() => `/api/backend/pricing/party-prices/import?party_id=${selectedPartyId.value}&operation_type=${partyType.value === 'CUSTOMER' ? 'SALE' : 'PURCHASE'}`)
 
 async function loadPrices() {
   if (!selectedPartyId.value) {
@@ -132,8 +132,8 @@ async function loadPrices() {
   loading.value = true
   try {
     [prices.value, history.value] = await Promise.all([
-      $fetch<any[]>(`/api/erp/pricing/party-prices/party/${selectedPartyId.value}`),
-      $fetch<any[]>(`/api/erp/pricing/party-prices/party/${selectedPartyId.value}/history`)
+      $fetch<any[]>(`/api/backend/pricing/party-prices/party/${selectedPartyId.value}`),
+      $fetch<any[]>(`/api/backend/pricing/party-prices/party/${selectedPartyId.value}/history`)
     ])
   } catch (error: any) {
     toast.add({ title: 'No se pudieron cargar los precios', description: error?.data?.message, color: 'error' })
@@ -143,7 +143,7 @@ async function loadPrices() {
 }
 
 async function useGeneralPrice(item: any) {
-  await $fetch(`/api/erp/pricing/party-prices/${item.id}`, { method: 'DELETE' })
+  await $fetch(`/api/backend/pricing/party-prices/${item.id}`, { method: 'DELETE' })
   toast.add({ title: 'Precio específico desactivado', description: 'El producto volverá a utilizar su precio general.', color: 'success' })
   await loadPrices()
 }
@@ -161,7 +161,7 @@ watch(selectedPartyId, async value => {
 })
 
 onMounted(async () => {
-  parties.value = await $fetch<any[]>('/api/logistica/master-data/business-parties')
+  parties.value = await $fetch<any[]>('/api/backend/master-data/business-parties')
   if (selectedPartyId.value) await loadPrices()
 })
 </script>
@@ -230,7 +230,7 @@ onMounted(async () => {
           <thead class="bg-elevated text-left text-muted"><tr><th class="p-3">Producto / tarifa</th><th class="p-3">Operación</th><th class="p-3 text-right">Anterior</th><th class="p-3 text-right">Nuevo</th><th class="p-3">Origen</th><th class="p-3">Fecha</th></tr></thead>
           <tbody>
             <tr v-for="entry in filteredHistory" :key="entry.id" class="border-t border-default">
-              <td class="p-3"><NuxtLink :to="`/productos/${entry.product_id}/edit`" class="font-medium hover:text-primary hover:underline">{{ entry.products?.name }}</NuxtLink><div class="text-xs text-muted">{{ entry.products?.sku || '—' }}</div></td>
+              <td class="p-3"><NuxtLink :to="`/productos/${entry.product_id}/edit`" class="font-medium hover:text-primary hover:underline">{{ entry.products?.name }}</NuxtLink><div class="text-xs text-muted">{{ entry.products?.sku || 'â€”' }}</div></td>
               <td class="p-3">{{ entry.operation_type === 'SALE' ? 'Venta' : 'Compra' }}</td>
               <td class="p-3 text-right tabular-nums text-muted">{{ entry.previous_price == null ? 'Nuevo' : money(entry.previous_price, entry.currencies?.code) }}</td>
               <td class="p-3 text-right font-semibold tabular-nums">{{ money(entry.new_price, entry.currencies?.code) }}</td>

@@ -10,7 +10,7 @@ import type {
   ForceCloseSessionInput
 } from '~/modulos/erp/cash-boxes/types/cash-boxes.types'
 
-const urlBase = '/api/logistica/cash-boxes'
+const urlBase = '/api/backend/cash-boxes'
 
 export const useCashBoxesService = () => {
   const findAll = () => {
@@ -39,14 +39,22 @@ export const useCashBoxesService = () => {
     })
   }
 
-  const remove = (id: string) => {
+  const remove = (id: string, data: { confirmation: string; target_cash_box_id?: string }) => {
     return $fetch<void>(`${urlBase}/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      body: data
     })
   }
 
   const getBalances = (id: string) => {
     return $fetch<CashBoxBalance[]>(`${urlBase}/${id}/balances`)
+  }
+
+  const setInitialBalance = (id: string, amount: number) => {
+    return $fetch(`${urlBase}/${id}/initial-balance`, {
+      method: 'POST',
+      body: { amount: Number(amount) }
+    })
   }
 
   const openSession = (id: string, data: OpenSessionInput) => {
@@ -103,6 +111,7 @@ export const useCashBoxesService = () => {
     update,
     remove,
     getBalances,
+    setInitialBalance,
     openSession,
     closeSession,
     forceCloseSession,

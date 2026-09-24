@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
@@ -6,22 +6,33 @@ import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purch
 import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
 import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
+import { canSettleDocument, getDocumentPaymentSummary, isDocumentFullyPaid } from '~/modulos/erp/documents/utils/document-payment-status'
 
-// ─── Store ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const documentsPurchasesStore = useDocumentsPurchasesStore()
 const router = useRouter()
 const toast = useToast()
 const { can: canDocument } = useDocumentPermissions()
 
-const documents = computed(() => documentsPurchasesStore.items)
+const PURCHASE_CATEGORIES = ['ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
+const purchaseCategorySet = new Set<string>(PURCHASE_CATEGORIES)
+
+// El endpoint también abastece otros circuitos internos con dirección de compra
+// (por ejemplo, vales de RRHH y saldos iniciales). Este listado muestra sólo
+// comprobantes comerciales de compras.
+const documents = computed(() =>
+  (documentsPurchasesStore.items ?? []).filter(document =>
+    purchaseCategorySet.has(document.document_types?.category ?? '')
+  )
+)
 const pending = computed(() => documentsPurchasesStore.loading)
 const error = computed(() => documentsPurchasesStore.error)
 
-// ─── Tipos de documento (para enabled_statuses) ─────────────────────────────
+// â”€â”€â”€ Tipos de documento (para enabled_statuses) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const docTypes = ref<any[]>([])
 onMounted(async () => {
   try {
-    docTypes.value = await $fetch<any[]>('/api/erp/documents/documents-types')
+    docTypes.value = await $fetch<any[]>('/api/backend/documents/documents-types')
   } catch { /* ignore */ }
 })
 
@@ -32,9 +43,10 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
   return allEnabled.length > 0 ? [...new Set(allEnabled)] : null
 }
 
-// ─── Filtros ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Filtros â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const categoryFilter = ref<string | undefined>(undefined)
 const statusFilter = ref<number | undefined>(undefined)
+const showFullyPaid = ref(true)
 
 const refresh = () =>
   documentsPurchasesStore.fetchAll({
@@ -53,9 +65,7 @@ watch(categoryFilter, () => {
 
 watch(statusFilter, () => refresh())
 
-// ─── Filtros de categoría ─────────────────────────────────────────────────────
-const PURCHASE_CATEGORIES = ['ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'OPENING_BALANCE'] as const
-
+// â”€â”€â”€ Filtros de categoría â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const categoryOptions = computed(() => [
   { label: 'Todos', value: undefined },
   ...PURCHASE_CATEGORIES.filter(cat => canDocument('purchases', cat, 'read')).map((cat) => ({
@@ -64,14 +74,30 @@ const categoryOptions = computed(() => [
   }))
 ])
 
-// ─── Filtros de estado (según categoría) ─────────────────────────────────────
+// â”€â”€â”€ Filtros de estado (según categoría) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const statusOptions = computed(() =>
   categoryFilter.value
     ? getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
     : []
 )
 
-// ─── Estadísticas ─────────────────────────────────────────────────────────────
+const visibleDocuments = computed(() => {
+  const rows = documents.value ?? []
+  return showFullyPaid.value ? rows : rows.filter(document => !isDocumentFullyPaid(document))
+})
+
+const financialStats = computed(() => {
+  const rows = documents.value ?? []
+  const summaries = rows.map(getDocumentPaymentSummary).filter(summary => summary.applies)
+  return {
+    visible: visibleDocuments.value.length,
+    pending: summaries.filter(summary => summary.state === 'UNPAID').length,
+    partial: summaries.filter(summary => summary.state === 'PARTIAL').length,
+    paid: summaries.filter(summary => summary.state === 'PAID').length
+  }
+})
+
+// â”€â”€â”€ Estadísticas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const stats = computed(() => {
   const docs = documents.value ?? []
   if (categoryFilter.value) {
@@ -110,14 +136,30 @@ const STATUS_TEXT_CLASSES: Record<string, string> = {
 
 const statusTextClass = (color: string) => STATUS_TEXT_CLASSES[color] ?? 'text-muted'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
 }
 
-// ─── Acciones ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Acciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function openDocument(row: any) {
   router.push(`/erp/purchases/purchases-documents/${row.id}`)
+}
+
+function payDocument(row: any) {
+  if (!canSettleDocument(row) || !row.party_id) {
+    openDocument(row)
+    return
+  }
+
+  router.push({
+    path: '/erp/treasury/payments/create',
+    query: {
+      type: 'PAYMENT',
+      party_id: row.party_id,
+      document_id: row.id
+    }
+  })
 }
 
 async function deleteDrafts(rows: any[]) {
@@ -140,8 +182,8 @@ async function deleteDrafts(rows: any[]) {
   }
 }
 
-// ─── Columnas ─────────────────────────────────────────────────────────────────
-const columns = createPurchasesColumns({ onOpen: openDocument })
+// â”€â”€â”€ Columnas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const columns = createPurchasesColumns({ onOpen: openDocument, onPay: payDocument })
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },
@@ -180,39 +222,12 @@ const sortFields = [
         title="Error al cargar documentos"
       />
 
-      <!-- Estadísticas -->
+      <!-- Resumen operativo -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <template v-if="categoryFilter">
-          <UPageCard
-            v-for="s in stats.byStatus"
-            :key="s.label"
-            variant="subtle"
-          >
-            <div class="space-y-1">
-              <p class="text-xs text-muted">{{ s.label }}</p>
-              <p class="text-2xl font-semibold" :class="statusTextClass(s.color)">{{ s.count }}</p>
-              <p class="text-xs text-muted">{{ fmt(s.total) }}</p>
-            </div>
-          </UPageCard>
-        </template>
-        <template v-else>
-          <UPageCard variant="subtle">
-            <div class="space-y-1">
-              <p class="text-xs text-muted">Total documentos</p>
-              <p class="text-2xl font-semibold">{{ (documents ?? []).length }}</p>
-            </div>
-          </UPageCard>
-          <UPageCard
-            v-for="c in stats.byCategory"
-            :key="c.label"
-            variant="subtle"
-          >
-            <div class="space-y-1">
-              <p class="text-xs text-muted">{{ c.label }}</p>
-              <p class="text-2xl font-semibold">{{ c.count }}</p>
-            </div>
-          </UPageCard>
-        </template>
+        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-files" class="size-5" /></div><div><p class="text-xs text-muted">Documentos visibles</p><p class="text-2xl font-semibold">{{ financialStats.visible }}</p></div></div></UPageCard>
+        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-error/10 p-2 text-error"><UIcon name="i-lucide-circle-dollar-sign" class="size-5" /></div><div><p class="text-xs text-muted">Sin pagos</p><p class="text-2xl font-semibold text-error">{{ financialStats.pending }}</p></div></div></UPageCard>
+        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-warning/10 p-2 text-warning"><UIcon name="i-lucide-chart-no-axes-column-increasing" class="size-5" /></div><div><p class="text-xs text-muted">Pago parcial</p><p class="text-2xl font-semibold text-warning">{{ financialStats.partial }}</p></div></div></UPageCard>
+        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-success/10 p-2 text-success"><UIcon name="i-lucide-circle-check" class="size-5" /></div><div><p class="text-xs text-muted">Pagados</p><p class="text-2xl font-semibold text-success">{{ financialStats.paid }}</p></div></div></UPageCard>
       </div>
 
       <!-- Filtro por categoría -->
@@ -248,9 +263,20 @@ const sortFields = [
         />
       </div>
 
+      <div class="flex flex-col gap-3 rounded-xl border border-default bg-elevated/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="text-sm font-medium">Visibilidad de documentos saldados</p>
+          <p class="text-xs text-muted">Ocultalos para concentrarte en los pagos pendientes.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-muted">Mostrar pagados</span>
+          <USwitch v-model="showFullyPaid" />
+        </div>
+      </div>
+
       <!-- Tabla -->
       <LogisticaTable
-        :data="documents ?? []"
+        :data="visibleDocuments"
         :columns="columns"
         :loading="pending"
         :filter-fields="filterFields"

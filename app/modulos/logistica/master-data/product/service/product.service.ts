@@ -5,7 +5,7 @@ import type {
   UpdateProductInput
 } from '~/modulos/logistica/master-data/product/types/product.types'
 
-const baseUrl = '/api/logistica/master-data/products'
+const baseUrl = '/api/backend/master-data/products'
 
 export const useProductsService = () => {
   // =========================

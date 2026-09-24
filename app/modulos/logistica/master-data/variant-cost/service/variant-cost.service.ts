@@ -4,7 +4,7 @@ import type {
   UpdateVariantCostInput
 } from '~/modulos/logistica/master-data/variant-cost/types/variant-costs.types'
 
-const urlBase = '/api/logistica/master-data/variant-costs'
+const urlBase = '/api/backend/master-data/variant-costs'
 
 export const useVariantCostsService = () => {
   const findAll = () => {

@@ -1,6 +1,6 @@
-import type { Employee, CreateEmployeeInput, UpdateEmployeeInput } from '~/modulos/erp/employees/types/employees.types'
+﻿import type { Employee, CreateEmployeeInput, UpdateEmployeeInput } from '~/modulos/erp/employees/types/employees.types'
 
-const baseUrl = '/api/erp/employees'
+const baseUrl = '/api/backend/employees'
 
 export const useEmployeesService = () => {
   const findAll = () => $fetch<Employee[]>(baseUrl)

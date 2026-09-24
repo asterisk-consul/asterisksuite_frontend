@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 import { useAccountsStore } from '~/modulos/contabilidad/store/accounts.store'
@@ -65,7 +65,7 @@ function fmtMoney(amount?: number | null, currency = 'ARS') {
 }
 
 function fmtDate(d?: string) {
-  if (!d) return '—'
+  if (!d) return 'â€”'
   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
@@ -85,7 +85,7 @@ async function loadData() {
     if (dateTo.value) params.date_to = dateTo.value
     if (accountFilter.value) params.account_id = accountFilter.value
     if (typeFilter.value !== 'ALL') params.type = typeFilter.value
-    data.value = await $fetch<any>('/api/erp/treasury/expenses-by-account', { params })
+    data.value = await $fetch<any>('/api/backend/treasury/expenses-by-account', { params })
   } catch (e: any) {
     toast.add({ title: 'Error al cargar reporte', description: e?.data?.message || e.message, color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
@@ -266,7 +266,7 @@ onMounted(async () => {
                   #{{ String(p.number).padStart(8, '0') }}
                 </NuxtLink>
                 <span class="text-xs text-muted w-24 shrink-0">{{ fmtDate(p.date) }}</span>
-                <span class="flex-1 truncate">{{ p.party_name ?? '—' }}</span>
+                <span class="flex-1 truncate">{{ p.party_name ?? 'â€”' }}</span>
                 <span class="text-xs text-muted w-28 shrink-0">{{ METHOD_LABELS[p.payment_method] ?? p.payment_method }}</span>
                 <span class="w-32 text-right font-medium">
                   {{ fmtMoney(p.converted_amount ?? p.amount) }}
@@ -310,7 +310,7 @@ onMounted(async () => {
                 #{{ String(p.number).padStart(8, '0') }}
               </NuxtLink>
               <span class="text-xs text-muted w-24 shrink-0">{{ fmtDate(p.date) }}</span>
-              <span class="flex-1 truncate">{{ p.party_name ?? '—' }}</span>
+              <span class="flex-1 truncate">{{ p.party_name ?? 'â€”' }}</span>
               <span class="text-xs text-muted w-28 shrink-0">{{ METHOD_LABELS[p.payment_method] ?? p.payment_method }}</span>
               <span class="w-32 text-right font-medium">
                 {{ fmtMoney(p.converted_amount ?? p.amount) }}

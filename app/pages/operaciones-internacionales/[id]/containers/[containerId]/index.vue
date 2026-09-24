@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
+import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 import type { ContainerEvent, ContainerEventType, ContainerStatus, ContainerType, CreateEventInput } from '~/modulos/international-operations/types/international-operations.types'
 
 definePageMeta({ layout: 'default', middleware: ['auth'] })
 
 const route = useRoute()
 const containerId = route.params.containerId as string
+const toast = useToast()
 
 const {
   findOneContainer,
   updateContainer,
+  deliverContainer,
   createEvent,
   removeEvent,
   containerStatusColor,
@@ -23,8 +27,74 @@ const {
   formatDate
 } = useInternationalOperations()
 
+const depositosStore = useDepositosStore()
+const { warehouses } = storeToRefs(depositosStore)
+
 const container = ref<any>(null)
 const loading = ref(true)
+
+// ── Documentos de mercadería asociados ──
+const merchandiseDocs = computed(() => {
+  const docs = container.value?.container_documents ?? []
+  return docs.filter((d: any) => !d.expense_type || d.expense_type === 'MERCHANDISE')
+})
+
+const productRows = computed(() => {
+  const rows: { docLabel: string; docId: string; productName: string; sku?: string; quantity: number; price?: number }[] = []
+  for (const rel of merchandiseDocs.value) {
+    const doc = rel.document
+    if (!doc) continue
+    const docLabel = `${doc.document_types?.description ?? doc.document_types?.code ?? 'Documento'}${doc.number ? ` #${doc.number}` : ''}`
+    for (const item of doc.document_items ?? []) {
+      rows.push({
+        docLabel,
+        docId: doc.id,
+        productName: item.products?.name ?? item.product_id ?? '—',
+        sku: item.products?.sku,
+        quantity: Number(item.quantity ?? 0),
+        price: item.price != null ? Number(item.price) : undefined
+      })
+    }
+  }
+  return rows
+})
+
+const totalUnits = computed(() => productRows.value.reduce((sum, r) => sum + r.quantity, 0))
+
+// ── Entrega de contenedor (transferencia desde tránsito) ──
+const showDeliverModal = ref(false)
+const deliverWarehouseId = ref<string | undefined>(undefined)
+const delivering = ref(false)
+
+const destinationOptions = computed(() =>
+  (warehouses.value ?? [])
+    .filter((w: any) => w.active && !w.is_virtual && w.id !== container.value?.transit_warehouse_id)
+    .map((w: any) => ({ label: w.name, value: w.id }))
+)
+
+const openDeliverModal = async () => {
+  await depositosStore.fetchAll().catch(() => {})
+  deliverWarehouseId.value = destinationOptions.value[0]?.value
+  showDeliverModal.value = true
+}
+
+const handleDeliver = async () => {
+  if (!deliverWarehouseId.value) {
+    toast.add({ title: 'Seleccioná el depósito de destino', color: 'warning' })
+    return
+  }
+  delivering.value = true
+  try {
+    await deliverContainer(containerId, deliverWarehouseId.value)
+    container.value = await findOneContainer(containerId)
+    showDeliverModal.value = false
+    toast.add({ title: 'Contenedor entregado', description: 'El stock en tránsito se transfirió al depósito de destino.', color: 'success' })
+  } catch (err: any) {
+    toast.add({ title: 'No se pudo entregar', description: err?.data?.message, color: 'error' })
+  } finally {
+    delivering.value = false
+  }
+}
 
 const showEventForm = ref(false)
 const eventForm = ref<CreateEventInput>({
@@ -48,7 +118,7 @@ const eventTypes: { label: string; value: ContainerEventType }[] = [
 ]
 
 const containerStatusItems = computed(() =>
-  containerStatusOptions.map((s) => ({
+  containerStatusOptions.value.map((s) => ({
     label: s.value === container.value?.status ? `${s.label} (actual)` : s.label,
     disabled: s.value === container.value?.status,
     onSelect: () => handleStatusChange(s.value as ContainerStatus)
@@ -116,10 +186,19 @@ const handleRemoveEvent = async (eventId: string) => {
         <span class="text-muted text-sm" v-if="container.container_type">{{ containerTypeLabel(container.container_type as ContainerType) }}</span>
       </div>
 
-      <div class="flex gap-2 my-4 items-center">
+      <div class="flex gap-2 my-4 items-center flex-wrap">
         <UDropdownMenu :items="containerStatusItems">
           <UButton label="Cambiar estado" icon="i-lucide-refresh-cw" variant="outline" size="sm" />
         </UDropdownMenu>
+        <UButton
+          v-if="container.transit_warehouse_id && container.status !== 'DELIVERED' && container.status !== 'CLOSED'"
+          label="Entregar stock"
+          icon="i-lucide-package-check"
+          color="primary"
+          variant="solid"
+          size="sm"
+          @click="openDeliverModal"
+        />
         <UPopover>
           <UButton icon="i-lucide-help-circle" size="xs" variant="ghost" aria-label="Estados" />
           <template #content>
@@ -198,6 +277,41 @@ const handleRemoveEvent = async (eventId: string) => {
         </UPageCard>
       </div>
 
+      <UPageCard v-if="productRows.length" title="Productos en este contenedor">
+        <template #header>
+          <div class="flex items-center justify-between w-full">
+            <span class="font-medium">Productos en este contenedor</span>
+            <UBadge :label="`${productRows.length} ítems · ${totalUnits} uds`" color="neutral" variant="subtle" size="sm" />
+          </div>
+        </template>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-muted border-b border-default">
+                <th class="py-2 pr-4 font-medium">Documento</th>
+                <th class="py-2 pr-4 font-medium">Producto</th>
+                <th class="py-2 pr-4 font-medium">SKU</th>
+                <th class="py-2 pr-4 font-medium text-right">Cantidad</th>
+                <th class="py-2 font-medium text-right">Precio</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, idx) in productRows" :key="`${row.docId}-${idx}`" class="border-b border-default last:border-0">
+                <td class="py-2 pr-4 text-muted">{{ row.docLabel }}</td>
+                <td class="py-2 pr-4 font-medium">{{ row.productName }}</td>
+                <td class="py-2 pr-4 font-mono text-xs">{{ row.sku ?? '—' }}</td>
+                <td class="py-2 pr-4 text-right">{{ row.quantity }}</td>
+                <td class="py-2 text-right">{{ row.price != null ? row.price : '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-if="container.transit_warehouse_id" class="mt-3 text-xs text-muted flex items-center gap-1.5">
+          <UIcon name="i-lucide-info" class="size-3.5" />
+          Al confirmar los documentos de mercadería, el stock ingresa al almacén de tránsito de este contenedor.
+        </p>
+      </UPageCard>
+
       <UPageCard title="Timeline">
         <template #header>
           <div class="flex items-center justify-between w-full">
@@ -246,5 +360,44 @@ const handleRemoveEvent = async (eventId: string) => {
         <p v-else class="text-muted text-sm">No hay eventos registrados.</p>
       </UPageCard>
     </template>
+
+    <UModal v-model:open="showDeliverModal" title="Transferir stock en tránsito">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-muted">
+            Contenedor <span class="font-mono font-bold text-default">{{ container?.container_number }}</span>
+            · Operación <span class="font-mono text-default">{{ container?.operation?.number }}</span>
+          </p>
+          <UFormField label="Depósito de destino" name="destination_warehouse_id" required>
+            <USelect
+              v-model="deliverWarehouseId"
+              :items="destinationOptions"
+              placeholder="Seleccionar depósito"
+              class="w-full"
+            />
+          </UFormField>
+          <div v-if="productRows.length" class="rounded-lg border border-default p-3 space-y-1.5 max-h-48 overflow-y-auto">
+            <p class="text-xs font-semibold text-muted uppercase tracking-wide">Productos a transferir</p>
+            <div v-for="(row, idx) in productRows" :key="`deliver-${idx}`" class="flex justify-between text-sm">
+              <span>{{ row.productName }}</span>
+              <span class="font-medium">×{{ row.quantity }} uds</span>
+            </div>
+          </div>
+          <UAlert
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-alert-triangle"
+            title="El contenedor pasará a estado Entregado"
+            description="Todo el stock del almacén de tránsito se moverá al depósito elegido."
+          />
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton label="Cancelar" variant="ghost" @click="() => { showDeliverModal = false }" />
+          <UButton label="Confirmar entrega" color="primary" icon="i-lucide-package-check" :loading="delivering" @click="handleDeliver" />
+        </div>
+      </template>
+    </UModal>
   </UPage>
 </template>

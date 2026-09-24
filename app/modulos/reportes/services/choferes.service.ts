@@ -9,7 +9,7 @@ export const getReporteChoferes = (params?: {
   page?: number
   limit?: number
 }) => {
-  return $fetch('/api/logistica/reports/choferes', {
+  return $fetch('/api/backend/reports/choferes', {
     query: params
   })
 }

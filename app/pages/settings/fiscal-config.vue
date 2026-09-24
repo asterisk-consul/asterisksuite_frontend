@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({
   layout: 'default',
   middleware: ['auth']
@@ -34,7 +34,7 @@ async function fetchSettings() {
 
   loading.value = true
   try {
-    settings.value = await $fetch<TaxSettings>('/api/erp/tax-engine/company-settings', {
+    settings.value = await $fetch<TaxSettings>('/api/backend/tax-engine/company-settings', {
       query: { company_id: companyId.value }
     })
   } catch (e) {
@@ -50,7 +50,7 @@ async function saveSettings() {
 
   saving.value = true
   try {
-    await $fetch('/api/erp/tax-engine/company-settings', {
+    await $fetch('/api/backend/tax-engine/company-settings', {
       method: 'PATCH',
       body: {
         company_id: companyId.value,

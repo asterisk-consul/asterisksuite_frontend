@@ -22,8 +22,8 @@ const fetchData = async () => {
   try {
     // Fetch accounts and movements in parallel
     const [accountsData, movementsData] = await Promise.all([
-      $fetch<any[]>('/api/contabilidad/accounts'),
-      $fetch<any[]>('/api/erp/treasury/movements', {
+      $fetch<any[]>('/api/backend/accounts'),
+      $fetch<any[]>('/api/backend/treasury/movements', {
         query: {
           date_from: dateRange.value.start.toISOString().split('T')[0],
           date_to: dateRange.value.end.toISOString().split('T')[0]

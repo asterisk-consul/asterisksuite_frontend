@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 
@@ -59,7 +59,7 @@ const emit = defineEmits<{
 
 const toast = useToast()
 
-// ─── Stores ──────────────────────────────────────────
+// â”€â”€â”€ Stores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const selectedBusinessParty = ref<BusinessParty | undefined>(undefined)
 const showBusinessPartiesModal = ref(false)
 const partiesStore = useBusinessPartiesStore()
@@ -113,7 +113,7 @@ const {
 // Usar composable para filtrar tipos de documento por dirección + condición del emisor/receptor
 const moduleCode = computed(() => (props.moduleCode === 'SALES' ? 'SALES' : 'PURCHASES') as 'SALES' | 'PURCHASES')
 
-// ─── Form State ──────────────────────────────────────
+// â”€â”€â”€ Form State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const form = reactive({
   document_type_id: '',
   party_id: '',
@@ -189,7 +189,7 @@ const affectsStock = computed(() => {
   return type?.affects_stock === true
 })
 
-// ─── Reference Document (NC/ND → Factura) ────────────
+// â”€â”€â”€ Reference Document (NC/ND â†’ Factura) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const referenceDocumentId = ref<string | undefined>(undefined)
 
 function applyReferenceDocument(doc: any) {
@@ -240,7 +240,7 @@ const showReferencePicker = computed(() => {
   return selected?.category === 'CREDIT_NOTE' || selected?.category === 'DEBIT_NOTE'
 })
 
-// ─── Exchange Rate: auto-resolve on currency change ─────────
+// â”€â”€â”€ Exchange Rate: auto-resolve on currency change â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const isForeignCurrency = computed(() => {
   if (!baseCurrency.value) return false
   return form.currency_code.toUpperCase() !== baseCurrency.value.code.toUpperCase()
@@ -285,7 +285,7 @@ const {
 
 const items = ref<FacturaItem[]>([])
 
-// ─── Punto de Venta (Secuencias) ─────────────────────────
+// â”€â”€â”€ Punto de Venta (Secuencias) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const documentSequencesService = useDocumentSequencesService()
 const sequences = ref<DocumentSequence[]>([])
 // Keep only the UUID in the form state. USelectMenu can otherwise return either
@@ -320,10 +320,10 @@ const sequenceOptions = computed(() => {
     }))
 })
 
-// ─── Validación de comprobante ─────────────────────────
+// â”€â”€â”€ Validación de comprobante â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const documentTypeValidation = ref<string | null>(null)
 
-// ─── Tax Engine Preview ───────────────────────────────
+// â”€â”€â”€ Tax Engine Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const lastPreview = ref<any>(null)
 const partyIibbRegistrations = ref<BusinessPartyIibbRegistration[]>([])
 const iibbPerceptionRules = ref<TaxRule[]>([])
@@ -345,7 +345,7 @@ async function fetchPreview() {
   try {
     const authStore = useAuthStore()
     const currentDocType = documentsTypes.value.find((d) => d.id === form.document_type_id)
-    const result = await $fetch('/api/erp/tax-engine/calculate-preview', {
+    const result = await $fetch('/api/backend/tax-engine/calculate-preview', {
       method: 'POST',
       body: {
         issuerCompanyId: authStore.selectedCompany?.id ?? '',
@@ -482,7 +482,7 @@ watch(
       if (priceRecord) {
         item.unit_price = Number(priceRecord.price ?? 0)
       } else {
-        // No hay precio para esa currency → precio 0
+        // No hay precio para esa currency â†’ precio 0
         item.unit_price = 0
         toast.add({
           title: 'Precio no disponible',
@@ -497,7 +497,7 @@ watch(
   }
 )
 
-// ─── Watch initialValues ──────────────────────────────────
+// â”€â”€â”€ Watch initialValues â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 watch(
   () => props.initialValues,
   (val) => {
@@ -572,8 +572,8 @@ watch(
   { immediate: true, deep: true }
 )
 
-// ─── Auto-select Document Type by Context (categoría) ──
-// ORDER → OV/OC, QUOTE → PRES, REMITO → REM-V/REM-C según dirección del módulo
+// â”€â”€â”€ Auto-select Document Type by Context (categoría) â”€â”€
+// ORDER â†’ OV/OC, QUOTE â†’ PRES, REMITO â†’ REM-V/REM-C según dirección del módulo
 function getContextDocumentTypeCode(): string | null {
   const direction = moduleCode.value === 'SALES' ? 1 : -1
   if (props.category === 'ORDER') return direction === 1 ? 'OV' : 'OC'
@@ -582,7 +582,7 @@ function getContextDocumentTypeCode(): string | null {
   return null
 }
 
-// ─── Auto-select Document Type by VAT Condition ───────
+// â”€â”€â”€ Auto-select Document Type by VAT Condition â”€â”€â”€â”€â”€â”€â”€
 watch(selectedParty, (party) => {
   if (!party || !props.moduleCode) return
 
@@ -647,7 +647,7 @@ watch(selectedParty, (party) => {
 
 // Recalcular preview cuando cambia el tipo de documento
 watch(() => form.document_type_id, (newId) => {
-  // Validar compatibilidad emisor ↔ comprobante
+  // Validar compatibilidad emisor â†” comprobante
   const selectedDoc = documentsTypes.value.find((d) => d.id === newId)
   if (selectedDoc) {
     const msg = getValidationMessage(selectedDoc.code, selectedDoc.letter_type)
@@ -745,9 +745,9 @@ const partyInfo = computed(() => {
   const p = selectedParty.value
   return {
     name: p.name,
-    tax_id: p.tax_id || '—',
-    vat_condition: p.vat_condition || '—',
-    email: p.email || '—'
+    tax_id: p.tax_id || 'â€”',
+    vat_condition: p.vat_condition || 'â€”',
+    email: p.email || 'â€”'
   }
 })
 
@@ -755,7 +755,7 @@ async function resolvePartyPrice(productId: string, currencyCode = form.currency
   if (!form.party_id || !productId || !currencyCode) return null
 
   try {
-    const result = await $fetch<{ price: number | null }>('/api/erp/pricing/party-prices/resolve', {
+    const result = await $fetch<{ price: number | null }>('/api/backend/pricing/party-prices/resolve', {
       query: {
         productId,
         partyId: form.party_id,
@@ -989,7 +989,7 @@ defineExpose({ submit })
             class="w-full min-w-0"
           />
           <p v-if="moduleCode === 'SALES' && items.length > 0 && warehouseOptions.length === 0" class="mt-2 text-sm text-warning">
-            Ningún depósito puede cubrir todos los productos. Activá “Depósito por producto”.
+            Ningún depósito puede cubrir todos los productos. Activá â€œDepósito por productoâ€.
           </p>
         </UFormField>
 
@@ -1093,7 +1093,7 @@ defineExpose({ submit })
           <span class="text-gray-500">IVA: </span>
           <span>{{ partyInfo.vat_condition }}</span>
         </div>
-        <div v-if="partyInfo.email !== '—'">
+        <div v-if="partyInfo.email !== 'â€”'">
           <span class="text-gray-500">Email: </span>
           <span>{{ partyInfo.email }}</span>
         </div>

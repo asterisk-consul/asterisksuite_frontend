@@ -1,5 +1,5 @@
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
-const urlBase = '/api/logistica/master-data/business-parties'
+const urlBase = '/api/backend/master-data/business-parties'
 export const useBusinessPartiesService = () => {
   const findAll = () => {
     return $fetch<BusinessParty[]>(`${urlBase}`, {

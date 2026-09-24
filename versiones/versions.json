@@ -1,5 +1,488 @@
 [
   {
+    "version": "0.61.0-alpha",
+    "date": "2026-09-23",
+    "stage": "alpha",
+    "notes": "Changelog más estable y accesos rápidos seguros para pagar o cobrar documentos comerciales.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "changelog",
+        "title": "El historial deja de compilar Markdown en cada petición y evita errores del servidor por dependencias internas de MDC"
+      },
+      {
+        "type": "fix",
+        "scope": "changelog",
+        "title": "Se completa la versión histórica faltante y la página tolera registros antiguos incompletos sin interrumpir la navegación"
+      },
+      {
+        "type": "style",
+        "scope": "changelog",
+        "title": "El buscador y el selector de etapa tienen etiquetas, dimensiones consistentes y una distribución adaptable"
+      },
+      {
+        "type": "fix",
+        "scope": "changelog",
+        "title": "El selector de etapa conserva el valor correcto y filtra versiones Alpha, Beta, RC o estables"
+      },
+      {
+        "type": "fix",
+        "scope": "purchases",
+        "title": "El listado de compras excluye vales de RRHH y documentos de saldo inicial de la tabla, filtros y estadísticas"
+      },
+      {
+        "type": "feat",
+        "scope": "purchases",
+        "title": "Los comprobantes de compra permiten iniciar el pago con proveedor, moneda, documento y saldo pendiente precargados"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Los accesos rápidos para pagar o cobrar sólo aparecen cuando el documento está confirmado y conserva saldo pendiente"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Changelog estable y pagos rápidos desde documentos confirmados"
+  },
+  {
+    "version": "0.60.0-alpha",
+    "date": "2026-09-23",
+    "stage": "alpha",
+    "notes": "Controles más seguros para saldos iniciales, medios de pago, anulaciones y configuración del circuito comercial.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "cash-boxes",
+        "title": "La primera apertura de una caja permite registrar el saldo inicial o comenzar en cero desde el listado y el detalle"
+      },
+      {
+        "type": "fix",
+        "scope": "cash-boxes",
+        "title": "El saldo ingresado durante la primera apertura se registra como movimiento y no reemplaza saldos existentes en sesiones posteriores"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Pagos y cobros exigen seleccionar una caja, cuenta bancaria o cheque según el método elegido antes de guardar o confirmar"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Las asignaciones de cheques se envían correctamente al crear el pago y se reconocen al editar borradores existentes"
+      },
+      {
+        "type": "fix",
+        "scope": "api-proxy",
+        "title": "El proxy del frontend conserva el cuerpo de las solicitudes DELETE para enviar confirmaciones y destinos de transferencia"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "El saldo inicial bancario puede establecerse una sola vez y queda bloqueado cuando la cuenta comienza a operar"
+      },
+      {
+        "type": "fix",
+        "scope": "bank-accounts",
+        "title": "La carga del saldo inicial genera un movimiento bancario de apertura para mantener un historial consistente"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Al anular o rechazar un pago se retiran sus entradas de cuenta corriente y se reconstruyen los saldos restantes"
+      },
+      {
+        "type": "feat",
+        "scope": "sales",
+        "title": "Las ventas pendientes o parcialmente cobradas permiten iniciar el cobro con cliente, moneda, documento y saldo precargados"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-flow",
+        "title": "El circuito comercial aplica y sincroniza su configuración predeterminada desde el primer uso sin exigir guardarla manualmente"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Las facturas nuevas impactan en cuenta corriente según la base contable del circuito aunque la empresa aún no haya abierto su configuración"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Saldos iniciales protegidos y circuito de cobros consistente"
+  },
+  {
+    "version": "0.59.0-alpha",
+    "date": "2026-09-22",
+    "stage": "alpha",
+    "notes": "Selección correcta de cajas y bancos según el tipo de operación y compatibilidad con los tipos generados por Prisma 7.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "collections",
+        "title": "Los cobros permiten seleccionar cajas y cuentas bancarias activas aunque tengan saldo cero o todavía no registren movimientos"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Los pagos y gastos muestran únicamente cajas y cuentas bancarias con saldo suficiente para cubrir el importe"
+      },
+      {
+        "type": "fix",
+        "scope": "bank-accounts",
+        "title": "El backend impide confirmar pagos bancarios que producirían un saldo negativo"
+      },
+      {
+        "type": "fix",
+        "scope": "pricing",
+        "title": "El servicio de cotizaciones utiliza el tipo de moneda exportado por el cliente generado de Prisma 7"
+      },
+      {
+        "type": "fix",
+        "scope": "backend",
+        "title": "La compilación deja de depender del tipo interno currency_ratesGetPayload eliminado por Prisma"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Medios de pago según saldo y compatibilidad con Prisma 7"
+  },
+  {
+    "version": "0.58.0-alpha",
+    "date": "2026-09-22",
+    "stage": "alpha",
+    "notes": "Avisos configurables de cheques y eliminación segura de cuentas bancarias y cajas.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "treasury-dashboard",
+        "title": "Los días de anticipación para vencimientos de cheques se configuran desde un popover en el dashboard"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "El panel de próximos cheques muestra solamente vencimientos desde hoy hasta el límite configurado"
+      },
+      {
+        "type": "refactor",
+        "scope": "checks",
+        "title": "Las fechas de vencimiento se presentan en formato legible con indicadores para hoy, mañana o cantidad de días"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "La eliminación de una cuenta bancaria exige escribir ELIMINAR y elegir un destino cuando tiene saldo"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "El saldo y los cheques pendientes se transfieren a una cuenta activa de la misma moneda antes de la baja"
+      },
+      {
+        "type": "feat",
+        "scope": "cash-boxes",
+        "title": "La eliminación de una caja exige confirmación escrita y transfiere su saldo a otra caja compatible"
+      },
+      {
+        "type": "fix",
+        "scope": "cash-boxes",
+        "title": "Las cajas con sesión abierta no pueden eliminarse y la caja principal requiere un reemplazo"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "La transferencia de saldo y la baja se ejecutan en una única transacción para evitar saldos incompletos"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Avisos de cheques y eliminación protegida de bancos y cajas"
+  },
+  {
+    "version": "0.57.0-alpha",
+    "date": "2026-09-21",
+    "stage": "alpha",
+    "notes": "Reconstrucción cronológica de saldos bancarios y cuentas corrientes ante movimientos retroactivos.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "Los movimientos bancarios recalculan los saldos anteriores y posteriores según su fecha efectiva"
+      },
+      {
+        "type": "feat",
+        "scope": "current-accounts",
+        "title": "Las cuentas corrientes reconstruyen el saldo corrido cuando se incorpora un movimiento de una fecha anterior"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "El saldo actual y la fecha del último movimiento se sincronizan con el libro cronológico recalculado"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Los extractos se ordenan por fecha efectiva y utilizan fecha de creación e identificador para resolver empates"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "Los cheques vencidos cargados posteriormente conservan la fecha efectiva de pago, depósito o vencimiento"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "Solo los cheques propios confirmados se procesan automáticamente al vencimiento"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "La cancelación de un cheque confirmado revierte el banco únicamente cuando existió un débito real"
+      },
+      {
+        "type": "refactor",
+        "scope": "treasury",
+        "title": "Pagos, cobros, transferencias y movimientos de socios utilizan la reconstrucción centralizada de saldos"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Recálculo histórico de saldos bancarios y cuentas corrientes"
+  },
+  {
+    "version": "0.56.0-alpha",
+    "date": "2026-09-21",
+    "stage": "alpha",
+    "notes": "Carga más clara de cheques y procesamiento bancario automático según su fecha de vencimiento.",
+    "changes": [
+      {
+        "type": "refactor",
+        "scope": "checks",
+        "title": "Formulario reorganizado para distinguir el tipo de cheque, sus datos bancarios, importes y fechas"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "El banco emisor puede elegirse entre bancos frecuentes o escribirse libremente"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "La cuenta bancaria de débito o depósito se selecciona de forma independiente del banco emisor"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Los cheques propios confirmados se debitan automáticamente al alcanzar su vencimiento"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury",
+        "title": "Los cheques de terceros cobrados se mantienen en cartera y se depositan automáticamente al vencimiento"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "Los cheques entregados a proveedores quedan excluidos del depósito automático"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "El procesamiento valida cuenta activa, moneda y saldo sin rechazar automáticamente cheques con incidencias"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "Los movimientos bancarios automáticos son idempotentes y no se duplican al reintentar el proceso"
+      },
+      {
+        "type": "fix",
+        "scope": "notifications",
+        "title": "Los avisos de cheques recorren todas las empresas y utilizan la fecha de vencimiento en horario argentino"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Cheques programados y movimientos bancarios al vencimiento"
+  },
+  {
+    "version": "0.55.0-alpha",
+    "date": "2026-09-21",
+    "stage": "alpha",
+    "notes": "Nueva lectura operativa y financiera de los comprobantes de ventas y compras.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "sales",
+        "title": "La tabla identifica documentos pendientes, con cobro parcial y completamente cobrados"
+      },
+      {
+        "type": "feat",
+        "scope": "purchases",
+        "title": "La tabla identifica documentos pendientes, con pago parcial y completamente pagados"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Nuevo indicador de avance con importe pendiente y porcentaje cobrado o pagado"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Switch para mostrar u ocultar comprobantes completamente saldados"
+      },
+      {
+        "type": "refactor",
+        "scope": "ui",
+        "title": "El número, la categoría y el tipo de comprobante se presentan juntos para distinguirlos con mayor facilidad"
+      },
+      {
+        "type": "refactor",
+        "scope": "ui",
+        "title": "Los indicadores superiores muestran documentos visibles, pendientes, parciales y saldados"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Los totales y saldos pendientes respetan la moneda de cada documento"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-flow",
+        "title": "Las órdenes de venta reflejan el saldo compartido de su operación comercial"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Estado de pagos y cobros visible en comprobantes"
+  },
+  {
+    "version": "0.54.0-alpha",
+    "date": "2026-09-21",
+    "stage": "alpha",
+    "notes": "Autorizaciones fiscales para remitos, mejoras en operaciones internacionales y carga segura del saldo inicial de cajas.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "fiscal",
+        "title": "Nueva configuración de autorizaciones fiscales por tipo de remito, punto de venta, vigencia y rango de numeración"
+      },
+      {
+        "type": "feat",
+        "scope": "remitos",
+        "title": "Los remitos de venta validan el CAI al confirmarse y conservan una copia histórica de sus datos para impresión"
+      },
+      {
+        "type": "feat",
+        "scope": "notifications",
+        "title": "Alertas configurables por vencimiento y numeración restante de autorizaciones fiscales"
+      },
+      {
+        "type": "feat",
+        "scope": "access-control",
+        "title": "Nuevos permisos y datos iniciales para administrar autorizaciones fiscales"
+      },
+      {
+        "type": "fix",
+        "scope": "international-operations",
+        "title": "El tipo de cambio utiliza la cotización directa y normaliza cotizaciones inversas existentes"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Los documentos muestran importes en ambas monedas y los contenedores detallan los productos asociados"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Creación de facturas de compra desde la operación, asociación automática y accesos para editar o pagar documentos pendientes"
+      },
+      {
+        "type": "refactor",
+        "scope": "international-operations",
+        "title": "Encabezado compacto con número de operación visible y navegación fija que mejora el espacio de lectura"
+      },
+      {
+        "type": "feat",
+        "scope": "cash-boxes",
+        "title": "El saldo inicial puede asentarse después de crear la caja mientras todavía no tenga sesiones ni movimientos"
+      },
+      {
+        "type": "fix",
+        "scope": "cash-boxes",
+        "title": "El saldo de apertura genera el primer movimiento y actualiza el saldo real de la caja en una única transacción"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Autorizaciones fiscales, operaciones internacionales y saldo inicial de cajas"
+  },
+  {
+    "version": "0.53.0-alpha",
+    "date": "2026-09-18",
+    "stage": "alpha",
+    "notes": "Optimización del consumo de memoria del backend y del almacenamiento de imágenes y documentos.",
+    "changes": [
+      {
+        "type": "perf",
+        "scope": "backend",
+        "title": "PrismaService ahora se comparte como una única instancia global para evitar conexiones y memoria duplicadas entre módulos"
+      },
+      {
+        "type": "perf",
+        "scope": "api-docs",
+        "title": "Swagger y Scalar se cargan únicamente cuando la documentación de la API está habilitada"
+      },
+      {
+        "type": "feat",
+        "scope": "media",
+        "title": "Las imágenes y documentos se deduplican por hash dentro de cada empresa para evitar copias físicas repetidas"
+      },
+      {
+        "type": "perf",
+        "scope": "media",
+        "title": "Las imágenes nuevas conservan original, vista mediana y miniatura, eliminando la variante redundante de tamaño completo"
+      },
+      {
+        "type": "feat",
+        "scope": "media",
+        "title": "Los archivos sin referencias se programan para eliminación con un período de retención configurable"
+      },
+      {
+        "type": "feat",
+        "scope": "media",
+        "title": "Se incorporó una cuota opcional por empresa y una consulta del uso de almacenamiento"
+      },
+      {
+        "type": "refactor",
+        "scope": "media",
+        "title": "Los archivos nuevos se organizan por empresa y las vistas previas utilizan la versión mediana optimizada"
+      },
+      {
+        "type": "chore",
+        "scope": "docker",
+        "title": "Los archivos subidos quedan fuera de Git y de las imágenes Docker para utilizar almacenamiento persistente"
+      },
+      {
+        "type": "docs",
+        "scope": "fiscal",
+        "title": "Se documentó el plan para registrar vencimientos fiscales en remitos y configurar sus alertas"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Backend optimizado y almacenamiento de archivos deduplicado"
+  },
+  {
     "version": "0.52.0-alpha",
     "date": "2026-09-16",
     "stage": "alpha",
@@ -839,6 +1322,7 @@
     "message": "Ahora en la lista de cuentas corrientes ves de un vistazo hace cuanto fue el ultimo movimiento de cada cliente o proveedor. El badge cambia de verde a rojo segun la antiguedad, y abajo aparece el tipo de documento y descripcion del ultimo movimiento."
   },
   {
+    "version": "0.39.3-alpha",
     "date": "2026-09-01",
     "stage": "alpha",
     "notes": "Cuenta corriente: cadena de documentos relacionados en cada movimiento",

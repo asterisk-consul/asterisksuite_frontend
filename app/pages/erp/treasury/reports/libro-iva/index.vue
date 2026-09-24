@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { DateRange } from '~/components/compras/FiltroDateCompras.vue'
 import DateRangePicker from '~/components/compras/FiltroDateCompras.vue'
 import { useCompanyRole } from '~/composables/useCompanyRole'
@@ -18,7 +18,7 @@ const formatCurrency = (amount: number | string | null | undefined) => {
 }
 
 const formatDate = (d: string) => {
-  if (!d) return '—'
+  if (!d) return 'â€”'
   return new Date(d).toLocaleDateString('es-AR')
 }
 
@@ -41,7 +41,7 @@ const toLocalDateString = (d: Date) => {
 const fetchLibro = async () => {
   loading.value = true
   try {
-    libroData.value = await $fetch<any[]>('/api/erp/treasury/libro-iva', {
+    libroData.value = await $fetch<any[]>('/api/backend/treasury/libro-iva', {
       query: {
         date_from: toLocalDateString(dateRange.value.start),
         date_to: toLocalDateString(dateRange.value.end)

@@ -4,7 +4,7 @@ import type {
   UpdateProductVariantInput
 } from '~/modulos/logistica/master-data/product-variants/types/product-variants.types'
 
-const urlBase = '/api/logistica/master-data/product-variants'
+const urlBase = '/api/backend/master-data/product-variants'
 
 export const useProductVariantsService = () => {
   const findAll = () => {

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 const props = defineProps<{
   period: Period
   range: Range
@@ -17,7 +17,7 @@ const { data: stats } = useAsyncData<Stat[]>(
   'stats',
   async () => {
     // const documents = await $fetch(
-    //   '/api/erp/purchases'
+    //   '/api/backend/purchases'
     //   // , {
     //   // query: {
     //   //   document_type_id: DOCUMENT_TYPE_ID
@@ -93,7 +93,7 @@ const { data: stats } = useAsyncData<Stat[]>(
       :key="index"
       :icon="stat.icon"
       :title="stat.title"
-      to="/customers"
+      to="/erp/sales/customers"
       variant="subtle"
       :ui="{
         container: 'gap-y-1.5',

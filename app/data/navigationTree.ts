@@ -156,6 +156,12 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'payments.read',
         children: [
           {
+            label: 'Reporte gerencial',
+            icon: 'i-lucide-chart-no-axes-combined',
+            to: '/erp/reports/management',
+            permission: 'treasury.reports.read'
+          },
+          {
             label: 'Movimientos',
             icon: 'i-lucide-activity',
             to: '/erp/treasury/reports/movements',
@@ -475,6 +481,12 @@ export const navigationTree: DrilldownNode[] = [
         icon: 'i-lucide-plus',
         to: '/operaciones-internacionales/create',
         permission: 'international_operations.create'
+      },
+      {
+        label: 'Configuración',
+        icon: 'i-lucide-settings',
+        to: '/operaciones-internacionales/configuracion',
+        permission: 'international_operations.update'
       }
     ]
   },
@@ -513,6 +525,7 @@ export const navigationTree: DrilldownNode[] = [
       { label: 'Roles', icon: 'i-lucide-shield', to: '/settings/roles', permission: 'roles.read' },
       { label: 'Seguridad', icon: 'i-lucide-shield-check', to: '/settings/security' },
       { label: 'Impuestos', icon: 'i-lucide-percent', to: '/settings/taxes', permission: 'taxes.read' },
+      { label: 'Autorizaciones fiscales', icon: 'i-lucide-badge-check', to: '/settings/fiscal-authorizations', permission: 'fiscal-authorizations.read' },
       { label: 'Circuito de ventas', icon: 'i-lucide-git-branch', to: '/settings/sales-flow', permission: 'document_types.read' },
       { label: 'Monedas', icon: 'i-lucide-banknote', to: '/settings/monedas', permission: 'currencies.read' },
       { label: 'Locaciones', icon: 'i-lucide-map-pin', to: '/ajustes/locaciones', permission: 'locations.read' },

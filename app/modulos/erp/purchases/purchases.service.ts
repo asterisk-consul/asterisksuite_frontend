@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   PurchaseSummaryResponse,
   PurchaseMovement,
   SummaryFilters
@@ -11,7 +11,7 @@ export const PurchasesService = {
     if (filters?.endDate) params.set('endDate', filters.endDate)
     if (filters?.supplierId) params.set('supplierId', filters.supplierId)
     const qs = params.toString() ? `?${params.toString()}` : ''
-    return $fetch(`/api/erp/purchases/summary${qs}`)
+    return $fetch(`/api/backend/purchases/summary${qs}`)
   },
 
   async getMovements(
@@ -23,19 +23,19 @@ export const PurchasesService = {
     if (filters?.endDate) params.set('endDate', filters.endDate)
     if (filters?.supplierId) params.set('supplierId', filters.supplierId)
 
-    // 🔥 CLAVE
+    // ðŸ”¥ CLAVE
     if (filters?.productId) params.set('productId', filters.productId)
 
     const qs = params.toString() ? `?${params.toString()}` : ''
 
-    return $fetch(`/api/erp/purchases/movements${qs}`)
+    return $fetch(`/api/backend/purchases/movements${qs}`)
   },
 
   async getProducts() {
-    return $fetch('/api/erp/purchases/products')
+    return $fetch('/api/backend/purchases/products')
   },
 
   async getProductById(id: number | string) {
-    return $fetch(`/api/erp/purchases/products/${id}`)
+    return $fetch(`/api/backend/purchases/products/${id}`)
   }
 }

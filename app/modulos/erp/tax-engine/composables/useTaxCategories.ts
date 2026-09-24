@@ -1,4 +1,4 @@
-export interface TaxCategory {
+﻿export interface TaxCategory {
   id: string
   code: string
   name: string
@@ -13,7 +13,7 @@ export function useTaxCategories() {
   async function fetchAll() {
     loading.value = true
     try {
-      categories.value = await $fetch<TaxCategory[]>('/api/erp/tax-engine/tax-categories')
+      categories.value = await $fetch<TaxCategory[]>('/api/backend/tax-engine/tax-categories')
     } catch (e) {
       console.error('Error fetching tax categories:', e)
       categories.value = []

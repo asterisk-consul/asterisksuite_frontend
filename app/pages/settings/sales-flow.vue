@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 interface SalesFlowSettings {
@@ -30,7 +30,7 @@ const paymentOptions = [
 async function load() {
   loading.value = true
   try {
-    settings.value = await $fetch<SalesFlowSettings>('/api/erp/sales-flow/settings')
+    settings.value = await $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings')
   } catch {
     toast.add({ title: 'No se pudo cargar la configuración', color: 'error' })
   } finally {
@@ -51,7 +51,7 @@ async function save() {
       auto_create_delivery_note: settings.value.auto_create_delivery_note,
       allow_partial_delivery: settings.value.allow_partial_delivery
     }
-    settings.value = await $fetch<SalesFlowSettings>('/api/erp/sales-flow/settings', {
+    settings.value = await $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings', {
       method: 'PATCH', body: payload
     })
     toast.add({ title: 'Circuito de ventas guardado', description: 'Se aplicará a las nuevas órdenes de venta.', color: 'success' })
@@ -77,7 +77,7 @@ onMounted(load)
       description="Cambiar esta configuración no recalcula documentos, pagos ni cuentas corrientes anteriores."
     />
 
-    <div v-if="loading" class="py-16 text-center text-muted">Cargando configuración…</div>
+    <div v-if="loading" class="py-16 text-center text-muted">Cargando configuraciónâ€¦</div>
     <template v-else-if="settings">
       <UPageCard title="Cuenta corriente y cobros" description="Al guardar, también se sincronizan los indicadores de las OV y facturas de venta.">
         <div class="grid gap-5 md:grid-cols-2">

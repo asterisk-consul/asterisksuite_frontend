@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   SalesSummaryResponse,
   SalesMovement,
   SummaryFilters,
@@ -13,7 +13,7 @@ export const SalesService = {
     if (filters?.endDate) params.set('endDate', filters.endDate)
     if (filters?.supplierId) params.set('supplierId', filters.supplierId)
     const qs = params.toString() ? `?${params.toString()}` : ''
-    return $fetch(`/api/erp/sales-reports/summary${qs}`)
+    return $fetch(`/api/backend/sales-reports/summary${qs}`)
   },
 
   async getMovements(
@@ -25,20 +25,20 @@ export const SalesService = {
     if (filters?.endDate) params.set('endDate', filters.endDate)
     if (filters?.supplierId) params.set('supplierId', filters.supplierId)
 
-    // 🔥 CLAVE
+    // ðŸ”¥ CLAVE
     if (filters?.productId) params.set('productId', filters.productId)
 
     const qs = params.toString() ? `?${params.toString()}` : ''
 
-    return $fetch(`/api/erp/sales-reports/movements${qs}`)
+    return $fetch(`/api/backend/sales-reports/movements${qs}`)
   },
 
   async getProducts() {
-    return $fetch('/api/erp/sales-reports/products')
+    return $fetch('/api/backend/sales-reports/products')
   },
 
   async getProductById(id: number | string) {
-    return $fetch(`/api/erp/sales-reports/products/${id}`)
+    return $fetch(`/api/backend/sales-reports/products/${id}`)
   },
 
   async getByPointOfSale(filters?: SummaryFilters): Promise<PointOfSaleReportResponse> {
@@ -46,6 +46,6 @@ export const SalesService = {
     if (filters?.startDate) params.set('startDate', filters.startDate)
     if (filters?.endDate) params.set('endDate', filters.endDate)
     const qs = params.toString() ? `?${params.toString()}` : ''
-    return $fetch(`/api/erp/sales-reports/by-point-of-sale${qs}`)
+    return $fetch(`/api/backend/sales-reports/by-point-of-sale${qs}`)
   }
 }

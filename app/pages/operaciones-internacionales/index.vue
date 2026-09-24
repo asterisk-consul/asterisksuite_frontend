@@ -32,6 +32,7 @@ const columns = operationColumns({ onOpen: openDetail, onSortFieldSelect })
 
 const filterFields: FilterField[] = [
   { id: 'number', label: 'Filtrar por Nº...', class: 'w-40' },
+  { id: 'customs_broker_op_number', label: 'Filtrar por N° OP Despachante...', class: 'w-48' },
   { id: 'primary_supplier', label: 'Filtrar por proveedor...', class: 'w-48' },
   { id: 'origin_country', label: 'Filtrar por país origen...', class: 'w-40' },
   { id: 'destination_country', label: 'Filtrar por país destino...', class: 'w-40' }

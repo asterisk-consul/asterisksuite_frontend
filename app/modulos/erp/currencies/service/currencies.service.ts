@@ -1,10 +1,10 @@
-import type {
+﻿import type {
   Currency,
   CreateCurrencyInput,
   UpdateCurrencyInput
 } from '~/modulos/erp/currencies/types/currencies.types'
 
-const urlBase = '/api/erp/currencies'
+const urlBase = '/api/backend/currencies'
 
 export const useCurrenciesService = () => {
   const findAll = () => {

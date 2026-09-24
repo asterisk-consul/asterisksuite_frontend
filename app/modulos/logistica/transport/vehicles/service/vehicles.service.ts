@@ -5,7 +5,7 @@ import type {
 } from '~/modulos/logistica/transport/vehicles/types/vehicles.types'
 
 export const useVehiclesService = () => {
-  const baseUrl = '/api/logistica/transport/vehicles'
+  const baseUrl = '/api/backend/transport/vehicles'
   const getAll = () => $fetch<Vehicle[]>(`${baseUrl}`)
 
   const getOne = (id: string) => $fetch<Vehicle>(`${baseUrl}/${id}`)

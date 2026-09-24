@@ -21,8 +21,8 @@ const fetchData = async () => {
   loading.value = true
   try {
     const [accountsData, movementsData] = await Promise.all([
-      $fetch<any[]>('/api/contabilidad/accounts'),
-      $fetch<any[]>('/api/erp/treasury/movements', {
+      $fetch<any[]>('/api/backend/accounts'),
+      $fetch<any[]>('/api/backend/treasury/movements', {
         query: {
           date_from: dateRange.value.start.toISOString().split('T')[0],
           date_to: dateRange.value.end.toISOString().split('T')[0]
@@ -121,8 +121,8 @@ const handleExportExcel = () => {
       { concept: 'COSTOS', amount: costos.value },
       { concept: 'GASTOS', amount: gastos.value },
       { concept: 'RESULTADO NETO', amount: resultadoNeto.value },
-      { concept: 'IVA DÉBITO FISCAL', amount: ivaDebito.value },
-      { concept: 'IVA CRÉDITO FISCAL', amount: ivaCredito.value },
+      { concept: 'IVA DÃ‰BITO FISCAL', amount: ivaDebito.value },
+      { concept: 'IVA CRÃ‰DITO FISCAL', amount: ivaCredito.value },
       { concept: 'SALDO IVA A PAGAR', amount: saldoIVA.value }
     ]
   })
@@ -146,7 +146,7 @@ const handleExportExcel = () => {
       <UButton label="Buscar" icon="i-lucide-search" @click="fetchData" :loading="loading" />
     </div>
 
-    <!-- 1. ESTADO DE SITUACIÓN PATRIMONIAL -->
+    <!-- 1. ESTADO DE SITUACIÃ“N PATRIMONIAL -->
     <div>
       <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
         <UIcon name="i-lucide-scale" class="size-4 text-primary" />
@@ -206,7 +206,7 @@ const handleExportExcel = () => {
             <div class="flex items-center justify-between text-sm font-semibold">
               <span>Verificación</span>
               <span :class="activos === (pasivos + patrimonio) ? 'text-success' : 'text-error'">
-                {{ activos === (pasivos + patrimonio) ? '✅' : '❌' }}
+                {{ activos === (pasivos + patrimonio) ? 'âœ…' : 'âŒ' }}
                 {{ formatCurrency(activos) }} = {{ formatCurrency(pasivos + patrimonio) }}
               </span>
             </div>

@@ -76,7 +76,7 @@ async function openPreview(photo: Photo) {
   previewError.value = ''
   clearPreviewUrl()
   try {
-    const response = await fetch(photo.url || `/api/media/files/${photo.file_id}/view`, {
+    const response = await fetch(photo.medium_url || photo.url || `/api/media/files/${photo.file_id}/view`, {
       credentials: 'include',
     })
     if (!response.ok) throw new Error(`No se pudo abrir el archivo (${response.status})`)

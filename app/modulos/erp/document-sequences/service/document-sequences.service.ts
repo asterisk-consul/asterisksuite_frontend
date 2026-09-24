@@ -1,6 +1,6 @@
-import type { DocumentSequence } from './types/document-sequences.types'
+﻿import type { DocumentSequence } from './types/document-sequences.types'
 
-const urlBase = '/api/erp/document-sequences'
+const urlBase = '/api/backend/document-sequences'
 
 export const useDocumentSequencesService = () => {
   const findAll = () => {

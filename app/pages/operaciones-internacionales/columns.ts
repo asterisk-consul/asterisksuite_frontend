@@ -55,6 +55,11 @@ export const operationColumns = (actions: {
         label: 'Nombre'
       },
       {
+        key: 'customs_broker_op_number',
+        label: 'N° OP Despachante',
+        accessorFn: (row) => row.customs_broker_op_number ?? '-'
+      },
+      {
         key: 'status',
         label: 'Estado',
         sortable: true,

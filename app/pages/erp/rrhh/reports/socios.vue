@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 const router = useRouter()
@@ -10,7 +10,7 @@ const search = ref('')
 
 onMounted(async () => {
   try {
-    partners.value = await $fetch<any[]>('/api/erp/hr/partner-report-options')
+    partners.value = await $fetch<any[]>('/api/backend/hr/partner-report-options')
   } catch (error: any) {
     loadError.value = error?.data?.message || error?.message || 'No se pudo cargar la lista de socios.'
   } finally {

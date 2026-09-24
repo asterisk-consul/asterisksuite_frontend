@@ -8,10 +8,13 @@ import type {
   CreateContainerInput,
   UpdateContainerInput,
   ContainerEvent,
-  CreateEventInput
+  CreateEventInput,
+  IntlOpsSettings,
+  UpdateIntlOpsSettingsInput,
+  DeliverContainerResult
 } from '~/modulos/international-operations/types/international-operations.types'
 
-const baseUrl = '/api/international-operations'
+const baseUrl = '/api/backend/international-operations'
 
 export const useInternationalOperationsService = () => {
   const findAll = (params?: {
@@ -50,10 +53,23 @@ export const useInternationalOperationsService = () => {
   const getSummary = (id: string) =>
     $fetch<OperationSummary>(`${baseUrl}/${id}/summary`)
 
-  const associateDocument = (operationId: string, documentId: string, expenseType?: string, containerId?: string) =>
+  const associateDocument = (
+    operationId: string,
+    documentId: string,
+    expenseType?: string,
+    containerId?: string,
+    exchangeRate?: number,
+    customExpenseDescription?: string
+  ) =>
     $fetch<void>(`${baseUrl}/${operationId}/documents`, {
       method: 'POST',
-      body: { document_id: documentId, expense_type: expenseType, container_id: containerId }
+      body: {
+        document_id: documentId,
+        expense_type: expenseType,
+        container_id: containerId,
+        ...(exchangeRate != null && { exchange_rate: exchangeRate }),
+        ...(customExpenseDescription && { custom_expense_description: customExpenseDescription })
+      }
     })
 
   const disassociateDocument = (operationId: string, documentId: string) =>
@@ -125,6 +141,21 @@ export const useInternationalOperationsService = () => {
   const disassociateQuote = (operationId: string, quoteId: string) =>
     $fetch<void>(`${baseUrl}/${operationId}/quotes/${quoteId}`, { method: 'DELETE' })
 
+  const deliverContainer = (containerId: string, destinationWarehouseId: string) =>
+    $fetch<DeliverContainerResult>(
+      `${baseUrl}/containers/${containerId}/deliver`,
+      { method: 'POST', body: { destination_warehouse_id: destinationWarehouseId } }
+    )
+
+  const getSettings = () =>
+    $fetch<IntlOpsSettings>(`${baseUrl}/settings`)
+
+  const updateSettings = (payload: UpdateIntlOpsSettingsInput) =>
+    $fetch<IntlOpsSettings>(`${baseUrl}/settings`, {
+      method: 'PATCH',
+      body: payload
+    })
+
   return {
     findAll,
     findOne,
@@ -147,8 +178,11 @@ export const useInternationalOperationsService = () => {
     findOneContainer,
     updateContainer,
     removeContainer,
+    deliverContainer,
     createEvent,
     findAllEvents,
-    removeEvent
+    removeEvent,
+    getSettings,
+    updateSettings
   }
 }

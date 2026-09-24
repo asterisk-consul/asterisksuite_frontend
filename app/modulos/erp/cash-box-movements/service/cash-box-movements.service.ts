@@ -5,7 +5,7 @@ import type {
   FilterCashBoxMovementInput
 } from '~/modulos/erp/cash-box-movements/types/cash-box-movements.types'
 
-const urlBase = '/api/logistica/cash-box-movements'
+const urlBase = '/api/backend/cash-box-movements'
 
 export const useCashBoxMovementsService = () => {
   const findAll = (params?: FilterCashBoxMovementInput) => {

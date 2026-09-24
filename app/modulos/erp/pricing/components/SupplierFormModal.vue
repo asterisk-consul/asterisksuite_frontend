@@ -24,8 +24,8 @@ const currencies = ref<any[]>([])
 
 onMounted(async () => {
   const [suppliersData, currenciesData] = await Promise.all([
-    $fetch<any[]>('/api/logistica/master-data/business-parties'),
-    $fetch<any[]>('/api/erp/currencies')
+    $fetch<any[]>('/api/backend/master-data/business-parties'),
+    $fetch<any[]>('/api/backend/currencies')
   ])
   suppliers.value = suppliersData.filter((s: any) => s.type === 'SUPPLIER')
   currencies.value = currenciesData

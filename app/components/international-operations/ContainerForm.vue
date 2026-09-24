@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useIntlOpsSettingsStore } from '~/modulos/international-operations/store/intl-ops-settings.store'
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
 import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
 import type {
@@ -30,8 +31,19 @@ const emit = defineEmits<{
 const locationsStore = useLocationsStore()
 const { items: locations } = storeToRefs(locationsStore)
 const { items: locationItems } = useLocations(locations)
+const settingsStore = useIntlOpsSettingsStore()
+const settingsReady = ref(false)
 
-onMounted(() => { locationsStore.fetchAll() })
+onMounted(async () => {
+  locationsStore.fetchAll()
+  try {
+    await settingsStore.fetchSettings()
+  } catch {
+    // Si falla, se muestra el form con los valores por defecto
+  } finally {
+    settingsReady.value = true
+  }
+})
 
 const form = ref<CreateContainerInput>({
   container_number: '',
@@ -120,14 +132,28 @@ const onSubmit = () => {
 </script>
 
 <template>
-  <UForm :state="form" @submit="onSubmit" class="space-y-6">
+  <div v-if="!settingsReady" class="space-y-6">
+    <USkeleton class="h-48 w-full" />
+    <USkeleton class="h-36 w-full" />
+    <USkeleton class="h-36 w-full" />
+  </div>
+  <UForm v-else :state="form" @submit="onSubmit" class="space-y-6">
     <UPageCard>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <UFormField label="Número de contenedor" name="container_number" required>
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('container_number')"
+          label="Número de contenedor"
+          name="container_number"
+          required
+        >
           <UInput v-model="form.container_number" placeholder="MSCU1234567" class="w-full" />
         </UFormField>
 
-        <UFormField label="Tipo" name="container_type">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('container_type')"
+          label="Tipo"
+          name="container_type"
+        >
           <div class="flex items-center gap-2">
             <USelect v-model="form.container_type" :items="containerTypes" class="flex-1" />
             <UPopover>
@@ -146,31 +172,58 @@ const onSubmit = () => {
           </div>
         </UFormField>
 
-        <UFormField label="Número de sello" name="seal_number">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('seal_number')"
+          label="Número de sello"
+          name="seal_number"
+        >
           <UInput v-model="form.seal_number" class="w-full" />
         </UFormField>
 
-        <UFormField label="Booking" name="booking_number">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('booking_number')"
+          label="Booking"
+          name="booking_number"
+        >
           <UInput v-model="form.booking_number" class="w-full" />
         </UFormField>
 
-        <UFormField label="Bill of Lading" name="bill_of_lading">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('bill_of_lading')"
+          label="Bill of Lading"
+          name="bill_of_lading"
+        >
           <UInput v-model="form.bill_of_lading" class="w-full" />
         </UFormField>
 
-        <UFormField label="Buque" name="vessel_name">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('vessel_name')"
+          label="Buque"
+          name="vessel_name"
+        >
           <UInput v-model="form.vessel_name" class="w-full" />
         </UFormField>
 
-        <UFormField label="Número de viaje" name="voyage_number">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('voyage_number')"
+          label="Número de viaje"
+          name="voyage_number"
+        >
           <UInput v-model="form.voyage_number" class="w-full" />
         </UFormField>
       </div>
     </UPageCard>
 
-    <UPageCard title="Puertos">
+    <UPageCard
+      v-if="settingsStore.isContainerFieldVisible('origin_port') || settingsStore.isContainerFieldVisible('destination_port')"
+      title="Puertos"
+    >
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <UFormField label="Puerto de origen" name="origin_port_id">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('origin_port')"
+          label="Puerto de origen"
+          name="origin_port_id"
+        >
           <USelectMenu
             v-model="selectedOriginPort"
             :items="locationItems"
@@ -180,7 +233,11 @@ const onSubmit = () => {
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Puerto de destino" name="destination_port_id">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('destination_port')"
+          label="Puerto de destino"
+          name="destination_port_id"
+        >
           <USelectMenu
             v-model="selectedDestinationPort"
             :items="locationItems"
@@ -193,24 +250,46 @@ const onSubmit = () => {
       </div>
     </UPageCard>
 
-    <UPageCard title="Fechas y Dimensiones">
+    <UPageCard
+      v-if="settingsStore.isContainerFieldVisible('estimated_departure_date') || settingsStore.isContainerFieldVisible('estimated_arrival_date') || settingsStore.isContainerFieldVisible('weight') || settingsStore.isContainerFieldVisible('volume')"
+      title="Fechas y Dimensiones"
+    >
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <UFormField label="Salida estimada" name="estimated_departure_date">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('estimated_departure_date')"
+          label="Salida estimada"
+          name="estimated_departure_date"
+        >
           <UInput v-model="form.estimated_departure_date" type="date" class="w-full" />
         </UFormField>
-        <UFormField label="Arribo estimado" name="estimated_arrival_date">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('estimated_arrival_date')"
+          label="Arribo estimado"
+          name="estimated_arrival_date"
+        >
           <UInput v-model="form.estimated_arrival_date" type="date" class="w-full" />
         </UFormField>
-        <UFormField label="Peso (kg)" name="weight">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('weight')"
+          label="Peso (kg)"
+          name="weight"
+        >
           <UInput v-model="form.weight" type="number" class="w-full" />
         </UFormField>
-        <UFormField label="Volumen (m³)" name="volume">
+        <UFormField
+          v-if="settingsStore.isContainerFieldVisible('volume')"
+          label="Volumen (m³)"
+          name="volume"
+        >
           <UInput v-model="form.volume" type="number" class="w-full" />
         </UFormField>
       </div>
     </UPageCard>
 
-    <UPageCard title="Notas">
+    <UPageCard
+      v-if="settingsStore.isContainerFieldVisible('notes')"
+      title="Notas"
+    >
       <UFormField name="notes">
         <UTextarea v-model="form.notes" class="w-full" :rows="2" />
       </UFormField>

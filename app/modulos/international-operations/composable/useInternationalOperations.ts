@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import { useInternationalOperationsStore } from '../store/international-operations.store'
+import { useIntlOpsSettingsStore } from '../store/intl-ops-settings.store'
 import { formatDate } from '~/utils/dates'
 import type {
   InternationalOperation,
@@ -16,6 +17,15 @@ import type {
 
 export function useInternationalOperations() {
   const store = useInternationalOperationsStore()
+  const settingsStore = useIntlOpsSettingsStore()
+
+  const enabledStatusOptions = computed(() =>
+    statusOptions.filter(s => settingsStore.isOperationStatusEnabled(s.value))
+  )
+
+  const enabledContainerStatusOptions = computed(() =>
+    containerStatusOptions.filter(s => settingsStore.isContainerStatusEnabled(s.value))
+  )
 
   const init = async (params?: { status?: string; search?: string; page?: number; limit?: number }) => {
     await store.fetchAll(params)
@@ -28,7 +38,7 @@ export function useInternationalOperations() {
   const fetchOne = async (id: string) => store.fetchOne(id)
   const fetchSummary = async (id: string) => store.fetchSummary(id)
 
-  const associateDocument = async (opId: string, docId: string, expenseType?: InternationalExpenseType, containerId?: string) => store.associateDocument(opId, docId, expenseType, containerId)
+  const associateDocument = async (opId: string, docId: string, expenseType?: InternationalExpenseType, containerId?: string, exchangeRate?: number, customExpenseDescription?: string) => store.associateDocument(opId, docId, expenseType, containerId, exchangeRate, customExpenseDescription)
   const disassociateDocument = async (opId: string, docId: string) => store.disassociateDocument(opId, docId)
   const associatePayment = async (opId: string, payId: string) => store.associatePayment(opId, payId)
   const disassociatePayment = async (opId: string, payId: string) => store.disassociatePayment(opId, payId)
@@ -43,6 +53,7 @@ export function useInternationalOperations() {
   const findOneContainer = async (containerId: string) => store.findOneContainer(containerId)
   const updateContainer = async (containerId: string, payload: UpdateContainerInput) => store.updateContainer(containerId, payload)
   const removeContainer = async (containerId: string) => store.removeContainer(containerId)
+  const deliverContainer = async (containerId: string, destinationWarehouseId: string) => store.deliverContainer(containerId, destinationWarehouseId)
   const createEvent = async (containerId: string, payload: CreateEventInput) => store.createEvent(containerId, payload)
   const removeEvent = async (eventId: string) => store.removeEvent(eventId)
 
@@ -182,8 +193,10 @@ export function useInternationalOperations() {
     error: computed(() => store.error),
     pagination: computed(() => store.pagination),
 
-    statusOptions,
-    containerStatusOptions,
+    statusOptions: enabledStatusOptions,
+    allStatusOptions: statusOptions,
+    containerStatusOptions: enabledContainerStatusOptions,
+    allContainerStatusOptions: containerStatusOptions,
     containerTypeOptions,
     expenseTypeOptions,
     statusDescriptions,
@@ -217,6 +230,7 @@ export function useInternationalOperations() {
     findOneContainer,
     updateContainer,
     removeContainer,
+    deliverContainer,
     createEvent,
     removeEvent
   }

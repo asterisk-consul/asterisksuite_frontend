@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({
   middleware: ['auth']
 })
@@ -93,6 +93,30 @@ const partnerOptions = computed(() =>
     .map(p => ({ label: `${p.first_name} ${p.last_name}`, value: p.id }))
 )
 
+const getUserLink = (userId: string) => {
+  const employee = employees.value.find(item => item.user_id === userId)
+  if (employee) {
+    return {
+      type: 'employee' as const,
+      label: 'Empleado',
+      name: `${employee.first_name} ${employee.last_name}`.trim(),
+      icon: 'i-lucide-user-round-check'
+    }
+  }
+
+  const partner = partners.value.find(item => item.user_id === userId)
+  if (partner) {
+    return {
+      type: 'partner' as const,
+      label: 'Socio',
+      name: `${partner.first_name} ${partner.last_name}`.trim(),
+      icon: 'i-lucide-handshake'
+    }
+  }
+
+  return null
+}
+
 const loadUsers = async () => {
   loading.value = true
   try {
@@ -117,7 +141,11 @@ const loadEmployeesAndPartners = async () => {
   }
 }
 
-// ─── Edit User ──────────────────────────────────────
+const refreshDirectory = async () => {
+  await Promise.all([loadUsers(), loadEmployeesAndPartners()])
+}
+
+// â”€â”€â”€ Edit User â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const openEditModal = (user: CompanyUser) => {
   selectedUser.value = user
   editUser.value = { name: user.name || '', email: user.email || '' }
@@ -138,7 +166,7 @@ const saveUser = async () => {
     })
     toast.add({ title: 'Usuario actualizado', color: 'success' })
     showEditModal.value = false
-    await loadUsers()
+    await Promise.all([loadUsers(), loadEmployeesAndPartners()])
   } catch (e: any) {
     const data = e?.data?.data || e?.data
     const msg = Array.isArray(data?.message) ? data.message[0] : (data?.message || 'Error')
@@ -148,7 +176,7 @@ const saveUser = async () => {
   }
 }
 
-// ─── Change Password ──────────────────────────────
+// â”€â”€â”€ Change Password â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const openPasswordModal = (user: CompanyUser) => {
   selectedUser.value = user
   newPassword.value = ''
@@ -178,7 +206,7 @@ const savePassword = async () => {
   }
 }
 
-// ─── Link Employee/Partner ──────────────────────────
+// â”€â”€â”€ Link Employee/Partner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const openLinkModal = (user: CompanyUser) => {
   selectedUser.value = user
   // Pre-seleccionar el tipo según el vínculo que ya tenga el usuario
@@ -209,9 +237,9 @@ const unlinkEntity = async (type: 'employee' | 'partner') => {
   unlinking.value = type
   try {
     if (type === 'employee' && linkedEmployee.value) {
-      await $fetch(`/api/erp/employees/${linkedEmployee.value.id}/unlink-user`, { method: 'PATCH' })
+      await $fetch(`/api/backend/employees/${linkedEmployee.value.id}/unlink-user`, { method: 'PATCH' })
     } else if (type === 'partner' && linkedPartner.value) {
-      await $fetch(`/api/erp/partners/${linkedPartner.value.id}/unlink-user`, { method: 'PATCH' })
+      await $fetch(`/api/backend/partners/${linkedPartner.value.id}/unlink-user`, { method: 'PATCH' })
     }
     toast.add({ title: type === 'employee' ? 'Empleado desvinculado' : 'Socio desvinculado', color: 'success' })
     await loadEmployeesAndPartners()
@@ -237,12 +265,12 @@ const saveLink = async () => {
   linking.value = true
   try {
     if (linkType.value === 'existing_employee') {
-      await $fetch(`/api/erp/employees/${linkSelectedId.value}/link-user`, {
+      await $fetch(`/api/backend/employees/${linkSelectedId.value}/link-user`, {
         method: 'PATCH',
         body: { user_id: selectedUser.value.id },
       })
     } else {
-      await $fetch(`/api/erp/partners/${linkSelectedId.value}/link-user`, {
+      await $fetch(`/api/backend/partners/${linkSelectedId.value}/link-user`, {
         method: 'PATCH',
         body: { user_id: selectedUser.value.id },
       })
@@ -389,7 +417,7 @@ const createUser = async () => {
     const linkMsg = newUser.value.linkType !== 'none' ? ' y vinculado' : ''
     toast.add({ title: `Usuario creado${linkMsg}`, color: 'success' })
     showCreateModal.value = false
-    await loadUsers()
+    await Promise.all([loadUsers(), loadEmployeesAndPartners()])
   } catch (e: any) {
     console.error('Error creando usuario:', e)
     const data = e?.data?.data || e?.data || e?.response?._data
@@ -438,7 +466,7 @@ onMounted(async () => {
       <template #header>
         <div class="flex items-center gap-3 py-4">
           <UInput v-model="search" icon="i-lucide-search" placeholder="Buscar por nombre o email..." class="flex-1" />
-          <UButton label="Actualizar" variant="ghost" icon="i-lucide-refresh-cw" @click="loadUsers" />
+          <UButton label="Actualizar" variant="ghost" icon="i-lucide-refresh-cw" @click="refreshDirectory" />
         </div>
       </template>
 
@@ -460,6 +488,20 @@ onMounted(async () => {
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium truncate">{{ user.name || user.email }}</p>
             <p class="text-xs text-muted truncate">{{ user.email }}</p>
+            <div v-if="getUserLink(user.id)" class="mt-1.5 flex items-center gap-1.5">
+              <UBadge
+                :icon="getUserLink(user.id)!.icon"
+                :label="getUserLink(user.id)!.label"
+                color="primary"
+                variant="subtle"
+                size="xs"
+              />
+              <span class="max-w-56 truncate text-xs text-muted">{{ getUserLink(user.id)!.name }}</span>
+            </div>
+            <div v-else class="mt-1.5 flex items-center gap-1 text-xs text-muted">
+              <UIcon name="i-lucide-unlink" class="size-3.5" />
+              <span>Sin empleado o socio vinculado</span>
+            </div>
           </div>
           <div class="flex items-center gap-1">
             <UTooltip text="Editar nombre y email del usuario">
@@ -482,12 +524,12 @@ onMounted(async () => {
                 @click="openPasswordModal(user)"
               />
             </UTooltip>
-            <UTooltip text="Vincular con un empleado o socio existente">
+            <UTooltip :text="getUserLink(user.id) ? 'Ver o cambiar vínculo' : 'Vincular con un empleado o socio existente'">
               <UButton
                 v-if="isOwnerOrAdmin"
-                icon="i-lucide-link"
+                :icon="getUserLink(user.id) ? 'i-lucide-link-2' : 'i-lucide-link'"
                 variant="ghost"
-                color="neutral"
+                :color="getUserLink(user.id) ? 'primary' : 'neutral'"
                 size="xs"
                 @click="openLinkModal(user)"
               />
@@ -618,7 +660,7 @@ onMounted(async () => {
               Se abrirá el formulario completo de empleados con los datos precargados.
             </p>
             <UButton
-              label="Ir a crear empleado →"
+              label="Ir a crear empleado â†’"
               icon="i-lucide-arrow-right"
               color="primary"
               @click="goToCreateEmployee"
@@ -631,7 +673,7 @@ onMounted(async () => {
               Se abrirá el formulario completo de socios con los datos precargados.
             </p>
             <UButton
-              label="Ir a crear socio →"
+              label="Ir a crear socio â†’"
               icon="i-lucide-arrow-right"
               color="primary"
               @click="goToCreatePartner"

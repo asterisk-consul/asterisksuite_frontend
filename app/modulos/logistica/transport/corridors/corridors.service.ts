@@ -6,7 +6,7 @@ import type {
 } from './types/corridors.types'
 
 export const useCorridorsService = () => {
-  const urlBase = '/api/logistica/transport/corridors'
+  const urlBase = '/api/backend/transport/corridors'
   const fetch = useRequestFetch() // ← propaga cookies automáticamente
 
   const create = (data: CreateCorridorDto) =>

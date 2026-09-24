@@ -7,15 +7,15 @@ export function usePartiesImportExport() {
   const allowExport = computed(() => canExport('business_parties.export'))
 
   const handleExportExcel = () => {
-    window.open('/api/master-data/business-parties/export?format=xlsx', '_blank')
+    window.open('/api/backend/business-parties/export?format=xlsx', '_blank')
   }
 
   const handleExportCSV = () => {
-    window.open('/api/master-data/business-parties/export?format=csv', '_blank')
+    window.open('/api/backend/business-parties/export?format=csv', '_blank')
   }
 
   const downloadTemplate = () => {
-    window.open('/api/master-data/business-parties/export/template', '_blank')
+    window.open('/api/backend/business-parties/export/template', '_blank')
   }
 
   const dataActions = computed(() => [

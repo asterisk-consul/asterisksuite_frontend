@@ -86,9 +86,9 @@ const alertDescription = computed(() =>
     : 'Podés confirmarlo después desde la lista de vales.'
 )
 
-// ═══════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TIPO DE CAMBIO
-// ═══════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const convertedAmount = computed(() => {
   if (!createForm.value.exchange_rate || createForm.value.amount <= 0) return null
@@ -112,7 +112,7 @@ const convertedPreviewText = computed(() => {
   const toCurrency = convertedCurrencyLabel.value
   const fromFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: fromCurrency, maximumFractionDigits: 2 }).format(createForm.value.amount)
   const toFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: toCurrency, maximumFractionDigits: 2 }).format(convertedAmount.value)
-  return `${fromFmt} ≈ ${toFmt}`
+  return `${fromFmt} â‰ˆ ${toFmt}`
 })
 
 async function loadLatestExchangeRate() {
@@ -128,8 +128,8 @@ function markExchangeRateAsManual(value: number | string) {
 async function loadPeople() {
   try {
     const [employees, partners] = await Promise.all([
-      $fetch<any[]>('/api/erp/employees'),
-      $fetch<any[]>('/api/erp/partners')
+      $fetch<any[]>('/api/backend/employees'),
+      $fetch<any[]>('/api/backend/partners')
     ])
     people.value = [
       ...employees.map((e: any) => ({
@@ -151,8 +151,8 @@ async function loadPeople() {
 async function loadTreasuryTargets() {
   try {
     const [boxes, banks] = await Promise.all([
-      $fetch<any[]>('/api/logistica/cash-boxes'),
-      $fetch<any[]>('/api/erp/bank-accounts')
+      $fetch<any[]>('/api/backend/cash-boxes'),
+      $fetch<any[]>('/api/backend/bank-accounts')
     ])
     cashBoxes.value = boxes
     bankAccounts.value = banks
@@ -381,7 +381,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
               />
               <div class="flex items-center gap-2 mt-2">
                 <UBadge
-                  :label="isAutoResolved ? 'Última cotización cargada' : 'Cotización modificada'"
+                  :label="isAutoResolved ? 'Ãšltima cotización cargada' : 'Cotización modificada'"
                   :color="isAutoResolved ? 'info' : 'warning'"
                   variant="subtle"
                   size="sm"

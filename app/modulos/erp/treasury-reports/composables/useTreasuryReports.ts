@@ -10,7 +10,7 @@ export function useTreasuryReports() {
   // ACTIONS
   // =========================
 
-  const fetchDashboard = async () => store.fetchDashboard()
+  const fetchDashboard = async (checksDays?: number) => store.fetchDashboard(checksDays)
 
   const fetchMovements = async (params?: TreasuryMovementsQuery) =>
     store.fetchMovements(params)

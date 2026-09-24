@@ -65,6 +65,19 @@ const headerRight = computed(() => {
       </tr>
     </table>
 
+    <!-- AUTORIZACIÓN FISCAL HISTÓRICA -->
+    <table v-if="document?.fiscal_authorization_code" style="width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 16px;">
+      <tr style="background: #f5f5f5;">
+        <td colspan="4" style="padding: 6px 10px; font-weight: 600; font-size: 11px; border-bottom: 1px solid #ddd;">AUTORIZACIÓN FISCAL</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 10px; color: #555; width: 15%;">{{ document.fiscal_authorization_type || 'CAI' }}</td>
+        <td style="padding: 6px 10px; font-weight: 700; width: 35%;">{{ document.fiscal_authorization_code }}</td>
+        <td style="padding: 6px 10px; color: #555; width: 20%;">Fecha de vencimiento</td>
+        <td style="padding: 6px 10px; width: 30%;">{{ String(document.fiscal_authorization_expires_at || '').slice(0, 10) }}</td>
+      </tr>
+    </table>
+
     <!-- BLOQUE 2: DATOS DE ENTREGA -->
     <table style="width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 16px;">
       <tr style="background: #f5f5f5;">

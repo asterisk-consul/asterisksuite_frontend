@@ -5,7 +5,7 @@ import type {
 } from '~/modulos/logistica/master-data/products-components/types/product-components.types'
 
 const urlBase =
-  '/api/logistica/master-data/product-components'
+  '/api/backend/master-data/product-components'
 
 export const useProductComponentsService =
   () => {

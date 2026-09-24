@@ -6,7 +6,7 @@ import type {
   ParetoMode
 } from '~/modulos/logistica/master-data/product/costing/types/costing.types'
 
-const urlBase = '/api/logistica/master-data/costing'
+const urlBase = '/api/backend/master-data/costing'
 
 export const useCostingService = () => {
   // =========================

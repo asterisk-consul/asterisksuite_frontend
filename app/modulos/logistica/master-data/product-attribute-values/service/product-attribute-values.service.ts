@@ -1,11 +1,11 @@
-import type {
+﻿import type {
   ProductAttributeValue,
   CreateProductAttributeValueInput,
   UpdateProductAttributeValueInput
 } from '~/modulos/logistica/master-data/product-attribute-values/types/product-attribute-values.types'
 
 const urlBase =
-  '/api/erp/product-attribute-values'
+  '/api/backend/product-attribute-values'
 
 export const useProductAttributeValuesService =
   () => {

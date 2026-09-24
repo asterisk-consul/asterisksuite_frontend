@@ -5,7 +5,7 @@ import type {
 } from '~/modulos/logistica/transport/drivers/drivers.types'
 
 export const useChoferesService = () => {
-  const baseUrl = '/api/logistica/transport/drivers'
+  const baseUrl = '/api/backend/transport/drivers'
   const getAll = () => $fetch<Driver[]>(`${baseUrl}`)
   const getById = (id: string) => $fetch<Driver>(`${baseUrl}/${id}`)
 

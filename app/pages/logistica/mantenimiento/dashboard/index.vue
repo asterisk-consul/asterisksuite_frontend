@@ -17,7 +17,7 @@ const loadingTireStats = ref(false)
 async function fetchTireStats() {
   loadingTireStats.value = true
   try {
-    const result = await $fetch<TireStats>('/api/logistica/maintenance/dashboard/tires')
+    const result = await $fetch<TireStats>('/api/backend/maintenance/dashboard/tires')
     tireStats.value = result
   } catch {
     // silently fail

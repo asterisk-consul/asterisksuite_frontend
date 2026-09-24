@@ -80,7 +80,9 @@ onMounted(async () => {
       bank_account_id: payment.bank_account_id ?? '',
       cash_box_id: payment.cash_box_id ?? '',
       account_id: payment.account_id ?? '',
-      check_ids: [],
+      check_ids: ((payment as any).payment_allocations ?? [])
+        .map((allocation: any) => allocation.check_id ?? allocation.check?.id)
+        .filter(Boolean),
       documents: (payment as any).documents?.map((d: any) => ({
         document_id: d.document_id,
         amount_applied: Number(d.amount_applied),

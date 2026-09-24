@@ -1,4 +1,4 @@
-const baseUrl = '/api/logistica/master-data/variant-prices'
+const baseUrl = '/api/backend/master-data/variant-prices'
 
 export interface VariantPriceData {
   variant_id: string

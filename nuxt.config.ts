@@ -19,7 +19,6 @@ function getAppVersion(): string {
 export default defineNuxtConfig({
   modules: [
     '@nuxt/ui',
-    '@nuxtjs/mdc',
     '@vueuse/nuxt', // 👈 así se pasan las opciones
     ['@pinia/nuxt', { autoImports: ['defineStore', 'storeToRefs'] }],
     [
@@ -37,7 +36,6 @@ export default defineNuxtConfig({
   },
   sourcemap: false,
   experimental: {
-    watcher: 'chokidar',
     componentIslands: false
   },
   typescript: {
@@ -59,15 +57,13 @@ export default defineNuxtConfig({
   ssr: true,
   imports: {
     dirs: [
-      'composables',
-      'utils/**', // Incluye subcarpetas
-      'helpers', // Carpeta adicional
-      'stores' // Si tienes helpers en stores
+      'utils',
+      'stores'
     ]
   },
 
   devtools: {
-    enabled: true
+    enabled: process.env.NUXT_DEVTOOLS === 'true'
   },
   app: {
     baseURL: '/', // Relative paths for filesystem routing in Capacitor
@@ -93,8 +89,14 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2024-07-11',
 
+  watchers: {
+    chokidar: {
+      ignored: ['**/node_modules/**', '**/.git/**']
+    }
+  },
   nitro: {
     preset: 'node-server',
+    compressPublicAssets: true,
     // ✅ CORS va acá
     routeRules: {
       '/api/**': {

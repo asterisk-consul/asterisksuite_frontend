@@ -1,14 +1,16 @@
-import type {
+﻿import type {
   TreasuryDashboard,
   TreasuryMovement,
   TreasuryMovementsQuery
 } from '~/modulos/erp/treasury-reports/types/treasury-reports.types'
 
-const urlBase = '/api/erp/treasury'
+const urlBase = '/api/backend/treasury'
 
 export const useTreasuryReportsService = () => {
-  const dashboard = () => {
-    return $fetch<TreasuryDashboard>(`${urlBase}/dashboard`)
+  const dashboard = (checksDays?: number) => {
+    return $fetch<TreasuryDashboard>(`${urlBase}/dashboard`, {
+      query: checksDays ? { checks_days: checksDays } : undefined
+    })
   }
 
   const movements = (params?: TreasuryMovementsQuery) => {

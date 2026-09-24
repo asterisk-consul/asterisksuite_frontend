@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "prebuild": "node -e \"try { const fs = require('fs'); if (fs.existsSync('node_modules/oxc-parser')) { console.log('oxc-parser presente') } } catch(e) {}\"",
-    "build": "OXC_BINDINGS_FORCE_BUILD=1 nuxt build",
+    "build": "nuxt build",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
@@ -16,7 +16,6 @@
     "@iconify-json/lucide": "^1.2.116",
     "@iconify-json/simple-icons": "^1.2.89",
     "@nuxt/ui": "^4.9.0",
-    "@nuxtjs/mdc": "^0.20.2",
     "@pinia/nuxt": "^0.11.3",
     "@tanstack/vue-table": "^8.21.3",
     "@unovis/ts": "^1.6.7",
@@ -56,14 +55,5 @@
   "packageManager": "pnpm@11.5.2",
   "optionalDependencies": {
     "@oxc-parser/binding-linux-x64-gnu": "^0.99.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "esbuild",
-      "maplibre-gl",
-      "unrs-resolver",
-      "vue-demi"
-    ]
   }
 }

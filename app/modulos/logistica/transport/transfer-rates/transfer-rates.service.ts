@@ -5,10 +5,10 @@ import type {
 } from '~/modulos/logistica/transport/transfer-rates/transfer-rates.types'
 
 export const useTransferRatesService = () => {
-  const base = '/api/logistica/transfer-rate'
+  const base = '/api/backend/logistica/transfer-rate'
   const getAll = () => $fetch<TransferRate[]>(`${base}`)
 
-  const getById = (id: string) => $fetch<TransferRate>(`${base}+${id}`)
+  const getById = (id: string) => $fetch<TransferRate>(`${base}/${id}`)
 
   const create = (body: CreateTransferRateInput) =>
     $fetch<TransferRate>(`${base}`, { method: 'POST', body })

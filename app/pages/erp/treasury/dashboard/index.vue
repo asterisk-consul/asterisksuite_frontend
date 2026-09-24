@@ -18,10 +18,39 @@ const { isOwnerOrAdmin } = useCompanyRole()
 const showBankAccounts = computed(() => isOwnerOrAdmin.value || hasPermission('bank_accounts.read'))
 const showCashBoxes = computed(() => isOwnerOrAdmin.value || hasPermission('cash_boxes.read'))
 const showPayments = computed(() => isOwnerOrAdmin.value || hasPermission('payments.read'))
+const checkAlertDays = ref(30)
+const checkAlertDaysInput = ref(30)
+const checkSettingsOpen = ref(false)
+
+const normalizeAlertDays = (value: number | string) => {
+  const parsed = Math.trunc(Number(value))
+  return Number.isFinite(parsed) ? Math.min(365, Math.max(1, parsed)) : 30
+}
+
+const saveCheckAlertDays = async () => {
+  const days = normalizeAlertDays(checkAlertDaysInput.value)
+  checkAlertDays.value = days
+  checkAlertDaysInput.value = days
+  localStorage.setItem('treasury.checkAlertDays', String(days))
+  await fetchDashboard(days).catch(() => {})
+  checkSettingsOpen.value = false
+}
+
+watch(checkSettingsOpen, (open) => {
+  if (open) checkAlertDaysInput.value = checkAlertDays.value
+})
+
+const cancelCheckSettings = () => {
+  checkAlertDaysInput.value = checkAlertDays.value
+  checkSettingsOpen.value = false
+}
 
 onMounted(async () => {
+  const savedDays = normalizeAlertDays(localStorage.getItem('treasury.checkAlertDays') ?? 30)
+  checkAlertDays.value = savedDays
+  checkAlertDaysInput.value = savedDays
   await Promise.allSettled([
-    fetchDashboard().catch(() => {}),
+    fetchDashboard(savedDays).catch(() => {}),
     fetchBankAccounts().catch(() => {}),
     fetchCashBoxes().catch(() => {}),
     fetchChecks().catch(() => {})
@@ -37,9 +66,41 @@ const formatCurrency = (amount: number | string | null | undefined, currency = '
   }).format(num)
 }
 
-const pendingOwnChecks = computed(() => checks.value.filter((c) => c.status === 'PENDING' && c.is_own))
+const isInsideAlertWindow = (dueDate: string | Date) => {
+  const due = new Date(dueDate)
+  if (Number.isNaN(due.getTime())) return false
+  const today = new Date()
+  const dueDay = Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate())
+  const todayDay = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+  const limitDay = todayDay + checkAlertDays.value * 86_400_000
+  return dueDay >= todayDay && dueDay <= limitDay
+}
 
-const pendingThirdPartyChecks = computed(() => checks.value.filter((c) => c.status === 'PENDING' && !c.is_own))
+const formatDueDate = (dueDate: string | Date) => new Intl.DateTimeFormat('es-AR', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC'
+}).format(new Date(dueDate)).replace('.', '')
+
+const dueDateDistance = (dueDate: string | Date) => {
+  const due = new Date(dueDate)
+  const today = new Date()
+  const dueUtc = Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate())
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+  const days = Math.round((dueUtc - todayUtc) / 86_400_000)
+  if (days === 0) return 'Vence hoy'
+  if (days === 1) return 'Vence mañana'
+  return `Vence en ${days} días`
+}
+
+const pendingOwnChecks = computed(() => checks.value.filter(
+  (c) => ['PENDING', 'CONFIRMED'].includes(c.status) && c.is_own && isInsideAlertWindow(c.due_date)
+))
+
+const pendingThirdPartyChecks = computed(() => checks.value.filter(
+  (c) => c.status === 'PENDING' && !c.is_own && isInsideAlertWindow(c.due_date)
+))
 
 const totalOwnCheckAmount = computed(() => pendingOwnChecks.value.reduce((sum, c) => (Number(c.amount) || 0) + sum, 0))
 
@@ -251,6 +312,69 @@ const quickActions = computed(() => {
     </div>
 
     <!-- PENDING CHECKS -->
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h2 class="text-base font-semibold">Próximos movimientos de cheques</h2>
+        <p class="text-sm text-muted">
+          Cheques que vencen desde hoy y durante los próximos {{ checkAlertDays }} días.
+        </p>
+      </div>
+      <UPopover v-model:open="checkSettingsOpen">
+        <UButton
+          label="Configurar avisos"
+          icon="i-lucide-settings-2"
+          color="neutral"
+          variant="outline"
+          size="sm"
+        />
+        <template #content>
+          <div class="w-80 space-y-4 p-4">
+            <div class="flex items-start gap-3">
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
+                <UIcon name="i-lucide-calendar-clock" class="size-4" />
+              </div>
+              <div>
+                <p class="text-sm font-semibold">Avisos de vencimiento</p>
+                <p class="mt-1 text-xs leading-5 text-muted">
+                  Elegí con cuántos días de anticipación querés ver los cheques que se depositarán o debitarán.
+                  Los cheques ya vencidos se consultan desde el listado general.
+                </p>
+              </div>
+            </div>
+            <UFormField label="Días de anticipación" hint="Entre 1 y 365 días">
+              <UInput
+                v-model.number="checkAlertDaysInput"
+                type="number"
+                :min="1"
+                :max="365"
+                class="w-full"
+                @keyup.enter="saveCheckAlertDays"
+              >
+                <template #trailing>
+                  <span class="text-xs text-muted">días</span>
+                </template>
+              </UInput>
+            </UFormField>
+            <div class="flex justify-end gap-2">
+              <UButton
+                label="Cancelar"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                @click="cancelCheckSettings"
+              />
+              <UButton
+                label="Guardar"
+                icon="i-lucide-check"
+                size="sm"
+                :loading="reportsLoading"
+                @click="saveCheckAlertDays"
+              />
+            </div>
+          </div>
+        </template>
+      </UPopover>
+    </div>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- A COBRAR -->
       <UPageCard variant="subtle">
@@ -258,7 +382,10 @@ const quickActions = computed(() => {
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-semibold flex items-center gap-2">
               <UIcon name="i-lucide-arrow-down-left" class="size-4 text-info" />
-              Cheques a cobrar
+              <span>
+                Cheques a cobrar
+                <span class="block text-xs font-normal text-muted">Próximos {{ checkAlertDays }} días</span>
+              </span>
               <UBadge
                 v-if="pendingThirdPartyChecks.length > 0"
                 :label="`${pendingThirdPartyChecks.length}`"
@@ -271,7 +398,7 @@ const quickActions = computed(() => {
           </div>
         </template>
         <div v-if="pendingThirdPartyChecks.length === 0" class="text-center py-8 text-muted text-sm">
-          No hay cheques de terceros pendientes
+          No hay cheques de terceros con vencimiento en los próximos {{ checkAlertDays }} días
         </div>
         <div v-else class="divide-y divide-default">
           <NuxtLink
@@ -291,7 +418,8 @@ const quickActions = computed(() => {
             </div>
             <div class="text-right shrink-0 ml-3">
               <p class="text-sm font-semibold">{{ formatCurrency(check.amount) }}</p>
-              <p class="text-xs text-muted">Vence: {{ check.due_date }}</p>
+              <p class="text-xs font-medium text-info">{{ dueDateDistance(check.due_date) }}</p>
+              <p class="text-xs text-muted">{{ formatDueDate(check.due_date) }}</p>
             </div>
           </NuxtLink>
           <div v-if="pendingThirdPartyChecks.length > 5" class="text-center pt-3">
@@ -308,7 +436,10 @@ const quickActions = computed(() => {
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-semibold flex items-center gap-2">
               <UIcon name="i-lucide-arrow-up-right" class="size-4 text-warning" />
-              Cheques a pagar
+              <span>
+                Cheques a pagar
+                <span class="block text-xs font-normal text-muted">Próximos {{ checkAlertDays }} días</span>
+              </span>
               <UBadge
                 v-if="pendingOwnChecks.length > 0"
                 :label="`${pendingOwnChecks.length}`"
@@ -321,7 +452,7 @@ const quickActions = computed(() => {
           </div>
         </template>
         <div v-if="pendingOwnChecks.length === 0" class="text-center py-8 text-muted text-sm">
-          No hay cheques propios pendientes
+          No hay cheques propios con vencimiento en los próximos {{ checkAlertDays }} días
         </div>
         <div v-else class="divide-y divide-default">
           <NuxtLink
@@ -341,7 +472,8 @@ const quickActions = computed(() => {
             </div>
             <div class="text-right shrink-0 ml-3">
               <p class="text-sm font-semibold">{{ formatCurrency(check.amount) }}</p>
-              <p class="text-xs text-muted">Vence: {{ check.due_date }}</p>
+              <p class="text-xs font-medium text-warning">{{ dueDateDistance(check.due_date) }}</p>
+              <p class="text-xs text-muted">{{ formatDueDate(check.due_date) }}</p>
             </div>
           </NuxtLink>
           <div v-if="pendingOwnChecks.length > 5" class="text-center pt-3">

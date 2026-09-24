@@ -6,23 +6,23 @@ import type {
 
 export const TaxesService = {
   async getAll(): Promise<Tax[]> {
-    return $fetch(`/api/erp/taxes`)
+    return $fetch(`/api/backend/taxes`)
   },
 
   async create(dto: Omit<CreateTaxDto, 'company_id'>): Promise<Tax> {
-    return $fetch('/api/erp/taxes', {
+    return $fetch('/api/backend/taxes', {
       method: 'POST',
       body: { ...dto }
     })
   },
 
   async update(id: string, dto: UpdateTaxDto): Promise<Tax> {
-    return $fetch(`/api/erp/taxes/${id}`, {
+    return $fetch(`/api/backend/taxes/${id}`, {
       method: 'PATCH',
       body: dto
     })
   },
   async remove(id: string): Promise<void> {
-    return $fetch(`/api/erp/taxes/${id}`, { method: 'DELETE' })
+    return $fetch(`/api/backend/taxes/${id}`, { method: 'DELETE' })
   }
 }

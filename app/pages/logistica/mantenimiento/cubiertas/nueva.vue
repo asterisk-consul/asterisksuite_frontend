@@ -73,7 +73,7 @@ watch(selectedWarehouse, (val) => {
 async function fetchProducts() {
   loadingProducts.value = true
   try {
-    const data = await $fetch<any[]>('/api/logistica/master-data/products')
+    const data = await $fetch<any[]>('/api/backend/master-data/products')
     products.value = data
   } catch { /* silently fail */ } finally {
     loadingProducts.value = false
@@ -83,7 +83,7 @@ async function fetchProducts() {
 async function fetchSuppliers() {
   loadingSuppliers.value = true
   try {
-    const data = await $fetch<any[]>('/api/logistica/master-data/business-parties', {
+    const data = await $fetch<any[]>('/api/backend/master-data/business-parties', {
       params: { type: 'SUPPLIER' },
     })
     suppliers.value = data
@@ -95,7 +95,7 @@ async function fetchSuppliers() {
 async function fetchWarehouses() {
   loadingWarehouses.value = true
   try {
-    const data = await $fetch<any[]>('/api/logistica/warehouse/warehouses')
+    const data = await $fetch<any[]>('/api/backend/warehouse/warehouses')
     warehouses.value = data.filter((w: any) => w.active !== false)
   } catch { /* silently fail */ } finally {
     loadingWarehouses.value = false

@@ -14,16 +14,19 @@ const {
   current: box,
   fetchOne,
   update,
+  setInitialBalance,
   loading
 } = useCashBoxes()
 
 const formRef = ref<InstanceType<typeof CashBoxForm> | null>(null)
 
 const formData = ref<CashBoxFormData | null>(null)
+const canSetInitialBalance = ref(false)
 
 onMounted(async () => {
   const data = await fetchOne(boxId)
   if (data) {
+    canSetInitialBalance.value = Boolean(data.can_set_initial_balance)
     formData.value = {
       name: data.name,
       currency_code: data.currency_code ?? 'ARS',
@@ -45,10 +48,12 @@ const handleSubmit = async (data: CashBoxFormData) => {
     await update(boxId, {
       name: data.name,
       type: data.type as any,
-      opening_balance: data.opening_balance,
       is_main: data.is_main,
       active: data.active
     })
+    if (canSetInitialBalance.value && Number(data.opening_balance) > 0) {
+      await setInitialBalance(boxId, Number(data.opening_balance))
+    }
     toast.add({ title: 'Caja actualizada', color: 'success' })
     router.push(`/erp/treasury/cash-boxes/${boxId}`)
   } catch (error: any) {
@@ -74,6 +79,7 @@ const handleSubmit = async (data: CashBoxFormData) => {
         v-model="formData"
         :is-edit="true"
         :box-id="boxId"
+        :can-set-initial-balance="canSetInitialBalance"
         @submit="handleSubmit"
         @cancel="router.push(`/erp/treasury/cash-boxes/${boxId}`)"
       />

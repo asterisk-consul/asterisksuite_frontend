@@ -1,9 +1,9 @@
-import type { HrVale, HrAccount, HrAccountEntry, PartnerReport } from '../types/hr.types'
+﻿import type { HrVale, HrAccount, HrAccountEntry, PartnerReport } from '../types/hr.types'
 
 export const HrService = {
-  // ══════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // VALES
-  // ══════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   async getVales(params?: {
     party_id?: string
@@ -11,11 +11,11 @@ export const HrService = {
     status?: string
     type?: string
   }): Promise<HrVale[]> {
-    return $fetch('/api/erp/hr/vales', { query: params })
+    return $fetch('/api/backend/hr/vales', { query: params })
   },
 
   async getVale(id: string): Promise<HrVale> {
-    return $fetch(`/api/erp/hr/vales/${id}`)
+    return $fetch(`/api/backend/hr/vales/${id}`)
   },
 
   async createVale(dto: {
@@ -30,40 +30,40 @@ export const HrService = {
     date: string
     description?: string
   }): Promise<HrVale> {
-    return $fetch('/api/erp/hr/vales', {
+    return $fetch('/api/backend/hr/vales', {
       method: 'POST' as any,
       body: dto,
     })
   },
 
   async confirmVale(id: string, treasury?: { treasury_target_type: 'CASH_BOX' | 'BANK_ACCOUNT'; treasury_target_id: string }): Promise<HrVale> {
-    return $fetch(`/api/erp/hr/vales/${id}/confirm`, {
+    return $fetch(`/api/backend/hr/vales/${id}/confirm`, {
       method: 'PATCH' as any,
       body: treasury,
     })
   },
 
   async cancelVale(id: string): Promise<HrVale> {
-    return $fetch(`/api/erp/hr/vales/${id}/cancel`, {
+    return $fetch(`/api/backend/hr/vales/${id}/cancel`, {
       method: 'PATCH' as any,
     })
   },
 
-  // ══════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // CUENTAS CORRIENTES RRHH
-  // ══════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   async getHrAccounts(params?: { party_type?: string }): Promise<HrAccount[]> {
-    return $fetch('/api/erp/hr/accounts', { query: params })
+    return $fetch('/api/backend/hr/accounts', { query: params })
   },
 
   async getHrAccountEntries(id: string): Promise<{ account: HrAccount; entries: HrAccountEntry[] }> {
-    return $fetch(`/api/erp/hr/accounts/${id}/entries`)
+    return $fetch(`/api/backend/hr/accounts/${id}/entries`)
   },
 
-  // ══════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // REPORTE DE COMISIONES
-  // ══════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   async getCommissionsReport(month: string, sellerId?: string): Promise<{
     month: string
@@ -90,23 +90,23 @@ export const HrService = {
     total_comisiones: number
     cantidad_ov: number
   }> {
-    return $fetch('/api/erp/hr/commissions', {
+    return $fetch('/api/backend/hr/commissions', {
       query: { month, seller_id: sellerId },
     })
   },
 
   async generateCommissionVale(sellerId: string, month: string): Promise<any> {
-    return $fetch('/api/erp/hr/commissions/vale', {
+    return $fetch('/api/backend/hr/commissions/vale', {
       method: 'POST' as any,
       body: { seller_id: sellerId, month },
     })
   },
 
-  // ══════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // REPORTE DE SOCIO
-  // ══════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   async getPartnerReport(partyId: string): Promise<PartnerReport> {
-    return $fetch(`/api/erp/hr/partner-report/${partyId}`)
+    return $fetch(`/api/backend/hr/partner-report/${partyId}`)
   },
 }

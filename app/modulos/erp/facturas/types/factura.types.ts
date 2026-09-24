@@ -94,6 +94,8 @@ export interface Document {
 
   total: number
 
+  paid_amount?: number | null
+
   descrip?: string | null
 
   ref?: string | null
@@ -104,6 +106,13 @@ export interface Document {
     description: string
     direction: number
     category?: string | null
+    affects_payment?: boolean
+  } | null
+
+  commercial_operation?: {
+    payment_document_basis?: 'ORDER' | 'INVOICE' | 'BOTH' | null
+    ordered_total?: number | null
+    paid_total?: number | null
   } | null
 
   business_parties?: {

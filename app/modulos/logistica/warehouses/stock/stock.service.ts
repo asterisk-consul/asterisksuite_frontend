@@ -9,34 +9,34 @@ import type {
 export const useStockService = () => {
   const getStock = (warehouseId: string) =>
     $fetch<WarehouseStockItem[]>(
-      `/api/logistica/warehouse/stock/${warehouseId}`
+      `/api/backend/warehouse/stock/${warehouseId}`
     )
 
   const getStockByProduct = (productId: string) =>
     $fetch<ProductStockItem[]>(
-      `/api/logistica/warehouse/stock/product/${productId}`
+      `/api/backend/warehouse/stock/product/${productId}`
     )
 
   const getMovements = (warehouseId: string) =>
     $fetch<StockMovement[]>(
-      `/api/logistica/warehouse/stock/${warehouseId}/movements`
+      `/api/backend/warehouse/stock/${warehouseId}/movements`
     )
 
   const createMovement = (body: CreateStockMovementInput) =>
-    $fetch<StockMovement>('/api/logistica/warehouse/stock/movement', {
+    $fetch<StockMovement>('/api/backend/warehouse/stock/movement', {
       method: 'POST',
       body
     })
 
   const transferStock = (body: TransferStockInput) =>
-    $fetch<{ success: boolean }>('/api/logistica/warehouse/stock/transfer', {
+    $fetch<{ success: boolean }>('/api/backend/warehouse/stock/transfer', {
       method: 'POST',
       body
     })
 
   const removeStock = (warehouseId: string, productId: string) =>
     $fetch<{ success: boolean }>(
-      `/api/logistica/warehouse/stock/${warehouseId}/${productId}`,
+      `/api/backend/warehouse/stock/${warehouseId}/${productId}`,
       {
         method: 'DELETE'
       }

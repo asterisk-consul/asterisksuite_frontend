@@ -6,6 +6,8 @@ const props = withDefaults(defineProps<{
   check?: CheckFormData
   loading?: boolean
   bankAccountItems?: BankAccountItem[]
+  currencyItems?: BankAccountItem[]
+  forcedType?: 'OWN' | 'THIRD_PARTY'
 }>(), {
   bankAccountItems: () => [],
 })
@@ -23,12 +25,14 @@ const handleSubmit = (form: CheckFormData) => {
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="check?.id ? 'Editar cheque' : 'Nuevo cheque'" :ui="{ width: 'max-w-2xl' }">
+  <UModal v-model:open="open" :title="check?.id ? 'Editar cheque' : 'Nuevo cheque'" description="Completá los datos bancarios, el importe y el vencimiento." :ui="{ content: 'sm:max-w-4xl' }">
     <template #body>
       <CheckForm
         :model-value="check"
         :loading="loading"
         :bank-account-items="bankAccountItems"
+        :currency-items="currencyItems"
+        :forced-type="forcedType"
         @submit="handleSubmit"
         @cancel="open = false"
       />

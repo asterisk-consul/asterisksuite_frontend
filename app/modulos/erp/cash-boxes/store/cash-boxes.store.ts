@@ -106,6 +106,11 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
     }
   }
 
+  const setInitialBalance = async (id: string, amount: number) => {
+    await service.setInitialBalance(id, amount)
+    return fetchOne(id)
+  }
+
   // =========================
   // SESSIONS
   // =========================
@@ -219,8 +224,8 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
   // DELETE
   // =========================
 
-  const remove = async (id: string) => {
-    await service.remove(id)
+  const remove = async (id: string, data: { confirmation: string; target_cash_box_id?: string }) => {
+    await service.remove(id, data)
     items.value = items.value.filter((i) => i.id !== id)
 
     if (current.value?.id === id) {
@@ -291,6 +296,7 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
     fetchOne,
     fetchMain,
     fetchBalances,
+    setInitialBalance,
     fetchCurrentSession,
     fetchSessions,
     openSession,
