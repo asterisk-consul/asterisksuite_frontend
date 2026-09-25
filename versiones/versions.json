@@ -3,7 +3,7 @@
     "version": "0.62.0-alpha",
     "date": "2026-09-25",
     "stage": "alpha",
-    "notes": "Configuración documental centralizada, remitos con autorización fiscal y trazabilidad del stock de compras internacionales.",
+    "notes": "Configuración documental centralizada, remitos con autorización fiscal y un circuito internacional más claro desde la cotización hasta la recepción del stock.",
     "changes": [
       {
         "type": "feat",
@@ -59,12 +59,22 @@
         "type": "fix",
         "scope": "international-operations",
         "title": "Los movimientos internacionales evitan ingresos duplicados, validan disponibilidad y protegen documentos que ya afectaron stock"
+      },
+      {
+        "type": "style",
+        "scope": "international-quotes",
+        "title": "El modal de presupuestos separa los datos del proveedor de los productos y adapta sus campos a distintos tamaños de pantalla"
+      },
+      {
+        "type": "perf",
+        "scope": "international-quotes",
+        "title": "La carga de presupuestos reutiliza el catálogo completo de productos y usa un único selector para evitar renderizados repetidos"
       }
     ],
     "contributors": [
       "agustin"
     ],
-    "message": "Configuración documental, remitos fiscales y stock internacional trazable"
+    "message": "Circuito documental e internacional más claro y trazable"
   },
   {
     "version": "0.61.0-alpha",
