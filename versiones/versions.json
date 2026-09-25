@@ -1,9 +1,9 @@
 [
   {
     "version": "0.62.0-alpha",
-    "date": "2026-09-24",
+    "date": "2026-09-25",
     "stage": "alpha",
-    "notes": "Configuración documental centralizada y remitos operativos con numeración y autorización fiscal consistentes.",
+    "notes": "Configuración documental centralizada, remitos con autorización fiscal y trazabilidad del stock de compras internacionales.",
     "changes": [
       {
         "type": "feat",
@@ -44,12 +44,27 @@
         "type": "feat",
         "scope": "remitos",
         "title": "La impresión muestra el número de CAI y su vencimiento en un recuadro ubicado sobre las firmas"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Las facturas de mercadería asociadas a un contenedor ingresan sus productos al depósito virtual de tránsito sin modificar el comportamiento de las compras comunes"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Los remitos de recepción transfieren cantidades desde tránsito hacia los depósitos reales y admiten recepciones parciales"
+      },
+      {
+        "type": "fix",
+        "scope": "international-operations",
+        "title": "Los movimientos internacionales evitan ingresos duplicados, validan disponibilidad y protegen documentos que ya afectaron stock"
       }
     ],
     "contributors": [
       "agustin"
     ],
-    "message": "Configuración documental unificada y remitos con CAI"
+    "message": "Configuración documental, remitos fiscales y stock internacional trazable"
   },
   {
     "version": "0.61.0-alpha",
