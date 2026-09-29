@@ -10,22 +10,19 @@ export const useTripsService = () => {
 
   const getAll = () => $fetch<Trip[]>(base)
 
-  const getById = (id: string) => $fetch<Trip>(`${base}/${id}`)
+  const getById = (id: string) => $fetch<Trip>(`${base}/detail/${id}`)
 
-  const create = (body: CreateTripInput) =>
-    $fetch<Trip>(base, { method: 'POST', body })
+  const create = (body: CreateTripInput) => $fetch<Trip>(base, { method: 'POST', body })
 
-  const update = (id: string, body: UpdateTripInput) =>
-    $fetch<Trip>(`${base}/${id}`, { method: 'PATCH', body })
+  const update = (id: string, body: UpdateTripInput) => $fetch<Trip>(`${base}/${id}`, { method: 'PATCH', body })
 
-  const remove = (id: string) =>
-    $fetch<{ deleted: boolean }>(`${base}/${id}`, { method: 'DELETE' })
+  const remove = (id: string) => $fetch<{ deleted: boolean }>(`${base}/${id}`, { method: 'DELETE' })
 
   const updateStatus = async (id: string, status: string, generate = false) => {
     const url = `${base}/${id}/status/${status}`
     return await $fetch<Trip>(url, {
       method: 'PATCH',
-      query: generate ? { generate: 'true' } : undefined,
+      query: generate ? { generate: 'true' } : undefined
     })
   }
 
