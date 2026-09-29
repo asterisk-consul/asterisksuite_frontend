@@ -7,12 +7,15 @@ import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
+import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
+import { normalizeMarketRate } from '~/utils/currency'
 
 const { mainCollapsed } = useSidebarState()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const internationalOperationsService = useInternationalOperationsService()
+const { autoResolve } = useExchangeRate()
 
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
@@ -22,6 +25,12 @@ const parentOrderId = computed(() => (route.query.parent_order_id as string) || 
 const category = computed(() => (route.query.category as string) || undefined)
 const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
 const internationalOperationId = computed(() => (route.query.international_operation_id as string) || undefined)
+const internationalContainerId = computed(() => (route.query.container_id as string) || undefined)
+const internationalContainerNumber = computed(() => (route.query.container_number as string) || undefined)
+const internationalExpenseType = computed(() => (route.query.expense_type as string) || 'MERCHANDISE')
+const internationalExpenseLabel = computed(() => (route.query.expense_label as string) || internationalExpenseType.value)
+const internationalCustomExpenseDescription = computed(() => (route.query.custom_expense_description as string) || undefined)
+const internationalOperationCurrency = ref<string | undefined>((route.query.operation_currency_code as string) || undefined)
 const captureLoading = ref(false)
 
 async function enableCapture() {
@@ -57,6 +66,18 @@ const pageTitle = computed(() => {
 const orderData = ref<any>(null)
 
 onMounted(async () => {
+  if (internationalOperationId.value) {
+    try {
+      const operation = await internationalOperationsService.findOne(internationalOperationId.value)
+      internationalOperationCurrency.value = operation.currency_code || internationalOperationCurrency.value || 'USD'
+    } catch (e: any) {
+      toast.add({
+        title: 'No se pudo consultar la operación internacional',
+        description: e?.data?.message || e?.message,
+        color: 'warning'
+      })
+    }
+  }
   if (parentOrderId.value) {
     try {
       const order = await DocumentsSalesService.getOne(parentOrderId.value)
@@ -94,6 +115,29 @@ const initialValues = computed(() => {
 async function handleSubmit(payload: any) {
   try {
     saving.value = true
+    let associationExchangeRate: number | undefined
+    const documentCurrency = payload.currency_code || 'ARS'
+    const operationCurrency = internationalOperationCurrency.value
+
+    if (internationalOperationId.value && operationCurrency && documentCurrency !== operationCurrency) {
+      const foreignCurrency = documentCurrency === 'ARS' ? operationCurrency : documentCurrency
+      const targetCurrency = documentCurrency === 'ARS' || operationCurrency === 'ARS'
+        ? 'ARS'
+        : operationCurrency
+      const latestRate = await autoResolve(foreignCurrency, targetCurrency)
+      const normalizedRate = normalizeMarketRate(latestRate, documentCurrency, operationCurrency)
+
+      if (!normalizedRate) {
+        toast.add({
+          title: 'Falta el tipo de cambio',
+          description: `No se encontró una cotización para asociar una factura en ${documentCurrency} con la operación en ${operationCurrency}. Cargá la cotización y volvé a guardar.`,
+          color: 'error'
+        })
+        return
+      }
+      associationExchangeRate = normalizedRate
+    }
+
     const fullPayload = {
       ...payload,
       parent_document_id: parentOrderId.value || undefined
@@ -110,7 +154,10 @@ async function handleSubmit(payload: any) {
         await internationalOperationsService.associateDocument(
           internationalOperationId.value,
           created.id,
-          'MERCHANDISE'
+          internationalExpenseType.value,
+          internationalContainerId.value,
+          associationExchangeRate,
+          internationalCustomExpenseDescription.value
         )
         toast.add({
           title: 'Documento asociado',
@@ -171,6 +218,16 @@ async function handleSubmit(payload: any) {
         />
 
         <UPageBody class="mx-auto w-full max-w-screen-2xl">
+          <UAlert
+            v-if="internationalOperationId"
+            class="mb-4"
+            color="primary"
+            variant="subtle"
+            icon="i-lucide-container"
+            title="Factura vinculada a una operación internacional"
+            :description="`Al guardar, se asociará como ${internationalExpenseType === 'OTHER' ? (internationalCustomExpenseDescription || 'otro gasto') : internationalExpenseLabel}${internationalContainerId ? ` y al contenedor ${internationalContainerNumber || 'seleccionado'}` : ' para toda la operación'}. Moneda de la operación: ${internationalOperationCurrency || 'consultando…'}. Si la factura usa otra moneda, se aplicará la última cotización disponible.`"
+          />
+
           <UCard v-if="!intakeId" class="mb-4">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div class="flex items-start gap-3">

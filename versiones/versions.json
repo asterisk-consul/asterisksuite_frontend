@@ -1,5 +1,52 @@
 [
   {
+    "version": "0.63.0-alpha",
+    "date": "2026-09-29",
+    "stage": "alpha",
+    "notes": "Gestión de cheques más segura: los vencimientos generan avisos separados y Tesorería registra cada débito, depósito o cobro cuando ocurre realmente.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "El dashboard diferencia el aviso preventivo de próximos vencimientos del aviso operativo para cheques vencidos"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Los cheques propios se confirman sin afectar el banco y permiten registrar manualmente el débito con la fecha efectiva del extracto"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Los cheques de terceros permanecen en cartera hasta decidir si se depositan, cobran por caja o utilizan para pagar"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "La tabla muestra la cuenta bancaria de destino y estados específicos como Depositado, Debitado o Cobrado / aplicado"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Los pagos y cobros con cheques registran el valor completo del instrumento y dejan el excedente a favor del proveedor o cliente"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "La selección de documentos permanece visible aunque el cheque se elija antes que la factura"
+      },
+      {
+        "type": "security",
+        "scope": "treasury",
+        "title": "Los avisos y la gestión de cheques se muestran únicamente a usuarios con permiso de Tesorería"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Cheques con vencimientos informados y movimientos bancarios controlados"
+  },
+  {
     "version": "0.62.0-alpha",
     "date": "2026-09-25",
     "stage": "alpha",

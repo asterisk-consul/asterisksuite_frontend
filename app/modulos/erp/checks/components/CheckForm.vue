@@ -87,7 +87,7 @@ const handleSubmit = () => {
   if (!form.amount || Number(form.amount) <= 0) missing.push('Monto')
   if (!form.issue_date) missing.push('Fecha emisión')
   if (!form.due_date) missing.push('Vencimiento')
-  if (!form.bank_account_id) missing.push(form.is_own ? 'Cuenta bancaria a debitar' : 'Cuenta bancaria de depósito')
+  if (form.is_own && !form.bank_account_id) missing.push('Cuenta bancaria a debitar')
   if (missing.length > 0) {
     const toast = useToast()
     toast.add({
@@ -223,13 +223,22 @@ watch(
         <UFormField label="Nombre o razón social del emisor" name="issuer_name" required><UInput v-model="form.issuer_name" class="w-full" placeholder="Quién emite el cheque" icon="i-lucide-user-round" /></UFormField>
         <UFormField label="DNI o CUIT del emisor" name="issuer_id"><UInput v-model="form.issuer_id" class="w-full" placeholder="Opcional" /></UFormField>
         <UFormField
-          :label="form.is_own ? 'Cuenta bancaria a debitar' : 'Cuenta bancaria de depósito'"
+          v-if="form.is_own"
+          label="Cuenta bancaria a debitar"
           name="bank_account_id"
-          :description="form.is_own ? 'El importe se descontará de esta cuenta cuando se cobre el cheque.' : 'El importe se acreditará en esta cuenta al depositar o cobrar el cheque.'"
+          description="El importe se descontará de esta cuenta cuando se cobre el cheque."
           required
         >
-          <USelect v-model="form.bank_account_id" class="w-full" :items="bankAccountItems" :placeholder="form.is_own ? 'Seleccionar cuenta de débito' : 'Seleccionar cuenta de depósito'" @update:model-value="onBankAccountSelect" />
+          <USelect v-model="form.bank_account_id" class="w-full" :items="bankAccountItems" placeholder="Seleccionar cuenta de débito" @update:model-value="onBankAccountSelect" />
         </UFormField>
+        <UAlert
+          v-else
+          color="info"
+          variant="subtle"
+          icon="i-lucide-wallet-cards"
+          title="Cheque de terceros"
+          description="Queda en cartera hasta que se deposite o se entregue como medio de pago. La cuenta bancaria se elige recién al depositarlo."
+        />
         <UFormField label="Notas internas" name="notes"><UTextarea v-model="form.notes" class="w-full" :rows="3" placeholder="Información adicional para identificar el cheque" /></UFormField>
       </div>
     </section>

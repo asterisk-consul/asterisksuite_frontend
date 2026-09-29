@@ -10,7 +10,7 @@ export const useTripsService = () => {
 
   const getAll = () => $fetch<Trip[]>(base)
 
-  const getById = (id: string) => $fetch<Trip>(`${base}/${id}`)
+  const getById = (id: string) => $fetch<Trip>(`${base}/detail/${id}`)
 
   const create = (body: CreateTripInput) =>
     $fetch<Trip>(base, { method: 'POST', body })

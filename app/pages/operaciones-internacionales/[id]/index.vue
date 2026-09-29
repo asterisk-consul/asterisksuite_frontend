@@ -16,6 +16,7 @@ definePageMeta({ layout: 'default', middleware: ['auth'] })
 
 const route = useRoute()
 const router = useRouter()
+const toast = useToast()
 const id = route.params.id as string
 
 const {
@@ -38,6 +39,7 @@ const {
   containerStatusOptions,
   containerStatusDescriptions,
   containerTypeLabel,
+  expenseTypeOptions,
   expenseTypeLabel,
   formatCurrency,
   formatDate,
@@ -47,6 +49,68 @@ const {
 const showDocumentModal = ref(false)
 const showQuoteModal = ref(false)
 const showCreateQuoteModal = ref(false)
+const showCreateInvoiceModal = ref(false)
+const invoiceContainerId = ref('')
+const invoiceExpenseType = ref<InternationalExpenseType>('MERCHANDISE')
+const invoiceCustomExpenseDescription = ref('')
+const showStatusChangeModal = ref(false)
+const statusChangeSaving = ref(false)
+const pendingStatusChange = ref<{
+  scope: 'operation' | 'container'
+  current: OperationStatus | ContainerStatus
+  next: OperationStatus | ContainerStatus
+  containerId?: string
+  containerNumber?: string
+} | null>(null)
+
+const invoiceContainerOptions = computed(() =>
+  (operation.value?.containers ?? []).map((container: any) => ({
+    label: `${container.container_number} · ${containerStatusLabel(container.status)}`,
+    value: container.id,
+    description: container.container_type
+      ? containerTypeLabel(container.container_type as ContainerType)
+      : undefined
+  }))
+)
+
+const selectedInvoiceContainer = computed(() =>
+  (operation.value?.containers ?? []).find((container: any) => container.id === invoiceContainerId.value)
+)
+
+const canContinueInvoiceCreation = computed(() => {
+  if (!invoiceExpenseType.value) return false
+  if (invoiceExpenseType.value === 'MERCHANDISE' && !invoiceContainerId.value) return false
+  if (invoiceExpenseType.value === 'OTHER' && !invoiceCustomExpenseDescription.value.trim()) return false
+  return true
+})
+
+function openCreateInvoiceModal() {
+  const containers = operation.value?.containers ?? []
+  invoiceContainerId.value = containers.length === 1 ? containers[0].id : ''
+  invoiceExpenseType.value = 'MERCHANDISE'
+  invoiceCustomExpenseDescription.value = ''
+  showCreateInvoiceModal.value = true
+}
+
+async function continueInvoiceCreation() {
+  if (!canContinueInvoiceCreation.value) return
+  showCreateInvoiceModal.value = false
+  await router.push({
+    path: '/erp/purchases/purchases-documents/new',
+    query: {
+      category: 'INVOICE',
+      international_operation_id: id,
+      operation_currency_code: operation.value?.currency_code || 'USD',
+      expense_type: invoiceExpenseType.value,
+      expense_label: expenseTypeLabel(invoiceExpenseType.value),
+      custom_expense_description: invoiceExpenseType.value === 'OTHER'
+        ? invoiceCustomExpenseDescription.value.trim()
+        : undefined,
+      container_id: invoiceContainerId.value || undefined,
+      container_number: selectedInvoiceContainer.value?.container_number
+    }
+  })
+}
 
 const quoteStatusColor = (status: string): any =>
   status === 'ACCEPTED' ? 'success' : status === 'REJECTED' ? 'error' : 'warning'
@@ -93,16 +157,11 @@ const transportLabels: Record<string, string> = {
   OTHER: 'Otro'
 }
 
-const handleStatusChange = async (status: OperationStatus) => {
+const handleStatusChange = (status: OperationStatus) => {
   const current = operation.value?.status
-  if (
-    current &&
-    current !== status &&
-    confirm(`¿Cambiar estado de "${statusLabel(current)}" a "${statusLabel(status)}"?`)
-  ) {
-    await updateStatus(id, status)
-    await fetchSummary(id)
-  }
+  if (!current || current === status) return
+  pendingStatusChange.value = { scope: 'operation', current, next: status }
+  showStatusChangeModal.value = true
 }
 
 const operationStatusItems = computed(() =>
@@ -121,11 +180,72 @@ const getContainerStatusItems = (container: any) =>
     onSelect: () => handleContainerStatusChange(container.id, s.value as ContainerStatus)
   }))
 
-const handleContainerStatusChange = async (containerId: string, status: ContainerStatus) => {
-  if (confirm(`¿Cambiar estado del contenedor a "${containerStatusLabel(status)}"?`)) {
-    await updateContainer(containerId, { status })
-    await fetchOne(id)
+const handleContainerStatusChange = (containerId: string, status: ContainerStatus) => {
+  const container = operation.value?.containers?.find((item: any) => item.id === containerId)
+  if (!container || container.status === status) return
+  pendingStatusChange.value = {
+    scope: 'container',
+    current: container.status,
+    next: status,
+    containerId,
+    containerNumber: container.container_number
+  }
+  showStatusChangeModal.value = true
+}
+
+const pendingStatusMeta = computed(() => {
+  const change = pendingStatusChange.value
+  if (!change) return null
+  const operationScope = change.scope === 'operation'
+  const current = operationScope
+    ? statusLabel(change.current as OperationStatus)
+    : containerStatusLabel(change.current as ContainerStatus)
+  const next = operationScope
+    ? statusLabel(change.next as OperationStatus)
+    : containerStatusLabel(change.next as ContainerStatus)
+  const color = operationScope
+    ? statusColor(change.next as OperationStatus)
+    : containerStatusColor(change.next as ContainerStatus)
+  const currentColor = operationScope
+    ? statusColor(change.current as OperationStatus)
+    : containerStatusColor(change.current as ContainerStatus)
+  const descriptions = operationScope ? statusDescriptions : containerStatusDescriptions
+  return {
+    title: operationScope ? 'Cambiar estado de la operación' : 'Cambiar estado del contenedor',
+    subject: operationScope
+      ? (operation.value?.customs_broker_op_number || operation.value?.number)
+      : change.containerNumber,
+    current,
+    next,
+    color,
+    currentColor,
+    description: (descriptions as Record<string, { label: string; description: string }>)[String(change.next)]?.description
+  }
+})
+
+async function confirmStatusChange() {
+  const change = pendingStatusChange.value
+  if (!change) return
+  statusChangeSaving.value = true
+  try {
+    if (change.scope === 'operation') {
+      await updateStatus(id, change.next as OperationStatus)
+    } else if (change.containerId) {
+      await updateContainer(change.containerId, { status: change.next as ContainerStatus })
+      await fetchOne(id)
+    }
     await fetchSummary(id)
+    showStatusChangeModal.value = false
+    pendingStatusChange.value = null
+    toast.add({ title: 'Estado actualizado', color: 'success' })
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo cambiar el estado',
+      description: error?.data?.message || error?.message,
+      color: 'error'
+    })
+  } finally {
+    statusChangeSaving.value = false
   }
 }
 
@@ -189,13 +309,30 @@ const getDocumentPaid = (doc: any) =>
 const getDocumentPending = (doc: any) =>
   Math.max(0, Number(doc?.total ?? 0) - getDocumentPaid(doc))
 
+const associatedDocumentRoute = (doc: any) => {
+  const direction = doc?.document_types?.direction
+  const category = doc?.document_types?.category
+  const documentId = doc?.id
+
+  if (direction === -1 || direction === 'PURCHASE') {
+    if (category === 'ORDER') return `/erp/purchases/orders/${documentId}`
+    if (category === 'REMITO') return `/erp/purchases/remitos/${documentId}`
+    return `/erp/purchases/purchases-documents/${documentId}`
+  }
+
+  if (category === 'REMITO') return `/erp/remitos/${documentId}`
+  return `/erp/sales/${documentId}`
+}
+
 const editAssociatedDocument = (doc: any) => {
   const direction = doc?.document_types?.direction
-  router.push(
-    direction === 'SALES'
-      ? `/erp/sales/${doc.id}/edit`
-      : `/erp/purchases/purchases-documents/${doc.id}/edit`
-  )
+  const category = doc?.document_types?.category
+  if (direction === -1 || direction === 'PURCHASE') {
+    if (category === 'ORDER') return router.push(`/erp/purchases/orders/${doc.id}/edit`)
+    if (category === 'REMITO') return router.push(`/erp/purchases/remitos/${doc.id}/edit`)
+    return router.push(`/erp/purchases/purchases-documents/${doc.id}/edit`)
+  }
+  return router.push(`/erp/sales/${doc.id}/edit`)
 }
 
 const payAssociatedDocument = (doc: any) => {
@@ -443,8 +580,9 @@ const scrollTo = (sectionId: string) => {
               <UBadge
                 :label="statusLabel(operation.status)"
                 :color="statusColor(operation.status) as any"
-                size="lg"
+                size="xl"
                 icon=""
+                class="px-4 py-1.5 text-sm font-semibold shadow-sm"
               />
             </div>
             <p v-if="operation.name" class="text-muted mt-1">{{ operation.name }}</p>
@@ -528,9 +666,9 @@ const scrollTo = (sectionId: string) => {
             <UBadge
               :label="statusLabel(operation.status)"
               :color="statusColor(operation.status) as any"
-              size="xs"
+              size="sm"
               variant="subtle"
-              class="hidden sm:inline-flex"
+              class="hidden px-2.5 py-1 font-semibold sm:inline-flex"
             />
           </div>
           <div class="flex items-center gap-1 overflow-x-auto min-w-0 scrollbar-none">
@@ -814,8 +952,9 @@ const scrollTo = (sectionId: string) => {
                 <UBadge
                   :label="containerStatusLabel(container.status)"
                   :color="containerStatusColor(container.status) as any"
-                  size="xs"
+                  size="lg"
                   variant="subtle"
+                  class="px-3 py-1 text-sm font-semibold shadow-sm"
                 />
                 <span class="text-xs text-muted">
                   {{ containerTypeLabel(container.container_type as ContainerType) }}
@@ -927,7 +1066,14 @@ const scrollTo = (sectionId: string) => {
                     class="hover:bg-muted/20 transition-colors"
                   >
                     <td class="px-4 py-2 font-medium whitespace-nowrap">
-                      {{ rel.document?.document_types?.code }} Nº {{ rel.document?.number }}
+                      <NuxtLink
+                        v-if="rel.document"
+                        :to="associatedDocumentRoute(rel.document)"
+                        class="inline-flex items-center gap-1.5 text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
+                      >
+                        <span>{{ rel.document.document_types?.code }} Nº {{ rel.document.number }}</span>
+                        <UIcon name="i-lucide-arrow-up-right" class="size-3.5" />
+                      </NuxtLink>
                     </td>
                     <td class="px-4 py-2 text-muted text-xs min-w-0">
                       <span class="truncate block">
@@ -1194,7 +1340,7 @@ const scrollTo = (sectionId: string) => {
               icon="i-lucide-file-plus-2"
               size="xs"
               color="primary"
-              :to="`/erp/purchases/purchases-documents/new?category=INVOICE&international_operation_id=${id}`"
+              @click="openCreateInvoiceModal"
             />
             <UButton
               label="Asociar documento"
@@ -1257,9 +1403,14 @@ const scrollTo = (sectionId: string) => {
                 <div class="flex items-start justify-between gap-3 flex-wrap">
                   <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                      <span class="font-mono font-bold text-sm">
-                        {{ rel.document?.document_types?.code }} Nº {{ rel.document?.number }}
-                      </span>
+                      <NuxtLink
+                        v-if="rel.document"
+                        :to="associatedDocumentRoute(rel.document)"
+                        class="inline-flex items-center gap-1.5 font-mono text-sm font-bold text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
+                      >
+                        <span>{{ rel.document.document_types?.code }} Nº {{ rel.document.number }}</span>
+                        <UIcon name="i-lucide-arrow-up-right" class="size-3.5" />
+                      </NuxtLink>
                       <UBadge
                         :label="expenseTypeLabel(rel.expense_type as InternationalExpenseType)"
                         color="neutral"
@@ -1400,6 +1551,193 @@ const scrollTo = (sectionId: string) => {
       </div>
 
       <!-- MODALS -->
+      <UModal
+        v-model:open="showStatusChangeModal"
+        :title="pendingStatusMeta?.title"
+        description="Revisá el cambio antes de actualizar el seguimiento."
+        :dismissible="!statusChangeSaving"
+      >
+        <template #body>
+          <div v-if="pendingStatusMeta" class="space-y-5">
+            <div class="flex items-start gap-3 rounded-xl border border-default bg-muted/20 p-4">
+              <div class="rounded-lg bg-primary/10 p-2 text-primary">
+                <UIcon
+                  :name="pendingStatusChange?.scope === 'operation' ? 'i-lucide-route' : 'i-lucide-container'"
+                  class="size-5"
+                />
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-medium uppercase tracking-wide text-muted">
+                  {{ pendingStatusChange?.scope === 'operation' ? 'Operación' : 'Contenedor' }}
+                </p>
+                <p class="truncate font-mono text-base font-semibold">{{ pendingStatusMeta.subject }}</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+              <div class="rounded-xl border border-default p-4 text-center">
+                <p class="mb-2 text-xs font-medium text-muted">Estado actual</p>
+                <UBadge
+                  :label="pendingStatusMeta.current"
+                  :color="pendingStatusMeta.currentColor as any"
+                  variant="subtle"
+                  size="lg"
+                />
+              </div>
+              <UIcon name="i-lucide-arrow-right" class="size-5 text-muted" />
+              <div class="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center">
+                <p class="mb-2 text-xs font-medium text-muted">Nuevo estado</p>
+                <UBadge
+                  :label="pendingStatusMeta.next"
+                  :color="pendingStatusMeta.color as any"
+                  size="lg"
+                  class="font-semibold"
+                />
+              </div>
+            </div>
+
+            <UAlert
+              v-if="pendingStatusMeta.description"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-info"
+              title="Qué significa este estado"
+              :description="pendingStatusMeta.description"
+            />
+          </div>
+        </template>
+
+        <template #footer>
+          <div class="flex w-full justify-end gap-2">
+            <UButton
+              label="Cancelar"
+              color="neutral"
+              variant="ghost"
+              :disabled="statusChangeSaving"
+              @click="showStatusChangeModal = false"
+            />
+            <UButton
+              label="Confirmar cambio"
+              icon="i-lucide-check"
+              :color="pendingStatusMeta?.color as any"
+              :loading="statusChangeSaving"
+              @click="confirmStatusChange"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="showCreateInvoiceModal"
+        title="Crear factura para la operación"
+        description="Indicá qué concepto representa y, cuando corresponda, a qué contenedor pertenece."
+      >
+        <template #body>
+          <div class="space-y-4">
+            <UFormField
+              label="Concepto de la factura"
+              required
+              help="Define cómo se agrupará el costo dentro de la operación."
+            >
+              <USelectMenu
+                v-model="invoiceExpenseType"
+                :items="expenseTypeOptions"
+                value-key="value"
+                placeholder="Seleccionar mercadería, flete, seguro…"
+                class="w-full"
+              />
+            </UFormField>
+
+            <UFormField
+              v-if="invoiceExpenseType === 'OTHER'"
+              label="Descripción del gasto"
+              required
+            >
+              <UInput
+                v-model="invoiceCustomExpenseDescription"
+                placeholder="Indicá qué gasto representa la factura"
+                class="w-full"
+              />
+            </UFormField>
+
+            <UAlert
+              v-if="invoiceExpenseType === 'MERCHANDISE' && !invoiceContainerOptions.length"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-container"
+              title="La operación todavía no tiene contenedores"
+              description="Creá el contenedor antes de generar la factura para que la asociación quede completa."
+            />
+
+            <template v-else-if="invoiceContainerOptions.length">
+              <UFormField
+                :label="invoiceExpenseType === 'MERCHANDISE' ? 'Contenedor' : 'Contenedor específico'"
+                :required="invoiceExpenseType === 'MERCHANDISE'"
+                :help="invoiceExpenseType === 'MERCHANDISE'
+                  ? 'La mercadería y sus productos quedarán vinculados a este contenedor.'
+                  : 'Es opcional. Dejalo vacío cuando el gasto corresponda a toda la operación.'"
+              >
+                <USelectMenu
+                  v-model="invoiceContainerId"
+                  :items="invoiceContainerOptions"
+                  value-key="value"
+                  searchable
+                  clear
+                  :placeholder="invoiceExpenseType === 'MERCHANDISE' ? 'Seleccionar contenedor' : 'Gasto general de la operación'"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <div
+                v-if="selectedInvoiceContainer"
+                class="rounded-xl border border-primary/25 bg-primary/5 p-4"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="rounded-lg bg-primary/10 p-2 text-primary">
+                    <UIcon name="i-lucide-container" class="size-5" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="font-mono font-semibold">{{ selectedInvoiceContainer.container_number }}</p>
+                    <p v-if="selectedInvoiceContainer.container_type" class="text-sm text-muted">
+                      {{ containerTypeLabel(selectedInvoiceContainer.container_type as ContainerType) }}
+                    </p>
+                  </div>
+                  <UBadge
+                    :label="containerStatusLabel(selectedInvoiceContainer.status)"
+                    :color="containerStatusColor(selectedInvoiceContainer.status) as any"
+                    variant="subtle"
+                    class="ml-auto"
+                  />
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <template #footer>
+          <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+            <UButton
+              v-if="invoiceExpenseType === 'MERCHANDISE' && !invoiceContainerOptions.length"
+              label="Crear contenedor"
+              icon="i-lucide-container"
+              :to="`/operaciones-internacionales/${id}/containers/create`"
+              @click="showCreateInvoiceModal = false"
+            />
+            <span v-else />
+            <div class="flex justify-end gap-2">
+              <UButton label="Cancelar" color="neutral" variant="ghost" @click="showCreateInvoiceModal = false" />
+              <UButton
+                v-if="invoiceExpenseType !== 'MERCHANDISE' || invoiceContainerOptions.length"
+                label="Continuar con la factura"
+                icon="i-lucide-arrow-right"
+                :disabled="!canContinueInvoiceCreation"
+                @click="continueInvoiceCreation"
+              />
+            </div>
+          </div>
+        </template>
+      </UModal>
+
       <AssociateDocumentModal
         v-model:open="showDocumentModal"
         :operation-id="id"

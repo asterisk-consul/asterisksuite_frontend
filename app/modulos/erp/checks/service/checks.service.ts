@@ -78,10 +78,24 @@ export const useChecksService = () => {
     })
   }
 
-  const deposit = (id: string, data: { bank_account_id: string; amount?: number }) => {
+  const deposit = (id: string, data: { bank_account_id: string; amount?: number; date?: string }) => {
     return $fetch<Check>(`${urlBase}/${id}/deposit`, {
       method: 'PATCH',
       body: data
+    })
+  }
+
+  const collectInCashBox = (id: string, cashBoxId: string, date: string) => {
+    return $fetch<Check>(`${urlBase}/${id}/collect-cash`, {
+      method: 'PATCH',
+      body: { cash_box_id: cashBoxId, date }
+    })
+  }
+
+  const debitOwnCheck = (id: string, date: string) => {
+    return $fetch<Check>(`${urlBase}/${id}/debit`, {
+      method: 'PATCH',
+      body: { date }
     })
   }
 
@@ -104,6 +118,8 @@ export const useChecksService = () => {
     confirm,
     reject,
     deposit,
+    collectInCashBox,
+    debitOwnCheck,
     revert
   }
 }

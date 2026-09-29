@@ -10,6 +10,7 @@ import { checkColumns } from '~/modulos/erp/checks/columns'
 import type { Check } from '~/modulos/erp/checks/types/checks.types'
 import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
 import type { BankAccount } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
+import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -27,8 +28,11 @@ const {
   confirm,
   reject,
   deposit,
+  collectInCashBox,
+  debitOwnCheck,
   revert
 } = useChecks()
+const { cashBoxes, init: initCashBoxes } = useCashBoxes()
 
 const bankAccountsService = useBankAccountsService()
 
@@ -41,8 +45,104 @@ const depositModalOpen = ref(false)
 const depositingCheck = ref<Check | null>(null)
 const depositBankAccountId = ref('')
 const depositAmount = ref(0)
+const depositDate = ref('')
 const bankAccounts = ref<BankAccount[]>([])
 const depositing = ref(false)
+const resolveModalOpen = ref(false)
+const resolvingCheck = ref<Check | null>(null)
+const cashBoxId = ref('')
+const cashCollectionDate = ref('')
+const resolving = ref(false)
+const debitModalOpen = ref(false)
+const debitingCheck = ref<Check | null>(null)
+const debitDate = ref('')
+const debiting = ref(false)
+
+const todayInArgentina = () => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Argentina/Buenos_Aires'
+}).format(new Date())
+
+const dueThirdPartyChecks = computed(() => {
+  const endOfToday = new Date()
+  endOfToday.setHours(23, 59, 59, 999)
+  return checks.value.filter(check =>
+    !check.is_own &&
+    ['PENDING', 'CONFIRMED'].includes(check.status) &&
+    new Date(check.due_date).getTime() <= endOfToday.getTime()
+  )
+})
+
+const dueOwnChecks = computed(() => {
+  const endOfToday = new Date()
+  endOfToday.setHours(23, 59, 59, 999)
+  return checks.value.filter(check =>
+    check.is_own &&
+    check.status === 'CONFIRMED' &&
+    new Date(check.due_date).getTime() <= endOfToday.getTime()
+  )
+})
+
+const availableCashBoxes = computed(() => {
+  if (!resolvingCheck.value) return []
+  return cashBoxes.value.filter(box =>
+    box.active &&
+    box.status === 'OPEN' &&
+    Boolean(box.current_session_id) &&
+    box.currency_code === resolvingCheck.value?.currency_code
+  )
+})
+
+const openResolveModal = async (check: Check) => {
+  resolvingCheck.value = check
+  cashBoxId.value = ''
+  cashCollectionDate.value = todayInArgentina()
+  await initCashBoxes()
+  resolveModalOpen.value = true
+}
+
+const payWithCheck = () => {
+  if (!resolvingCheck.value) return
+  router.push({
+    path: '/erp/treasury/payments/create',
+    query: { type: 'PAYMENT', check_id: resolvingCheck.value.id }
+  })
+}
+
+const depositResolvedCheck = () => {
+  if (!resolvingCheck.value) return
+  resolveModalOpen.value = false
+  openDepositModal(resolvingCheck.value)
+}
+
+const collectResolvedCheck = async () => {
+  if (!resolvingCheck.value || !cashBoxId.value) return
+  resolving.value = true
+  try {
+    await collectInCashBox(resolvingCheck.value.id, cashBoxId.value, cashCollectionDate.value)
+    toast.add({ title: 'Cheque cobrado e ingresado en caja', color: 'success' })
+    resolveModalOpen.value = false
+    await init()
+  } catch (error: any) {
+    toast.add({ title: error?.data?.message || 'No se pudo cobrar el cheque', color: 'error' })
+  } finally {
+    resolving.value = false
+  }
+}
+
+const rejectResolvedCheck = async () => {
+  if (!resolvingCheck.value) return
+  resolving.value = true
+  try {
+    await bounce(resolvingCheck.value.id)
+    toast.add({ title: 'Cheque marcado como rechazado', color: 'warning' })
+    resolveModalOpen.value = false
+    await init()
+  } catch (error: any) {
+    toast.add({ title: error?.data?.message || 'No se pudo rechazar el cheque', color: 'error' })
+  } finally {
+    resolving.value = false
+  }
+}
 
 function onSortFieldSelect(columnId: string) {
   const current = sorting.value[0]
@@ -75,8 +175,9 @@ const handleDelete = async () => {
 
 const openDepositModal = async (check: Check) => {
   depositingCheck.value = check
-  depositAmount.value = Number(check.amount)
+  depositAmount.value = Number(check.available_amount ?? check.amount)
   depositBankAccountId.value = check.bank_account_id ?? ''
+  depositDate.value = todayInArgentina()
 
   if (bankAccounts.value.length === 0) {
     try {
@@ -109,7 +210,8 @@ const handleDeposit = async () => {
     depositing.value = true
     await deposit(depositingCheck.value.id, {
       bank_account_id: depositBankAccountId.value,
-      amount: depositAmount.value
+      amount: depositAmount.value,
+      date: depositDate.value
     })
     if (intakeId.value) {
       await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
@@ -137,6 +239,31 @@ const handleRevert = async (check: Check) => {
   }
 }
 
+const openDebitModal = (check: Check) => {
+  debitingCheck.value = check
+  debitDate.value = todayInArgentina()
+  debitModalOpen.value = true
+}
+
+const processOwnCheck = async () => {
+  if (!debitingCheck.value || !debitDate.value) return
+  try {
+    debiting.value = true
+    await debitOwnCheck(debitingCheck.value.id, debitDate.value)
+    toast.add({ title: `Débito del cheque #${debitingCheck.value.check_number} registrado`, color: 'success' })
+    debitModalOpen.value = false
+    await init()
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo procesar el débito',
+      description: error?.data?.message || error?.message,
+      color: 'error'
+    })
+  } finally {
+    debiting.value = false
+  }
+}
+
 onMounted(() => init())
 
 const columns = checkColumns({
@@ -144,6 +271,8 @@ const columns = checkColumns({
   onEdit: goToEdit,
   onDelete: confirmDelete,
   onDeposit: openDepositModal,
+  onResolve: openResolveModal,
+  onProcess: openDebitModal,
   onRevert: handleRevert,
   onSortFieldSelect,
   onStatusChange: async (row, newStatus) => {
@@ -156,14 +285,24 @@ const columns = checkColumns({
       row.status = newStatus
       if (newStatus === 'CONFIRMED') {
         await confirm(row.id)
+        toast.add({
+          title: 'Cheque confirmado',
+          description: 'Al vencer se notificará. Registrá el débito cuando figure en el banco.',
+          color: 'success'
+        })
       } else if (newStatus === 'BOUNCED') {
         await bounce(row.id)
       } else if (newStatus === 'CANCELLED') {
         await reject(row.id)
       }
+      await init()
     } catch (e: any) {
       row.status = prev
-      console.error('Error changing check status:', e)
+      toast.add({
+        title: 'No se pudo cambiar el estado',
+        description: e?.data?.message || e?.message,
+        color: 'error'
+      })
     }
   }
 })
@@ -213,6 +352,24 @@ const sortFields: SortField[] = [
       :links="links"
     />
 
+    <UAlert
+      v-if="dueThirdPartyChecks.length > 0"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-calendar-clock"
+      :title="`${dueThirdPartyChecks.length} cheque(s) de terceros requieren una decisión`"
+      description="Llegaron a su vencimiento y continúan en cartera. Podés depositarlos, cobrarlos por caja, entregarlos a un proveedor o mantenerlos pendientes."
+    />
+
+    <UAlert
+      v-if="dueOwnChecks.length > 0"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-landmark"
+      :title="`${dueOwnChecks.length} cheque(s) propio(s) requieren verificar el débito`"
+      description="Llegaron a su vencimiento. Registrá el débito únicamente cuando figure en el banco, usando la fecha efectiva del movimiento."
+    />
+
     <LogisticaTable
       :loading="loading"
       :data="checks"
@@ -240,7 +397,7 @@ const sortFields: SortField[] = [
           <div class="rounded-lg bg-muted/50 p-3 space-y-1">
             <p class="text-sm font-medium">Cheque N° {{ depositingCheck.check_number }}</p>
             <p class="text-xs text-muted">{{ depositingCheck.bank_name }} — Emisor: {{ depositingCheck.issuer_name }}</p>
-            <p class="text-sm font-semibold">{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: depositingCheck.currency_code || 'ARS' }).format(Number(depositingCheck.amount)) }}</p>
+            <p class="text-sm font-semibold">{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: depositingCheck.currency_code || 'ARS' }).format(Number(depositingCheck.available_amount ?? depositingCheck.amount)) }}</p>
           </div>
 
           <div class="space-y-2">
@@ -255,16 +412,16 @@ const sortFields: SortField[] = [
             </p>
           </div>
 
-          <div class="space-y-2">
-            <label class="text-sm font-medium">Monto a depositar</label>
-            <UInput
-              v-model="depositAmount"
-              type="number"
-              :step="0.01"
-              :min="0"
-              placeholder="Monto"
-            />
-          </div>
+          <UFormField label="Fecha efectiva del depósito" required>
+            <UInput v-model="depositDate" type="date" class="w-full" />
+          </UFormField>
+
+          <UAlert
+            color="info"
+            variant="subtle"
+            title="Depósito por el valor completo"
+            description="El cheque saldrá de cartera y se acreditará íntegramente en la cuenta seleccionada."
+          />
 
           <UiAttachmentManager
             entity-type="check_deposit"
@@ -279,8 +436,91 @@ const sortFields: SortField[] = [
               icon="i-lucide-building-2"
               color="success"
               :loading="depositing"
-              :disabled="!depositBankAccountId || depositAmount <= 0"
+              :disabled="!depositBankAccountId || depositAmount <= 0 || !depositDate"
               @click="handleDeposit"
+            />
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="resolveModalOpen" title="Resolver cheque de terceros" description="Elegí qué destino tendrá el cheque.">
+      <template #body>
+        <div v-if="resolvingCheck" class="space-y-4">
+          <div class="rounded-xl border border-default bg-elevated/40 p-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="font-semibold">Cheque #{{ resolvingCheck.check_number }}</p>
+                <p class="text-sm text-muted">{{ resolvingCheck.bank_name }} · {{ resolvingCheck.issuer_name }}</p>
+                <p class="mt-1 text-xs text-muted">Vence: {{ new Date(resolvingCheck.due_date).toLocaleDateString('es-AR') }}</p>
+              </div>
+              <p class="font-semibold">{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: resolvingCheck.currency_code }).format(Number(resolvingCheck.available_amount ?? resolvingCheck.amount)) }}</p>
+            </div>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2">
+            <UButton label="Depositar en banco" icon="i-lucide-building-2" variant="outline" block @click="depositResolvedCheck" />
+            <UButton label="Usar para pagar" icon="i-lucide-hand-coins" variant="outline" block @click="payWithCheck" />
+          </div>
+
+          <div class="rounded-xl border border-default p-4 space-y-3">
+            <div>
+              <p class="text-sm font-medium">Cobrar e ingresar en caja</p>
+              <p class="text-xs text-muted">La caja debe estar abierta y operar en {{ resolvingCheck.currency_code }}.</p>
+            </div>
+            <div class="flex gap-2">
+              <USelect
+                v-model="cashBoxId"
+                class="flex-1"
+                :items="availableCashBoxes.map(box => ({ label: box.name, value: box.id }))"
+                placeholder="Seleccionar caja abierta"
+              />
+              <UButton label="Cobrar" icon="i-lucide-banknote" color="success" :loading="resolving" :disabled="!cashBoxId || !cashCollectionDate" @click="collectResolvedCheck" />
+            </div>
+            <UFormField label="Fecha efectiva del cobro" required>
+              <UInput v-model="cashCollectionDate" type="date" class="w-full" />
+            </UFormField>
+            <p v-if="availableCashBoxes.length === 0" class="text-xs text-warning">
+              No hay cajas abiertas compatibles con la moneda del cheque.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap justify-between gap-2 border-t border-default pt-4">
+            <UButton label="Marcar rechazado" icon="i-lucide-ban" color="error" variant="ghost" :loading="resolving" @click="rejectResolvedCheck" />
+            <UButton label="Mantener en cartera" variant="ghost" @click="resolveModalOpen = false" />
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="debitModalOpen"
+      title="Registrar débito bancario"
+      description="El vencimiento solo genera un aviso. Confirmá el movimiento cuando ya figure en el banco."
+    >
+      <template #body>
+        <div v-if="debitingCheck" class="space-y-4">
+          <div class="rounded-xl border border-default bg-elevated/40 p-4">
+            <p class="font-semibold">Cheque #{{ debitingCheck.check_number }}</p>
+            <p class="text-sm text-muted">{{ debitingCheck.bank_name }} · vence {{ new Date(debitingCheck.due_date).toLocaleDateString('es-AR') }}</p>
+            <p class="mt-2 text-lg font-semibold">
+              {{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: debitingCheck.currency_code }).format(Number(debitingCheck.amount)) }}
+            </p>
+          </div>
+
+          <UFormField label="Fecha efectiva del débito" required help="Usá la fecha que aparece en el extracto bancario.">
+            <UInput v-model="debitDate" type="date" class="w-full" />
+          </UFormField>
+
+          <div class="flex justify-end gap-2">
+            <UButton label="Cancelar" variant="ghost" @click="debitModalOpen = false" />
+            <UButton
+              label="Registrar débito"
+              icon="i-lucide-landmark"
+              color="primary"
+              :loading="debiting"
+              :disabled="!debitDate"
+              @click="processOwnCheck"
             />
           </div>
         </div>

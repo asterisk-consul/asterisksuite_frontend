@@ -11,17 +11,22 @@ type Row = Check
 const statusConfig: Record<string, { label: string; color?: string }> = {
   PENDING: { label: 'Pendiente', color: 'warning' },
   CONFIRMED: { label: 'Confirmado', color: 'info' },
-  CLEARED: { label: 'Depositado', color: 'success' },
+  CLEARED: { label: 'Acreditado / debitado', color: 'success' },
   BOUNCED: { label: 'Rechazado', color: 'error' },
   REJECTED: { label: 'Rechazado', color: 'error' },
   CANCELLED: { label: 'Cancelado', color: 'neutral' }
 }
 
 function getAvailableStatuses(row: Check) {
+  const clearedLabel = row.is_own
+    ? 'Debitado'
+    : row.bank_account_id || row.deposit_date
+      ? 'Depositado'
+      : 'Cobrado / aplicado'
   const all = [
     { value: 'PENDING', label: 'Pendiente', color: 'warning' as const },
     { value: 'CONFIRMED', label: 'Confirmar', color: 'info' as const },
-    { value: 'CLEARED', label: 'Depositar', badgeLabel: 'Depositado', color: 'success' as const },
+    { value: 'CLEARED', label: row.status === 'CLEARED' ? clearedLabel : 'Depositar', badgeLabel: clearedLabel, color: 'success' as const },
     { value: 'BOUNCED', label: 'Rechazar (bounce)', color: 'error' as const },
     { value: 'CANCELLED', label: 'Cancelar', color: 'neutral' as const },
   ]
@@ -51,6 +56,8 @@ export const checkColumns = (actions: {
   onEdit?: (row: Row) => void
   onDelete?: (row: Row) => void
   onDeposit?: (row: Row) => void
+  onResolve?: (row: Row) => void
+  onProcess?: (row: Row) => void
   onRevert?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
   onStatusChange?: (row: Row, newStatus: string) => void
@@ -144,7 +151,14 @@ export const checkColumns = (actions: {
         accessorFn: (row) => row.bank_account ? `${row.bank_account.bank_name} - ${row.bank_account.name}` : '—',
         cell: ({ row }) => {
           const ba = row.original.bank_account
-          if (!ba) return h('span', { class: 'text-muted text-xs' }, 'Sin cuenta asignada')
+          if (!ba) {
+            const label = row.original.is_own
+              ? 'Sin cuenta asignada'
+              : row.original.status === 'CLEARED'
+                ? '—'
+                : 'Se define al depositar'
+            return h('span', { class: 'text-muted text-xs' }, label)
+          }
           return h('div', { class: 'flex flex-col' }, [
             h('span', { class: 'text-sm' }, ba.name),
             h('span', { class: 'text-xs text-muted' }, ba.bank_name)
@@ -179,17 +193,37 @@ export const checkColumns = (actions: {
         id: 'actions',
         label: '',
         cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
+          ...((row.original.is_own && row.original.status === 'CONFIRMED' && new Date(row.original.due_date).getTime() <= Date.now())
+            ? [h(UButton, {
+                icon: 'i-lucide-landmark',
+                size: 'xs',
+                variant: 'soft',
+                color: 'warning',
+                label: 'Procesar débito',
+                onClick: () => actions.onProcess?.(row.original)
+              })]
+            : []),
+          ...((!row.original.is_own && ['PENDING', 'CONFIRMED'].includes(row.original.status))
+            ? [h(UButton, {
+                icon: 'i-lucide-list-checks',
+                size: 'xs',
+                variant: 'soft',
+                color: 'primary',
+                label: 'Resolver',
+                onClick: () => actions.onResolve?.(row.original)
+              })]
+            : []),
           ...((!row.original.is_own && ['PENDING', 'CONFIRMED'].includes(row.original.status))
             ? [h(UButton, {
                 icon: 'i-lucide-building-2',
                 size: 'xs',
                 variant: 'ghost',
                 color: 'success',
-                label: 'Depósitar',
+                label: 'Depositar',
                 onClick: () => actions.onDeposit?.(row.original)
               })]
             : []),
-          ...(row.original.status === 'CLEARED'
+          ...(row.original.status === 'CLEARED' && Boolean(row.original.bank_account_id)
             ? [h(UButton, {
                 icon: 'i-lucide-undo-2',
                 size: 'xs',

@@ -293,6 +293,7 @@ watch(
           })
         }
       }
+      selectedDocs.value = new Map(selectedDocs.value)
       // En solo lectura los documentos saldados ya no aparecen entre los pendientes.
       // Conservar el monto persistido del pago en lugar de recalcularlo como cero.
       if (!props.readonly) {
@@ -303,6 +304,33 @@ watch(
     // Precargar retenciones guardadas (modo edición)
     if (props.initialWithholdings && props.initialWithholdings.length > 0) {
       withholdings.value = [...props.initialWithholdings]
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  [
+    () => props.modelValue?.check_ids,
+    () => props.availableOwnChecks,
+    () => props.availableCustomerChecks
+  ],
+  ([checkIds]) => {
+    if (!checkIds?.length) return
+    const available = [...(props.availableOwnChecks ?? []), ...(props.availableCustomerChecks ?? [])]
+    selectedChecks.value.clear()
+    for (const id of checkIds) {
+      const check = available.find(item => item.id === id)
+      if (check) selectedChecks.value.set(id, check)
+    }
+    if (selectedChecks.value.size > 0) {
+      form.check_ids = Array.from(selectedChecks.value.keys())
+      form.amount = selectedDocs.value.size > 0
+        ? Array.from(selectedDocs.value.values()).reduce((sum, entry) => sum + Number(entry.amount), 0)
+        : Array.from(selectedChecks.value.values()).reduce(
+            (sum, check) => sum + Number(check.available_amount ?? check.amount),
+            0
+          )
     }
   },
   { immediate: true }
@@ -542,6 +570,22 @@ const totalChecksAmount = computed(() => {
   return Math.round(total * 100) / 100
 })
 
+// El cheque se registra siempre por su valor completo. La parte que exceda
+// los documentos queda a favor del proveedor en pagos o del cliente en cobros.
+const checkCreditBalance = computed(() => {
+  if (!isCheck.value || selectedDocs.value.size === 0) return 0
+  return Math.max(0, Math.round((totalChecksAmount.value - totalApplied.value) * 100) / 100)
+})
+
+const checkCreditPartyLabel = computed(() => isCollection.value ? 'cliente' : 'proveedor')
+
+const displayedPaymentAmount = computed(() => {
+  if (isCheck.value && totalChecksAmount.value > 0) return totalChecksAmount.value
+  if (totalApplied.value > 0) return totalApplied.value
+  if (totalChecksAmount.value > 0) return totalChecksAmount.value
+  return Number(form.amount || 0)
+})
+
 // Reparte el presupuesto de cheques entre los documentos seleccionados:
 // cada documento recibe lo aplicado (editable) pero sin exceder el saldo disponible
 const redistributeAppliedAmounts = () => {
@@ -552,6 +596,7 @@ const redistributeAppliedAmounts = () => {
     entry.amount = Math.round(capped * 100) / 100
     budget = Math.round((budget - entry.amount) * 100) / 100
   }
+  selectedDocs.value = new Map(selectedDocs.value)
   form.amount = totalApplied.value
 }
 
@@ -592,6 +637,7 @@ watch(resolvedRate, (newRate) => {
       entry.amount = Number((entry.doc.pending_amount * rate).toFixed(2))
     }
   }
+  selectedDocs.value = new Map(selectedDocs.value)
   form.amount = totalApplied.value
 })
 
@@ -753,6 +799,10 @@ const toggleDoc = (doc: PendingDocument) => {
     selectedDocs.value.set(doc.id, { doc, amount: amountToApply })
   }
 
+  // Map conserva su identidad al usar set/delete. Crear una nueva referencia
+  // permite que PendingDocumentsList actualice el checkbox, el borde y el monto.
+  selectedDocs.value = new Map(selectedDocs.value)
+
   // Auto-set party_id del primer documento seleccionado
   if (selectedDocs.value.size > 0) {
     const firstDoc = selectedDocs.value.values().next().value?.doc
@@ -773,7 +823,8 @@ const toggleDoc = (doc: PendingDocument) => {
 const updateDocAmount = (docId: string, amount: number) => {
   const entry = selectedDocs.value.get(docId)
   if (entry) {
-    entry.amount = amount
+    selectedDocs.value.set(docId, { ...entry, amount })
+    selectedDocs.value = new Map(selectedDocs.value)
     form.amount = totalApplied.value
   }
 }
@@ -811,7 +862,13 @@ const handleSubmit = async () => {
     return
   }
 
-  const paymentAmount = totalApplied.value > 0 ? totalApplied.value : totalChecksAmount.value > 0 ? totalChecksAmount.value : form.amount
+  const paymentAmount = isPayment.value && isCheck.value && totalChecksAmount.value > 0
+    ? totalChecksAmount.value
+    : totalApplied.value > 0
+      ? totalApplied.value
+      : totalChecksAmount.value > 0
+        ? totalChecksAmount.value
+        : form.amount
 
   // Retenciones: usar las cargadas/confirmadas en el formulario
   const validWithholdings = withholdings.value.filter(w => Number(w.withheld_amount) > 0)
@@ -824,19 +881,14 @@ const handleSubmit = async () => {
     amount_applied: d.amount
   }))
 
-  // Asignación de cheques: distribuye secuencialmente hasta cubrir lo aplicado
-  const buildCheckAllocations = (totalToCover: number) => {
+  // Un cheque físico se recibe o se entrega por su valor completo. Los
+  // documentos conservan por separado el importe efectivamente aplicado.
+  const buildCheckAllocations = () => {
     if (!isCheck.value || selectedChecks.value.size === 0) return undefined
-    let remaining = Math.round(totalToCover * 100) / 100
-    const allocations: { check_id: string; amount_applied: number }[] = []
-    for (const [id, check] of selectedChecks.value.entries()) {
-      if (remaining <= 0.009) break
-      const available = checkAvailableAmount(check)
-      const applied = Math.min(available, remaining)
-      allocations.push({ check_id: id, amount_applied: Math.round(applied * 100) / 100 })
-      remaining = Math.round((remaining - applied) * 100) / 100
-    }
-    return allocations.length > 0 ? allocations : undefined
+    return Array.from(selectedChecks.value.entries()).map(([id, check]) => ({
+      check_id: id,
+      amount_applied: Math.round(checkAvailableAmount(check) * 100) / 100
+    }))
   }
 
   // Distribuir retenciones proporcionalmente entre documentos aplicados
@@ -871,7 +923,7 @@ const handleSubmit = async () => {
     amount: cashAmount,
     account_id: form.account_id || undefined,
     check_ids: undefined,
-    checks: buildCheckAllocations(paymentAmount),
+    checks: buildCheckAllocations(),
     withholdings: withholdingsPayload.length > 0 ? withholdingsPayload : undefined,
     documents: documentsData.length > 0 ? documentsData : undefined
   }
@@ -1228,6 +1280,14 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
           </div>
         </div>
       </div>
+      <UAlert
+        v-if="checkCreditBalance > 0"
+        color="info"
+        variant="subtle"
+        icon="i-lucide-circle-dollar-sign"
+        title="El cheque supera la deuda seleccionada"
+        :description="`El cheque se registrará por su valor completo. ${formatCurrency(checkCreditBalance, form.currency_code)} quedarán como saldo a favor del ${checkCreditPartyLabel}.`"
+      />
     </div>
 
     <!-- SELECTOR DE CUENTA BANCARIA (TRANSFERENCIA) -->
@@ -1413,7 +1473,11 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
     <div class="sticky bottom-0 bg-default border-t border-default -mx-4 px-4 py-3 flex items-center justify-between">
       <div class="text-sm space-y-0.5">
         <div class="font-semibold">
-          Total: {{ formatCurrency(totalApplied > 0 ? totalApplied : totalChecksAmount > 0 ? totalChecksAmount : form.amount, form.currency_code) }}
+          Total: {{ formatCurrency(displayedPaymentAmount, form.currency_code) }}
+        </div>
+        <div v-if="checkCreditBalance > 0" class="text-info text-xs">
+          Deuda aplicada: {{ formatCurrency(totalApplied, form.currency_code) }} ·
+          Saldo a favor del {{ checkCreditPartyLabel }}: {{ formatCurrency(checkCreditBalance, form.currency_code) }}
         </div>
         <div v-if="totalWithheld > 0" class="text-muted text-xs">
           Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·

@@ -41,6 +41,10 @@ const editRow = ref<any>(null)
 
 // Transfer modal
 const showTransferModal = ref(false)
+const showReservationModal = ref(false)
+const reservations = ref<any[]>([])
+const reservationSaving = ref(false)
+const reservationForm = reactive({ product_id: '', quantity: 1, reason: '', expires_at: '' })
 
 // Movement history
 const showMovements = ref(false)
@@ -111,6 +115,59 @@ async function handleTransfer(data: { from_warehouse_id: string; to_warehouse_id
     })
   }
 }
+
+async function loadReservations() {
+  reservations.value = await $fetch<any[]>('/api/backend/warehouse/stock-reservations', {
+    query: { warehouse_id: warehouseId.value }
+  }).catch(() => [])
+}
+
+async function createReservation() {
+  if (!reservationForm.product_id || reservationForm.quantity <= 0 || !reservationForm.reason.trim()) {
+    toast.add({ title: 'Completá producto, cantidad y motivo', color: 'warning' })
+    return
+  }
+  reservationSaving.value = true
+  try {
+    await $fetch('/api/backend/warehouse/stock-reservations', {
+      method: 'POST',
+      body: {
+        warehouse_id: warehouseId.value,
+        product_id: reservationForm.product_id,
+        quantity: Number(reservationForm.quantity),
+        reason: reservationForm.reason,
+        expires_at: reservationForm.expires_at || undefined
+      }
+    })
+    Object.assign(reservationForm, { product_id: '', quantity: 1, reason: '', expires_at: '' })
+    showReservationModal.value = false
+    await Promise.all([stockStore.fetchStock(warehouseId.value), loadReservations()])
+    toast.add({ title: 'Stock reservado', description: 'La existencia física no cambió; se redujo la disponibilidad.', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo reservar', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    reservationSaving.value = false
+  }
+}
+
+async function releaseReservation(id: string) {
+  try {
+    await $fetch(`/api/backend/warehouse/stock-reservations/${id}/release`, { method: 'PATCH' })
+    await Promise.all([stockStore.fetchStock(warehouseId.value), loadReservations()])
+    toast.add({ title: 'Reserva liberada', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo liberar', description: error?.data?.message || error?.message, color: 'error' })
+  }
+}
+
+const reservableProductOptions = computed(() => stock.value
+  .filter(item => Number(item.quantity) - Number(item.reserved_quantity) > 0)
+  .map(item => ({
+    label: `${(item as any).products?.sku ? `${(item as any).products.sku} · ` : ''}${(item as any).products?.name || item.product_id} · disponible: ${Number(item.quantity) - Number(item.reserved_quantity)}`,
+    value: item.product_id
+  })))
+
+const activeReservations = computed(() => reservations.value.filter(item => ['ACTIVE', 'PARTIALLY_CONSUMED'].includes(item.status)))
 
 // Load movements
 async function loadMovements() {
@@ -257,9 +314,15 @@ const productsWithoutAvailability = computed(() => stock.value.filter(item =>
   Number(item.quantity) - Number(item.reserved_quantity) <= 0
 ).length)
 
-type QuickStockFilter = 'reserved' | 'unavailable'
+type QuickStockFilter = 'stored' | 'available' | 'reserved' | 'unavailable'
 const quickStockFilter = ref<QuickStockFilter | null>(null)
 const visibleStock = computed(() => {
+  if (quickStockFilter.value === 'stored') {
+    return stock.value
+  }
+  if (quickStockFilter.value === 'available') {
+    return stock.value.filter(item => Number(item.quantity) - Number(item.reserved_quantity) > 0)
+  }
   if (quickStockFilter.value === 'reserved') {
     return stock.value.filter(item => Number(item.reserved_quantity) > 0)
   }
@@ -272,6 +335,16 @@ const visibleStock = computed(() => {
 function toggleQuickStockFilter(filter: QuickStockFilter) {
   quickStockFilter.value = quickStockFilter.value === filter ? null : filter
 }
+
+const quickStockFilterMeta = computed(() => {
+  const filters = {
+    stored: { label: 'Productos almacenados', color: 'primary' },
+    available: { label: 'Con disponibilidad', color: 'success' },
+    reserved: { label: 'Con reservas', color: 'warning' },
+    unavailable: { label: 'Sin disponibilidad', color: 'error' }
+  } as const
+  return quickStockFilter.value ? filters[quickStockFilter.value] : null
+})
 
 const stockFilterFields = [
   { id: 'products', label: 'Buscar por producto...', icon: 'i-lucide-search', class: 'w-64' },
@@ -295,11 +368,19 @@ onMounted(async () => {
     depositosStore.fetchAll(),
     stockStore.fetchStock(warehouseId.value),
     unitsStore.fetchAll(),
-    locationsStore.fetchAll()
+    locationsStore.fetchAll(),
+    loadReservations()
   ])
 })
 
 const links = ref<ButtonProps[]>([
+  {
+    label: 'Reservar stock',
+    icon: 'i-lucide-bookmark-plus',
+    onClick: () => { showReservationModal.value = true },
+    color: 'warning',
+    variant: 'outline'
+  },
   {
     label: 'Transferir',
     icon: 'i-lucide-arrow-right-left',
@@ -366,10 +447,28 @@ const links = ref<ButtonProps[]>([
     <template v-else>
       <!-- Summary Cards -->
       <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <UPageCard variant="subtle">
+        <UPageCard
+          variant="subtle"
+          role="button"
+          tabindex="0"
+          :aria-pressed="quickStockFilter === 'stored'"
+          class="cursor-pointer transition hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary"
+          :class="quickStockFilter === 'stored' ? 'border-primary bg-primary/10 ring-1 ring-primary' : ''"
+          @click="toggleQuickStockFilter('stored')"
+          @keydown.enter.space.prevent="toggleQuickStockFilter('stored')"
+        >
           <div class="flex items-center gap-3"><div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-package" class="size-5" /></div><div><p class="text-xs text-muted">Productos almacenados</p><p class="text-2xl font-semibold">{{ stock.length }}</p></div></div>
         </UPageCard>
-        <UPageCard variant="subtle">
+        <UPageCard
+          variant="subtle"
+          role="button"
+          tabindex="0"
+          :aria-pressed="quickStockFilter === 'available'"
+          class="cursor-pointer transition hover:border-success/50 hover:bg-success/5 focus-visible:outline-2 focus-visible:outline-success"
+          :class="quickStockFilter === 'available' ? 'border-success bg-success/10 ring-1 ring-success' : ''"
+          @click="toggleQuickStockFilter('available')"
+          @keydown.enter.space.prevent="toggleQuickStockFilter('available')"
+        >
           <div class="flex items-center gap-3"><div class="rounded-lg bg-success/10 p-2 text-success"><UIcon name="i-lucide-package-check" class="size-5" /></div><div><p class="text-xs text-muted">Con disponibilidad</p><p class="text-2xl font-semibold text-success">{{ productsWithAvailability }}</p></div></div>
         </UPageCard>
         <UPageCard
@@ -405,9 +504,9 @@ const links = ref<ButtonProps[]>([
             <h3 class="text-sm font-semibold">Productos en este depósito</h3>
             <div class="flex items-center gap-2">
               <UBadge
-                v-if="quickStockFilter"
-                :label="quickStockFilter === 'reserved' ? 'Con reservas' : 'Sin disponibilidad'"
-                :color="quickStockFilter === 'reserved' ? 'warning' : 'error'"
+                v-if="quickStockFilterMeta"
+                :label="quickStockFilterMeta.label"
+                :color="quickStockFilterMeta.color"
                 variant="subtle"
               />
               <span class="text-sm text-muted">
@@ -428,6 +527,29 @@ const links = ref<ButtonProps[]>([
           :filter-fields="stockFilterFields"
           :sort-fields="stockSortFields"
         />
+      </UCard>
+
+      <UCard v-if="activeReservations.length">
+        <template #header>
+          <div><h3 class="text-sm font-semibold">Reservas activas</h3><p class="text-xs text-muted">Origen y saldo comprometido sin salida física.</p></div>
+        </template>
+        <div class="divide-y divide-default">
+          <div v-for="reservation in activeReservations" :key="reservation.id" class="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="font-medium">{{ reservation.product?.name }}</p>
+                <UBadge :label="reservation.reservation_type === 'MANUAL' ? 'Manual' : 'Orden de venta'" :color="reservation.reservation_type === 'MANUAL' ? 'warning' : 'primary'" variant="soft" />
+              </div>
+              <p class="text-sm text-muted">{{ reservation.reason || 'Sin motivo' }}</p>
+              <NuxtLink v-if="reservation.source_type === 'SALES_ORDER' && reservation.source_id" :to="`/erp/sales/${reservation.source_id}`" class="text-xs font-medium text-primary hover:underline">Ver Orden de Venta</NuxtLink>
+              <p v-if="reservation.expires_at" class="text-xs text-muted">Vence: {{ new Date(reservation.expires_at).toLocaleDateString('es-AR') }}</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="text-right"><p class="text-xs text-muted">Pendiente</p><p class="font-semibold tabular-nums text-warning">{{ Number(reservation.quantity_reserved) - Number(reservation.quantity_consumed) - Number(reservation.quantity_released) }}</p></div>
+              <UButton v-if="reservation.reservation_type === 'MANUAL'" label="Liberar" icon="i-lucide-unlock" size="xs" color="neutral" variant="outline" @click="releaseReservation(reservation.id)" />
+            </div>
+          </div>
+        </div>
       </UCard>
 
       <!-- Movements History -->
@@ -497,5 +619,29 @@ const links = ref<ButtonProps[]>([
       :warehouses="warehouses"
       @submit="handleTransfer"
     />
+
+    <UModal v-model:open="showReservationModal" title="Reserva manual de stock" description="Compromete disponibilidad sin retirar físicamente el producto.">
+      <template #body>
+        <div class="space-y-4">
+          <UAlert color="neutral" variant="subtle" icon="i-lucide-info" title="El stock sigue dentro del depósito" description="La reserva reduce lo disponible para ventas posteriores. Podrás liberarla mientras no haya sido consumida." />
+          <UFormField label="Producto" required>
+            <USelectMenu v-model="reservationForm.product_id" :items="reservableProductOptions" value-key="value" searchable placeholder="Buscar producto con disponibilidad" class="w-full" />
+          </UFormField>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="Cantidad" required><UInput v-model.number="reservationForm.quantity" type="number" min="0.001" step="any" class="w-full" /></UFormField>
+            <UFormField label="Vence el" help="Opcional"><UInput v-model="reservationForm.expires_at" type="datetime-local" class="w-full" /></UFormField>
+          </div>
+          <UFormField label="Motivo" required help="Indicá para qué cliente, proyecto o situación se compromete.">
+            <UTextarea v-model="reservationForm.reason" :rows="3" placeholder="Ej.: reserva preventiva para cliente…" class="w-full" />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton label="Cancelar" color="neutral" variant="ghost" @click="showReservationModal = false" />
+          <UButton label="Crear reserva" icon="i-lucide-bookmark-plus" :loading="reservationSaving" @click="createReservation" />
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
