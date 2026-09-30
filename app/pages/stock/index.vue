@@ -19,6 +19,11 @@ const shortcuts = computed(() => [
     icon: 'i-lucide-warehouse'
   },
   {
+    label: 'Disponibilidad',
+    to: '/stock/disponibilidad',
+    icon: 'i-lucide-chart-no-axes-combined'
+  },
+  {
     label: 'BOM',
     to: '/bom',
     icon: 'i-lucide-git-branch'
@@ -46,6 +51,10 @@ const sections = [
       {
         label: 'Depósitos',
         to: '/productos/warehouses'
+      },
+      {
+        label: 'Disponibilidad comercial',
+        to: '/stock/disponibilidad'
       }
     ]
   },

@@ -24,7 +24,7 @@ export function useInternationalOperations() {
   )
 
   const enabledContainerStatusOptions = computed(() =>
-    containerStatusOptions.filter(s => settingsStore.isContainerStatusEnabled(s.value))
+    containerStatusOptions.filter(s => ['RECEIVING', 'DELIVERED', 'CLOSED'].includes(s.value) || settingsStore.isContainerStatusEnabled(s.value))
   )
 
   const init = async (params?: { status?: string; search?: string; page?: number; limit?: number }) => {
@@ -52,6 +52,7 @@ export function useInternationalOperations() {
   const createContainer = async (opId: string, payload: CreateContainerInput) => store.createContainer(opId, payload)
   const findOneContainer = async (containerId: string) => store.findOneContainer(containerId)
   const updateContainer = async (containerId: string, payload: UpdateContainerInput) => store.updateContainer(containerId, payload)
+  const syncContainerTransitStock = async (containerId: string) => store.syncContainerTransitStock(containerId)
   const removeContainer = async (containerId: string) => store.removeContainer(containerId)
   const deliverContainer = async (containerId: string, destinationWarehouseId: string) => store.deliverContainer(containerId, destinationWarehouseId)
   const createEvent = async (containerId: string, payload: CreateEventInput) => store.createEvent(containerId, payload)
@@ -78,6 +79,7 @@ export function useInternationalOperations() {
     { label: 'Arribado', value: 'ARRIVED', color: 'warning' },
     { label: 'Aduana', value: 'CUSTOMS', color: 'primary' },
     { label: 'Liberado', value: 'RELEASED', color: 'success' },
+    { label: 'Recepción pendiente', value: 'RECEIVING', color: 'warning' },
     { label: 'Entregado', value: 'DELIVERED', color: 'success' },
     { label: 'Cerrado', value: 'CLOSED', color: 'success' }
   ]
@@ -119,6 +121,7 @@ export function useInternationalOperations() {
       ARRIVED: 'warning',
       CUSTOMS: 'primary',
       RELEASED: 'success',
+      RECEIVING: 'warning',
       DELIVERED: 'success',
       CLOSED: 'success'
     }
@@ -181,6 +184,7 @@ export function useInternationalOperations() {
     ARRIVED: { label: 'Arribado', description: 'Llegó al puerto de destino.' },
     CUSTOMS: { label: 'En Aduana', description: 'En proceso de despacho aduanero.' },
     RELEASED: { label: 'Liberado', description: 'Autorizado por aduana, pronto a retirar.' },
+    RECEIVING: { label: 'Recepción pendiente', description: 'Remito generado y pendiente de confirmar contra el depósito real.' },
     DELIVERED: { label: 'Entregado', description: 'Descargado en el depósito o destino final.' },
     CLOSED: { label: 'Cerrado', description: 'Ciclo completado: vacío devuelto o fuera de uso.' }
   }
@@ -229,6 +233,7 @@ export function useInternationalOperations() {
     createContainer,
     findOneContainer,
     updateContainer,
+    syncContainerTransitStock,
     removeContainer,
     deliverContainer,
     createEvent,

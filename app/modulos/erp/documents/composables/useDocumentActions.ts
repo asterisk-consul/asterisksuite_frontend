@@ -305,7 +305,11 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       deliverModalOpen.value = false
       router.push(`/erp/remitos/${newDoc.id}`)
     } catch (e: any) {
-      toast.add({ title: 'Error', description: e?.data?.message, color: 'error' })
+      toast.add({
+        title: 'No se puede crear el remito',
+        description: e?.data?.message ?? 'Revisá las condiciones de entrega configuradas para esta operación.',
+        color: 'error'
+      })
     } finally { processing.value = false }
   }
 

@@ -308,6 +308,19 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
+  const syncContainerTransitStock = async (containerId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      return await service.syncContainerTransitStock(containerId)
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al sincronizar el stock en tránsito'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   const deliverContainer = async (containerId: string, destinationWarehouseId: string) => {
     try {
       loading.value = true
@@ -434,6 +447,7 @@ export const useInternationalOperationsStore = defineStore('international-operat
     createContainer,
     findOneContainer,
     updateContainer,
+    syncContainerTransitStock,
     removeContainer,
     deliverContainer,
     createEvent,

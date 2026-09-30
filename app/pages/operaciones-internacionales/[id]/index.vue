@@ -174,7 +174,9 @@ const operationStatusItems = computed(() =>
 )
 
 const getContainerStatusItems = (container: any) =>
-  containerStatusOptions.value.map((s) => ({
+  containerStatusOptions.value
+    .filter(s => !['RECEIVING', 'DELIVERED'].includes(s.value))
+    .map((s) => ({
     label: s.value === container.status ? `${s.label} (actual)` : s.label,
     disabled: s.value === container.status,
     onSelect: () => handleContainerStatusChange(container.id, s.value as ContainerStatus)

@@ -420,13 +420,14 @@ export const navigationTree: DrilldownNode[] = [
     label: 'Stock',
     icon: 'i-lucide-box',
     to: '/stock',
-    permission: 'products.read',
+    permissions: ['products.read', 'stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'],
     children: [
-      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/stock' },
+      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/stock', permission: 'products.read' },
       {
         label: 'Productos',
         icon: 'i-lucide-package',
         to: '/productos',
+        permission: 'products.read',
         children: [
           { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
           { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
@@ -435,7 +436,8 @@ export const navigationTree: DrilldownNode[] = [
           { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party' }
         ]
       },
-      { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' }
+      { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
+      { label: 'Disponibilidad', icon: 'i-lucide-chart-no-axes-combined', to: '/stock/disponibilidad', permissions: ['stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'] }
     ]
   },
 

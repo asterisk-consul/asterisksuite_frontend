@@ -92,6 +92,7 @@ const breadcrumbMap: Record<
   'vehicle-combinations': { label: 'Flota' },
   warehouse: { label: 'Depósitos' },
   warehouses: { label: 'Depósitos', to: '/productos/warehouses' },
+  disponibilidad: { label: 'Disponibilidad' },
   'transport-document': { label: 'Documentación de transporte' },
 
   // master data
@@ -229,6 +230,7 @@ const routeSegmentLabels: Record<string, string> = {
   vehicles: 'Vehículos',
   'vehicles-combinations': 'Flota',
   warehouses: 'Depósitos',
+  disponibilidad: 'Disponibilidad',
   withholdings: 'Retenciones',
   'vales-periodo': 'Vales por período',
   salesProducts: 'Productos vendidos',

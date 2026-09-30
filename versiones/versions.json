@@ -1,5 +1,57 @@
 [
   {
+    "version": "0.64.0-alpha",
+    "date": "2026-09-30",
+    "stage": "alpha",
+    "notes": "El stock internacional queda vinculado al avance real del contenedor y Ventas incorpora una vista completa para conocer la disponibilidad actual y proyectada de cada producto.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Los contenedores incorporan el estado fijo Recepción pendiente y solo pueden cerrarse después de completar la recepción del stock"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Registrar recepción genera o recupera un remito de compra en borrador y mueve el stock al depósito real únicamente al confirmarlo"
+      },
+      {
+        "type": "fix",
+        "scope": "international-stock",
+        "title": "El ingreso al depósito de tránsito se ejecuta al embarcar el contenedor y puede sincronizarse de forma segura para operaciones existentes"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-delivery",
+        "title": "El aviso al crear un remito explica el porcentaje cobrado, el porcentaje requerido y si falta una factura asociada"
+      },
+      {
+        "type": "feat",
+        "scope": "stock",
+        "title": "La nueva vista Disponibilidad muestra stock físico, reservas, disponible inmediato y mercadería en tránsito por producto"
+      },
+      {
+        "type": "feat",
+        "scope": "stock",
+        "title": "La proyección permite consultar disponibilidad a 7, 15, 30, 60 o 90 días con fecha de arribo y contenedor relacionado"
+      },
+      {
+        "type": "feat",
+        "scope": "stock",
+        "title": "El detalle expandible informa cantidades por depósito y por contenedor con acceso directo a cada registro"
+      },
+      {
+        "type": "security",
+        "scope": "stock",
+        "title": "La disponibilidad comercial es accesible para responsables de stock y usuarios de ventas, además de owner y administradores"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Stock internacional sincronizado y disponibilidad comercial proyectada"
+  },
+  {
     "version": "0.63.0-alpha",
     "date": "2026-09-29",
     "stage": "alpha",
