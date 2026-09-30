@@ -106,6 +106,12 @@ export function getStatusColor(category: string | null | undefined, status: numb
   return COLOR_MAPS[category ?? '']?.[status] ?? 'neutral'
 }
 
+export function isDocumentCancelled(category: string | null | undefined, status: number): boolean {
+  if (category === 'QUOTE') return status === 6
+  if (category === 'ORDER') return status === 8
+  return status === 3
+}
+
 const DESCRIPTION_MAPS: Record<string, Record<number, string>> = {
   QUOTE: QUOTE_STATUS_DESCRIPTIONS,
   ORDER: ORDER_STATUS_DESCRIPTIONS,

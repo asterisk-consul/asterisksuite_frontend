@@ -1,5 +1,57 @@
 [
   {
+    "version": "0.65.0-alpha",
+    "date": "2026-09-30",
+    "stage": "alpha",
+    "notes": "Las facturas y los pagos incorporan una anulación trazable, filtros operativos y recuperación desde la papelera sin alterar los saldos reales.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Las facturas de ventas y compras pueden anularse cuando no tienen pagos activos asociados"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "La anulación retira los movimientos de la vista operativa y recalcula el saldo sin perder la trazabilidad interna"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-flow",
+        "title": "En el circuito OV más factura, anular la factura elimina su reemplazo contable y conserva la deuda correspondiente a la orden"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Ventas, compras y pagos permiten ocultar o mostrar registros anulados desde sus listados"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Las facturas y pagos anulados pueden enviarse a la papelera y restaurarse conservando ítems, impuestos y asociaciones"
+      },
+      {
+        "type": "security",
+        "scope": "trash",
+        "title": "Los documentos y pagos con valor de auditoría no admiten eliminación física definitiva"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Los documentos enviados a la papelera quedan excluidos de los listados y de sus rutas operativas"
+      },
+      {
+        "type": "style",
+        "scope": "settings",
+        "title": "La Papelera incorpora acceso con icono en Configuración y puede encontrarse desde los buscadores"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Anulación trazable de comprobantes y recuperación segura desde la papelera"
+  },
+  {
     "version": "0.64.0-alpha",
     "date": "2026-09-30",
     "stage": "alpha",

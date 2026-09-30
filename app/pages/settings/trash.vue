@@ -5,18 +5,20 @@ definePageMeta({
 
 import { useTrashStore } from '~/modulos/trash/store/trash.store'
 import { TRASH_TABLES } from '~/modulos/trash/types/trash.types'
+import type { TrashTable } from '~/modulos/trash/types/trash.types'
 
 const store = useTrashStore()
 const toast = useToast()
 
 const search = ref('')
-const filterTable = ref<string | undefined>(undefined)
+const filterTable = ref<TrashTable | undefined>(undefined)
 const filterDays = ref<number>(30)
 const selectedIds = ref<string[]>([])
 const showDetailModal = ref(false)
 const showHardDeleteModal = ref(false)
 const selectedItem = ref<any>(null)
 const actionLoading = ref(false)
+const auditProtectedTables = new Set(['documents', 'payments'])
 
 const DAY_OPTIONS = [
   { label: 'Últimos 7 días', value: 7 },
@@ -72,7 +74,8 @@ const TABLE_LABELS: Record<string, string> = {
   product_variants: 'Variantes de producto',
   units: 'Unidades',
   currency_rates: 'Tasas de cambio',
-  currencies: 'Monedas'
+  currencies: 'Monedas',
+  payments: 'Pagos y cobros'
 }
 
 const TABLE_OPTIONS = TRASH_TABLES.map(t => ({ label: TABLE_LABELS[t] || t, value: t }))
@@ -147,6 +150,10 @@ function parseSelection() {
   return result
 }
 
+const selectionContainsAuditRecords = computed(() =>
+  parseSelection().some(group => auditProtectedTables.has(group.table))
+)
+
 async function restoreSelected() {
   if (selectedIds.value.length === 0) return
   actionLoading.value = true
@@ -154,7 +161,7 @@ async function restoreSelected() {
     const groups = parseSelection()
     for (const group of groups) {
       if (group.ids.length === 1) {
-        await store.restore(group.table, group.ids[0])
+        await store.restore(group.table, group.ids[0]!)
       } else {
         await store.restoreMany(group.table, group.ids)
       }
@@ -182,6 +189,14 @@ async function restoreOne(item: any) {
 
 function confirmHardDelete() {
   if (selectedIds.value.length === 0) return
+  if (selectionContainsAuditRecords.value) {
+    toast.add({
+      title: 'Estos registros conservan su trazabilidad',
+      description: 'Las facturas, pagos y cobros pueden restaurarse, pero no eliminarse definitivamente.',
+      color: 'warning'
+    })
+    return
+  }
   showHardDeleteModal.value = true
 }
 
@@ -248,7 +263,12 @@ onMounted(() => {
     </div>
 
     <div v-if="selectedIds.length > 0" class="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-      <span class="text-sm font-medium">{{ selectedIds.length }} seleccionado(s)</span>
+      <div>
+        <p class="text-sm font-medium">{{ selectedIds.length }} seleccionado(s)</p>
+        <p v-if="selectionContainsAuditRecords" class="text-xs text-muted">
+          Las facturas, pagos y cobros se pueden restaurar, pero conservan su auditoría permanentemente.
+        </p>
+      </div>
       <div class="flex gap-2 ms-auto">
         <UButton
           label="Restaurar"
@@ -266,6 +286,7 @@ onMounted(() => {
           variant="soft"
           size="sm"
           :loading="actionLoading"
+          :title="selectionContainsAuditRecords ? 'Las facturas, pagos y cobros deben conservarse por trazabilidad' : undefined"
           @click="confirmHardDelete"
         />
       </div>

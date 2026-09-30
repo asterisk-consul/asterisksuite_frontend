@@ -13,6 +13,7 @@ type DocumentActionsConfig = {
     cancel: (id: string) => Promise<any>
     changeStatus: (id: string, status: number) => Promise<any>
     fetchOne: (id: string) => Promise<any>
+    remove?: (id: string) => Promise<any>
     accept?: (id: string) => Promise<any>
     deliver?: (id: string) => Promise<any>
   }
@@ -32,10 +33,20 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const toast = useToast()
   const { can: canDocument } = useDocumentPermissions()
 
+  const getErrorMessage = (error: any, fallback: string) => {
+    const message = error?.data?.message
+      ?? error?.data?.error?.message
+      ?? error?.response?._data?.message
+      ?? error?.statusMessage
+    if (Array.isArray(message)) return message.join('. ')
+    return typeof message === 'string' && message.trim() ? message : fallback
+  }
+
   // ─── State ──────────────────────────────────────────────
   const processing = ref(false)
   const confirmModalOpen = ref(false)
   const cancelModalOpen = ref(false)
+  const deleteModalOpen = ref(false)
   const statusModalOpen = ref(false)
   const acceptModalOpen = ref(false)
   const deliverModalOpen = ref(false)
@@ -190,8 +201,20 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     const canCreateRemito = canDocument(module, 'REMITO', 'create')
     const canCreateInvoice = canDocument(module, 'INVOICE', 'create')
 
-    if (isDraft.value && canDocument(module, category.value, 'cancel')) {
+    const canCancelCurrent = isDraft.value
+      || (category.value === 'INVOICE' && (isPending.value || isConfirmed.value))
+    if (canCancelCurrent && canDocument(module, category.value, 'cancel')) {
       items.push([{ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onClick: () => { cancelModalOpen.value = true } }])
+    }
+
+    if (category.value === 'INVOICE' && doc.value?.status === 3 && store.remove
+      && canDocument(module, category.value, 'delete')) {
+      items.push([{
+        label: 'Enviar a papelera',
+        icon: 'i-lucide-trash-2',
+        color: 'error',
+        onClick: () => { deleteModalOpen.value = true }
+      }])
     }
 
     if (validTransitions.value.length > 0 && canDocument(module, category.value, 'update')) {
@@ -255,7 +278,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       confirmModalOpen.value = false
       updateProductPrices.value = false
     } catch (e: any) {
-      toast.add({ title: 'Error', description: e?.data?.message, color: 'error' })
+      toast.add({ title: 'No se pudo confirmar el documento', description: getErrorMessage(e, 'Revisá los datos del documento.'), color: 'error' })
     } finally { processing.value = false }
   }
 
@@ -267,7 +290,25 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       toast.add({ title: 'Documento anulado', color: 'success' })
       cancelModalOpen.value = false
     } catch (e: any) {
-      toast.add({ title: 'Error', description: e?.data?.message, color: 'error' })
+      toast.add({
+        title: 'No se puede anular la factura',
+        description: getErrorMessage(e, 'Revisá si tiene pagos asociados o efectos operativos que todavía no pueden revertirse.'),
+        color: 'error',
+        icon: 'i-lucide-circle-alert'
+      })
+    } finally { processing.value = false }
+  }
+
+  async function handleRemove() {
+    if (!store.remove) return
+    try {
+      processing.value = true
+      await store.remove(id.value)
+      toast.add({ title: 'Documento enviado a la papelera', color: 'success' })
+      deleteModalOpen.value = false
+      await router.push(module === 'sales' ? '/erp/sales' : '/erp/purchases')
+    } catch (e: any) {
+      toast.add({ title: 'No se pudo enviar a la papelera', description: e?.data?.message ?? e?.message, color: 'error' })
     } finally { processing.value = false }
   }
 
@@ -318,6 +359,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     processing,
     confirmModalOpen,
     cancelModalOpen,
+    deleteModalOpen,
     statusModalOpen,
     acceptModalOpen,
     deliverModalOpen,
@@ -337,6 +379,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     // Handlers
     handleConfirm,
     handleCancel,
+    handleRemove,
     handleStatus,
     handleAccept,
     handleDeliver,

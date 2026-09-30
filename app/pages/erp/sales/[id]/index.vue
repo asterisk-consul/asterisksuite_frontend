@@ -72,6 +72,7 @@ const {
   secondaryActions,
   confirmModalOpen,
   cancelModalOpen,
+  deleteModalOpen,
   statusModalOpen,
   acceptModalOpen,
   deliverModalOpen,
@@ -80,6 +81,7 @@ const {
   invoiceState,
   handleConfirm,
   handleCancel,
+  handleRemove,
   handleStatus,
   handleAccept,
   handleDeliver,
@@ -95,6 +97,7 @@ const {
     cancel: (id) => store.cancel(id),
     changeStatus: (id, status) => store.changeStatus(id, status),
     fetchOne: (id) => store.fetchOne(id),
+    remove: (id) => store.remove(id),
     accept: (id) => store.accept(id),
     deliver: (id) => store.deliver(id),
   },
@@ -167,6 +170,17 @@ const {
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="cancelModalOpen = false" />
         <UButton label="Anular" color="error" :loading="processing" @click="handleCancel" />
+      </div>
+    </template>
+  </UModal>
+
+  <UModal v-model:open="deleteModalOpen" title="Enviar factura a la papelera">
+    <template #body>
+      <p>La factura anulada <strong>#{{ doc?.number }}</strong> dejará de aparecer en el circuito habitual.</p>
+      <p class="text-sm text-muted mt-2">Se conserva su historial y podrá restaurarse desde la papelera.</p>
+      <div class="flex justify-end gap-2 pt-4">
+        <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
+        <UButton label="Enviar a papelera" color="error" :loading="processing" @click="handleRemove" />
       </div>
     </template>
   </UModal>

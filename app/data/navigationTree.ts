@@ -495,7 +495,8 @@ export const navigationTree: DrilldownNode[] = [
       { label: 'Fiscal e impuestos', icon: 'i-lucide-percent', to: '/settings/fiscal-config', permission: 'companies.read' },
       { label: 'Usuarios', icon: 'i-lucide-users', to: '/settings/users', permission: 'roles.read' },
       { label: 'Roles y permisos', icon: 'i-lucide-shield', to: '/settings/roles', permission: 'roles.read' },
-      { label: 'Notificaciones', icon: 'i-lucide-bell', to: '/settings/notifications' }
+      { label: 'Notificaciones', icon: 'i-lucide-bell', to: '/settings/notifications' },
+      { label: 'Papelera', icon: 'i-lucide-trash-2', to: '/settings/trash', permission: 'trash.read' }
     ]
   }
 ]

@@ -5,7 +5,7 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import GenerateFromTripsModal from '~/components/sales/GenerateFromTripsModal.vue'
-import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
+import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor, isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 import { canSettleDocument, getDocumentPaymentSummary, isDocumentFullyPaid } from '~/modulos/erp/documents/utils/document-payment-status'
 
@@ -38,6 +38,7 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
 const categoryFilter = ref<string | undefined>(undefined)
 const statusFilter = ref<number | undefined>(undefined)
 const showFullyPaid = ref(true)
+const showCancelled = ref(false)
 const generateResult = ref<{ total_trips: number; results: any[] } | null>(null)
 const showGenerateModal = ref(false)
 
@@ -97,12 +98,16 @@ const statusOptions = computed(() =>
 )
 
 const visibleDocuments = computed(() => {
-  const rows = documents.value ?? []
-  return showFullyPaid.value ? rows : rows.filter(document => !isDocumentFullyPaid(document))
+  let rows = documents.value ?? []
+  if (!showCancelled.value) rows = rows.filter(document => !isDocumentCancelled(document.document_types?.category, document.status))
+  if (!showFullyPaid.value) rows = rows.filter(document => !isDocumentFullyPaid(document))
+  return rows
 })
 
 const financialStats = computed(() => {
-  const rows = documents.value ?? []
+  const rows = (documents.value ?? []).filter(document =>
+    !isDocumentCancelled(document.document_types?.category, document.status)
+  )
   const summaries = rows.map(getDocumentPaymentSummary).filter(summary => summary.applies)
   return {
     visible: visibleDocuments.value.length,
@@ -174,16 +179,16 @@ async function deleteDrafts(rows: any[]) {
     toast.add({ title: 'No tenés permiso para eliminar uno o más tipos de documento', color: 'warning' })
     return
   }
-  const drafts = rows.filter(row => row.status === 0)
-  if (drafts.length !== rows.length) {
-    toast.add({ title: 'Solo se pueden eliminar documentos en borrador', color: 'warning' })
+  const removable = rows.filter(row => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3))
+  if (removable.length !== rows.length) {
+    toast.add({ title: 'Solo se pueden enviar a la papelera documentos en borrador o anulados', color: 'warning' })
     return
   }
   try {
-    for (const document of drafts) await documentsSalesStore.remove(document.id)
-    toast.add({ title: `${drafts.length} borrador${drafts.length === 1 ? '' : 'es'} eliminado${drafts.length === 1 ? '' : 's'}`, color: 'success' })
+    for (const document of removable) await documentsSalesStore.remove(document.id)
+    toast.add({ title: `${removable.length} documento${removable.length === 1 ? '' : 's'} enviado${removable.length === 1 ? '' : 's'} a la papelera`, color: 'success' })
   } catch (e: any) {
-    toast.add({ title: 'No se pudieron eliminar todos los borradores', description: e?.data?.message || e?.message, color: 'error' })
+    toast.add({ title: 'No se pudieron enviar los documentos a la papelera', description: e?.data?.message || e?.message, color: 'error' })
     await refresh()
   }
 }
@@ -291,9 +296,11 @@ const sortFields = [
           <p class="text-sm font-medium">Visibilidad de documentos saldados</p>
           <p class="text-xs text-muted">Ocultalos para concentrarte en los cobros pendientes.</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-5">
           <span class="text-sm text-muted">Mostrar cobrados</span>
           <USwitch v-model="showFullyPaid" />
+          <span class="text-sm text-muted">Mostrar anulados</span>
+          <USwitch v-model="showCancelled" />
         </div>
       </div>
 
@@ -306,8 +313,7 @@ const sortFields = [
         :sort-fields="sortFields"
         :on-delete="deleteDrafts"
         selectable
-        :can-select-row="row => row.status === 0"
-        delete-permanently
+        :can-select-row="row => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3)"
       />
     </div>
   </UPage>
