@@ -8,10 +8,10 @@ import type {
 const urlBase = '/api/backend/master-data/engineering'
 
 export const useEngineeringService = () => {
-  const getTree = (productId: string) => $fetch<EngineeringTreeNode[]>(`${urlBase}/${productId}/tree`)
+  const getTree = (productId: string) => $fetch<EngineeringTreeNode[]>(`${urlBase}/tree/${productId}`)
 
   const calculate = (productId: string) =>
-    $fetch<EngineeringCalculationResult>(`${urlBase}/${productId}/calculate`, {
+    $fetch<EngineeringCalculationResult>(`${urlBase}/calculate/${productId}`, {
       method: 'POST'
     })
 
