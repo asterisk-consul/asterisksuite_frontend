@@ -84,7 +84,13 @@ watch(
 
 const form = reactive(createDefaultProductForm())
 
-const activeTab = ref('general')
+const allowedTabs = new Set(['general', 'ingenieria', 'costos'])
+const requestedTab = String(route.query.tab ?? '')
+const activeTab = ref(allowedTabs.has(requestedTab) ? requestedTab : 'ingenieria')
+
+watch(activeTab, tab => {
+  navigateTo({ query: { ...route.query, tab } }, { replace: true })
+})
 
 const saving = ref(false)
 const calculating = ref(false)
@@ -118,7 +124,7 @@ const handleCalculateCost = async () => {
   calculating.value = true
   try {
     // 1. Recalcular ingeniería (si aplica)
-    if (['BOM', 'ENGINEERING', 'PURCHASE'].includes(form.cost_source)) {
+    if (form.cost_source && ['BOM', 'ENGINEERING', 'PURCHASE'].includes(form.cost_source)) {
       await engineering.calculate()
     }
 
@@ -201,14 +207,6 @@ const pageUi = computed(() => ({
   center: moduleCollapsed.value ? '' : 'lg:col-start-2'
 }))
 
-const links = computed(() => [
-  {
-    label: 'Guardar',
-    icon: 'i-lucide-save',
-    loading: saving.value,
-    onClick: handleSave
-  }
-])
 </script>
 
 <template>
@@ -218,7 +216,6 @@ const links = computed(() => [
       :description="product?.sku ?? ''"
       :loading="loading"
       show-module-toggle
-      :links="links"
       class="sticky top-0 z-20 px-4 border-b border-default bg-default"
     >
       <template #right>

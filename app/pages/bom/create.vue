@@ -2,6 +2,7 @@
 import GeneralSection from '~/modulos/logistica/master-data/product/components/sections/GeneralSection.vue'
 import ConfigurationCostForm from '~/modulos/logistica/master-data/product/costing/components/ConfigurationCostForm.vue'
 import CostTemplateSelector from '~/modulos/logistica/master-data/product/cost-templates/components/CostTemplateSelector.vue'
+import BomNavigation from '~/modulos/logistica/master-data/product/costing/components/BomNavigation.vue'
 
 import {
   createDefaultProductForm,
@@ -18,6 +19,7 @@ useHead({ title: 'Nuevo BOM' })
 
 const toast = useToast()
 const { moduleCollapsed } = useModuleSidebarState()
+const mobileOpen = ref(false)
 const { create } = useProducts()
 
 const form = reactive(createDefaultProductForm())
@@ -55,25 +57,39 @@ async function handleSave() {
 
 // Paso 2 → template asignado, navega a edición
 async function handleTemplateAssigned() {
-  await navigateTo(`/bom/${createdProductId.value}`)
+  await navigateTo(`/bom/${createdProductId.value}?tab=ingenieria`)
 }
 
 // Paso 2 → saltear asignación de template
 async function handleSkipTemplate() {
-  await navigateTo(`/bom/${createdProductId.value}`)
+  await navigateTo(`/bom/${createdProductId.value}?tab=ingenieria`)
 }
 
 const stepLabels = [
   { n: 1, label: 'Datos generales' },
-  { n: 2, label: 'Template de costos' },
-  { n: 3, label: 'Ingeniería y variantes' }
+  { n: 2, label: 'Template de costos' }
 ]
+
+watch(moduleCollapsed, (collapsed) => {
+  if (!collapsed && import.meta.client && window.innerWidth < 1024) {
+    mobileOpen.value = true
+    moduleCollapsed.value = true
+  }
+})
+
+watch(mobileOpen, open => {
+  if (!open) moduleCollapsed.value = true
+})
 
 const pageUi = computed(() => ({
   root: moduleCollapsed.value ? 'flex flex-col' : 'flex flex-col lg:grid lg:grid-cols-[200px_1fr] lg:gap-2',
   left: 'lg:col-start-1',
   center: moduleCollapsed.value ? '' : 'lg:col-start-2'
 }))
+
+function cancelCreate() {
+  navigateTo('/bom')
+}
 </script>
 
 <template>
@@ -85,7 +101,7 @@ const pageUi = computed(() => ({
     >
       <template #right>
         <div class="flex items-center gap-2">
-          <UButton label="Cancelar" variant="ghost" color="neutral" @click="navigateTo('/bom')" />
+          <UButton label="Cancelar" variant="ghost" color="neutral" @click="cancelCreate" />
           <template v-if="step === 1">
             <UButton label="Crear y continuar" icon="i-lucide-arrow-right" :loading="saving" @click="handleSave" />
           </template>
@@ -96,7 +112,16 @@ const pageUi = computed(() => ({
       </template>
     </AppPageHeader>
 
+    <USlideover v-model:open="mobileOpen" side="left" title="Fabricación" :ui="{ content: 'max-w-xs' }">
+      <template #body><BomNavigation /></template>
+    </USlideover>
+
     <UPage :ui="pageUi">
+      <template v-if="!moduleCollapsed" #left>
+        <UPageAside :ui="{ root: 'hidden overflow-y-auto lg:block lg:sticky lg:top-(--ui-header-height) lg:max-h-[calc(100vh-var(--ui-header-height))]' }">
+          <BomNavigation />
+        </UPageAside>
+      </template>
       <UPageBody>
         <div class="max-w-2xl mx-auto space-y-6 py-6">
           <!-- Indicador de pasos -->

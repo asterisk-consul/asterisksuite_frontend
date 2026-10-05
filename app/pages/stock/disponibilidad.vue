@@ -42,7 +42,8 @@ type AvailabilityResponse = {
   meta: { total: number; page: number; limit: number; pages: number; days: number }
 }
 
-const search = ref('')
+const route = useRoute()
+const search = ref(typeof route.query.search === 'string' ? route.query.search : '')
 const days = ref(30)
 const page = ref(1)
 const loading = ref(false)
@@ -51,6 +52,10 @@ const meta = ref<AvailabilityResponse['meta']>({ total: 0, page: 1, limit: 25, p
 const expanded = ref(new Set<string>())
 const toast = useToast()
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+
+function changePage(delta: number) {
+  page.value += delta
+}
 
 const dayOptions = [
   { label: '7 días', value: 7 },
@@ -213,8 +218,8 @@ onMounted(load)
       <div v-if="meta.pages > 1" class="flex items-center justify-between border-t border-default px-4 py-3">
         <span class="text-sm text-muted">{{ meta.total }} productos · Página {{ meta.page }} de {{ meta.pages }}</span>
         <div class="flex gap-2">
-          <UButton label="Anterior" color="neutral" variant="outline" :disabled="page <= 1" @click="page--" />
-          <UButton label="Siguiente" color="neutral" variant="outline" :disabled="page >= meta.pages" @click="page++" />
+          <UButton label="Anterior" color="neutral" variant="outline" :disabled="page <= 1" @click="changePage(-1)" />
+          <UButton label="Siguiente" color="neutral" variant="outline" :disabled="page >= meta.pages" @click="changePage(1)" />
         </div>
       </div>
     </UPageCard>

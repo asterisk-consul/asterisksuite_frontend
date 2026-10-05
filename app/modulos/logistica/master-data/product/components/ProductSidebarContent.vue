@@ -186,11 +186,31 @@ function nextImage() {
   currentIndex.value = currentIndex.value < photos.value.length - 1 ? currentIndex.value + 1 : 0
 }
 
+function setUploadVisible(value: boolean) {
+  showUpload.value = value
+}
+
+function setAddingCategory(value: boolean) {
+  addingCategory.value = value
+}
+
+function setAddingTag(value: boolean) {
+  addingTag.value = value
+}
+
 const currentPhoto = computed(() => photos.value[currentIndex.value] || null)
 </script>
 
 <template>
   <div class="space-y-5 w-full">
+    <div v-if="product?.id" class="grid gap-2">
+      <UButton label="Editar producto" icon="i-lucide-pencil" color="neutral" variant="soft" block :to="`/productos/${product.id}/edit`" />
+      <UButton label="Ver disponibilidad" icon="i-lucide-chart-no-axes-combined" color="neutral" variant="ghost" block :to="`/stock/disponibilidad?search=${encodeURIComponent(product.sku || product.name)}`" />
+      <UButton label="Costos de productos" icon="i-lucide-dollar-sign" color="neutral" variant="ghost" block to="/productos/costos" />
+    </div>
+
+    <USeparator v-if="product?.id" />
+
     <!-- GALERÍA + UPLOAD -->
     <div v-if="product?.id" class="space-y-3">
       <!-- Sin imágenes: dropzone grande -->
@@ -281,7 +301,7 @@ const currentPhoto = computed(() => photos.value[currentIndex.value] || null)
             size="xs"
             variant="ghost"
             color="neutral"
-            @click="showUpload = true"
+            @click="setUploadVisible(true)"
           />
         </div>
 
@@ -298,7 +318,7 @@ const currentPhoto = computed(() => photos.value[currentIndex.value] || null)
             <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileChange" />
             <p class="text-xs text-muted">Arrastrá o hacé click para agregar</p>
           </div>
-          <UButton label="Cancelar" size="xs" variant="ghost" class="mt-1" @click="showUpload = false" />
+          <UButton label="Cancelar" size="xs" variant="ghost" class="mt-1" @click="setUploadVisible(false)" />
         </div>
       </div>
     </div>
@@ -330,7 +350,7 @@ const currentPhoto = computed(() => photos.value[currentIndex.value] || null)
     <div>
       <div class="flex items-center justify-between mb-2">
         <span class="text-sm font-medium">Categorías</span>
-        <UButton v-if="!addingCategory" size="xs" variant="ghost" icon="i-lucide-plus" @click="addingCategory = true" />
+        <UButton v-if="!addingCategory" size="xs" variant="ghost" icon="i-lucide-plus" @click="setAddingCategory(true)" />
       </div>
       <div class="flex flex-wrap gap-1 mb-2">
         <UBadge
@@ -367,7 +387,7 @@ const currentPhoto = computed(() => photos.value[currentIndex.value] || null)
     <div>
       <div class="flex items-center justify-between mb-2">
         <span class="text-sm font-medium">Etiquetas</span>
-        <UButton v-if="!addingTag" size="xs" variant="ghost" icon="i-lucide-plus" @click="addingTag = true" />
+        <UButton v-if="!addingTag" size="xs" variant="ghost" icon="i-lucide-plus" @click="setAddingTag(true)" />
       </div>
       <div class="flex flex-wrap gap-1 mb-2">
         <UBadge
