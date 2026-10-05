@@ -450,6 +450,11 @@ export const navigationTree: DrilldownNode[] = [
     children: [
       { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/fabricacion', permission: 'products.read' },
       { label: 'BOM (Ingeniería)', icon: 'i-lucide-git-branch', to: '/bom', permission: 'products.read' },
+      { label: 'Nuevo BOM', icon: 'i-lucide-plus', to: '/bom/create', permission: 'products.create' },
+      { label: 'Productos y materiales', icon: 'i-lucide-package', to: '/productos', permission: 'products.read' },
+      { label: 'Disponibilidad de stock', icon: 'i-lucide-chart-no-axes-combined', to: '/stock/disponibilidad', permissions: ['stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'] },
+      { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
+      { label: 'Costos de productos', icon: 'i-lucide-dollar-sign', to: '/productos/costos', permission: 'products.read' },
       { label: 'Plantillas de costo', icon: 'i-lucide-file-text', to: '/cost-templates', permission: 'products.read' }
     ]
   },

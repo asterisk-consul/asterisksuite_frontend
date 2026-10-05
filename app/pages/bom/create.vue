@@ -2,7 +2,6 @@
 import GeneralSection from '~/modulos/logistica/master-data/product/components/sections/GeneralSection.vue'
 import ConfigurationCostForm from '~/modulos/logistica/master-data/product/costing/components/ConfigurationCostForm.vue'
 import CostTemplateSelector from '~/modulos/logistica/master-data/product/cost-templates/components/CostTemplateSelector.vue'
-import BomNavigation from '~/modulos/logistica/master-data/product/costing/components/BomNavigation.vue'
 
 import {
   createDefaultProductForm,
@@ -18,8 +17,6 @@ definePageMeta({
 useHead({ title: 'Nuevo BOM' })
 
 const toast = useToast()
-const { moduleCollapsed } = useModuleSidebarState()
-const mobileOpen = ref(false)
 const { create } = useProducts()
 
 const form = reactive(createDefaultProductForm())
@@ -70,23 +67,6 @@ const stepLabels = [
   { n: 2, label: 'Template de costos' }
 ]
 
-watch(moduleCollapsed, (collapsed) => {
-  if (!collapsed && import.meta.client && window.innerWidth < 1024) {
-    mobileOpen.value = true
-    moduleCollapsed.value = true
-  }
-})
-
-watch(mobileOpen, open => {
-  if (!open) moduleCollapsed.value = true
-})
-
-const pageUi = computed(() => ({
-  root: moduleCollapsed.value ? 'flex flex-col' : 'flex flex-col lg:grid lg:grid-cols-[200px_1fr] lg:gap-2',
-  left: 'lg:col-start-1',
-  center: moduleCollapsed.value ? '' : 'lg:col-start-2'
-}))
-
 function cancelCreate() {
   navigateTo('/bom')
 }
@@ -96,7 +76,6 @@ function cancelCreate() {
   <div class="flex flex-col h-full">
     <AppPageHeader
       title="Nuevo BOM"
-      show-module-toggle
       class="sticky top-0 z-20 px-4 border-b border-default bg-default"
     >
       <template #right>
@@ -112,16 +91,7 @@ function cancelCreate() {
       </template>
     </AppPageHeader>
 
-    <USlideover v-model:open="mobileOpen" side="left" title="Fabricación" :ui="{ content: 'max-w-xs' }">
-      <template #body><BomNavigation /></template>
-    </USlideover>
-
-    <UPage :ui="pageUi">
-      <template v-if="!moduleCollapsed" #left>
-        <UPageAside :ui="{ root: 'hidden overflow-y-auto lg:block lg:sticky lg:top-(--ui-header-height) lg:max-h-[calc(100vh-var(--ui-header-height))]' }">
-          <BomNavigation />
-        </UPageAside>
-      </template>
+    <UPage>
       <UPageBody>
         <div class="max-w-2xl mx-auto space-y-6 py-6">
           <!-- Indicador de pasos -->
