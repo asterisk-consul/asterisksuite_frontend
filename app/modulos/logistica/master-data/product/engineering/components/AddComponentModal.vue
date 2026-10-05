@@ -6,6 +6,7 @@ import {
   toCreateProductPayload
 } from '~/modulos/logistica/master-data/product/utils/product-form.utils'
 import ProductModalForm from '~/modulos/logistica/master-data/product/components/modals/ProductModalForm.vue'
+import { useUnitsStore } from '~/modulos/almacen/units/store/units.store'
 
 const props = defineProps<{
   open: boolean
@@ -30,6 +31,7 @@ const { selectItems: variantOptions, loadByProduct: initVariants } = useProductV
 
 const selectedProductId = ref('')
 const selectedVariantId = ref<string | undefined>(undefined)
+const selectedUnitId = ref<string | undefined>(undefined)
 const quantity = ref(1)
 const wastePercentage = ref<number | undefined>(undefined)
 const lengthMm = ref<number | undefined>(undefined)
@@ -37,6 +39,8 @@ const widthMm = ref<number | undefined>(undefined)
 const heightMm = ref<number | undefined>(undefined)
 
 const variants = ref<any[]>([])
+const unitsStore = useUnitsStore()
+const { items: units } = storeToRefs(unitsStore)
 const saving = ref(false)
 
 // ProductModalForm state
@@ -48,6 +52,8 @@ const newProductForm = reactive(createDefaultProductForm())
 // =========================
 
 const isEngineering = computed(() => props.costSource === 'ENGINEERING')
+const selectedProduct = computed(() => productOptions.value.find(product => product.value === selectedProductId.value))
+const unitOptions = computed(() => units.value.filter(unit => unit.active).map(unit => ({ label: `${unit.name} (${unit.symbol})`, value: unit.id })))
 
 const canSave = computed(() =>
   selectedProductId.value && quantity.value > 0
@@ -59,7 +65,7 @@ const canSave = computed(() =>
 
 watch(() => props.open, (val) => {
   if (val) {
-    initProducts()
+    Promise.all([initProducts(), unitsStore.fetchAll()])
     resetForm()
   }
 })
@@ -68,6 +74,7 @@ watch(selectedProductId, async (pid) => {
   selectedVariantId.value = undefined
   variants.value = []
   if (!pid) return
+  selectedUnitId.value = selectedProduct.value?.unit_id ?? undefined
   await initVariants(pid)
   variants.value = [...variantOptions.value]
 })
@@ -79,6 +86,7 @@ watch(selectedProductId, async (pid) => {
 const resetForm = () => {
   selectedProductId.value = ''
   selectedVariantId.value = undefined
+  selectedUnitId.value = undefined
   quantity.value = 1
   wastePercentage.value = undefined
   lengthMm.value = undefined
@@ -122,6 +130,7 @@ const handleSave = async () => {
         child_product_id: selectedProductId.value,
         child_variant_id: selectedVariantId.value,
         quantity: quantity.value,
+        unit_id: selectedUnitId.value,
         waste_percentage: wastePercentage.value,
         length_mm: lengthMm.value,
         width_mm: widthMm.value,
@@ -199,6 +208,11 @@ const handleSave = async () => {
               />
             </div>
 
+            <div v-if="!isEngineering">
+              <label class="text-sm font-medium mb-1 block">Unidad del consumo</label>
+              <USelect v-model="selectedUnitId" :items="unitOptions" placeholder="Unidad base del material" class="w-full" />
+            </div>
+
             <div>
               <label class="text-sm font-medium mb-1 block">% Desperdicio</label>
               <UInput
@@ -213,18 +227,23 @@ const handleSave = async () => {
           </div>
 
           <!-- Dimensiones (solo ENGINEERING) -->
-          <div v-if="isEngineering" class="grid grid-cols-3 gap-3">
-            <div>
-              <label class="text-sm font-medium mb-1 block">Largo (mm)</label>
-              <UInput v-model.number="lengthMm" type="number" placeholder="0" />
-            </div>
-            <div>
-              <label class="text-sm font-medium mb-1 block">Ancho (mm)</label>
-              <UInput v-model.number="widthMm" type="number" placeholder="0" />
-            </div>
-            <div>
-              <label class="text-sm font-medium mb-1 block">Alto (mm)</label>
-              <UInput v-model.number="heightMm" type="number" placeholder="0" />
+          <UAlert v-if="!isEngineering" color="info" variant="subtle" title="Cantidad BOM" description="Ingresá el consumo necesario para fabricar una unidad del producto final. No se aplicarán cálculos por dimensiones." />
+
+          <div v-if="isEngineering" class="space-y-3">
+            <UAlert color="info" variant="subtle" title="Cantidad de piezas" description="Las dimensiones corresponden a una pieza y se multiplicarán por la cantidad indicada, incluyendo el desperdicio." />
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="text-sm font-medium mb-1 block">Largo (mm)</label>
+                <UInput v-model.number="lengthMm" type="number" placeholder="0" />
+              </div>
+              <div>
+                <label class="text-sm font-medium mb-1 block">Ancho (mm)</label>
+                <UInput v-model.number="widthMm" type="number" placeholder="0" />
+              </div>
+              <div>
+                <label class="text-sm font-medium mb-1 block">Alto (mm)</label>
+                <UInput v-model.number="heightMm" type="number" placeholder="0" />
+              </div>
             </div>
           </div>
         </template>

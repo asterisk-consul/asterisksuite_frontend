@@ -21,6 +21,9 @@ export interface ProductSelectItem {
   usage_type: UsageType
   product_type?: string
   has_variants?: boolean
+  unit_id?: string | null
+  purchase_unit_id?: string | null
+  purchase_to_stock_factor?: number
   tax?: {
     id: string
     rate: number
@@ -89,6 +92,9 @@ export function useProducts(usageFilter?: UsageType | null) {
         hasCostTemplate: !!product.cost_template_id,
         product_type: product.product_type,
         has_variants: (product.product_variants?.length ?? 0) > 0,
+        unit_id: product.unit_id,
+        purchase_unit_id: product.purchase_unit_id,
+        purchase_to_stock_factor: Number(product.purchase_to_stock_factor ?? 1),
         tax: tax
           ? {
               id: tax.id,

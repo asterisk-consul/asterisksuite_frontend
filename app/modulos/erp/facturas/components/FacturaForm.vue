@@ -825,6 +825,9 @@ async function addItem(prod: any) {
     variant_id: prod.variant_id ?? null,
     product_name: prod.product_name,
     quantity,
+    purchase_unit_id: props.moduleCode === 'PURCHASES' ? (prod.purchase_unit_id ?? null) : null,
+    unit_conversion_factor: props.moduleCode === 'PURCHASES' ? Number(prod.purchase_to_stock_factor ?? 1) : 1,
+    stock_quantity: props.moduleCode === 'PURCHASES' ? quantity * Number(prod.purchase_to_stock_factor ?? 1) : quantity,
     unit_price: unitPrice,
     discount_percentage: 0,
     price: quantity * unitPrice,
@@ -901,6 +904,8 @@ function submit() {
           ? (moduleCode === 'SALES' ? (i.warehouse_id || undefined) : (advancedWarehouseAssignment.value ? (i.warehouse_id || undefined) : (form.warehouse_id || undefined)))
           : undefined,
       quantity: Number(i.quantity),
+      purchase_unit_id: moduleCode.value === 'PURCHASES' ? (i.purchase_unit_id || undefined) : undefined,
+      unit_conversion_factor: moduleCode.value === 'PURCHASES' ? Number(i.unit_conversion_factor || 1) : undefined,
       unit_price: Number(i.unit_price),
       discount_percentage: Math.min(100, Math.max(0, Number(i.discount_percentage || 0))),
       taxes: previewPayload?.items?.[idx]?.taxes?.map((t: any) => ({

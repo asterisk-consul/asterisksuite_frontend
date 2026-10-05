@@ -88,6 +88,8 @@ export interface Product {
   current_cost?: number | string | null
 
   unit_id?: string | null
+  purchase_unit_id?: string | null
+  purchase_to_stock_factor?: number | string | null
 
   // relaciones
 
@@ -188,6 +190,8 @@ export interface CreateProductDto {
   cost_source?: ProductCostSource
 
   unit_id?: string
+  purchase_unit_id?: string
+  purchase_to_stock_factor?: number
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}

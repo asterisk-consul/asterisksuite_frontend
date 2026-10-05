@@ -74,7 +74,8 @@ function computeSurface(node: TreeNodeData, wastePct: number): NodeCalculations 
   const lengthMm = safeNumber(node.length_mm)
   const widthMm = safeNumber(node.width_mm)
 
-  const areaM2 = (lengthMm / 1000) * (widthMm / 1000)
+  const pieces = safeNumber(node.quantity)
+  const areaM2 = (lengthMm / 1000) * (widthMm / 1000) * pieces
   const volumeM3 = areaM2 * thicknessM
   const rawWeightKg = volumeM3 * densityKgM3
   const finalWeightKg = rawWeightKg * (1 + wastePct / 100)
@@ -95,7 +96,8 @@ function computeLinear(node: TreeNodeData, wastePct: number): NodeCalculations {
   const variant = node.child_variant
   const lengthMm = safeNumber(node.length_mm)
   const lengthM = lengthMm / 1000
-  const finalLength = lengthM * (1 + wastePct / 100)
+  const pieces = safeNumber(node.quantity)
+  const finalLength = lengthM * pieces * (1 + wastePct / 100)
   const weightPerMeterKg = safeNumber(variant?.weight_per_meter_kg)
   const finalWeightKg = finalLength * weightPerMeterKg
 
@@ -116,7 +118,8 @@ function computeVolume(node: TreeNodeData, wastePct: number): NodeCalculations {
   const widthM = safeNumber(node.width_mm) / 1000
   const heightM = safeNumber(node.height_mm) / 1000
   const volumeM3 = lengthM * widthM * heightM
-  const finalVolume = volumeM3 * (1 + wastePct / 100)
+  const pieces = safeNumber(node.quantity)
+  const finalVolume = volumeM3 * pieces * (1 + wastePct / 100)
 
   const unitCost = resolveUnitCost(node)
   const totalCost = finalVolume * unitCost

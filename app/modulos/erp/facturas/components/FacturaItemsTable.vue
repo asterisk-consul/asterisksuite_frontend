@@ -19,6 +19,8 @@ interface Props {
     product_type?: string
 
     has_variants?: boolean
+    purchase_unit_id?: string | null
+    purchase_to_stock_factor?: number
   }[]
 
   currencyCode?: string
@@ -167,6 +169,19 @@ const columns = computed(() => [
         }
       })
   },
+  ...(props.items.some(item => Number(item.unit_conversion_factor ?? 1) !== 1) ? [{
+    id: 'stock_quantity',
+    header: 'Ingreso a stock',
+    cell: ({ row }: any) => {
+      const factor = Number(row.original.unit_conversion_factor || 1)
+      const stockQuantity = Number(row.original.quantity || 0) * factor
+      row.original.stock_quantity = stockQuantity
+      return h('div', { class: 'text-right' }, [
+        h('p', { class: 'font-medium tabular-nums' }, stockQuantity.toLocaleString('es-AR')),
+        h('p', { class: 'text-xs text-muted' }, `factor × ${factor.toLocaleString('es-AR')}`)
+      ])
+    }
+  }] : []),
   ...(props.showWarehouseColumn ? [{
     accessorKey: 'warehouse_id',
     header: 'Depósito',
