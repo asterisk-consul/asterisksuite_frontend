@@ -32,7 +32,7 @@ const valueLabel = computed(() => {
   switch (form.value_type) {
     case 'PERCENTAGE_OF_MATERIAL':
     case 'PERCENTAGE_OF_TOTAL':
-      return 'Porcentaje (ej: 0.15 = 15%)'
+      return 'Porcentaje (ej: 15 = 15%)'
     case 'FIXED_PER_UNIT':
       return 'Monto fijo por unidad'
     default:

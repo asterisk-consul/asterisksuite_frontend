@@ -65,17 +65,13 @@ const newProductForm = reactive(createDefaultProductForm())
 const isEngineering = computed(() => props.costSource === 'ENGINEERING')
 const typeLabels: Record<string, string> = {
   RAW_MATERIAL: 'Materia prima',
-  SEMI_FINISHED: 'Producto intermedio',
-  FINISHED_PRODUCT: 'Producto terminado',
-  SERVICE: 'Servicio / proceso'
+  SEMI_FINISHED: 'Producto intermedio'
 }
 const allowedComponentTypes = new Set(Object.keys(typeLabels))
 const typeFilters = [
   { label: 'Todos', value: 'ALL', icon: 'i-lucide-layers-3' },
   { label: 'Materias primas', value: 'RAW_MATERIAL', icon: 'i-lucide-box' },
-  { label: 'Intermedios', value: 'SEMI_FINISHED', icon: 'i-lucide-boxes' },
-  { label: 'Servicios', value: 'SERVICE', icon: 'i-lucide-wrench' },
-  { label: 'Terminados', value: 'FINISHED_PRODUCT', icon: 'i-lucide-package-check' }
+  { label: 'Intermedios', value: 'SEMI_FINISHED', icon: 'i-lucide-boxes' }
 ]
 const eligibleProducts = computed(() => products.value
   .filter(product => product.id !== props.productId && allowedComponentTypes.has(product.product_type)))
@@ -83,7 +79,7 @@ const filteredProducts = computed(() => eligibleProducts.value
   .filter(product => selectedType.value === 'ALL' || product.product_type === selectedType.value))
 const productOptions = computed(() => filteredProducts.value
   .sort((a, b) => {
-    const typeOrder = ['RAW_MATERIAL', 'SEMI_FINISHED', 'FINISHED_PRODUCT', 'SERVICE']
+    const typeOrder = ['RAW_MATERIAL', 'SEMI_FINISHED']
     return typeOrder.indexOf(a.product_type) - typeOrder.indexOf(b.product_type)
       || a.name.localeCompare(b.name, 'es')
   })
@@ -257,7 +253,7 @@ const handleSave = async () => {
             />
           </div>
 
-          <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <button
               v-for="filter in typeFilters"
               :key="filter.value"
