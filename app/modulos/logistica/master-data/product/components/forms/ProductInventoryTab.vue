@@ -40,15 +40,6 @@ const unitOptions = computed(() =>
       label="Requiere refrigeración"
     />
 
-    <UFormField v-if="form.manages_stock" label="Unidad de medida">
-      <USelect
-        v-model="form.unit_id"
-        :items="unitOptions"
-        placeholder="Seleccionar unidad"
-        class="w-full"
-      />
-    </UFormField>
-
     <div v-if="form.manages_stock" class="rounded-lg border border-default bg-muted/30 p-4 space-y-3">
       <div><p class="font-medium">Conversión de compra</p><p class="text-sm text-muted">Define cómo una unidad del proveedor se convierte a la unidad en la que controlás stock y costos.</p></div>
       <div class="grid gap-3 sm:grid-cols-2">

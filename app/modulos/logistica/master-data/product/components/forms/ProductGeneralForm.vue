@@ -9,15 +9,41 @@ import {
   usageTypeConfig
 } from '~/modulos/logistica/master-data/product/utils/product-options.utils'
 import { useTaxCategories } from '~/modulos/erp/tax-engine/composables/useTaxCategories'
+import { useUnitsStore } from '~/modulos/almacen/units/store/units.store'
+import type { UnitType } from '~/modulos/almacen/units/types/units.types'
 
 const props = defineProps<{
   form: ProductFormState
 }>()
 
 const { categoryOptions, fetchAll } = useTaxCategories()
+const unitsStore = useUnitsStore()
+const { items: units } = storeToRefs(unitsStore)
 
-onMounted(() => {
-  fetchAll()
+const expectedUnitType = computed<UnitType>(() => ({
+  UNIT: 'UNIT',
+  LINEAR: 'LENGTH',
+  VOLUME: 'VOLUME',
+  SURFACE: 'WEIGHT'
+}[props.form.calculation_type ?? 'UNIT'] as UnitType))
+
+const unitOptions = computed(() => units.value
+  .filter(unit => unit.active)
+  .sort((a, b) => Number(b.unit_type === expectedUnitType.value) - Number(a.unit_type === expectedUnitType.value))
+  .map(unit => ({
+    label: `${unit.name} (${unit.symbol})${unit.unit_type === expectedUnitType.value ? ' · recomendada' : ''}`,
+    value: unit.id
+  })))
+
+const calculationHelp = computed(() => ({
+  UNIT: 'El BOM consume una cantidad directa, por ejemplo 4 unidades.',
+  LINEAR: 'El BOM convierte el largo cargado a metros. Usá una unidad de longitud, por ejemplo m.',
+  VOLUME: 'El BOM calcula largo × ancho × alto en m³. Usá una unidad de volumen.',
+  SURFACE: 'El cálculo de ingeniería obtiene el peso usando superficie, espesor y densidad. La unidad de stock recomendada es kg.'
+}[props.form.calculation_type ?? 'UNIT']))
+
+onMounted(async () => {
+  await Promise.all([fetchAll(), unitsStore.fetchAll()])
 })
 </script>
 
@@ -81,8 +107,12 @@ onMounted(() => {
       </UPopover>
     </div>
 
-    <UFormField label="Tipo cálculo">
+    <UFormField label="Cálculo en BOM" :description="calculationHelp">
       <USelect v-model="form.calculation_type" :items="calculationTypeOptions" class="w-full" />
+    </UFormField>
+
+    <UFormField v-if="form.manages_stock" label="Unidad de stock" description="Es la unidad que verás en depósitos, movimientos y disponibilidad.">
+      <USelect v-model="form.unit_id" :items="unitOptions" placeholder="Seleccionar unidad de medida" class="w-full" />
     </UFormField>
 
     <UFormField label="Categoría Fiscal">

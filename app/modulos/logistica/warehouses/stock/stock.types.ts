@@ -28,6 +28,16 @@ export interface ProductStockItem {
   product_id: string
   quantity: string
   reserved_quantity: string
+  products?: {
+    id: string
+    name: string
+    sku?: string | null
+    unit?: {
+      id: string
+      name: string
+      symbol: string
+    } | null
+  }
   warehouses: {
     id: string
     name: string
