@@ -58,7 +58,7 @@ onMounted(async () => {
 <template>
   <UPageCard
     title="Unidades de Medida"
-    description="Listado de Unidades de medida."
+    description="Creá las unidades utilizadas por productos, compras, depósitos y fórmulas de BOM."
     orientation="horizontal"
     variant="naked"
     class="mb-2 mt-4 w-full lg:max-w-2xl mx-auto"

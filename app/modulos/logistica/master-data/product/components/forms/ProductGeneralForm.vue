@@ -28,10 +28,9 @@ const expectedUnitType = computed<UnitType>(() => ({
 }[props.form.calculation_type ?? 'UNIT'] as UnitType))
 
 const unitOptions = computed(() => units.value
-  .filter(unit => unit.active)
-  .sort((a, b) => Number(b.unit_type === expectedUnitType.value) - Number(a.unit_type === expectedUnitType.value))
+  .filter(unit => unit.active && unit.unit_type === expectedUnitType.value)
   .map(unit => ({
-    label: `${unit.name} (${unit.symbol})${unit.unit_type === expectedUnitType.value ? ' · recomendada' : ''}`,
+    label: `${unit.name} (${unit.symbol})`,
     value: unit.id
   })))
 
@@ -44,6 +43,14 @@ const calculationHelp = computed(() => ({
 
 onMounted(async () => {
   await Promise.all([fetchAll(), unitsStore.fetchAll()])
+})
+
+watch(() => props.form.calculation_type, () => {
+  if (!props.form.unit_id || !units.value.length) return
+  const selectedUnit = units.value.find(unit => unit.id === props.form.unit_id)
+  if (selectedUnit && selectedUnit.unit_type !== expectedUnitType.value) {
+    props.form.unit_id = undefined
+  }
 })
 </script>
 
@@ -111,9 +118,25 @@ onMounted(async () => {
       <USelect v-model="form.calculation_type" :items="calculationTypeOptions" class="w-full" />
     </UFormField>
 
-    <UFormField v-if="form.manages_stock" label="Unidad de stock" description="Es la unidad que verás en depósitos, movimientos y disponibilidad.">
-      <USelect v-model="form.unit_id" :items="unitOptions" placeholder="Seleccionar unidad de medida" class="w-full" />
-    </UFormField>
+    <div v-if="form.manages_stock" class="flex items-end gap-1">
+      <UFormField label="Unidad de stock" description="Se filtra según el cálculo elegido y se usa en depósitos y movimientos." class="min-w-0 flex-1">
+        <USelect
+          v-model="form.unit_id"
+          :items="unitOptions"
+          :placeholder="unitOptions.length ? 'Seleccionar unidad de medida' : 'No hay unidades compatibles'"
+          class="w-full"
+        />
+      </UFormField>
+      <UTooltip text="Configurar unidades de medida">
+        <UButton
+          icon="i-lucide-settings"
+          color="neutral"
+          variant="ghost"
+          class="mb-1"
+          to="/productos/settings/unidades"
+        />
+      </UTooltip>
+    </div>
 
     <UFormField label="Categoría Fiscal">
       <USelect

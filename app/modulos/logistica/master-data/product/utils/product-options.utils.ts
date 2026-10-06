@@ -49,7 +49,7 @@ export const calculationTypeOptions: {
     value: 'UNIT'
   },
   {
-    label: 'Superficie',
+    label: 'Superficie (consumo por peso)',
     value: 'SURFACE'
   },
   {
