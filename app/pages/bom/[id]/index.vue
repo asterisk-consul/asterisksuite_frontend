@@ -23,7 +23,7 @@ definePageMeta({
 })
 
 const toast = useToast()
-const { hasPermission } = useRoles()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 const canProduce = computed(() => isOwnerOrAdmin.value || hasPermission('stock.create'))
 
@@ -36,7 +36,11 @@ const engineering = useEngineering(productId)
 const { baseCurrency, init: initCurrencies } = useCurrencies()
 
 onMounted(async () => {
-  await Promise.all([loadOne(productId), initCurrencies()])
+  await Promise.all([
+    loadOne(productId),
+    initCurrencies(),
+    fetchMyPermissionsIfNeeded()
+  ])
 })
 
 const product = current
