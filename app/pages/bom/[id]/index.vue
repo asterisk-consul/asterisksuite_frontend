@@ -25,7 +25,7 @@ definePageMeta({
 const toast = useToast()
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
-const canProduce = computed(() => isOwnerOrAdmin.value || hasPermission('stock.create'))
+const canProduce = computed(() => isOwnerOrAdmin.value || hasPermission('production.execute') || hasPermission('stock.create'))
 
 const route = useRoute()
 

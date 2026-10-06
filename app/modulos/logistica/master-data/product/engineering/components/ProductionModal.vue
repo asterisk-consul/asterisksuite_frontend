@@ -7,7 +7,8 @@ const emit = defineEmits<{ 'update:open': [value: boolean]; completed: [result: 
 const depositsStore = useDepositosStore()
 const { warehouses, loading: loadingWarehouses } = storeToRefs(depositsStore)
 const toast = useToast()
-const warehouseId = ref('')
+const materialWarehouseId = ref('')
+const outputWarehouseId = ref('')
 const quantity = ref(1)
 const preview = ref<any | null>(null)
 const loadingPreview = ref(false)
@@ -17,7 +18,7 @@ const warehouseOptions = computed(() => warehouses.value
   .filter(warehouse => warehouse.active)
   .map(warehouse => ({ label: `${warehouse.code ? `${warehouse.code} · ` : ''}${warehouse.name}`, value: warehouse.id })))
 
-const canPreview = computed(() => !!warehouseId.value && Number(quantity.value) > 0)
+const canPreview = computed(() => !!materialWarehouseId.value && !!outputWarehouseId.value && Number(quantity.value) > 0)
 
 const loadPreview = async () => {
   if (!canPreview.value) return
@@ -25,7 +26,12 @@ const loadPreview = async () => {
   try {
     preview.value = await $fetch('/api/backend/warehouse/stock/production/preview', {
       method: 'POST',
-      body: { product_id: props.productId, warehouse_id: warehouseId.value, quantity: Number(quantity.value) }
+      body: {
+        product_id: props.productId,
+        material_warehouse_id: materialWarehouseId.value,
+        output_warehouse_id: outputWarehouseId.value,
+        quantity: Number(quantity.value)
+      }
     })
   } catch (err: any) {
     preview.value = null
@@ -41,7 +47,12 @@ const execute = async () => {
   try {
     const result = await $fetch('/api/backend/warehouse/stock/production/execute', {
       method: 'POST',
-      body: { product_id: props.productId, warehouse_id: warehouseId.value, quantity: Number(quantity.value) }
+      body: {
+        product_id: props.productId,
+        material_warehouse_id: materialWarehouseId.value,
+        output_warehouse_id: outputWarehouseId.value,
+        quantity: Number(quantity.value)
+      }
     })
     toast.add({
       title: 'Fabricación registrada',
@@ -63,10 +74,13 @@ watch(() => props.open, async open => {
   preview.value = null
   quantity.value = 1
   if (!warehouses.value.length) await depositsStore.fetchAll()
-  if (warehouseOptions.value.length === 1) warehouseId.value = warehouseOptions.value[0]!.value
+  if (warehouseOptions.value.length === 1) {
+    materialWarehouseId.value = warehouseOptions.value[0]!.value
+    outputWarehouseId.value = warehouseOptions.value[0]!.value
+  }
 })
 
-watch([warehouseId, quantity], () => { preview.value = null })
+watch([materialWarehouseId, outputWarehouseId, quantity], () => { preview.value = null })
 
 const formatQuantity = (value: number) => Number(value).toLocaleString('es-AR', { maximumFractionDigits: 3 })
 </script>
@@ -80,12 +94,15 @@ const formatQuantity = (value: number) => Number(value).toLocaleString('es-AR', 
           <p class="mt-1 text-lg font-semibold">{{ productName }}</p>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-3">
           <UFormField label="Cantidad a fabricar" required description="Cantidad de producto terminado que ingresará al stock.">
             <UInputNumber v-model="quantity" :min="0.001" :step="1" class="w-full" />
           </UFormField>
-          <UFormField label="Depósito" required description="De aquí salen los materiales y aquí ingresa el terminado.">
-            <USelect v-model="warehouseId" :items="warehouseOptions" :loading="loadingWarehouses" placeholder="Seleccionar depósito" class="w-full" />
+          <UFormField label="Materiales" required description="Depósito del que se descontarán los componentes.">
+            <USelect v-model="materialWarehouseId" :items="warehouseOptions" :loading="loadingWarehouses" placeholder="Depósito de materiales" class="w-full" />
+          </UFormField>
+          <UFormField label="Producto terminado" required description="Depósito al que ingresará lo fabricado.">
+            <USelect v-model="outputWarehouseId" :items="warehouseOptions" :loading="loadingWarehouses" placeholder="Depósito de ingreso" class="w-full" />
           </UFormField>
         </div>
 
