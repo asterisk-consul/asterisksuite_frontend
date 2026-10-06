@@ -38,11 +38,11 @@ const PRODUCT_TYPE_COLORS: Record<string, BadgeColor> = {
 }
 
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
-  RAW_MATERIAL: 'MP',
-  SEMI_FINISHED: 'ST',
-  FINISHED_PRODUCT: 'PT',
-  SERVICE: 'SV',
-  CONSUMABLE: 'CO'
+  RAW_MATERIAL: 'Materia prima',
+  SEMI_FINISHED: 'Intermedio',
+  FINISHED_PRODUCT: 'Terminado',
+  SERVICE: 'Servicio',
+  CONSUMABLE: 'Consumible'
 }
 
 // =========================
@@ -165,6 +165,29 @@ const countChildren = (node: EngineeringTreeNode): number => {
   }
   return count
 }
+
+const flatComponents = computed(() => {
+  const result: EngineeringTreeNode[] = []
+  const visit = (nodes: EngineeringTreeNode[]) => {
+    for (const node of nodes) {
+      result.push(node)
+      if (node.children?.length) visit(node.children)
+    }
+  }
+  visit(tree.value)
+  return result
+})
+
+const engineeringStats = computed(() => {
+  const nodes = flatComponents.value
+  return {
+    total: nodes.length,
+    rawMaterials: nodes.filter(node => node.child_product?.product_type === 'RAW_MATERIAL').length,
+    assemblies: nodes.filter(node => ['SEMI_FINISHED', 'FINISHED_PRODUCT'].includes(node.child_product?.product_type ?? '')).length,
+    missingCost: nodes.filter(node => getCalc(node).total_cost <= 0).length,
+    totalCost: tree.value.reduce((sum, node) => sum + getCalc(node).total_cost, 0)
+  }
+})
 
 // =========================
 // CONSOLIDATE MATERIALS
@@ -842,7 +865,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-3">
+  <div class="space-y-5">
     <!-- Estado vacío -->
     <div v-if="!loading && !hasTree" class="flex flex-col items-center gap-3 py-10 text-center">
       <UIcon name="i-lucide-layers" class="size-10 text-muted" />
@@ -853,19 +876,39 @@ onMounted(async () => {
       <UButton label="Agregar componente" icon="i-lucide-plus" size="sm" @click="openAddRoot" />
     </div>
 
-    <!-- Toolbar: Agregar + Info -->
-    <div v-if="hasTree" class="flex justify-between items-center gap-2">
-      <UButton label="Agregar componente" icon="i-lucide-plus" size="sm" variant="soft" @click="openAddRoot" />
-    </div>
-
-    <!-- Info de uso -->
     <template v-if="hasTree">
-      <p class="text-xs text-muted flex items-center gap-1.5">
-        <UIcon name="i-lucide-info" class="size-3.5" />
-        <span>Doble clic en dimensiones/cantidad para editar</span>
-        <span>·</span>
-        <span>Arrastrá para reordenar</span>
-      </p>
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <UCard :ui="{ body: 'p-4' }">
+          <p class="text-xs font-medium text-muted">Componentes</p>
+          <p class="mt-1 text-2xl font-semibold">{{ engineeringStats.total }}</p>
+        </UCard>
+        <UCard :ui="{ body: 'p-4' }">
+          <p class="text-xs font-medium text-muted">Materias primas</p>
+          <p class="mt-1 text-2xl font-semibold">{{ engineeringStats.rawMaterials }}</p>
+        </UCard>
+        <UCard :ui="{ body: 'p-4' }">
+          <p class="text-xs font-medium text-muted">Subconjuntos</p>
+          <p class="mt-1 text-2xl font-semibold">{{ engineeringStats.assemblies }}</p>
+        </UCard>
+        <UCard :ui="{ body: 'p-4' }" :class="engineeringStats.missingCost ? 'ring-1 ring-warning/40' : ''">
+          <p class="text-xs font-medium text-muted">Sin costo</p>
+          <p class="mt-1 text-2xl font-semibold" :class="engineeringStats.missingCost ? 'text-warning' : 'text-success'">
+            {{ engineeringStats.missingCost }}
+          </p>
+        </UCard>
+        <UCard :ui="{ body: 'p-4' }" class="sm:col-span-2 xl:col-span-1">
+          <p class="text-xs font-medium text-muted">Costo de materiales</p>
+          <p class="mt-1 text-xl font-semibold tabular-nums">{{ formatMoney(engineeringStats.totalCost) }}</p>
+        </UCard>
+      </div>
+
+      <div class="flex flex-col gap-3 rounded-lg border border-default bg-elevated/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="text-sm font-medium">Estructura de fabricación</p>
+          <p class="text-xs text-muted">Editá con doble clic o usá el menú de cada componente. Arrastrá para ordenar.</p>
+        </div>
+        <UButton label="Agregar componente" icon="i-lucide-plus" size="sm" @click="openAddRoot" />
+      </div>
     </template>
 
     <!-- Tabs -->
@@ -873,7 +916,7 @@ onMounted(async () => {
       <UTabs v-model="activeView" :items="viewTabs" variant="link">
         <!-- TAB: ESTRUCTURA -->
         <template #tree>
-          <div class="border border-default rounded-lg overflow-hidden">
+          <div class="max-w-full overflow-x-auto rounded-lg border border-default">
             <UTable
               ref="tableRef"
               :data="tree"
@@ -881,7 +924,7 @@ onMounted(async () => {
               :table="table"
               :loading="loading"
               :get-sub-rows="(row: any) => row.children"
-              class="w-full text-sm"
+              class="min-w-[1050px] text-sm"
               :ui="{
                 base: 'border-separate border-spacing-0',
                 thead: 'bg-slate-50 dark:bg-slate-900',
@@ -899,11 +942,11 @@ onMounted(async () => {
           <div v-if="consolidatedMaterials.length === 0" class="py-8 text-center text-sm text-muted">
             No hay materiales para resumir. Agregá componentes al árbol.
           </div>
-          <div v-else class="border border-default rounded-lg overflow-hidden">
+          <div v-else class="max-w-full overflow-x-auto rounded-lg border border-default">
             <UTable
               :data="consolidatedMaterials"
               :columns="summaryColumns"
-              class="w-full text-sm"
+              class="min-w-[900px] text-sm"
               :ui="{
                 base: 'border-separate border-spacing-0',
                 thead: 'bg-slate-50 dark:bg-slate-900',
