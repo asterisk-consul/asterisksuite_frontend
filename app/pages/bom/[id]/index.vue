@@ -12,6 +12,8 @@ import { useCosting } from '~/modulos/logistica/master-data/product/costing/comp
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import ProductionModal from '~/modulos/logistica/master-data/product/engineering/components/ProductionModal.vue'
+import ProductVariantModal from '~/modulos/logistica/master-data/product-variants/components/ProductVariantModal.vue'
+import { useProductVariants } from '~/modulos/logistica/master-data/product-variants/composable/useVariants'
 
 import {
   createDefaultProductForm,
@@ -33,6 +35,15 @@ const productId = route.params.id as string
 
 const { current, loading, loadOne, update } = useProducts()
 const engineering = useEngineering(productId)
+const variantsApi = useProductVariants()
+const variants = variantsApi.items
+const selectedVariantId = ref('__BASE__')
+const showVariantModal = ref(false)
+const savingVariant = ref(false)
+const variantOptions = computed(() => [
+  { label: 'BOM base · compartido', value: '__BASE__' },
+  ...variants.value.map(variant => ({ label: variant.name || variant.sku || 'Variante', value: variant.id }))
+])
 const { baseCurrency, init: initCurrencies } = useCurrencies()
 
 onMounted(async () => {
@@ -41,7 +52,21 @@ onMounted(async () => {
     initCurrencies(),
     fetchMyPermissionsIfNeeded()
   ])
+  await variantsApi.loadByProduct(productId)
 })
+
+const createVariant = async (payload: any) => {
+  savingVariant.value = true
+  try {
+    const created = await variantsApi.create(payload)
+    await variantsApi.loadByProduct(productId)
+    selectedVariantId.value = created.id
+    showVariantModal.value = false
+    toast.add({ title: 'Variante creada', description: 'Ya podés calcular y administrar su costo desde este BOM.', color: 'success' })
+  } finally {
+    savingVariant.value = false
+  }
+}
 
 const product = current
 
@@ -139,7 +164,7 @@ const handleCalculateCost = async () => {
 
     // 3. Calcular costo final (genera snapshot)
     const costing = useCosting(productId, effectiveCurrencyId)
-    await costing.calculate(true, effectiveCurrencyId)
+    await costing.calculate(true, effectiveCurrencyId, selectedVariantId.value === '__BASE__' ? undefined : selectedVariantId.value)
 
     // 4. Refrescar historial
     await costing.init()
@@ -251,6 +276,14 @@ const productActions = computed(() => [[
       </template>
     </AppPageHeader>
 
+    <div class="flex flex-wrap items-center gap-3 border-b border-default bg-elevated/40 px-4 py-3">
+      <div class="min-w-0 flex-1">
+        <p class="text-xs font-medium text-muted">Estructura y costo</p>
+        <USelect v-model="selectedVariantId" :items="variantOptions" class="mt-1 w-full max-w-md" />
+      </div>
+      <UButton label="Nueva variante" icon="i-lucide-plus" variant="outline" @click="showVariantModal = true" />
+    </div>
+
     <UPage>
       <UPageBody>
         <ProductSidebarContent :product="product ?? null" />
@@ -269,6 +302,7 @@ const productActions = computed(() => [[
               :product-id="productId"
               :form="form"
               :currency-id="currencyId"
+              :variant-id="selectedVariantId === '__BASE__' ? undefined : selectedVariantId"
               @update:currency-id="currencyId = $event"
               @update:auto-calculate="form.auto_calculate_cost = $event"
             />
@@ -284,6 +318,12 @@ const productActions = computed(() => [[
       v-model:open="showProductionModal"
       :product-id="productId"
       :product-name="product?.name"
+    />
+    <ProductVariantModal
+      v-model:open="showVariantModal"
+      :product-id="productId"
+      :loading="savingVariant"
+      @submit="createVariant"
     />
   </div>
 </template>

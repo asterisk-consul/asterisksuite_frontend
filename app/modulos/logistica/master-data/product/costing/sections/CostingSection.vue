@@ -4,7 +4,6 @@ import type { ProductFormState } from '~/modulos/logistica/master-data/product/t
 import { useCosting } from '~/modulos/logistica/master-data/product/costing/composables/useCosting'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { useEngineering } from '~/modulos/logistica/master-data/product/engineering/composables/useEngineering'
-import { useProductVariantsService } from '~/modulos/logistica/master-data/product-variants/service/product-variants.service'
 
 import CostTemplateSelectorModal from '~/modulos/logistica/master-data/product/cost-templates/modal/CostTemplateSelectorModal.vue'
 import CostSummaryCard from '~/modulos/logistica/master-data/product/costing/components/CostSummaryCard.vue'
@@ -15,6 +14,7 @@ const props = defineProps<{
   productId: string
   form: ProductFormState
   currencyId: string
+  variantId?: string
 }>()
 
 const emit = defineEmits<{
@@ -36,17 +36,6 @@ const {
 
 const { currencies, selectItems: currencySelectItems, init: initCurrencies } = useCurrencies()
 const engineering = useEngineering(props.productId)
-const variantsService = useProductVariantsService()
-const variants = ref<any[]>([])
-const selectedVariantId = ref<string | undefined>()
-const variantOptions = computed(() => [
-  { label: 'Costo general del producto', value: '__BASE__' },
-  ...variants.value.map(variant => ({ label: variant.name || variant.sku || 'Variante', value: variant.id }))
-])
-const selectedCostTarget = computed({
-  get: () => selectedVariantId.value ?? '__BASE__',
-  set: value => { selectedVariantId.value = value === '__BASE__' ? undefined : value }
-})
 
 const showTemplateModal = ref(false)
 const toast = useToast()
@@ -73,7 +62,7 @@ const handleCalculate = async () => {
       await engineering.calculate()
     }
     // 2. Calcular costo con la moneda actual
-    await calculate(true, props.currencyId, selectedVariantId.value)
+    await calculate(true, props.currencyId, props.variantId)
     // 3. Refrescar historial
     await init()
     toast.add({ title: 'Costo calculado', color: 'success' })
@@ -113,7 +102,6 @@ const handleAssigned = async () => {
 onMounted(async () => {
   await init()
   await initCurrencies()
-  variants.value = await variantsService.findByProduct(props.productId)
 })
 </script>
 
@@ -128,9 +116,6 @@ onMounted(async () => {
       </template>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <UFormField v-if="variants.length" label="Costo a calcular" description="Cada variante conserva su propio costo e historial.">
-          <USelect v-model="selectedCostTarget" :items="variantOptions" class="w-full" />
-        </UFormField>
         <!-- Moneda -->
         <UFormField label="Moneda del costo" required>
           <USelectMenu
