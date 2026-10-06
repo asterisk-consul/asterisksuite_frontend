@@ -1,5 +1,27 @@
 [
   {
+    "version": "0.68.2-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "Fabricación lista correctamente los productos con BOM y el indicador de producto compuesto se mantiene sincronizado con sus componentes.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "production",
+        "title": "Fabricar productos muestra los BOM creados por el flujo de ingeniería y no solo los marcados manualmente como compuestos"
+      },
+      {
+        "type": "fix",
+        "scope": "bom",
+        "title": "El indicador de producto compuesto se activa al agregar componentes y se desactiva al quitar el último"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Productos con BOM visibles al fabricar y flag compuesto sincronizado"
+  },
+  {
     "version": "0.68.1-alpha",
     "date": "2026-10-06",
     "stage": "alpha",

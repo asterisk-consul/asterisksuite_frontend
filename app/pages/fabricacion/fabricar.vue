@@ -17,7 +17,7 @@ const previewing = ref(false)
 const producing = ref(false)
 
 const productOptions = computed(() => productsStore.items
-  .filter(product => product.active !== false && product.is_composed && ['FINISHED_PRODUCT', 'SEMI_FINISHED'].includes(product.product_type))
+  .filter(product => product.active !== false && (['BOM', 'ENGINEERING'].includes(product.cost_source) || product.is_composed))
   .map(product => ({ label: `${product.sku ? `${product.sku} · ` : ''}${product.name}`, value: product.id })))
 const warehouseOptions = computed(() => depositsStore.warehouses
   .filter(warehouse => warehouse.active && !warehouse.is_virtual)
