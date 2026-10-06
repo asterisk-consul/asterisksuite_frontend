@@ -6,7 +6,8 @@ import type {
   BankAccount,
   BankAccountUserRole,
   CreateBankAccountInput,
-  UpdateBankAccountInput
+  UpdateBankAccountInput,
+  DeleteBankAccountInput
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 
 export interface SelectItem {
@@ -34,7 +35,7 @@ export function useBankAccounts() {
 
   const update = async (id: string, payload: UpdateBankAccountInput) => store.update(id, payload)
 
-  const remove = async (id: string, data: { confirmation: string; target_bank_account_id?: string }) => store.remove(id, data)
+  const remove = async (id: string, data: DeleteBankAccountInput) => store.remove(id, data)
 
   const fetchMovements = async (id: string) => store.fetchMovements(id)
 

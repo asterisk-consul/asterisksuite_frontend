@@ -10,6 +10,7 @@ export interface BankAccount {
   balance: number
   active: boolean
   can_set_initial_balance?: boolean
+  pending_checks_count?: number
 
   created_at?: string
   updated_at?: string
@@ -48,6 +49,15 @@ export interface CreateBankAccountInput {
 }
 
 export interface UpdateBankAccountInput extends Partial<CreateBankAccountInput> {}
+
+export type BankAccountDeleteMode = 'TRANSFER' | 'DISCARD'
+
+export interface DeleteBankAccountInput {
+  confirmation: string
+  mode?: BankAccountDeleteMode
+  delete_movements?: boolean
+  target_bank_account_id?: string
+}
 
 export interface BankAccountUserRole {
   id: string

@@ -75,7 +75,9 @@ const TABLE_LABELS: Record<string, string> = {
   units: 'Unidades',
   currency_rates: 'Tasas de cambio',
   currencies: 'Monedas',
-  payments: 'Pagos y cobros'
+  payments: 'Pagos y cobros',
+  bank_accounts: 'Cuentas bancarias',
+  bank_account_movements: 'Movimientos bancarios'
 }
 
 const TABLE_OPTIONS = TRASH_TABLES.map(t => ({ label: TABLE_LABELS[t] || t, value: t }))

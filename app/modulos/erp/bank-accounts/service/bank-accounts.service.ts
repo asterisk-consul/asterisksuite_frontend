@@ -3,7 +3,8 @@
   BankAccountMovement,
   BankAccountUserRole,
   CreateBankAccountInput,
-  UpdateBankAccountInput
+  UpdateBankAccountInput,
+  DeleteBankAccountInput
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 
 const urlBase = '/api/backend/bank-accounts'
@@ -33,7 +34,7 @@ export const useBankAccountsService = () => {
     })
   }
 
-  const remove = (id: string, data: { confirmation: string; target_bank_account_id?: string }) => {
+  const remove = (id: string, data: DeleteBankAccountInput) => {
     return $fetch<void>(`${urlBase}/${id}`, {
       method: 'DELETE',
       body: data

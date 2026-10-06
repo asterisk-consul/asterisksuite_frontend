@@ -44,8 +44,23 @@ const hasExistingPrices = computed(() => (product.value?.product_price?.length ?
 const latestProductCost = computed(() => {
   const costs = product.value?.product_costs
   if (!costs?.length) return null
-  return costs[costs.length - 1]
+  return costs[0]
 })
+const costHistory = computed(() => {
+  const costs = product.value?.product_costs ?? []
+  if (costs.length || !product.value?.current_cost) return costs
+
+  return [{
+    id: `current-${product.value.id}`,
+    version: 1,
+    cost_source: product.value.cost_source,
+    total_cost: product.value.current_cost,
+    notes: 'Costo vigente anterior al inicio del historial',
+    created_at: product.value.last_cost_calculated_at ?? undefined,
+    currencies: product.value.current_cost_currency ?? undefined
+  }]
+})
+const showCostHistoryModal = ref(false)
 
 // auto_calculate_cost: el precio de venta se deriva del costo vigente más el margen.
 const autoCalculate = computed(() => product.value?.auto_calculate_cost === true)
@@ -196,8 +211,13 @@ const SOURCE_LABELS: Record<string, string> = {
   MANUAL: 'Manual',
   PURCHASE: 'Compra',
   IMPORT: 'Importación',
-  PRODUCTION: 'Producción'
+  PRODUCTION: 'Producción',
+  ENGINEERING: 'Ingeniería',
+  BOM: 'BOM',
+  RATE: 'Tarifa'
 }
+
+const getCostSourceLabel = (source?: string | null) => SOURCE_LABELS[source ?? ''] ?? source ?? 'Sin origen'
 
 // =========================
 // MODAL: PRODUCT PRICE (create + edit)
@@ -668,6 +688,16 @@ watch(
             {{ formatMoney(product?.current_cost, product?.current_cost_currency ?? latestProductCost?.currencies) }}
           </p>
           <p class="text-xs text-muted">No es el precio de venta</p>
+          <UButton
+            v-if="costHistory.length"
+            class="mt-2"
+            icon="i-lucide-history"
+            label="Ver historial"
+            size="xs"
+            variant="soft"
+            color="neutral"
+            @click="showCostHistoryModal = true"
+          />
         </div>
       </div>
     </UCard>
@@ -1072,6 +1102,56 @@ watch(
       :price-id="historyPriceId"
       :product-name="product?.name ?? ''"
     />
+
+    <UModal v-model:open="showCostHistoryModal" :ui="{ content: 'sm:max-w-3xl' }">
+      <template #content>
+        <UCard :ui="{ body: 'p-0' }">
+          <template #header>
+            <div>
+              <h3 class="text-lg font-semibold">Historial de costos</h3>
+              <p class="text-sm text-muted">{{ product?.name }}</p>
+            </div>
+          </template>
+
+          <div v-if="costHistory.length" class="max-h-[60vh] divide-y divide-default overflow-y-auto">
+            <div
+              v-for="cost in costHistory"
+              :key="cost.id"
+              class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <UBadge color="neutral" variant="soft">
+                    {{ getCostSourceLabel(cost.cost_source) }}
+                  </UBadge>
+                  <span v-if="cost.version" class="text-xs text-muted">Versión {{ cost.version }}</span>
+                </div>
+                <p v-if="cost.notes" class="mt-1 text-sm text-default">{{ cost.notes }}</p>
+                <p class="mt-1 text-xs text-muted">
+                  {{ cost.created_at ? new Date(cost.created_at).toLocaleString('es-AR') : 'Fecha no disponible' }}
+                </p>
+              </div>
+              <div class="shrink-0 text-left sm:text-right">
+                <p class="text-base font-semibold tabular-nums">
+                  {{ formatMoney(cost.total_cost, cost.currencies) }}
+                </p>
+                <p class="text-xs text-muted">Costo unitario vigente en ese momento</p>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="p-8 text-center text-sm text-muted">
+            Todavía no hay cambios de costo registrados.
+          </div>
+
+          <template #footer>
+            <div class="flex justify-end">
+              <UButton color="neutral" variant="outline" @click="showCostHistoryModal = false">Cerrar</UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
 
     <!-- ========================= -->
     <!-- MODAL: PRECIO VARIANTE    -->

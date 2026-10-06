@@ -159,7 +159,14 @@ export interface ProductCost {
   id?: string
 
   currency_id?: string
+  version?: number
+  cost_source?: ProductCostSource
+  material_cost?: number | string
+  labor_cost?: number | string
+  overhead_cost?: number | string
   total_cost?: number | string
+  notes?: string | null
+  created_at?: string
 
   currencies?: Currency
 }

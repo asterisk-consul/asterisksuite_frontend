@@ -1,5 +1,42 @@
 [
   {
+    "version": "0.68.0-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "La baja de cuentas bancarias incorpora una modalidad de descarte para saldos no reales, con reasignación de registros vinculados y restauración desde la papelera.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "La eliminación de una cuenta bancaria permite elegir entre transferir el saldo a otra cuenta o eliminarla igual descartando el saldo"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "El modo descartar pone el saldo en 0 y permite enviar los movimientos históricos a la papelera junto con la cuenta"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "Los cheques pendientes, pagos y movimientos de caja vinculados se reasignan a la cuenta destino cuando se selecciona una"
+      },
+      {
+        "type": "fix",
+        "scope": "bank-accounts",
+        "title": "La eliminación exige cuenta destino cuando existen cheques pendientes para no dejarlos sin cuenta asociada"
+      },
+      {
+        "type": "fix",
+        "scope": "trash",
+        "title": "Las cuentas bancarias y sus movimientos eliminados pueden restaurarse desde la Papelera"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Eliminación de cuentas bancarias con descarte de saldo y reasignación"
+  },
+  {
     "version": "0.67.0-alpha",
     "date": "2026-10-06",
     "stage": "alpha",
