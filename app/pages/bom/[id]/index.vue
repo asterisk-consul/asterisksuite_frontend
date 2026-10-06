@@ -10,6 +10,7 @@ import GeneralSection from '~/modulos/logistica/master-data/product/components/s
 import { useEngineering } from '~/modulos/logistica/master-data/product/engineering/composables/useEngineering'
 import { useCosting } from '~/modulos/logistica/master-data/product/costing/composables/useCosting'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import ProductionModal from '~/modulos/logistica/master-data/product/engineering/components/ProductionModal.vue'
 
 import {
   createDefaultProductForm,
@@ -21,6 +22,9 @@ definePageMeta({
 })
 
 const toast = useToast()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+const canProduce = computed(() => isOwnerOrAdmin.value || hasPermission('stock.create'))
 
 const route = useRoute()
 
@@ -94,6 +98,7 @@ watch(activeTab, tab => {
 
 const saving = ref(false)
 const calculating = ref(false)
+const showProductionModal = ref(false)
 
 // Moneda local (no se guarda en el producto, se carga de product_costs)
 const currencyId = ref<string>('')
@@ -221,6 +226,14 @@ const pageUi = computed(() => ({
       <template #right>
         <div class="flex items-center gap-2">
           <UButton
+            v-if="canProduce"
+            label="Fabricar"
+            icon="i-lucide-factory"
+            color="success"
+            variant="soft"
+            @click="showProductionModal = true"
+          />
+          <UButton
             label="Calcular costo"
             icon="i-lucide-calculator"
             variant="soft"
@@ -265,5 +278,11 @@ const pageUi = computed(() => ({
         </BomTabsCard>
       </UPageBody>
     </UPage>
+
+    <ProductionModal
+      v-model:open="showProductionModal"
+      :product-id="productId"
+      :product-name="product?.name"
+    />
   </div>
 </template>
