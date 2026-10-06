@@ -10,6 +10,7 @@ import GeneralSection from '~/modulos/logistica/master-data/product/components/s
 import { useEngineering } from '~/modulos/logistica/master-data/product/engineering/composables/useEngineering'
 import { useCosting } from '~/modulos/logistica/master-data/product/costing/composables/useCosting'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import ProductionModal from '~/modulos/logistica/master-data/product/engineering/components/ProductionModal.vue'
 
 import {
