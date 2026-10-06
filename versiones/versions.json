@@ -1,5 +1,124 @@
 [
   {
+    "version": "0.67.0-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "Fabricación incorpora un circuito operativo basado en BOM que consume materiales e ingresa productos terminados con trazabilidad. Productos e ingeniería mejoran la carga de componentes, costos, unidades y navegación, mientras Pagos evita duplicar facturas cuando falla una confirmación.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "production",
+        "title": "Fabricar productos permite elegir producto, cantidad, depósito de materiales y depósito de ingreso antes de confirmar los movimientos de stock"
+      },
+      {
+        "type": "feat",
+        "scope": "production",
+        "title": "La vista previa calcula todos los componentes del BOM, considera el stock reservado y bloquea la operación cuando falta algún material"
+      },
+      {
+        "type": "feat",
+        "scope": "production",
+        "title": "El historial de fabricación muestra producto, cantidad, depósito, fecha y referencia común de los consumos e ingresos"
+      },
+      {
+        "type": "security",
+        "scope": "production",
+        "title": "Fabricación incorpora permisos independientes para consultar, ejecutar, revisar historial, administrar BOM y visualizar costos"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "BOM distingue materias primas, productos intermedios, servicios y terminados, permite crear unidades y protege el método de cálculo cuando ya existen componentes"
+      },
+      {
+        "type": "fix",
+        "scope": "costing",
+        "title": "Los costos de ingeniería utilizan el costo de compra vigente y mantienen separado el precio de venta y su margen"
+      },
+      {
+        "type": "style",
+        "scope": "products",
+        "title": "Producto y BOM integran imagen, SKU, tipo, categorías y etiquetas en el contenido principal y eliminan el sidebar interno duplicado"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Crear una factura desde Pagos conserva el documento si falla su confirmación y los reintentos confirman el mismo borrador sin generar duplicados"
+      },
+      {
+        "type": "fix",
+        "scope": "sales",
+        "title": "La confirmación de facturas no informa un falso error cuando falla una sincronización secundaria posterior"
+      },
+      {
+        "type": "fix",
+        "scope": "stock",
+        "title": "Las reservas de órdenes de venta consultan únicamente estados válidos de contenedores al buscar mercadería en tránsito"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Fabricación operativa desde BOM y confirmación segura de facturas"
+  },
+  {
+    "version": "0.66.0-alpha",
+    "date": "2026-10-01",
+    "stage": "alpha",
+    "notes": "Tesorería incorpora la gestión integral de servicios e impuestos y mejora la trazabilidad de cheques y pagos. La navegación ahora identifica cada registro con su nombre o número operativo en lugar de exponer identificadores internos.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "treasury-obligations",
+        "title": "Servicios e impuestos permite registrar obligaciones individuales o recurrentes, anticipar vencimientos y generar períodos mensuales en borrador"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury-obligations",
+        "title": "Las obligaciones distinguen facturas fiscales con IVA de gastos directos y permiten asociar producto de servicio o cuenta contable"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Las obligaciones confirmadas aparecen entre los documentos pendientes y pueden cancelarse desde el circuito habitual de pagos"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "La reversión de pagos con cheque solicita qué hacer con el instrumento y evita cambios accidentales de estado"
+      },
+      {
+        "type": "style",
+        "scope": "checks",
+        "title": "El listado de cheques prioriza estado y acciones, y presenta fechas y datos bancarios con una jerarquía más clara"
+      },
+      {
+        "type": "fix",
+        "scope": "notifications",
+        "title": "Los procesos programados omiten empresas inactivas o bases sin las tablas requeridas sin interrumpir las demás notificaciones"
+      },
+      {
+        "type": "fix",
+        "scope": "stock",
+        "title": "La disponibilidad diferencia stock físico, reservas y mercadería proyectada en tránsito"
+      },
+      {
+        "type": "style",
+        "scope": "navigation",
+        "title": "Los breadcrumbs muestran números de comprobante y operación, nombres de personas, cajas, bancos y depósitos, patentes y referencias de viaje en lugar de UUID"
+      },
+      {
+        "type": "fix",
+        "scope": "navigation",
+        "title": "Las rutas dinámicas sin una etiqueta cargada muestran Detalle y nunca exponen identificadores técnicos al usuario"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Obligaciones de Tesorería y navegación con referencias operativas"
+  },
+  {
     "version": "0.65.0-alpha",
     "date": "2026-09-30",
     "stage": "alpha",

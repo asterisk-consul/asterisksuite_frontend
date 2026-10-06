@@ -44,30 +44,38 @@ const showAssignment = ref(false)
 const users = ref<Array<{ id: string; name: string; email: string }>>([])
 const assignedTo = ref('')
 const sendingCapture = ref(false)
+const openAssignment = () => { showAssignment.value = true }
+const closeAssignment = () => { showAssignment.value = false }
 
 const partyId = computed(() => (route.query.party_id as string) || undefined)
 const documentId = computed(() => (route.query.document_id as string) || undefined)
 const paymentType = computed(() => (route.query.type as 'PAYMENT' | 'COLLECTION') || 'PAYMENT')
 const checkId = computed(() => (route.query.check_id as string) || undefined)
+const obligationId = computed(() => (route.query.obligation_id as string) || undefined)
+const obligationAmount = computed(() => Number(route.query.amount || 0))
+const obligationCurrency = computed(() => (route.query.currency as string) || 'ARS')
+const obligationDescription = computed(() => (route.query.description as string) || '')
+const obligationAccountId = computed(() => (route.query.account_id as string) || '')
 
 const initialValues = ref<PaymentFormData | undefined>(
   partyId.value || checkId.value
-    ? {
+    ? ({
         type: paymentType.value,
         payment_mode: 'NORMAL',
         date: today(),
         payment_method: checkId.value ? 'CHECK' : 'CASH',
-        amount: 0,
-        currency_code: 'ARS',
-        description: '',
+        amount: obligationAmount.value,
+        currency_code: obligationCurrency.value,
+        description: obligationDescription.value,
         reference: '',
         party_id: partyId.value,
         bank_account_id: '',
         cash_box_id: '',
-        account_id: '',
+        account_id: obligationAccountId.value,
         check_ids: checkId.value ? [checkId.value] : [],
-        documents: documentId.value ? [{ document_id: documentId.value, amount_applied: 0 }] : undefined
-      }
+        documents: documentId.value ? [{ document_id: documentId.value, amount_applied: 0 }] : undefined,
+        obligations: obligationId.value ? [{ obligation_id: obligationId.value, amount_applied: obligationAmount.value }] : undefined
+      } as PaymentFormData)
     : undefined
 )
 
@@ -174,6 +182,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
       checks: formData.checks?.length ? formData.checks : undefined,
       documents: formData.documents?.length ? formData.documents : undefined,
+      obligations: formData.obligations ?? [],
     }
     const created = await create(apiPayload)
     if (created?.id) {
@@ -244,7 +253,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
             icon="i-lucide-send"
             variant="outline"
             :disabled="!hasUploadedFile || !canSendCapture"
-            @click="showAssignment = true"
+            @click="openAssignment"
           />
         </div>
 
@@ -267,7 +276,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
               :loading="sendingCapture"
               @click="sendQuickCapture"
             />
-            <UButton label="Cancelar envío" variant="ghost" @click="showAssignment = false" />
+            <UButton label="Cancelar envío" variant="ghost" @click="closeAssignment" />
           </div>
         </div>
       </div>

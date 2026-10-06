@@ -19,8 +19,14 @@ const { autoResolve } = useExchangeRate()
 
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
+const toggleMainPanel = () => { mainCollapsed.value = !mainCollapsed.value }
 
 const partyId = computed(() => (route.query.party_id as string) || undefined)
+const obligationId = computed(() => (route.query.obligation_id as string) || undefined)
+const obligationProductId = computed(() => (route.query.product_id as string) || undefined)
+const obligationUnitPrice = computed(() => Number(route.query.unit_price || 0))
+const obligationCurrency = computed(() => (route.query.currency as string) || undefined)
+const obligationDescription = computed(() => (route.query.description as string) || undefined)
 const parentOrderId = computed(() => (route.query.parent_order_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
 const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
@@ -108,6 +114,11 @@ const initialValues = computed(() => {
   if (partyId.value && !base.party_id) {
     base.party_id = partyId.value
   }
+  if (obligationProductId.value && !base.items?.length) {
+    base.items = [{ product_id: obligationProductId.value, quantity: 1, unit_price: obligationUnitPrice.value }]
+    base.currency_code = obligationCurrency.value || 'ARS'
+    base.descrip = obligationDescription.value || ''
+  }
 
   return Object.keys(base).length > 0 ? base : undefined
 })
@@ -143,6 +154,17 @@ async function handleSubmit(payload: any) {
       parent_document_id: parentOrderId.value || undefined
     }
     const created = await DocumentsPurchasesService.create(fullPayload)
+    if (obligationId.value) {
+      await $fetch(`/api/backend/treasury/obligations/${obligationId.value}`, {
+        method: 'PATCH',
+        body: {
+          document_id: created.id,
+          amount: Number(created.total ?? payload.total ?? 0),
+          issue_date: payload.date
+        }
+      })
+      await $fetch(`/api/backend/treasury/obligations/${obligationId.value}/confirm`, { method: 'POST' })
+    }
     if (intakeId.value) {
       await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
         method: 'POST', body: { target_type: 'PURCHASE_DOCUMENT', target_id: created.id }
@@ -174,7 +196,7 @@ async function handleSubmit(payload: any) {
         })
       }
     }
-    router.push(`/erp/purchases/purchases-documents/${created.id}`)
+    router.push(obligationId.value ? '/erp/treasury/taxes-services?view=obligations' : `/erp/purchases/purchases-documents/${created.id}`)
   } catch (e: any) {
     toast.add({
       title: `Error al crear ${pageTitle.value.toLowerCase()}`,
@@ -196,7 +218,7 @@ async function handleSubmit(payload: any) {
             icon="i-lucide-panel-left-close"
             variant="ghost"
             color="neutral"
-            @click="mainCollapsed = !mainCollapsed"
+            @click="toggleMainPanel"
           />
         </template>
       </UDashboardNavbar>

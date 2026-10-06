@@ -15,6 +15,11 @@ const id = route.params.id as string
 
 const { current: operation, loading, fetchOne, update } = useInternationalOperations()
 
+useBreadcrumbEntityLabel(
+  `/operaciones-internacionales/${id}`,
+  computed(() => operation.value?.id === id ? operation.value.number : null)
+)
+
 fetchOne(id)
 
 const initialData = computed<Partial<CreateOperationInput>>(() => {

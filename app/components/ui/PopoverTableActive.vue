@@ -21,6 +21,7 @@ const props = defineProps<{
   options: Option[]
   title?: string
   disabled?: boolean
+  badgeClass?: string
 }>()
 
 const emit = defineEmits<{
@@ -43,7 +44,7 @@ function selectOption(option: Option) {
 
 <template>
   <UPopover v-model:open="open" mode="click">
-    <UBadge class="cursor-pointer" variant="subtle" :color="current?.color">
+    <UBadge :class="['cursor-pointer', badgeClass]" variant="subtle" :color="current?.color">
       {{ current?.badgeLabel ?? current?.label }}
     </UBadge>
 

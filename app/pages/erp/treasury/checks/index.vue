@@ -57,6 +57,9 @@ const debitModalOpen = ref(false)
 const debitingCheck = ref<Check | null>(null)
 const debitDate = ref('')
 const debiting = ref(false)
+const revertModalOpen = ref(false)
+const revertingCheck = ref<Check | null>(null)
+const reverting = ref(false)
 
 const todayInArgentina = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/Argentina/Buenos_Aires'
@@ -229,13 +232,24 @@ const handleDeposit = async () => {
   }
 }
 
-const handleRevert = async (check: Check) => {
+const openRevertModal = (check: Check) => {
+  revertingCheck.value = check
+  revertModalOpen.value = true
+}
+
+const handleRevert = async () => {
+  if (!revertingCheck.value) return
   try {
-    await revert(check.id)
-    toast.add({ title: `Cheque #${check.check_number} revertido correctamente`, color: 'success' })
+    reverting.value = true
+    await revert(revertingCheck.value.id)
+    toast.add({ title: `Cheque #${revertingCheck.value.check_number} revertido correctamente`, color: 'success' })
+    revertModalOpen.value = false
+    revertingCheck.value = null
     await init()
   } catch (e: any) {
     toast.add({ title: e?.data?.message || 'Error al revertir el cheque', color: 'error' })
+  } finally {
+    reverting.value = false
   }
 }
 
@@ -273,7 +287,7 @@ const columns = checkColumns({
   onDeposit: openDepositModal,
   onResolve: openResolveModal,
   onProcess: openDebitModal,
-  onRevert: handleRevert,
+  onRevert: openRevertModal,
   onSortFieldSelect,
   onStatusChange: async (row, newStatus) => {
     if (newStatus === 'CLEARED') {
@@ -318,8 +332,7 @@ const links: ButtonProps[] = [
 ]
 
 const filterFields: FilterField[] = [
-  { id: 'check_number', label: 'Filtrar por N° cheque...', class: 'w-40' },
-  { id: 'bank_name', label: 'Filtrar por banco...', class: 'w-40' },
+  { id: 'check_number', label: 'Buscar por cheque o banco...', class: 'w-56' },
   { id: 'issuer_name', label: 'Filtrar por emisor...', class: 'w-40' },
   { id: 'party_name', label: 'Filtrar por cliente/proveedor...', class: 'w-48' }
 ]
@@ -521,6 +534,47 @@ const sortFields: SortField[] = [
               :loading="debiting"
               :disabled="!debitDate"
               @click="processOwnCheck"
+            />
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="revertModalOpen"
+      title="Revertir movimiento del cheque"
+      description="Esta acción modifica nuevamente el saldo de la cuenta bancaria."
+    >
+      <template #body>
+        <div v-if="revertingCheck" class="space-y-4">
+          <UAlert
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            title="Confirmá la reversión"
+            description="El cheque volverá al estado anterior y se eliminará el impacto bancario generado por su depósito o débito."
+          />
+
+          <div class="rounded-xl border border-default bg-elevated/40 p-4">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="font-semibold">Cheque N° {{ revertingCheck.check_number }}</p>
+                <p class="text-sm text-muted">{{ revertingCheck.bank_name }} · {{ revertingCheck.issuer_name }}</p>
+              </div>
+              <p class="whitespace-nowrap font-semibold">
+                {{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: revertingCheck.currency_code || 'ARS' }).format(Number(revertingCheck.amount)) }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <UButton label="Cancelar" variant="ghost" :disabled="reverting" @click="revertModalOpen = false" />
+            <UButton
+              label="Sí, revertir"
+              icon="i-lucide-undo-2"
+              color="warning"
+              :loading="reverting"
+              @click="handleRevert"
             />
           </div>
         </div>

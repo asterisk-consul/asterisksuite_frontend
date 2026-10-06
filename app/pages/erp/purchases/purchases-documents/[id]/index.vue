@@ -24,6 +24,10 @@ const loading = ref(true)
 const factura = computed(() => documentsPurchasesStore.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => factura.value?.document_types?.category)
+useBreadcrumbEntityLabel(
+  computed(() => `/erp/purchases/purchases-documents/${route.params.id as string}`),
+  computed(() => formatDocumentBreadcrumbLabel(factura.value))
+)
 
 // Custom status flow: Draft(0) → Pending(1) or Confirm(2) or Cancel(3)
 const customTransitions = computed(() => {

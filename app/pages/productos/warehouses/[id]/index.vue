@@ -32,6 +32,11 @@ const { items: locations } = storeToRefs(locationsStore)
 
 const { items: locationItems } = useLocations(locations)
 
+useBreadcrumbEntityLabel(
+  computed(() => `/productos/warehouses/${warehouseId.value}`),
+  computed(() => warehouse.value?.name)
+)
+
 // All warehouses for transfer
 const { warehouses } = storeToRefs(depositosStore)
 

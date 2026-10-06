@@ -21,6 +21,11 @@ const currencyCode = (route.query.currency as string) || 'ARS'
 
 const account = ref<CurrentAccount | null>(null)
 
+useBreadcrumbEntityLabel(
+  `/erp/rrhh/current-accounts/${partyId}`,
+  computed(() => account.value?.party?.name)
+)
+
 const entries = computed(() => {
   const fromStatement = statement.value?.entries ?? []
   const fromStore = storeEntries.value ?? []

@@ -14,6 +14,11 @@ const partyId = route.params.partyId as string
 const report = ref<any>(null)
 const loading = ref(true)
 
+useBreadcrumbEntityLabel(
+  `/erp/rrhh/reports/socio/${partyId}`,
+  computed(() => report.value?.partner?.name)
+)
+
 // Filtros
 const filterDateFrom = ref('')
 const filterDateTo = ref('')

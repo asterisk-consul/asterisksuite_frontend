@@ -99,7 +99,7 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
   },
   treasury: {
     label: 'Tesorería', icon: 'i-lucide-wallet', order: 40,
-    modules: ['treasury', 'cash_boxes', 'cash_box_movements', 'cash_box_renditions', 'cash_box_transfers', 'bank_accounts', 'payments', 'currency_rates', 'checks'],
+    modules: ['treasury', 'cash_boxes', 'cash_box_movements', 'cash_box_renditions', 'cash_box_transfers', 'bank_accounts', 'payments', 'currency_rates', 'checks', 'credit_cards', 'card_collections', 'card_settlements', 'card_settings', 'card_reports'],
     subgroups: {
       payments: 'Pagos',
       'treasury.payments': 'Pagos · Importación y exportación',
@@ -111,7 +111,12 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
       bank_accounts: 'Bancos',
       treasury: 'General',
       currency_rates: 'Tipos de Cambio',
-      checks: 'Cheques'
+      checks: 'Cheques',
+      credit_cards: 'Tarjetas corporativas',
+      card_collections: 'Cobros con tarjeta',
+      card_settlements: 'Liquidaciones de tarjeta',
+      card_settings: 'Configuración de tarjetas',
+      card_reports: 'Reportes de tarjetas'
     }
   },
   hr: {

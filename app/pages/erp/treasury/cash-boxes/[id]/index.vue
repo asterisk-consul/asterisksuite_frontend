@@ -31,6 +31,11 @@ const {
 
 const { movements, init: fetchMovements } = useCashBoxMovements()
 
+useBreadcrumbEntityLabel(
+  `/erp/treasury/cash-boxes/${boxId}`,
+  computed(() => box.value?.name)
+)
+
 const sorting = ref<SortingState>([])
 const sessionUserNames = ref<Map<string, string>>(new Map())
 

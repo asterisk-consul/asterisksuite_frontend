@@ -17,6 +17,11 @@ const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
 
 const trip = computed(() => store.current)
 
+useBreadcrumbEntityLabel(
+  `/logistica/viajes/${id}`,
+  computed(() => trip.value?.reference_number ? `Viaje ${trip.value.reference_number}` : null)
+)
+
 // Locations para resolver nombres
 const locationsStore = useLocationsStore()
 const { items: locationsList } = storeToRefs(locationsStore)

@@ -139,6 +139,16 @@ export const navigationTree: DrilldownNode[] = [
       },
       { label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', permission: 'payments.read' },
       {
+        label: 'Tarjetas',
+        icon: 'i-lucide-credit-card',
+        permissions: ['credit_cards.company.read', 'card_collections.read', 'card_settlements.read'],
+        children: [
+          { label: 'Tarjetas y canales', icon: 'i-lucide-wallet-cards', to: '/erp/treasury/cards', permissions: ['credit_cards.company.read', 'card_settings.read'] },
+          { label: 'Liquidaciones', icon: 'i-lucide-landmark', to: '/erp/treasury/card-settlements', permission: 'card_settlements.read' },
+          { label: 'Reporte de tarjetas', icon: 'i-lucide-chart-column', to: '/erp/treasury/reports/cards', permission: 'card_reports.read' }
+        ]
+      },
+      {
         label: 'Cuentas corrientes',
         icon: 'i-lucide-file-text',
         to: '/erp/treasury/current-accounts',

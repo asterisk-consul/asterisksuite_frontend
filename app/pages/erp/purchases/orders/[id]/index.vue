@@ -24,6 +24,10 @@ const loading = ref(true)
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
+useBreadcrumbEntityLabel(
+  computed(() => `/erp/purchases/orders/${route.params.id as string}`),
+  computed(() => formatDocumentBreadcrumbLabel(doc.value))
+)
 
 onMounted(async () => {
   try {

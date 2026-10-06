@@ -25,6 +25,10 @@ const fiscalPreview = ref<any>(null)
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
+useBreadcrumbEntityLabel(
+  computed(() => `/erp/remitos/${route.params.id as string}`),
+  computed(() => formatDocumentBreadcrumbLabel(doc.value))
+)
 const printableDocument = computed(() => {
   if (!doc.value || doc.value.fiscal_authorization_code) {
     return doc.value

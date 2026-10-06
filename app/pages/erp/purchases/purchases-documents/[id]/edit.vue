@@ -29,6 +29,11 @@ const factura = computed(() => {
   return doc ? mapDocumentToFacturaForm(doc) : null
 })
 
+useBreadcrumbEntityLabel(
+  computed(() => `/erp/purchases/purchases-documents/${route.params.id as string}`),
+  computed(() => formatDocumentBreadcrumbLabel(documentsPurchasesStore.current))
+)
+
 const formRef = ref<InstanceType<typeof FacturaForm> | null>(null)
 
 onMounted(async () => {

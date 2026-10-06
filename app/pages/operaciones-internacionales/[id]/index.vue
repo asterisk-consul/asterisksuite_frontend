@@ -46,6 +46,11 @@ const {
   removeContainer
 } = useInternationalOperations()
 
+useBreadcrumbEntityLabel(
+  `/operaciones-internacionales/${id}`,
+  computed(() => operation.value?.id === id ? operation.value.number : null)
+)
+
 const showDocumentModal = ref(false)
 const showQuoteModal = ref(false)
 const showCreateQuoteModal = ref(false)
