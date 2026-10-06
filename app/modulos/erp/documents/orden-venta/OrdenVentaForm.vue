@@ -144,6 +144,7 @@ defineExpose({ getFormData })
           <UInput
             v-model.number="form.commission_rate"
             type="number"
+            step="0.01"
             placeholder="0.00"
             :min="0"
             :max="100"

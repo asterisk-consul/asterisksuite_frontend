@@ -1,5 +1,37 @@
 [
   {
+    "version": "0.68.1-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "Corrección en la carga de porcentajes de comisión y montos con decimales en formularios de ventas, personal y tesorería.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "sales",
+        "title": "La comisión por defecto del vendedor en Partes interesadas acepta decimales"
+      },
+      {
+        "type": "fix",
+        "scope": "sales",
+        "title": "La comisión de la orden de venta acepta decimales"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "Los importes de liquidación de tarjetas aceptan decimales"
+      },
+      {
+        "type": "fix",
+        "scope": "hr",
+        "title": "El sueldo en datos laborales acepta decimales"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Comisiones y montos con decimales corregidos"
+  },
+  {
     "version": "0.68.0-alpha",
     "date": "2026-10-06",
     "stage": "alpha",
