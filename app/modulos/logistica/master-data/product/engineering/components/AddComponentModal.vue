@@ -44,7 +44,6 @@ const lengthMm = ref<number | undefined>(undefined)
 const widthMm = ref<number | undefined>(undefined)
 const heightMm = ref<number | undefined>(undefined)
 const selectedType = ref('ALL')
-const selectedCategoryId = ref('ALL')
 
 const variants = ref<any[]>([])
 const unitsStore = useUnitsStore()
@@ -77,26 +76,8 @@ const typeFilters = [
 ]
 const eligibleProducts = computed(() => products.value
   .filter(product => product.id !== props.productId && allowedComponentTypes.has(product.product_type)))
-const categoryOptions = computed(() => {
-  const categories = new Map<string, string>()
-  for (const product of eligibleProducts.value) {
-    for (const relation of product.product_categories ?? []) {
-      if (relation.categories?.id && relation.categories?.name) {
-        categories.set(relation.categories.id, relation.categories.name)
-      }
-    }
-  }
-  return [
-    { label: 'Todas las categorías', value: 'ALL' },
-    ...Array.from(categories.entries())
-      .sort((a, b) => a[1].localeCompare(b[1], 'es'))
-      .map(([value, label]) => ({ label, value }))
-  ]
-})
 const filteredProducts = computed(() => eligibleProducts.value
-  .filter(product => selectedType.value === 'ALL' || product.product_type === selectedType.value)
-  .filter(product => selectedCategoryId.value === 'ALL'
-    || product.product_categories?.some(relation => relation.category_id === selectedCategoryId.value)))
+  .filter(product => selectedType.value === 'ALL' || product.product_type === selectedType.value))
 const productOptions = computed(() => filteredProducts.value
   .sort((a, b) => {
     const typeOrder = ['RAW_MATERIAL', 'SEMI_FINISHED', 'FINISHED_PRODUCT', 'SERVICE']
@@ -150,7 +131,7 @@ watch(selectedProductId, async (pid) => {
   variants.value = [...variantOptions.value]
 })
 
-watch([selectedType, selectedCategoryId], () => {
+watch(selectedType, () => {
   if (selectedProductId.value && !filteredProducts.value.some(product => product.id === selectedProductId.value)) {
     selectedProductId.value = ''
   }
@@ -170,7 +151,6 @@ const resetForm = () => {
   widthMm.value = undefined
   heightMm.value = undefined
   selectedType.value = 'ALL'
-  selectedCategoryId.value = 'ALL'
 }
 
 const openCreateProduct = () => {
@@ -239,7 +219,7 @@ const handleSave = async () => {
   <UModal
     :open="open"
     :title="parentId ? `Agregar hijo a ${parentName}` : 'Agregar componente'"
-    :ui="{ width: 'max-w-3xl' }"
+    :ui="{ width: 'max-w-5xl' }"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
@@ -258,7 +238,7 @@ const handleSave = async () => {
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p class="text-sm font-semibold">1. Elegí el componente</p>
-              <p class="text-xs text-muted">Filtrá por función y categoría para encontrarlo más rápido.</p>
+              <p class="text-xs text-muted">Elegí el tipo de componente y buscá por nombre o SKU.</p>
             </div>
             <UButton
               icon="i-lucide-plus"
@@ -286,14 +266,7 @@ const handleSave = async () => {
             </button>
           </div>
 
-          <div class="grid gap-3 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
-            <UFormField label="Categoría">
-              <USelect
-                v-model="selectedCategoryId"
-                :items="categoryOptions"
-                class="w-full"
-              />
-            </UFormField>
+          <div>
             <UFormField label="Producto" required>
               <div v-if="loadingProducts" class="flex h-10 items-center gap-2 rounded-md border border-default px-3 text-sm text-muted">
                 <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
@@ -319,7 +292,8 @@ const handleSave = async () => {
                     ? 'No hay productos para estos filtros'
                     : 'Cargando catálogo...'"
                 searchable
-                class="w-full"
+                class="w-full min-w-0"
+                :ui="{ value: 'truncate text-left' }"
                 :disabled="!productOptions.length"
               />
             </UFormField>
