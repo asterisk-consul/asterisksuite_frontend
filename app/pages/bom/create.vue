@@ -27,6 +27,7 @@ const createdProductId = ref<string | null>(null)
 // Default a BOM para BOM create (MANUAL se resuelve en precio)
 form.cost_source = 'BOM'
 form.auto_calculate_cost = true
+form.product_type = 'FINISHED_PRODUCT'
 
 // Moneda local (no se guarda en el producto, se usa al calcular costos)
 const currencyId = ref('')
@@ -114,7 +115,10 @@ function cancelCreate() {
           <template v-if="step === 1">
             <UCard>
               <template #header>
-                <p class="text-sm font-medium">Información del producto</p>
+                <div>
+                  <p class="text-sm font-medium">Producto terminado</p>
+                  <p class="text-xs text-muted">Este es el producto general cuyo costo se calculará desde sus componentes.</p>
+                </div>
               </template>
               <GeneralSection :form="form" />
             </UCard>
@@ -124,6 +128,23 @@ function cancelCreate() {
                 <p class="text-sm font-medium">Configuración de costos</p>
               </template>
               <ConfigurationCostForm :form="form" :exclude-sources="['MANUAL']" v-model="currencyId" />
+            </UCard>
+
+            <UCard>
+              <template #header>
+                <div>
+                  <p class="text-sm font-medium">Precio de venta</p>
+                  <p class="text-xs text-muted">Podés calcularlo automáticamente a partir del costo final del BOM.</p>
+                </div>
+              </template>
+              <div class="grid gap-4 md:grid-cols-2">
+                <UFormField label="Cálculo automático">
+                  <USwitch v-model="form.auto_calculate_cost" label="Usar costo + margen" />
+                </UFormField>
+                <UFormField v-if="form.auto_calculate_cost" label="Margen sobre costo (%)">
+                  <UInputNumber v-model="form.sale_margin_percentage" :min="0" :step="0.01" class="w-full" />
+                </UFormField>
+              </div>
             </UCard>
 
             <UAlert

@@ -35,6 +35,7 @@ const toast = useToast()
 const product = computed(() => props.product)
 
 const isFinishedProduct = computed(() => ['FINISHED_PRODUCT', 'SERVICE'].includes(product.value?.product_type))
+const isSaleEnabled = computed(() => ['SALE', 'BOTH'].includes(product.value?.usage_type ?? 'BOTH'))
 const hasVariants = computed(() => (product.value?.product_variants?.length ?? 0) > 0)
 const hasCalculatedCost = computed(() => !!product.value?.current_cost)
 const hasCostTemplate = computed(() => !!product.value?.cost_template_id)
@@ -46,11 +47,15 @@ const latestProductCost = computed(() => {
   return costs[costs.length - 1]
 })
 
-const canAddProductPrice = computed(() => isFinishedProduct.value && !hasVariants.value && !hasCalculatedCost.value)
-
-// auto_calculate_cost: cuando está activo, el costo calculado es el precio de venta
+// auto_calculate_cost: el precio de venta se deriva del costo vigente más el margen.
 const autoCalculate = computed(() => product.value?.auto_calculate_cost === true)
+const canAddProductPrice = computed(() => isSaleEnabled.value && !hasVariants.value && !autoCalculate.value)
 const showCostAsPrice = computed(() => autoCalculate.value && hasCalculatedCost.value)
+const derivedSalePrice = computed(() => {
+  const cost = Number(product.value?.current_cost ?? 0)
+  const margin = Number(product.value?.sale_margin_percentage ?? 0)
+  return cost * (1 + margin / 100)
+})
 
 const existingProductPrices = computed(() => product.value?.product_price ?? [])
 
@@ -174,7 +179,7 @@ const defaultPricingMode = computed<PricingMode>(() => {
 })
 
 const showPricingDecision = computed(() =>
-  isFinishedProduct.value && !hasVariants.value && props.priceEnabled && !hasAnyData.value && !hasCalculatedCost.value
+  isSaleEnabled.value && !hasVariants.value && props.priceEnabled && !hasAnyData.value && !hasCalculatedCost.value
 )
 
 const goToBom = () => {
@@ -187,7 +192,6 @@ const formatMoney = (value?: string | number | null, currency?: Currency | null)
   if (value === null || value === undefined) return '-'
   return `${currency?.symbol ?? '$'} ${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
 }
-
 const SOURCE_LABELS: Record<string, string> = {
   MANUAL: 'Manual',
   PURCHASE: 'Compra',
@@ -583,7 +587,7 @@ watch(
       <div>
         <h3 class="text-lg font-semibold">Precios y costos</h3>
         <p class="text-sm text-gray-500">
-          {{ hasVariants ? 'Costos por variante del producto' : 'Precio del producto terminado' }}
+          {{ hasVariants ? 'Costos y precios por variante' : 'Costo de compra y precio de venta del producto' }}
         </p>
       </div>
 
@@ -614,9 +618,9 @@ watch(
         <div>
           <p class="text-sm font-semibold text-gray-900">Precio inhabilitado</p>
           <p class="text-sm text-gray-500 mt-1">
-            Este producto no tiene precios de venta habilitados.
+            Este producto no tiene habilitado el uso de precios de venta.
             <br />
-            Activalo para poder asignar precios y usarlo en facturación.
+            Los precios existentes se conservan, pero no se usarán al facturar hasta habilitarlo.
           </p>
         </div>
         <div class="flex gap-2 justify-center">
@@ -632,17 +636,39 @@ watch(
         <UIcon name="i-lucide-calculator" class="size-5 text-primary" />
         <div>
           <p class="text-sm font-semibold">Precio desde costo</p>
-          <p class="text-xs text-muted">Este producto usa el costo calculado como precio de venta.</p>
+          <p class="text-xs text-muted">Costo vigente + {{ Number(product?.sale_margin_percentage ?? 0) }}% de margen.</p>
         </div>
         <UBadge label="Automático" color="primary" variant="soft" size="sm" />
       </div>
       <div class="mt-3 pt-3 border-t">
         <p class="text-2xl font-bold">
-          {{ formatMoney(product?.current_cost, latestProductCost?.currencies) }}
+          {{ formatMoney(derivedSalePrice, latestProductCost?.currencies ?? product?.current_cost_currency) }}
         </p>
         <p v-if="product?.last_cost_calculated_at" class="text-xs text-muted mt-1">
           Último cálculo: {{ new Date(product.last_cost_calculated_at).toLocaleString('es-AR') }}
         </p>
+      </div>
+    </UCard>
+
+    <UCard v-else-if="hasCalculatedCost">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="flex size-10 items-center justify-center rounded-lg bg-warning/10">
+            <UIcon name="i-lucide-package-check" class="size-5 text-warning" />
+          </div>
+          <div>
+            <p class="text-sm font-semibold">Costo vigente</p>
+            <p class="text-xs text-muted">
+              {{ product?.cost_source === 'PURCHASE' ? 'Actualizado desde la última compra confirmada.' : 'Costo utilizado para BOM e ingeniería.' }}
+            </p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-xl font-bold">
+            {{ formatMoney(product?.current_cost, product?.current_cost_currency ?? latestProductCost?.currencies) }}
+          </p>
+          <p class="text-xs text-muted">No es el precio de venta</p>
+        </div>
       </div>
     </UCard>
 
@@ -706,7 +732,7 @@ watch(
           <p class="text-sm font-medium text-gray-900">Sin precios ni costos</p>
           <p class="text-sm text-gray-500 mt-1">
             <template v-if="hasVariants">Agregá el costo de cada variante del producto.</template>
-            <template v-else-if="isFinishedProduct">Agregá el precio de venta del producto o servicio.</template>
+            <template v-else-if="isSaleEnabled">Agregá el precio de venta del producto.</template>
             <template v-else>Este producto no tiene precios configurados.</template>
           </p>
         </div>
@@ -738,7 +764,7 @@ watch(
     <!-- ========================= -->
     <!-- TABLA UNIFICADA PRECIOS   -->
     <!-- ========================= -->
-    <UCard v-if="priceEnabled && (hasVariants || existingProductPrices.length)" :ui="{ body: 'p-0' }">
+    <UCard v-if="hasVariants || existingProductPrices.length" :ui="{ body: 'p-0' }">
       <template #header>
         <div class="flex items-center justify-between px-1">
           <p class="text-sm font-medium">

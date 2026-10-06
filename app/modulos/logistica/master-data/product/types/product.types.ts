@@ -62,6 +62,7 @@ export interface Product {
 
   is_composed: boolean
   auto_calculate_cost: boolean
+  sale_margin_percentage?: number | string
 
   manages_stock: boolean
 
@@ -86,6 +87,8 @@ export interface Product {
   last_cost_calculated_at?: string | null
 
   current_cost?: number | string | null
+  current_cost_currency_id?: string | null
+  current_cost_currency?: Currency | null
 
   unit_id?: string | null
   purchase_unit_id?: string | null
@@ -180,6 +183,7 @@ export interface CreateProductDto {
 
   is_composed?: boolean
   auto_calculate_cost?: boolean
+  sale_margin_percentage?: number
   manages_stock?: boolean
 
   income_account_id?: string

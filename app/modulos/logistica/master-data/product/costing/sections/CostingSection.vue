@@ -129,10 +129,13 @@ onMounted(async () => {
         <!-- Auto calcular costo -->
         <UFormField label="Precio de venta">
           <div class="space-y-1">
-            <USwitch v-model="autoCalculate" label="Usar costo calculado como precio de venta" />
+            <USwitch v-model="autoCalculate" label="Calcular desde costo + margen" />
             <p class="text-xs text-muted">
-              Cuando está activo, el precio de factura se toma del costo calculado.
+              Cuando está activo, las ventas toman el costo vigente más el porcentaje indicado.
             </p>
+            <UFormField v-if="autoCalculate" label="Margen (%)" class="pt-2">
+              <UInputNumber v-model="form.sale_margin_percentage" :min="0" :step="0.01" class="w-full" />
+            </UFormField>
           </div>
         </UFormField>
       </div>

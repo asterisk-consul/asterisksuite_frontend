@@ -26,6 +26,7 @@ export function createDefaultProductCosting() {
   return {
     price_enabled: true,
     auto_calculate_cost: false,
+    sale_margin_percentage: 0,
     cost_source: 'MANUAL' as ProductCostSource,
     cost_currency_id: undefined
   }
@@ -78,6 +79,7 @@ export function toUpdateProductPayload(form: ProductFormState): UpdateProductDto
 
     price_enabled: form.price_enabled,
     auto_calculate_cost: form.auto_calculate_cost,
+    sale_margin_percentage: Number(form.sale_margin_percentage || 0),
     cost_source: form.cost_source,
 
     manages_stock: form.manages_stock,
@@ -110,6 +112,7 @@ export function toCreateProductPayload(form: ProductFormState): CreateProductDto
 
     price_enabled: form.price_enabled,
     auto_calculate_cost: form.auto_calculate_cost,
+    sale_margin_percentage: Number(form.sale_margin_percentage || 0),
     cost_source: form.cost_source,
 
     manages_stock: form.manages_stock,

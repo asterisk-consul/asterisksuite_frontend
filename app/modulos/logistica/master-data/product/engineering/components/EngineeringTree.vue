@@ -670,7 +670,17 @@ const columns: ColumnDef<any>[] = [
       const calc = getCalc(row.original)
 
       if (!calc.total_cost) {
-        return h('span', { class: 'text-xs text-muted' }, '—')
+        return h('div', { class: 'flex flex-col items-start gap-0.5' }, [
+          h('span', { class: 'text-xs font-medium text-warning' }, 'Sin costo de compra'),
+          h(
+            resolveComponent('NuxtLink'),
+            {
+              to: `/productos/${row.original.child_product_id}/edit`,
+              class: 'text-[10px] text-primary hover:underline'
+            },
+            () => 'Ver producto'
+          )
+        ])
       }
 
       return h('div', { class: 'flex flex-col' }, [

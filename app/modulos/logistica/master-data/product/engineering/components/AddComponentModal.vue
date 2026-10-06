@@ -22,7 +22,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const { init: initProducts, selectItems: productOptions, create: createProduct } = useProducts()
+const { init: initProducts, products, create: createProduct } = useProducts()
 const { selectItems: variantOptions, loadByProduct: initVariants } = useProductVariants()
 
 // =========================
@@ -52,6 +52,26 @@ const newProductForm = reactive(createDefaultProductForm())
 // =========================
 
 const isEngineering = computed(() => props.costSource === 'ENGINEERING')
+const typeLabels: Record<string, string> = {
+  RAW_MATERIAL: 'Materia prima',
+  SEMI_FINISHED: 'Producto intermedio',
+  FINISHED_PRODUCT: 'Producto terminado',
+  SERVICE: 'Servicio / proceso'
+}
+const allowedComponentTypes = new Set(Object.keys(typeLabels))
+const productOptions = computed(() => products.value
+  .filter(product => product.id !== props.productId && allowedComponentTypes.has(product.product_type))
+  .sort((a, b) => {
+    const typeOrder = ['RAW_MATERIAL', 'SEMI_FINISHED', 'FINISHED_PRODUCT', 'SERVICE']
+    return typeOrder.indexOf(a.product_type) - typeOrder.indexOf(b.product_type)
+      || a.name.localeCompare(b.name, 'es')
+  })
+  .map(product => ({
+    label: `${typeLabels[product.product_type]} · ${product.sku ? `${product.sku} - ` : ''}${product.name}`,
+    value: product.id,
+    unit_id: product.unit_id,
+    product_type: product.product_type
+  })))
 const selectedProduct = computed(() => productOptions.value.find(product => product.value === selectedProductId.value))
 const unitOptions = computed(() => units.value.filter(unit => unit.active).map(unit => ({ label: `${unit.name} (${unit.symbol})`, value: unit.id })))
 
@@ -165,7 +185,7 @@ const handleSave = async () => {
         <!-- SELECTOR DE PRODUCTO -->
         <div>
           <div class="flex items-center gap-2 mb-1">
-            <label class="text-sm font-medium">Producto *</label>
+            <label class="text-sm font-medium">Materia prima, intermedio o servicio *</label>
             <UButton
               icon="i-lucide-plus"
               label="Nuevo"
@@ -183,6 +203,7 @@ const handleSave = async () => {
             placeholder="Buscar producto..."
             searchable
           />
+          <p class="mt-1 text-xs text-muted">Los productos se agrupan por función. Un intermedio puede tener su propio BOM.</p>
         </div>
 
         <!-- CAMPOS DEL COMPONENTE -->
