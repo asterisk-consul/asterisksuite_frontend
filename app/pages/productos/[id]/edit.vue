@@ -2,8 +2,8 @@
 definePageMeta({
   middleware: ['auth'],
 })
-import BomSidebar from '~/modulos/logistica/master-data/product/components/ProductSidebar.vue'
 import ProductForm from '~/modulos/logistica/master-data/product/components/ProductForm.vue'
+import ProductSidebarContent from '~/modulos/logistica/master-data/product/components/ProductSidebarContent.vue'
 
 import {
   createDefaultProductForm,
@@ -16,22 +16,7 @@ import { useProductsStore } from '~/modulos/logistica/master-data/product/store/
 
 const productsStore = useProductsStore()
 
-const { moduleCollapsed } = useModuleSidebarState()
 const toast = useToast()
-const mobileOpen = ref(false)
-
-watch(moduleCollapsed, (collapsed) => {
-  if (!collapsed && window.innerWidth < 1024) {
-    mobileOpen.value = true
-    moduleCollapsed.value = true
-  }
-})
-
-watch(mobileOpen, (open) => {
-  if (!open) {
-    moduleCollapsed.value = true
-  }
-})
 
 const route = useRoute()
 const productId = route.params.id as string
@@ -130,6 +115,20 @@ async function handleSave() {
 
 const links = computed(() => [
   {
+    label: 'Disponibilidad',
+    icon: 'i-lucide-chart-no-axes-combined',
+    color: 'neutral' as const,
+    variant: 'ghost' as const,
+    to: `/stock/disponibilidad?search=${encodeURIComponent(product.value?.sku || product.value?.name || '')}`
+  },
+  {
+    label: 'Costos',
+    icon: 'i-lucide-dollar-sign',
+    color: 'neutral' as const,
+    variant: 'ghost' as const,
+    to: '/productos/costos'
+  },
+  {
     label: 'Guardar',
     icon: 'i-lucide-save',
     loading: saving.value,
@@ -137,11 +136,6 @@ const links = computed(() => [
   }
 ])
 
-const pageUi = computed(() => ({
-  root: moduleCollapsed.value ? 'flex flex-col' : 'flex flex-col lg:grid lg:grid-cols-[200px_1fr] lg:gap-2',
-  left: 'lg:col-start-1',
-  center: moduleCollapsed.value ? '' : 'lg:col-start-2'
-}))
 </script>
 
 <template>
@@ -154,12 +148,9 @@ const pageUi = computed(() => ({
       :links="links"
       class="sticky top-0 z-20 px-4 border-b border-default bg-default"
     />
-    <UPage :ui="pageUi">
-      <template v-if="!moduleCollapsed" #left>
-        <BomSidebar :product="product ?? null" :mobile-open="mobileOpen" @update:mobile-open="mobileOpen = $event" />
-      </template>
-
+    <UPage>
       <UPageBody>
+        <ProductSidebarContent :product="product ?? null" />
         <ProductForm
           v-model="form"
           :product="product"

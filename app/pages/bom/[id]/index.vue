@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
-import BomSidebar from '~/modulos/logistica/master-data/product/components/ProductSidebar.vue'
+import ProductSidebarContent from '~/modulos/logistica/master-data/product/components/ProductSidebarContent.vue'
 import BomTabsCard from '~/modulos/logistica/master-data/product/costing/components/BomTabsCard.vue'
 
 import EngineeringSection from '~/modulos/logistica/master-data/product/engineering/sections/EngineeringSection.vue'
@@ -28,23 +28,6 @@ const { isOwnerOrAdmin } = useCompanyRole()
 const canProduce = computed(() => isOwnerOrAdmin.value || hasPermission('stock.create'))
 
 const route = useRoute()
-
-const { moduleCollapsed } = useModuleSidebarState()
-
-const mobileOpen = ref(false)
-
-watch(moduleCollapsed, (collapsed) => {
-  if (!collapsed && window.innerWidth < 1024) {
-    mobileOpen.value = true
-    moduleCollapsed.value = true
-  }
-})
-
-watch(mobileOpen, (open) => {
-  if (!open) {
-    moduleCollapsed.value = true
-  }
-})
 
 const productId = route.params.id as string
 
@@ -207,11 +190,23 @@ async function handleSave() {
   }
 }
 
-const pageUi = computed(() => ({
-  root: moduleCollapsed.value ? 'flex flex-col' : 'flex flex-col lg:grid lg:grid-cols-[200px_1fr] lg:gap-2',
-  left: 'lg:col-start-1',
-  center: moduleCollapsed.value ? '' : 'lg:col-start-2'
-}))
+const productActions = computed(() => [[
+  {
+    label: 'Editar producto',
+    icon: 'i-lucide-pencil',
+    to: `/productos/${productId}/edit`
+  },
+  {
+    label: 'Ver disponibilidad',
+    icon: 'i-lucide-chart-no-axes-combined',
+    to: `/stock/disponibilidad?search=${encodeURIComponent(product.value?.sku || product.value?.name || '')}`
+  },
+  {
+    label: 'Costos de productos',
+    icon: 'i-lucide-dollar-sign',
+    to: '/productos/costos'
+  }
+]])
 
 </script>
 
@@ -243,17 +238,18 @@ const pageUi = computed(() => ({
             @click="handleCalculateCost"
           />
 
+          <UDropdownMenu :items="productActions" :content="{ align: 'end' }">
+            <UButton label="Más" icon="i-lucide-ellipsis" color="neutral" variant="ghost" trailing-icon="i-lucide-chevron-down" />
+          </UDropdownMenu>
+
           <UButton label="Guardar" icon="i-lucide-save" :loading="saving" @click="handleSave" />
         </div>
       </template>
     </AppPageHeader>
 
-    <UPage :ui="pageUi">
-      <template v-if="!moduleCollapsed" #left>
-        <BomSidebar :product="product ?? null" :mobile-open="mobileOpen" @update:mobile-open="mobileOpen = $event" />
-      </template>
-
+    <UPage>
       <UPageBody>
+        <ProductSidebarContent :product="product ?? null" />
         <BomTabsCard v-model:active-tab="activeTab">
           <template #default="{ activeTab }">
             <EngineeringSection
