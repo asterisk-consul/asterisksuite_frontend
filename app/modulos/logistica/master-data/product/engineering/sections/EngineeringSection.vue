@@ -69,6 +69,19 @@ const showTree = computed(() =>
 )
 
 const showRateConfig = computed(() => props.form.cost_source === 'RATE')
+const structureLocked = computed(() => engineering.hasTree.value)
+
+const selectCostSource = (value: ProductCostSource) => {
+  if (structureLocked.value && value !== props.form.cost_source) {
+    toast.add({
+      title: 'Método bloqueado',
+      description: 'La estructura ya tiene componentes. Eliminá el árbol antes de cambiar el método de cálculo.',
+      color: 'warning'
+    })
+    return
+  }
+  emit('update:costSource', value)
+}
 
 // =========================
 // TREE HANDLERS
@@ -124,8 +137,11 @@ onMounted(async () => {
           class="flex min-h-24 gap-3 rounded-lg border p-3 text-left transition"
           :class="form.cost_source === option.value
             ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-            : 'border-default hover:bg-elevated'"
-          @click="emit('update:costSource', option.value)"
+            : structureLocked
+              ? 'cursor-not-allowed border-default opacity-45'
+              : 'border-default hover:bg-elevated'"
+          :disabled="structureLocked && form.cost_source !== option.value"
+          @click="selectCostSource(option.value)"
         >
           <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-elevated">
             <UIcon :name="costSourceDescriptions[option.value]?.icon ?? 'i-lucide-calculator'" class="size-4" />
@@ -136,6 +152,15 @@ onMounted(async () => {
           </div>
         </button>
       </div>
+      <UAlert
+        v-if="structureLocked"
+        class="mt-4"
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-lock-keyhole"
+        title="Método fijado por la estructura"
+        description="Para proteger los cálculos, no se puede cambiar entre BOM e Ingeniería mientras existan componentes."
+      />
     </UCard>
 
     <!-- ========================= -->

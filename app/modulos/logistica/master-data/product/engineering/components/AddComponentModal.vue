@@ -7,6 +7,8 @@ import {
 } from '~/modulos/logistica/master-data/product/utils/product-form.utils'
 import ProductModalForm from '~/modulos/logistica/master-data/product/components/modals/ProductModalForm.vue'
 import { useUnitsStore } from '~/modulos/almacen/units/store/units.store'
+import UnitModal from '~/modulos/almacen/units/components/UnitModal.vue'
+import type { Unit } from '~/modulos/almacen/units/types/units.types'
 
 const props = defineProps<{
   open: boolean
@@ -50,6 +52,7 @@ const unitsStore = useUnitsStore()
 const { items: units } = storeToRefs(unitsStore)
 const saving = ref(false)
 const catalogLoaded = ref(false)
+const showUnitModal = ref(false)
 
 // ProductModalForm state
 const showProductModal = ref(false)
@@ -159,6 +162,10 @@ const openCreateProduct = () => {
     newProductForm.product_type = selectedType.value as any
   }
   showProductModal.value = true
+}
+
+const handleUnitCreated = (unit: Unit) => {
+  selectedUnitId.value = unit.id
 }
 
 const handleProductCreated = async () => {
@@ -337,8 +344,16 @@ const handleSave = async () => {
               />
               </UFormField>
 
-              <UFormField v-if="!isEngineering" label="Unidad del consumo">
-              <USelect v-model="selectedUnitId" :items="unitOptions" placeholder="Unidad base del material" class="w-full" />
+              <UFormField label="Unidad del consumo">
+                <div class="flex gap-2">
+                  <USelect v-model="selectedUnitId" :items="unitOptions" placeholder="Seleccionar unidad" class="min-w-0 flex-1" />
+                  <UTooltip text="Crear unidad">
+                    <UButton icon="i-lucide-plus" variant="outline" color="neutral" square @click="showUnitModal = true" />
+                  </UTooltip>
+                </div>
+                <NuxtLink to="/productos/settings/unidades" target="_blank" class="mt-1 inline-flex text-xs text-primary hover:underline">
+                  Administrar unidades de medida
+                </NuxtLink>
               </UFormField>
 
               <UFormField label="Desperdicio (%)" hint="Opcional">
@@ -398,4 +413,6 @@ const handleSave = async () => {
     :form="newProductForm"
     @submit="handleProductCreated"
   />
+
+  <UnitModal v-model:open="showUnitModal" @saved="handleUnitCreated" />
 </template>
