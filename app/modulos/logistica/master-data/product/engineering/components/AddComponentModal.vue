@@ -22,7 +22,13 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const { init: initProducts, products, create: createProduct } = useProducts()
+const {
+  init: initProducts,
+  products,
+  loading: loadingProducts,
+  error: productsError,
+  create: createProduct
+} = useProducts()
 const { selectItems: variantOptions, loadByProduct: initVariants } = useProductVariants()
 
 // =========================
@@ -44,6 +50,7 @@ const variants = ref<any[]>([])
 const unitsStore = useUnitsStore()
 const { items: units } = storeToRefs(unitsStore)
 const saving = ref(false)
+const catalogLoaded = ref(false)
 
 // ProductModalForm state
 const showProductModal = ref(false)
@@ -113,10 +120,24 @@ const canSave = computed(() =>
 // WATCHERS
 // =========================
 
-watch(() => props.open, (val) => {
+const loadCatalog = async () => {
+  catalogLoaded.value = false
+  try {
+    await Promise.all([initProducts(), unitsStore.fetchAll()])
+    catalogLoaded.value = true
+  } catch (err: any) {
+    toast.add({
+      title: 'No se pudo cargar el catálogo',
+      description: err?.data?.message || 'Revisá la conexión con el backend e intentá nuevamente.',
+      color: 'error'
+    })
+  }
+}
+
+watch(() => props.open, async (val) => {
   if (val) {
-    Promise.all([initProducts(), unitsStore.fetchAll()])
     resetForm()
+    await loadCatalog()
   }
 })
 
@@ -274,11 +295,29 @@ const handleSave = async () => {
               />
             </UFormField>
             <UFormField label="Producto" required>
+              <div v-if="loadingProducts" class="flex h-10 items-center gap-2 rounded-md border border-default px-3 text-sm text-muted">
+                <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+                Cargando productos…
+              </div>
+              <div v-else-if="productsError" class="rounded-lg border border-error/30 bg-error/5 p-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-medium text-error">No se pudo cargar el catálogo</p>
+                    <p class="mt-1 text-xs text-muted">{{ productsError }}</p>
+                  </div>
+                  <UButton label="Reintentar" icon="i-lucide-refresh-cw" size="xs" variant="soft" color="error" @click="loadCatalog" />
+                </div>
+              </div>
               <USelectMenu
+                v-else
                 v-model="selectedProductId"
                 :items="productOptions"
                 value-key="value"
-                :placeholder="productOptions.length ? 'Buscar por nombre o SKU...' : 'No hay productos para estos filtros'"
+                :placeholder="productOptions.length
+                  ? 'Buscar por nombre o SKU...'
+                  : catalogLoaded
+                    ? 'No hay productos para estos filtros'
+                    : 'Cargando catálogo...'"
                 searchable
                 class="w-full"
                 :disabled="!productOptions.length"
