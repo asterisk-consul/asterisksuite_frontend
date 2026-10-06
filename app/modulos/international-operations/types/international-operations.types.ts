@@ -20,6 +20,7 @@ export type ContainerStatus =
   | 'ARRIVED'
   | 'CUSTOMS'
   | 'RELEASED'
+  | 'RECEIVING'
   | 'DELIVERED'
   | 'CLOSED'
 export type ContainerEventType =
@@ -173,9 +174,8 @@ export type UpdateIntlOpsSettingsInput = {
 export interface DeliverContainerResult {
   container_id: string
   container_number: string
-  destination_warehouse_id: string
-  destination_warehouse_name: string
-  moved: { product_id: string; quantity: string }[]
+  receipts: Array<{ id: string; number?: number; status: number }>
+  existing: boolean
 }
 
 export interface ContainerEvent {

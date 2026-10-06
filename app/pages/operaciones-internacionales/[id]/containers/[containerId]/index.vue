@@ -15,6 +15,7 @@ const toast = useToast()
 const {
   findOneContainer,
   updateContainer,
+  syncContainerTransitStock,
   deliverContainer,
   createEvent,
   removeEvent,
@@ -41,7 +42,7 @@ const merchandiseDocs = computed(() => {
 
 const productRows = computed(() => {
   const rows: { docLabel: string; docId: string; productName: string; sku?: string; quantity: number; price?: number }[] = []
-  for (const rel of merchandiseDocs.value) {
+  for (const rel of merchandiseDocs.value.filter((entry: any) => entry.document?.document_types?.category === 'INVOICE')) {
     const doc = rel.document
     if (!doc) continue
     const docLabel = `${doc.document_types?.description ?? doc.document_types?.code ?? 'Documento'}${doc.number ? ` #${doc.number}` : ''}`
@@ -61,10 +62,34 @@ const productRows = computed(() => {
 
 const totalUnits = computed(() => productRows.value.reduce((sum, r) => sum + r.quantity, 0))
 
-// ── Entrega de contenedor (transferencia desde tránsito) ──
+// ── Recepción de contenedor mediante remito de compra ──
 const showDeliverModal = ref(false)
 const deliverWarehouseId = ref<string | undefined>(undefined)
 const delivering = ref(false)
+const syncingTransit = ref(false)
+
+const handleSyncTransitStock = async () => {
+  syncingTransit.value = true
+  try {
+    const result = await syncContainerTransitStock(containerId)
+    const noInvoices = result.invoices_found === 0
+    toast.add({
+      title: noInvoices
+        ? 'No hay facturas para ingresar'
+        : result.invoices_registered ? 'Stock en tránsito actualizado' : 'Stock en tránsito al día',
+      description: noInvoices
+        ? 'Asociá al contenedor una factura de compra confirmada como mercadería.'
+        : result.invoices_registered
+        ? `Se registraron ${result.invoices_registered} factura(s) en el depósito de tránsito.`
+        : `Se revisaron ${result.invoices_found} factura(s) y no había movimientos pendientes.`,
+      color: noInvoices ? 'warning' : 'success'
+    })
+  } catch (err: any) {
+    toast.add({ title: 'No se pudo sincronizar el stock', description: err?.data?.message, color: 'error' })
+  } finally {
+    syncingTransit.value = false
+  }
+}
 
 const destinationOptions = computed(() =>
   (warehouses.value ?? [])
@@ -85,10 +110,18 @@ const handleDeliver = async () => {
   }
   delivering.value = true
   try {
-    await deliverContainer(containerId, deliverWarehouseId.value)
+    const result = await deliverContainer(containerId, deliverWarehouseId.value)
     container.value = await findOneContainer(containerId)
     showDeliverModal.value = false
-    toast.add({ title: 'Contenedor entregado', description: 'El stock en tránsito se transfirió al depósito de destino.', color: 'success' })
+    const firstReceipt = result.receipts?.[0]
+    toast.add({
+      title: result.existing ? 'Recepción ya preparada' : 'Remito de recepción creado',
+      description: 'Revisá las cantidades y confirmá el remito para ingresar el stock al depósito.',
+      color: 'success'
+    })
+    if (firstReceipt?.id) {
+      await navigateTo(`/erp/purchases/purchases-documents/${firstReceipt.id}/edit`)
+    }
   } catch (err: any) {
     toast.add({ title: 'No se pudo entregar', description: err?.data?.message, color: 'error' })
   } finally {
@@ -118,7 +151,9 @@ const eventTypes: { label: string; value: ContainerEventType }[] = [
 ]
 
 const containerStatusItems = computed(() =>
-  containerStatusOptions.value.map((s) => ({
+  containerStatusOptions.value
+    .filter(s => !['RECEIVING', 'DELIVERED'].includes(s.value))
+    .map((s) => ({
     label: s.value === container.value?.status ? `${s.label} (actual)` : s.label,
     disabled: s.value === container.value?.status,
     onSelect: () => handleStatusChange(s.value as ContainerStatus)
@@ -191,8 +226,17 @@ const handleRemoveEvent = async (eventId: string) => {
           <UButton label="Cambiar estado" icon="i-lucide-refresh-cw" variant="outline" size="sm" />
         </UDropdownMenu>
         <UButton
-          v-if="container.transit_warehouse_id && container.status !== 'DELIVERED' && container.status !== 'CLOSED'"
-          label="Entregar stock"
+          v-if="['SHIPPED', 'IN_TRANSIT', 'ARRIVED', 'CUSTOMS', 'RELEASED', 'RECEIVING'].includes(container.status)"
+          label="Sincronizar stock"
+          icon="i-lucide-refresh-cw"
+          color="neutral"
+          variant="outline"
+          :loading="syncingTransit"
+          @click="handleSyncTransitStock"
+        />
+        <UButton
+          v-if="container.transit_warehouse_id && ['RELEASED', 'RECEIVING'].includes(container.status)"
+          label="Registrar recepción"
           icon="i-lucide-package-check"
           color="primary"
           variant="solid"
@@ -361,7 +405,7 @@ const handleRemoveEvent = async (eventId: string) => {
       </UPageCard>
     </template>
 
-    <UModal v-model:open="showDeliverModal" title="Transferir stock en tránsito">
+    <UModal v-model:open="showDeliverModal" title="Preparar remito de recepción">
       <template #body>
         <div class="space-y-4">
           <p class="text-sm text-muted">
@@ -387,15 +431,15 @@ const handleRemoveEvent = async (eventId: string) => {
             color="warning"
             variant="subtle"
             icon="i-lucide-alert-triangle"
-            title="El contenedor pasará a estado Entregado"
-            description="Todo el stock del almacén de tránsito se moverá al depósito elegido."
+            title="El stock todavía no se moverá"
+            description="Se creará un remito en borrador con el depósito elegido. El movimiento desde tránsito se realizará recién al confirmarlo."
           />
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
           <UButton label="Cancelar" variant="ghost" @click="() => { showDeliverModal = false }" />
-          <UButton label="Confirmar entrega" color="primary" icon="i-lucide-package-check" :loading="delivering" @click="handleDeliver" />
+          <UButton label="Crear remito" color="primary" icon="i-lucide-file-plus-2" :loading="delivering" @click="handleDeliver" />
         </div>
       </template>
     </UModal>

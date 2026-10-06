@@ -9,6 +9,9 @@ interface SalesFlowSettings {
   require_invoice_for_delivery: boolean
   auto_create_delivery_note: boolean
   allow_partial_delivery: boolean
+  reserve_stock_on_order_confirmation: boolean
+  allow_partial_stock_reservation: boolean
+  allow_backorder_without_stock: boolean
 }
 
 const toast = useToast()
@@ -49,7 +52,10 @@ async function save() {
       delivery_payment_percentage: Number(settings.value.delivery_payment_percentage),
       require_invoice_for_delivery: settings.value.require_invoice_for_delivery,
       auto_create_delivery_note: settings.value.auto_create_delivery_note,
-      allow_partial_delivery: settings.value.allow_partial_delivery
+      allow_partial_delivery: settings.value.allow_partial_delivery,
+      reserve_stock_on_order_confirmation: settings.value.reserve_stock_on_order_confirmation,
+      allow_partial_stock_reservation: settings.value.allow_partial_stock_reservation,
+      allow_backorder_without_stock: settings.value.allow_backorder_without_stock
     }
     settings.value = await $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings', {
       method: 'PATCH', body: payload
@@ -96,6 +102,28 @@ onMounted(load)
           title="Los tipos documentales se mantienen sincronizados"
           description="Factura activa solamente la factura; Orden de venta activa solamente la OV; las opciones combinadas activan ambos documentos. Los movimientos históricos no se recalculan."
         />
+      </UPageCard>
+
+      <UPageCard title="Reserva de stock" description="Definí cuándo la mercadería queda comprometida para una venta sin descontarla físicamente.">
+        <div class="space-y-5">
+          <div class="flex items-start justify-between gap-6">
+            <div><p class="font-medium">Reservar al confirmar la OV</p><p class="text-sm text-muted">El stock continúa en el depósito, pero deja de estar disponible para otras ventas.</p></div>
+            <USwitch v-model="settings.reserve_stock_on_order_confirmation" />
+          </div>
+          <template v-if="settings.reserve_stock_on_order_confirmation">
+            <USeparator />
+            <div class="flex items-start justify-between gap-6">
+              <div><p class="font-medium">Permitir reserva parcial</p><p class="text-sm text-muted">Reserva la cantidad disponible y permite continuar la OV con el faltante pendiente de abastecimiento.</p></div>
+              <USwitch v-model="settings.allow_partial_stock_reservation" />
+            </div>
+            <USeparator />
+            <div class="flex items-start justify-between gap-6">
+              <div><p class="font-medium">Confirmar aunque falte stock</p><p class="text-sm text-muted">La OV puede continuar y la parte faltante queda como pendiente, sin crear stock ficticio.</p></div>
+              <USwitch v-model="settings.allow_backorder_without_stock" />
+            </div>
+          </template>
+          <UAlert color="neutral" variant="subtle" icon="i-lucide-warehouse" title="El remito realiza la salida física" description="Al confirmarlo, consume la reserva de su OV y descuenta el stock del depósito en una sola operación." />
+        </div>
       </UPageCard>
 
       <UPageCard title="Condición para remitir" description="El remito se habilita con las condiciones que definas para la operación.">

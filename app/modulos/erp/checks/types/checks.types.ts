@@ -11,6 +11,7 @@ export interface Check {
   issuer_name: string
   issuer_id?: string | null
   amount: number
+  available_amount?: number | null
   currency_code: string
   issue_date: string
   due_date: string

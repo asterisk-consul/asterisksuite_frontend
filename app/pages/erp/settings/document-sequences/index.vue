@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 import { useCompanyRole } from '~/composables/useCompanyRole'
@@ -24,13 +24,50 @@ const form = reactive({
   name: '',
   point_of_sale: '0001',
   prefix: '',
-  range_start: 1,
-  range_end: 999999,
+  range_start: 0,
+  range_end: 9999999,
   automatic: true,
-  document_type_ids: [] as string[]
+  document_type_id: ''
 })
 
 const sequences = ref<any[]>([])
+const search = ref('')
+const activeDocumentType = ref('all')
+
+const documentTypeTabs = computed(() => {
+  const tabs = [{
+    label: `Todas (${sequences.value.length})`,
+    value: 'all',
+    icon: 'i-lucide-layers-3'
+  }]
+
+  for (const type of (documentsTypesStore.items ?? []).filter(dt => dt.active)) {
+    const count = sequences.value.filter(sequence =>
+      getLinkedDocTypes(sequence).some((linkedType: any) => linkedType.id === type.id)
+    ).length
+    if (count > 0) {
+      tabs.push({ label: `${type.code} (${count})`, value: type.id, icon: 'i-lucide-file-text' })
+    }
+  }
+  return tabs
+})
+
+const filteredSequences = computed(() => {
+  const term = search.value.trim().toLocaleLowerCase('es')
+  return sequences.value.filter(sequence => {
+    const types = getLinkedDocTypes(sequence)
+    const matchesType = activeDocumentType.value === 'all'
+      || types.some((type: any) => type.id === activeDocumentType.value)
+    if (!matchesType) return false
+    if (!term) return true
+
+    return [
+      sequence.name,
+      sequence.point_of_sale,
+      ...types.flatMap((type: any) => [type.code, type.description])
+    ].some(value => String(value ?? '').toLocaleLowerCase('es').includes(term))
+  })
+})
 
 const documentTypeOptions = computed(() => {
   return (documentsTypesStore.items ?? [])
@@ -65,31 +102,27 @@ const openCreate = () => {
     name: '',
     point_of_sale: '0001',
     prefix: '',
-    range_start: 1,
-    range_end: 999999,
+    range_start: 0,
+    range_end: 9999999,
     automatic: true,
-    document_type_ids: []
+    document_type_id: ''
   })
   modalOpen.value = true
 }
 
 const openEdit = (seq: any) => {
   editingSequence.value = seq
-  const linkedTypes = (seq.document_type_sequences ?? [])
-    .map((link: any) => link.document_types)
-    .filter(Boolean)
-    .map((dt: any) => ({
-      label: `${dt.code} - ${dt.description}`,
-      value: dt.id
-    }))
+  const linkedTypeId = seq.document_type_sequences?.[0]?.document_types?.id
+    ?? seq.document_type_sequences?.[0]?.document_type_id
+    ?? ''
   Object.assign(form, {
     name: seq.name,
     point_of_sale: seq.point_of_sale,
     prefix: seq.prefix || '',
-    range_start: seq.range_start || 1,
-    range_end: seq.range_end || 999999,
+    range_start: seq.range_start ?? 0,
+    range_end: seq.range_end ?? 9999999,
     automatic: seq.automatic,
-    document_type_ids: linkedTypes
+    document_type_id: linkedTypeId
   })
   modalOpen.value = true
 }
@@ -99,8 +132,9 @@ const handleSubmit = async () => {
   try {
     const payload = {
       ...form,
-      document_type_ids: form.document_type_ids.map((item: any) => typeof item === 'string' ? item : item.value)
+      document_type_ids: form.document_type_id ? [form.document_type_id] : []
     }
+    delete (payload as any).document_type_id
     if (editingSequence.value) {
       await $fetch(`/api/backend/document-sequences/${editingSequence.value.id}`, {
         method: 'PATCH',
@@ -146,7 +180,22 @@ const handleDelete = async () => {
 }
 
 function getLinkedDocTypes(seq: any) {
-  return (seq.document_type_sequences ?? []).map((link: any) => link.document_types).filter(Boolean)
+  const linked = (seq.document_type_sequences ?? [])
+    .map((link: any) => link.document_types)
+    .filter(Boolean)
+  const legacy = (documentsTypesStore.items ?? []).filter((type: any) =>
+    type.document_sequence_id === seq.id
+    || type.document_sequences?.id === seq.id
+    || type.document_type_sequences?.some((link: any) =>
+      (link.sequence_id ?? link.document_sequences?.id) === seq.id
+    )
+  )
+  return [...new Map([...linked, ...legacy].map((type: any) => [type.id, type])).values()]
+}
+
+function formatSequenceNumber(value: number | string | null | undefined, fallback: number) {
+  const number = value == null ? fallback : Number(value)
+  return Number.isFinite(number) ? number.toLocaleString('es-AR') : fallback.toLocaleString('es-AR')
 }
 </script>
 
@@ -154,7 +203,7 @@ function getLinkedDocTypes(seq: any) {
   <UPage class="space-y-6 px-4">
     <AppPageHeader
       title="Secuencias de Numeración"
-      description="Configurar numeración de comprobantes por punto de venta"
+      description="Cada tipo de comprobante mantiene su propia numeración dentro de un punto de venta"
     >
       <template #links>
         <UButton label="Nueva secuencia" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate" />
@@ -170,16 +219,44 @@ function getLinkedDocTypes(seq: any) {
       <p>No hay secuencias configuradas</p>
     </div>
 
+    <template v-else>
+      <div class="rounded-xl border border-default bg-default p-4 space-y-4">
+        <UFormField label="Buscar secuencias" description="Buscá por nombre, punto de venta o documento asociado.">
+          <UInput
+            v-model="search"
+            icon="i-lucide-search"
+            placeholder="Ej.: 0003, Remito R o Factura A"
+            size="lg"
+            class="w-full"
+          >
+            <template v-if="search" #trailing>
+              <UButton icon="i-lucide-x" color="neutral" variant="link" size="xs" aria-label="Limpiar búsqueda" @click="search = ''" />
+            </template>
+          </UInput>
+        </UFormField>
+        <div class="overflow-x-auto">
+          <UTabs v-model="activeDocumentType" :items="documentTypeTabs" :content="false" variant="link" class="min-w-max" />
+        </div>
+        <p class="text-xs text-muted">{{ filteredSequences.length }} de {{ sequences.length }} secuencias</p>
+      </div>
+
+      <div v-if="filteredSequences.length === 0" class="rounded-xl border border-dashed border-default py-12 text-center">
+        <UIcon name="i-lucide-search-x" class="size-10 mx-auto mb-3 text-muted" />
+        <p class="font-medium">No encontramos secuencias</p>
+        <p class="text-sm text-muted">Probá con otra búsqueda o seleccioná otra pestaña.</p>
+        <UButton label="Limpiar filtros" variant="link" class="mt-2" @click="search = ''; activeDocumentType = 'all'" />
+      </div>
+
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <div
-        v-for="seq in sequences"
+        v-for="seq in filteredSequences"
         :key="seq.id"
         class="p-5 rounded-xl border border-default bg-default hover:border-primary/50 transition-colors"
       >
         <div class="flex items-start justify-between mb-3">
           <div>
             <p class="text-sm font-semibold">{{ seq.name }}</p>
-            <p class="text-xs text-muted">PV: {{ seq.point_of_sale }} | Prefijo: {{ seq.prefix || 'â€”' }}</p>
+            <p class="text-xs text-muted">PV: {{ seq.point_of_sale }} | Prefijo: {{ seq.prefix || '—' }}</p>
           </div>
           <UBadge
             :label="seq.automatic ? 'Automática' : 'Manual'"
@@ -192,7 +269,7 @@ function getLinkedDocTypes(seq: any) {
         <div class="grid grid-cols-3 gap-3 mb-3">
           <div class="text-center p-2 rounded bg-muted/30">
             <p class="text-xs text-muted">Inicio</p>
-            <p class="text-sm font-semibold">{{ seq.range_start || 'â€”' }}</p>
+            <p class="text-sm font-semibold">{{ formatSequenceNumber(seq.range_start, 0) }}</p>
           </div>
           <div class="text-center p-2 rounded bg-muted/30">
             <p class="text-xs text-muted">Actual</p>
@@ -200,7 +277,7 @@ function getLinkedDocTypes(seq: any) {
           </div>
           <div class="text-center p-2 rounded bg-muted/30">
             <p class="text-xs text-muted">Fin</p>
-            <p class="text-sm font-semibold">{{ seq.range_end || 'â€”' }}</p>
+            <p class="text-sm font-semibold">{{ formatSequenceNumber(seq.range_end, 9999999) }}</p>
           </div>
         </div>
 
@@ -224,6 +301,7 @@ function getLinkedDocTypes(seq: any) {
         </div>
       </div>
     </div>
+    </template>
 
     <!-- CREATE/EDIT MODAL -->
     <UModal
@@ -253,18 +331,20 @@ function getLinkedDocTypes(seq: any) {
             </UFormField>
           </div>
           <UCheckbox v-model="form.automatic" label="Numeración automática" />
-          <UFormField label="Tipos de documento asociados" name="document_type_ids">
+          <UAlert color="info" variant="subtle" icon="i-lucide-info" title="Numeración independiente" description="Podés repetir el punto de venta en otra serie si corresponde a un tipo documental diferente." />
+          <UFormField label="Tipo de documento" name="document_type_id" required description="Una serie pertenece a un solo tipo para no mezclar contadores.">
             <USelectMenu
-              v-model="form.document_type_ids"
+              v-model="form.document_type_id"
               :items="documentTypeOptions"
-              placeholder="Seleccionar tipos de documento"
-              multiple
+              value-key="value"
+              placeholder="Seleccionar tipo de documento"
               searchable
+              class="w-full"
             />
           </UFormField>
           <div class="flex justify-end gap-2 pt-4">
             <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
-            <UButton label="Guardar" type="submit" :loading="saving" />
+            <UButton label="Guardar" type="submit" :loading="saving" :disabled="!form.name || !form.point_of_sale || !form.document_type_id" />
           </div>
         </UForm>
       </template>

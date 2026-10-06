@@ -46,7 +46,11 @@ export function useChecks() {
 
   const reject = async (id: string) => store.reject(id)
 
-  const deposit = async (id: string, data: { bank_account_id: string; amount?: number }) => store.deposit(id, data)
+  const deposit = async (id: string, data: { bank_account_id: string; amount?: number; date?: string }) => store.deposit(id, data)
+
+  const collectInCashBox = async (id: string, cashBoxId: string, date: string) => store.collectInCashBox(id, cashBoxId, date)
+
+  const debitOwnCheck = async (id: string, date: string) => store.debitOwnCheck(id, date)
 
   const revert = async (id: string) => store.revert(id)
 
@@ -117,6 +121,8 @@ export function useChecks() {
     confirm,
     reject,
     deposit,
+    collectInCashBox,
+    debitOwnCheck,
     revert,
     fetchUpcoming: store.fetchUpcoming,
     fetchPendingNotification: store.fetchPendingNotification

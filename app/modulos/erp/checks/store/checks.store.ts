@@ -144,7 +144,7 @@ export const useChecksStore = defineStore('checks', () => {
     return updated
   }
 
-  const deposit = async (id: string, data: { bank_account_id: string; amount?: number }) => {
+  const deposit = async (id: string, data: { bank_account_id: string; amount?: number; date?: string }) => {
     const updated = await service.deposit(id, data)
 
     const index = items.value.findIndex((i) => i.id === id)
@@ -174,6 +174,22 @@ export const useChecksStore = defineStore('checks', () => {
     return updated
   }
 
+  const collectInCashBox = async (id: string, cashBoxId: string, date: string) => {
+    const updated = await service.collectInCashBox(id, cashBoxId, date)
+    const index = items.value.findIndex((i) => i.id === id)
+    if (index !== -1) items.value[index] = updated
+    if (current.value?.id === id) current.value = updated
+    return updated
+  }
+
+  const debitOwnCheck = async (id: string, date: string) => {
+    const updated = await service.debitOwnCheck(id, date)
+    const index = items.value.findIndex((i) => i.id === id)
+    if (index !== -1) items.value[index] = updated
+    if (current.value?.id === id) current.value = updated
+    return updated
+  }
+
   return {
     // state
     items,
@@ -195,6 +211,8 @@ export const useChecksStore = defineStore('checks', () => {
     confirm: (id: string) => updateCheckStatus(id, 'confirm'),
     reject: (id: string) => updateCheckStatus(id, 'reject'),
     deposit,
+    collectInCashBox,
+    debitOwnCheck,
     revert
   }
 })

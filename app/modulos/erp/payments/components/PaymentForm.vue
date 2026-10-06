@@ -293,6 +293,7 @@ watch(
           })
         }
       }
+      selectedDocs.value = new Map(selectedDocs.value)
       // En solo lectura los documentos saldados ya no aparecen entre los pendientes.
       // Conservar el monto persistido del pago en lugar de recalcularlo como cero.
       if (!props.readonly) {
@@ -303,6 +304,33 @@ watch(
     // Precargar retenciones guardadas (modo edición)
     if (props.initialWithholdings && props.initialWithholdings.length > 0) {
       withholdings.value = [...props.initialWithholdings]
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  [
+    () => props.modelValue?.check_ids,
+    () => props.availableOwnChecks,
+    () => props.availableCustomerChecks
+  ],
+  ([checkIds]) => {
+    if (!checkIds?.length) return
+    const available = [...(props.availableOwnChecks ?? []), ...(props.availableCustomerChecks ?? [])]
+    selectedChecks.value.clear()
+    for (const id of checkIds) {
+      const check = available.find(item => item.id === id)
+      if (check) selectedChecks.value.set(id, check)
+    }
+    if (selectedChecks.value.size > 0) {
+      form.check_ids = Array.from(selectedChecks.value.keys())
+      form.amount = selectedDocs.value.size > 0
+        ? Array.from(selectedDocs.value.values()).reduce((sum, entry) => sum + Number(entry.amount), 0)
+        : Array.from(selectedChecks.value.values()).reduce(
+            (sum, check) => sum + Number(check.available_amount ?? check.amount),
+            0
+          )
     }
   },
   { immediate: true }
@@ -542,6 +570,22 @@ const totalChecksAmount = computed(() => {
   return Math.round(total * 100) / 100
 })
 
+// El cheque se registra siempre por su valor completo. La parte que exceda
+// los documentos queda a favor del proveedor en pagos o del cliente en cobros.
+const checkCreditBalance = computed(() => {
+  if (!isCheck.value || selectedDocs.value.size === 0) return 0
+  return Math.max(0, Math.round((totalChecksAmount.value - totalApplied.value) * 100) / 100)
+})
+
+const checkCreditPartyLabel = computed(() => isCollection.value ? 'cliente' : 'proveedor')
+
+const displayedPaymentAmount = computed(() => {
+  if (isCheck.value && totalChecksAmount.value > 0) return totalChecksAmount.value
+  if (totalApplied.value > 0) return totalApplied.value
+  if (totalChecksAmount.value > 0) return totalChecksAmount.value
+  return Number(form.amount || 0)
+})
+
 // Reparte el presupuesto de cheques entre los documentos seleccionados:
 // cada documento recibe lo aplicado (editable) pero sin exceder el saldo disponible
 const redistributeAppliedAmounts = () => {
@@ -552,6 +596,7 @@ const redistributeAppliedAmounts = () => {
     entry.amount = Math.round(capped * 100) / 100
     budget = Math.round((budget - entry.amount) * 100) / 100
   }
+  selectedDocs.value = new Map(selectedDocs.value)
   form.amount = totalApplied.value
 }
 
@@ -592,6 +637,7 @@ watch(resolvedRate, (newRate) => {
       entry.amount = Number((entry.doc.pending_amount * rate).toFixed(2))
     }
   }
+  selectedDocs.value = new Map(selectedDocs.value)
   form.amount = totalApplied.value
 })
 
@@ -661,7 +707,15 @@ const isCheckSelected = (id: string) => selectedChecks.value.has(id)
 
 const selectCashBox = (id: string) => {
   const box = cashBoxes.value.find(b => b.id === id)
-  if (box?.status === 'CLOSED') return
+  if (box?.status === 'CLOSED') {
+    toast.add({
+      title: 'La caja está cerrada',
+      description: 'Abrí una sesión de caja antes de seleccionarla para el pago o cobro.',
+      color: 'warning',
+      icon: 'i-lucide-lock'
+    })
+    return
+  }
   form.cash_box_id = id
   instrumentValidationAttempted.value = false
 }
@@ -745,6 +799,10 @@ const toggleDoc = (doc: PendingDocument) => {
     selectedDocs.value.set(doc.id, { doc, amount: amountToApply })
   }
 
+  // Map conserva su identidad al usar set/delete. Crear una nueva referencia
+  // permite que PendingDocumentsList actualice el checkbox, el borde y el monto.
+  selectedDocs.value = new Map(selectedDocs.value)
+
   // Auto-set party_id del primer documento seleccionado
   if (selectedDocs.value.size > 0) {
     const firstDoc = selectedDocs.value.values().next().value?.doc
@@ -765,7 +823,8 @@ const toggleDoc = (doc: PendingDocument) => {
 const updateDocAmount = (docId: string, amount: number) => {
   const entry = selectedDocs.value.get(docId)
   if (entry) {
-    entry.amount = amount
+    selectedDocs.value.set(docId, { ...entry, amount })
+    selectedDocs.value = new Map(selectedDocs.value)
     form.amount = totalApplied.value
   }
 }
@@ -803,7 +862,13 @@ const handleSubmit = async () => {
     return
   }
 
-  const paymentAmount = totalApplied.value > 0 ? totalApplied.value : totalChecksAmount.value > 0 ? totalChecksAmount.value : form.amount
+  const paymentAmount = isPayment.value && isCheck.value && totalChecksAmount.value > 0
+    ? totalChecksAmount.value
+    : totalApplied.value > 0
+      ? totalApplied.value
+      : totalChecksAmount.value > 0
+        ? totalChecksAmount.value
+        : form.amount
 
   // Retenciones: usar las cargadas/confirmadas en el formulario
   const validWithholdings = withholdings.value.filter(w => Number(w.withheld_amount) > 0)
@@ -816,19 +881,14 @@ const handleSubmit = async () => {
     amount_applied: d.amount
   }))
 
-  // Asignación de cheques: distribuye secuencialmente hasta cubrir lo aplicado
-  const buildCheckAllocations = (totalToCover: number) => {
+  // Un cheque físico se recibe o se entrega por su valor completo. Los
+  // documentos conservan por separado el importe efectivamente aplicado.
+  const buildCheckAllocations = () => {
     if (!isCheck.value || selectedChecks.value.size === 0) return undefined
-    let remaining = Math.round(totalToCover * 100) / 100
-    const allocations: { check_id: string; amount_applied: number }[] = []
-    for (const [id, check] of selectedChecks.value.entries()) {
-      if (remaining <= 0.009) break
-      const available = checkAvailableAmount(check)
-      const applied = Math.min(available, remaining)
-      allocations.push({ check_id: id, amount_applied: Math.round(applied * 100) / 100 })
-      remaining = Math.round((remaining - applied) * 100) / 100
-    }
-    return allocations.length > 0 ? allocations : undefined
+    return Array.from(selectedChecks.value.entries()).map(([id, check]) => ({
+      check_id: id,
+      amount_applied: Math.round(checkAvailableAmount(check) * 100) / 100
+    }))
   }
 
   // Distribuir retenciones proporcionalmente entre documentos aplicados
@@ -863,7 +923,7 @@ const handleSubmit = async () => {
     amount: cashAmount,
     account_id: form.account_id || undefined,
     check_ids: undefined,
-    checks: buildCheckAllocations(paymentAmount),
+    checks: buildCheckAllocations(),
     withholdings: withholdingsPayload.length > 0 ? withholdingsPayload : undefined,
     documents: documentsData.length > 0 ? documentsData : undefined
   }
@@ -1102,54 +1162,67 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       <div v-if="filteredCashBoxes.length === 0" class="text-center py-4 text-muted text-sm">
         {{ isPayment ? `No hay cajas con saldo suficiente en ${form.currency_code}` : `No hay cajas activas en ${form.currency_code}` }}
       </div>
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[130px] overflow-y-auto">
-        <div
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[180px] overflow-y-auto">
+        <UTooltip
           v-for="cb in filteredCashBoxes"
           :key="cb.id"
-          class="relative flex flex-col p-3 rounded-lg border cursor-pointer transition-colors"
-          :class="form.cash_box_id === cb.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-default hover:border-muted'"
-          @click="selectCashBox(cb.id)"
+          :disabled="cb.status !== 'CLOSED'"
+          text="Caja cerrada: abrí una sesión antes de seleccionarla"
+          :content="{ side: 'top' }"
         >
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-sm font-medium truncate">{{ cb.name }}</span>
+          <div
+            class="relative flex h-full flex-col rounded-lg border p-3 transition-colors"
+            :class="[
+              form.cash_box_id === cb.id
+                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                : 'border-default',
+              cb.status === 'CLOSED'
+                ? 'cursor-not-allowed bg-muted/30 opacity-80'
+                : 'cursor-pointer hover:border-muted'
+            ]"
+            @click="selectCashBox(cb.id)"
+          >
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-sm font-medium truncate">{{ cb.name }}</span>
+              <UBadge
+                :label="cb.is_main ? 'Ppal' : 'Sec'"
+                :color="cb.is_main ? 'primary' : 'neutral'"
+                size="xs"
+              />
+            </div>
             <UBadge
-              :label="cb.is_main ? 'Ppal' : 'Sec'"
-              :color="cb.is_main ? 'primary' : 'gray'"
+              :label="cb.status === 'OPEN' ? 'Abierta' : 'Cerrada'"
+              :color="cb.status === 'OPEN' ? 'success' : 'warning'"
               size="xs"
+              class="self-start mb-2"
             />
-          </div>
-          <UBadge
-            :label="cb.status === 'OPEN' ? 'Abierta' : 'Cerrada'"
-            :color="cb.status === 'OPEN' ? 'success' : 'warning'"
-            size="xs"
-            class="self-start mb-2"
-          />
-          <div class="text-xs text-muted">
-            <div v-if="getCashBoxBalances(cb).length === 0" class="font-semibold text-primary">
-              Sin saldo
+            <div class="text-xs text-muted">
+              <div v-if="getCashBoxBalances(cb).length === 0" class="font-semibold text-primary">
+                Sin saldo
+              </div>
+              <div v-else class="flex flex-col gap-0.5">
+                <span v-for="bal in getCashBoxBalances(cb)" :key="bal.currency_code" class="inline-flex items-center gap-1.5 font-semibold text-primary">
+                  <UBadge :label="bal.currency_code" size="xs" variant="soft" color="info" />
+                  {{ formatCurrency(bal.balance, bal.currency_code) }}
+                </span>
+              </div>
             </div>
-            <div v-else class="flex flex-col gap-0.5">
-              <span v-for="bal in getCashBoxBalances(cb)" :key="bal.currency_code" class="inline-flex items-center gap-1.5 font-semibold text-primary">
-                <UBadge :label="bal.currency_code" size="xs" variant="soft" color="info" />
-                {{ formatCurrency(bal.balance, bal.currency_code) }}
-              </span>
+            <div v-if="cb.status === 'CLOSED'" class="mt-auto pt-3">
+              <UButton
+                label="Abrir sesión"
+                icon="i-lucide-lock-open"
+                color="success"
+                variant="outline"
+                size="xs"
+                class="w-full"
+                @click.stop="openBoxSession(cb)"
+              />
+            </div>
+            <div v-if="form.cash_box_id === cb.id" class="absolute top-2 right-2 text-primary">
+              <span class="i-heroicons-check-circle text-lg"></span>
             </div>
           </div>
-          <div v-if="cb.status === 'CLOSED'" class="mt-2">
-            <UButton
-              label="Abrir sesión"
-              icon="i-lucide-lock-open"
-              color="success"
-              variant="outline"
-              size="xs"
-              class="w-full"
-              @click.stop="openBoxSession(cb)"
-            />
-          </div>
-          <div v-if="form.cash_box_id === cb.id" class="absolute top-2 right-2 text-primary">
-            <span class="i-heroicons-check-circle text-lg"></span>
-          </div>
-        </div>
+        </UTooltip>
       </div>
     </div>
 
@@ -1207,6 +1280,14 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
           </div>
         </div>
       </div>
+      <UAlert
+        v-if="checkCreditBalance > 0"
+        color="info"
+        variant="subtle"
+        icon="i-lucide-circle-dollar-sign"
+        title="El cheque supera la deuda seleccionada"
+        :description="`El cheque se registrará por su valor completo. ${formatCurrency(checkCreditBalance, form.currency_code)} quedarán como saldo a favor del ${checkCreditPartyLabel}.`"
+      />
     </div>
 
     <!-- SELECTOR DE CUENTA BANCARIA (TRANSFERENCIA) -->
@@ -1362,22 +1443,41 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
-      <UFormField label="Monto total" name="amount" required>
-        <UInput v-model.number="form.amount" type="number" :disabled="selectedDocs.size > 0 || selectedChecks.size > 0" />
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <UFormField v-if="selectedDocs.size === 0 && selectedChecks.size === 0" label="Monto" name="amount" required>
+        <UInput
+          v-model.number="form.amount"
+          type="number"
+          min="0"
+          step="0.01"
+          size="lg"
+          class="w-full"
+          placeholder="0,00"
+        />
       </UFormField>
-      <UFormField label="Referencia" name="reference">
-        <UInput v-model="form.reference" placeholder="N° de referencia" />
+      <UFormField label="Referencia" name="reference" :class="selectedDocs.size > 0 || selectedChecks.size > 0 ? 'md:col-span-2' : ''">
+        <UInput v-model="form.reference" placeholder="Número de operación, recibo o referencia interna" size="lg" class="w-full" />
       </UFormField>
     </div>
     <UFormField label="Descripción" name="description" :required="form.type === 'EXPENSE'">
-      <UInput v-model="form.description" placeholder="Descripción del gasto" />
+      <UTextarea
+        v-model="form.description"
+        :placeholder="form.type === 'EXPENSE' ? 'Describí el motivo y detalle del gasto' : 'Agregá una observación opcional'"
+        :rows="3"
+        autoresize
+        size="lg"
+        class="w-full"
+      />
     </UFormField>
 
     <div class="sticky bottom-0 bg-default border-t border-default -mx-4 px-4 py-3 flex items-center justify-between">
       <div class="text-sm space-y-0.5">
         <div class="font-semibold">
-          Total: {{ formatCurrency(totalApplied > 0 ? totalApplied : totalChecksAmount > 0 ? totalChecksAmount : form.amount, form.currency_code) }}
+          Total: {{ formatCurrency(displayedPaymentAmount, form.currency_code) }}
+        </div>
+        <div v-if="checkCreditBalance > 0" class="text-info text-xs">
+          Deuda aplicada: {{ formatCurrency(totalApplied, form.currency_code) }} ·
+          Saldo a favor del {{ checkCreditPartyLabel }}: {{ formatCurrency(checkCreditBalance, form.currency_code) }}
         </div>
         <div v-if="totalWithheld > 0" class="text-muted text-xs">
           Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·

@@ -128,7 +128,7 @@ const form = reactive({
 })
 const advancedWarehouseAssignment = ref(false)
 const allWarehouseOptions = computed(() => warehouses.value
-  .filter(warehouse => warehouse.active)
+  .filter(warehouse => warehouse.active && !warehouse.is_virtual)
   .map(warehouse => ({ label: warehouse.name, value: warehouse.id })))
 const stockByWarehouse = ref<Record<string, Record<string, number>>>({})
 

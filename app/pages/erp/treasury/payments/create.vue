@@ -48,14 +48,15 @@ const sendingCapture = ref(false)
 const partyId = computed(() => (route.query.party_id as string) || undefined)
 const documentId = computed(() => (route.query.document_id as string) || undefined)
 const paymentType = computed(() => (route.query.type as 'PAYMENT' | 'COLLECTION') || 'PAYMENT')
+const checkId = computed(() => (route.query.check_id as string) || undefined)
 
 const initialValues = ref<PaymentFormData | undefined>(
-  partyId.value
+  partyId.value || checkId.value
     ? {
         type: paymentType.value,
         payment_mode: 'NORMAL',
         date: today(),
-        payment_method: 'CASH',
+        payment_method: checkId.value ? 'CHECK' : 'CASH',
         amount: 0,
         currency_code: 'ARS',
         description: '',
@@ -64,7 +65,7 @@ const initialValues = ref<PaymentFormData | undefined>(
         bank_account_id: '',
         cash_box_id: '',
         account_id: '',
-        check_ids: [],
+        check_ids: checkId.value ? [checkId.value] : [],
         documents: documentId.value ? [{ document_id: documentId.value, amount_applied: 0 }] : undefined
       }
     : undefined
@@ -79,6 +80,20 @@ onMounted(async () => {
     $fetch<Array<{ id: string; name: string; email: string }>>('/api/access-control/users/all')
   ])
   users.value = companyUsers
+
+  if (checkId.value && initialValues.value) {
+    const selectedCheck = [...availableOwnChecks.value, ...availableCustomerChecks.value]
+      .find(check => check.id === checkId.value)
+    if (selectedCheck) {
+      initialValues.value = {
+        ...initialValues.value,
+        payment_method: 'CHECK',
+        currency_code: selectedCheck.currency_code,
+        amount: Number(selectedCheck.available_amount ?? selectedCheck.amount),
+        check_ids: [selectedCheck.id]
+      }
+    }
+  }
 
   // Auto-seleccionar factura con el monto correcto después de cargar pending docs
   if (documentId.value && initialValues.value) {

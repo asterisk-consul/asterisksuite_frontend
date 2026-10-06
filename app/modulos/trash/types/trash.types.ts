@@ -52,7 +52,8 @@ export const TRASH_TABLES = [
   'product_variants',
   'units',
   'currency_rates',
-  'currencies'
+  'currencies',
+  'payments'
 ] as const
 
 export type TrashTable = (typeof TRASH_TABLES)[number]

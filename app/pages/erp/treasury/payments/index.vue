@@ -39,7 +39,7 @@ const actionLabels: Record<string, { title: string; button: string; color: strin
   pay: { title: 'Marcar como pagado', button: 'Marcar pagado', color: 'success', description: 'El pago pasará a estado Pagado.' },
   reject: { title: 'Rechazar pago', button: 'Rechazar', color: 'warning', description: 'Se revertirán todos los efectos (documentos, caja/banco, cuenta corriente).' },
   reverse: { title: 'Anular pago', button: 'Anular', color: 'error', description: 'Se revertirán todos los efectos y el pago quedará anulado.' },
-  delete: { title: 'Eliminar pago', button: 'Eliminar', color: 'error', description: 'Se eliminará permanentemente el registro.' }
+  delete: { title: 'Enviar pago a la papelera', button: 'Enviar a papelera', color: 'error', description: 'El registro dejará de verse, pero conservará sus relaciones y podrá restaurarse.' }
 }
 
 function onSortFieldSelect(columnId: string) {
@@ -98,10 +98,13 @@ const handleAction = async () => {
 onMounted(() => init())
 
 const modeFilter = ref<'ALL' | 'NORMAL' | 'ADVANCE'>('ALL')
+const showCancelled = ref(false)
 
 const filteredPayments = computed(() => {
-  if (modeFilter.value === 'ALL') return payments.value
-  return payments.value.filter(p => p.payment_mode === modeFilter.value)
+  let rows = payments.value
+  if (!showCancelled.value) rows = rows.filter(payment => !['CANCELLED', 'REVERSED'].includes(payment.status))
+  if (modeFilter.value !== 'ALL') rows = rows.filter(payment => payment.payment_mode === modeFilter.value)
+  return rows
 })
 
 const columns = computed(() => paymentColumns({
@@ -220,6 +223,10 @@ const dataActions = computed(() => [
         :variant="modeFilter === 'ADVANCE' ? 'solid' : 'ghost'"
         @click="modeFilter = 'ADVANCE'"
       />
+      <div class="ml-auto flex items-center gap-3 rounded-lg border border-default px-3 py-1.5">
+        <span class="text-sm text-muted">Mostrar anulados</span>
+        <USwitch v-model="showCancelled" />
+      </div>
     </div>
 
     <LogisticaTable

@@ -200,6 +200,8 @@ export const paymentColumns = (actions: {
             buttons.push({ icon: 'i-lucide-undo-2', color: 'error', onClick: () => actions.onReverse?.(row.original) })
           } else if (status === 'PAID') {
             buttons.push({ icon: 'i-lucide-undo-2', color: 'error', onClick: () => actions.onReverse?.(row.original) })
+          } else if (status === 'CANCELLED' || status === 'REVERSED') {
+            buttons.push({ icon: 'i-lucide-trash-2', color: 'error', onClick: () => actions.onDelete?.(row.original) })
           }
 
           return h('div', { class: 'flex gap-1' }, buttons.map((btn) =>

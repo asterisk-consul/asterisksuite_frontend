@@ -25,6 +25,18 @@ const fiscalPreview = ref<any>(null)
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
+const printableDocument = computed(() => {
+  if (!doc.value || doc.value.fiscal_authorization_code) {
+    return doc.value
+  }
+
+  return {
+    ...doc.value,
+    fiscal_authorization_type: fiscalPreview.value?.fiscal_authorization_type,
+    fiscal_authorization_code: fiscalPreview.value?.fiscal_authorization_code,
+    fiscal_authorization_expires_at: fiscalPreview.value?.fiscal_authorization_expires_at,
+  }
+})
 const itemsWithoutWarehouse = computed(() =>
   (doc.value?.document_items ?? []).filter((item: any) => !item.warehouse_id && !doc.value?.warehouse_id)
 )
@@ -109,7 +121,7 @@ const {
           </template>
         </UAlert>
         <div v-if="doc && company" id="printable-document" class="print-only">
-          <DocumentPrintSelector :document="doc" :company="company" />
+          <DocumentPrintSelector :document="printableDocument" :company="company" />
         </div>
         <DocumentItemsTable
           v-if="doc"

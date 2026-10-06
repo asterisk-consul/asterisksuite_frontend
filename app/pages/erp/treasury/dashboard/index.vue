@@ -18,6 +18,7 @@ const { isOwnerOrAdmin } = useCompanyRole()
 const showBankAccounts = computed(() => isOwnerOrAdmin.value || hasPermission('bank_accounts.read'))
 const showCashBoxes = computed(() => isOwnerOrAdmin.value || hasPermission('cash_boxes.read'))
 const showPayments = computed(() => isOwnerOrAdmin.value || hasPermission('payments.read'))
+const showChecks = computed(() => isOwnerOrAdmin.value || hasPermission('treasury.checks.read'))
 const checkAlertDays = ref(30)
 const checkAlertDaysInput = ref(30)
 const checkSettingsOpen = ref(false)
@@ -52,10 +53,13 @@ onMounted(async () => {
   await Promise.allSettled([
     fetchDashboard(savedDays).catch(() => {}),
     fetchBankAccounts().catch(() => {}),
-    fetchCashBoxes().catch(() => {}),
-    fetchChecks().catch(() => {})
+    fetchCashBoxes().catch(() => {})
   ])
 })
+
+watch(showChecks, (allowed) => {
+  if (allowed) fetchChecks().catch(() => {})
+}, { immediate: true })
 
 const formatCurrency = (amount: number | string | null | undefined, currency = 'ARS') => {
   const num = Number(amount) || 0
@@ -73,7 +77,7 @@ const isInsideAlertWindow = (dueDate: string | Date) => {
   const dueDay = Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate())
   const todayDay = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
   const limitDay = todayDay + checkAlertDays.value * 86_400_000
-  return dueDay >= todayDay && dueDay <= limitDay
+  return dueDay > todayDay && dueDay <= limitDay
 }
 
 const formatDueDate = (dueDate: string | Date) => new Intl.DateTimeFormat('es-AR', {
@@ -101,6 +105,28 @@ const pendingOwnChecks = computed(() => checks.value.filter(
 const pendingThirdPartyChecks = computed(() => checks.value.filter(
   (c) => c.status === 'PENDING' && !c.is_own && isInsideAlertWindow(c.due_date)
 ))
+
+const thirdPartyChecksToResolve = computed(() => {
+  const endOfToday = new Date()
+  endOfToday.setHours(23, 59, 59, 999)
+  return checks.value.filter(c =>
+    !c.is_own &&
+    ['PENDING', 'CONFIRMED'].includes(c.status) &&
+    new Date(c.due_date).getTime() <= endOfToday.getTime()
+  )
+})
+
+const ownChecksToVerify = computed(() => {
+  const endOfToday = new Date()
+  endOfToday.setHours(23, 59, 59, 999)
+  return checks.value.filter(c =>
+    c.is_own &&
+    c.status === 'CONFIRMED' &&
+    new Date(c.due_date).getTime() <= endOfToday.getTime()
+  )
+})
+
+const upcomingChecksCount = computed(() => pendingOwnChecks.value.length + pendingThirdPartyChecks.value.length)
 
 const totalOwnCheckAmount = computed(() => pendingOwnChecks.value.reduce((sum, c) => (Number(c.amount) || 0) + sum, 0))
 
@@ -144,7 +170,7 @@ const statCards = computed(() => {
     })
   }
 
-  if (showPayments.value) {
+  if (showChecks.value) {
     cards.push({
       label: 'A cobrar',
       value: `${pendingThirdPartyChecks.value.length} cheques`,
@@ -171,7 +197,9 @@ const quickActions = computed(() => {
   if (showPayments.value) {
     actions.push({ label: 'Nuevo pago', icon: 'i-lucide-send', to: '/erp/treasury/payments/create', color: 'primary' as const })
   }
-  actions.push({ label: 'Nuevo cheque', icon: 'i-lucide-square-plus', to: '/erp/treasury/checks/create', color: 'warning' as const })
+  if (showChecks.value) {
+    actions.push({ label: 'Nuevo cheque', icon: 'i-lucide-square-plus', to: '/erp/treasury/checks/create', color: 'warning' as const })
+  }
   if (showCashBoxes.value) {
     actions.push({ label: 'Transferencia caja', icon: 'i-lucide-arrow-left-right', to: '/erp/treasury/cash-box-transfers', color: 'info' as const })
   }
@@ -182,7 +210,9 @@ const quickActions = computed(() => {
   if (showCashBoxes.value) {
     actions.push({ label: 'Cajas', icon: 'i-lucide-wallet', to: '/erp/treasury/cash-boxes', color: 'success' as const })
   }
-  actions.push({ label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', color: 'info' as const })
+  if (showChecks.value) {
+    actions.push({ label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', color: 'info' as const })
+  }
   if (showPayments.value) {
     actions.push({ label: 'Pagos y cobros', icon: 'i-lucide-hand-coins', to: '/erp/treasury/payments', color: 'secondary' as const })
   }
@@ -196,6 +226,34 @@ const quickActions = computed(() => {
 <template>
   <UPage class="space-y-6 px-4">
     <AppPageHeader title="Dashboard Tesorería" description="Resumen general de la situación financiera" />
+    <UAlert
+      v-if="showChecks && upcomingChecksCount > 0"
+      color="info"
+      variant="subtle"
+      icon="i-lucide-bell-ring"
+      :title="`${upcomingChecksCount} cheque(s) próximos a vencer`"
+      :description="`Aviso preventivo para los próximos ${checkAlertDays} días. Todavía no genera débitos, depósitos ni pagos.`"
+      :actions="[{ label: 'Ver próximos', to: '/erp/treasury/checks', color: 'info', variant: 'soft' }]"
+    />
+    <UAlert
+      v-if="showChecks && thirdPartyChecksToResolve.length > 0"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-calendar-clock"
+      :title="`${thirdPartyChecksToResolve.length} cheque(s) de terceros requieren una decisión`"
+      description="Están vencidos o vencen hoy y permanecen en cartera hasta que decidas depositarlos, cobrarlos por caja o usarlos para pagar."
+      :actions="[{ label: 'Resolver cheques', to: '/erp/treasury/checks', color: 'warning', variant: 'solid' }]"
+    />
+
+    <UAlert
+      v-if="showChecks && ownChecksToVerify.length > 0"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-landmark"
+      :title="`${ownChecksToVerify.length} cheque(s) propio(s) requieren verificar el débito`"
+      description="Llegaron a su vencimiento. Revisá el extracto y registrá el débito con la fecha bancaria real; el sistema no lo hará automáticamente."
+      :actions="[{ label: 'Revisar cheques', to: '/erp/treasury/checks', color: 'warning', variant: 'solid' }]"
+    />
 
     <!-- STAT CARDS -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 py-4">
@@ -312,11 +370,11 @@ const quickActions = computed(() => {
     </div>
 
     <!-- PENDING CHECKS -->
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div v-if="showChecks" class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h2 class="text-base font-semibold">Próximos movimientos de cheques</h2>
         <p class="text-sm text-muted">
-          Cheques que vencen desde hoy y durante los próximos {{ checkAlertDays }} días.
+          Cheques que aún no vencieron y lo harán durante los próximos {{ checkAlertDays }} días.
         </p>
       </div>
       <UPopover v-model:open="checkSettingsOpen">
@@ -375,7 +433,7 @@ const quickActions = computed(() => {
         </template>
       </UPopover>
     </div>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div v-if="showChecks" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- A COBRAR -->
       <UPageCard variant="subtle">
         <template #header>

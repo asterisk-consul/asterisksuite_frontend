@@ -20,15 +20,23 @@ function matchesPath(node: DrilldownNode, path: string): boolean {
   return path === targetPath || path.startsWith(`${targetPath}/`)
 }
 
-// Encuentra la cadena más profunda de nodos cuyo subtree matchea la ruta
+// Prioriza la ruta coincidente más específica; la profundidad resuelve empates.
 function findBranch(nodes: DrilldownNode[], path: string): DrilldownNode[] {
   let best: DrilldownNode[] = []
+  let bestTargetLength = -1
 
   const walk = (list: DrilldownNode[], chain: DrilldownNode[]) => {
     for (const node of list) {
       const next = [...chain, node]
-      if (node.to && matchesPath(node, path) && next.length > best.length) {
-        best = next
+      if (node.to && matchesPath(node, path)) {
+        const targetPath = node.to.split('?')[0]?.replace(/\/$/, '') ?? ''
+        const isMoreSpecific = targetPath.length > bestTargetLength
+        const isDeeperTie = targetPath.length === bestTargetLength && next.length > best.length
+
+        if (isMoreSpecific || isDeeperTie) {
+          best = next
+          bestTargetLength = targetPath.length
+        }
       }
       if (node.children?.length) {
         walk(node.children, next)

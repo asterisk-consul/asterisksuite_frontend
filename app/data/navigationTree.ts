@@ -186,18 +186,6 @@ export const navigationTree: DrilldownNode[] = [
             permission: 'accounts.read'
           },
           {
-            label: 'Tipos de documento',
-            icon: 'i-lucide-file-text',
-            to: '/erp/settings/document-types',
-            permission: 'payments.read'
-          },
-          {
-            label: 'Secuencias',
-            icon: 'i-lucide-hash',
-            to: '/erp/settings/document-sequences',
-            permission: 'payments.read'
-          },
-          {
             label: 'Conceptos bancarios',
             icon: 'i-lucide-receipt',
             to: '/erp/treasury/bank-concepts',
@@ -432,13 +420,14 @@ export const navigationTree: DrilldownNode[] = [
     label: 'Stock',
     icon: 'i-lucide-box',
     to: '/stock',
-    permission: 'products.read',
+    permissions: ['products.read', 'stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'],
     children: [
-      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/stock' },
+      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/stock', permission: 'products.read' },
       {
         label: 'Productos',
         icon: 'i-lucide-package',
         to: '/productos',
+        permission: 'products.read',
         children: [
           { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
           { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
@@ -447,7 +436,8 @@ export const navigationTree: DrilldownNode[] = [
           { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party' }
         ]
       },
-      { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' }
+      { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
+      { label: 'Disponibilidad', icon: 'i-lucide-chart-no-axes-combined', to: '/stock/disponibilidad', permissions: ['stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'] }
     ]
   },
 
@@ -491,44 +481,20 @@ export const navigationTree: DrilldownNode[] = [
     ]
   },
 
-  // ─── EMPRESA ───────────────────────────────────────────────────
-  {
-    label: 'Empresa',
-    icon: 'i-lucide-building-2',
-    permission: 'companies.read',
-    children: [
-      {
-        label: 'Datos de la empresa',
-        icon: 'i-lucide-building',
-        to: '/settings/company',
-        permission: 'companies.read'
-      },
-      {
-        label: 'Configuración Fiscal',
-        icon: 'i-lucide-percent',
-        to: '/settings/fiscal-config',
-        permission: 'companies.read'
-      }
-      // { label: 'Miembros', icon: 'i-lucide-users', to: '/settings/members', permission: 'companies.read' }
-    ]
-  },
-
   // ─── AJUSTES ───────────────────────────────────────────────────
   {
-    label: 'Ajustes',
+    label: 'Configuración',
     icon: 'i-lucide-settings',
     to: '/settings',
     exact: true,
     children: [
-      { label: 'Perfil', icon: 'i-lucide-user', to: '/settings', exact: true },
+      { label: 'Centro de configuración', icon: 'i-lucide-layout-dashboard', to: '/settings', exact: true },
+      { label: 'Mi perfil', icon: 'i-lucide-user', to: '/settings/profile' },
+      { label: 'Empresa', icon: 'i-lucide-building-2', to: '/settings/company', permission: 'companies.read' },
+      { label: 'Documentos', icon: 'i-lucide-files', to: '/settings/documents', permission: 'document_types.read' },
+      { label: 'Fiscal e impuestos', icon: 'i-lucide-percent', to: '/settings/fiscal-config', permission: 'companies.read' },
       { label: 'Usuarios', icon: 'i-lucide-users', to: '/settings/users', permission: 'roles.read' },
-      { label: 'Roles', icon: 'i-lucide-shield', to: '/settings/roles', permission: 'roles.read' },
-      { label: 'Seguridad', icon: 'i-lucide-shield-check', to: '/settings/security' },
-      { label: 'Impuestos', icon: 'i-lucide-percent', to: '/settings/taxes', permission: 'taxes.read' },
-      { label: 'Autorizaciones fiscales', icon: 'i-lucide-badge-check', to: '/settings/fiscal-authorizations', permission: 'fiscal-authorizations.read' },
-      { label: 'Circuito de ventas', icon: 'i-lucide-git-branch', to: '/settings/sales-flow', permission: 'document_types.read' },
-      { label: 'Monedas', icon: 'i-lucide-banknote', to: '/settings/monedas', permission: 'currencies.read' },
-      { label: 'Locaciones', icon: 'i-lucide-map-pin', to: '/ajustes/locaciones', permission: 'locations.read' },
+      { label: 'Roles y permisos', icon: 'i-lucide-shield', to: '/settings/roles', permission: 'roles.read' },
       { label: 'Notificaciones', icon: 'i-lucide-bell', to: '/settings/notifications' },
       { label: 'Papelera', icon: 'i-lucide-trash-2', to: '/settings/trash', permission: 'trash.read' }
     ]

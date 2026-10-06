@@ -19,6 +19,15 @@ const formattedNumber = computed(() => {
   return `${pv}-${nro}`
 })
 
+const fiscalAuthorizationExpiration = computed(() => {
+  const value = props.document?.fiscal_authorization_expires_at
+  if (!value) return '—'
+
+  const date = String(value)
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : date.slice(0, 10)
+})
+
 // Para purchase: proveedor arriba, empresa abajo
 // Para sale: empresa arriba, cliente abajo
 const headerLeft = computed(() => {
@@ -62,19 +71,6 @@ const headerRight = computed(() => {
             <div>Fecha: {{ date }}</div>
           </div>
         </td>
-      </tr>
-    </table>
-
-    <!-- AUTORIZACIÓN FISCAL HISTÓRICA -->
-    <table v-if="document?.fiscal_authorization_code" style="width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 16px;">
-      <tr style="background: #f5f5f5;">
-        <td colspan="4" style="padding: 6px 10px; font-weight: 600; font-size: 11px; border-bottom: 1px solid #ddd;">AUTORIZACIÓN FISCAL</td>
-      </tr>
-      <tr>
-        <td style="padding: 6px 10px; color: #555; width: 15%;">{{ document.fiscal_authorization_type || 'CAI' }}</td>
-        <td style="padding: 6px 10px; font-weight: 700; width: 35%;">{{ document.fiscal_authorization_code }}</td>
-        <td style="padding: 6px 10px; color: #555; width: 20%;">Fecha de vencimiento</td>
-        <td style="padding: 6px 10px; width: 30%;">{{ String(document.fiscal_authorization_expires_at || '').slice(0, 10) }}</td>
       </tr>
     </table>
 
@@ -127,8 +123,26 @@ const headerRight = computed(() => {
       <div style="font-size: 11px; white-space: pre-wrap;">{{ observations }}</div>
     </div>
 
+    <!-- AUTORIZACIÓN FISCAL -->
+    <div v-if="document?.fiscal_authorization_code" style="display: flex; justify-content: flex-end; margin-top: 24px; margin-bottom: 18px;">
+      <div style="width: 270px; border: 1.5px solid #111; border-radius: 4px; padding: 10px 14px; text-align: left;">
+        <div style="font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.04em;">
+          {{ document.fiscal_authorization_type || 'CAI' }} N°
+        </div>
+        <div style="font-size: 14px; font-weight: 700; margin-top: 2px;">
+          {{ document.fiscal_authorization_code }}
+        </div>
+        <div style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 7px; font-size: 10px; color: #555;">
+          Fecha de vencimiento
+        </div>
+        <div style="font-size: 12px; font-weight: 600; margin-top: 2px;">
+          {{ fiscalAuthorizationExpiration }}
+        </div>
+      </div>
+    </div>
+
     <!-- BLOQUE 5: FIRMA DE RECEPCIÓN -->
-    <table style="width: 100%; margin-top: 40px; border-top: 1px solid #ddd;">
+    <table style="width: 100%; margin-top: 24px; border-top: 1px solid #ddd;">
       <tr>
         <td style="width: 50%; padding-top: 30px;">
           <table style="width: 100%;">

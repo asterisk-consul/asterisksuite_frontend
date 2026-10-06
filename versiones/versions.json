@@ -1,9 +1,237 @@
 [
   {
+    "version": "0.65.0-alpha",
+    "date": "2026-09-30",
+    "stage": "alpha",
+    "notes": "Las facturas y los pagos incorporan una anulación trazable, filtros operativos y recuperación desde la papelera sin alterar los saldos reales.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Las facturas de ventas y compras pueden anularse cuando no tienen pagos activos asociados"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "La anulación retira los movimientos de la vista operativa y recalcula el saldo sin perder la trazabilidad interna"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-flow",
+        "title": "En el circuito OV más factura, anular la factura elimina su reemplazo contable y conserva la deuda correspondiente a la orden"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "Ventas, compras y pagos permiten ocultar o mostrar registros anulados desde sus listados"
+      },
+      {
+        "type": "feat",
+        "scope": "trash",
+        "title": "Las facturas y pagos anulados pueden enviarse a la papelera y restaurarse conservando ítems, impuestos y asociaciones"
+      },
+      {
+        "type": "security",
+        "scope": "trash",
+        "title": "Los documentos y pagos con valor de auditoría no admiten eliminación física definitiva"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Los documentos enviados a la papelera quedan excluidos de los listados y de sus rutas operativas"
+      },
+      {
+        "type": "style",
+        "scope": "settings",
+        "title": "La Papelera incorpora acceso con icono en Configuración y puede encontrarse desde los buscadores"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Anulación trazable de comprobantes y recuperación segura desde la papelera"
+  },
+  {
+    "version": "0.64.0-alpha",
+    "date": "2026-09-30",
+    "stage": "alpha",
+    "notes": "El stock internacional queda vinculado al avance real del contenedor y Ventas incorpora una vista completa para conocer la disponibilidad actual y proyectada de cada producto.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Los contenedores incorporan el estado fijo Recepción pendiente y solo pueden cerrarse después de completar la recepción del stock"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Registrar recepción genera o recupera un remito de compra en borrador y mueve el stock al depósito real únicamente al confirmarlo"
+      },
+      {
+        "type": "fix",
+        "scope": "international-stock",
+        "title": "El ingreso al depósito de tránsito se ejecuta al embarcar el contenedor y puede sincronizarse de forma segura para operaciones existentes"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-delivery",
+        "title": "El aviso al crear un remito explica el porcentaje cobrado, el porcentaje requerido y si falta una factura asociada"
+      },
+      {
+        "type": "feat",
+        "scope": "stock",
+        "title": "La nueva vista Disponibilidad muestra stock físico, reservas, disponible inmediato y mercadería en tránsito por producto"
+      },
+      {
+        "type": "feat",
+        "scope": "stock",
+        "title": "La proyección permite consultar disponibilidad a 7, 15, 30, 60 o 90 días con fecha de arribo y contenedor relacionado"
+      },
+      {
+        "type": "feat",
+        "scope": "stock",
+        "title": "El detalle expandible informa cantidades por depósito y por contenedor con acceso directo a cada registro"
+      },
+      {
+        "type": "security",
+        "scope": "stock",
+        "title": "La disponibilidad comercial es accesible para responsables de stock y usuarios de ventas, además de owner y administradores"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Stock internacional sincronizado y disponibilidad comercial proyectada"
+  },
+  {
+    "version": "0.63.0-alpha",
+    "date": "2026-09-29",
+    "stage": "alpha",
+    "notes": "Gestión de cheques más segura: los vencimientos generan avisos separados y Tesorería registra cada débito, depósito o cobro cuando ocurre realmente.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "El dashboard diferencia el aviso preventivo de próximos vencimientos del aviso operativo para cheques vencidos"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Los cheques propios se confirman sin afectar el banco y permiten registrar manualmente el débito con la fecha efectiva del extracto"
+      },
+      {
+        "type": "feat",
+        "scope": "checks",
+        "title": "Los cheques de terceros permanecen en cartera hasta decidir si se depositan, cobran por caja o utilizan para pagar"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "La tabla muestra la cuenta bancaria de destino y estados específicos como Depositado, Debitado o Cobrado / aplicado"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Los pagos y cobros con cheques registran el valor completo del instrumento y dejan el excedente a favor del proveedor o cliente"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "La selección de documentos permanece visible aunque el cheque se elija antes que la factura"
+      },
+      {
+        "type": "security",
+        "scope": "treasury",
+        "title": "Los avisos y la gestión de cheques se muestran únicamente a usuarios con permiso de Tesorería"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Cheques con vencimientos informados y movimientos bancarios controlados"
+  },
+  {
+    "version": "0.62.0-alpha",
+    "date": "2026-09-25",
+    "stage": "alpha",
+    "notes": "Configuración documental centralizada, remitos con autorización fiscal y un circuito internacional más claro desde la cotización hasta la recepción del stock.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "settings",
+        "title": "La configuración de documentos se organiza en un centro único con accesos por módulo y pasos más fáciles de identificar"
+      },
+      {
+        "type": "feat",
+        "scope": "document-sequences",
+        "title": "Las secuencias se asocian al tipo de documento y permiten administrar numeraciones independientes aunque compartan punto de venta"
+      },
+      {
+        "type": "style",
+        "scope": "document-sequences",
+        "title": "El listado incorpora búsqueda y filtros por tipo de documento, y muestra correctamente los límites numéricos configurados"
+      },
+      {
+        "type": "fix",
+        "scope": "fiscal-authorizations",
+        "title": "La configuración de CAI filtra los puntos de venta y secuencias compatibles con el tipo de remito seleccionado"
+      },
+      {
+        "type": "feat",
+        "scope": "remitos",
+        "title": "La creación de remitos utiliza una vista operativa con cantidades y depósitos, sin precios, impuestos ni totales"
+      },
+      {
+        "type": "fix",
+        "scope": "remitos",
+        "title": "Los remitos creados desde una orden de venta toman la cantidad pendiente de entregar en lugar de la pendiente de facturar"
+      },
+      {
+        "type": "fix",
+        "scope": "remitos",
+        "title": "El paso de En tránsito a Entregado ejecuta el cierre completo, asigna el CAI, valida depósitos y registra la salida de stock"
+      },
+      {
+        "type": "feat",
+        "scope": "remitos",
+        "title": "La impresión muestra el número de CAI y su vencimiento en un recuadro ubicado sobre las firmas"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Las facturas de mercadería asociadas a un contenedor ingresan sus productos al depósito virtual de tránsito sin modificar el comportamiento de las compras comunes"
+      },
+      {
+        "type": "feat",
+        "scope": "international-operations",
+        "title": "Los remitos de recepción transfieren cantidades desde tránsito hacia los depósitos reales y admiten recepciones parciales"
+      },
+      {
+        "type": "fix",
+        "scope": "international-operations",
+        "title": "Los movimientos internacionales evitan ingresos duplicados, validan disponibilidad y protegen documentos que ya afectaron stock"
+      },
+      {
+        "type": "style",
+        "scope": "international-quotes",
+        "title": "El modal de presupuestos separa los datos del proveedor de los productos y adapta sus campos a distintos tamaños de pantalla"
+      },
+      {
+        "type": "perf",
+        "scope": "international-quotes",
+        "title": "La carga de presupuestos reutiliza el catálogo completo de productos y usa un único selector para evitar renderizados repetidos"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Circuito documental e internacional más claro y trazable"
+  },
+  {
     "version": "0.61.0-alpha",
     "date": "2026-09-23",
     "stage": "alpha",
-    "notes": "Changelog más estable y accesos rápidos seguros para pagar o cobrar documentos comerciales.",
+    "notes": "Navegación más clara, gestión visual del stock por depósito y formularios de pagos y cobros más comprensibles.",
     "changes": [
       {
         "type": "fix",
@@ -39,12 +267,32 @@
         "type": "fix",
         "scope": "payments",
         "title": "Los accesos rápidos para pagar o cobrar sólo aparecen cuando el documento está confirmado y conserva saldo pendiente"
+      },
+      {
+        "type": "style",
+        "scope": "payments",
+        "title": "El formulario amplía monto, referencia y descripción, e informa por qué una caja cerrada no puede seleccionarse"
+      },
+      {
+        "type": "feat",
+        "scope": "warehouses",
+        "title": "El detalle del depósito incorpora tabla con búsqueda, ordenamiento y filtros rápidos para reservas y productos sin disponibilidad"
+      },
+      {
+        "type": "fix",
+        "scope": "navigation",
+        "title": "El menú lateral selecciona la opción más específica y evita marcar simultáneamente el listado general de productos"
+      },
+      {
+        "type": "fix",
+        "scope": "breadcrumbs",
+        "title": "Las migas de navegación usan nombres en español y sólo enlazan páginas que realmente existen"
       }
     ],
     "contributors": [
       "agustin"
     ],
-    "message": "Changelog estable y pagos rápidos desde documentos confirmados"
+    "message": "Navegación clara, stock consultable y mejor experiencia en pagos"
   },
   {
     "version": "0.60.0-alpha",

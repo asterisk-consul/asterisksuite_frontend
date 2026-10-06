@@ -55,7 +55,7 @@ const operationStatusDefs: { value: string; label: string }[] = [
   { value: 'CANCELLED', label: 'Cancelada' }
 ]
 
-const containerStatusDefs: { value: string; label: string }[] = [
+const containerStatusDefs: { value: string; label: string; fixed?: boolean }[] = [
   { value: 'PREPARING', label: 'Preparando' },
   { value: 'LOADED', label: 'Cargado' },
   { value: 'SHIPPED', label: 'Embarcado' },
@@ -63,8 +63,9 @@ const containerStatusDefs: { value: string; label: string }[] = [
   { value: 'ARRIVED', label: 'Arribado' },
   { value: 'CUSTOMS', label: 'Aduana' },
   { value: 'RELEASED', label: 'Liberado' },
-  { value: 'DELIVERED', label: 'Entregado' },
-  { value: 'CLOSED', label: 'Cerrado' }
+  { value: 'RECEIVING', label: 'Recepción pendiente', fixed: true },
+  { value: 'DELIVERED', label: 'Entregado', fixed: true },
+  { value: 'CLOSED', label: 'Cerrado', fixed: true }
 ]
 
 const form = ref({
@@ -80,7 +81,10 @@ async function load() {
     form.value.container_fields = { ...(data?.container_fields ?? {}) }
     form.value.operation_fields = { ...(data?.operation_fields ?? {}) }
     form.value.operation_statuses = [...(data?.operation_statuses ?? operationStatusDefs.map(s => s.value))]
-    form.value.container_statuses = [...(data?.container_statuses ?? containerStatusDefs.map(s => s.value))]
+    form.value.container_statuses = [...new Set([
+      ...(data?.container_statuses ?? containerStatusDefs.map(s => s.value)),
+      ...containerStatusDefs.filter(s => s.fixed).map(s => s.value)
+    ])]
   } catch {
     toast.add({ title: 'No se pudo cargar la configuración', color: 'error' })
   }
@@ -99,7 +103,7 @@ async function save() {
       container_fields: form.value.container_fields,
       operation_fields: form.value.operation_fields,
       operation_statuses: form.value.operation_statuses,
-      container_statuses: form.value.container_statuses
+      container_statuses: [...new Set([...form.value.container_statuses, ...containerStatusDefs.filter(s => s.fixed).map(s => s.value)])]
     })
     toast.add({ title: 'Configuración guardada', description: 'Se aplicará a los formularios de operaciones internacionales.', color: 'success' })
   } catch (error: any) {
@@ -171,11 +175,13 @@ onMounted(load)
             :key="s.value"
             :variant="form.container_statuses.includes(s.value) ? 'solid' : 'outline'"
             :color="form.container_statuses.includes(s.value) ? 'primary' : 'neutral'"
+            :disabled="s.fixed"
             class="justify-start"
             @click="toggleStatus(form.container_statuses, s.value)"
           >
             <UIcon :name="form.container_statuses.includes(s.value) ? 'i-lucide-check' : 'i-lucide-minus'" class="mr-2" />
             {{ s.label }}
+            <UBadge v-if="s.fixed" label="Fijo" color="neutral" variant="subtle" size="xs" class="ml-auto" />
           </UButton>
         </div>
       </UPageCard>

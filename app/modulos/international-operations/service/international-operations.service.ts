@@ -120,6 +120,12 @@ export const useInternationalOperationsService = () => {
   const removeContainer = (containerId: string) =>
     $fetch<void>(`${baseUrl}/containers/${containerId}`, { method: 'DELETE' })
 
+  const syncContainerTransitStock = (containerId: string) =>
+    $fetch<{ container_id: string; invoices_found: number; invoices_registered: number }>(
+      `${baseUrl}/containers/${containerId}/sync-transit-stock`,
+      { method: 'POST' }
+    )
+
   const createEvent = (containerId: string, payload: CreateEventInput) =>
     $fetch<ContainerEvent>(`${baseUrl}/containers/${containerId}/events`, {
       method: 'POST',
@@ -177,6 +183,7 @@ export const useInternationalOperationsService = () => {
     findAllContainers,
     findOneContainer,
     updateContainer,
+    syncContainerTransitStock,
     removeContainer,
     deliverContainer,
     createEvent,
