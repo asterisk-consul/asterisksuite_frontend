@@ -61,6 +61,12 @@ const costHistory = computed(() => {
   }]
 })
 const showCostHistoryModal = ref(false)
+const openCostHistory = () => {
+  showCostHistoryModal.value = true
+}
+const closeCostHistory = () => {
+  showCostHistoryModal.value = false
+}
 
 // auto_calculate_cost: el precio de venta se deriva del costo vigente más el margen.
 const autoCalculate = computed(() => product.value?.auto_calculate_cost === true)
@@ -696,7 +702,7 @@ watch(
             size="xs"
             variant="soft"
             color="neutral"
-            @click="showCostHistoryModal = true"
+            @click="openCostHistory"
           />
         </div>
       </div>
@@ -1146,7 +1152,7 @@ watch(
 
           <template #footer>
             <div class="flex justify-end">
-              <UButton color="neutral" variant="outline" @click="showCostHistoryModal = false">Cerrar</UButton>
+              <UButton color="neutral" variant="outline" @click="closeCostHistory">Cerrar</UButton>
             </div>
           </template>
         </UCard>
