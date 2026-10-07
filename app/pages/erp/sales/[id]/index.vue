@@ -12,7 +12,9 @@ import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
 import DocumentPrintSelector from '~/components/documents/DocumentPrintSelector.vue'
 import PresupuestoView from '~/modulos/erp/documents/presupuesto/PresupuestoView.vue'
 import OrdenVentaView from '~/modulos/erp/documents/orden-venta/OrdenVentaView.vue'
+import OrderStockAvailability from '~/modulos/erp/documents/orden-venta/OrderStockAvailability.vue'
 import RemitoView from '~/modulos/erp/documents/remito/RemitoView.vue'
+import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
 
 const store = useDocumentsSalesStore()
@@ -24,9 +26,14 @@ const { printElement } = usePrint()
 
 const loading = ref(true)
 const creatingDispatch = ref(false)
+const stockAvailabilityOpen = ref(false)
+const stockAvailabilityLoading = ref(false)
+const stockAvailability = ref<any>(null)
+const stockWarningShown = ref(false)
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
+const isSalesOrder = computed(() => category.value === 'ORDER' || doc.value?.document_types?.code === 'OV')
 const documentNumber = computed(() => {
   if (!doc.value) return ''
   const code = doc.value.document_types?.code ?? ''
@@ -52,10 +59,54 @@ onMounted(async () => {
       await router.replace(`/erp/remitos/${route.params.id as string}`)
       return
     }
+
+    if (isSalesOrder.value) {
+      await loadStockAvailability(true)
+    }
   } finally {
     loading.value = false
   }
 })
+
+async function loadStockAvailability(showToast = false) {
+  if (!doc.value || !isSalesOrder.value) return false
+  stockAvailabilityLoading.value = true
+  try {
+    stockAvailability.value = await DocumentsSalesService.getStockAvailability(doc.value.id)
+    if (showToast && !stockWarningShown.value && stockAvailability.value?.summary?.without_physical_stock > 0) {
+      const count = stockAvailability.value.summary.without_physical_stock
+      useToast().add({
+        title: 'La OV tiene productos sin stock físico',
+        description: `${count} producto${count === 1 ? '' : 's'} no ${count === 1 ? 'tiene' : 'tienen'} disponibilidad inmediata. Podés revisar depósitos y mercadería en tránsito.`,
+        color: 'warning',
+        icon: 'i-lucide-warehouse',
+      })
+      stockWarningShown.value = true
+    }
+    return true
+  } catch (error: any) {
+    if (!showToast) {
+      useToast().add({ title: 'No se pudo consultar el stock', description: error?.data?.message, color: 'error' })
+    }
+    return false
+  } finally {
+    stockAvailabilityLoading.value = false
+  }
+}
+
+async function openStockAvailability() {
+  stockAvailabilityOpen.value = true
+  await loadStockAvailability()
+}
+
+async function confirmWithAvailability() {
+  if (isSalesOrder.value) {
+    const loaded = await loadStockAvailability()
+    if (!loaded) return
+    if (stockAvailability.value?.policy?.blocks_confirmation) return
+  }
+  await handleConfirm()
+}
 
 async function createDispatchOrder() {
   if (!doc.value) return
@@ -107,6 +158,10 @@ const {
     deliver: (id) => store.deliver(id),
   },
 })
+
+watch(confirmModalOpen, async (open) => {
+  if (open && isSalesOrder.value) await loadStockAvailability()
+})
 </script>
 
 <template>
@@ -116,6 +171,7 @@ const {
         <div class="flex gap-2 items-center flex-wrap">
           <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />
           <UBadge v-else-if="invoiceState === 'partial'" label="Factura parcial" color="warning" variant="subtle" />
+          <UButton v-if="isSalesOrder" label="Ver disponibilidad" icon="i-lucide-warehouse" color="neutral" variant="outline" size="sm" :loading="stockAvailabilityLoading" @click="openStockAvailability" />
           <UButton v-if="category === 'ORDER' && Number(doc?.status) >= 1 && Number(doc?.status) < 7" label="Crear Orden de Despacho" icon="i-lucide-clipboard-list" color="primary" variant="outline" size="sm" :loading="creatingDispatch" @click="createDispatchOrder" />
           <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
           <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
@@ -160,11 +216,41 @@ const {
   <!-- Modals -->
   <UModal v-model:open="confirmModalOpen" title="Confirmar documento">
     <template #body>
-      <p>¿Confirmar el documento <strong>#{{ doc?.number }}</strong>?</p>
-      <p class="text-sm text-muted mt-2">Una vez confirmado, no podrá ser editado.</p>
+      <div class="space-y-4">
+        <div>
+          <p>¿Confirmar el documento <strong>#{{ doc?.number }}</strong>?</p>
+          <p class="text-sm text-muted mt-2">Una vez confirmado, no podrá ser editado.</p>
+        </div>
+        <OrderStockAvailability v-if="isSalesOrder" :availability="stockAvailability" :loading="stockAvailabilityLoading" />
+        <UAlert
+          v-if="isSalesOrder && stockAvailability?.policy?.blocks_confirmation"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-circle-x"
+          title="La configuración actual no permite confirmar esta OV"
+          description="Falta stock reservable y no están permitidas las reservas parciales ni la venta sin stock."
+        />
+      </div>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
-        <UButton label="Confirmar" color="success" :loading="processing" @click="handleConfirm" />
+        <UButton
+          :label="isSalesOrder && stockAvailability?.summary?.with_shortage ? 'Confirmar OV con faltante' : 'Confirmar'"
+          color="success"
+          :loading="processing || stockAvailabilityLoading"
+          :disabled="stockAvailabilityLoading || stockAvailability?.policy?.blocks_confirmation"
+          @click="confirmWithAvailability"
+        />
+      </div>
+    </template>
+  </UModal>
+
+  <UModal v-model:open="stockAvailabilityOpen" title="Disponibilidad de la Orden de Venta" description="Stock físico, reservas y mercadería en tránsito para los productos de esta OV." :ui="{ content: 'sm:max-w-5xl' }">
+    <template #body>
+      <OrderStockAvailability :availability="stockAvailability" :loading="stockAvailabilityLoading" />
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end">
+        <UButton label="Cerrar" variant="outline" @click="stockAvailabilityOpen = false" />
       </div>
     </template>
   </UModal>

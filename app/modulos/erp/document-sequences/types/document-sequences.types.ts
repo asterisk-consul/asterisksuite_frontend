@@ -10,7 +10,9 @@ export interface DocumentSequence {
   active: boolean
   created_at?: string
   updated_at?: string
-  document_type_links?: {
+  document_type_sequences?: {
+    document_type_id: string
+    sequence_id: string
     document_types: { id: string; code: string; description: string }
   }[]
 }

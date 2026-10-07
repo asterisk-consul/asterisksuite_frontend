@@ -1,5 +1,42 @@
 [
   {
+    "version": "0.70.1-alpha",
+    "date": "2026-10-07",
+    "stage": "alpha",
+    "notes": "Las secuencias quedan aisladas por tipo documental y las Órdenes de Venta incorporan una consulta preventiva de disponibilidad sin abandonar el comprobante.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Las series compartidas entre facturas, notas de crédito y notas de débito se separan conservando numeración, documentos y autorizaciones fiscales"
+      },
+      {
+        "type": "feat",
+        "scope": "seeds",
+        "title": "Nuevo seed idempotente para reparar secuencias documentales existentes sin reutilizar números históricos"
+      },
+      {
+        "type": "fix",
+        "scope": "stock",
+        "title": "Solamente los remitos pueden realizar movimientos físicos de stock desde la configuración documental"
+      },
+      {
+        "type": "feat",
+        "scope": "sales-orders",
+        "title": "Las OV muestran disponibilidad física, reservas, depósitos y mercadería en tránsito mediante un modal contextual"
+      },
+      {
+        "type": "feat",
+        "scope": "sales-orders",
+        "title": "La confirmación de OV advierte faltantes, respeta la política de reservas y muestra errores específicos por producto"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Secuencias documentales independientes y disponibilidad preventiva en OV"
+  },
+  {
     "version": "0.70.0-alpha",
     "date": "2026-10-07",
     "stage": "alpha",
