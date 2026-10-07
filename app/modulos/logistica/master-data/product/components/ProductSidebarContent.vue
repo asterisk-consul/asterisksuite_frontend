@@ -186,214 +186,126 @@ function nextImage() {
   currentIndex.value = currentIndex.value < photos.value.length - 1 ? currentIndex.value + 1 : 0
 }
 
+function setUploadVisible(value: boolean) {
+  showUpload.value = value
+}
+
+function setAddingCategory(value: boolean) {
+  addingCategory.value = value
+}
+
+function setAddingTag(value: boolean) {
+  addingTag.value = value
+}
+
 const currentPhoto = computed(() => photos.value[currentIndex.value] || null)
 </script>
 
 <template>
-  <div class="space-y-5 w-full">
-    <!-- GALERÍA + UPLOAD -->
-    <div v-if="product?.id" class="space-y-3">
-      <!-- Sin imágenes: dropzone grande -->
-      <div
-        v-if="!hasImages && !showUpload"
-        class="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors hover:border-primary/50"
-        :class="dragOver ? 'border-primary bg-primary/5' : 'border-default'"
-        @dragover.prevent="dragOver = true"
-        @dragleave="dragOver = false"
-        @drop="onDrop"
-        @click="fileInput?.click()"
-      >
-        <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileChange" />
-        <UIcon name="i-lucide-image-plus" class="size-10 mx-auto mb-2 text-muted" />
-        <p class="text-sm font-medium">Arrastrá una imagen del producto</p>
-        <p class="text-xs text-muted mt-1">JPEG, PNG, WebP o GIF — Máx. 5MB</p>
-      </div>
+  <UCard class="overflow-hidden">
+    <div class="grid gap-6 lg:grid-cols-[minmax(220px,280px)_1fr]">
+      <section v-if="product?.id" class="space-y-3">
+        <div
+          v-if="!hasImages && !showUpload"
+          class="flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors hover:border-primary/50"
+          :class="dragOver ? 'border-primary bg-primary/5' : 'border-default bg-muted/20'"
+          @dragover.prevent="dragOver = true"
+          @dragleave="dragOver = false"
+          @drop="onDrop"
+          @click="fileInput?.click()"
+        >
+          <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileChange" />
+          <UIcon name="i-lucide-image-plus" class="mb-3 size-10 text-muted" />
+          <p class="text-sm font-medium">Arrastrá una imagen del producto</p>
+          <p class="mt-1 text-xs text-muted">JPEG, PNG, WebP o GIF · Máx. 5 MB</p>
+        </div>
 
-      <!-- Subiendo -->
-      <div v-if="uploading" class="flex items-center justify-center gap-2 py-4">
-        <div class="size-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <span class="text-xs text-muted">Subiendo...</span>
-      </div>
+        <div v-if="uploading" class="flex items-center justify-center gap-2 py-4 text-sm text-muted">
+          <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          Subiendo imagen…
+        </div>
 
-      <!-- Con imágenes: carrusel + controles -->
-      <div v-if="hasImages" class="space-y-2">
-        <!-- Imagen grande + controles -->
-        <div class="relative aspect-square rounded-xl overflow-hidden border border-default bg-muted/30 group/image">
-          <img
-            v-if="currentPhoto"
-            :src="currentPhoto.url || currentPhoto.thumb_url"
-            :alt="currentPhoto.file_name"
-            class="w-full h-full object-contain"
-          />
-
-          <!-- Controles: solo al hacer hover -->
-          <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover/image:opacity-100 transition-opacity pointer-events-none">
-            <!-- Navegación (solo si hay más de 1) -->
+        <div v-if="hasImages" class="space-y-2">
+          <div class="group/image relative aspect-square overflow-hidden rounded-xl border border-default bg-muted/30">
+            <img v-if="currentPhoto" :src="currentPhoto.url || currentPhoto.thumb_url" :alt="currentPhoto.file_name" class="size-full object-contain" />
             <template v-if="photos.length > 1">
-              <button
-                class="absolute left-1.5 top-1/2 -translate-y-1/2 size-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors pointer-events-auto"
-                @click="prevImage"
-              >
-                <UIcon name="i-lucide-chevron-left" class="size-4" />
-              </button>
-              <button
-                class="absolute right-1.5 top-1/2 -translate-y-1/2 size-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors pointer-events-auto"
-                @click="nextImage"
-              >
-                <UIcon name="i-lucide-chevron-right" class="size-4" />
-              </button>
-
-              <!-- Contador -->
-              <div class="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-black/50 text-white text-xs">
-                {{ currentIndex + 1 }} / {{ photos.length }}
-              </div>
+              <UButton class="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/image:opacity-100" icon="i-lucide-chevron-left" color="neutral" variant="solid" size="xs" square @click="prevImage" />
+              <UButton class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/image:opacity-100" icon="i-lucide-chevron-right" color="neutral" variant="solid" size="xs" square @click="nextImage" />
+              <UBadge class="absolute bottom-2 left-1/2 -translate-x-1/2" color="neutral" variant="solid" :label="`${currentIndex + 1} / ${photos.length}`" />
             </template>
+            <UButton v-if="currentPhoto" class="absolute right-2 top-2 opacity-0 group-hover/image:opacity-100" icon="i-lucide-trash-2" color="error" variant="solid" size="xs" square @click="deletePhoto(currentPhoto.id)" />
+          </div>
 
-            <!-- Botón eliminar -->
-            <button
-              v-if="currentPhoto"
-              class="absolute top-2 right-2 size-7 rounded-full bg-error/80 text-white flex items-center justify-center hover:bg-error transition-colors pointer-events-auto"
-              @click="deletePhoto(currentPhoto.id)"
-            >
-              <UIcon name="i-lucide-trash-2" class="size-3.5" />
+          <div v-if="photos.length > 1" class="flex gap-1.5 overflow-x-auto pb-1">
+            <button v-for="(photo, index) in photos" :key="photo.id" class="size-12 shrink-0 overflow-hidden rounded-md border-2" :class="index === currentIndex ? 'border-primary' : 'border-default opacity-60'" @click="currentIndex = index">
+              <img :src="photo.thumb_url || photo.url" class="size-full object-cover" />
             </button>
           </div>
+
+          <UButton v-if="photos.length < 5 && !showUpload" label="Agregar imagen" icon="i-lucide-plus" size="xs" variant="ghost" color="neutral" @click="setUploadVisible(true)" />
         </div>
 
-        <!-- Thumbnails -->
-        <div v-if="photos.length > 1" class="flex gap-1.5 overflow-x-auto">
-          <button
-            v-for="(photo, index) in photos"
-            :key="photo.id"
-            class="size-12 rounded-md overflow-hidden border-2 shrink-0 transition-colors"
-            :class="index === currentIndex ? 'border-primary' : 'border-default opacity-60 hover:opacity-100'"
-            @click="currentIndex = index"
-          >
-            <img :src="photo.thumb_url || photo.url" class="w-full h-full object-cover" />
-          </button>
-        </div>
-
-        <!-- Botón agregar más -->
-        <div v-if="photos.length < 5 && !showUpload">
-          <UButton
-            label="Agregar imagen"
-            icon="i-lucide-plus"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            @click="showUpload = true"
-          />
-        </div>
-
-        <!-- Upload inline -->
-        <div v-if="showUpload" class="mt-1">
-          <div
-            class="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors hover:border-primary/50"
-            :class="dragOver ? 'border-primary bg-primary/5' : 'border-default'"
-            @dragover.prevent="dragOver = true"
-            @dragleave="dragOver = false"
-            @drop="onDrop"
-            @click="fileInput?.click()"
-          >
+        <div v-if="showUpload" class="space-y-2">
+          <div class="cursor-pointer rounded-lg border-2 border-dashed border-default p-4 text-center hover:border-primary/50" @dragover.prevent="dragOver = true" @dragleave="dragOver = false" @drop="onDrop" @click="fileInput?.click()">
             <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileChange" />
-            <p class="text-xs text-muted">Arrastrá o hacé click para agregar</p>
+            <p class="text-xs text-muted">Arrastrá una imagen o hacé clic para elegirla</p>
           </div>
-          <UButton label="Cancelar" size="xs" variant="ghost" class="mt-1" @click="showUpload = false" />
+          <UButton label="Cancelar" size="xs" variant="ghost" color="neutral" @click="setUploadVisible(false)" />
         </div>
-      </div>
-    </div>
+      </section>
 
-    <!-- Sin producto: placeholder -->
-    <div v-else class="aspect-square rounded-xl border border-default overflow-hidden bg-elevated">
-      <div class="h-full flex items-center justify-center">
+      <div v-else class="flex min-h-56 items-center justify-center rounded-xl border border-default bg-elevated">
         <UIcon name="i-lucide-package" class="size-12 text-muted" />
       </div>
+
+      <section class="min-w-0 space-y-6">
+        <div>
+          <p class="text-xs font-medium uppercase tracking-wide text-muted">Producto</p>
+          <h2 class="mt-1 truncate text-xl font-semibold text-highlighted">{{ product?.name || 'Producto sin guardar' }}</h2>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <UBadge color="neutral" variant="subtle" icon="i-lucide-barcode" :label="product?.sku ? `SKU ${product.sku}` : 'Sin SKU'" />
+            <UBadge color="primary" variant="subtle" :label="PRODUCT_TYPE_LABELS[(product as any)?.product_type as ProductType] || 'Sin tipo'" />
+          </div>
+        </div>
+
+        <USeparator />
+
+        <div class="grid gap-6 xl:grid-cols-2">
+          <div>
+            <div class="mb-3 flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Categorías</p>
+                <p class="text-xs text-muted">Organizan y facilitan la búsqueda del producto.</p>
+              </div>
+              <UButton v-if="product?.id && !addingCategory" size="xs" variant="ghost" icon="i-lucide-plus" label="Agregar" @click="setAddingCategory(true)" />
+            </div>
+            <div v-if="product?.product_categories?.length" class="flex flex-wrap gap-1.5">
+              <UBadge v-for="cat in product.product_categories" :key="cat.category_id" :label="cat.categories?.name" size="sm" variant="subtle" color="neutral">
+                <template #trailing><button class="ml-1 opacity-50 hover:opacity-100" @click="handleRemoveCategory(cat.category_id, product!.id, cat.categories?.name)">×</button></template>
+              </UBadge>
+            </div>
+            <p v-else class="text-sm text-muted">Sin categorías asignadas.</p>
+            <ProductCategorySelect v-if="addingCategory" class="mt-3" :product-id="product?.id" :product-categories="product?.product_categories ?? []" @selected="selectCategory" @cancel="addingCategory = false" />
+          </div>
+
+          <div>
+            <div class="mb-3 flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium">Etiquetas</p>
+                <p class="text-xs text-muted">Añaden referencias rápidas para identificarlo.</p>
+              </div>
+              <UButton v-if="product?.id && !addingTag" size="xs" variant="ghost" icon="i-lucide-plus" label="Agregar" @click="setAddingTag(true)" />
+            </div>
+            <div v-if="product?.product_tags?.length" class="flex flex-wrap gap-1.5">
+              <UBadge v-for="tag in product.product_tags" :key="tag.tag_id" :label="tag.tags?.name" size="sm" variant="subtle">
+                <template #trailing><button class="ml-1 opacity-50 hover:opacity-100" @click="handleRemoveTag(tag.tag_id, product!.id, tag.tags?.name)">×</button></template>
+              </UBadge>
+            </div>
+            <p v-else class="text-sm text-muted">Sin etiquetas asignadas.</p>
+            <ProductTagsSelect v-if="addingTag" class="mt-3" :product-id="product?.id" :tags="product?.product_tags ?? []" @selected="selectTag" @cancel="addingTag = false" />
+          </div>
+        </div>
+      </section>
     </div>
-
-    <!-- Datos -->
-    <div class="space-y-3">
-      <div>
-        <p class="text-xs text-muted">SKU</p>
-        <p class="text-sm font-medium">{{ product?.sku }}</p>
-      </div>
-      <div>
-        <p class="text-xs text-muted">Tipo</p>
-        <p class="text-sm font-medium">
-          {{ PRODUCT_TYPE_LABELS[(product as any)?.product_type as ProductType] }}
-        </p>
-      </div>
-    </div>
-
-    <USeparator />
-
-    <!-- Categorías -->
-    <div>
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-medium">Categorías</span>
-        <UButton v-if="!addingCategory" size="xs" variant="ghost" icon="i-lucide-plus" @click="addingCategory = true" />
-      </div>
-      <div class="flex flex-wrap gap-1 mb-2">
-        <UBadge
-          class="font-bold rounded-full"
-          v-for="cat in product?.product_categories ?? []"
-          :key="cat.category_id"
-          :label="cat.categories?.name"
-          size="sm"
-          variant="subtle"
-          color="neutral"
-        >
-          <template #trailing>
-            <span
-              class="ml-1 cursor-pointer opacity-50 hover:opacity-100 leading-none"
-              @click="handleRemoveCategory(cat.category_id, product!.id, cat.categories?.name)"
-            >
-              ×
-            </span>
-          </template>
-        </UBadge>
-      </div>
-      <ProductCategorySelect
-        v-if="addingCategory"
-        :productId="product?.id"
-        :productCategories="product?.product_categories ?? []"
-        @selected="selectCategory"
-        @cancel="addingCategory = false"
-      />
-    </div>
-
-    <USeparator />
-
-    <!-- Tags -->
-    <div>
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-medium">Etiquetas</span>
-        <UButton v-if="!addingTag" size="xs" variant="ghost" icon="i-lucide-plus" @click="addingTag = true" />
-      </div>
-      <div class="flex flex-wrap gap-1 mb-2">
-        <UBadge
-          v-for="tag in product?.product_tags ?? []"
-          :key="tag.tag_id"
-          :label="tag.tags?.name"
-          size="sm"
-          variant="subtle"
-        >
-          <template #trailing>
-            <span
-              class="ml-1 cursor-pointer opacity-50 hover:opacity-100 leading-none"
-              @click="handleRemoveTag(tag.tag_id, product!.id, tag.tags?.name)"
-            >
-              ×
-            </span>
-          </template>
-        </UBadge>
-      </div>
-      <ProductTagsSelect
-        v-if="addingTag"
-        :productId="product?.id"
-        :tags="product?.product_tags ?? []"
-        @selected="selectTag"
-        @cancel="addingTag = false"
-      />
-    </div>
-  </div>
+  </UCard>
 </template>

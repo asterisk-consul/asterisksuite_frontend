@@ -238,15 +238,15 @@ onMounted(async () => {
             <td class="p-3 text-right tabular-nums">{{ money(item.price, item.currencies?.code) }}</td>
             <td v-if="hasSuppliersData" class="p-3">
               <span v-if="item.supplier_data?.lead_time_days != null" class="text-muted">{{ item.supplier_data.lead_time_days }} días</span>
-              <span v-else class="text-muted">â€”</span>
+              <span v-else class="text-muted">—</span>
             </td>
             <td v-if="hasSuppliersData" class="p-3">
               <span v-if="item.supplier_data?.min_order_quantity" class="text-muted">{{ item.supplier_data.min_order_quantity }}</span>
-              <span v-else class="text-muted">â€”</span>
+              <span v-else class="text-muted">—</span>
             </td>
             <td v-if="hasSuppliersData" class="p-3">
               <UBadge v-if="item.supplier_data?.is_primary" label="Principal" color="amber" variant="subtle" size="xs" />
-              <span v-else class="text-muted">â€”</span>
+              <span v-else class="text-muted">—</span>
             </td>
             <td class="p-3 text-muted">{{ new Date(item.effective_from).toLocaleDateString('es-AR') }}</td>
             <td class="p-3"><div class="flex justify-end gap-1"><UButton type="button" icon="i-lucide-pencil" color="neutral" variant="ghost" aria-label="Editar" @click="edit(item)" /><UButton type="button" icon="i-lucide-trash-2" color="error" variant="ghost" aria-label="Desactivar" @click="remove(item)" /></div></td>
@@ -261,7 +261,7 @@ onMounted(async () => {
       <div class="mt-3 max-h-60 space-y-2 overflow-y-auto">
         <div v-for="entry in history" :key="entry.id" class="flex flex-wrap justify-between gap-2 rounded-md bg-elevated px-3 py-2 text-sm">
           <span>{{ entry.business_parties?.name }} · {{ entry.operation_type === 'SALE' ? 'Venta' : 'Compra' }}</span>
-          <span>{{ entry.previous_price == null ? 'Nuevo' : money(entry.previous_price, entry.currencies?.code) }} â†’ <strong>{{ money(entry.new_price, entry.currencies?.code) }}</strong></span>
+          <span>{{ entry.previous_price == null ? 'Nuevo' : money(entry.previous_price, entry.currencies?.code) }} → <strong>{{ money(entry.new_price, entry.currencies?.code) }}</strong></span>
           <span class="text-muted">{{ new Date(entry.effective_at).toLocaleString('es-AR') }}</span>
         </div>
       </div>

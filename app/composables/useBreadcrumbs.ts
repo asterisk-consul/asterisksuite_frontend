@@ -8,6 +8,7 @@ const NON_CLICKABLE_GROUP_PATHS = new Set([
 export const useBreadcrumbs = () => {
   const route = useRoute()
   const router = useRouter()
+  const entityLabels = useBreadcrumbEntityLabels()
   const isNavigable = (to: string) =>
     !NON_CLICKABLE_GROUP_PATHS.has(to.replace(/\/$/, ''))
     && router.resolve(to).matched.length > 0
@@ -38,12 +39,12 @@ export const useBreadcrumbs = () => {
         const config = breadcrumbMap[segment]
 
         // 👉 label base
-        let label = config?.label || formatLabel(segment)
+        const candidate = config?.to ?? '/' + segments.slice(0, index + 1).join('/')
+        const label = entityLabels.value[candidate] || config?.label || formatLabel(segment)
 
         // 👉 si no hay label (ej: oculto), skip
         if (!label) return null
 
-        const candidate = config?.to ?? '/' + segments.slice(0, index + 1).join('/')
         const isCurrentPage = index === segments.length - 1
         const isClickable = !isCurrentPage
           && config?.clickable !== false
@@ -117,6 +118,8 @@ const breadcrumbMap: Record<
   },
   payments: { label: 'Pagos y cobros', to: '/erp/treasury/payments' },
   checks: { label: 'Cheques', to: '/erp/treasury/checks' },
+  cards: { label: 'Tarjetas', to: '/erp/treasury/cards' },
+  'card-settlements': { label: 'Liquidaciones de tarjeta' },
   'cash-boxes': { label: 'Cajas', to: '/erp/treasury/cash-boxes' },
   'cash-box-transfers': { label: 'Transferencias de caja' },
   'bank-accounts': { label: 'Cuentas bancarias', to: '/erp/treasury/bank-accounts' },
@@ -144,9 +147,10 @@ const breadcrumbMap: Record<
 // 🔧 FORMAT LABEL (con UUID smart)
 //
 function formatLabel(segment: string): string | null {
-  // 👉 UUID → mostrar corto
+  // Los UUID son identificadores internos y no aportan contexto al usuario.
+  // Las páginas principales registran su nombre o número legible al cargar.
   if (/^[0-9a-f-]{36}$/.test(segment)) {
-    return segment.split('-')[0] ?? null // e7450c8c
+    return 'Detalle'
   }
 
   // 👉 si es número puro (id incremental), ocultar

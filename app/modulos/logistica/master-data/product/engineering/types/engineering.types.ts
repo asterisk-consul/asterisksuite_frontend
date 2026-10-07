@@ -16,6 +16,7 @@ export interface EngineeringTreeNode {
   parent_product_id: string
   child_product_id: string
   child_variant_id: string | null
+  structure_variant_id: string | null
   quantity: number
   unit_id: string | null
   length_mm: number | null
@@ -50,6 +51,19 @@ export interface EngineeringTreeNode {
     symbol: string
   } | null
   children?: EngineeringTreeNode[]
+  productVariantCosts?: Array<{
+    id: string
+    cost: string | number
+    currency_id: string
+    currency?: { code: string, symbol: string }
+  }>
+  resolvedVariantCost?: {
+    original_cost: number
+    converted_cost: number
+    original_currency_code: string
+    original_currency_symbol: string
+  } | null
+  conversionError?: string | null
 }
 
 export interface EngineeringCalculationResult {
@@ -63,6 +77,7 @@ export interface CreateEngineeringComponentDto {
   parent_product_id: string
   child_product_id: string
   child_variant_id?: string | null
+  structure_variant_id?: string | null
   quantity: number
   unit_id?: string | null
   length_mm?: number | null

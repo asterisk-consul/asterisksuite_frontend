@@ -22,6 +22,11 @@ const { statement, entries: storeEntries, loading, fetchStatement, fetchEntries 
 const partyId = route.params.partyId as string
 
 const account = ref<CurrentAccount | null>(null)
+
+useBreadcrumbEntityLabel(
+  `/erp/treasury/current-accounts/${partyId}`,
+  computed(() => account.value?.party?.name)
+)
 const showAdjustBalance = ref(false)
 const showDeleteConfirmation = ref(false)
 const deletingOpeningBalance = ref(false)

@@ -19,6 +19,11 @@ const check = ref<CheckFormData | null>(null)
 const loadingData = ref(true)
 const saving = ref(false)
 
+useBreadcrumbEntityLabel(
+  computed(() => `/erp/treasury/checks/${route.params.id as string}`),
+  computed(() => check.value?.check_number ? `Cheque N.º ${check.value.check_number}` : null)
+)
+
 const toInputDate = (date: string | null | undefined): string => {
   if (!date) return ''
   return date.split('T')[0]

@@ -9,6 +9,7 @@ import { useVariantCostsStore } from '~/modulos/logistica/master-data/variant-co
 import { useVariantPrices } from '~/modulos/logistica/master-data/product-variants/composable/useVariantPrices'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import ProductPriceHistory from '~/modulos/logistica/master-data/product-price/components/ProductPriceHistory.vue'
+import { useCostingService } from '~/modulos/logistica/master-data/product/costing/service/costing.service'
 
 const props = withDefaults(
   defineProps<{
@@ -22,6 +23,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:priceEnabled': [value: boolean]
+  costUpdated: []
 }>()
 
 const switchToAdvanced = inject<() => void>('switchToAdvancedTab')
@@ -31,11 +33,39 @@ const variantCostsStore = useVariantCostsStore()
 const variantPrices = useVariantPrices()
 const { selectItems: currencyOptions, init: initCurrencies, findById: findCurrency } = useCurrencies()
 const toast = useToast()
+const costingService = useCostingService()
 
 const product = computed(() => props.product)
 
-const isFinishedProduct = computed(() => ['FINISHED_PRODUCT', 'SERVICE'].includes(product.value?.product_type))
+const isFinishedProduct = computed(() => ['FINISHED_PRODUCT', 'SERVICE'].includes(product.value?.product_type ?? ''))
+const isSaleEnabled = computed(() => ['SALE', 'BOTH'].includes(product.value?.usage_type ?? 'BOTH'))
 const hasVariants = computed(() => (product.value?.product_variants?.length ?? 0) > 0)
+const canRegisterManualCost = computed(() => product.value?.product_type === 'RAW_MATERIAL' && !hasVariants.value)
+const showManualCostModal = ref(false)
+const savingManualCost = ref(false)
+const manualCostForm = reactive({ current_cost: 0, currency_id: '', notes: '' })
+
+const openManualCostModal = () => {
+  manualCostForm.current_cost = Number(product.value?.current_cost ?? 0)
+  manualCostForm.currency_id = product.value?.current_cost_currency_id ?? ''
+  manualCostForm.notes = ''
+  showManualCostModal.value = true
+}
+
+const saveManualCost = async () => {
+  if (!product.value?.id || !manualCostForm.currency_id || manualCostForm.current_cost <= 0) return
+  savingManualCost.value = true
+  try {
+    await costingService.setManualCost(product.value.id, manualCostForm)
+    showManualCostModal.value = false
+    emit('costUpdated')
+    toast.add({ title: 'Costo registrado', description: 'Quedó guardado como costo manual y se agregó al historial.', color: 'success' })
+  } catch (err: any) {
+    toast.add({ title: 'No se pudo registrar el costo', description: err?.data?.message || 'Revisá los datos ingresados.', color: 'error' })
+  } finally {
+    savingManualCost.value = false
+  }
+}
 const hasCalculatedCost = computed(() => !!product.value?.current_cost)
 const hasCostTemplate = computed(() => !!product.value?.cost_template_id)
 const hasExistingPrices = computed(() => (product.value?.product_price?.length ?? 0) > 0)
@@ -43,14 +73,39 @@ const hasExistingPrices = computed(() => (product.value?.product_price?.length ?
 const latestProductCost = computed(() => {
   const costs = product.value?.product_costs
   if (!costs?.length) return null
-  return costs[costs.length - 1]
+  return costs[0]
 })
+const costHistory = computed(() => {
+  const costs = product.value?.product_costs ?? []
+  if (costs.length || !product.value?.current_cost) return costs
 
-const canAddProductPrice = computed(() => isFinishedProduct.value && !hasVariants.value && !hasCalculatedCost.value)
+  return [{
+    id: `current-${product.value.id}`,
+    version: 1,
+    cost_source: product.value.cost_source,
+    total_cost: product.value.current_cost,
+    notes: 'Costo vigente anterior al inicio del historial',
+    created_at: product.value.last_cost_calculated_at ?? undefined,
+    currencies: product.value.current_cost_currency ?? undefined
+  }]
+})
+const showCostHistoryModal = ref(false)
+const openCostHistory = () => {
+  showCostHistoryModal.value = true
+}
+const closeCostHistory = () => {
+  showCostHistoryModal.value = false
+}
 
-// auto_calculate_cost: cuando está activo, el costo calculado es el precio de venta
+// auto_calculate_cost: el precio de venta se deriva del costo vigente más el margen.
 const autoCalculate = computed(() => product.value?.auto_calculate_cost === true)
+const canAddProductPrice = computed(() => isSaleEnabled.value && !hasVariants.value && !autoCalculate.value)
 const showCostAsPrice = computed(() => autoCalculate.value && hasCalculatedCost.value)
+const derivedSalePrice = computed(() => {
+  const cost = Number(product.value?.current_cost ?? 0)
+  const margin = Number(product.value?.sale_margin_percentage ?? 0)
+  return cost * (1 + margin / 100)
+})
 
 const existingProductPrices = computed(() => product.value?.product_price ?? [])
 
@@ -174,7 +229,7 @@ const defaultPricingMode = computed<PricingMode>(() => {
 })
 
 const showPricingDecision = computed(() =>
-  isFinishedProduct.value && !hasVariants.value && props.priceEnabled && !hasAnyData.value && !hasCalculatedCost.value
+  isSaleEnabled.value && !hasVariants.value && props.priceEnabled && !hasAnyData.value && !hasCalculatedCost.value
 )
 
 const goToBom = () => {
@@ -187,13 +242,17 @@ const formatMoney = (value?: string | number | null, currency?: Currency | null)
   if (value === null || value === undefined) return '-'
   return `${currency?.symbol ?? '$'} ${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
 }
-
 const SOURCE_LABELS: Record<string, string> = {
   MANUAL: 'Manual',
   PURCHASE: 'Compra',
   IMPORT: 'Importación',
-  PRODUCTION: 'Producción'
+  PRODUCTION: 'Producción',
+  ENGINEERING: 'Ingeniería',
+  BOM: 'BOM',
+  RATE: 'Tarifa'
 }
+
+const getCostSourceLabel = (source?: string | null) => SOURCE_LABELS[source ?? ''] ?? source ?? 'Sin origen'
 
 // =========================
 // MODAL: PRODUCT PRICE (create + edit)
@@ -583,11 +642,20 @@ watch(
       <div>
         <h3 class="text-lg font-semibold">Precios y costos</h3>
         <p class="text-sm text-gray-500">
-          {{ hasVariants ? 'Costos por variante del producto' : 'Precio del producto terminado' }}
+          {{ hasVariants ? 'Costos y precios por variante' : 'Costo de compra y precio de venta del producto' }}
         </p>
       </div>
 
       <div class="flex gap-2">
+        <UButton
+          v-if="canRegisterManualCost"
+          icon="i-lucide-calculator"
+          size="sm"
+          variant="soft"
+          @click="openManualCostModal"
+        >
+          Registrar costo
+        </UButton>
         <UButton
           v-if="priceEnabled && canAddProductPrice && pricingMode === 'manual'"
           icon="i-lucide-plus"
@@ -597,7 +665,7 @@ watch(
           Agregar precio
         </UButton>
 
-        <UButton v-if="priceEnabled && hasVariants" icon="i-lucide-plus" size="sm" @click="openVariantCostModal">
+        <UButton v-if="hasVariants" icon="i-lucide-plus" size="sm" @click="openVariantCostModal">
           Agregar costo de variante
         </UButton>
 
@@ -607,6 +675,37 @@ watch(
       </div>
     </div>
 
+    <UModal v-model:open="showManualCostModal" title="Registrar costo de materia prima" description="Ingresá el costo unitario vigente. Las compras confirmadas podrán actualizarlo posteriormente.">
+      <template #body>
+        <div class="space-y-4">
+          <UAlert color="info" variant="soft" icon="i-lucide-info" title="Costo de compra" description="Este importe se usa en BOM e ingeniería. No modifica el precio de venta." />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="Costo unitario" required>
+              <UInputNumber v-model="manualCostForm.current_cost" :min="0.01" :step="0.01" class="w-full" />
+            </UFormField>
+            <UFormField label="Moneda" required>
+              <USelect v-model="manualCostForm.currency_id" :items="currencyOptions" placeholder="Seleccionar moneda" class="w-full" />
+            </UFormField>
+          </div>
+          <UFormField label="Referencia u observación">
+            <UTextarea v-model="manualCostForm.notes" placeholder="Ej.: costo inicial informado por el proveedor" class="w-full" />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton color="neutral" variant="ghost" @click="() => { showManualCostModal = false }">Cancelar</UButton>
+          <UButton
+            label="Guardar costo"
+            icon="i-lucide-save"
+            :loading="savingManualCost"
+            :disabled="manualCostForm.current_cost <= 0 || !manualCostForm.currency_id"
+            @click="saveManualCost"
+          />
+        </div>
+      </template>
+    </UModal>
+
     <!-- PRICE DISABLED STATE -->
     <UCard v-if="!priceEnabled">
       <div class="py-10 text-center space-y-4">
@@ -614,9 +713,9 @@ watch(
         <div>
           <p class="text-sm font-semibold text-gray-900">Precio inhabilitado</p>
           <p class="text-sm text-gray-500 mt-1">
-            Este producto no tiene precios de venta habilitados.
+            Este producto no tiene habilitado el uso de precios de venta.
             <br />
-            Activalo para poder asignar precios y usarlo en facturación.
+            Los precios existentes se conservan, pero no se usarán al facturar hasta habilitarlo.
           </p>
         </div>
         <div class="flex gap-2 justify-center">
@@ -632,17 +731,49 @@ watch(
         <UIcon name="i-lucide-calculator" class="size-5 text-primary" />
         <div>
           <p class="text-sm font-semibold">Precio desde costo</p>
-          <p class="text-xs text-muted">Este producto usa el costo calculado como precio de venta.</p>
+          <p class="text-xs text-muted">Costo vigente + {{ Number(product?.sale_margin_percentage ?? 0) }}% de margen.</p>
         </div>
         <UBadge label="Automático" color="primary" variant="soft" size="sm" />
       </div>
       <div class="mt-3 pt-3 border-t">
         <p class="text-2xl font-bold">
-          {{ formatMoney(product?.current_cost, latestProductCost?.currencies) }}
+          {{ formatMoney(derivedSalePrice, latestProductCost?.currencies ?? product?.current_cost_currency) }}
         </p>
         <p v-if="product?.last_cost_calculated_at" class="text-xs text-muted mt-1">
           Último cálculo: {{ new Date(product.last_cost_calculated_at).toLocaleString('es-AR') }}
         </p>
+      </div>
+    </UCard>
+
+    <UCard v-else-if="hasCalculatedCost">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="flex size-10 items-center justify-center rounded-lg bg-warning/10">
+            <UIcon name="i-lucide-package-check" class="size-5 text-warning" />
+          </div>
+          <div>
+            <p class="text-sm font-semibold">Costo vigente</p>
+            <p class="text-xs text-muted">
+              {{ product?.cost_source === 'PURCHASE' ? 'Actualizado desde la última compra confirmada.' : 'Costo utilizado para BOM e ingeniería.' }}
+            </p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-xl font-bold">
+            {{ formatMoney(product?.current_cost, product?.current_cost_currency ?? latestProductCost?.currencies) }}
+          </p>
+          <p class="text-xs text-muted">No es el precio de venta</p>
+          <UButton
+            v-if="costHistory.length"
+            class="mt-2"
+            icon="i-lucide-history"
+            label="Ver historial"
+            size="xs"
+            variant="soft"
+            color="neutral"
+            @click="openCostHistory"
+          />
+        </div>
       </div>
     </UCard>
 
@@ -706,7 +837,7 @@ watch(
           <p class="text-sm font-medium text-gray-900">Sin precios ni costos</p>
           <p class="text-sm text-gray-500 mt-1">
             <template v-if="hasVariants">Agregá el costo de cada variante del producto.</template>
-            <template v-else-if="isFinishedProduct">Agregá el precio de venta del producto o servicio.</template>
+            <template v-else-if="isSaleEnabled">Agregá el precio de venta del producto.</template>
             <template v-else>Este producto no tiene precios configurados.</template>
           </p>
         </div>
@@ -738,7 +869,7 @@ watch(
     <!-- ========================= -->
     <!-- TABLA UNIFICADA PRECIOS   -->
     <!-- ========================= -->
-    <UCard v-if="priceEnabled && (hasVariants || existingProductPrices.length)" :ui="{ body: 'p-0' }">
+    <UCard v-if="hasVariants || existingProductPrices.length" :ui="{ body: 'p-0' }">
       <template #header>
         <div class="flex items-center justify-between px-1">
           <p class="text-sm font-medium">
@@ -1046,6 +1177,56 @@ watch(
       :price-id="historyPriceId"
       :product-name="product?.name ?? ''"
     />
+
+    <UModal v-model:open="showCostHistoryModal" :ui="{ content: 'sm:max-w-3xl' }">
+      <template #content>
+        <UCard :ui="{ body: 'p-0' }">
+          <template #header>
+            <div>
+              <h3 class="text-lg font-semibold">Historial de costos</h3>
+              <p class="text-sm text-muted">{{ product?.name }}</p>
+            </div>
+          </template>
+
+          <div v-if="costHistory.length" class="max-h-[60vh] divide-y divide-default overflow-y-auto">
+            <div
+              v-for="cost in costHistory"
+              :key="cost.id"
+              class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <UBadge color="neutral" variant="soft">
+                    {{ getCostSourceLabel(cost.cost_source) }}
+                  </UBadge>
+                  <span v-if="cost.version" class="text-xs text-muted">Versión {{ cost.version }}</span>
+                </div>
+                <p v-if="cost.notes" class="mt-1 text-sm text-default">{{ cost.notes }}</p>
+                <p class="mt-1 text-xs text-muted">
+                  {{ cost.created_at ? new Date(cost.created_at).toLocaleString('es-AR') : 'Fecha no disponible' }}
+                </p>
+              </div>
+              <div class="shrink-0 text-left sm:text-right">
+                <p class="text-base font-semibold tabular-nums">
+                  {{ formatMoney(cost.total_cost, cost.currencies) }}
+                </p>
+                <p class="text-xs text-muted">Costo unitario vigente en ese momento</p>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="p-8 text-center text-sm text-muted">
+            Todavía no hay cambios de costo registrados.
+          </div>
+
+          <template #footer>
+            <div class="flex justify-end">
+              <UButton color="neutral" variant="outline" @click="closeCostHistory">Cerrar</UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
 
     <!-- ========================= -->
     <!-- MODAL: PRECIO VARIANTE    -->

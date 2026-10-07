@@ -121,8 +121,8 @@ const handleExportExcel = () => {
       { concept: 'COSTOS', amount: costos.value },
       { concept: 'GASTOS', amount: gastos.value },
       { concept: 'RESULTADO NETO', amount: resultadoNeto.value },
-      { concept: 'IVA DÃ‰BITO FISCAL', amount: ivaDebito.value },
-      { concept: 'IVA CRÃ‰DITO FISCAL', amount: ivaCredito.value },
+      { concept: 'IVA DÉBITO FISCAL', amount: ivaDebito.value },
+      { concept: 'IVA CRÉDITO FISCAL', amount: ivaCredito.value },
       { concept: 'SALDO IVA A PAGAR', amount: saldoIVA.value }
     ]
   })
@@ -146,7 +146,7 @@ const handleExportExcel = () => {
       <UButton label="Buscar" icon="i-lucide-search" @click="fetchData" :loading="loading" />
     </div>
 
-    <!-- 1. ESTADO DE SITUACIÃ“N PATRIMONIAL -->
+    <!-- 1. ESTADO DE SITUACIÓN PATRIMONIAL -->
     <div>
       <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
         <UIcon name="i-lucide-scale" class="size-4 text-primary" />
@@ -206,7 +206,7 @@ const handleExportExcel = () => {
             <div class="flex items-center justify-between text-sm font-semibold">
               <span>Verificación</span>
               <span :class="activos === (pasivos + patrimonio) ? 'text-success' : 'text-error'">
-                {{ activos === (pasivos + patrimonio) ? 'âœ…' : 'âŒ' }}
+                {{ activos === (pasivos + patrimonio) ? '✅' : '❌' }}
                 {{ formatCurrency(activos) }} = {{ formatCurrency(pasivos + patrimonio) }}
               </span>
             </div>

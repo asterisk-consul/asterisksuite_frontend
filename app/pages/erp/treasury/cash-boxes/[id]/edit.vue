@@ -23,6 +23,11 @@ const formRef = ref<InstanceType<typeof CashBoxForm> | null>(null)
 const formData = ref<CashBoxFormData | null>(null)
 const canSetInitialBalance = ref(false)
 
+useBreadcrumbEntityLabel(
+  `/erp/treasury/cash-boxes/${boxId}`,
+  computed(() => box.value?.name ?? formData.value?.name)
+)
+
 onMounted(async () => {
   const data = await fetchOne(boxId)
   if (data) {

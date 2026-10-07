@@ -20,6 +20,9 @@ export const useCostingService = () => {
     })
   }
 
+  const setManualCost = (productId: string, data: { current_cost: number, currency_id: string, notes?: string }) =>
+    $fetch(`${urlBase}/${productId}/manual-cost`, { method: 'POST', body: { ...data, cost_source: 'MANUAL' } })
+
   // =========================
   // HISTORY
   // =========================
@@ -40,6 +43,7 @@ export const useCostingService = () => {
 
   return {
     calculate,
+    setManualCost,
     getHistory,
     getPareto
   }

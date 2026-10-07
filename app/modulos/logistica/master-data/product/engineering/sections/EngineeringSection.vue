@@ -12,6 +12,8 @@ const props = withDefaults(defineProps<{
   productId: string
   form: ProductFormState
   excludeSources?: ProductCostSource[]
+  structureVariantId?: string
+  currencyId?: string
 }>(), {
   excludeSources: () => []
 })
@@ -21,7 +23,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const engineering = useEngineering(props.productId)
+const engineering = useEngineering(props.productId, toRef(props, 'structureVariantId'), toRef(props, 'currencyId'))
 
 const showDeleteModal = ref(false)
 const deleteConfirmStep = ref(0)
@@ -65,10 +67,23 @@ const costSourceDescriptions: Record<string, { label: string; description: strin
 }
 
 const showTree = computed(() =>
-  ['BOM', 'ENGINEERING', 'PURCHASE'].includes(props.form.cost_source)
+  ['BOM', 'ENGINEERING', 'PURCHASE'].includes(props.form.cost_source ?? '')
 )
 
 const showRateConfig = computed(() => props.form.cost_source === 'RATE')
+const structureLocked = computed(() => engineering.hasTree.value)
+
+const selectCostSource = (value: ProductCostSource) => {
+  if (structureLocked.value && value !== props.form.cost_source) {
+    toast.add({
+      title: 'Método bloqueado',
+      description: 'La estructura ya tiene componentes. Eliminá el árbol antes de cambiar el método de cálculo.',
+      color: 'warning'
+    })
+    return
+  }
+  emit('update:costSource', value)
+}
 
 // =========================
 // TREE HANDLERS
@@ -111,53 +126,61 @@ onMounted(async () => {
     <!-- ========================= -->
     <UCard>
       <template #header>
-        <p class="text-sm font-medium">Tipo de estructura</p>
+        <div>
+          <p class="text-sm font-semibold">Método de cálculo</p>
+          <p class="text-xs text-muted">Define cómo se interpretan las cantidades y dimensiones de los componentes.</p>
+        </div>
       </template>
-      <div class="flex items-center gap-1.5">
-        <USelect
-          :model-value="form.cost_source"
-          :items="filteredCostSourceOptions"
-          class="flex-1"
-          @update:model-value="emit('update:costSource', $event)"
-        />
-        <UPopover>
-          <UIcon name="i-lucide-help-circle" class="h-5 w-5 text-muted shrink-0 cursor-help hover:text-default transition-colors" />
-          <template #content>
-            <div class="p-4 max-w-xs space-y-3">
-              <p class="text-xs font-semibold text-muted uppercase tracking-wide">Tipos de estructura</p>
-              <div class="space-y-3">
-                <div
-                  v-for="(info, type) in costSourceDescriptions"
-                  :key="type"
-                  class="flex gap-3"
-                >
-                  <div class="size-7 rounded-md bg-elevated flex items-center justify-center shrink-0 mt-0.5">
-                    <UIcon :name="info.icon" class="size-3.5 text-muted" />
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-xs font-semibold text-default">{{ info.label }}</p>
-                    <p class="text-xs text-muted leading-relaxed">{{ info.description }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
-        </UPopover>
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <button
+          v-for="option in filteredCostSourceOptions"
+          :key="option.value"
+          type="button"
+          class="flex min-h-24 gap-3 rounded-lg border p-3 text-left transition"
+          :class="form.cost_source === option.value
+            ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+            : structureLocked
+              ? 'cursor-not-allowed border-default opacity-45'
+              : 'border-default hover:bg-elevated'"
+          :disabled="structureLocked && form.cost_source !== option.value"
+          @click="selectCostSource(option.value)"
+        >
+          <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-elevated">
+            <UIcon :name="costSourceDescriptions[option.value]?.icon ?? 'i-lucide-calculator'" class="size-4" />
+          </div>
+          <div>
+            <p class="text-sm font-semibold">{{ costSourceDescriptions[option.value]?.label ?? option.label }}</p>
+            <p class="mt-1 text-xs leading-relaxed text-muted">{{ costSourceDescriptions[option.value]?.description }}</p>
+          </div>
+        </button>
       </div>
+      <UAlert
+        v-if="structureLocked"
+        class="mt-4"
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-lock-keyhole"
+        title="Método fijado por la estructura"
+        description="Para proteger los cálculos, no se puede cambiar entre BOM e Ingeniería mientras existan componentes."
+      />
     </UCard>
 
     <!-- ========================= -->
     <!-- ÁRBOL (BOM/ENGINEERING)   -->
     <!-- ========================= -->
     <template v-if="showTree">
-      <h2 class="font-medium">
-        {{ form.cost_source === 'ENGINEERING' ? 'Árbol de ingeniería' : 'Árbol de componentes' }}
-      </h2>
-
       <UCard>
+        <template #header>
+          <div>
+            <h2 class="font-semibold">{{ form.cost_source === 'ENGINEERING' ? 'Árbol de ingeniería' : 'Lista de materiales' }}</h2>
+            <p class="text-xs text-muted">La jerarquía representa cómo se compone una unidad del producto terminado.</p>
+          </div>
+        </template>
         <EngineeringTree
           :productId="productId"
           :cost-source="form.cost_source"
+          :structure-variant-id="structureVariantId"
+          :currency-id="currencyId"
           @delete-node="handleDelete"
         />
       </UCard>
@@ -194,7 +217,7 @@ onMounted(async () => {
           </p>
 
           <div class="flex justify-end gap-2 pt-2 border-t border-default">
-            <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">Cancelar</UButton>
+            <UButton variant="ghost" color="neutral" @click="() => { showDeleteModal = false }">Cancelar</UButton>
             <UButton
               :color="deleteConfirmStep === 0 ? 'error' : 'error'"
               :variant="deleteConfirmStep === 0 ? 'outline' : 'solid'"

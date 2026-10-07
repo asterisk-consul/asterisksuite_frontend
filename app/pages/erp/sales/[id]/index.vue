@@ -35,6 +35,11 @@ const documentNumber = computed(() => {
   return pointOfSale ? `${code}-${pointOfSale}-${number}` : `${code}-${number}`
 })
 
+useBreadcrumbEntityLabel(
+  computed(() => `/erp/sales/${route.params.id as string}`),
+  documentNumber
+)
+
 onMounted(async () => {
   try {
     const companyId = auth.selectedCompany?.id

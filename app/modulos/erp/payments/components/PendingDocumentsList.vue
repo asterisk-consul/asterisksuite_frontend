@@ -91,10 +91,15 @@ function getMaxAmount(doc: PendingDocument): number {
         />
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-medium">{{ doc.document_type_description || doc.document_type_code }} #{{ doc.number }}</span>
+            <span class="text-sm font-medium">
+              {{ doc.document_type_description || doc.document_type_code }}
+              <template v-if="doc.source_type !== 'TREASURY_OBLIGATION'"> #{{ doc.number }}</template>
+            </span>
+            <UBadge v-if="doc.source_type === 'TREASURY_OBLIGATION'" label="Servicio / impuesto" color="info" variant="subtle" size="xs" />
             <span class="text-xs text-muted">{{ doc.party_name }}</span>
           </div>
           <div class="flex items-center gap-4 text-xs text-muted mt-1">
+            <span v-if="doc.source_type === 'TREASURY_OBLIGATION'">Período: {{ doc.number }}</span>
             <span>Fecha: {{ formatDate(doc.date) }}</span>
             <span>Total: {{ formatCurrency(doc.total, doc.currency_code) }}</span>
             <span>Pagado: {{ formatCurrency(doc.paid_amount, doc.currency_code) }}</span>

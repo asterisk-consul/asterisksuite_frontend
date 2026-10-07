@@ -17,6 +17,7 @@ type TransitArrival = {
   status: string
   estimated_arrival_date?: string | null
   actual_arrival_date?: string | null
+  arrival_date_source?: 'CONTAINER' | 'OPERATION' | null
   quantity: number
   reserved: number
   available_on_arrival: number
@@ -30,8 +31,11 @@ type ProductAvailability = {
   unit: string
   physical_stock: number
   reserved_total: number
+  reserved_physical: number
+  reserved_transit: number
   available_now: number
   transit_stock: number
+  arriving_within_days: number
   available_within_days: number
   warehouses: WarehouseAvailability[]
   arrivals: TransitArrival[]
@@ -42,7 +46,8 @@ type AvailabilityResponse = {
   meta: { total: number; page: number; limit: number; pages: number; days: number }
 }
 
-const search = ref('')
+const route = useRoute()
+const search = ref(typeof route.query.search === 'string' ? route.query.search : '')
 const days = ref(30)
 const page = ref(1)
 const loading = ref(false)
@@ -51,6 +56,10 @@ const meta = ref<AvailabilityResponse['meta']>({ total: 0, page: 1, limit: 25, p
 const expanded = ref(new Set<string>())
 const toast = useToast()
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+
+function changePage(delta: number) {
+  page.value += delta
+}
 
 const dayOptions = [
   { label: '7 días', value: 7 },
@@ -119,15 +128,16 @@ onMounted(load)
 
     <UPageCard :ui="{ body: 'p-0 sm:p-0' }">
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[980px] text-sm">
+        <table class="w-full min-w-[1180px] text-sm">
           <thead class="border-b border-default bg-elevated/50 text-left text-xs uppercase tracking-wide text-muted">
             <tr>
               <th class="px-4 py-3">Producto</th>
               <th class="px-4 py-3 text-right">Stock físico</th>
-              <th class="px-4 py-3 text-right">Reservado</th>
+              <th class="px-4 py-3 text-right">Reservado hoy</th>
               <th class="px-4 py-3 text-right">Disponible hoy</th>
               <th class="px-4 py-3 text-right">En tránsito</th>
-              <th class="px-4 py-3 text-right">En {{ days }} días</th>
+              <th class="px-4 py-3 text-right">Llega en {{ days }} días</th>
+              <th class="px-4 py-3 text-right">Disponible proyectado</th>
               <th class="px-4 py-3">Próximo arribo</th>
               <th class="w-12 px-4 py-3" />
             </tr>
@@ -141,17 +151,19 @@ onMounted(load)
                 </td>
                 <td class="px-4 py-3 text-right font-medium">{{ formatQuantity(product.physical_stock) }}</td>
                 <td class="px-4 py-3 text-right">
-                  <UBadge :label="formatQuantity(product.reserved_total)" :color="product.reserved_total > 0 ? 'warning' : 'neutral'" variant="subtle" />
+                  <UBadge :label="formatQuantity(product.reserved_physical)" :color="product.reserved_physical > 0 ? 'warning' : 'neutral'" variant="subtle" />
                 </td>
                 <td class="px-4 py-3 text-right">
                   <span :class="product.available_now > 0 ? 'font-semibold text-success' : 'font-medium text-error'">{{ formatQuantity(product.available_now) }}</span>
                 </td>
                 <td class="px-4 py-3 text-right font-medium text-info">{{ formatQuantity(product.transit_stock) }}</td>
+                <td class="px-4 py-3 text-right font-semibold text-info">{{ formatQuantity(product.arriving_within_days) }}</td>
                 <td class="px-4 py-3 text-right font-semibold">{{ formatQuantity(product.available_within_days) }}</td>
                 <td class="px-4 py-3">
                   <template v-if="product.arrivals[0]">
                     <p class="font-medium">{{ formatDate(product.arrivals[0].actual_arrival_date || product.arrivals[0].estimated_arrival_date) }}</p>
                     <p class="text-xs text-muted">Contenedor {{ product.arrivals[0].container_number }}</p>
+                    <p v-if="product.arrivals[0].arrival_date_source === 'OPERATION'" class="text-xs text-muted">Fecha tomada de la operación</p>
                   </template>
                   <span v-else class="text-muted">Sin arribos</span>
                 </td>
@@ -167,7 +179,7 @@ onMounted(load)
                 </td>
               </tr>
               <tr v-if="expanded.has(product.id)" class="border-b border-default bg-elevated/20">
-                <td colspan="8" class="px-4 py-4">
+                <td colspan="9" class="px-4 py-4">
                   <div class="grid gap-4 lg:grid-cols-2">
                     <div class="rounded-lg border border-default bg-default p-4">
                       <h3 class="mb-3 flex items-center gap-2 font-medium"><UIcon name="i-lucide-warehouse" /> Depósitos</h3>
@@ -192,8 +204,11 @@ onMounted(load)
                           </div>
                           <div class="mt-1 grid grid-cols-3 gap-2 text-xs text-muted">
                             <span>{{ formatQuantity(arrival.quantity) }} en tránsito</span>
-                            <span>{{ formatQuantity(arrival.reserved) }} reservado</span>
-                            <span>{{ formatDate(arrival.actual_arrival_date || arrival.estimated_arrival_date) }}</span>
+                            <span>{{ formatQuantity(arrival.reserved) }} reservado · {{ formatQuantity(arrival.available_on_arrival) }} libre</span>
+                            <span>
+                              {{ formatDate(arrival.actual_arrival_date || arrival.estimated_arrival_date) }}
+                              <span v-if="arrival.arrival_date_source === 'OPERATION'" class="text-muted"> · fecha de la operación</span>
+                            </span>
                           </div>
                         </NuxtLink>
                       </div>
@@ -213,8 +228,8 @@ onMounted(load)
       <div v-if="meta.pages > 1" class="flex items-center justify-between border-t border-default px-4 py-3">
         <span class="text-sm text-muted">{{ meta.total }} productos · Página {{ meta.page }} de {{ meta.pages }}</span>
         <div class="flex gap-2">
-          <UButton label="Anterior" color="neutral" variant="outline" :disabled="page <= 1" @click="page--" />
-          <UButton label="Siguiente" color="neutral" variant="outline" :disabled="page >= meta.pages" @click="page++" />
+          <UButton label="Anterior" color="neutral" variant="outline" :disabled="page <= 1" @click="changePage(-1)" />
+          <UButton label="Siguiente" color="neutral" variant="outline" :disabled="page >= meta.pages" @click="changePage(1)" />
         </div>
       </div>
     </UPageCard>

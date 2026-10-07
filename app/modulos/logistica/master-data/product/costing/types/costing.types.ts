@@ -90,6 +90,7 @@ export interface CostParetoResult {
 export interface CalculateProductCostDto {
   product_id: string
   currency_id: string
+  variant_id?: string
   save_snapshot?: boolean
 }
 

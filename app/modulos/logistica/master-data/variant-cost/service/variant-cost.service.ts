@@ -17,6 +17,10 @@ export const useVariantCostsService = () => {
     return $fetch<VariantCost>(`${urlBase}/${id}`)
   }
 
+  const findByVariant = (variantId: string) => {
+    return $fetch<VariantCost[]>(`${urlBase}/variant/${variantId}`)
+  }
+
   const create = (data: CreateVariantCostInput) => {
     return $fetch<VariantCost>(urlBase, {
       method: 'POST',
@@ -44,6 +48,7 @@ export const useVariantCostsService = () => {
   return {
     findAll,
     findOne,
+    findByVariant,
     create,
     update,
     remove,

@@ -19,6 +19,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
+  saved: [unit: Unit]
 }>()
 
 const toast = useToast()
@@ -39,17 +40,19 @@ async function handleSubmit(data: CreateUnitInput) {
     loading.value = true
 
     if (isEdit.value && props.unit) {
-      await unitsStore.update(props.unit.id, data)
+      const saved = await unitsStore.update(props.unit.id, data)
+      emit('saved', saved)
 
       toast.add({
         title: 'Unidad actualizada',
         color: 'success'
       })
     } else {
-      await unitsStore.create({
+      const saved = await unitsStore.create({
         ...data,
         active: true
       })
+      emit('saved', saved)
 
       toast.add({
         title: 'Unidad creada',

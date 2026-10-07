@@ -139,6 +139,16 @@ export const navigationTree: DrilldownNode[] = [
       },
       { label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', permission: 'payments.read' },
       {
+        label: 'Tarjetas',
+        icon: 'i-lucide-credit-card',
+        permissions: ['credit_cards.company.read', 'card_collections.read', 'card_settlements.read'],
+        children: [
+          { label: 'Tarjetas y canales', icon: 'i-lucide-wallet-cards', to: '/erp/treasury/cards', permissions: ['credit_cards.company.read', 'card_settings.read'] },
+          { label: 'Liquidaciones', icon: 'i-lucide-landmark', to: '/erp/treasury/card-settlements', permission: 'card_settlements.read' },
+          { label: 'Reporte de tarjetas', icon: 'i-lucide-chart-column', to: '/erp/treasury/reports/cards', permission: 'card_reports.read' }
+        ]
+      },
+      {
         label: 'Cuentas corrientes',
         icon: 'i-lucide-file-text',
         to: '/erp/treasury/current-accounts',
@@ -431,13 +441,13 @@ export const navigationTree: DrilldownNode[] = [
         children: [
           { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
           { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
-          { label: 'Costos', icon: 'i-lucide-dollar-sign', to: '/productos/costos' },
           // { label: 'Listas de precio', icon: 'i-lucide-tag', to: '/productos/price-lists' },
           { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party' }
         ]
       },
       { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
-      { label: 'Disponibilidad', icon: 'i-lucide-chart-no-axes-combined', to: '/stock/disponibilidad', permissions: ['stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'] }
+      { label: 'Disponibilidad', icon: 'i-lucide-chart-no-axes-combined', to: '/stock/disponibilidad', permissions: ['stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'] },
+      { label: 'Reposición', icon: 'i-lucide-package-plus', to: '/stock/reposicion', permission: 'stock.replenishment.read' }
     ]
   },
 
@@ -449,7 +459,14 @@ export const navigationTree: DrilldownNode[] = [
     permission: 'products.read',
     children: [
       { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/fabricacion', permission: 'products.read' },
-      { label: 'BOM (Ingeniería)', icon: 'i-lucide-git-branch', to: '/bom', permission: 'products.read' },
+      { label: 'Fabricar productos', icon: 'i-lucide-factory', to: '/fabricacion/fabricar', permissions: ['production.execute', 'stock.create'] },
+      { label: 'Historial de fabricación', icon: 'i-lucide-history', to: '/fabricacion/historial', permissions: ['production.history', 'stock.movements'] },
+      { label: 'BOM (Ingeniería)', icon: 'i-lucide-git-branch', to: '/bom', permissions: ['production.manage_bom', 'products.update'] },
+      { label: 'Nuevo BOM', icon: 'i-lucide-plus', to: '/bom/create', permissions: ['production.manage_bom', 'products.create'] },
+      { label: 'Productos y materiales', icon: 'i-lucide-package', to: '/productos', permission: 'products.read' },
+      { label: 'Disponibilidad de stock', icon: 'i-lucide-chart-no-axes-combined', to: '/stock/disponibilidad', permissions: ['stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'] },
+      { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
+      { label: 'Unidades de medida', icon: 'i-lucide-ruler', to: '/productos/settings/unidades', permission: 'units.read' },
       { label: 'Plantillas de costo', icon: 'i-lucide-file-text', to: '/cost-templates', permission: 'products.read' }
     ]
   },

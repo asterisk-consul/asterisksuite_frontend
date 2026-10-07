@@ -62,6 +62,7 @@ export interface Product {
 
   is_composed: boolean
   auto_calculate_cost: boolean
+  sale_margin_percentage?: number | string
 
   manages_stock: boolean
 
@@ -86,8 +87,12 @@ export interface Product {
   last_cost_calculated_at?: string | null
 
   current_cost?: number | string | null
+  current_cost_currency_id?: string | null
+  current_cost_currency?: Currency | null
 
   unit_id?: string | null
+  purchase_unit_id?: string | null
+  purchase_to_stock_factor?: number | string | null
 
   // relaciones
 
@@ -154,7 +159,14 @@ export interface ProductCost {
   id?: string
 
   currency_id?: string
+  version?: number
+  cost_source?: ProductCostSource
+  material_cost?: number | string
+  labor_cost?: number | string
+  overhead_cost?: number | string
   total_cost?: number | string
+  notes?: string | null
+  created_at?: string
 
   currencies?: Currency
 }
@@ -178,6 +190,7 @@ export interface CreateProductDto {
 
   is_composed?: boolean
   auto_calculate_cost?: boolean
+  sale_margin_percentage?: number
   manages_stock?: boolean
 
   income_account_id?: string
@@ -188,6 +201,8 @@ export interface CreateProductDto {
   cost_source?: ProductCostSource
 
   unit_id?: string
+  purchase_unit_id?: string
+  purchase_to_stock_factor?: number
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}

@@ -13,7 +13,7 @@ const urlDocsPurchases = '/api/backend/documents/purchases'
 
 export interface PendingDocument {
   id: string
-  number: number
+  number: number | string
   date: string
   total: number
   paid_amount: number
@@ -28,6 +28,8 @@ export interface PendingDocument {
   document_type_code: string | null
   document_type_description: string | null
   document_type_category: string | null
+  source_type?: 'DOCUMENT' | 'TREASURY_OBLIGATION'
+  obligation_id?: string
 }
 
 export interface AvailableCheck {
@@ -91,11 +93,41 @@ export const usePaymentsService = () => {
     })
   }
 
-  const findPendingPurchaseDocuments = (partyId?: string) => {
-    return $fetch<PendingDocument[]>(`${urlDocsPurchases}/pending`, {
-      method: 'GET',
-      query: partyId ? { party_id: partyId } : {}
-    })
+  const findPendingPurchaseDocuments = async (partyId?: string) => {
+    const [documents, obligations] = await Promise.all([
+      $fetch<PendingDocument[]>(`${urlDocsPurchases}/pending`, {
+        method: 'GET',
+        query: partyId ? { party_id: partyId } : {}
+      }),
+      $fetch<any[]>('/api/backend/treasury/obligations', {
+        method: 'GET',
+        query: partyId ? { party_id: partyId } : {}
+      }).catch(() => [])
+    ])
+    const payableObligations: PendingDocument[] = obligations
+      .filter(row => row.treatment === 'DIRECT_EXPENSE' && !row.payment_id && !row.document_id && ['READY', 'OVERDUE'].includes(row.effective_status) && (!partyId || row.party_id === partyId))
+      .map(row => {
+        const amount = Number(row.amount ?? row.estimated_amount)
+        return {
+          id: row.id,
+          obligation_id: row.id,
+          source_type: 'TREASURY_OBLIGATION',
+          number: row.period_key,
+          date: row.issue_date ?? row.due_date,
+          total: amount,
+          paid_amount: 0,
+          pending_amount: amount,
+          currency_code: row.currency_code,
+          exchange_rate: row.exchange_rate == null ? null : Number(row.exchange_rate),
+          party_id: row.party_id,
+          party_name: row.party?.name ?? null,
+          party_type: row.party?.type ?? 'SUPPLIER',
+          document_type_code: 'SERVICIO_IMPUESTO',
+          document_type_description: row.description,
+          document_type_category: 'TREASURY_OBLIGATION'
+        }
+      })
+    return [...documents.map(document => ({ ...document, source_type: 'DOCUMENT' as const })), ...payableObligations]
   }
 
   const findAvailableChecks = () => {
@@ -146,9 +178,10 @@ export const usePaymentsService = () => {
     })
   }
 
-  const reverse = (id: string) => {
+  const reverse = (id: string, checkAction?: 'RETURN_TO_PORTFOLIO' | 'CANCEL') => {
     return $fetch<Payment>(`${urlBase}/${id}/reverse`, {
-      method: 'POST'
+      method: 'POST',
+      body: checkAction ? { check_action: checkAction } : {}
     })
   }
 

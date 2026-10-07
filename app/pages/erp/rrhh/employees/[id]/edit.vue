@@ -17,6 +17,11 @@ const saving = ref(false)
 const loading = ref(true)
 const formData = ref<FormType | null>(null)
 
+useBreadcrumbEntityLabel(
+  `/erp/rrhh/employees/${id}`,
+  computed(() => formData.value?.name)
+)
+
 onMounted(async () => {
   try {
     const data = await store.fetchOne(id)

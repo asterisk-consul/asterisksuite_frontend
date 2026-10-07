@@ -49,6 +49,11 @@ export interface Payment {
   bank_account_id?: string | null
   cash_box_id?: string | null
   account_id?: string | null
+  credit_card_id?: string | null
+  installments_total?: number
+  card_authorization?: string | null
+  expected_clearing_date?: string | null
+  credit_card_transactions?: any[]
   account?: { id: string; code: string; name: string; account_type: string } | null
   bank_account?: {
     id: string; name: string; bank_name: string; account_number?: string | null
@@ -76,6 +81,7 @@ export interface Payment {
   creator?: { name: string; email: string } | null
 
   documents?: PaymentDocument[]
+  obligations?: Array<Record<string, any>>
 }
 
 export interface CreatePaymentDocumentInput {
@@ -85,6 +91,11 @@ export interface CreatePaymentDocumentInput {
 
 export interface CreatePaymentCheckInput {
   check_id: string
+  amount_applied: number
+}
+
+export interface CreatePaymentObligationInput {
+  obligation_id: string
   amount_applied: number
 }
 
@@ -106,9 +117,14 @@ export interface CreatePaymentInput {
   bank_account_id?: string
   cash_box_id?: string
   account_id?: string
+  credit_card_id?: string
+  installments_total?: number
+  card_authorization?: string
+  expected_clearing_date?: string
   check_ids?: string[]
   checks?: CreatePaymentCheckInput[]
   documents?: CreatePaymentDocumentInput[]
+  obligations?: CreatePaymentObligationInput[]
   status?: PaymentStatus
 }
 

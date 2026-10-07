@@ -76,7 +76,7 @@ export const useCostingStore = defineStore('costing', () => {
       lastCalculated.value = result
 
       // Refrescar historial automáticamente si se guardó snapshot
-      if (dto.save_snapshot !== false) {
+      if (dto.save_snapshot !== false && !dto.variant_id) {
         await fetchHistory(dto.product_id)
       }
 

@@ -30,6 +30,11 @@ const factura = computed(() => {
 })
 const isRemito = computed(() => documentsSalesStore.current?.document_types?.category === 'REMITO')
 
+useBreadcrumbEntityLabel(
+  computed(() => `/erp/sales/${route.params.id as string}`),
+  computed(() => formatDocumentBreadcrumbLabel(documentsSalesStore.current))
+)
+
 const formRef = ref<InstanceType<typeof FacturaForm> | null>(null)
 
 onMounted(async () => {

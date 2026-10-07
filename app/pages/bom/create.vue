@@ -17,7 +17,6 @@ definePageMeta({
 useHead({ title: 'Nuevo BOM' })
 
 const toast = useToast()
-const { moduleCollapsed } = useModuleSidebarState()
 const { create } = useProducts()
 
 const form = reactive(createDefaultProductForm())
@@ -28,6 +27,7 @@ const createdProductId = ref<string | null>(null)
 // Default a BOM para BOM create (MANUAL se resuelve en precio)
 form.cost_source = 'BOM'
 form.auto_calculate_cost = true
+form.product_type = 'FINISHED_PRODUCT'
 
 // Moneda local (no se guarda en el producto, se usa al calcular costos)
 const currencyId = ref('')
@@ -55,37 +55,33 @@ async function handleSave() {
 
 // Paso 2 → template asignado, navega a edición
 async function handleTemplateAssigned() {
-  await navigateTo(`/bom/${createdProductId.value}`)
+  await navigateTo(`/bom/${createdProductId.value}?tab=ingenieria`)
 }
 
 // Paso 2 → saltear asignación de template
 async function handleSkipTemplate() {
-  await navigateTo(`/bom/${createdProductId.value}`)
+  await navigateTo(`/bom/${createdProductId.value}?tab=ingenieria`)
 }
 
 const stepLabels = [
   { n: 1, label: 'Datos generales' },
-  { n: 2, label: 'Template de costos' },
-  { n: 3, label: 'Ingeniería y variantes' }
+  { n: 2, label: 'Template de costos' }
 ]
 
-const pageUi = computed(() => ({
-  root: moduleCollapsed.value ? 'flex flex-col' : 'flex flex-col lg:grid lg:grid-cols-[200px_1fr] lg:gap-2',
-  left: 'lg:col-start-1',
-  center: moduleCollapsed.value ? '' : 'lg:col-start-2'
-}))
+function cancelCreate() {
+  navigateTo('/bom')
+}
 </script>
 
 <template>
   <div class="flex flex-col h-full">
     <AppPageHeader
       title="Nuevo BOM"
-      show-module-toggle
       class="sticky top-0 z-20 px-4 border-b border-default bg-default"
     >
       <template #right>
         <div class="flex items-center gap-2">
-          <UButton label="Cancelar" variant="ghost" color="neutral" @click="navigateTo('/bom')" />
+          <UButton label="Cancelar" variant="ghost" color="neutral" @click="cancelCreate" />
           <template v-if="step === 1">
             <UButton label="Crear y continuar" icon="i-lucide-arrow-right" :loading="saving" @click="handleSave" />
           </template>
@@ -96,7 +92,7 @@ const pageUi = computed(() => ({
       </template>
     </AppPageHeader>
 
-    <UPage :ui="pageUi">
+    <UPage>
       <UPageBody>
         <div class="max-w-2xl mx-auto space-y-6 py-6">
           <!-- Indicador de pasos -->
@@ -119,7 +115,10 @@ const pageUi = computed(() => ({
           <template v-if="step === 1">
             <UCard>
               <template #header>
-                <p class="text-sm font-medium">Información del producto</p>
+                <div>
+                  <p class="text-sm font-medium">Producto terminado</p>
+                  <p class="text-xs text-muted">Este es el producto general cuyo costo se calculará desde sus componentes.</p>
+                </div>
               </template>
               <GeneralSection :form="form" />
             </UCard>
@@ -129,6 +128,23 @@ const pageUi = computed(() => ({
                 <p class="text-sm font-medium">Configuración de costos</p>
               </template>
               <ConfigurationCostForm :form="form" :exclude-sources="['MANUAL']" v-model="currencyId" />
+            </UCard>
+
+            <UCard>
+              <template #header>
+                <div>
+                  <p class="text-sm font-medium">Precio de venta</p>
+                  <p class="text-xs text-muted">Podés calcularlo automáticamente a partir del costo final del BOM.</p>
+                </div>
+              </template>
+              <div class="grid gap-4 md:grid-cols-2">
+                <UFormField label="Cálculo automático">
+                  <USwitch v-model="form.auto_calculate_cost" label="Usar costo + margen" />
+                </UFormField>
+                <UFormField v-if="form.auto_calculate_cost" label="Margen sobre costo (%)">
+                  <UInputNumber v-model="form.sale_margin_percentage" :min="0" :step="0.01" class="w-full" />
+                </UFormField>
+              </div>
             </UCard>
 
             <UAlert

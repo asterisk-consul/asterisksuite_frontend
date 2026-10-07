@@ -1,5 +1,331 @@
 [
   {
+    "version": "0.70.0-alpha",
+    "date": "2026-10-07",
+    "stage": "alpha",
+    "notes": "Stock, costos e ingeniería incorporan políticas de reposición por depósito, regularización guiada desde remitos, unidades de compra y estructuras BOM independientes por variante.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "stock",
+        "title": "Políticas de reposición por producto y depósito con punto de reposición, stock objetivo, plazo y permisos específicos"
+      },
+      {
+        "type": "feat",
+        "scope": "stock",
+        "title": "Nuevo reporte de reposición con stock disponible, reservas, arribos próximos y cantidades sugeridas; por defecto muestra productos configurados y permite incluir los restantes"
+      },
+      {
+        "type": "feat",
+        "scope": "warehouses",
+        "title": "La política de reposición puede configurarse desde cada producto del depósito con producto y depósito ya seleccionados"
+      },
+      {
+        "type": "feat",
+        "scope": "remitos",
+        "title": "Los remitos permiten regularizar stock faltante mediante un movimiento auditable y seleccionar automáticamente el depósito regularizado"
+      },
+      {
+        "type": "style",
+        "scope": "remitos",
+        "title": "Selector de depósito compacto con tooltip del nombre completo y advertencias exclusivas para remitos sin depósito o stock suficiente"
+      },
+      {
+        "type": "feat",
+        "scope": "products",
+        "title": "Inventario incorpora unidad habitual de compra y equivalencia con la unidad de stock, manteniendo conversión 1 a 1 por defecto"
+      },
+      {
+        "type": "feat",
+        "scope": "units",
+        "title": "Catálogo ampliado de unidades de medida y seed independiente e idempotente para ejecutarlo por empresa"
+      },
+      {
+        "type": "feat",
+        "scope": "costing",
+        "title": "Las materias primas admiten costo inicial manual con moneda e historial, y las compras pueden actualizar posteriormente el costo vigente"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Cada variante puede mantener su propia estructura de componentes y calcular un costo independiente sin modificar la estructura base"
+      },
+      {
+        "type": "fix",
+        "scope": "encoding",
+        "title": "El proceso de compilación valida UTF-8 para prevenir textos dañados en la interfaz"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Reposición por depósito, remitos con stock guiado y costos BOM por variante"
+  },
+  {
+    "version": "0.69.0-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "Se puede elegir la variante del producto al fabricar; la fabricación consume la estructura de BOM de esa variante.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "production",
+        "title": "Fabricar permite elegir la variante del producto (obligatoria si tiene variantes) y consume su estructura de BOM"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "El modal de fabricación de la página BOM usa la variante seleccionada"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Fabricación con selección de variante"
+  },
+  {
+    "version": "0.68.3-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "El árbol de ingeniería y la tarjeta de costos muestran el desglose correcto: materiales según la estructura, resto según el template, y el costo de las variantes convertido a la moneda del BOM.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "bom",
+        "title": "El árbol de ingeniería calcula los componentes como BOM (cantidad × costo) y deja de mostrar 'Sin costo de compra' cuando el material tiene costo pero faltan dimensiones"
+      },
+      {
+        "type": "fix",
+        "scope": "bom",
+        "title": "El costo de las variantes se muestra convertido a la moneda del BOM con su costo original como referencia"
+      },
+      {
+        "type": "fix",
+        "scope": "costos",
+        "title": "La tarjeta de costos previsualiza el desglose en vivo (materiales de la estructura y resto del template) también para variantes"
+      },
+      {
+        "type": "feat",
+        "scope": "costos",
+        "title": "La composición de costos incluye la porción Resto/Otros cuando el template suma componentes distintos de material"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Desglose de costos de ingeniería y tarjeta de costos corregidos"
+  },
+  {
+    "version": "0.68.2-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "Fabricación lista correctamente los productos con BOM y el indicador de producto compuesto se mantiene sincronizado con sus componentes.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "production",
+        "title": "Fabricar productos muestra los BOM creados por el flujo de ingeniería y no solo los marcados manualmente como compuestos"
+      },
+      {
+        "type": "fix",
+        "scope": "bom",
+        "title": "El indicador de producto compuesto se activa al agregar componentes y se desactiva al quitar el último"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Productos con BOM visibles al fabricar y flag compuesto sincronizado"
+  },
+  {
+    "version": "0.68.1-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "Corrección en la carga de porcentajes de comisión y montos con decimales en formularios de ventas, personal y tesorería.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "sales",
+        "title": "La comisión por defecto del vendedor en Partes interesadas acepta decimales"
+      },
+      {
+        "type": "fix",
+        "scope": "sales",
+        "title": "La comisión de la orden de venta acepta decimales"
+      },
+      {
+        "type": "fix",
+        "scope": "treasury",
+        "title": "Los importes de liquidación de tarjetas aceptan decimales"
+      },
+      {
+        "type": "fix",
+        "scope": "hr",
+        "title": "El sueldo en datos laborales acepta decimales"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Comisiones y montos con decimales corregidos"
+  },
+  {
+    "version": "0.68.0-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "La baja de cuentas bancarias incorpora una modalidad de descarte para saldos no reales, con reasignación de registros vinculados y restauración desde la papelera.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "La eliminación de una cuenta bancaria permite elegir entre transferir el saldo a otra cuenta o eliminarla igual descartando el saldo"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "El modo descartar pone el saldo en 0 y permite enviar los movimientos históricos a la papelera junto con la cuenta"
+      },
+      {
+        "type": "feat",
+        "scope": "bank-accounts",
+        "title": "Los cheques pendientes, pagos y movimientos de caja vinculados se reasignan a la cuenta destino cuando se selecciona una"
+      },
+      {
+        "type": "fix",
+        "scope": "bank-accounts",
+        "title": "La eliminación exige cuenta destino cuando existen cheques pendientes para no dejarlos sin cuenta asociada"
+      },
+      {
+        "type": "fix",
+        "scope": "trash",
+        "title": "Las cuentas bancarias y sus movimientos eliminados pueden restaurarse desde la Papelera"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Eliminación de cuentas bancarias con descarte de saldo y reasignación"
+  },
+  {
+    "version": "0.67.0-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "Fabricación incorpora un circuito operativo basado en BOM que consume materiales e ingresa productos terminados con trazabilidad. Productos e ingeniería mejoran la carga de componentes, costos, unidades y navegación, mientras Pagos evita duplicar facturas cuando falla una confirmación.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "production",
+        "title": "Fabricar productos permite elegir producto, cantidad, depósito de materiales y depósito de ingreso antes de confirmar los movimientos de stock"
+      },
+      {
+        "type": "feat",
+        "scope": "production",
+        "title": "La vista previa calcula todos los componentes del BOM, considera el stock reservado y bloquea la operación cuando falta algún material"
+      },
+      {
+        "type": "feat",
+        "scope": "production",
+        "title": "El historial de fabricación muestra producto, cantidad, depósito, fecha y referencia común de los consumos e ingresos"
+      },
+      {
+        "type": "security",
+        "scope": "production",
+        "title": "Fabricación incorpora permisos independientes para consultar, ejecutar, revisar historial, administrar BOM y visualizar costos"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "BOM distingue materias primas, productos intermedios, servicios y terminados, permite crear unidades y protege el método de cálculo cuando ya existen componentes"
+      },
+      {
+        "type": "fix",
+        "scope": "costing",
+        "title": "Los costos de ingeniería utilizan el costo de compra vigente y mantienen separado el precio de venta y su margen"
+      },
+      {
+        "type": "style",
+        "scope": "products",
+        "title": "Producto y BOM integran imagen, SKU, tipo, categorías y etiquetas en el contenido principal y eliminan el sidebar interno duplicado"
+      },
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "Crear una factura desde Pagos conserva el documento si falla su confirmación y los reintentos confirman el mismo borrador sin generar duplicados"
+      },
+      {
+        "type": "fix",
+        "scope": "sales",
+        "title": "La confirmación de facturas no informa un falso error cuando falla una sincronización secundaria posterior"
+      },
+      {
+        "type": "fix",
+        "scope": "stock",
+        "title": "Las reservas de órdenes de venta consultan únicamente estados válidos de contenedores al buscar mercadería en tránsito"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Fabricación operativa desde BOM y confirmación segura de facturas"
+  },
+  {
+    "version": "0.66.0-alpha",
+    "date": "2026-10-01",
+    "stage": "alpha",
+    "notes": "Tesorería incorpora la gestión integral de servicios e impuestos y mejora la trazabilidad de cheques y pagos. La navegación ahora identifica cada registro con su nombre o número operativo en lugar de exponer identificadores internos.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "treasury-obligations",
+        "title": "Servicios e impuestos permite registrar obligaciones individuales o recurrentes, anticipar vencimientos y generar períodos mensuales en borrador"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury-obligations",
+        "title": "Las obligaciones distinguen facturas fiscales con IVA de gastos directos y permiten asociar producto de servicio o cuenta contable"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Las obligaciones confirmadas aparecen entre los documentos pendientes y pueden cancelarse desde el circuito habitual de pagos"
+      },
+      {
+        "type": "fix",
+        "scope": "checks",
+        "title": "La reversión de pagos con cheque solicita qué hacer con el instrumento y evita cambios accidentales de estado"
+      },
+      {
+        "type": "style",
+        "scope": "checks",
+        "title": "El listado de cheques prioriza estado y acciones, y presenta fechas y datos bancarios con una jerarquía más clara"
+      },
+      {
+        "type": "fix",
+        "scope": "notifications",
+        "title": "Los procesos programados omiten empresas inactivas o bases sin las tablas requeridas sin interrumpir las demás notificaciones"
+      },
+      {
+        "type": "fix",
+        "scope": "stock",
+        "title": "La disponibilidad diferencia stock físico, reservas y mercadería proyectada en tránsito"
+      },
+      {
+        "type": "style",
+        "scope": "navigation",
+        "title": "Los breadcrumbs muestran números de comprobante y operación, nombres de personas, cajas, bancos y depósitos, patentes y referencias de viaje en lugar de UUID"
+      },
+      {
+        "type": "fix",
+        "scope": "navigation",
+        "title": "Las rutas dinámicas sin una etiqueta cargada muestran Detalle y nunca exponen identificadores técnicos al usuario"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Obligaciones de Tesorería y navegación con referencias operativas"
+  },
+  {
     "version": "0.65.0-alpha",
     "date": "2026-09-30",
     "stage": "alpha",

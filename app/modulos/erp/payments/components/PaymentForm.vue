@@ -15,10 +15,13 @@ import PendingDocumentsList from '~/modulos/erp/payments/components/PendingDocum
 import CreateInvoiceModal from '~/modulos/erp/payments/components/CreateInvoiceModal.vue'
 import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
 import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
+import { useCreditCardsService } from '~/modulos/erp/credit-cards/credit-cards.service'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 import type { WithholdingProposal, PaymentWithholdingPayload } from '~/modulos/erp/fiscal/types/fiscal.types'
 
 export interface PaymentFormData {
-  type: 'PAYMENT' | 'COLLECTION'
+  type: 'PAYMENT' | 'COLLECTION' | 'EXPENSE'
   payment_mode: 'NORMAL' | 'ADVANCE'
   date: string
   payment_method: string
@@ -34,12 +37,21 @@ export interface PaymentFormData {
   bank_account_id: string
   cash_box_id: string
   account_id: string
+  credit_card_id: string
+  installments_total?: number
+  card_authorization?: string
+  expected_clearing_date?: string
   check_ids: string[]
   checks?: Array<{ check_id: string; amount_applied: number }>
   documents?: Array<{
     document_id: string
     amount_applied: number
     document?: any
+  }>
+  obligations?: Array<{
+    obligation_id: string
+    amount_applied: number
+    obligation?: any
   }>
   bank_account?: any
   cash_box?: any
@@ -78,6 +90,10 @@ const {
 const partiesService = useBusinessPartiesService()
 const fiscalService = useFiscalService()
 const toast = useToast()
+const cardService = useCreditCardsService()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+const cardOptions = ref<any[]>([])
 
 // ═══ Retenciones (motor fiscal) ═══
 const withholdings = ref<WithholdingProposal[]>([])
@@ -211,6 +227,10 @@ const defaultForm: PaymentFormData = {
   bank_account_id: '',
   cash_box_id: '',
   account_id: '',
+  credit_card_id: '',
+  installments_total: 1,
+  card_authorization: '',
+  expected_clearing_date: '',
   check_ids: [],
 }
 
@@ -260,6 +280,8 @@ const handleValeCreated = async () => {
 onMounted(async () => {
   initCurrencies()
   accountsStore.fetchAll()
+  await fetchMyPermissionsIfNeeded()
+  try { cardOptions.value = await cardService.findAll() } catch {}
   try {
     allParties.value = await partiesService.findAll()
     if (form.party_id) {
@@ -271,8 +293,8 @@ onMounted(async () => {
 })
 
 watch(
-  () => props.modelValue,
-  (val) => {
+  [() => props.modelValue, () => props.pendingPurchaseDocuments, () => props.pendingSalesDocuments],
+  ([val]) => {
     if (!val) {
       Object.assign(form, { ...defaultForm })
       selectedDocs.value.clear()
@@ -280,16 +302,43 @@ watch(
     }
     Object.assign(form, val)
 
-    // Poblar selectedDocs desde los documentos del pago
-    if (val.documents && val.documents.length > 0) {
+    // Poblar selectedDocs desde comprobantes y obligaciones de Tesorería.
+    if (val.documents?.length || val.obligations?.length) {
       const allPending = [...(props.pendingPurchaseDocuments ?? []), ...(props.pendingSalesDocuments ?? [])]
       selectedDocs.value.clear()
-      for (const docData of val.documents) {
+      for (const docData of val.documents ?? []) {
         const pendingDoc = allPending.find(d => d.id === docData.document_id)
         if (pendingDoc) {
           selectedDocs.value.set(docData.document_id, {
             doc: pendingDoc,
             amount: docData.amount_applied ?? pendingDoc.pending_amount
+          })
+        }
+      }
+      for (const obligationData of val.obligations ?? []) {
+        const obligation = obligationData.obligation
+        const pendingDoc = allPending.find(d => d.id === obligationData.obligation_id) ?? (obligation ? {
+          id: obligation.id,
+          obligation_id: obligation.id,
+          source_type: 'TREASURY_OBLIGATION' as const,
+          number: obligation.period_key,
+          date: obligation.issue_date ?? obligation.due_date,
+          total: Number(obligation.amount ?? obligation.estimated_amount),
+          paid_amount: 0,
+          pending_amount: Number(obligation.amount ?? obligation.estimated_amount),
+          currency_code: obligation.currency_code,
+          exchange_rate: obligation.exchange_rate == null ? null : Number(obligation.exchange_rate),
+          party_id: obligation.party_id,
+          party_name: '-',
+          party_type: 'SUPPLIER',
+          document_type_code: 'SERVICIO_IMPUESTO',
+          document_type_description: obligation.description,
+          document_type_category: 'TREASURY_OBLIGATION'
+        } : undefined)
+        if (pendingDoc) {
+          selectedDocs.value.set(obligationData.obligation_id, {
+            doc: pendingDoc,
+            amount: obligationData.amount_applied ?? pendingDoc.pending_amount
           })
         }
       }
@@ -344,15 +393,17 @@ watch(
   { deep: true }
 )
 
-const paymentMethods = [
+const paymentMethods = computed(() => [
   { label: 'Efectivo', value: 'CASH' },
   { label: 'Cheque', value: 'CHECK' },
   { label: 'Transferencia bancaria', value: 'BANK_TRANSFER' },
-  // { label: 'Tarjeta de crédito', value: 'CREDIT_CARD' },
+  ...((isOwnerOrAdmin.value || (isCollection.value ? hasPermission('card_collections.create') : hasPermission('credit_cards.company.use')))
+    ? [{ label: isCollection.value ? 'Tarjeta de crédito' : 'Tarjeta corporativa', value: 'CREDIT_CARD' }]
+    : []),
   // { label: 'Tarjeta de débito', value: 'DEBIT_CARD' },
   // { label: 'Billetera virtual', value: 'VIRTUAL_WALLET' },
   // { label: 'Cuenta corriente', value: 'CURRENT_ACCOUNT' }
-]
+])
 
 const typeOptions = [
   { label: 'Pago (a proveedor)', value: 'PAYMENT' },
@@ -380,7 +431,7 @@ const selectedPaymentMode = computed({
 })
 
 const selectedPaymentMethod = computed({
-  get: () => paymentMethods.find(o => o.value === form.payment_method) ?? paymentMethods[0],
+  get: () => paymentMethods.value.find(o => o.value === form.payment_method) ?? paymentMethods.value[0],
   set: (val: any) => { form.payment_method = val?.value ?? 'CASH' }
 })
 
@@ -411,6 +462,10 @@ const suggestedWithheld = (wh: any) => {
 const isCollection = computed(() => form.type === 'COLLECTION')
 const isPayment = computed(() => form.type === 'PAYMENT' || form.type === 'EXPENSE')
 const isCheck = computed(() => form.payment_method === 'CHECK')
+const isCreditCard = computed(() => form.payment_method === 'CREDIT_CARD')
+const availableCardOptions = computed(() => cardOptions.value
+  .filter(card => card.active && card.type === (isCollection.value ? 'CUSTOMER' : 'COMPANY') && card.currency_code === form.currency_code)
+  .map(card => ({ label: `${card.name} · ${card.brand}${card.type === 'COMPANY' ? ` · •••• ${card.last_four}` : ''}`, value: card.id })))
 const isCollectingCheck = computed(() => isCollection.value && isCheck.value)
 const isPayingWithCheck = computed(() => isPayment.value && isCheck.value)
 const instrumentValidationAttempted = ref(false)
@@ -418,6 +473,7 @@ const instrumentValidationMessage = computed(() => {
   if (form.payment_method === 'CASH' && !form.cash_box_id) return 'Seleccioná una caja para continuar.'
   if (form.payment_method === 'BANK_TRANSFER' && !form.bank_account_id) return 'Seleccioná una cuenta bancaria para continuar.'
   if (form.payment_method === 'CHECK' && form.check_ids.length === 0) return 'Seleccioná al menos un cheque para continuar.'
+  if (form.payment_method === 'CREDIT_CARD' && !form.credit_card_id) return isCollection.value ? 'Seleccioná un canal de cobro para continuar.' : 'Seleccioná una tarjeta corporativa para continuar.'
   return ''
 })
 const hasInstrumentSelection = computed(() => instrumentValidationMessage.value === '')
@@ -437,7 +493,7 @@ const readonlyModeLabel = computed(() =>
 )
 
 const readonlyMethodLabel = computed(() =>
-  paymentMethods.find(m => m.value === form.payment_method)?.label ?? form.payment_method
+  paymentMethods.value.find(m => m.value === form.payment_method)?.label ?? form.payment_method
 )
 
 const readonlyCashBoxLabel = computed(() => {
@@ -614,6 +670,7 @@ watch(selectedPaymentMethod, async (val) => {
   if (val?.value === 'BANK_TRANSFER') {
     await initBankAccounts()
   }
+  if (val?.value !== 'CREDIT_CARD') form.credit_card_id = ''
   form.cash_box_id = ''
   form.bank_account_id = ''
 })
@@ -623,6 +680,7 @@ watch(() => form.currency_code, () => {
   form.bank_account_id = ''
   selectedChecks.value.clear()
   form.check_ids = []
+  form.credit_card_id = ''
 })
 
 // Recalcular montos de documentos cuando cambia la cotización
@@ -685,6 +743,7 @@ watch(selectedType, async (val) => {
   form.amount = 0
   selectedChecks.value.clear()
   form.check_ids = []
+  form.credit_card_id = ''
 
   if (isCheck.value) {
     await fetchAvailableChecks()
@@ -876,10 +935,15 @@ const handleSubmit = async () => {
   // Dinero efectivo = aplicado a documentos − retenciones
   const cashAmount = Math.max(0, Math.round((paymentAmount - totalRetentions) * 100) / 100)
 
-  const documentsData = Array.from(selectedDocs.value.values()).map(d => ({
+  const documentsData = Array.from(selectedDocs.value.values())
+    .filter(d => d.doc.source_type !== 'TREASURY_OBLIGATION')
+    .map(d => ({
     document_id: d.doc.id,
     amount_applied: d.amount
   }))
+  const obligationsData = Array.from(selectedDocs.value.values())
+    .filter(d => d.doc.source_type === 'TREASURY_OBLIGATION')
+    .map(d => ({ obligation_id: d.doc.id, amount_applied: d.amount }))
 
   // Un cheque físico se recibe o se entrega por su valor completo. Los
   // documentos conservan por separado el importe efectivamente aplicado.
@@ -925,7 +989,8 @@ const handleSubmit = async () => {
     check_ids: undefined,
     checks: buildCheckAllocations(),
     withholdings: withholdingsPayload.length > 0 ? withholdingsPayload : undefined,
-    documents: documentsData.length > 0 ? documentsData : undefined
+    documents: documentsData.length > 0 ? documentsData : undefined,
+    obligations: obligationsData
   }
 
   emit('submit', payload as any)
@@ -1330,6 +1395,23 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- TARJETA DE CRÉDITO -->
+    <div v-if="isCreditCard" class="border border-primary/30 bg-primary/5 rounded-lg p-4 space-y-4">
+      <div>
+        <h3 class="font-semibold">{{ isCollection ? 'Cobro con tarjeta' : 'Pago con tarjeta corporativa' }}</h3>
+        <p class="text-sm text-muted">{{ isCollection ? 'La factura quedará cobrada y el importe permanecerá pendiente hasta registrar la liquidación bancaria.' : 'La factura quedará pagada y el consumo se incorporará a las cuotas de la tarjeta.' }}</p>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <UFormField :label="isCollection ? 'Canal de cobro' : 'Tarjeta corporativa'" required class="sm:col-span-2">
+          <USelectMenu v-model="form.credit_card_id" :items="availableCardOptions" value-key="value" searchable class="w-full" :placeholder="isCollection ? 'Seleccionar adquirente o comercio' : 'Seleccionar tarjeta'" />
+        </UFormField>
+        <UFormField label="Cuotas" required><UInput v-model.number="form.installments_total" type="number" min="1" class="w-full" /></UFormField>
+        <UFormField label="Autorización / cupón"><UInput v-model="form.card_authorization" class="w-full" /></UFormField>
+        <UFormField v-if="isCollection" label="Acreditación estimada"><DataPicker v-model="form.expected_clearing_date" /></UFormField>
+      </div>
+      <UAlert v-if="!availableCardOptions.length" color="warning" variant="subtle" :title="isCollection ? 'No hay canales de cobro disponibles para esta moneda' : 'No hay tarjetas corporativas disponibles para esta moneda'" description="Configurá la tarjeta o el adquirente desde Tesorería → Tarjetas." />
     </div>
 
     <!-- CUENTA CORRIENTE (solo informativa) -->

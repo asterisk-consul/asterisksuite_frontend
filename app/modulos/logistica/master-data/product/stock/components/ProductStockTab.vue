@@ -46,6 +46,7 @@ const filteredTotalReserved = computed(() =>
 )
 
 const filteredTotalAvailable = computed(() => filteredTotalStock.value - filteredTotalReserved.value)
+const stockUnit = computed(() => productStock.productStock.value[0]?.products?.unit?.symbol ?? 'u.')
 
 onMounted(async () => {
   await productStock.init()
@@ -103,19 +104,19 @@ const openRemove = (item: any) => {
       <UCard>
         <div class="text-sm text-muted">Stock Total</div>
         <div class="text-2xl font-bold">
-          {{ (selectedWarehouseIds.length > 0 ? filteredTotalStock : productStock.totalStock.value).toFixed(2) }}
+          {{ (selectedWarehouseIds.length > 0 ? filteredTotalStock : productStock.totalStock.value).toFixed(2) }} {{ stockUnit }}
         </div>
       </UCard>
       <UCard>
         <div class="text-sm text-muted">Reservado</div>
         <div class="text-2xl font-bold text-amber-600">
-          {{ (selectedWarehouseIds.length > 0 ? filteredTotalReserved : productStock.totalReserved.value).toFixed(2) }}
+          {{ (selectedWarehouseIds.length > 0 ? filteredTotalReserved : productStock.totalReserved.value).toFixed(2) }} {{ stockUnit }}
         </div>
       </UCard>
       <UCard>
         <div class="text-sm text-muted">Disponible</div>
         <div class="text-2xl font-bold text-green-600">
-          {{ (selectedWarehouseIds.length > 0 ? filteredTotalAvailable : productStock.totalAvailable.value).toFixed(2) }}
+          {{ (selectedWarehouseIds.length > 0 ? filteredTotalAvailable : productStock.totalAvailable.value).toFixed(2) }} {{ stockUnit }}
         </div>
       </UCard>
     </div>
@@ -127,6 +128,7 @@ const openRemove = (item: any) => {
         <USelectMenu
           v-model="selectedWarehouseIds"
           :items="warehouseFilterOptions"
+          value-key="value"
           placeholder="Filtrar por depósito"
           multiple
           searchable
@@ -137,7 +139,7 @@ const openRemove = (item: any) => {
         size="sm"
         variant="outline"
         icon="i-heroicons-plus"
-        @click="showAddModal = true"
+        @click="() => { showAddModal = true }"
       >
         Agregar a depósito
       </UButton>
@@ -155,7 +157,7 @@ const openRemove = (item: any) => {
         variant="outline"
         icon="i-heroicons-plus"
         class="mt-4"
-        @click="showAddModal = true"
+        @click="() => { showAddModal = true }"
       >
         Agregar a depósito
       </UButton>
@@ -181,30 +183,31 @@ const openRemove = (item: any) => {
               </NuxtLink>
               <div class="text-sm text-muted">
                 {{ item.warehouse?.code || '—' }}
-                <span v-if="item.warehouse?.units">
-                  · {{ item.warehouse.units.symbol }}
-                </span>
+                <span>· {{ item.products?.unit?.symbol || stockUnit }}</span>
               </div>
+              <UBadge v-if="item.warehouse?.is_virtual" color="info" variant="subtle" size="xs" class="mt-1">
+                En tránsito
+              </UBadge>
             </div>
           </div>
 
           <div class="flex items-center gap-6">
             <div class="text-right">
               <div class="text-sm text-muted">Stock</div>
-              <div class="font-semibold">{{ parseFloat(item.quantity).toFixed(2) }}</div>
+              <div class="font-semibold">{{ parseFloat(item.quantity).toFixed(2) }} {{ item.products?.unit?.symbol || stockUnit }}</div>
             </div>
             <div class="text-right">
               <div class="text-sm text-muted">Reservado</div>
-              <div class="font-semibold text-amber-600">{{ parseFloat(item.reserved_quantity).toFixed(2) }}</div>
+              <div class="font-semibold text-amber-600">{{ parseFloat(item.reserved_quantity).toFixed(2) }} {{ item.products?.unit?.symbol || stockUnit }}</div>
             </div>
             <div class="text-right">
               <div class="text-sm text-muted">Disponible</div>
               <div class="font-semibold text-green-600">
-                {{ (parseFloat(item.quantity) - parseFloat(item.reserved_quantity)).toFixed(2) }}
+                {{ (parseFloat(item.quantity) - parseFloat(item.reserved_quantity)).toFixed(2) }} {{ item.products?.unit?.symbol || stockUnit }}
               </div>
             </div>
 
-            <div class="flex gap-1">
+            <div v-if="!item.warehouse?.is_virtual" class="flex gap-1">
               <UButton
                 icon="i-lucide-arrow-right-left"
                 variant="ghost"

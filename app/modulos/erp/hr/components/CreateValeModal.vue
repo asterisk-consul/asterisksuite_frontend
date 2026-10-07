@@ -86,9 +86,9 @@ const alertDescription = computed(() =>
     : 'Podés confirmarlo después desde la lista de vales.'
 )
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════
 // TIPO DE CAMBIO
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════
 
 const convertedAmount = computed(() => {
   if (!createForm.value.exchange_rate || createForm.value.amount <= 0) return null
@@ -112,7 +112,7 @@ const convertedPreviewText = computed(() => {
   const toCurrency = convertedCurrencyLabel.value
   const fromFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: fromCurrency, maximumFractionDigits: 2 }).format(createForm.value.amount)
   const toFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: toCurrency, maximumFractionDigits: 2 }).format(convertedAmount.value)
-  return `${fromFmt} â‰ˆ ${toFmt}`
+  return `${fromFmt} ≈ ${toFmt}`
 })
 
 async function loadLatestExchangeRate() {
@@ -381,7 +381,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
               />
               <div class="flex items-center gap-2 mt-2">
                 <UBadge
-                  :label="isAutoResolved ? 'Ãšltima cotización cargada' : 'Cotización modificada'"
+                  :label="isAutoResolved ? 'Última cotización cargada' : 'Cotización modificada'"
                   :color="isAutoResolved ? 'info' : 'warning'"
                   variant="subtle"
                   size="sm"

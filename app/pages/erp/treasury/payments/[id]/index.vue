@@ -39,6 +39,12 @@ const initialWithholdings = ref<any[]>([])
 const isProcessing = ref(false)
 const actionModalOpen = ref(false)
 const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse'>('confirm')
+const checkAction = ref<'RETURN_TO_PORTFOLIO' | 'CANCEL'>('RETURN_TO_PORTFOLIO')
+
+useBreadcrumbEntityLabel(
+  `/erp/treasury/payments/${paymentId}`,
+  computed(() => currentPayment.value?.number ? `Pago / cobro #${currentPayment.value.number}` : null)
+)
 
 const actionLabels: Record<string, { title: string; button: string; color: string; description: string }> = {
   confirm: { title: 'Confirmar pago', button: 'Confirmar', color: 'info', description: 'Se aplicarán los efectos: documentos, caja/banco y cuenta corriente.' },
@@ -80,6 +86,10 @@ onMounted(async () => {
       bank_account_id: payment.bank_account_id ?? '',
       cash_box_id: payment.cash_box_id ?? '',
       account_id: payment.account_id ?? '',
+      credit_card_id: (payment as any).credit_card_transactions?.[0]?.credit_card_id ?? '',
+      installments_total: (payment as any).credit_card_transactions?.[0]?.installments_total ?? 1,
+      card_authorization: (payment as any).credit_card_transactions?.[0]?.authorization ?? '',
+      expected_clearing_date: (payment as any).credit_card_transactions?.[0]?.expected_clearing_date?.split('T')[0] ?? '',
       check_ids: ((payment as any).payment_allocations ?? [])
         .map((allocation: any) => allocation.check_id ?? allocation.check?.id)
         .filter(Boolean),
@@ -87,6 +97,11 @@ onMounted(async () => {
         document_id: d.document_id,
         amount_applied: Number(d.amount_applied),
         document: d.document,
+      })) ?? [],
+      obligations: (payment as any).obligations?.map((obligation: any) => ({
+        obligation_id: obligation.id,
+        amount_applied: Number(obligation.amount ?? obligation.estimated_amount),
+        obligation,
       })) ?? [],
       bank_account: (payment as any).bank_account,
       cash_box: (payment as any).cash_box,
@@ -140,6 +155,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       account_id: formData.account_id || null,
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
       documents: formData.documents?.length ? formData.documents : undefined,
+      obligations: formData.obligations ?? [],
     })
     currentPayment.value = updated as Payment
     toast.add({ title: 'Pago actualizado', color: 'success' })
@@ -155,6 +171,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
 
 const openAction = (type: typeof actionType.value) => {
   actionType.value = type
+  checkAction.value = 'RETURN_TO_PORTFOLIO'
   actionModalOpen.value = true
 }
 
@@ -175,7 +192,7 @@ const handleAction = async () => {
         await reject(paymentId)
         break
       case 'reverse':
-        await reverse(paymentId)
+        await reverse(paymentId, currentPayment.value.payment_method === 'CHECK' ? checkAction.value : undefined)
         break
     }
 
@@ -319,6 +336,17 @@ const handleAdvanceSuccess = async () => {
     <UModal v-model:open="actionModalOpen" :title="actionLabels[actionType]?.title">
       <template #body>
         <p>{{ actionLabels[actionType]?.description }}</p>
+        <div v-if="actionType === 'reverse' && currentPayment?.payment_method === 'CHECK'" class="mt-4 space-y-2">
+          <p class="text-sm font-medium">¿Qué debe ocurrir con el cheque?</p>
+          <URadioGroup
+            v-model="checkAction"
+            :items="[
+              { label: 'Devolverlo a cartera', description: 'El cheque vuelve a quedar pendiente y disponible para utilizarse.', value: 'RETURN_TO_PORTFOLIO' },
+              { label: 'Cancelar también el cheque', description: 'El cheque queda cancelado y no podrá volver a utilizarse.', value: 'CANCEL' }
+            ]"
+            variant="card"
+          />
+        </div>
         <div class="flex justify-end gap-2 pt-4">
           <UButton label="Cancelar" variant="ghost" @click="actionModalOpen = false" />
           <UButton

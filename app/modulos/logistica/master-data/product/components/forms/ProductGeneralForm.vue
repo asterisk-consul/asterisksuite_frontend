@@ -9,15 +9,48 @@ import {
   usageTypeConfig
 } from '~/modulos/logistica/master-data/product/utils/product-options.utils'
 import { useTaxCategories } from '~/modulos/erp/tax-engine/composables/useTaxCategories'
+import { useUnitsStore } from '~/modulos/almacen/units/store/units.store'
+import type { UnitType } from '~/modulos/almacen/units/types/units.types'
 
 const props = defineProps<{
   form: ProductFormState
 }>()
 
 const { categoryOptions, fetchAll } = useTaxCategories()
+const unitsStore = useUnitsStore()
+const { items: units } = storeToRefs(unitsStore)
 
-onMounted(() => {
-  fetchAll()
+const expectedUnitType = computed<UnitType>(() => ({
+  UNIT: 'UNIT',
+  LINEAR: 'LENGTH',
+  VOLUME: 'VOLUME',
+  SURFACE: 'WEIGHT'
+}[props.form.calculation_type ?? 'UNIT'] as UnitType))
+
+const unitOptions = computed(() => units.value
+  .filter(unit => unit.active && unit.unit_type === expectedUnitType.value)
+  .map(unit => ({
+    label: `${unit.name} (${unit.symbol})`,
+    value: unit.id
+  })))
+
+const calculationHelp = computed(() => ({
+  UNIT: 'El BOM consume una cantidad directa, por ejemplo 4 unidades.',
+  LINEAR: 'El BOM convierte el largo cargado a metros. Usá una unidad de longitud, por ejemplo m.',
+  VOLUME: 'El BOM calcula largo × ancho × alto en m³. Usá una unidad de volumen.',
+  SURFACE: 'El cálculo de ingeniería obtiene el peso usando superficie, espesor y densidad. La unidad de stock recomendada es kg.'
+}[props.form.calculation_type ?? 'UNIT']))
+
+onMounted(async () => {
+  await Promise.all([fetchAll(), unitsStore.fetchAll()])
+})
+
+watch(() => props.form.calculation_type, () => {
+  if (!props.form.unit_id || !units.value.length) return
+  const selectedUnit = units.value.find(unit => unit.id === props.form.unit_id)
+  if (selectedUnit && selectedUnit.unit_type !== expectedUnitType.value) {
+    props.form.unit_id = undefined
+  }
 })
 </script>
 
@@ -81,9 +114,29 @@ onMounted(() => {
       </UPopover>
     </div>
 
-    <UFormField label="Tipo cálculo">
+    <UFormField label="Cálculo en BOM" :description="calculationHelp">
       <USelect v-model="form.calculation_type" :items="calculationTypeOptions" class="w-full" />
     </UFormField>
+
+    <div v-if="form.manages_stock" class="flex items-end gap-1">
+      <UFormField label="Unidad de stock" description="Se filtra según el cálculo elegido y se usa en depósitos y movimientos." class="min-w-0 flex-1">
+        <USelect
+          v-model="form.unit_id"
+          :items="unitOptions"
+          :placeholder="unitOptions.length ? 'Seleccionar unidad de medida' : 'No hay unidades compatibles'"
+          class="w-full"
+        />
+      </UFormField>
+      <UTooltip text="Configurar unidades de medida">
+        <UButton
+          icon="i-lucide-settings"
+          color="neutral"
+          variant="ghost"
+          class="mb-1"
+          to="/productos/settings/unidades"
+        />
+      </UTooltip>
+    </div>
 
     <UFormField label="Categoría Fiscal">
       <USelect

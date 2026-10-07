@@ -15,6 +15,11 @@ const accountId = route.params.id as string
 
 const { current: account, movements, fetchOne, fetchMovements, loading } = useBankAccounts()
 
+useBreadcrumbEntityLabel(
+  `/erp/treasury/bank-accounts/${accountId}`,
+  computed(() => account.value?.name)
+)
+
 const sorting = ref<SortingState>([])
 
 function onSortFieldSelect(columnId: string) {

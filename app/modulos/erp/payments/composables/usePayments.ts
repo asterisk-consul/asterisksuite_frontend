@@ -38,7 +38,7 @@ export function usePayments() {
 
   const remove = async (id: string) => store.remove(id)
 
-  const reverse = async (id: string) => store.reverse(id)
+  const reverse = async (id: string, checkAction?: 'RETURN_TO_PORTFOLIO' | 'CANCEL') => store.reverse(id, checkAction)
 
   const confirm = async (id: string) => store.confirm(id)
 

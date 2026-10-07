@@ -9,6 +9,11 @@ const vehicle = ref<any>(null)
 const tirePositions = ref<any[]>([])
 const axleCount = ref(2)
 
+useBreadcrumbEntityLabel(
+  `/logistica/vehiculos/${id}`,
+  computed(() => vehicle.value?.plate)
+)
+
 async function fetchVehicle() {
   try {
     vehicle.value = await $fetch(`/api/backend/vehicles/${id}`)

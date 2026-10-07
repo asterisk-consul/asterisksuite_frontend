@@ -33,6 +33,7 @@ const importOpen = ref(false)
 const actionModalOpen = ref(false)
 const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse' | 'delete'>('confirm')
 const actionPayment = ref<Payment | null>(null)
+const checkAction = ref<'RETURN_TO_PORTFOLIO' | 'CANCEL'>('RETURN_TO_PORTFOLIO')
 
 const actionLabels: Record<string, { title: string; button: string; color: string; description: string }> = {
   confirm: { title: 'Confirmar pago', button: 'Confirmar', color: 'info', description: 'Se aplicarán los efectos: documentos, caja/banco y cuenta corriente.' },
@@ -54,6 +55,7 @@ const openDetail = (row: Payment) => {
 const openAction = (type: typeof actionType.value, payment: Payment) => {
   actionType.value = type
   actionPayment.value = payment
+  checkAction.value = 'RETURN_TO_PORTFOLIO'
   actionModalOpen.value = true
 }
 
@@ -72,7 +74,7 @@ const handleAction = async () => {
         await reject(actionPayment.value.id)
         break
       case 'reverse':
-        await reverse(actionPayment.value.id)
+        await reverse(actionPayment.value.id, actionPayment.value.payment_method === 'CHECK' ? checkAction.value : undefined)
         break
       case 'delete':
         await remove(actionPayment.value.id)
@@ -243,6 +245,17 @@ const dataActions = computed(() => [
       <template #body>
         <p>{{ actionLabels[actionType]?.description }}</p>
         <p class="mt-2">Pago N° <strong>{{ actionPayment?.number }}</strong></p>
+        <div v-if="actionType === 'reverse' && actionPayment?.payment_method === 'CHECK'" class="mt-4 space-y-2">
+          <p class="text-sm font-medium">¿Qué debe ocurrir con el cheque?</p>
+          <URadioGroup
+            v-model="checkAction"
+            :items="[
+              { label: 'Devolverlo a cartera', description: 'El cheque vuelve a quedar pendiente y disponible para utilizarse.', value: 'RETURN_TO_PORTFOLIO' },
+              { label: 'Cancelar también el cheque', description: 'El cheque queda cancelado y no podrá volver a utilizarse.', value: 'CANCEL' }
+            ]"
+            variant="card"
+          />
+        </div>
         <div class="flex justify-end gap-2 pt-4">
           <UButton label="Cancelar" variant="ghost" @click="actionModalOpen = false" />
           <UButton

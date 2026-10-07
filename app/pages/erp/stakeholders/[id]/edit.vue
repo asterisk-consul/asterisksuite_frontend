@@ -21,6 +21,11 @@ const id = route.params.id as string
 const saving = ref(false)
 const formData = ref<FormType | null>(null)
 
+useBreadcrumbEntityLabel(
+  `/erp/stakeholders/${id}`,
+  computed(() => formData.value?.name)
+)
+
 onMounted(async () => {
   const data = await store.fetchOne(id)
   formData.value = mapBusinessPartyToForm(data)

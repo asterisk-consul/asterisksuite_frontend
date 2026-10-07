@@ -50,7 +50,8 @@ export const settingsCatalog: SettingsGroup[] = [
       { label: 'Conceptos bancarios', description: 'Clasificación de movimientos bancarios.', icon: 'i-lucide-landmark', to: '/erp/treasury/bank-concepts', permission: 'bank_accounts.read' },
       { label: 'Cajas', description: 'Crear cajas y definir monedas y responsables.', icon: 'i-lucide-wallet', to: '/erp/treasury/cash-boxes', permission: 'cash_boxes.read' },
       { label: 'Cuentas bancarias', description: 'Bancos, monedas y saldos iniciales.', icon: 'i-lucide-building-2', to: '/erp/treasury/bank-accounts', permission: 'bank_accounts.read' },
-      { label: 'Cheques', description: 'Alertas y anticipación de vencimientos.', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', permission: 'payments.read' }
+        { label: 'Cheques', description: 'Alertas y anticipación de vencimientos.', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', permission: 'payments.read' },
+        { label: 'Tarjetas y canales de cobro', description: 'Tarjetas corporativas, adquirentes, comisiones y plazos.', icon: 'i-lucide-credit-card', to: '/erp/treasury/cards', permission: 'card_settings.read' }
     ]
   },
   {

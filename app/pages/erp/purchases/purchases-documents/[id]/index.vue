@@ -24,6 +24,10 @@ const loading = ref(true)
 const factura = computed(() => documentsPurchasesStore.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => factura.value?.document_types?.category)
+useBreadcrumbEntityLabel(
+  computed(() => `/erp/purchases/purchases-documents/${route.params.id as string}`),
+  computed(() => formatDocumentBreadcrumbLabel(factura.value))
+)
 
 // Custom status flow: Draft(0) → Pending(1) or Confirm(2) or Cancel(3)
 const customTransitions = computed(() => {
@@ -63,7 +67,6 @@ const {
   handleCancel,
   handleRemove,
   handleStatus,
-  updateProductPrices,
 } = useDocumentActions({
   doc: factura as any,
   category,
@@ -139,12 +142,14 @@ const {
     <template #body>
       <p>¿Estás seguro de que deseas confirmar la factura <strong>#{{ factura?.number }}</strong>?</p>
       <p class="text-sm text-muted mt-2">Una vez confirmada, no podrá ser editada.</p>
-      <div class="mt-4">
-        <UCheckbox v-model="updateProductPrices" label="Actualizar precios de productos con los de la factura" />
-        <p class="text-xs text-muted mt-1">
-          Si un producto no tiene precio o tiene uno distinto, se actualizará automáticamente.
-        </p>
-      </div>
+      <UAlert
+        class="mt-4"
+        color="info"
+        variant="soft"
+        icon="i-lucide-calculator"
+        title="Actualización de costos"
+        description="Al confirmar, el costo de cada producto se actualizará con el precio unitario de esta compra. Los precios de venta no se modificarán."
+      />
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
         <UButton label="Confirmar" color="success" :loading="processing" @click="handleConfirm" />

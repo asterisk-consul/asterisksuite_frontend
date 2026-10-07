@@ -19,6 +19,8 @@ interface Props {
     product_type?: string
 
     has_variants?: boolean
+    purchase_unit_id?: string | null
+    purchase_to_stock_factor?: number
   }[]
 
   currencyCode?: string
@@ -27,6 +29,7 @@ interface Props {
   defaultWarehouseId?: string | null
   warehouseOptionsForItem?: (item: FacturaItem) => { value: string, label: string }[]
   showAmounts?: boolean
+  canRegularizeStock?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -39,6 +42,7 @@ const emit = defineEmits<{
   add: [product: any]
 
   'update:warehouse': [index: number, warehouseId: string | null]
+  'regularize-stock': [index: number, item: FacturaItem]
 }>()
 
 const selectedProduct = ref<any>(null)
@@ -131,6 +135,7 @@ const UInput = resolveComponent('UInput')
 
 const UButton = resolveComponent('UButton')
 const USelect = resolveComponent('USelect')
+const UTooltip = resolveComponent('UTooltip')
 
 const columns = computed(() => [
   {
@@ -167,21 +172,66 @@ const columns = computed(() => [
         }
       })
   },
+  ...(props.items.some(item => Number(item.unit_conversion_factor ?? 1) !== 1) ? [{
+    id: 'stock_quantity',
+    header: 'Ingreso a stock',
+    cell: ({ row }: any) => {
+      const factor = Number(row.original.unit_conversion_factor || 1)
+      const stockQuantity = Number(row.original.quantity || 0) * factor
+      row.original.stock_quantity = stockQuantity
+      return h('div', { class: 'text-right' }, [
+        h('p', { class: 'font-medium tabular-nums' }, stockQuantity.toLocaleString('es-AR')),
+        h('p', { class: 'text-xs text-muted' }, `factor × ${factor.toLocaleString('es-AR')}`)
+      ])
+    }
+  }] : []),
   ...(props.showWarehouseColumn ? [{
     accessorKey: 'warehouse_id',
     header: 'Depósito',
-    cell: ({ row }: any) => h(USelect, {
-      modelValue: row.original.warehouse_id || props.defaultWarehouseId || undefined,
-      items: props.warehouseOptionsForItem?.(row.original) ?? props.warehouses ?? [],
-      valueKey: 'value',
-      placeholder: 'Seleccionar depósito',
-      class: 'min-w-48',
-      'onUpdate:modelValue': (value: string | { value?: string }) => {
-        const warehouseId = typeof value === 'string' ? value : value?.value ?? null
-        row.original.warehouse_id = warehouseId
-        emit('update:warehouse', row.index, warehouseId)
-      }
-    })
+    cell: ({ row }: any) => {
+      const options = props.warehouseOptionsForItem?.(row.original) ?? props.warehouses ?? []
+      const selectedWarehouseId = row.original.warehouse_id || props.defaultWarehouseId || undefined
+      const selectedWarehouse = options.find(option => option.value === selectedWarehouseId)
+      const tooltipText = selectedWarehouse?.label
+        || (options.length ? 'Seleccioná el depósito de salida' : 'Este producto no tiene un depósito con stock suficiente')
+      return h('div', { class: 'flex w-48 items-center gap-1.5' }, [
+        h('div', { class: 'min-w-0 flex-1' }, [
+          h(UTooltip, { text: tooltipText, delayDuration: 250 }, {
+            default: () => h(USelect, {
+              modelValue: selectedWarehouseId,
+              items: options,
+              valueKey: 'value',
+              placeholder: options.length ? 'Seleccionar depósito' : 'Sin stock suficiente',
+              disabled: options.length === 0,
+              size: 'sm',
+              class: 'w-full min-w-0',
+              'aria-label': tooltipText,
+              'onUpdate:modelValue': (value: string | { value?: string }) => {
+                const warehouseId = typeof value === 'string' ? value : value?.value ?? null
+                row.original.warehouse_id = warehouseId
+                emit('update:warehouse', row.index, warehouseId)
+              }
+            })
+          })
+        ]),
+        ...(options.length === 0
+          ? [props.canRegularizeStock
+              ? h(UButton, {
+                  icon: 'i-lucide-package-plus',
+                  size: 'xs',
+                  variant: 'soft',
+                  square: true,
+                  title: 'Regularizar stock en un depósito',
+                  'aria-label': 'Regularizar stock',
+                  onClick: () => emit('regularize-stock', row.index, row.original)
+                })
+              : h('span', {
+                  class: 'shrink-0 text-warning',
+                  title: 'No hay stock suficiente. Solicitá la regularización a un responsable.'
+                }, [h(resolveComponent('UIcon'), { name: 'i-lucide-circle-alert', class: 'size-4' })])]
+          : [])
+      ])
+    }
   }] : []),
   ...(props.showAmounts === false ? [] : [{
     accessorKey: 'unit_price',

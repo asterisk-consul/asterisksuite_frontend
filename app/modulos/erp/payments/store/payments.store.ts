@@ -92,8 +92,8 @@ export const usePaymentsStore = defineStore('payments', () => {
   // REVERSE
   // =========================
 
-  const reverse = async (id: string) => {
-    const reversed = await service.reverse(id)
+  const reverse = async (id: string, checkAction?: 'RETURN_TO_PORTFOLIO' | 'CANCEL') => {
+    const reversed = await service.reverse(id, checkAction)
 
     const index = items.value.findIndex((i) => i.id === id)
     if (index !== -1) {

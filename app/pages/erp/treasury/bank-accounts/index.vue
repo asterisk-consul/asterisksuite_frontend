@@ -6,7 +6,8 @@ import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBank
 import type {
   BankAccount,
   CreateBankAccountInput,
-  BankAccountUserRole
+  BankAccountUserRole,
+  BankAccountDeleteMode
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 import { useExcelExport } from '~/composables/useExcelExport'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
@@ -22,7 +23,12 @@ const modalOpen = ref(false)
 const editingAccount = ref<BankAccount | null>(null)
 const deleteModalOpen = ref(false)
 const deletingAccount = ref<BankAccount | null>(null)
-const deleteForm = reactive({ confirmation: '', target_bank_account_id: '' })
+const deleteForm = reactive({
+  confirmation: '',
+  mode: 'TRANSFER' as BankAccountDeleteMode,
+  delete_movements: false,
+  target_bank_account_id: ''
+})
 const deletingAccountBusy = ref(false)
 const searchQuery = ref('')
 
@@ -329,9 +335,33 @@ const executeRemoveUser = async () => {
 const confirmDelete = (account: BankAccount) => {
   deletingAccount.value = account
   deleteForm.confirmation = ''
+  deleteForm.mode = 'TRANSFER'
+  deleteForm.delete_movements = false
   deleteForm.target_bank_account_id = ''
   deleteModalOpen.value = true
 }
+
+const deleteModeOptions = [
+  {
+    value: 'TRANSFER',
+    label: 'Transferir el saldo a otra cuenta',
+    description: 'El saldo y los cheques activos pasan a la cuenta destino. Los movimientos se conservan.'
+  },
+  {
+    value: 'DISCARD',
+    label: 'Eliminar igual (descartar el saldo)',
+    description: 'Se pone el saldo en 0, ideal si el saldo no es real. Podés eliminar también los movimientos.'
+  }
+]
+
+const deleteBalance = computed(() => Number(deletingAccount.value?.balance || 0))
+const deletePendingChecks = computed(() => Number(deletingAccount.value?.pending_checks_count || 0))
+const deleteRequiresTarget = computed(
+  () => deletePendingChecks.value > 0 || (deleteForm.mode === 'TRANSFER' && deleteBalance.value !== 0)
+)
+const canConfirmDelete = computed(
+  () => deleteForm.confirmation === 'ELIMINAR' && (!deleteRequiresTarget.value || Boolean(deleteForm.target_bank_account_id))
+)
 
 const availableDeleteTargets = computed(() => bankAccounts.value.filter((account) =>
   account.id !== deletingAccount.value?.id &&
@@ -345,6 +375,8 @@ const handleDelete = async () => {
   try {
     await remove(deletingAccount.value.id, {
       confirmation: deleteForm.confirmation,
+      mode: deleteForm.mode,
+      ...(deleteForm.mode === 'DISCARD' ? { delete_movements: deleteForm.delete_movements } : {}),
       ...(deleteForm.target_bank_account_id ? { target_bank_account_id: deleteForm.target_bank_account_id } : {})
     })
     toast.add({ title: 'Cuenta bancaria eliminada', color: 'success' })
@@ -802,22 +834,46 @@ const selectedAccountType = computed({
     <UModal v-model:open="deleteModalOpen" title="Eliminar cuenta bancaria">
       <template #body>
         <div class="space-y-4">
-          <UAlert icon="i-lucide-triangle-alert" color="error" variant="subtle" title="Esta acción requiere confirmación" description="La cuenta dejará de estar disponible para nuevas operaciones. Sus movimientos históricos se conservarán." />
+          <UAlert icon="i-lucide-triangle-alert" color="error" variant="subtle" title="Esta acción requiere confirmación" description="La cuenta dejará de estar disponible para nuevas operaciones y podrá restaurarse desde la papelera." />
           <div class="rounded-lg border border-default bg-muted/30 p-3">
             <p class="font-medium">{{ deletingAccount?.name }}</p>
             <p class="text-sm text-muted">Saldo: {{ formatCurrency(deletingAccount?.balance, deletingAccount?.currency_code) }}</p>
+            <p v-if="deletePendingChecks > 0" class="text-sm text-muted">Cheques pendientes: {{ deletePendingChecks }}</p>
           </div>
-          <UFormField label="Cuenta de reemplazo" :required="Number(deletingAccount?.balance || 0) !== 0" description="Recibirá el saldo y los cheques pendientes. Solo se muestran cuentas activas de la misma moneda.">
-            <USelectMenu v-model="deleteForm.target_bank_account_id" :items="availableDeleteTargets.map(account => ({ label: `${account.name} · ${formatCurrency(account.balance, account.currency_code)}`, value: account.id }))" value-key="value" class="w-full" placeholder="Seleccionar cuenta destino" />
+
+          <UFormField label="¿Qué hacer con el saldo?">
+            <URadioGroup
+              v-model="deleteForm.mode"
+              :items="deleteModeOptions"
+              value-key="value"
+              label-key="label"
+              description-key="description"
+              class="grid grid-cols-1 gap-3"
+            />
           </UFormField>
-          <UAlert v-if="Number(deletingAccount?.balance || 0) !== 0 && availableDeleteTargets.length === 0" color="warning" variant="subtle" title="No hay una cuenta destino compatible" description="Creá o activá otra cuenta con la misma moneda antes de eliminar esta cuenta." />
+
+          <template v-if="deleteForm.mode === 'TRANSFER'">
+            <UFormField label="Cuenta de reemplazo" :required="deleteRequiresTarget" description="Recibirá el saldo y los cheques pendientes. Solo se muestran cuentas activas de la misma moneda.">
+              <USelectMenu v-model="deleteForm.target_bank_account_id" :items="availableDeleteTargets.map(account => ({ label: `${account.name} · ${formatCurrency(account.balance, account.currency_code)}`, value: account.id }))" value-key="value" class="w-full" placeholder="Seleccionar cuenta destino" />
+            </UFormField>
+          </template>
+
+          <template v-else>
+            <UAlert icon="i-lucide-info" color="warning" variant="subtle" title="El saldo se descartará" description="La cuenta quedará en 0 y no se transferirá nada a otra cuenta." />
+            <UCheckbox v-model="deleteForm.delete_movements" label="Eliminar también los movimientos históricos" description="Se enviarán a la papelera junto con la cuenta." />
+            <UFormField label="Cuenta de reemplazo (opcional)" description="Elegila solo si querés reasignar pagos, cheques y caja vinculados.">
+              <USelectMenu v-model="deleteForm.target_bank_account_id" :items="availableDeleteTargets.map(account => ({ label: `${account.name} · ${formatCurrency(account.balance, account.currency_code)}`, value: account.id }))" value-key="value" class="w-full" placeholder="Sin reasignar" />
+            </UFormField>
+          </template>
+
+          <UAlert v-if="deleteRequiresTarget && availableDeleteTargets.length === 0" color="warning" variant="subtle" title="No hay una cuenta destino compatible" description="Creá o activá otra cuenta con la misma moneda antes de eliminar esta cuenta." />
           <UFormField label="Confirmación" description="Escribí ELIMINAR para continuar." required>
             <UInput v-model="deleteForm.confirmation" autocomplete="off" placeholder="ELIMINAR" class="w-full" />
           </UFormField>
         </div>
         <div class="flex justify-end gap-2 pt-4">
           <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
-          <UButton label="Transferir y eliminar" color="error" :loading="deletingAccountBusy" :disabled="deleteForm.confirmation !== 'ELIMINAR' || (Number(deletingAccount?.balance || 0) !== 0 && !deleteForm.target_bank_account_id)" @click="handleDelete" />
+          <UButton :label="deleteForm.mode === 'TRANSFER' ? 'Transferir y eliminar' : 'Eliminar igual'" color="error" :loading="deletingAccountBusy" :disabled="!canConfirmDelete" @click="handleDelete" />
         </div>
       </template>
     </UModal>

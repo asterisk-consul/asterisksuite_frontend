@@ -37,7 +37,7 @@ const commissionBaseSelect = computed({
         </UFormField>
 
         <UFormField label="Sueldo" name="salary">
-          <UInput v-model="form.salary" placeholder="0.00" type="number" class="w-full" />
+          <UInput v-model="form.salary" placeholder="0.00" type="number" step="0.01" class="w-full" />
         </UFormField>
       </div>
 
@@ -59,6 +59,7 @@ const commissionBaseSelect = computed({
         <UInput
           v-model.number="form.default_commission_rate"
           type="number"
+          step="0.01"
           placeholder="0.00"
           :min="0"
           :max="100"

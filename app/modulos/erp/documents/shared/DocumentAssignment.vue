@@ -62,7 +62,7 @@ async function save() {
 
 <template>
   <div class="flex flex-wrap items-center gap-3 print:hidden">
-    <span class="text-sm text-muted">Responsable: {{ loading ? 'Cargandoâ€¦' : error ? 'No se pudo cargar' : current?.name || 'Sin asignar' }}</span>
+    <span class="text-sm text-muted">Responsable: {{ loading ? 'Cargando…' : error ? 'No se pudo cargar' : current?.name || 'Sin asignar' }}</span>
     <UButton v-if="canAssign" icon="i-lucide-user-round-pen" variant="soft" size="sm" :loading="loading" @click="choose">
       {{ current ? 'Cambiar responsable' : 'Asignar responsable' }}
     </UButton>

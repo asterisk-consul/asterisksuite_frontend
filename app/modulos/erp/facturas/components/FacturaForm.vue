@@ -18,6 +18,7 @@ import { useProductsStore } from '~/modulos/logistica/master-data/product/store/
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 import { useStockService } from '~/modulos/logistica/warehouses/stock/stock.service'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 
 // Currencies
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
@@ -59,7 +60,7 @@ const emit = defineEmits<{
 
 const toast = useToast()
 
-// â”€â”€â”€ Stores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Stores ──────────────────────────────────────────
 const selectedBusinessParty = ref<BusinessParty | undefined>(undefined)
 const showBusinessPartiesModal = ref(false)
 const partiesStore = useBusinessPartiesStore()
@@ -67,6 +68,9 @@ const productsStore = useProductsStore()
 const documentsTypesStore = useDocumentsTypesStore()
 const depositosStore = useDepositosStore()
 const stockService = useStockService()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+const canRegularizeStock = computed(() => isOwnerOrAdmin.value || hasPermission('stock.create'))
 const fiscalService = useFiscalService()
 const { items: parties } = storeToRefs(partiesStore)
 const { items: products } = storeToRefs(productsStore)
@@ -113,7 +117,7 @@ const {
 // Usar composable para filtrar tipos de documento por dirección + condición del emisor/receptor
 const moduleCode = computed(() => (props.moduleCode === 'SALES' ? 'SALES' : 'PURCHASES') as 'SALES' | 'PURCHASES')
 
-// â”€â”€â”€ Form State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Form State ──────────────────────────────────────
 const form = reactive({
   document_type_id: '',
   party_id: '',
@@ -131,6 +135,59 @@ const allWarehouseOptions = computed(() => warehouses.value
   .filter(warehouse => warehouse.active && !warehouse.is_virtual)
   .map(warehouse => ({ label: warehouse.name, value: warehouse.id })))
 const stockByWarehouse = ref<Record<string, Record<string, number>>>({})
+const regularizationOpen = ref(false)
+const regularizationSaving = ref(false)
+const regularizationItemIndex = ref<number | null>(null)
+const regularizationItem = ref<FacturaItem | null>(null)
+const regularizationForm = reactive({ warehouse_id: '', quantity: 0, notes: '' })
+
+function openStockRegularization(index: number, item: FacturaItem) {
+  regularizationItemIndex.value = index
+  regularizationItem.value = item
+  const required = Number(item.quantity || 0)
+  Object.assign(regularizationForm, {
+    warehouse_id: '',
+    quantity: required,
+    notes: ''
+  })
+  regularizationOpen.value = true
+}
+
+watch(() => regularizationForm.warehouse_id, (warehouseId) => {
+  const item = regularizationItem.value
+  if (!warehouseId || !item?.product_id) return
+  const available = stockByWarehouse.value[warehouseId]?.[item.product_id] ?? 0
+  regularizationForm.quantity = Math.max(Number(item.quantity || 0) - available, 0)
+})
+
+async function saveStockRegularization() {
+  const item = regularizationItem.value
+  if (!item?.product_id || !regularizationForm.warehouse_id || regularizationForm.quantity <= 0 || !regularizationForm.notes.trim()) return
+  regularizationSaving.value = true
+  try {
+    await stockService.createMovement({
+      warehouse_id: regularizationForm.warehouse_id,
+      product_id: item.product_id,
+      movement_type: 'ADJUSTMENT',
+      direction: 'IN',
+      quantity: String(regularizationForm.quantity),
+      reference_type: 'remito_regularization',
+      notes: regularizationForm.notes.trim()
+    })
+    await loadStockAvailability()
+    const available = stockByWarehouse.value[regularizationForm.warehouse_id]?.[item.product_id] ?? 0
+    if (available >= Number(item.quantity || 0) && regularizationItemIndex.value !== null) {
+      item.warehouse_id = regularizationForm.warehouse_id
+      updateItemWarehouse(regularizationItemIndex.value, regularizationForm.warehouse_id)
+    }
+    regularizationOpen.value = false
+    toast.add({ title: 'Stock regularizado', description: 'El depósito ya está disponible para seleccionarlo en el remito.', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo regularizar el stock', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    regularizationSaving.value = false
+  }
+}
 
 async function loadStockAvailability() {
   if (props.moduleCode !== 'SALES') return
@@ -174,6 +231,16 @@ function warehouseOptionsForItem(item: FacturaItem) {
     .map(option => ({ ...option, label: `${option.label} · disponible: ${option.available}` }))
 }
 
+const itemsWithoutWarehouseStock = computed(() => {
+  if (props.moduleCode !== 'SALES' || !props.operationalMode || !affectsStock.value) return []
+  return items.value.filter(item => item.product_id && warehouseOptionsForItem(item).length === 0)
+})
+
+const itemsWithoutSelectedWarehouse = computed(() => {
+  if (props.moduleCode !== 'SALES' || !props.operationalMode || !affectsStock.value) return []
+  return items.value.filter(item => item.product_id && !item.warehouse_id && !form.warehouse_id)
+})
+
 function singleWarehouseForProduct(productId: string): string | null {
   if (props.moduleCode !== 'SALES') return form.warehouse_id || null
   const options = allWarehouseOptions.value
@@ -189,7 +256,7 @@ const affectsStock = computed(() => {
   return type?.affects_stock === true
 })
 
-// â”€â”€â”€ Reference Document (NC/ND â†’ Factura) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Reference Document (NC/ND → Factura) ────────────
 const referenceDocumentId = ref<string | undefined>(undefined)
 
 function applyReferenceDocument(doc: any) {
@@ -240,7 +307,7 @@ const showReferencePicker = computed(() => {
   return selected?.category === 'CREDIT_NOTE' || selected?.category === 'DEBIT_NOTE'
 })
 
-// â”€â”€â”€ Exchange Rate: auto-resolve on currency change â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Exchange Rate: auto-resolve on currency change ─────────
 const isForeignCurrency = computed(() => {
   if (!baseCurrency.value) return false
   return form.currency_code.toUpperCase() !== baseCurrency.value.code.toUpperCase()
@@ -285,7 +352,7 @@ const {
 
 const items = ref<FacturaItem[]>([])
 
-// â”€â”€â”€ Punto de Venta (Secuencias) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Punto de Venta (Secuencias) ─────────────────────────
 const documentSequencesService = useDocumentSequencesService()
 const sequences = ref<DocumentSequence[]>([])
 // Keep only the UUID in the form state. USelectMenu can otherwise return either
@@ -320,10 +387,10 @@ const sequenceOptions = computed(() => {
     }))
 })
 
-// â”€â”€â”€ Validación de comprobante â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Validación de comprobante ─────────────────────────
 const documentTypeValidation = ref<string | null>(null)
 
-// â”€â”€â”€ Tax Engine Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Tax Engine Preview ───────────────────────────────
 const lastPreview = ref<any>(null)
 const partyIibbRegistrations = ref<BusinessPartyIibbRegistration[]>([])
 const iibbPerceptionRules = ref<TaxRule[]>([])
@@ -482,7 +549,7 @@ watch(
       if (priceRecord) {
         item.unit_price = Number(priceRecord.price ?? 0)
       } else {
-        // No hay precio para esa currency â†’ precio 0
+        // No hay precio para esa currency → precio 0
         item.unit_price = 0
         toast.add({
           title: 'Precio no disponible',
@@ -497,7 +564,7 @@ watch(
   }
 )
 
-// â”€â”€â”€ Watch initialValues â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Watch initialValues ──────────────────────────────────
 watch(
   () => props.initialValues,
   (val) => {
@@ -572,8 +639,8 @@ watch(
   { immediate: true, deep: true }
 )
 
-// â”€â”€â”€ Auto-select Document Type by Context (categoría) â”€â”€
-// ORDER â†’ OV/OC, QUOTE â†’ PRES, REMITO â†’ REM-V/REM-C según dirección del módulo
+// ─── Auto-select Document Type by Context (categoría) ──
+// ORDER → OV/OC, QUOTE → PRES, REMITO → REM-V/REM-C según dirección del módulo
 function getContextDocumentTypeCode(): string | null {
   const direction = moduleCode.value === 'SALES' ? 1 : -1
   if (props.category === 'ORDER') return direction === 1 ? 'OV' : 'OC'
@@ -582,7 +649,7 @@ function getContextDocumentTypeCode(): string | null {
   return null
 }
 
-// â”€â”€â”€ Auto-select Document Type by VAT Condition â”€â”€â”€â”€â”€â”€â”€
+// ─── Auto-select Document Type by VAT Condition ───────
 watch(selectedParty, (party) => {
   if (!party || !props.moduleCode) return
 
@@ -647,7 +714,7 @@ watch(selectedParty, (party) => {
 
 // Recalcular preview cuando cambia el tipo de documento
 watch(() => form.document_type_id, (newId) => {
-  // Validar compatibilidad emisor â†” comprobante
+  // Validar compatibilidad emisor ↔ comprobante
   const selectedDoc = documentsTypes.value.find((d) => d.id === newId)
   if (selectedDoc) {
     const msg = getValidationMessage(selectedDoc.code, selectedDoc.letter_type)
@@ -671,6 +738,7 @@ watch(() => form.document_type_id, (newId) => {
 })
 
 onMounted(() => {
+  fetchMyPermissionsIfNeeded()
   partiesStore.fetchAll()
   productsStore.fetchAll()
   documentsTypesStore.fetchAll()
@@ -745,9 +813,9 @@ const partyInfo = computed(() => {
   const p = selectedParty.value
   return {
     name: p.name,
-    tax_id: p.tax_id || 'â€”',
-    vat_condition: p.vat_condition || 'â€”',
-    email: p.email || 'â€”'
+    tax_id: p.tax_id || '—',
+    vat_condition: p.vat_condition || '—',
+    email: p.email || '—'
   }
 })
 
@@ -825,6 +893,9 @@ async function addItem(prod: any) {
     variant_id: prod.variant_id ?? null,
     product_name: prod.product_name,
     quantity,
+    purchase_unit_id: props.moduleCode === 'PURCHASES' ? (prod.purchase_unit_id ?? null) : null,
+    unit_conversion_factor: props.moduleCode === 'PURCHASES' ? Number(prod.purchase_to_stock_factor ?? 1) : 1,
+    stock_quantity: props.moduleCode === 'PURCHASES' ? quantity * Number(prod.purchase_to_stock_factor ?? 1) : quantity,
     unit_price: unitPrice,
     discount_percentage: 0,
     price: quantity * unitPrice,
@@ -901,6 +972,8 @@ function submit() {
           ? (moduleCode === 'SALES' ? (i.warehouse_id || undefined) : (advancedWarehouseAssignment.value ? (i.warehouse_id || undefined) : (form.warehouse_id || undefined)))
           : undefined,
       quantity: Number(i.quantity),
+      purchase_unit_id: moduleCode.value === 'PURCHASES' ? (i.purchase_unit_id || undefined) : undefined,
+      unit_conversion_factor: moduleCode.value === 'PURCHASES' ? Number(i.unit_conversion_factor || 1) : undefined,
       unit_price: Number(i.unit_price),
       discount_percentage: Math.min(100, Math.max(0, Number(i.discount_percentage || 0))),
       taxes: previewPayload?.items?.[idx]?.taxes?.map((t: any) => ({
@@ -988,9 +1061,6 @@ defineExpose({ submit })
             size="lg"
             class="w-full min-w-0"
           />
-          <p v-if="moduleCode === 'SALES' && items.length > 0 && warehouseOptions.length === 0" class="mt-2 text-sm text-warning">
-            Ningún depósito puede cubrir todos los productos. Activá â€œDepósito por productoâ€.
-          </p>
         </UFormField>
 
         <UFormField label="Fecha" class="min-w-0 xl:col-span-2">
@@ -1093,7 +1163,7 @@ defineExpose({ submit })
           <span class="text-gray-500">IVA: </span>
           <span>{{ partyInfo.vat_condition }}</span>
         </div>
-        <div v-if="partyInfo.email !== 'â€”'">
+        <div v-if="partyInfo.email !== '—'">
           <span class="text-gray-500">Email: </span>
           <span>{{ partyInfo.email }}</span>
         </div>
@@ -1123,20 +1193,70 @@ defineExpose({ submit })
           </UBadge>
         </div>
       </template>
+      <div v-if="itemsWithoutWarehouseStock.length" class="mb-4">
+        <UAlert
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-warehouse"
+          title="Hay productos sin depósito disponible"
+          :description="`${itemsWithoutWarehouseStock.length === 1 ? 'El producto no tiene' : `${itemsWithoutWarehouseStock.length} productos no tienen`} un depósito con stock suficiente. Usá el botón junto al selector para regularizarlo.`"
+        />
+      </div>
+      <div v-else-if="itemsWithoutSelectedWarehouse.length" class="mb-4">
+        <UAlert
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-map-pin"
+          title="Falta seleccionar el depósito de salida"
+          description="Elegí el depósito de cada producto antes de guardar el remito."
+        />
+      </div>
       <FacturaItemsTable
         :items="items"
         :product-options="productOptions"
         :currency-code="form.currency_code"
         :warehouses="warehouseOptions"
         :warehouse-options-for-item="warehouseOptionsForItem"
-        :show-warehouse-column="moduleCode === 'SALES' ? affectsStock : affectsStock && advancedWarehouseAssignment"
+        :show-warehouse-column="moduleCode === 'SALES' ? operationalMode && affectsStock : affectsStock && advancedWarehouseAssignment"
         :default-warehouse-id="form.warehouse_id"
         :show-amounts="!operationalMode"
+        :can-regularize-stock="canRegularizeStock"
         @remove="removeItem"
         @add="addItem"
         @update:warehouse="updateItemWarehouse"
+        @regularize-stock="openStockRegularization"
       />
     </UCard>
+
+    <UModal v-model:open="regularizationOpen" title="Regularizar stock para el remito" description="Registrá un ingreso manual auditable para poder seleccionar el depósito de salida.">
+      <template #body>
+        <div class="space-y-4">
+          <UAlert color="warning" variant="subtle" icon="i-lucide-triangle-alert" title="Este movimiento modifica el stock" description="Usalo únicamente si la mercadería existe físicamente y todavía no fue registrada en el sistema." />
+          <div class="rounded-lg bg-muted/40 p-3">
+            <p class="font-medium">{{ regularizationItem?.product_name || 'Producto' }}</p>
+            <p class="text-sm text-muted">El remito requiere {{ Number(regularizationItem?.quantity || 0).toLocaleString('es-AR') }} unidades.</p>
+          </div>
+          <UAlert v-if="allWarehouseOptions.length === 0" color="warning" variant="subtle" icon="i-lucide-warehouse" title="No hay depósitos físicos disponibles" description="Primero creá o activá un depósito para registrar el stock.">
+            <template #actions><UButton to="/productos/warehouses" label="Administrar depósitos" size="xs" variant="outline" /></template>
+          </UAlert>
+          <UFormField label="Depósito físico" required>
+            <USelectMenu v-model="regularizationForm.warehouse_id" :items="allWarehouseOptions" value-key="value" searchable :disabled="allWarehouseOptions.length === 0" placeholder="Seleccionar depósito" class="w-full" />
+          </UFormField>
+          <UFormField label="Cantidad a ingresar" required description="Indicá solamente la cantidad que falta registrar, no el saldo final del depósito.">
+            <UInput v-model.number="regularizationForm.quantity" type="number" min="0.001" step="0.001" class="w-full" />
+          </UFormField>
+          <UFormField label="Motivo del ajuste" required description="Quedará registrado en el historial de movimientos.">
+            <UTextarea v-model="regularizationForm.notes" :rows="3" placeholder="Ej. Stock inicial verificado físicamente" class="w-full" />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton label="Cancelar" color="neutral" variant="outline" @click="() => { regularizationOpen = false }" />
+          <UButton label="Registrar y seleccionar" icon="i-lucide-package-plus" :loading="regularizationSaving" :disabled="!regularizationForm.warehouse_id || regularizationForm.quantity <= 0 || !regularizationForm.notes.trim()" @click="saveStockRegularization" />
+        </div>
+      </template>
+    </UModal>
 
     <!-- Totals -->
     <div v-if="!operationalMode" class="flex min-w-0 justify-end">

@@ -26,6 +26,7 @@ export function createDefaultProductCosting() {
   return {
     price_enabled: true,
     auto_calculate_cost: false,
+    sale_margin_percentage: 0,
     cost_source: 'MANUAL' as ProductCostSource,
     cost_currency_id: undefined
   }
@@ -35,7 +36,9 @@ export function createDefaultProductInventory() {
   return {
     manages_stock: true,
     requires_refrigeration: false,
-    unit_id: undefined as string | undefined
+    unit_id: undefined as string | undefined,
+    purchase_unit_id: undefined as string | undefined,
+    purchase_to_stock_factor: 1
   }
 }
 
@@ -76,11 +79,14 @@ export function toUpdateProductPayload(form: ProductFormState): UpdateProductDto
 
     price_enabled: form.price_enabled,
     auto_calculate_cost: form.auto_calculate_cost,
+    sale_margin_percentage: Number(form.sale_margin_percentage || 0),
     cost_source: form.cost_source,
 
     manages_stock: form.manages_stock,
     requires_refrigeration: form.requires_refrigeration,
     unit_id: form.unit_id,
+    purchase_unit_id: form.purchase_unit_id,
+    purchase_to_stock_factor: Number(form.purchase_to_stock_factor || 1),
 
     is_composed: form.is_composed,
     is_rate_type: form.is_rate_type,
@@ -106,11 +112,14 @@ export function toCreateProductPayload(form: ProductFormState): CreateProductDto
 
     price_enabled: form.price_enabled,
     auto_calculate_cost: form.auto_calculate_cost,
+    sale_margin_percentage: Number(form.sale_margin_percentage || 0),
     cost_source: form.cost_source,
 
     manages_stock: form.manages_stock,
     requires_refrigeration: form.requires_refrigeration,
     unit_id: form.unit_id,
+    purchase_unit_id: form.purchase_unit_id,
+    purchase_to_stock_factor: Number(form.purchase_to_stock_factor || 1),
 
     is_composed: form.is_composed,
     is_rate_type: form.is_rate_type,

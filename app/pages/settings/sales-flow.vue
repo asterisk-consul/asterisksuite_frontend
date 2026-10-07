@@ -83,7 +83,7 @@ onMounted(load)
       description="Cambiar esta configuración no recalcula documentos, pagos ni cuentas corrientes anteriores."
     />
 
-    <div v-if="loading" class="py-16 text-center text-muted">Cargando configuraciónâ€¦</div>
+    <div v-if="loading" class="py-16 text-center text-muted">Cargando configuración…</div>
     <template v-else-if="settings">
       <UPageCard title="Cuenta corriente y cobros" description="Al guardar, también se sincronizan los indicadores de las OV y facturas de venta.">
         <div class="grid gap-5 md:grid-cols-2">

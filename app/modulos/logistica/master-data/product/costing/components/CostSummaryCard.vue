@@ -6,6 +6,7 @@ const props = defineProps<{
   materialCost: number | string
   laborCost: number | string
   overheadCost: number | string
+  otherCost?: number | string
   currencySymbol?: string
   originalCurrencyCode?: string
 }>()
@@ -20,7 +21,7 @@ onMounted(async () => {
 })
 
 // USelectMenu v-model: guarda el objeto {label, value}
-const targetCurrencyOption = ref<{ label: string; value: string } | null>(null)
+const targetCurrencyOption = ref<{ label: string; value: string } | undefined>(undefined)
 
 // UUID string extraído del objeto
 const resolvedCurrencyId = computed(() => targetCurrencyOption.value?.value ?? '')
@@ -69,9 +70,12 @@ const percentages = computed(() => {
   return {
     material: (toNum(props.materialCost) / total) * 100,
     labor: (toNum(props.laborCost) / total) * 100,
-    overhead: (toNum(props.overheadCost) / total) * 100
+    overhead: (toNum(props.overheadCost) / total) * 100,
+    other: (toNum(props.otherCost ?? 0) / total) * 100
   }
 })
+
+const hasOther = computed(() => toNum(props.otherCost ?? 0) > 0)
 
 // Fetch conversion rate when target currency changes
 watch(resolvedCurrencyId, async (id) => {
@@ -103,7 +107,7 @@ watch(resolvedCurrencyId, async (id) => {
     const msg = err?.data?.message || err?.message || 'No existe cotización'
     toast.add({
       title: 'Sin cotización',
-      description: `No se pudo convertir ${props.originalCurrencyCode} â†’ ${tc.code}: ${msg}`,
+      description: `No se pudo convertir ${props.originalCurrencyCode} → ${tc.code}: ${msg}`,
       color: 'warning'
     })
   } finally {
@@ -138,9 +142,10 @@ watch(resolvedCurrencyId, async (id) => {
         <div class="bg-success transition-all" :style="{ width: `${percentages.material}%` }" />
         <div class="bg-warning transition-all" :style="{ width: `${percentages.labor}%` }" />
         <div class="bg-info transition-all" :style="{ width: `${percentages.overhead}%` }" />
+        <div class="bg-neutral-400 dark:bg-neutral-500 transition-all" :style="{ width: `${percentages.other}%` }" />
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 gap-4" :class="hasOther ? 'md:grid-cols-4' : 'md:grid-cols-3'">
         <div class="rounded-lg border p-3">
           <p class="text-xs text-muted">Materiales</p>
           <p class="font-semibold tabular-nums">{{ formatMoney(materialCost) }}</p>
@@ -155,6 +160,11 @@ watch(resolvedCurrencyId, async (id) => {
           <p class="text-xs text-muted">Overhead</p>
           <p class="font-semibold tabular-nums">{{ formatMoney(overheadCost) }}</p>
           <p class="text-xs text-info">{{ percentages.overhead.toFixed(1) }}%</p>
+        </div>
+        <div v-if="hasOther" class="rounded-lg border p-3">
+          <p class="text-xs text-muted">Resto / Otros</p>
+          <p class="font-semibold tabular-nums">{{ formatMoney(otherCost ?? 0) }}</p>
+          <p class="text-xs text-muted">{{ percentages.other.toFixed(1) }}%</p>
         </div>
       </div>
     </div>

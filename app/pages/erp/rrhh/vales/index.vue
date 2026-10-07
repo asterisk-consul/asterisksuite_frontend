@@ -200,7 +200,7 @@ const columns = [
           <div>
             <span class="font-medium">{{ fmtCurrency(Number(row.original.amount), row.original.currency_code) }}</span>
             <p v-if="row.original.converted_amount" class="text-xs text-muted">
-              â‰ˆ {{ fmtCurrency(Number(row.original.converted_amount), row.original.currency_code === 'USD' ? 'ARS' : 'USD') }}
+              ≈ {{ fmtCurrency(Number(row.original.converted_amount), row.original.currency_code === 'USD' ? 'ARS' : 'USD') }}
             </p>
           </div>
         </template>
@@ -331,7 +331,7 @@ const columns = [
             <div>
               <h2 class="text-lg font-semibold">Detalle de comisiones</h2>
               <p class="text-sm text-muted mt-1">
-                Vale #{{ selectedVale?.number }} â€” {{ selectedVale?.party?.name }}
+                Vale #{{ selectedVale?.number }} — {{ selectedVale?.party?.name }}
               </p>
             </div>
             <UBadge
