@@ -18,7 +18,7 @@ const formatCurrency = (amount: number | string | null | undefined) => {
 }
 
 const formatDate = (d: string) => {
-  if (!d) return 'â€”'
+  if (!d) return '—'
   return new Date(d).toLocaleDateString('es-AR')
 }
 

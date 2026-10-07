@@ -134,7 +134,7 @@ onMounted(async () => {
       <div class="mt-3 max-h-64 space-y-2 overflow-y-auto">
         <div v-for="entry in history" :key="entry.id" class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-elevated px-3 py-2 text-sm">
           <span>{{ entry.products?.name }} · {{ entry.operation_type === 'SALE' ? 'Venta' : 'Compra' }}</span>
-          <span class="tabular-nums">{{ entry.previous_price == null ? 'Nuevo' : money(entry.previous_price, entry.currencies?.code) }} â†’ <strong>{{ money(entry.new_price, entry.currencies?.code) }}</strong></span>
+          <span class="tabular-nums">{{ entry.previous_price == null ? 'Nuevo' : money(entry.previous_price, entry.currencies?.code) }} → <strong>{{ money(entry.new_price, entry.currencies?.code) }}</strong></span>
           <span class="text-muted">{{ new Date(entry.effective_at).toLocaleString('es-AR') }}</span>
         </div>
       </div>

@@ -11,6 +11,7 @@ const props = defineProps<{
     name: string
     code?: string | null
     active: boolean
+    is_virtual?: boolean
     units?: { id: string; name: string; symbol: string } | null
   }>
 }>()
@@ -27,7 +28,7 @@ const quantity = ref('')
 const destWarehouseOptions = computed(() => {
   if (!props.sourceWarehouse) return []
   return props.warehouses
-    .filter((w) => w.id !== props.sourceWarehouse!.warehouse_id && w.active)
+    .filter((w) => w.id !== props.sourceWarehouse!.warehouse_id && w.active && !w.is_virtual)
     .map((w) => ({
       label: `${w.name}${w.code ? ` (${w.code})` : ''}${w.units ? ` - ${w.units.symbol}` : ''}`,
       value: w.id
@@ -98,7 +99,7 @@ const handleSubmit = () => {
       <div class="flex justify-end gap-2">
         <UButton
           variant="outline"
-          @click="open = false"
+          @click="() => { open = false }"
         >
           Cancelar
         </UButton>

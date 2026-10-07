@@ -6,6 +6,7 @@ export interface Warehouse {
   name: string
   code?: string | null
   active: boolean
+  is_virtual?: boolean
   createdAt: string // Date serializada desde backend (ISO string)
   units?: {
     id: string

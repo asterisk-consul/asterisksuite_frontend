@@ -122,13 +122,6 @@ const links = computed(() => [
     to: `/stock/disponibilidad?search=${encodeURIComponent(product.value?.sku || product.value?.name || '')}`
   },
   {
-    label: 'Costos',
-    icon: 'i-lucide-dollar-sign',
-    color: 'neutral' as const,
-    variant: 'ghost' as const,
-    to: '/productos/costos'
-  },
-  {
     label: 'Guardar',
     icon: 'i-lucide-save',
     loading: saving.value,
@@ -158,6 +151,7 @@ const links = computed(() => [
           :loading="loading"
           @variant-created="onVariantCreated"
           @variant-updated="onVariantUpdated"
+          @cost-updated="loadOne(productId)"
         />
       </UPageBody>
     </UPage>

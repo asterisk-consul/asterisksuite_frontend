@@ -21,7 +21,7 @@ const columns = [
 const rows = computed(() => (data.value?.items ?? []).map((row: any) => ({
   date: new Date(row.documents.date).toLocaleDateString('es-AR'),
   document: `${row.documents.document_types.code} ${row.documents.number}`,
-  party: row.documents.business_parties?.name ?? 'â€”',
+  party: row.documents.business_parties?.name ?? '—',
   jurisdiction: row.jurisdiction?.name ?? 'Sin jurisdicción',
   tax: row.taxes.name,
   taxable_base: Number(row.taxable_base).toLocaleString('es-AR', { style: 'currency', currency: row.documents.currency_code ?? 'ARS' }),

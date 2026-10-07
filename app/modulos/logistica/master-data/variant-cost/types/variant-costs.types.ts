@@ -2,7 +2,7 @@ import type { Currency } from '~/modulos/erp/currencies/types/currencies.types'
 
 import type { ProductVariant } from '~/modulos/logistica/master-data/product-variants/types/product-variants.types'
 
-export type VariantCostSource = 'MANUAL' | 'PURCHASE' | 'IMPORT' | 'PRODUCTION'
+export type VariantCostSource = 'MANUAL' | 'PURCHASE' | 'IMPORT' | 'PRODUCTION' | 'ENGINEERING'
 
 export interface VariantCost {
   id: string
@@ -24,6 +24,7 @@ export interface VariantCost {
   product_variant?: ProductVariant
 
   created_at?: string
+  effective_date?: string
   updated_at?: string
   deleted_at?: string | null
 }

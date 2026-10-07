@@ -9,7 +9,7 @@ import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor, isDocumentCancell
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 import { canSettleDocument, getDocumentPaymentSummary, isDocumentFullyPaid } from '~/modulos/erp/documents/utils/document-payment-status'
 
-// â”€â”€â”€ Store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Store ──────────────────────────────────────────────────────────────────
 const documentsSalesStore = useDocumentsSalesStore()
 const router = useRouter()
 const toast = useToast()
@@ -19,7 +19,7 @@ const documents = computed(() => documentsSalesStore.items)
 const pending = computed(() => documentsSalesStore.loading)
 const error = computed(() => documentsSalesStore.error)
 
-// â”€â”€â”€ Tipos de documento (para enabled_statuses) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Tipos de documento (para enabled_statuses) ─────────────────────────────
 const docTypes = ref<any[]>([])
 onMounted(async () => {
   try {
@@ -34,7 +34,7 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
   return allEnabled.length > 0 ? [...new Set(allEnabled)] : null
 }
 
-// â”€â”€â”€ Filtros â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Filtros ──────────────────────────────────────────────────────────────────
 const categoryFilter = ref<string | undefined>(undefined)
 const statusFilter = ref<number | undefined>(undefined)
 const showFullyPaid = ref(true)
@@ -59,7 +59,7 @@ watch(categoryFilter, () => {
 
 watch(statusFilter, () => refresh())
 
-// â”€â”€â”€ Filtros de categoría â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Filtros de categoría ─────────────────────────────────────────────────────
 const SALES_CATEGORIES = ['QUOTE', 'ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
 
 const categoryOptions = computed(() => {
@@ -90,7 +90,7 @@ const STATUS_TEXT_CLASSES: Record<string, string> = {
 
 const statusTextClass = (color: string) => STATUS_TEXT_CLASSES[color] ?? 'text-muted'
 
-// â”€â”€â”€ Filtros de estado (según categoría) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Filtros de estado (según categoría) ─────────────────────────────────────
 const statusOptions = computed(() =>
   categoryFilter.value
     ? getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
@@ -117,7 +117,7 @@ const financialStats = computed(() => {
   }
 })
 
-// â”€â”€â”€ Estadísticas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Estadísticas ─────────────────────────────────────────────────────────────
 const stats = computed(() => {
   const docs = documents.value ?? []
   if (categoryFilter.value) {
@@ -144,12 +144,12 @@ const stats = computed(() => {
   }
 })
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
 }
 
-// â”€â”€â”€ Acciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Acciones ─────────────────────────────────────────────────────────────────
 function openDocument(row: any) {
   router.push(`/erp/sales/${row.id}`)
 }
@@ -193,7 +193,7 @@ async function deleteDrafts(rows: any[]) {
   }
 }
 
-// â”€â”€â”€ Columnas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Columnas ─────────────────────────────────────────────────────────────────
 const columns = createSalesColumns({ onOpen: openDocument, onCollect: collectDocument })
 
 const filterFields = [
@@ -237,7 +237,7 @@ const sortFields = [
         color="success"
         variant="subtle"
         icon="i-lucide-check-circle"
-        :title="`Generados: ${generateResult.results.reduce((a, r) => a + r.created, 0)} â€” Existentes: ${generateResult.results.reduce((a, r) => a + r.skipped, 0)}`"
+        :title="`Generados: ${generateResult.results.reduce((a, r) => a + r.created, 0)} — Existentes: ${generateResult.results.reduce((a, r) => a + r.skipped, 0)}`"
         closable
         @close="generateResult = null"
       />

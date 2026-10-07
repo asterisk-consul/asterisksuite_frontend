@@ -80,7 +80,7 @@ export const useProductStock = (productId: string) => {
   const availableWarehouses = computed(() => {
     const warehouseIdsWithStock = new Set(productStock.value.map((s) => s.warehouse_id))
     return warehouses.value.filter(
-      (w) => w.active && !warehouseIdsWithStock.has(w.id)
+      (w) => w.active && !w.is_virtual && !warehouseIdsWithStock.has(w.id)
     )
   })
 

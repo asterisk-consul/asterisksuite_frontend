@@ -29,8 +29,11 @@ export interface DocumentItem {
   product_id: string | null
 
   quantity: number
+
   purchase_unit_id?: string | null
+
   unit_conversion_factor?: number
+
   stock_quantity?: number
 
   unit_price: number
@@ -163,6 +166,12 @@ export interface FacturaItem {
   product_code?: string
 
   quantity: number
+
+  purchase_unit_id?: string | null
+
+  unit_conversion_factor?: number
+
+  stock_quantity?: number
 
   unit_price: number
 

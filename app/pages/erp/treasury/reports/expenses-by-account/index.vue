@@ -65,7 +65,7 @@ function fmtMoney(amount?: number | null, currency = 'ARS') {
 }
 
 function fmtDate(d?: string) {
-  if (!d) return 'â€”'
+  if (!d) return '—'
   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
@@ -266,7 +266,7 @@ onMounted(async () => {
                   #{{ String(p.number).padStart(8, '0') }}
                 </NuxtLink>
                 <span class="text-xs text-muted w-24 shrink-0">{{ fmtDate(p.date) }}</span>
-                <span class="flex-1 truncate">{{ p.party_name ?? 'â€”' }}</span>
+                <span class="flex-1 truncate">{{ p.party_name ?? '—' }}</span>
                 <span class="text-xs text-muted w-28 shrink-0">{{ METHOD_LABELS[p.payment_method] ?? p.payment_method }}</span>
                 <span class="w-32 text-right font-medium">
                   {{ fmtMoney(p.converted_amount ?? p.amount) }}
@@ -310,7 +310,7 @@ onMounted(async () => {
                 #{{ String(p.number).padStart(8, '0') }}
               </NuxtLink>
               <span class="text-xs text-muted w-24 shrink-0">{{ fmtDate(p.date) }}</span>
-              <span class="flex-1 truncate">{{ p.party_name ?? 'â€”' }}</span>
+              <span class="flex-1 truncate">{{ p.party_name ?? '—' }}</span>
               <span class="text-xs text-muted w-28 shrink-0">{{ METHOD_LABELS[p.payment_method] ?? p.payment_method }}</span>
               <span class="w-32 text-right font-medium">
                 {{ fmtMoney(p.converted_amount ?? p.amount) }}

@@ -16,6 +16,7 @@ const props = defineProps<{
   parentId: string | null
   parentName?: string
   costSource?: string
+  structureVariantId?: string
 }>()
 
 const emit = defineEmits<{
@@ -194,6 +195,7 @@ const handleSave = async () => {
         parent_product_id: props.parentId ?? props.productId,
         child_product_id: selectedProductId.value,
         child_variant_id: selectedVariantId.value,
+        structure_variant_id: props.parentId ? undefined : props.structureVariantId,
         quantity: quantity.value,
         unit_id: selectedUnitId.value,
         waste_percentage: wastePercentage.value,

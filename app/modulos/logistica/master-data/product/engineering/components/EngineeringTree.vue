@@ -6,20 +6,22 @@ import { useSortable } from '@vueuse/integrations/useSortable'
 import { useEngineering } from '../composables/useEngineering'
 import { useEngineeringStore } from '../store/engineering.store'
 import type { EngineeringTreeNode } from '../types/engineering.types'
-import { computeNodeCalculations, type NodeCalculations } from '../utils/engineering-calculator.util'
+import { computeNodeCalculations, type NodeCalculations, type EngineeringCalcMode } from '../utils/engineering-calculator.util'
 import EngineeringMoveModal from './EngineeringMoveModal.vue'
 import AddComponentModal from './AddComponentModal.vue'
 
 const props = defineProps<{
   productId: string
   costSource?: string
+  structureVariantId?: string
+  currencyId?: string
 }>()
 
 const emit = defineEmits<{
   deleteNode: [node: any]
 }>()
 
-const { tree, loading, hasTree, loadTree, updateComponent } = useEngineering(props.productId)
+const { tree, loading, hasTree, loadTree, updateComponent } = useEngineering(props.productId, toRef(props, 'structureVariantId'), toRef(props, 'currencyId'))
 const store = useEngineeringStore()
 const toast = useToast()
 
@@ -71,6 +73,14 @@ const openAddRoot = () => {
 }
 
 const openAddChild = (node: any) => {
+  if (props.structureVariantId) {
+    toast.add({
+      title: 'Estructura del intermedio',
+      description: 'Para cambiar un producto intermedio, editá su propio BOM o elegí otra variante del componente.',
+      color: 'info'
+    })
+    return
+  }
   addModalParentId.value = node.child_product_id
   addModalParentName.value = node.child_product?.name ?? ''
   showAddModal.value = true
@@ -141,15 +151,18 @@ useSortable(tableBodyRef, tree, {
 // CÁLCULOS POR NODO
 // =========================
 
-const calcCache = new WeakMap<any, NodeCalculations>()
+// Modo de cálculo: el backend trata todo como UNIT cuando el producto raíz es BOM.
+const calcMode = computed<EngineeringCalcMode>(() => (props.costSource === 'BOM' ? 'BOM' : 'ENGINEERING'))
+
+const calcCache = new WeakMap<any, { mode: EngineeringCalcMode; value: NodeCalculations }>()
 
 const getCalc = (node: any): NodeCalculations => {
-  let cached = calcCache.get(node)
-  if (!cached) {
-    cached = computeNodeCalculations(node)
-    calcCache.set(node, cached)
-  }
-  return cached
+  const cached = calcCache.get(node)
+  if (cached && cached.mode === calcMode.value) return cached.value
+
+  const value = computeNodeCalculations(node, calcMode.value)
+  calcCache.set(node, { mode: calcMode.value, value })
+  return value
 }
 
 const formatMoney = (amount: number | string | null | undefined) => {
@@ -691,8 +704,20 @@ const columns: ColumnDef<any>[] = [
     size: 110,
     cell: ({ row }) => {
       const calc = getCalc(row.original)
+      const originalCost = row.original.productVariantCosts?.[0]
+      const originalSymbol = originalCost?.currency?.symbol ?? originalCost?.currency?.code ?? '$'
+      const costUnit = row.original.units?.symbol ?? 'u'
+      const originalUnitLabel = originalCost
+        ? `${originalSymbol} ${Number(originalCost.cost).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/${costUnit}`
+        : null
 
       if (!calc.total_cost) {
+        if (originalCost) {
+          return h('div', { class: 'flex flex-col items-start gap-0.5' }, [
+            h('span', { class: 'text-xs font-semibold text-default tabular-nums' }, originalUnitLabel ?? ''),
+            h('span', { class: 'text-[10px] text-warning' }, row.original.conversionError ?? 'Costo original de la variante')
+          ])
+        }
         return h('div', { class: 'flex flex-col items-start gap-0.5' }, [
           h('span', { class: 'text-xs font-medium text-warning' }, 'Sin costo de compra'),
           h(
@@ -708,9 +733,11 @@ const columns: ColumnDef<any>[] = [
 
       return h('div', { class: 'flex flex-col' }, [
         h('span', { class: 'text-xs font-semibold text-default tabular-nums' }, formatMoney(calc.total_cost)),
-        calc.unit_cost
-          ? h('span', { class: 'text-[10px] text-muted' }, `(${formatMoney(calc.unit_cost)}/u)`)
-          : null
+        originalUnitLabel
+          ? h('span', { class: 'text-[10px] text-muted' }, `${originalUnitLabel} · original`)
+          : calc.unit_cost
+            ? h('span', { class: 'text-[10px] text-muted' }, `(${formatMoney(calc.unit_cost)}/u)`)
+            : null
       ])
     }
   },
@@ -968,6 +995,7 @@ onMounted(async () => {
       :parent-id="addModalParentId"
       :parent-name="addModalParentName"
       :cost-source="costSource"
+      :structure-variant-id="structureVariantId"
       @saved="onAddSaved"
     />
 

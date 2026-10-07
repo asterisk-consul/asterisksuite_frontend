@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
+import { useProductVariants } from '~/modulos/logistica/master-data/product-variants/composable/useVariants'
 
 definePageMeta({ middleware: ['auth'] })
 useHead({ title: 'Fabricar productos' })
 
 const productsStore = useProductsStore()
 const depositsStore = useDepositosStore()
+const variantsApi = useProductVariants()
 const toast = useToast()
 const productId = ref('')
+const variantId = ref('')
+const loadingVariants = ref(false)
 const quantity = ref(1)
 const materialWarehouseId = ref('')
 const outputWarehouseId = ref('')
@@ -23,7 +27,18 @@ const warehouseOptions = computed(() => depositsStore.warehouses
   .filter(warehouse => warehouse.active && !warehouse.is_virtual)
   .map(warehouse => ({ label: `${warehouse.code ? `${warehouse.code} · ` : ''}${warehouse.name}`, value: warehouse.id })))
 const selectedProduct = computed(() => productsStore.items.find(product => product.id === productId.value))
-const ready = computed(() => Boolean(productId.value && materialWarehouseId.value && outputWarehouseId.value && quantity.value > 0))
+const hasVariants = computed(() => (selectedProduct.value?.product_variants?.length ?? 0) > 0)
+const variantOptions = computed(() => variantsApi.items.value
+  .filter(variant => variant.product_id === productId.value && variant.active !== false)
+  .map(variant => ({ label: `${variant.name ?? 'Variante'}${variant.sku ? ` · ${variant.sku}` : ''}`, value: variant.id })))
+const selectedVariant = computed(() => variantOptions.value.find(option => option.value === variantId.value) ?? null)
+const ready = computed(() => Boolean(
+  productId.value
+  && materialWarehouseId.value
+  && outputWarehouseId.value
+  && quantity.value > 0
+  && (!hasVariants.value || variantId.value)
+))
 
 onMounted(async () => {
   await Promise.all([productsStore.fetchAll(), depositsStore.fetchAll()])
@@ -33,7 +48,20 @@ onMounted(async () => {
   }
 })
 
-watch([productId, quantity, materialWarehouseId, outputWarehouseId], () => { preview.value = undefined })
+watch(productId, async (id) => {
+  variantId.value = ''
+  if (!id) return
+  const product = productsStore.items.find(item => item.id === id)
+  if (!(product?.product_variants?.length)) return
+  loadingVariants.value = true
+  try {
+    await variantsApi.loadByProduct(id)
+  } finally {
+    loadingVariants.value = false
+  }
+})
+
+watch([productId, variantId, quantity, materialWarehouseId, outputWarehouseId], () => { preview.value = undefined })
 
 async function calculate() {
   if (!ready.value) return
@@ -43,6 +71,7 @@ async function calculate() {
       method: 'POST',
       body: {
         product_id: productId.value,
+        variant_id: variantId.value || undefined,
         quantity: Number(quantity.value),
         material_warehouse_id: materialWarehouseId.value,
         output_warehouse_id: outputWarehouseId.value
@@ -63,12 +92,13 @@ async function produce() {
       method: 'POST',
       body: {
         product_id: productId.value,
+        variant_id: variantId.value || undefined,
         quantity: Number(quantity.value),
         material_warehouse_id: materialWarehouseId.value,
         output_warehouse_id: outputWarehouseId.value
       }
     })
-    toast.add({ title: 'Fabricación registrada', description: `Se fabricaron ${quantity.value} unidades de ${selectedProduct.value?.name}.`, color: 'success' })
+    toast.add({ title: 'Fabricación registrada', description: `Se fabricaron ${quantity.value} unidades de ${selectedProduct.value?.name}${selectedVariant.value ? ` · ${selectedVariant.value.label}` : ''}.`, color: 'success' })
     quantity.value = 1
     preview.value = undefined
   } catch (error: any) {
@@ -99,6 +129,9 @@ const formatQuantity = (value: number) => Number(value).toLocaleString('es-AR', 
             <UFormField label="Producto a fabricar" description="Solo se muestran productos terminados e intermedios." required>
               <USelectMenu v-model="productId" value-key="value" :items="productOptions" searchable placeholder="Buscar producto por nombre o SKU" class="w-full" />
             </UFormField>
+            <UFormField v-if="hasVariants" label="Variante" description="Se usará la estructura de fabricación de esta variante." required>
+              <USelect v-model="variantId" :items="variantOptions" :loading="loadingVariants" placeholder="Seleccionar variante" class="w-full" />
+            </UFormField>
             <UFormField label="Cantidad" description="Unidades de producto terminado que ingresarán." required>
               <UInputNumber v-model="quantity" :min="0.001" :step="1" class="w-full" />
             </UFormField>
@@ -118,6 +151,7 @@ const formatQuantity = (value: number) => Number(value).toLocaleString('es-AR', 
         <UCard v-if="preview">
           <template #header>
             <UAlert :color="preview.can_produce ? 'success' : 'error'" variant="soft" :icon="preview.can_produce ? 'i-lucide-circle-check' : 'i-lucide-triangle-alert'" :title="preview.can_produce ? 'Todo listo para fabricar' : 'Faltan materiales'" :description="preview.can_produce ? 'Revisá el consumo y confirmá la operación.' : 'No se realizará ningún movimiento hasta disponer del stock necesario.'" />
+            <p v-if="preview.variant" class="mt-3 text-sm text-muted">Variante: <span class="font-medium text-default">{{ preview.variant.name ?? preview.variant.sku }}</span></p>
           </template>
           <div class="divide-y divide-default overflow-hidden rounded-lg border border-default">
             <div v-for="material in preview.materials" :key="material.product_id" class="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_110px_110px_130px] sm:items-center">

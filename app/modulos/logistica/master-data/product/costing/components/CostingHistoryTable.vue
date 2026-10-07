@@ -58,7 +58,7 @@ const targetCurrency = computed(() =>
 const snapshotConversions = ref<Record<string, string>>({})
 
 const getConvertedTotal = (row: CostHistoryRow) => {
-  return snapshotConversions.value[row.id] ?? 'â€”'
+  return snapshotConversions.value[row.id] ?? '—'
 }
 
 const recalculateConversions = async () => {
@@ -147,7 +147,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
               isSemiFinished(original)
                 ? h(UBadge, { label: 'Conjunto', color: 'warning', variant: 'subtle', size: 'xs' })
                 : h(UBadge, { label: 'Material', color: 'info', variant: 'subtle', size: 'xs' }),
-              h('span', { class: 'text-sm font-medium' }, original.component_product?.name ?? 'â€”')
+              h('span', { class: 'text-sm font-medium' }, original.component_product?.name ?? '—')
             ]),
             original.component_product?.sku
               ? h('span', { class: 'text-xs text-muted font-mono' }, original.component_product.sku)
@@ -180,7 +180,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
         return h(
           'span',
           { class: 'text-sm text-muted' },
-          `Ã— ${Number(original.quantity).toLocaleString('es-AR', { maximumFractionDigits: 3 })}`
+          `× ${Number(original.quantity).toLocaleString('es-AR', { maximumFractionDigits: 3 })}`
         )
       }
       return h(UBadge, {
@@ -199,7 +199,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
       const original = row.original as any
       if (isBreakdown(original)) {
         // Semi-terminados no tienen costo unitario propio
-        if (isSemiFinished(original)) return h('span', { class: 'text-muted text-sm' }, 'â€”')
+        if (isSemiFinished(original)) return h('span', { class: 'text-muted text-sm' }, '—')
         return h('span', { class: 'text-sm tabular-nums' }, formatCurrency(original.unit_cost))
       }
       return h('span', { class: 'tabular-nums' }, formatCurrency(original.material_cost))
@@ -211,7 +211,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
     meta: { class: { th: 'text-right', td: 'text-right' } },
     cell: ({ row }) => {
       const original = row.original as any
-      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, 'â€”')
+      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, '—')
       return h('span', { class: 'tabular-nums' }, formatCurrency(original.labor_cost))
     }
   },
@@ -221,7 +221,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
     meta: { class: { th: 'text-right', td: 'text-right' } },
     cell: ({ row }) => {
       const original = row.original as any
-      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, 'â€”')
+      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, '—')
       return h('span', { class: 'tabular-nums' }, formatCurrency(original.overhead_cost))
     }
   },
@@ -235,7 +235,7 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
       if (isBreakdown(original)) {
         // Materia prima: no mostrar total (ya está en el conjunto padre)
         if (!isSemiFinished(original)) {
-          return h('span', { class: 'text-muted text-sm' }, 'â€”')
+          return h('span', { class: 'text-muted text-sm' }, '—')
         }
         // Semi-terminado: mostrar su total
         return h(
@@ -256,10 +256,10 @@ const columns: TableColumn<CostHistoryRow | CostHistoryBreakdown>[] = [
     meta: { class: { th: 'text-right', td: 'text-right' } },
     cell: ({ row }) => {
       const original = row.original as any
-      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, 'â€”')
+      if (isBreakdown(original)) return h('span', { class: 'text-muted' }, '—')
 
       const converted = getConvertedTotal(original)
-      if (converted === 'â€”') return h('span', { class: 'text-muted text-xs' }, 'â€”')
+      if (converted === '—') return h('span', { class: 'text-muted text-xs' }, '—')
 
       return h('span', { class: 'text-xs tabular-nums text-muted' }, converted)
     }

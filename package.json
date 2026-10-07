@@ -3,13 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "node -e \"try { const fs = require('fs'); if (fs.existsSync('node_modules/oxc-parser')) { console.log('oxc-parser presente') } } catch(e) {}\"",
+    "prebuild": "pnpm run check:encoding && node -e \"try { const fs = require('fs'); if (fs.existsSync('node_modules/oxc-parser')) { console.log('oxc-parser presente') } } catch(e) {}\"",
     "build": "nuxt build",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
+    "check:encoding": "node scripts/check-encoding.mjs",
     "start": "nuxt start"
   },
   "dependencies": {

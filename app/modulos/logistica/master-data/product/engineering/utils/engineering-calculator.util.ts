@@ -1,14 +1,26 @@
+export interface CurrencyInfo {
+  code?: string
+  symbol?: string
+}
+
 export interface TreeNodeData {
   child_product?: {
     calculation_type?: string
     current_cost?: string | null
+    current_cost_currency?: CurrencyInfo | null
   }
   child_variant?: {
     thickness_mm?: string | null
     density_kg_m3?: string | null
     weight_per_meter_kg?: string | null
   } | null
-  productVariantCosts?: Array<{ cost: string | number }>
+  productVariantCosts?: Array<{ cost: string | number; currency?: CurrencyInfo | null }>
+  resolvedVariantCost?: {
+    original_cost?: number | string
+    converted_cost?: number | string
+    original_currency_code?: string
+    original_currency_symbol?: string
+  } | null
   quantity?: string | number
   length_mm?: string | number | null
   width_mm?: string | number | null
@@ -22,7 +34,10 @@ export interface NodeCalculations {
   calculated_weight_kg: number
   unit_cost: number
   total_cost: number
+  unit_currency: CurrencyInfo | null
 }
+
+export type EngineeringCalcMode = 'BOM' | 'ENGINEERING'
 
 const safeNumber = (val: string | number | null | undefined): number => {
   if (val === null || val === undefined) return 0
@@ -30,15 +45,33 @@ const safeNumber = (val: string | number | null | undefined): number => {
   return isNaN(n) ? 0 : n
 }
 
-const resolveUnitCost = (node: TreeNodeData): number => {
-  const variantCosts = node.productVariantCosts
-  if (variantCosts && variantCosts.length > 0) {
-    return safeNumber(variantCosts[0].cost)
+const resolveUnitCost = (node: TreeNodeData): { cost: number; currency: CurrencyInfo | null } => {
+  // 1. Costo de variante ya convertido a la moneda del árbol (backend).
+  const resolved = node.resolvedVariantCost
+  if (resolved && resolved.converted_cost != null) {
+    return { cost: safeNumber(resolved.converted_cost), currency: null }
   }
-  return safeNumber(node.child_product?.current_cost)
+
+  // 2. Costo de variante en su moneda original.
+  const first = node.productVariantCosts?.[0]
+  if (first) {
+    return { cost: safeNumber(first.cost), currency: first.currency ?? null }
+  }
+
+  // 3. Fallback: costo actual del producto.
+  return {
+    cost: safeNumber(node.child_product?.current_cost),
+    currency: node.child_product?.current_cost_currency ?? null
+  }
 }
 
-export const computeNodeCalculations = (node: TreeNodeData): NodeCalculations => {
+export const computeNodeCalculations = (
+  node: TreeNodeData,
+  mode: EngineeringCalcMode = 'ENGINEERING'
+): NodeCalculations => {
+  // En modo BOM el backend trata todos los nodos como UNIT (cantidad × costo).
+  if (mode === 'BOM') return computeUnit(node)
+
   const calcType = node.child_product?.calculation_type ?? 'UNIT'
   const wastePct = safeNumber(node.waste_percentage)
 
@@ -57,13 +90,14 @@ export const computeNodeCalculations = (node: TreeNodeData): NodeCalculations =>
 
 function computeUnit(node: TreeNodeData): NodeCalculations {
   const quantity = safeNumber(node.quantity)
-  const unitCost = resolveUnitCost(node)
+  const { cost: unitCost, currency } = resolveUnitCost(node)
   return {
     surface_m2: 0,
     volume_m3: 0,
     calculated_weight_kg: 0,
     unit_cost: unitCost,
     total_cost: quantity * unitCost,
+    unit_currency: currency,
   }
 }
 
@@ -80,7 +114,7 @@ function computeSurface(node: TreeNodeData, wastePct: number): NodeCalculations 
   const rawWeightKg = volumeM3 * densityKgM3
   const finalWeightKg = rawWeightKg * (1 + wastePct / 100)
 
-  const unitCost = resolveUnitCost(node)
+  const { cost: unitCost, currency } = resolveUnitCost(node)
   const totalCost = finalWeightKg * unitCost
 
   return {
@@ -89,6 +123,7 @@ function computeSurface(node: TreeNodeData, wastePct: number): NodeCalculations 
     calculated_weight_kg: finalWeightKg,
     unit_cost: unitCost,
     total_cost: totalCost,
+    unit_currency: currency,
   }
 }
 
@@ -101,7 +136,7 @@ function computeLinear(node: TreeNodeData, wastePct: number): NodeCalculations {
   const weightPerMeterKg = safeNumber(variant?.weight_per_meter_kg)
   const finalWeightKg = finalLength * weightPerMeterKg
 
-  const unitCost = resolveUnitCost(node)
+  const { cost: unitCost, currency } = resolveUnitCost(node)
   const totalCost = finalLength * unitCost
 
   return {
@@ -110,6 +145,7 @@ function computeLinear(node: TreeNodeData, wastePct: number): NodeCalculations {
     calculated_weight_kg: finalWeightKg,
     unit_cost: unitCost,
     total_cost: totalCost,
+    unit_currency: currency,
   }
 }
 
@@ -121,7 +157,7 @@ function computeVolume(node: TreeNodeData, wastePct: number): NodeCalculations {
   const pieces = safeNumber(node.quantity)
   const finalVolume = volumeM3 * pieces * (1 + wastePct / 100)
 
-  const unitCost = resolveUnitCost(node)
+  const { cost: unitCost, currency } = resolveUnitCost(node)
   const totalCost = finalVolume * unitCost
 
   return {
@@ -130,5 +166,6 @@ function computeVolume(node: TreeNodeData, wastePct: number): NodeCalculations {
     calculated_weight_kg: 0,
     unit_cost: unitCost,
     total_cost: totalCost,
+    unit_currency: currency,
   }
 }

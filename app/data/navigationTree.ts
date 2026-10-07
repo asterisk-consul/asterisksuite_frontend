@@ -441,13 +441,13 @@ export const navigationTree: DrilldownNode[] = [
         children: [
           { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
           { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
-          { label: 'Costos', icon: 'i-lucide-dollar-sign', to: '/productos/costos' },
           // { label: 'Listas de precio', icon: 'i-lucide-tag', to: '/productos/price-lists' },
           { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party' }
         ]
       },
       { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
-      { label: 'Disponibilidad', icon: 'i-lucide-chart-no-axes-combined', to: '/stock/disponibilidad', permissions: ['stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'] }
+      { label: 'Disponibilidad', icon: 'i-lucide-chart-no-axes-combined', to: '/stock/disponibilidad', permissions: ['stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'] },
+      { label: 'Reposición', icon: 'i-lucide-package-plus', to: '/stock/reposicion', permission: 'stock.replenishment.read' }
     ]
   },
 
@@ -467,7 +467,6 @@ export const navigationTree: DrilldownNode[] = [
       { label: 'Disponibilidad de stock', icon: 'i-lucide-chart-no-axes-combined', to: '/stock/disponibilidad', permissions: ['stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read'] },
       { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
       { label: 'Unidades de medida', icon: 'i-lucide-ruler', to: '/productos/settings/unidades', permission: 'units.read' },
-      { label: 'Costos de productos', icon: 'i-lucide-dollar-sign', to: '/productos/costos', permission: 'products.read' },
       { label: 'Plantillas de costo', icon: 'i-lucide-file-text', to: '/cost-templates', permission: 'products.read' }
     ]
   },

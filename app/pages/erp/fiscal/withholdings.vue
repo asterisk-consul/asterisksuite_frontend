@@ -117,7 +117,7 @@ onMounted(fetchWithholdings)
 
     <!-- Tabla -->
     <UCard>
-      <div v-if="loading" class="text-center py-8 text-muted">Cargandoâ€¦</div>
+      <div v-if="loading" class="text-center py-8 text-muted">Cargando…</div>
       <div v-else-if="items.length === 0" class="text-center py-8 text-muted text-sm">
         Sin retenciones registradas con estos filtros.
       </div>
@@ -127,7 +127,7 @@ onMounted(fetchWithholdings)
         </template>
         <template #party-cell="{ row }">
           <div>
-            <div class="font-medium">{{ row.original.business_party?.name ?? 'â€”' }}</div>
+            <div class="font-medium">{{ row.original.business_party?.name ?? '—' }}</div>
             <div class="text-xs text-muted">{{ row.original.business_party?.tax_id ?? '' }}</div>
           </div>
         </template>
@@ -143,19 +143,19 @@ onMounted(fetchWithholdings)
           {{ row.original.tax_type }}
         </template>
         <template #jurisdiction-cell="{ row }">
-          {{ row.original.jurisdiction?.name ?? 'â€”' }}
+          {{ row.original.jurisdiction?.name ?? '—' }}
         </template>
         <template #base_amount-cell="{ row }">
           {{ formatCurrency(row.original.base_amount) }}
         </template>
         <template #rate-cell="{ row }">
-          {{ row.original.rate != null ? `${Number(row.original.rate)}%` : 'â€”' }}
+          {{ row.original.rate != null ? `${Number(row.original.rate)}%` : '—' }}
         </template>
         <template #withheld_amount-cell="{ row }">
           <span class="font-medium">{{ formatCurrency(row.original.withheld_amount) }}</span>
         </template>
         <template #certificate_number-cell="{ row }">
-          {{ row.original.certificate_number ?? 'â€”' }}
+          {{ row.original.certificate_number ?? '—' }}
         </template>
         <template #status-cell="{ row }">
           <UBadge

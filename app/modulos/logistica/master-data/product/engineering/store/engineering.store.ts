@@ -24,12 +24,12 @@ export const useEngineeringStore = defineStore('engineering', () => {
   // FETCH TREE
   // =========================
 
-  const fetchTree = async (productId: string) => {
+  const fetchTree = async (productId: string, variantId?: string, currencyId?: string) => {
     try {
       loading.value = true
       error.value = null
 
-      tree.value = await service.getTree(productId)
+      tree.value = await service.getTree(productId, variantId, currencyId)
 
       return tree.value
     } catch (err: any) {
@@ -44,12 +44,12 @@ export const useEngineeringStore = defineStore('engineering', () => {
   // CALCULATE (solo para snapshot de costing)
   // =========================
 
-  const calculate = async (productId: string) => {
+  const calculate = async (productId: string, variantId?: string) => {
     try {
       calculating.value = true
       error.value = null
 
-      const result = await service.calculate(productId)
+      const result = await service.calculate(productId, variantId)
       calculation.value = result
 
       return result
@@ -109,12 +109,12 @@ export const useEngineeringStore = defineStore('engineering', () => {
     }
   }
 
-  const updateComponent = async (id: string, dto: Partial<CreateEngineeringComponentDto>, parentProductId: string) => {
+  const updateComponent = async (id: string, dto: Partial<CreateEngineeringComponentDto>, parentProductId: string, variantId?: string, currencyId?: string) => {
     try {
       loading.value = true
       error.value = null
       const updated = await service.updateComponent(id, dto)
-      await fetchTree(parentProductId)
+      await fetchTree(parentProductId, variantId, currencyId)
       return updated
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al actualizar componente'
@@ -124,12 +124,12 @@ export const useEngineeringStore = defineStore('engineering', () => {
     }
   }
 
-  const deleteComponent = async (id: string, parentProductId: string) => {
+  const deleteComponent = async (id: string, parentProductId: string, variantId?: string, currencyId?: string) => {
     try {
       loading.value = true
       error.value = null
       await service.deleteComponent(id)
-      await fetchTree(parentProductId)
+      await fetchTree(parentProductId, variantId, currencyId)
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al eliminar componente'
       throw err

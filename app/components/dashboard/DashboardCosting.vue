@@ -22,7 +22,7 @@ const costPercentage = computed(() => {
           <UIcon name="i-lucide-calculator" class="size-5 text-info" />
           <h3 class="text-sm font-semibold">Costeados vs No Costeados</h3>
         </div>
-        <NuxtLink to="/productos/costos" class="text-xs text-primary hover:underline font-medium">
+        <NuxtLink to="/productos" class="text-xs text-primary hover:underline font-medium">
           Ver productos
         </NuxtLink>
       </div>

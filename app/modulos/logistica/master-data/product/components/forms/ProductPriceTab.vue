@@ -9,6 +9,7 @@ import { useVariantCostsStore } from '~/modulos/logistica/master-data/variant-co
 import { useVariantPrices } from '~/modulos/logistica/master-data/product-variants/composable/useVariantPrices'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import ProductPriceHistory from '~/modulos/logistica/master-data/product-price/components/ProductPriceHistory.vue'
+import { useCostingService } from '~/modulos/logistica/master-data/product/costing/service/costing.service'
 
 const props = withDefaults(
   defineProps<{
@@ -22,6 +23,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:priceEnabled': [value: boolean]
+  costUpdated: []
 }>()
 
 const switchToAdvanced = inject<() => void>('switchToAdvancedTab')
@@ -31,12 +33,39 @@ const variantCostsStore = useVariantCostsStore()
 const variantPrices = useVariantPrices()
 const { selectItems: currencyOptions, init: initCurrencies, findById: findCurrency } = useCurrencies()
 const toast = useToast()
+const costingService = useCostingService()
 
 const product = computed(() => props.product)
 
-const isFinishedProduct = computed(() => ['FINISHED_PRODUCT', 'SERVICE'].includes(product.value?.product_type))
+const isFinishedProduct = computed(() => ['FINISHED_PRODUCT', 'SERVICE'].includes(product.value?.product_type ?? ''))
 const isSaleEnabled = computed(() => ['SALE', 'BOTH'].includes(product.value?.usage_type ?? 'BOTH'))
 const hasVariants = computed(() => (product.value?.product_variants?.length ?? 0) > 0)
+const canRegisterManualCost = computed(() => product.value?.product_type === 'RAW_MATERIAL' && !hasVariants.value)
+const showManualCostModal = ref(false)
+const savingManualCost = ref(false)
+const manualCostForm = reactive({ current_cost: 0, currency_id: '', notes: '' })
+
+const openManualCostModal = () => {
+  manualCostForm.current_cost = Number(product.value?.current_cost ?? 0)
+  manualCostForm.currency_id = product.value?.current_cost_currency_id ?? ''
+  manualCostForm.notes = ''
+  showManualCostModal.value = true
+}
+
+const saveManualCost = async () => {
+  if (!product.value?.id || !manualCostForm.currency_id || manualCostForm.current_cost <= 0) return
+  savingManualCost.value = true
+  try {
+    await costingService.setManualCost(product.value.id, manualCostForm)
+    showManualCostModal.value = false
+    emit('costUpdated')
+    toast.add({ title: 'Costo registrado', description: 'Quedó guardado como costo manual y se agregó al historial.', color: 'success' })
+  } catch (err: any) {
+    toast.add({ title: 'No se pudo registrar el costo', description: err?.data?.message || 'Revisá los datos ingresados.', color: 'error' })
+  } finally {
+    savingManualCost.value = false
+  }
+}
 const hasCalculatedCost = computed(() => !!product.value?.current_cost)
 const hasCostTemplate = computed(() => !!product.value?.cost_template_id)
 const hasExistingPrices = computed(() => (product.value?.product_price?.length ?? 0) > 0)
@@ -619,6 +648,15 @@ watch(
 
       <div class="flex gap-2">
         <UButton
+          v-if="canRegisterManualCost"
+          icon="i-lucide-calculator"
+          size="sm"
+          variant="soft"
+          @click="openManualCostModal"
+        >
+          Registrar costo
+        </UButton>
+        <UButton
           v-if="priceEnabled && canAddProductPrice && pricingMode === 'manual'"
           icon="i-lucide-plus"
           size="sm"
@@ -627,7 +665,7 @@ watch(
           Agregar precio
         </UButton>
 
-        <UButton v-if="priceEnabled && hasVariants" icon="i-lucide-plus" size="sm" @click="openVariantCostModal">
+        <UButton v-if="hasVariants" icon="i-lucide-plus" size="sm" @click="openVariantCostModal">
           Agregar costo de variante
         </UButton>
 
@@ -636,6 +674,37 @@ watch(
         </UButton>
       </div>
     </div>
+
+    <UModal v-model:open="showManualCostModal" title="Registrar costo de materia prima" description="Ingresá el costo unitario vigente. Las compras confirmadas podrán actualizarlo posteriormente.">
+      <template #body>
+        <div class="space-y-4">
+          <UAlert color="info" variant="soft" icon="i-lucide-info" title="Costo de compra" description="Este importe se usa en BOM e ingeniería. No modifica el precio de venta." />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="Costo unitario" required>
+              <UInputNumber v-model="manualCostForm.current_cost" :min="0.01" :step="0.01" class="w-full" />
+            </UFormField>
+            <UFormField label="Moneda" required>
+              <USelect v-model="manualCostForm.currency_id" :items="currencyOptions" placeholder="Seleccionar moneda" class="w-full" />
+            </UFormField>
+          </div>
+          <UFormField label="Referencia u observación">
+            <UTextarea v-model="manualCostForm.notes" placeholder="Ej.: costo inicial informado por el proveedor" class="w-full" />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton color="neutral" variant="ghost" @click="() => { showManualCostModal = false }">Cancelar</UButton>
+          <UButton
+            label="Guardar costo"
+            icon="i-lucide-save"
+            :loading="savingManualCost"
+            :disabled="manualCostForm.current_cost <= 0 || !manualCostForm.currency_id"
+            @click="saveManualCost"
+          />
+        </div>
+      </template>
+    </UModal>
 
     <!-- PRICE DISABLED STATE -->
     <UCard v-if="!priceEnabled">

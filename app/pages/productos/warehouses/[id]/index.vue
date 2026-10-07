@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { h, resolveComponent } from 'vue'
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
@@ -13,12 +14,17 @@ import { warehouseStockColumns } from '~/modulos/logistica/warehouses/stock/stoc
 import ModalForm from '~/components/ModalForm.vue'
 import TransferFromWarehouseModal from '~/modulos/logistica/warehouses/stock/components/TransferFromWarehouseModal.vue'
 import type { ButtonProps } from '@nuxt/ui'
+import type { TableColumn } from '@nuxt/ui'
+import type { WarehouseStockItem } from '~/modulos/logistica/warehouses/stock/stock.types'
 
 definePageMeta({ middleware: ['auth'] })
 
 const route = useRoute()
 const toast = useToast()
 const warehouseId = computed(() => route.params.id as string)
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+const canConfigureReplenishment = computed(() => isOwnerOrAdmin.value || hasPermission('stock.replenishment.configure'))
 
 const depositosStore = useDepositosStore()
 const stockStore = useStockStore()
@@ -50,6 +56,66 @@ const showReservationModal = ref(false)
 const reservations = ref<any[]>([])
 const reservationSaving = ref(false)
 const reservationForm = reactive({ product_id: '', quantity: 1, reason: '', expires_at: '' })
+
+// Replenishment policy for a product in this warehouse
+const replenishmentOpen = ref(false)
+const replenishmentSaving = ref(false)
+const replenishmentEditingId = ref<string | null>(null)
+const replenishmentProduct = ref<WarehouseStockItem['products'] | null>(null)
+const replenishmentForm = reactive({ reorder_point: 0, target_stock: 0, lead_time_days: 0, active: true })
+
+async function openReplenishmentPolicy(item: WarehouseStockItem) {
+  replenishmentProduct.value = item.products
+  replenishmentEditingId.value = null
+  Object.assign(replenishmentForm, { reorder_point: 0, target_stock: 0, lead_time_days: 0, active: true })
+  replenishmentOpen.value = true
+  try {
+    const policies = await $fetch<any[]>(`/api/backend/warehouse/replenishment/policies/product/${item.product_id}`)
+    const policy = policies.find(value => value.warehouse_id === warehouseId.value)
+    if (policy) {
+      replenishmentEditingId.value = policy.id
+      Object.assign(replenishmentForm, {
+        reorder_point: Number(policy.reorder_point),
+        target_stock: Number(policy.target_stock),
+        lead_time_days: Number(policy.lead_time_days),
+        active: Boolean(policy.active)
+      })
+    }
+  } catch (error: any) {
+    replenishmentOpen.value = false
+    toast.add({ title: 'No se pudo cargar la política', description: error?.data?.message || error?.message, color: 'error' })
+  }
+}
+
+async function saveReplenishmentPolicy() {
+  if (!replenishmentProduct.value) return
+  if (replenishmentForm.target_stock < replenishmentForm.reorder_point) {
+    toast.add({ title: 'Revisá las cantidades', description: 'El stock objetivo debe ser igual o mayor al punto de reposición.', color: 'warning' })
+    return
+  }
+  replenishmentSaving.value = true
+  try {
+    await $fetch(replenishmentEditingId.value
+      ? `/api/backend/warehouse/replenishment/policies/${replenishmentEditingId.value}`
+      : '/api/backend/warehouse/replenishment/policies', {
+      method: replenishmentEditingId.value ? 'PATCH' : 'POST',
+      body: {
+        product_id: replenishmentProduct.value.id,
+        warehouse_id: warehouseId.value,
+        reorder_point: Number(replenishmentForm.reorder_point),
+        target_stock: Number(replenishmentForm.target_stock),
+        lead_time_days: Number(replenishmentForm.lead_time_days),
+        active: replenishmentForm.active
+      }
+    })
+    replenishmentOpen.value = false
+    toast.add({ title: replenishmentEditingId.value ? 'Política actualizada' : 'Política creada', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo guardar', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    replenishmentSaving.value = false
+  }
+}
 
 // Movement history
 const showMovements = ref(false)
@@ -365,10 +431,31 @@ const stockSortFields = [
   { label: 'Disponible', value: 'available_quantity' }
 ]
 
+const warehouseStockColumnsWithActions = computed<TableColumn<WarehouseStockItem>[]>(() => {
+  if (!canConfigureReplenishment.value || warehouse.value?.is_virtual) return warehouseStockColumns
+  const UButton = resolveComponent('UButton')
+  return [
+    ...warehouseStockColumns,
+    {
+      id: 'replenishment_policy',
+      header: 'Reposición',
+      cell: ({ row }: any) => h(UButton, {
+        label: 'Configurar',
+        icon: 'i-lucide-gauge',
+        size: 'xs',
+        color: 'neutral',
+        variant: 'outline',
+        onClick: () => openReplenishmentPolicy(row.original)
+      })
+    }
+  ]
+})
+
 const unitSymbol = computed(() => warehouse.value?.units?.symbol ?? '')
 
 onMounted(async () => {
   await Promise.all([
+    fetchMyPermissionsIfNeeded(),
     depositosStore.fetchById(warehouseId.value),
     depositosStore.fetchAll(),
     stockStore.fetchStock(warehouseId.value),
@@ -528,7 +615,7 @@ const links = ref<ButtonProps[]>([
         <LogisticaTable
           v-else
           :data="visibleStock"
-          :columns="warehouseStockColumns"
+          :columns="warehouseStockColumnsWithActions"
           :filter-fields="stockFilterFields"
           :sort-fields="stockSortFields"
         />
@@ -645,6 +732,50 @@ const links = ref<ButtonProps[]>([
         <div class="flex w-full justify-end gap-2">
           <UButton label="Cancelar" color="neutral" variant="ghost" @click="showReservationModal = false" />
           <UButton label="Crear reserva" icon="i-lucide-bookmark-plus" :loading="reservationSaving" @click="createReservation" />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="replenishmentOpen"
+      :title="replenishmentEditingId ? 'Editar política de reposición' : 'Configurar reposición'"
+      description="La política se aplicará al producto dentro de este depósito."
+    >
+      <template #body>
+        <div class="space-y-5">
+          <div class="grid gap-3 rounded-lg border border-default bg-elevated/40 p-4 sm:grid-cols-2">
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-muted">Producto</p>
+              <p class="mt-1 font-semibold">{{ replenishmentProduct?.name }}</p>
+              <p class="text-xs text-muted">{{ replenishmentProduct?.sku || 'Sin SKU' }}</p>
+            </div>
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-muted">Depósito</p>
+              <p class="mt-1 font-semibold">{{ warehouse?.name }}</p>
+              <p class="text-xs text-muted">{{ warehouse?.code || 'Sin código' }}</p>
+            </div>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="Punto de reposición" description="Al llegar a esta cantidad se genera la advertencia.">
+              <UInput v-model.number="replenishmentForm.reorder_point" type="number" min="0" step="0.001" class="w-full" />
+            </UFormField>
+            <UFormField label="Stock objetivo" description="Cantidad que se desea alcanzar después de reponer.">
+              <UInput v-model.number="replenishmentForm.target_stock" type="number" min="0" step="0.001" class="w-full" />
+            </UFormField>
+          </div>
+          <UFormField label="Plazo de reposición" description="Días utilizados para considerar compras y arribos próximos.">
+            <UInput v-model.number="replenishmentForm.lead_time_days" type="number" min="0" step="1" class="w-full">
+              <template #trailing>días</template>
+            </UInput>
+          </UFormField>
+          <USwitch v-model="replenishmentForm.active" label="Política activa" />
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton label="Cancelar" color="neutral" variant="outline" @click="replenishmentOpen = false" />
+          <UButton label="Guardar política" icon="i-lucide-save" :loading="replenishmentSaving" @click="saveReplenishmentPolicy" />
         </div>
       </template>
     </UModal>

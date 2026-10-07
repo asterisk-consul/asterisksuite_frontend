@@ -1,18 +1,21 @@
 import { computed } from 'vue'
+import type { MaybeRef } from 'vue'
 
 import { useEngineeringStore } from '../store/engineering.store'
 
 import type { CreateEngineeringComponentDto } from '../types/engineering.types'
 
-export const useEngineering = (productId: string) => {
+export const useEngineering = (productId: string, structureVariantId?: MaybeRef<string | undefined>, currencyId?: MaybeRef<string | undefined>) => {
   const store = useEngineeringStore()
+  const currentVariantId = () => structureVariantId ? unref(structureVariantId) : undefined
+  const currentCurrencyId = () => currencyId ? unref(currencyId) : undefined
 
   // =========================
   // INIT
   // =========================
 
   const init = async () => {
-    await store.fetchTree(productId)
+    await store.fetchTree(productId, currentVariantId(), currentCurrencyId())
   }
 
   // =========================
@@ -20,7 +23,7 @@ export const useEngineering = (productId: string) => {
   // =========================
 
   const loadTree = async () => {
-    return store.fetchTree(productId)
+    return store.fetchTree(productId, currentVariantId(), currentCurrencyId())
   }
 
   // =========================
@@ -28,7 +31,7 @@ export const useEngineering = (productId: string) => {
   // =========================
 
   const calculate = async () => {
-    return store.calculate(productId)
+    return store.calculate(productId, currentVariantId())
   }
 
   // =========================
@@ -41,7 +44,8 @@ export const useEngineering = (productId: string) => {
   ) => {
     const result = await store.createComponent({
       ...dto,
-      parent_product_id: parentId ?? productId
+      parent_product_id: parentId ?? productId,
+      structure_variant_id: parentId ? undefined : currentVariantId()
     })
     await loadTree()
     return result
@@ -52,7 +56,7 @@ export const useEngineering = (productId: string) => {
   // =========================
 
   const updateComponent = async (componentId: string, dto: Partial<CreateEngineeringComponentDto>) => {
-    return store.updateComponent(componentId, dto, productId)
+    return store.updateComponent(componentId, dto, productId, currentVariantId(), currentCurrencyId())
   }
 
   // =========================
@@ -60,7 +64,7 @@ export const useEngineering = (productId: string) => {
   // =========================
 
   const deleteComponent = async (componentId: string) => {
-    return store.deleteComponent(componentId, productId)
+    return store.deleteComponent(componentId, productId, currentVariantId(), currentCurrencyId())
   }
 
   // =========================

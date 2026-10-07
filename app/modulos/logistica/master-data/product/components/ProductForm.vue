@@ -38,6 +38,7 @@ const emit = defineEmits<{
   submit: []
   variantCreated: [variant: ProductVariant]
   variantUpdated: [variant: ProductVariant]
+  costUpdated: []
 }>()
 
 const submitText = computed(() => {
@@ -100,7 +101,7 @@ const tabs = [
       </template>
 
       <template #precios>
-        <ProductPriceTab :product="props.product" v-model:price-enabled="form.price_enabled" />
+        <ProductPriceTab :product="props.product" v-model:price-enabled="form.price_enabled" @cost-updated="emit('costUpdated')" />
       </template>
 
       <template #parties>

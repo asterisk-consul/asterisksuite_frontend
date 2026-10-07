@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 
-const props = defineProps<{ open: boolean; productId: string; productName?: string }>()
+const props = defineProps<{ open: boolean; productId: string; productName?: string; variantId?: string; variantName?: string }>()
 const emit = defineEmits<{ 'update:open': [value: boolean]; completed: [result: any] }>()
 
 const depositsStore = useDepositosStore()
@@ -28,6 +28,7 @@ const loadPreview = async () => {
       method: 'POST',
       body: {
         product_id: props.productId,
+        variant_id: props.variantId || undefined,
         material_warehouse_id: materialWarehouseId.value,
         output_warehouse_id: outputWarehouseId.value,
         quantity: Number(quantity.value)
@@ -49,6 +50,7 @@ const execute = async () => {
       method: 'POST',
       body: {
         product_id: props.productId,
+        variant_id: props.variantId || undefined,
         material_warehouse_id: materialWarehouseId.value,
         output_warehouse_id: outputWarehouseId.value,
         quantity: Number(quantity.value)
@@ -56,7 +58,7 @@ const execute = async () => {
     })
     toast.add({
       title: 'Fabricación registrada',
-      description: `Ingresaron ${quantity.value} unidades de ${props.productName ?? 'producto terminado'}.`,
+      description: `Ingresaron ${quantity.value} unidades de ${props.productName ?? 'producto terminado'}${props.variantName ? ` · ${props.variantName}` : ''}.`,
       color: 'success'
     })
     emit('completed', result)
@@ -92,6 +94,7 @@ const formatQuantity = (value: number) => Number(value).toLocaleString('es-AR', 
         <div class="rounded-lg border border-default bg-elevated/40 p-4">
           <p class="text-xs font-medium uppercase tracking-wide text-muted">Producto terminado</p>
           <p class="mt-1 text-lg font-semibold">{{ productName }}</p>
+          <p v-if="variantName" class="text-sm text-muted">Variante: {{ variantName }}</p>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-3">

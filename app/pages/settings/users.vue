@@ -145,7 +145,7 @@ const refreshDirectory = async () => {
   await Promise.all([loadUsers(), loadEmployeesAndPartners()])
 }
 
-// â”€â”€â”€ Edit User â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Edit User ──────────────────────────────────────
 const openEditModal = (user: CompanyUser) => {
   selectedUser.value = user
   editUser.value = { name: user.name || '', email: user.email || '' }
@@ -176,7 +176,7 @@ const saveUser = async () => {
   }
 }
 
-// â”€â”€â”€ Change Password â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Change Password ──────────────────────────────
 const openPasswordModal = (user: CompanyUser) => {
   selectedUser.value = user
   newPassword.value = ''
@@ -206,7 +206,7 @@ const savePassword = async () => {
   }
 }
 
-// â”€â”€â”€ Link Employee/Partner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Link Employee/Partner ──────────────────────────
 const openLinkModal = (user: CompanyUser) => {
   selectedUser.value = user
   // Pre-seleccionar el tipo según el vínculo que ya tenga el usuario
@@ -660,7 +660,7 @@ onMounted(async () => {
               Se abrirá el formulario completo de empleados con los datos precargados.
             </p>
             <UButton
-              label="Ir a crear empleado â†’"
+              label="Ir a crear empleado →"
               icon="i-lucide-arrow-right"
               color="primary"
               @click="goToCreateEmployee"
@@ -673,7 +673,7 @@ onMounted(async () => {
               Se abrirá el formulario completo de socios con los datos precargados.
             </p>
             <UButton
-              label="Ir a crear socio â†’"
+              label="Ir a crear socio →"
               icon="i-lucide-arrow-right"
               color="primary"
               @click="goToCreatePartner"

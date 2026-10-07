@@ -128,6 +128,7 @@ const openRemove = (item: any) => {
         <USelectMenu
           v-model="selectedWarehouseIds"
           :items="warehouseFilterOptions"
+          value-key="value"
           placeholder="Filtrar por depósito"
           multiple
           searchable
@@ -138,7 +139,7 @@ const openRemove = (item: any) => {
         size="sm"
         variant="outline"
         icon="i-heroicons-plus"
-        @click="showAddModal = true"
+        @click="() => { showAddModal = true }"
       >
         Agregar a depósito
       </UButton>
@@ -156,7 +157,7 @@ const openRemove = (item: any) => {
         variant="outline"
         icon="i-heroicons-plus"
         class="mt-4"
-        @click="showAddModal = true"
+        @click="() => { showAddModal = true }"
       >
         Agregar a depósito
       </UButton>
@@ -184,6 +185,9 @@ const openRemove = (item: any) => {
                 {{ item.warehouse?.code || '—' }}
                 <span>· {{ item.products?.unit?.symbol || stockUnit }}</span>
               </div>
+              <UBadge v-if="item.warehouse?.is_virtual" color="info" variant="subtle" size="xs" class="mt-1">
+                En tránsito
+              </UBadge>
             </div>
           </div>
 
@@ -203,7 +207,7 @@ const openRemove = (item: any) => {
               </div>
             </div>
 
-            <div class="flex gap-1">
+            <div v-if="!item.warehouse?.is_virtual" class="flex gap-1">
               <UButton
                 icon="i-lucide-arrow-right-left"
                 variant="ghost"

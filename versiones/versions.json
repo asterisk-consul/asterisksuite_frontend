@@ -1,5 +1,121 @@
 [
   {
+    "version": "0.70.0-alpha",
+    "date": "2026-10-07",
+    "stage": "alpha",
+    "notes": "Stock, costos e ingeniería incorporan políticas de reposición por depósito, regularización guiada desde remitos, unidades de compra y estructuras BOM independientes por variante.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "stock",
+        "title": "Políticas de reposición por producto y depósito con punto de reposición, stock objetivo, plazo y permisos específicos"
+      },
+      {
+        "type": "feat",
+        "scope": "stock",
+        "title": "Nuevo reporte de reposición con stock disponible, reservas, arribos próximos y cantidades sugeridas; por defecto muestra productos configurados y permite incluir los restantes"
+      },
+      {
+        "type": "feat",
+        "scope": "warehouses",
+        "title": "La política de reposición puede configurarse desde cada producto del depósito con producto y depósito ya seleccionados"
+      },
+      {
+        "type": "feat",
+        "scope": "remitos",
+        "title": "Los remitos permiten regularizar stock faltante mediante un movimiento auditable y seleccionar automáticamente el depósito regularizado"
+      },
+      {
+        "type": "style",
+        "scope": "remitos",
+        "title": "Selector de depósito compacto con tooltip del nombre completo y advertencias exclusivas para remitos sin depósito o stock suficiente"
+      },
+      {
+        "type": "feat",
+        "scope": "products",
+        "title": "Inventario incorpora unidad habitual de compra y equivalencia con la unidad de stock, manteniendo conversión 1 a 1 por defecto"
+      },
+      {
+        "type": "feat",
+        "scope": "units",
+        "title": "Catálogo ampliado de unidades de medida y seed independiente e idempotente para ejecutarlo por empresa"
+      },
+      {
+        "type": "feat",
+        "scope": "costing",
+        "title": "Las materias primas admiten costo inicial manual con moneda e historial, y las compras pueden actualizar posteriormente el costo vigente"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "Cada variante puede mantener su propia estructura de componentes y calcular un costo independiente sin modificar la estructura base"
+      },
+      {
+        "type": "fix",
+        "scope": "encoding",
+        "title": "El proceso de compilación valida UTF-8 para prevenir textos dañados en la interfaz"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Reposición por depósito, remitos con stock guiado y costos BOM por variante"
+  },
+  {
+    "version": "0.69.0-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "Se puede elegir la variante del producto al fabricar; la fabricación consume la estructura de BOM de esa variante.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "production",
+        "title": "Fabricar permite elegir la variante del producto (obligatoria si tiene variantes) y consume su estructura de BOM"
+      },
+      {
+        "type": "feat",
+        "scope": "bom",
+        "title": "El modal de fabricación de la página BOM usa la variante seleccionada"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Fabricación con selección de variante"
+  },
+  {
+    "version": "0.68.3-alpha",
+    "date": "2026-10-06",
+    "stage": "alpha",
+    "notes": "El árbol de ingeniería y la tarjeta de costos muestran el desglose correcto: materiales según la estructura, resto según el template, y el costo de las variantes convertido a la moneda del BOM.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "bom",
+        "title": "El árbol de ingeniería calcula los componentes como BOM (cantidad × costo) y deja de mostrar 'Sin costo de compra' cuando el material tiene costo pero faltan dimensiones"
+      },
+      {
+        "type": "fix",
+        "scope": "bom",
+        "title": "El costo de las variantes se muestra convertido a la moneda del BOM con su costo original como referencia"
+      },
+      {
+        "type": "fix",
+        "scope": "costos",
+        "title": "La tarjeta de costos previsualiza el desglose en vivo (materiales de la estructura y resto del template) también para variantes"
+      },
+      {
+        "type": "feat",
+        "scope": "costos",
+        "title": "La composición de costos incluye la porción Resto/Otros cuando el template suma componentes distintos de material"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Desglose de costos de ingeniería y tarjeta de costos corregidos"
+  },
+  {
     "version": "0.68.2-alpha",
     "date": "2026-10-06",
     "stage": "alpha",

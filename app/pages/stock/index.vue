@@ -29,11 +29,6 @@ const shortcuts = computed(() => [
     icon: 'i-lucide-git-branch'
   },
   {
-    label: 'Costos',
-    to: '/productos/costos',
-    icon: 'i-lucide-dollar-sign'
-  },
-  {
     label: 'Configuraciones',
     to: '/productos/settings',
     icon: 'i-lucide-settings'
@@ -89,10 +84,6 @@ const sections = [
       {
         label: 'Plantillas de costo',
         to: '/cost-templates'
-      },
-      {
-        label: 'Costos de productos',
-        to: '/productos/costos'
       }
     ]
   }

@@ -12,6 +12,8 @@ const props = withDefaults(defineProps<{
   productId: string
   form: ProductFormState
   excludeSources?: ProductCostSource[]
+  structureVariantId?: string
+  currencyId?: string
 }>(), {
   excludeSources: () => []
 })
@@ -21,7 +23,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const engineering = useEngineering(props.productId)
+const engineering = useEngineering(props.productId, toRef(props, 'structureVariantId'), toRef(props, 'currencyId'))
 
 const showDeleteModal = ref(false)
 const deleteConfirmStep = ref(0)
@@ -65,7 +67,7 @@ const costSourceDescriptions: Record<string, { label: string; description: strin
 }
 
 const showTree = computed(() =>
-  ['BOM', 'ENGINEERING', 'PURCHASE'].includes(props.form.cost_source)
+  ['BOM', 'ENGINEERING', 'PURCHASE'].includes(props.form.cost_source ?? '')
 )
 
 const showRateConfig = computed(() => props.form.cost_source === 'RATE')
@@ -177,6 +179,8 @@ onMounted(async () => {
         <EngineeringTree
           :productId="productId"
           :cost-source="form.cost_source"
+          :structure-variant-id="structureVariantId"
+          :currency-id="currencyId"
           @delete-node="handleDelete"
         />
       </UCard>
@@ -213,7 +217,7 @@ onMounted(async () => {
           </p>
 
           <div class="flex justify-end gap-2 pt-2 border-t border-default">
-            <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">Cancelar</UButton>
+            <UButton variant="ghost" color="neutral" @click="() => { showDeleteModal = false }">Cancelar</UButton>
             <UButton
               :color="deleteConfirmStep === 0 ? 'error' : 'error'"
               :variant="deleteConfirmStep === 0 ? 'outline' : 'solid'"
