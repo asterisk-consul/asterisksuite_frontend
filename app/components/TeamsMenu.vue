@@ -59,9 +59,8 @@ function goToHome() {
         }"
         color="neutral"
         variant="ghost"
-        :square="collapsed"
-        class="data-[state=open]:bg-elevated"
-        :class="[!collapsed && 'py-2']"
+        class="w-full rounded-lg data-[state=open]:bg-elevated"
+        :class="collapsed ? 'justify-center' : 'justify-start py-2'"
         :ui="{ trailingIcon: 'text-dimmed' }"
       />
     </UDropdownMenu>
@@ -75,9 +74,8 @@ function goToHome() {
       }"
       color="neutral"
       variant="ghost"
-      :square="collapsed"
-      class="data-[state=open]:bg-elevated"
-      :class="[!collapsed && 'py-2']"
+      class="w-full rounded-lg data-[state=open]:bg-elevated"
+      :class="collapsed ? 'justify-center' : 'justify-start py-2'"
       :ui="{ trailingIcon: 'text-dimmed' }"
       @click="goToHome"
     />

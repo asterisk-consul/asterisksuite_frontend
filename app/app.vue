@@ -8,12 +8,17 @@ const color = computed(() => (colorMode.value === 'dark' ? '#1b1718' : 'white'))
 const locale = extendLocale(es, { code: 'es-AR' })
 
 useHead({
+  titleTemplate: (titleChunk) => {
+    if (!titleChunk || titleChunk === 'Asterisk Suite') return 'Asterisk Suite'
+    if (titleChunk.endsWith('| Asterisk Suite')) return titleChunk
+    return `${titleChunk} | Asterisk Suite`
+  },
   meta: [
     { charset: 'utf-8' },
     { name: 'viewport', content: 'width=device-width, initial-scale=1' },
     { key: 'theme-color', name: 'theme-color', content: color }
   ],
-  link: [{ rel: 'icon', href: '/donandres.ico' }],
+  link: [{ rel: 'icon', type: 'image/svg+xml', href: '/branding/favicon.svg' }],
   htmlAttrs: {
     lang: 'es'
   }

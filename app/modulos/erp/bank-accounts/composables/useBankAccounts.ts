@@ -6,6 +6,7 @@ import type {
   BankAccount,
   BankAccountUserRole,
   CreateBankAccountInput,
+  CreateBankMovementInput,
   UpdateBankAccountInput,
   DeleteBankAccountInput
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
@@ -38,6 +39,12 @@ export function useBankAccounts() {
   const remove = async (id: string, data: DeleteBankAccountInput) => store.remove(id, data)
 
   const fetchMovements = async (id: string) => store.fetchMovements(id)
+
+  const createMovement = async (id: string, payload: CreateBankMovementInput) =>
+    store.createMovement(id, payload)
+
+  const cancelMovement = async (id: string, movementId: string) =>
+    store.cancelMovement(id, movementId)
 
   // =========================
   // USER ROLES
@@ -103,6 +110,8 @@ export function useBankAccounts() {
     update,
     remove,
     fetchMovements,
+    createMovement,
+    cancelMovement,
     fetchOne: store.fetchOne,
 
     // user roles

@@ -17,8 +17,10 @@ import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
 import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
 import { useCreditCardsService } from '~/modulos/erp/credit-cards/credit-cards.service'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useBankConcepts } from '~/modulos/erp/bank-concepts/composable/useBankConcepts'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 import type { WithholdingProposal, PaymentWithholdingPayload } from '~/modulos/erp/fiscal/types/fiscal.types'
+import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
 
 export interface PaymentFormData {
   type: 'PAYMENT' | 'COLLECTION' | 'EXPENSE'
@@ -56,6 +58,16 @@ export interface PaymentFormData {
   bank_account?: any
   cash_box?: any
   payment_allocations?: any[]
+  bank_charges?: Array<{
+    bank_concept_id: string
+    nature: 'DEBIT' | 'CREDIT'
+    base_amount: number
+    percentage?: number
+    tax_amount?: number
+    total_amount: number
+    reference?: string
+    retention?: any
+  }>
 }
 
 const props = defineProps<{
@@ -123,6 +135,114 @@ const addManualWithholding = () => {
     automatic_amount: null,
     reason: 'Carga manual'
   })
+}
+
+// ═══ Gastos y descuentos bancarios ═══
+interface PaymentBankChargeForm {
+  rule_id?: string
+  rule_name?: string
+  suggested?: boolean
+  editable?: boolean
+  bank_concept_id: string
+  nature: 'DEBIT' | 'CREDIT'
+  base_amount: number | null
+  percentage: number | null
+  tax_amount: number | null
+  total_amount: number
+  reference?: string
+  retention?: {
+    jurisdiction?: string
+    tax_code?: string
+    certificate_number?: string
+    period?: string
+  }
+}
+
+const bankCharges = ref<PaymentBankChargeForm[]>([])
+const bankConcepts = useBankConcepts()
+const bankChargesOpen = ref(false)
+const bankChargeSuggestionsLoading = ref(false)
+const bankAccountService = useBankAccountsService()
+
+const paymentBankConcepts = computed(() =>
+  bankConcepts.activeConcepts.value
+    .filter(c => c.available_payments !== false)
+    .map(c => ({ label: `${c.code} - ${c.name}`, value: c.id }))
+)
+
+const findBankConcept = (id: string) => bankConcepts.activeConcepts.value.find(c => c.id === id)
+
+const computeChargeTotal = (charge: PaymentBankChargeForm) => {
+  const concept = findBankConcept(charge.bank_concept_id)
+  const base = Number(charge.base_amount ?? 0)
+  let tax = charge.tax_amount
+  if ((tax == null || tax === 0) && concept?.calculates_iva && base) {
+    tax = Number(((base * Number(concept.iva_rate ?? 0)) / 100).toFixed(2))
+  }
+  charge.tax_amount = tax ?? 0
+  charge.total_amount = Number((base + (tax ?? 0)).toFixed(2))
+  charge.percentage = charge.percentage ?? (concept?.default_percentage != null ? Number(concept.default_percentage) : null)
+  return charge.total_amount
+}
+
+const addBankCharge = () => {
+  bankCharges.value.push({
+    bank_concept_id: '',
+    nature: 'DEBIT',
+    base_amount: null,
+    percentage: null,
+    tax_amount: null,
+    total_amount: 0
+  })
+  bankChargesOpen.value = true
+}
+
+const removeBankCharge = (index: number) => {
+  bankCharges.value.splice(index, 1)
+}
+
+const bankChargesTotal = computed(() =>
+  bankCharges.value.reduce((sum, c) => {
+    const total = Number(c.total_amount ?? 0)
+    return sum + (c.nature === 'DEBIT' ? total : -total)
+  }, 0)
+)
+
+const loadSuggestedBankCharges = async () => {
+  if (form.payment_method !== 'BANK_TRANSFER' || !form.bank_account_id) return
+  const amount = Number(totalApplied.value > 0 ? totalApplied.value : form.amount)
+  if (amount <= 0) return
+  bankChargeSuggestionsLoading.value = true
+  try {
+    const suggestions = await bankAccountService.getSuggestedCharges(form.bank_account_id, {
+      trigger: form.type === 'COLLECTION' ? 'BANK_COLLECTION' : 'BANK_PAYMENT',
+      amount,
+      date: form.date,
+      currency_code: form.currency_code
+    })
+    const manual = bankCharges.value.filter(charge => !charge.suggested)
+    bankCharges.value = [
+      ...manual,
+      ...suggestions.map(suggestion => ({
+        rule_id: suggestion.rule_id,
+        rule_name: suggestion.rule_name,
+        suggested: true,
+        editable: suggestion.editable,
+        bank_concept_id: suggestion.bank_concept_id,
+        nature: suggestion.nature,
+        base_amount: suggestion.base_amount,
+        percentage: suggestion.percentage,
+        tax_amount: suggestion.tax_amount,
+        total_amount: suggestion.total_amount
+      }))
+    ]
+    if (suggestions.length) {
+      bankChargesOpen.value = true
+      toast.add({ title: `${suggestions.length} cargo(s) bancario(s) sugerido(s)`, description: 'Revisalos antes de confirmar el movimiento.', color: 'info' })
+    }
+  } catch (e: any) {
+    toast.add({ title: 'No se pudieron calcular las comisiones sugeridas', description: e?.data?.message || e?.message, color: 'warning' })
+  } finally { bankChargeSuggestionsLoading.value = false }
 }
 
 const calculateSuggestedWithholdings = async (baseAmount: number) => {
@@ -280,6 +400,7 @@ const handleValeCreated = async () => {
 onMounted(async () => {
   initCurrencies()
   accountsStore.fetchAll()
+  bankConcepts.init()
   await fetchMyPermissionsIfNeeded()
   try { cardOptions.value = await cardService.findAll() } catch {}
   try {
@@ -613,6 +734,12 @@ const totalApplied = computed(() => {
     total += entry.amount
   }
   return Math.round(total * 100) / 100
+})
+
+watch([() => form.bank_account_id, () => form.type], ([accountId], [previousAccountId]) => {
+  if (accountId && accountId !== previousAccountId && form.payment_method === 'BANK_TRANSFER') {
+    loadSuggestedBankCharges()
+  }
 })
 
 const checkAvailableAmount = (check: AvailableCheck) =>
@@ -989,6 +1116,20 @@ const handleSubmit = async () => {
     check_ids: undefined,
     checks: buildCheckAllocations(),
     withholdings: withholdingsPayload.length > 0 ? withholdingsPayload : undefined,
+    bank_charges: form.payment_method === 'BANK_TRANSFER' && bankCharges.value.length > 0
+      ? bankCharges.value
+          .filter(c => c.bank_concept_id)
+          .map(c => ({
+            bank_concept_id: c.bank_concept_id,
+            nature: c.nature,
+            base_amount: Number(c.base_amount ?? 0),
+            percentage: c.percentage ?? undefined,
+            tax_amount: c.tax_amount ?? undefined,
+            total_amount: c.total_amount,
+            reference: c.reference,
+            retention: c.retention
+          }))
+      : undefined,
     documents: documentsData.length > 0 ? documentsData : undefined,
     obligations: obligationsData
   }
@@ -1394,6 +1535,85 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
             <span class="i-heroicons-check-circle text-lg"></span>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- GASTOS Y DESCUENTOS BANCARIOS -->
+    <div v-if="form.payment_method === 'BANK_TRANSFER'" class="rounded-xl border border-default p-4 space-y-4 sm:p-5">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h4 class="font-medium">Gastos y descuentos bancarios</h4>
+          <p class="text-sm text-muted">Agregá comisiones, impuestos o retenciones que modifican el importe neto del banco.</p>
+        </div>
+        <UButton
+          label="Recalcular sugerencias"
+          size="sm"
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-sparkles"
+          :loading="bankChargeSuggestionsLoading"
+          :disabled="!form.bank_account_id || Number(totalApplied > 0 ? totalApplied : form.amount) <= 0"
+          class="shrink-0 self-start sm:ml-auto sm:self-auto"
+          @click="loadSuggestedBankCharges"
+        />
+        <UButton
+          label="Agregar manual"
+          size="sm"
+          variant="outline"
+          icon="i-lucide-plus"
+          class="shrink-0 self-start sm:self-auto"
+          @click="addBankCharge"
+        />
+      </div>
+      <div v-if="bankCharges.length === 0" class="rounded-lg border border-dashed border-default bg-elevated/40 p-4 text-sm text-muted">
+        Este pago no tiene gastos bancarios asociados.
+      </div>
+      <div v-for="(charge, index) in bankCharges" :key="index" class="min-w-0 space-y-4 rounded-lg border border-default bg-elevated/30 p-4">
+        <div v-if="charge.suggested" class="flex items-center justify-between gap-2">
+          <UBadge color="info" variant="subtle" icon="i-lucide-sparkles">Sugerido · {{ charge.rule_name }}</UBadge>
+          <span class="text-xs text-muted">Podés revisarlo o quitarlo antes de confirmar.</span>
+        </div>
+        <div class="flex min-w-0 items-start gap-3">
+          <UFormField :label="`Concepto bancario ${index + 1}`" class="min-w-0 flex-1">
+            <USelectMenu
+              v-model="charge.bank_concept_id"
+              :items="paymentBankConcepts"
+              value-key="value"
+              searchable
+              placeholder="Buscar y seleccionar concepto"
+              class="w-full min-w-0"
+              :ui="{ content: 'w-[min(38rem,calc(100vw-2rem))]' }"
+              :disabled="charge.suggested && charge.editable === false"
+              @update:model-value="computeChargeTotal(charge)"
+            />
+          </UFormField>
+          <UButton class="mt-6 shrink-0" icon="i-lucide-trash-2" color="error" variant="ghost" aria-label="Eliminar concepto" @click="removeBankCharge(index)" />
+        </div>
+        <div class="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <UFormField label="Impacto">
+            <USelectMenu
+              v-model="charge.nature"
+              :items="[{ label: 'Débito · resta del banco', value: 'DEBIT' }, { label: 'Crédito · suma al banco', value: 'CREDIT' }]"
+              value-key="value"
+              class="w-full min-w-0"
+              :disabled="charge.suggested && charge.editable === false"
+            />
+          </UFormField>
+          <UFormField label="Importe base">
+            <UInput v-model.number="charge.base_amount" type="number" step="0.01" min="0" class="w-full" :disabled="charge.suggested && charge.editable === false" @update:model-value="computeChargeTotal(charge)" />
+          </UFormField>
+          <UFormField label="IVA calculado">
+            <UInput :model-value="findBankConcept(charge.bank_concept_id)?.calculates_iva ? formatCurrency(Number(charge.tax_amount ?? 0), form.currency_code) : 'No corresponde'" disabled class="w-full" />
+          </UFormField>
+          <UFormField label="Total del concepto">
+            <UInput :model-value="formatCurrency(Number(charge.total_amount ?? 0), form.currency_code)" disabled class="w-full font-semibold" />
+          </UFormField>
+        </div>
+      </div>
+      <div v-if="bankChargesTotal !== 0" class="grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm sm:grid-cols-3">
+        <span><span class="block text-xs text-muted">Importe aplicado</span><strong>{{ formatCurrency(totalApplied > 0 ? totalApplied : form.amount, form.currency_code) }}</strong></span>
+        <span><span class="block text-xs text-muted">Gastos y retenciones</span><strong class="text-error">{{ formatCurrency(bankChargesTotal, form.currency_code) }}</strong></span>
+        <span><span class="block text-xs text-muted">Neto bancario</span><strong class="text-lg">{{ formatCurrency((totalApplied > 0 ? totalApplied : form.amount) - bankChargesTotal, form.currency_code) }}</strong></span>
       </div>
     </div>
 

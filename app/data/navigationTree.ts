@@ -155,6 +155,12 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'payments.read'
       },
       {
+        label: 'Inversiones',
+        icon: 'i-lucide-chart-no-axes-combined',
+        to: '/erp/treasury/investments',
+        permission: 'financial_investments.read'
+      },
+      {
         label: 'Impuestos y servicios',
         icon: 'i-lucide-landmark',
         to: '/erp/treasury/taxes-services',

@@ -7,6 +7,7 @@ import type {
   BankAccount,
   BankAccountMovement,
   CreateBankAccountInput,
+  CreateBankMovementInput,
   UpdateBankAccountInput,
   DeleteBankAccountInput
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
@@ -70,6 +71,20 @@ export const useBankAccountsStore = defineStore('bank-accounts', () => {
     }
   }
 
+  const createMovement = async (id: string, payload: CreateBankMovementInput) => {
+    const created = await service.createMovement(id, payload)
+    await fetchMovements(id)
+    current.value = await service.findOne(id)
+    return created
+  }
+
+  const cancelMovement = async (id: string, movementId: string) => {
+    const result = await service.cancelMovement(id, movementId)
+    await fetchMovements(id)
+    current.value = await service.findOne(id)
+    return result
+  }
+
   // =========================
   // CREATE
   // =========================
@@ -126,6 +141,8 @@ export const useBankAccountsStore = defineStore('bank-accounts', () => {
     fetchAll,
     fetchOne,
     fetchMovements,
+    createMovement,
+    cancelMovement,
     create,
     update,
     remove

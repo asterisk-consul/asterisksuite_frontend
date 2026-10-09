@@ -8,6 +8,13 @@ const { mainCollapsed } = useSidebarState()
 const { items: breadcrumbs } = useBreadcrumbs()
 const open = ref(false)
 
+const pageTitle = computed(() => {
+  const current = [...breadcrumbs.value].reverse().find(item => 'label' in item && item.label)
+  return current && 'label' in current ? String(current.label) : 'Asterisk Suite'
+})
+
+useHead({ title: pageTitle })
+
 const versions = useVersion()
 const route = useRoute()
 const toast = useToast()

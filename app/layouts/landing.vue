@@ -1,10 +1,11 @@
 <script setup lang="ts">
 useHead({
+  titleTemplate: '%s',
   meta: [
     { name: 'viewport', content: 'width=device-width, initial-scale=1' },
     { name: 'theme-color', content: '#0a0a0a' }
   ],
-  link: [{ rel: 'icon', href: '/favicon.ico' }],
+  link: [{ rel: 'icon', type: 'image/svg+xml', href: '/branding/favicon.svg' }],
   htmlAttrs: { lang: 'es' }
 })
 

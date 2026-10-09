@@ -1,5 +1,77 @@
 [
   {
+    "version": "0.71.0-alpha",
+    "date": "2026-10-09",
+    "stage": "alpha",
+    "notes": "Tesorería incorpora un circuito bancario integral con movimientos tipificados, conceptos, reglas de gastos e inversiones; además se refuerzan los pagos, las cuentas corrientes y el ciclo de las Órdenes de Venta.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "banking",
+        "title": "Nuevo libro de movimientos bancarios con naturaleza débito/crédito, saldos corridos, anulaciones y trazabilidad por operación"
+      },
+      {
+        "type": "feat",
+        "scope": "banking",
+        "title": "Registro manual de movimientos y conceptos bancarios configurables con una interfaz más clara y completamente traducida"
+      },
+      {
+        "type": "feat",
+        "scope": "banking",
+        "title": "Reglas automáticas para sugerir comisiones y gastos bancarios según el tipo de operación"
+      },
+      {
+        "type": "feat",
+        "scope": "investments",
+        "title": "Gestión de inversiones y plazos fijos con constitución, vencimiento, renovación, rescate y precancelación"
+      },
+      {
+        "type": "feat",
+        "scope": "treasury-reports",
+        "title": "Nuevo reporte de gastos bancarios integrado al centro de reportes de tesorería"
+      },
+      {
+        "type": "fix",
+        "scope": "banking",
+        "title": "Los pagos, cobros y sus reversiones muestran el signo, los totales y la clasificación correctos en las cuentas bancarias"
+      },
+      {
+        "type": "fix",
+        "scope": "current-accounts",
+        "title": "Las anulaciones eliminan de forma idempotente los efectos vinculados y recalculan el saldo corrido de la cuenta corriente"
+      },
+      {
+        "type": "fix",
+        "scope": "document-types",
+        "title": "Los saldos iniciales crean su documento vinculado y quedan habilitados para aplicarse en pagos o cobros"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-orders",
+        "title": "Las OV sincronizan su operación comercial al confirmar, respetan el circuito de cobro y bloquean cambios manuales que omitan validaciones"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-orders",
+        "title": "La cancelación usa el estado terminal propio de cada categoría documental y revierte correctamente el impacto contable"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Los formularios de pago incorporan conceptos bancarios y datos complementarios para registrar gastos asociados"
+      },
+      {
+        "type": "style",
+        "scope": "navigation",
+        "title": "Nueva identidad visual, favicon, títulos contextuales de pestaña y navegación lateral colapsada mejorada"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Circuito bancario integral, inversiones y robustez contable de OV"
+  },
+  {
     "version": "0.70.1-alpha",
     "date": "2026-10-07",
     "stage": "alpha",

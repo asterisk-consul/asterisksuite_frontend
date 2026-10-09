@@ -40,21 +40,29 @@ const form = reactive({
   name: '',
   description: '',
   concept_type: 'COMMISSION',
+  nature: 'DEBIT' as 'DEBIT' | 'CREDIT',
   accounting_account: '',
   calculates_iva: false,
   iva_rate: 21,
   generates_credit: false,
   impacts_iva_book: false,
   default_percentage: null as number | null,
+  affects_balance: true,
+  requires_receipt: false,
+  available_manual: true,
+  available_payments: false,
+  available_settlements: false,
   is_active: true
 })
 
 const openCreate = () => {
   editingConcept.value = null
   Object.assign(form, {
-    code: '', name: '', description: '', concept_type: 'COMMISSION',
+    code: '', name: '', description: '', concept_type: 'COMMISSION', nature: 'DEBIT',
     accounting_account: '', calculates_iva: false, iva_rate: 21,
-    generates_credit: false, impacts_iva_book: false, default_percentage: null, is_active: true
+    generates_credit: false, impacts_iva_book: false, default_percentage: null,
+    affects_balance: true, requires_receipt: false,
+    available_manual: true, available_payments: false, available_settlements: false, is_active: true
   })
   modalOpen.value = true
 }
@@ -63,12 +71,18 @@ const openEdit = (concept: any) => {
   editingConcept.value = concept
   Object.assign(form, {
     code: concept.code, name: concept.name, description: concept.description || '',
-    concept_type: concept.concept_type, accounting_account: concept.accounting_account || '',
+    concept_type: concept.concept_type, nature: concept.nature || 'DEBIT',
+    accounting_account: concept.accounting_account || '',
     calculates_iva: concept.calculates_iva || false,
     iva_rate: concept.iva_rate || 21,
     generates_credit: concept.generates_credit || false,
     impacts_iva_book: concept.impacts_iva_book || false,
     default_percentage: concept.default_percentage,
+    affects_balance: concept.affects_balance ?? true,
+    requires_receipt: concept.requires_receipt ?? false,
+    available_manual: concept.available_manual ?? true,
+    available_payments: concept.available_payments ?? false,
+    available_settlements: concept.available_settlements ?? false,
     is_active: concept.is_active ?? true
   })
   modalOpen.value = true
@@ -117,6 +131,13 @@ const conceptTypeOptions = [
   { label: 'Otro', value: 'OTHER' }
 ]
 
+const natureOptions = [
+  { label: 'Débito (resta saldo)', value: 'DEBIT' },
+  { label: 'Crédito (suma saldo)', value: 'CREDIT' }
+]
+
+const conceptTypeLabel = (type: string) => conceptTypeOptions.find(option => option.value === type)?.label ?? type
+
 const conceptTypeBadge = (type: string) => ({
   COMMISSION: 'warning', TAX: 'error', EXPENSE: 'neutral',
   INTEREST: 'info', ADJUSTMENT: 'secondary', OTHER: 'primary'
@@ -141,7 +162,7 @@ const conceptTypeIcon = (type: string) => ({
 
     <div class="flex items-center gap-3">
       <UInput v-model="searchQuery" placeholder="Buscar por código o nombre..." icon="i-lucide-search" class="flex-1 max-w-md" />
-      <USelectMenu v-model="filterType" :items="[{ label: 'Todos', value: '' }, ...conceptTypeOptions]" placeholder="Tipo" class="w-48" />
+      <USelectMenu v-model="filterType" :items="[{ label: 'Todos', value: '' }, ...conceptTypeOptions]" value-key="value" placeholder="Tipo" class="w-48" />
     </div>
 
     <div v-if="bankConcepts.loading.value" class="flex justify-center py-8"><ULoader /></div>
@@ -168,7 +189,7 @@ const conceptTypeIcon = (type: string) => ({
               <p class="text-xs text-muted">{{ concept.code }}</p>
             </div>
           </div>
-          <UBadge :label="concept.concept_type" :color="conceptTypeBadge(concept.concept_type)" variant="soft" size="xs" />
+          <UBadge :label="conceptTypeLabel(concept.concept_type)" :color="conceptTypeBadge(concept.concept_type)" variant="soft" size="xs" />
         </div>
 
         <div class="space-y-1.5 text-xs text-muted">
@@ -194,45 +215,111 @@ const conceptTypeIcon = (type: string) => ({
     </div>
 
     <!-- CREATE/EDIT MODAL -->
-    <UModal v-model:open="modalOpen" :title="editingConcept ? 'Editar concepto' : 'Nuevo concepto bancario'" :ui="{ width: 'max-w-lg' }">
+    <UModal
+      v-model:open="modalOpen"
+      :title="editingConcept ? 'Editar concepto bancario' : 'Nuevo concepto bancario'"
+      description="Definí cómo se clasifica el concepto y en qué operaciones puede utilizarse."
+      :ui="{ content: 'w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] overflow-y-auto' }"
+    >
       <template #body>
-        <UForm :state="form" class="space-y-4" @submit="handleSubmit">
-          <div class="grid grid-cols-2 gap-4">
-            <UFormField label="Código" name="code" required>
-              <UInput v-model="form.code" placeholder="Ej: COMISION" :disabled="!!editingConcept" />
-            </UFormField>
-            <UFormField label="Tipo" name="concept_type" required>
-              <USelectMenu v-model="form.concept_type" :items="conceptTypeOptions" />
-            </UFormField>
-          </div>
-          <UFormField label="Nombre" name="name" required>
-            <UInput v-model="form.name" placeholder="Ej: Comisión bancaria" />
-          </UFormField>
-          <UFormField label="Descripción" name="description">
-            <UInput v-model="form.description" placeholder="Descripción del concepto" />
-          </UFormField>
-          <UFormField label="Cuenta contable" name="accounting_account">
-            <UInput v-model="form.accounting_account" placeholder="Ej: 6201" />
-          </UFormField>
-          <div class="grid grid-cols-2 gap-4">
-            <UCheckbox v-model="form.calculates_iva" label="Calcula IVA" />
-            <div v-if="form.calculates_iva">
-              <UFormField label="Alícuota IVA %" name="iva_rate">
-                <UInput v-model.number="form.iva_rate" type="number" step="0.1" />
+        <UForm :state="form" class="space-y-5" @submit="handleSubmit">
+          <section class="space-y-4 rounded-xl border border-default p-4 sm:p-5">
+            <div>
+              <h3 class="font-semibold">Identificación</h3>
+              <p class="text-sm text-muted">Datos que permiten reconocer el concepto en movimientos y reportes.</p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <UFormField label="Código" name="code" required hint="No se puede cambiar luego de crearlo.">
+                <UInput v-model="form.code" placeholder="Ej.: COMISION_TRANSF" :disabled="!!editingConcept" class="w-full" />
+              </UFormField>
+              <UFormField label="Tipo de concepto" name="concept_type" required>
+                <USelectMenu v-model="form.concept_type" :items="conceptTypeOptions" value-key="value" placeholder="Seleccionar tipo" class="w-full" />
+              </UFormField>
+              <UFormField label="Nombre" name="name" required class="sm:col-span-2">
+                <UInput v-model="form.name" placeholder="Ej.: Comisión por transferencia" class="w-full" />
+              </UFormField>
+              <UFormField label="Descripción" name="description" class="sm:col-span-2">
+                <UTextarea v-model="form.description" placeholder="Explicá cuándo corresponde utilizar este concepto" :rows="2" class="w-full" />
               </UFormField>
             </div>
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <UCheckbox v-model="form.generates_credit" label="Genera crédito fiscal" />
-            <UCheckbox v-model="form.impacts_iva_book" label="Impacta Libro IVA" />
-          </div>
-          <UFormField label="Porcentaje por defecto %" name="default_percentage">
-            <UInput v-model.number="form.default_percentage" type="number" step="0.01" placeholder="Ej: 0.8" />
-          </UFormField>
-          <UCheckbox v-model="form.is_active" label="Activo" />
-          <div class="flex justify-end gap-2 pt-4">
+          </section>
+
+          <section class="space-y-4 rounded-xl border border-default p-4 sm:p-5">
+            <div>
+              <h3 class="font-semibold">Impacto bancario y contable</h3>
+              <p class="text-sm text-muted">Indicá si el movimiento descuenta o acredita dinero y su configuración impositiva.</p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <UFormField label="Impacto en el banco" name="nature" required>
+                <USelectMenu v-model="form.nature" :items="natureOptions" value-key="value" placeholder="Seleccionar impacto" class="w-full" />
+              </UFormField>
+              <UFormField label="Cuenta contable" name="accounting_account" hint="Opcional">
+                <UInput v-model="form.accounting_account" placeholder="Ej.: 6.2.01" class="w-full" />
+              </UFormField>
+              <UFormField label="Porcentaje predeterminado" name="default_percentage" hint="Se usará como valor inicial al cargarlo.">
+                <UInput v-model.number="form.default_percentage" type="number" min="0" max="100" step="0.01" placeholder="Ej.: 0,80" class="w-full">
+                  <template #trailing>%</template>
+                </UInput>
+              </UFormField>
+              <UFormField v-if="form.calculates_iva" label="Alícuota de IVA" name="iva_rate">
+                <UInput v-model.number="form.iva_rate" type="number" min="0" max="100" step="0.1" class="w-full">
+                  <template #trailing>%</template>
+                </UInput>
+              </UFormField>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-default p-3">
+                <div><p class="text-sm font-medium">Calcula IVA</p><p class="text-xs text-muted">Agrega IVA sobre el importe base.</p></div>
+                <USwitch v-model="form.calculates_iva" aria-label="Calcula IVA" />
+              </div>
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-default p-3">
+                <div><p class="text-sm font-medium">Genera crédito fiscal</p><p class="text-xs text-muted">El IVA puede computarse como crédito fiscal.</p></div>
+                <USwitch v-model="form.generates_credit" aria-label="Genera crédito fiscal" />
+              </div>
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-default p-3">
+                <div><p class="text-sm font-medium">Impacta en el Libro IVA</p><p class="text-xs text-muted">Incluye el concepto en la registración fiscal.</p></div>
+                <USwitch v-model="form.impacts_iva_book" aria-label="Impacta en el Libro IVA" />
+              </div>
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-default p-3">
+                <div><p class="text-sm font-medium">Afecta el saldo bancario</p><p class="text-xs text-muted">Suma o resta el importe del saldo de la cuenta.</p></div>
+                <USwitch v-model="form.affects_balance" aria-label="Afecta el saldo bancario" />
+              </div>
+            </div>
+          </section>
+
+          <section class="space-y-4 rounded-xl border border-default p-4 sm:p-5">
+            <div>
+              <h3 class="font-semibold">Disponibilidad</h3>
+              <p class="text-sm text-muted">Elegí en qué circuitos se podrá seleccionar este concepto.</p>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-default p-3">
+                <div><p class="text-sm font-medium">Carga manual</p><p class="text-xs text-muted">Disponible al registrar movimientos manuales.</p></div>
+                <USwitch v-model="form.available_manual" aria-label="Disponible para carga manual" />
+              </div>
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-default p-3">
+                <div><p class="text-sm font-medium">Pagos y cobros</p><p class="text-xs text-muted">Disponible en transferencias bancarias.</p></div>
+                <USwitch v-model="form.available_payments" aria-label="Disponible en pagos y cobros" />
+              </div>
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-default p-3">
+                <div><p class="text-sm font-medium">Liquidaciones</p><p class="text-xs text-muted">Disponible en inversiones y liquidaciones.</p></div>
+                <USwitch v-model="form.available_settlements" aria-label="Disponible en liquidaciones" />
+              </div>
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-default p-3">
+                <div><p class="text-sm font-medium">Requiere comprobante</p><p class="text-xs text-muted">Solicita documentación respaldatoria.</p></div>
+                <USwitch v-model="form.requires_receipt" aria-label="Requiere comprobante" />
+              </div>
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-default p-3 sm:col-span-2">
+                <div><p class="text-sm font-medium">Concepto activo</p><p class="text-xs text-muted">Los conceptos inactivos dejan de estar disponibles para nuevas operaciones.</p></div>
+                <USwitch v-model="form.is_active" color="success" aria-label="Concepto activo" />
+              </div>
+            </div>
+          </section>
+
+          <div class="flex justify-end gap-2 border-t border-default pt-4">
             <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
-            <UButton label="Guardar" type="submit" :loading="saving" />
+            <UButton :label="editingConcept ? 'Guardar cambios' : 'Crear concepto'" type="submit" icon="i-lucide-save" :loading="saving" />
           </div>
         </UForm>
       </template>

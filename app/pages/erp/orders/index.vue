@@ -4,6 +4,7 @@ definePageMeta({ middleware: ['auth'] })
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
+import { canSettleDocument } from '~/modulos/erp/documents/utils/document-payment-status'
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
@@ -36,7 +37,22 @@ function openDocument(row: any) {
   router.push(`/erp/sales/${row.id}`)
 }
 
-const columns = createSalesColumns({ onOpen: openDocument })
+function collectDocument(row: any) {
+  if (!canSettleDocument(row) || !row.party_id) {
+    openDocument(row)
+    return
+  }
+  router.push({
+    path: '/erp/treasury/payments/create',
+    query: {
+      type: 'COLLECTION',
+      party_id: row.party_id,
+      document_id: row.id
+    }
+  })
+}
+
+const columns = createSalesColumns({ onOpen: openDocument, onCollect: collectDocument })
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },
@@ -56,6 +72,7 @@ const statusOptions = [
   { label: 'Borrador', value: 0 },
   { label: 'Pendiente', value: 1 },
   { label: 'Confirmado', value: 2 },
+  { label: 'Entregada', value: 5 },
   { label: 'Anulado', value: 3 }
 ]
 </script>

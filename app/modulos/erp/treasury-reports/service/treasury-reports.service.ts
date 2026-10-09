@@ -20,8 +20,16 @@ export const useTreasuryReportsService = () => {
     })
   }
 
+  const bankExpenses = (params?: Record<string, any>) => {
+    return $fetch<any>(`${urlBase}/bank-expenses`, {
+      method: 'GET',
+      query: params
+    })
+  }
+
   return {
     dashboard,
-    movements
+    movements,
+    bankExpenses
   }
 }

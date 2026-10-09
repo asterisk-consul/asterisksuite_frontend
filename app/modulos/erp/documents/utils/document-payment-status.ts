@@ -36,5 +36,7 @@ export function isDocumentFullyPaid(document: any) {
 
 export function canSettleDocument(document: any) {
   const summary = getDocumentPaymentSummary(document)
-  return document?.status === 2 && summary.applies && summary.pending > 0.01
+  const category = document?.document_types?.category
+  const hasSettleableStatus = document?.status === 2 || (category === 'ORDER' && document?.status === 5)
+  return hasSettleableStatus && summary.applies && summary.pending > 0.01
 }

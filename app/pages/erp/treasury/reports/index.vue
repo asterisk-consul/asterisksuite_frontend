@@ -50,6 +50,13 @@ const reports = [
     icon: 'i-lucide-bar-chart-3',
     color: 'primary',
     to: '/erp/treasury/reports/expenses-by-account'
+  },
+  {
+    title: 'Gastos bancarios',
+    description: 'Comisiones, impuestos, retenciones e intereses por banco',
+    icon: 'i-lucide-receipt',
+    color: 'error',
+    to: '/erp/treasury/reports/bank-expenses'
   }
 ]
 </script>
