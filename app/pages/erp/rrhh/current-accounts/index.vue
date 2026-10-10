@@ -1,11 +1,13 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
-import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
-import type { CurrentAccount } from '~/modulos/erp/current-accounts/types/current-accounts.types'
+import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
+import type { HrAccount } from '~/modulos/erp/hr/types/hr.types'
 import { isReceivable, balanceColorClass } from '~/modulos/erp/current-accounts/balance-utils'
 
-const { activeAccounts, allAccounts, loading, fetchActive, fetchAll } = useCurrentAccounts()
+const hrStore = useHrStore()
+const { accounts: allAccounts, loading } = storeToRefs(hrStore)
+const activeAccounts = computed(() => allAccounts.value.filter(account => account.active && Number(account.balance) !== 0))
 const router = useRouter()
 
 const activeTab = ref('activas')
@@ -13,7 +15,7 @@ const searchQuery = ref('')
 const filterPartyType = ref<{ label: string; value: string } | undefined>(undefined)
 
 onMounted(async () => {
-  await Promise.all([fetchActive(), fetchAll({ party_type: 'EMPLOYEE,PARTNER' })])
+  await hrStore.fetchAccounts({ party_type: 'EMPLOYEE,PARTNER' })
 })
 
 const tabs = [
@@ -132,8 +134,8 @@ const partyTypeBadgeColor = (type: string) => {
   return type === 'EMPLOYEE' ? 'info' : 'warning'
 }
 
-const goToAccount = (account: CurrentAccount) => {
-  router.push(`/erp/rrhh/current-accounts/${account.party_id}?currency=${account.currency_code}`)
+const goToAccount = (account: HrAccount) => {
+  router.push(`/erp/rrhh/current-accounts/${account.id}`)
 }
 </script>
 

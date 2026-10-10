@@ -278,7 +278,13 @@ const calculateSuggestedWithholdings = async (baseAmount: number) => {
 }
 
 // Parties for ADVANCE mode selector
-const allParties = ref<Array<{ id: string; name: string; tax_id?: string; type: string }>>([])
+const allParties = ref<Array<{
+  id: string
+  name: string
+  tax_id?: string
+  type: string
+  roles?: Array<{ role: string; active: boolean }>
+}>>([])
 const partySearch = ref('')
 const cashBoxSearch = ref('')
 const bankAccountSearch = ref('')
@@ -292,16 +298,21 @@ const partyTypeLabels: Record<string, string> = {
   CUSTOMER: 'Cliente'
 }
 
+const isCustomerParty = (party: { type: string; roles?: Array<{ role: string; active: boolean }> }) =>
+  party.type === 'CUSTOMER' || Boolean(party.roles?.some(role => role.role === 'CUSTOMER' && role.active))
+
 const formatPartyLabel = (party: { name: string; tax_id?: string; type: string }) => {
   const typeLabel = partyTypeLabels[party.type] ?? party.type
   const taxId = party.tax_id ? ` · ${party.tax_id}` : ''
-  return isPayment.value ? `${party.name} · ${typeLabel}${taxId}` : `${party.name}${taxId}`
+  return isPayment.value
+    ? `${party.name} · ${typeLabel}${taxId}`
+    : `${party.name}${party.type === 'EMPLOYEE' ? ' · Empleado · Cliente interno' : ''}${taxId}`
 }
 
 const filteredParties = computed(() => {
   const q = partySearch.value.toLowerCase().trim()
   let filtered = allParties.value.filter(p =>
-    isPayment.value ? payablePartyTypes.has(p.type) : p.type === 'CUSTOMER'
+    isPayment.value ? payablePartyTypes.has(p.type) : isCustomerParty(p)
   )
   if (q) {
     filtered = filtered.filter(p =>
@@ -514,12 +525,21 @@ watch(
   { deep: true }
 )
 
+const payrollDeductionEligible = computed(() => {
+  const party = allParties.value.find(item => item.id === form.party_id)
+  return party?.type === 'EMPLOYEE'
+    && Boolean(party.roles?.some(role => role.role === 'CUSTOMER' && role.active))
+})
+
 const paymentMethods = computed(() => [
   { label: 'Efectivo', value: 'CASH' },
   { label: 'Cheque', value: 'CHECK' },
   { label: 'Transferencia bancaria', value: 'BANK_TRANSFER' },
   ...((isOwnerOrAdmin.value || (isCollection.value ? hasPermission('card_collections.create') : hasPermission('credit_cards.company.use')))
     ? [{ label: isCollection.value ? 'Tarjeta de crédito' : 'Tarjeta corporativa', value: 'CREDIT_CARD' }]
+    : []),
+  ...(isCollection.value && (payrollDeductionEligible.value || form.payment_method === 'PAYROLL_DEDUCTION')
+    ? [{ label: 'Descuento de haberes', value: 'PAYROLL_DEDUCTION' }]
     : []),
   // { label: 'Tarjeta de débito', value: 'DEBIT_CARD' },
   // { label: 'Billetera virtual', value: 'VIRTUAL_WALLET' },
@@ -541,6 +561,7 @@ const selectedType = computed({
   get: () => typeOptions.find(o => o.value === form.type) ?? typeOptions[0],
   set: (val: any) => {
     form.type = val?.value ?? 'PAYMENT'
+    if (form.type !== 'COLLECTION' && form.payment_method === 'PAYROLL_DEDUCTION') form.payment_method = 'CASH'
     selectedDocs.value.clear()
     form.amount = 0
   }
@@ -1290,6 +1311,14 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
       <UFormField label="Método de pago" name="payment_method" required>
         <USelectMenu v-model="selectedPaymentMethod" :items="paymentMethods" class="w-full" />
       </UFormField>
+      <UAlert
+        v-if="form.payment_method === 'PAYROLL_DEDUCTION'"
+        color="info"
+        variant="soft"
+        icon="i-lucide-badge-dollar-sign"
+        title="Cobro mediante descuento de haberes"
+        description="Cancela la deuda comercial y registra el importe pendiente de descontar en la cuenta de RR. HH. del empleado. No mueve caja ni banco."
+      />
       <UFormField label="Moneda" name="currency_code">
         <USelectMenu v-model="selectedCurrency" :items="currencyOptions" placeholder="Seleccionar moneda" class="w-full" />
       </UFormField>

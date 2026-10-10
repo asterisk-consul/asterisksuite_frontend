@@ -71,6 +71,8 @@ export interface BusinessParty {
   exemption_rate: number
   active?: boolean
   created_at?: string
+  roles?: Array<{ id: string; role: BusinessPartyType; active: boolean }>
+  customer_enabled?: boolean
 
   party_locations?: PartyLocation[]
   party_contacts?: PartyContact[]
@@ -115,6 +117,7 @@ export type CreateBusinessPartyInput = {
   is_salesperson?: boolean
   default_commission_rate?: number
   commission_base?: string
+  customer_enabled?: boolean
 
   locations?: {
     location_id: string
@@ -193,6 +196,7 @@ export interface BusinessPartyForm {
   default_commission_rate?: number
   is_salesperson?: boolean
   commission_base?: 'INVOICED' | 'PAID'
+  customer_enabled?: boolean
 
   // ─── Partner fields (optional, shown when type=PARTNER) ──
   share_percentage?: string

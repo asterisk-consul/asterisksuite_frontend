@@ -55,6 +55,7 @@ const form = reactive<BusinessPartyForm & { createUser?: boolean; user_name?: st
   default_commission_rate: 0,
   is_salesperson: false,
   commission_base: 'INVOICED',
+  customer_enabled: false,
   share_percentage: '',
   capital_contributed: '',
   createUser: false,
@@ -589,7 +590,20 @@ const displayTitle = computed(() => {
 
       <!-- INTERNAL TABS: Employee -->
       <template v-if="form.type === 'EMPLOYEE'" #employeeData>
-        <EmployeeLaborData :form="form" />
+        <div class="space-y-4">
+          <UCard>
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="font-medium">Habilitar como cliente interno</p>
+                <p class="mt-1 text-sm text-muted">
+                  Permite seleccionar al empleado en presupuestos, órdenes, remitos y facturas sin duplicar su DNI o CUIT.
+                </p>
+              </div>
+              <USwitch v-model="form.customer_enabled" aria-label="Habilitar como cliente interno" />
+            </div>
+          </UCard>
+          <EmployeeLaborData :form="form" />
+        </div>
       </template>
 
       <!-- INTERNAL TABS: Partner -->

@@ -3,7 +3,7 @@
     "version": "0.71.0-alpha",
     "date": "2026-10-09",
     "stage": "alpha",
-    "notes": "Tesorería incorpora un circuito bancario integral con movimientos tipificados, conceptos, reglas de gastos e inversiones; además se refuerzan los pagos, las cuentas corrientes y el ciclo de las Órdenes de Venta.",
+    "notes": "Tesorería incorpora un circuito bancario integral y se refuerzan los pagos, las cuentas corrientes y el ciclo de las Órdenes de Venta. Además, los empleados pueden operar como clientes internos y cancelar compras mediante descuentos de haberes integrados con RR. HH.",
     "changes": [
       {
         "type": "feat",
@@ -64,12 +64,32 @@
         "type": "style",
         "scope": "navigation",
         "title": "Nueva identidad visual, favicon, títulos contextuales de pestaña y navegación lateral colapsada mejorada"
+      },
+      {
+        "type": "feat",
+        "scope": "document-types",
+        "title": "Tipos de documento permite filtrar por impacto en stock, cuenta corriente, IVA, pagos, CAE y emisión electrónica"
+      },
+      {
+        "type": "feat",
+        "scope": "business-parties",
+        "title": "Los empleados pueden habilitarse como clientes internos y participar en Ventas sin duplicar CUIT, DNI ni datos personales"
+      },
+      {
+        "type": "feat",
+        "scope": "payments",
+        "title": "Nuevo cobro por descuento de haberes que cancela la deuda comercial y registra el importe pendiente en RR. HH. sin mover caja ni banco"
+      },
+      {
+        "type": "feat",
+        "scope": "hr-current-accounts",
+        "title": "Las cuentas corrientes de RR. HH. muestran los descuentos de haberes, su evolución de saldo y la reversión automática al anular el cobro"
       }
     ],
     "contributors": [
       "agustin"
     ],
-    "message": "Circuito bancario integral, inversiones y robustez contable de OV"
+    "message": "Circuito bancario integral, robustez contable y empleados como clientes internos"
   },
   {
     "version": "0.70.1-alpha",
