@@ -1,13 +1,10 @@
 ﻿<script setup lang="ts">
 import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
-import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
-import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 
 definePageMeta({ middleware: ['auth'] })
 
 const hrStore = useHrStore()
-const { allAccounts, fetchAll } = useCurrentAccounts()
 const { isOwnerOrAdmin } = useCompanyRole()
 
 const showSensitiveData = computed(() => isOwnerOrAdmin.value)
@@ -34,8 +31,7 @@ async function loadDashboard() {
     ])
 
     // Cargar cuentas corrientes de RRHH
-    await fetchAll({ party_type: 'EMPLOYEE,PARTNER' })
-    await nextTick()
+    await hrStore.fetchAccounts({ party_type: 'EMPLOYEE,PARTNER' })
 
     // Empleados
     totalEmployees.value = employees.length
@@ -49,9 +45,9 @@ async function loadDashboard() {
     totalVales.value = vales.length
     pendingVales.value = vales.filter((v: any) => v.status === 'DRAFT').length
 
-    // Saldo desde current_accounts (una sola fuente de verdad)
+    // Saldo desde las cuentas específicas de RRHH
     const map: Record<string, CurrencyBalance> = {}
-    const rrhhAccounts = allAccounts.value.filter(a => a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER')
+    const rrhhAccounts = hrStore.accounts.filter(a => a.party_type === 'EMPLOYEE' || a.party_type === 'PARTNER')
     for (const a of rrhhAccounts) {
       const code = a.currency_code || 'ARS'
       if (!map[code]) map[code] = { balance: 0, count: 0 }

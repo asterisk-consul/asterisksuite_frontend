@@ -67,7 +67,16 @@ export default defineNuxtConfig({
   },
   app: {
     baseURL: '/', // Relative paths for filesystem routing in Capacitor
-    buildAssetsDir: '/_nuxt/'
+    buildAssetsDir: '/_nuxt/',
+    head: {
+      link: [
+        {
+          rel: 'icon',
+          type: 'image/svg+xml',
+          href: '/branding/favicon.svg'
+        }
+      ]
+    }
   },
 
   css: ['~/assets/css/main.css'],

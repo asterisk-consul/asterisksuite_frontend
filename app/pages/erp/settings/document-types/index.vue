@@ -27,12 +27,20 @@ const customFieldsModalOpen = ref(false)
 const editingCustomFields = ref<CustomFieldConfig[]>([])
 const searchQuery = ref('')
 const filterCategory = ref<string | null>(null)
+const filterFunction = ref<string | null>(null)
 const saving = ref(false)
 
 const selectedCategory = computed({
   get: () => categoryOptions.find((o) => o.value === filterCategory.value) ?? categoryOptions[0],
   set: (val) => {
     filterCategory.value = val?.value ?? ''
+  }
+})
+
+const selectedFunction = computed({
+  get: () => functionOptions.find((o) => o.value === filterFunction.value) ?? functionOptions[0],
+  set: (val) => {
+    filterFunction.value = val?.value ?? ''
   }
 })
 
@@ -44,34 +52,45 @@ const purchaseCount = computed(() => docTypes.items.value.filter((t) => t.direct
 const totalCount = computed(() => docTypes.items.value.length)
 
 // Filtered lists
-const filteredSaleTypes = computed(() => {
-  let list = docTypes.items.value.filter((t) => t.direction === 1)
+const applyCommonFilters = (types: DocumentsType[]) => {
+  let list = types
   if (filterCategory.value) list = list.filter((t) => t.category === filterCategory.value)
+  if (filterFunction.value) {
+    list = list.filter((t) => {
+      if (filterFunction.value === 'stock') return t.affects_stock
+      if (filterFunction.value === 'accounting') return t.affects_accounting
+      if (filterFunction.value === 'tax_book') return t.affects_tax_book
+      if (filterFunction.value === 'payment') return t.affects_payment
+      if (filterFunction.value === 'cae') return t.requires_cae
+      if (filterFunction.value === 'electronic') return t.is_electronic
+      if (filterFunction.value === 'none') {
+        return !t.affects_stock
+          && !t.affects_accounting
+          && !t.affects_tax_book
+          && !t.affects_payment
+          && !t.requires_cae
+          && !t.is_electronic
+      }
+      return true
+    })
+  }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter((t) => t.code.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))
   }
   return list
+}
+
+const filteredSaleTypes = computed(() => {
+  return applyCommonFilters(docTypes.items.value.filter((t) => t.direction === 1))
 })
 
 const filteredPurchaseTypes = computed(() => {
-  let list = docTypes.items.value.filter((t) => t.direction === -1)
-  if (filterCategory.value) list = list.filter((t) => t.category === filterCategory.value)
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase()
-    list = list.filter((t) => t.code.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))
-  }
-  return list
+  return applyCommonFilters(docTypes.items.value.filter((t) => t.direction === -1))
 })
 
 const filteredAllTypes = computed(() => {
-  let list = [...docTypes.items.value]
-  if (filterCategory.value) list = list.filter((t) => t.category === filterCategory.value)
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase()
-    list = list.filter((t) => t.code.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))
-  }
-  return list
+  return applyCommonFilters([...docTypes.items.value])
 })
 
 const openCreate = () => {
@@ -188,6 +207,17 @@ const categoryOptions = [
   { label: 'Remito', value: 'REMITO' }
 ]
 
+const functionOptions = [
+  { label: 'Todas las funciones', value: '' },
+  { label: 'Afecta stock', value: 'stock', icon: 'i-lucide-package' },
+  { label: 'Afecta cuenta corriente', value: 'accounting', icon: 'i-lucide-chart-no-axes-column-increasing' },
+  { label: 'Afecta libro de IVA', value: 'tax_book', icon: 'i-lucide-book-open' },
+  { label: 'Afecta pagos o cobros', value: 'payment', icon: 'i-lucide-wallet-cards' },
+  { label: 'Requiere CAE', value: 'cae', icon: 'i-lucide-lock-keyhole' },
+  { label: 'Es electrónico', value: 'electronic', icon: 'i-lucide-zap' },
+  { label: 'Sin funciones activas', value: 'none', icon: 'i-lucide-circle-off' }
+]
+
 const fieldTypeOptions = [
   { label: 'Texto', value: 'text' },
   { label: 'Número', value: 'number' },
@@ -225,7 +255,7 @@ const badgeForTab = (index: number) => {
     </AppPageHeader>
 
     <!-- SEARCH + FILTER -->
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3">
       <UInput
         v-model="searchQuery"
         placeholder="Buscar por código o nombre..."
@@ -233,6 +263,12 @@ const badgeForTab = (index: number) => {
         class="flex-1 max-w-md"
       />
       <USelectMenu v-model="selectedCategory" :items="categoryOptions" placeholder="Categoría" class="w-48" />
+      <USelectMenu
+        v-model="selectedFunction"
+        :items="functionOptions"
+        placeholder="Función"
+        class="w-full sm:w-64"
+      />
     </div>
 
     <!-- TABS -->

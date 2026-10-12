@@ -65,13 +65,15 @@ watch([() => props.modelValue, () => sequencesStore.items], ([val]) => {
   const valAny = val as any
   const linkedSequenceIds = valAny.document_type_sequences?.length
     ? valAny.document_type_sequences.map((dts: any) => dts.document_sequences?.id ?? dts.sequence_id)
-    : valAny.document_sequence_id
-      ? [valAny.document_sequence_id]
-      : (val.document_sequence_ids ?? [])
+    : (val.document_sequence_ids ?? [])
   Object.assign(form, { ...val, document_sequence_ids: linkedSequenceIds })
 }, { immediate: true })
 
 watch(form, (val) => { emit('update:modelValue', { ...val }) }, { deep: true })
+
+watch(() => form.category, (category) => {
+  form.affects_stock = category === 'REMITO'
+}, { immediate: true })
 
 const handleSubmit = () => {
   const payload: DocumentTypeFormData = {
@@ -106,9 +108,17 @@ const openSeqCreate = () => {
 }
 
 const handleSeqCreate = async () => {
+  if (!form.id) {
+    toast.add({
+      title: 'Guardá primero el tipo de documento',
+      description: 'Después podrás crear una secuencia vinculada exclusivamente a este tipo.',
+      color: 'warning'
+    })
+    return
+  }
   seqCreating.value = true
   try {
-    const created = await sequencesStore.create(seqForm)
+    const created = await sequencesStore.create({ ...seqForm, document_type_ids: [form.id] })
     form.document_sequence_ids = [...(form.document_sequence_ids ?? []), created.id]
     showSeqCreate.value = false
     toast.add({ title: 'Secuencia creada', color: 'success' })
@@ -189,12 +199,15 @@ const letterOptions = [
   { label: 'X', value: 'X' }
 ]
 
-const sequenceOptions = computed(() =>
-  sequencesStore.items.map(s => ({
-    label: `${s.name} (PV: ${s.point_of_sale}${s.prefix ? ' - ' + s.prefix : ''})`,
-    value: s.id
-  }))
-)
+const sequenceOptions = computed(() => sequencesStore.items
+  .filter((sequence) => {
+    const links = sequence.document_type_sequences ?? []
+    return links.length === 0 || links.every(link => link.document_type_id === form.id)
+  })
+  .map(sequence => ({
+    label: `${sequence.name} (PV: ${sequence.point_of_sale}${sequence.prefix ? ` - ${sequence.prefix}` : ''})`,
+    value: sequence.id
+  })))
 
 const selectedSequences = computed({
   get: () =>
@@ -266,7 +279,15 @@ const selectedCategory = computed({
             <h2 class="font-semibold text-highlighted">Secuencias de numeración</h2>
             <p class="mt-0.5 text-sm text-muted">Define cómo se numeran los comprobantes (punto de venta, prefijo y rango).</p>
           </div>
-          <UButton label="Crear secuencia" variant="outline" size="xs" icon="i-lucide-plus" @click="openSeqCreate" />
+          <UButton
+            label="Crear secuencia"
+            variant="outline"
+            size="xs"
+            icon="i-lucide-plus"
+            :disabled="!form.id"
+            :title="form.id ? 'Crear una secuencia para este tipo' : 'Guardá primero el tipo de documento'"
+            @click="openSeqCreate"
+          />
         </div>
 
         <UFormField name="document_sequence_ids">
@@ -278,6 +299,9 @@ const selectedCategory = computed({
             searchable
             class="w-full"
           />
+          <template #help>
+            Cada secuencia pertenece a un solo tipo de documento. Podés reutilizar el mismo número de punto de venta creando otra secuencia para este comprobante.
+          </template>
         </UFormField>
       </div>
     </UPageCard>
@@ -313,9 +337,9 @@ const selectedCategory = computed({
           <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
             <div>
               <p class="text-sm font-medium">Afecta stock</p>
-              <p class="text-xs text-muted">Movimenta inventario</p>
+              <p class="text-xs text-muted">Se activa automáticamente sólo para remitos</p>
             </div>
-            <USwitch v-model="form.affects_stock" />
+            <USwitch :model-value="form.category === 'REMITO'" disabled />
           </div>
           <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
             <div>

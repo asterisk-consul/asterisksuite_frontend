@@ -1,9 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
-import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
-import type { CurrentAccount } from '~/modulos/erp/current-accounts/types/current-accounts.types'
-import { resolveSide } from '~/modulos/erp/current-accounts/utils'
+import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
+import type { AccountEntryType, CurrentAccount, CurrentAccountEntry } from '~/modulos/erp/current-accounts/types/current-accounts.types'
+import { resolveEntrySide } from '~/modulos/erp/current-accounts/utils'
 
 import CurrentAccountSummary from '~/components/current-account/CurrentAccountSummary.vue'
 import CurrentAccountChart from '~/components/current-account/CurrentAccountChart.vue'
@@ -14,36 +14,39 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-const { statement, entries: storeEntries, loading, fetchStatement, fetchEntries } = useCurrentAccounts()
+const hrStore = useHrStore()
+const { currentAccount, currentEntries, loading } = storeToRefs(hrStore)
 
-const partyId = route.params.id as string
-const currencyCode = (route.query.currency as string) || 'ARS'
+const accountId = route.params.id as string
+const currencyCode = computed(() => currentAccount.value?.currency_code || 'ARS')
 
-const account = ref<CurrentAccount | null>(null)
+const account = computed(() => currentAccount.value as CurrentAccount | null)
 
 useBreadcrumbEntityLabel(
-  `/erp/rrhh/current-accounts/${partyId}`,
+  `/erp/rrhh/current-accounts/${accountId}`,
   computed(() => account.value?.party?.name)
 )
 
 const entries = computed(() => {
-  const fromStatement = statement.value?.entries ?? []
-  const fromStore = storeEntries.value ?? []
-  const list = fromStatement.length > 0 ? fromStatement : fromStore
-  return [...list].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const list: CurrentAccountEntry[] = currentEntries.value.map(entry => ({
+    ...entry,
+    current_account_id: entry.hr_account_id,
+    type: entry.type as AccountEntryType,
+  }))
+  return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 })
 
-const balance = computed(() => Number(statement.value?.balance ?? 0))
+const balance = computed(() => Number(currentAccount.value?.balance ?? 0))
 
 const totalDebit = computed(() =>
   entries.value
-    .filter(e => resolveSide(e.type, account.value?.party_type ?? '') === 'debit')
+    .filter(e => resolveEntrySide(e, account.value?.party_type ?? '') === 'debit')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
 )
 
 const totalCredit = computed(() =>
   entries.value
-    .filter(e => resolveSide(e.type, account.value?.party_type ?? '') === 'credit')
+    .filter(e => resolveEntrySide(e, account.value?.party_type ?? '') === 'credit')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
 )
 
@@ -54,10 +57,7 @@ const partyTypeLabel = computed(() => {
 
 onMounted(async () => {
   try {
-    await Promise.all([fetchStatement(partyId, currencyCode), fetchEntries(partyId, currencyCode)])
-    if (statement.value?.account) {
-      account.value = statement.value.account
-    }
+    await hrStore.fetchAccountEntries(accountId)
   } catch (e: any) {
     toast.add({ title: 'Error al cargar cuenta', color: 'error', icon: 'i-lucide-alert-circle' })
     router.push('/erp/rrhh/current-accounts')

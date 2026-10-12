@@ -5,6 +5,7 @@ export type AccountEntryType =
   | 'LOAN'
   | 'LOAN_PAYMENT'
   | 'ADJUSTMENT'
+  | 'PAYROLL_DEDUCTION'
   | 'TRANSFER'
   | 'CHECK_ISSUED'
   | 'CHECK_RECEIVED'

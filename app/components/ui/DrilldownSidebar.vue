@@ -19,6 +19,11 @@ const { stack, currentLevel, isRoot, isActive, back, select } = useDrilldownNavi
 
 const depth = computed(() => stack.value.length - 1)
 
+const sidebarUi = computed(() => ({
+  header: 'h-auto flex-col items-stretch gap-0 p-0',
+  ...(props.withFooter ? { footer: 'lg:border-t lg:border-default' } : {})
+}))
+
 // Nodo padre del nivel actual (para mostrar en header)
 const parentNode = computed(() => stack.value[stack.value.length - 1]?.parentNode ?? null)
 </script>
@@ -29,42 +34,62 @@ const parentNode = computed(() => stack.value[stack.value.length - 1]?.parentNod
     :resizable="resizable"
     :open="open"
     class="bg-elevated/25"
-    :ui="withFooter ? { footer: 'lg:border-t lg:border-default' } : {}"
+    :ui="sidebarUi"
     @update:open="emit('update:open', $event)"
     @update:collapsed="emit('update:collapsed', $event)"
   >
     <template #header="{ collapsed }">
-      <TeamsMenu :collapsed="collapsed" />
+      <div class="w-full min-w-0">
+        <div
+          class="flex h-(--ui-header-height) min-w-0 shrink-0 items-center overflow-hidden border-b border-default"
+          :class="collapsed ? 'justify-center px-2' : 'justify-start px-4'"
+        >
+          <div class="min-w-0 overflow-hidden">
+            <div class="lg:hidden">
+              <AppLogo compact />
+            </div>
+            <div class="hidden lg:block">
+              <AppLogo :compact="collapsed" />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex w-full justify-center border-b border-default p-2">
+          <TeamsMenu :collapsed="collapsed" />
+        </div>
+      </div>
     </template>
 
     <template #default="{ collapsed }">
       <!-- 👉 MODO COLAPSADO: solo íconos del nivel actual -->
-      <div v-if="collapsed" class="flex flex-col gap-0.5 px-2 py-2">
-        <UTooltip v-if="!isRoot" :text="stack.length >= 2 ? stack[stack.length - 2]?.parentNode?.label || 'Inicio' : 'Inicio'">
-          <UButton
-            icon="i-lucide-arrow-left"
-            variant="ghost"
-            color="neutral"
-            square
-            @click="back"
-          />
-        </UTooltip>
+      <div v-if="collapsed" class="flex flex-col items-center gap-1 px-2 py-2">
+        <UButton
+          v-if="!isRoot"
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="ghost"
+          square
+          class="size-10 justify-center rounded-lg !ring-0 transition-colors hover:bg-elevated/70 focus:outline-none focus-visible:ring-0"
+          :ui="{ leadingIcon: 'size-5' }"
+          aria-label="Volver"
+          :title="stack.length >= 2 ? stack[stack.length - 2]?.parentNode?.label || 'Inicio' : 'Inicio'"
+          @click="back"
+        />
 
-        <UTooltip
+        <UButton
           v-for="item in currentLevel"
           :key="item.label"
-          :text="item.label"
-        >
-          <UButton
-            :icon="item.icon || 'i-lucide-circle'"
-            variant="ghost"
-            color="neutral"
-            :square="true"
-            :class="{ 'text-primary': isActive(item) }"
-            class="w-full justify-center"
-            @click="select(item)"
-          />
-        </UTooltip>
+          :icon="item.icon || 'i-lucide-circle'"
+          color="neutral"
+          variant="ghost"
+          square
+          class="size-10 justify-center rounded-lg !ring-0 transition-colors focus:outline-none focus-visible:ring-0"
+          :class="isActive(item) ? 'bg-elevated text-primary' : 'hover:bg-elevated/70'"
+          :ui="{ leadingIcon: 'size-5' }"
+          :aria-label="item.label"
+          :title="item.label"
+          @click="select(item)"
+        />
       </div>
 
       <!-- 👉 MODO EXPANDIDO: niveles con animación push -->

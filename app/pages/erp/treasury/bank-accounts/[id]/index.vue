@@ -5,7 +5,9 @@ import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
-import { bankMovementColumns, MOVEMENT_TYPE_CONFIG } from '~/modulos/erp/bank-accounts/movement-columns'
+import { bankMovementColumns, getMovementSignedAmount } from '~/modulos/erp/bank-accounts/movement-columns'
+import RegisterBankMovementModal from '~/modulos/erp/bank-accounts/components/RegisterBankMovementModal.vue'
+import BankChargeRulesPanel from '~/modulos/erp/bank-accounts/components/BankChargeRulesPanel.vue'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -14,6 +16,8 @@ const router = useRouter()
 const accountId = route.params.id as string
 
 const { current: account, movements, fetchOne, fetchMovements, loading } = useBankAccounts()
+
+const movementModalOpen = ref(false)
 
 useBreadcrumbEntityLabel(
   `/erp/treasury/bank-accounts/${accountId}`,
@@ -61,23 +65,27 @@ const getAccountTypeConfig = (type: string) => ACCOUNT_TYPE_CONFIG[type] ?? { la
 
 const totalIn = computed(() =>
   movements.value
-    .filter((m) => Number(m.amount) > 0)
-    .reduce((sum, m) => sum + (Number(m.amount) || 0), 0)
+    .map(getMovementSignedAmount)
+    .filter(amount => amount > 0)
+    .reduce((sum, amount) => sum + amount, 0)
 )
 
 const totalOut = computed(() =>
   movements.value
-    .filter((m) => Number(m.amount) < 0)
-    .reduce((sum, m) => sum + Math.abs(Number(m.amount) || 0), 0)
+    .map(getMovementSignedAmount)
+    .filter(amount => amount < 0)
+    .reduce((sum, amount) => sum + Math.abs(amount), 0)
 )
 
-const realBalance = computed(() => {
-  if (!movements.value.length) return Number(account.value?.balance ?? 0)
-  const sorted = [...movements.value].sort((a, b) =>
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  )
-  return Number(sorted[0].balance_after ?? account.value?.balance ?? 0)
-})
+const realBalance = computed(() => Number(account.value?.balance ?? 0))
+
+const incomeMovementCount = computed(() =>
+  movements.value.filter(movement => getMovementSignedAmount(movement) > 0).length
+)
+
+const expenseMovementCount = computed(() =>
+  movements.value.filter(movement => getMovementSignedAmount(movement) < 0).length
+)
 
 const columns = bankMovementColumns({ onSortFieldSelect })
 
@@ -103,8 +111,20 @@ const links = computed(() => [
     icon: 'i-lucide-arrow-left',
     variant: 'ghost' as const,
     onClick: goBack
+  },
+  {
+    label: 'Registrar movimiento',
+    icon: 'i-lucide-plus',
+    color: 'primary' as const,
+    variant: 'solid' as const,
+    onClick: () => { movementModalOpen.value = true }
   }
 ])
+
+const handleMovementSaved = async () => {
+  await fetchOne(accountId)
+  await fetchMovements(accountId)
+}
 </script>
 
 <template>
@@ -136,7 +156,7 @@ const links = computed(() => [
           <p class="text-xs text-muted font-medium uppercase">Total ingresos</p>
           <p class="text-xl font-bold mt-1 text-success">{{ formatCurrency(totalIn, account.currency_code) }}</p>
           <p class="text-xs text-muted mt-1">
-            {{ movements.filter((m) => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'in').length }} movimientos
+            {{ incomeMovementCount }} movimientos
           </p>
         </div>
       </UPageCard>
@@ -145,7 +165,7 @@ const links = computed(() => [
           <p class="text-xs text-muted font-medium uppercase">Total egresos</p>
           <p class="text-xl font-bold mt-1 text-error">{{ formatCurrency(totalOut, account.currency_code) }}</p>
           <p class="text-xs text-muted mt-1">
-            {{ movements.filter((m) => MOVEMENT_TYPE_CONFIG[m.type]?.side === 'out').length }} movimientos
+            {{ expenseMovementCount }} movimientos
           </p>
         </div>
       </UPageCard>
@@ -186,5 +206,15 @@ const links = computed(() => [
         />
       </div>
     </UPageCard>
+
+    <BankChargeRulesPanel :account-id="accountId" :currency-code="account.currency_code" />
+
+    <RegisterBankMovementModal
+      v-model:open="movementModalOpen"
+      :account-id="accountId"
+      :currency-code="account.currency_code"
+      :current-balance="realBalance"
+      @saved="handleMovementSaved"
+    />
   </UPage>
 </template>

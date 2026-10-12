@@ -25,7 +25,9 @@ export const useBusinessPartiesStore = defineStore('businessParties', () => {
     items.value.filter((i) => i.active !== false)
   )
 
-  const clients = computed(() => items.value.filter((i) => i.type === 'CUSTOMER'))
+  const clients = computed(() => items.value.filter((i) =>
+    i.type === 'CUSTOMER' || i.roles?.some(role => role.role === 'CUSTOMER' && role.active)
+  ))
 
   const suppliers = computed(() =>
     items.value.filter((i) => i.type === 'SUPPLIER')

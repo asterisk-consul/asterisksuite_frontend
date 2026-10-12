@@ -184,12 +184,11 @@ async function handleSubmit() {
       rate_type: isForeignCurrency.value ? form.rate_type : undefined,
       date: form.date,
       description: form.description || 'Saldo inicial',
-      reference_type: 'opening_balance',
     })
 
     await Promise.all([fetchActive(), fetchAll()])
 
-    toast.add({ title: 'Saldo inicial registrado', color: 'success' })
+    toast.add({ title: 'Saldo inicial registrado', description: 'El documento quedó disponible para pagos o cobros.', color: 'success' })
     close()
     await router.push(`/erp/treasury/current-accounts/${partyId}`)
   } catch (e: any) {

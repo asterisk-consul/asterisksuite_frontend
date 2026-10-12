@@ -9,6 +9,7 @@ export type PaymentMethod =
   | 'CREDIT_CARD'
   | 'DEBIT_CARD'
   | 'VIRTUAL_WALLET'
+  | 'PAYROLL_DEDUCTION'
 
 export type PaymentStatus = 'DRAFT' | 'CONFIRMED' | 'PAID' | 'REVERSED' | 'CANCELLED'
 

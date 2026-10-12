@@ -88,11 +88,11 @@ const partyTypeLabels: Record<string, string> = {
 }
 const partyOptions = computed(() => parties.value
   .filter(party => props.moduleCode === 'SALES'
-    ? party.type === 'CUSTOMER'
+    ? party.type === 'CUSTOMER' || party.roles?.some(role => role.role === 'CUSTOMER' && role.active)
     : payablePartyTypes.has(party.type))
   .map(party => ({
     label: props.moduleCode === 'SALES'
-      ? party.name
+      ? `${party.name}${party.type === 'EMPLOYEE' ? ' · Empleado · Cliente interno' : ''}`
       : `${party.name} · ${partyTypeLabels[party.type] ?? party.type}${party.tax_id ? ` · ${party.tax_id}` : ''}`,
     value: party.id
   })))

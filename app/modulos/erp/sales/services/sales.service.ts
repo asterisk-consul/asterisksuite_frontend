@@ -16,6 +16,10 @@ export const DocumentsSalesService = {
     return $fetch(`/api/backend/documents/sales/${id}`)
   },
 
+  async getStockAvailability(id: string): Promise<any> {
+    return $fetch(`/api/backend/documents/sales/${id}/stock-availability`)
+  },
+
   async create(dto: any): Promise<Document> {
     return $fetch('/api/backend/documents/sales', {
       method: 'POST' as any,

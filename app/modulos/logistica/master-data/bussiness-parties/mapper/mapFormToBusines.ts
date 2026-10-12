@@ -55,7 +55,8 @@ export const mapFormToBusinessPartyDto = (form: BusinessPartyForm): CreateBusine
     currency_code: form.currency_code || undefined,
     is_salesperson: form.is_salesperson ?? undefined,
     default_commission_rate: form.default_commission_rate ?? undefined,
-    commission_base: form.commission_base || undefined
+    commission_base: form.commission_base || undefined,
+    customer_enabled: form.customer_enabled ?? false
   }
 }
 
@@ -113,6 +114,8 @@ export const mapBusinessPartyToForm = (party: BusinessParty): BusinessPartyForm 
     currency_code: employee?.currency_code ?? 'ARS',
     is_salesperson: employee?.is_salesperson ?? false,
     default_commission_rate: Number(employee?.default_commission_rate ?? 0),
-    commission_base: employee?.commission_base ?? 'INVOICED'
+    commission_base: employee?.commission_base ?? 'INVOICED',
+    customer_enabled: party.type === 'CUSTOMER'
+      || Boolean(party.roles?.some(role => role.role === 'CUSTOMER' && role.active))
   }
 }

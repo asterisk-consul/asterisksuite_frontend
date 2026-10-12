@@ -99,7 +99,7 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
   },
   treasury: {
     label: 'Tesorería', icon: 'i-lucide-wallet', order: 40,
-    modules: ['treasury', 'cash_boxes', 'cash_box_movements', 'cash_box_renditions', 'cash_box_transfers', 'bank_accounts', 'payments', 'currency_rates', 'checks', 'credit_cards', 'card_collections', 'card_settlements', 'card_settings', 'card_reports'],
+    modules: ['treasury', 'cash_boxes', 'cash_box_movements', 'cash_box_renditions', 'cash_box_transfers', 'bank_accounts', 'bank_concepts', 'bank_movements', 'bank_expenses', 'financial_investments', 'payments', 'currency_rates', 'checks', 'credit_cards', 'card_collections', 'card_settlements', 'card_settings', 'card_reports'],
     subgroups: {
       payments: 'Pagos',
       'treasury.payments': 'Pagos · Importación y exportación',
@@ -109,6 +109,10 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
       cash_box_renditions: 'Rendiciones de Caja',
       cash_box_transfers: 'Transferencias entre Cajas',
       bank_accounts: 'Bancos',
+      bank_concepts: 'Conceptos bancarios',
+      bank_movements: 'Movimientos bancarios',
+      bank_expenses: 'Gastos bancarios',
+      financial_investments: 'Inversiones financieras',
       treasury: 'General',
       currency_rates: 'Tipos de Cambio',
       checks: 'Cheques',
