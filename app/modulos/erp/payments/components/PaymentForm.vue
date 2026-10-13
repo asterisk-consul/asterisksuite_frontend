@@ -369,6 +369,10 @@ const form = reactive<PaymentFormData>({ ...defaultForm })
 
 const selectedDocs = ref<Map<string, { doc: PendingDocument; amount: number }>>(new Map())
 const selectedChecks = ref<Map<string, AvailableCheck>>(new Map())
+const checkSearch = ref('')
+
+const sameStringArray = (left: string[] = [], right: string[] = []) =>
+  left.length === right.length && left.every((value, index) => value === right[index])
 const docSearch = ref('')
 const checkModalOpen = ref(false)
 
@@ -497,21 +501,37 @@ watch(
     () => props.availableCustomerChecks
   ],
   ([checkIds]) => {
-    if (!checkIds?.length) return
-    const available = [...(props.availableOwnChecks ?? []), ...(props.availableCustomerChecks ?? [])]
-    selectedChecks.value.clear()
-    for (const id of checkIds) {
-      const check = available.find(item => item.id === id)
-      if (check) selectedChecks.value.set(id, check)
+    const requestedIds = checkIds ?? []
+    const currentIds = Array.from(selectedChecks.value.keys())
+    // El v-model devuelve al formulario cada cambio local. Si la selección ya
+    // coincide, no reconstruir el Map ni reasignar check_ids: eso generaba un
+    // ciclo de emisiones y re-renderizados proporcional al tamaño de la cartera.
+    if (sameStringArray(requestedIds, currentIds)) return
+
+    if (requestedIds.length === 0) {
+      if (selectedChecks.value.size > 0) selectedChecks.value = new Map()
+      return
     }
+
+    const available = [...(props.availableOwnChecks ?? []), ...(props.availableCustomerChecks ?? [])]
+    const availableById = new Map(available.map(check => [check.id, check]))
+    const nextSelection = new Map<string, AvailableCheck>()
+    for (const id of requestedIds) {
+      const check = availableById.get(id)
+      if (check) nextSelection.set(id, check)
+    }
+    selectedChecks.value = nextSelection
+
     if (selectedChecks.value.size > 0) {
-      form.check_ids = Array.from(selectedChecks.value.keys())
-      form.amount = selectedDocs.value.size > 0
+      const normalizedIds = Array.from(selectedChecks.value.keys())
+      if (!sameStringArray(form.check_ids, normalizedIds)) form.check_ids = normalizedIds
+      const nextAmount = selectedDocs.value.size > 0
         ? Array.from(selectedDocs.value.values()).reduce((sum, entry) => sum + Number(entry.amount), 0)
         : Array.from(selectedChecks.value.values()).reduce(
             (sum, check) => sum + Number(check.available_amount ?? check.amount),
             0
           )
+      if (Number(form.amount) !== nextAmount) form.amount = nextAmount
     }
   },
   { immediate: true }
@@ -709,6 +729,26 @@ const availableChecks = computed(() => {
   return checks.filter(c => c.currency_code === form.currency_code)
 })
 
+const visibleChecks = computed(() => {
+  const query = checkSearch.value.trim().toLowerCase()
+  const matches = query
+    ? availableChecks.value.filter(check =>
+        check.check_number?.toLowerCase().includes(query)
+        || check.bank_name?.toLowerCase().includes(query)
+        || check.issuer_name?.toLowerCase().includes(query)
+      )
+    : availableChecks.value
+
+  // Evitar montar cientos o miles de tarjetas reactivas. Las seleccionadas se
+  // mantienen al comienzo sin ordenar nuevamente toda la cartera.
+  const selected: AvailableCheck[] = []
+  const remaining: AvailableCheck[] = []
+  for (const check of matches) {
+    (selectedChecks.value.has(check.id) ? selected : remaining).push(check)
+  }
+  return selected.concat(remaining).slice(0, 100)
+})
+
 const filteredCashBoxes = computed(() => {
   let list = cashBoxes.value.filter(cb => cb.active)
   if (form.currency_code) {
@@ -899,12 +939,15 @@ watch(selectedType, async (val) => {
 })
 
 const selectCheck = (check: AvailableCheck) => {
-  if (selectedChecks.value.has(check.id)) {
-    selectedChecks.value.delete(check.id)
+  const nextSelection = new Map(selectedChecks.value)
+  if (nextSelection.has(check.id)) {
+    nextSelection.delete(check.id)
   } else {
-    selectedChecks.value.set(check.id, check)
+    nextSelection.set(check.id, check)
   }
-  form.check_ids = Array.from(selectedChecks.value.keys())
+  selectedChecks.value = nextSelection
+  const nextIds = Array.from(nextSelection.keys())
+  if (!sameStringArray(form.check_ids, nextIds)) form.check_ids = nextIds
   instrumentValidationAttempted.value = false
   redistributeAppliedAmounts()
   form.amount = selectedDocs.value.size > 0 ? totalApplied.value : totalChecksAmount.value
@@ -1483,9 +1526,23 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
         </p>
         <p class="text-xs">Creá uno nuevo con el botón de arriba.</p>
       </div>
-      <div v-else class="max-h-64 overflow-y-auto space-y-2">
+      <div v-else class="space-y-2">
+        <UInput
+          v-model="checkSearch"
+          icon="i-lucide-search"
+          placeholder="Buscar por número, banco o emisor..."
+          class="w-full"
+        />
+        <p v-if="visibleChecks.length < availableChecks.length" class="text-xs text-muted">
+          Mostrando {{ visibleChecks.length }} de {{ availableChecks.length }} cheques. Usá el buscador para encontrar el resto.
+        </p>
+      </div>
+      <div v-if="availableChecks.length > 0" class="max-h-64 overflow-y-auto space-y-2">
+        <div v-if="visibleChecks.length === 0" class="py-6 text-center text-sm text-muted">
+          No se encontraron cheques con esa búsqueda.
+        </div>
         <div
-          v-for="check in availableChecks"
+          v-for="check in visibleChecks"
           :key="check.id"
           class="flex items-center gap-3 p-3 rounded-lg border transition-colors"
           :class="isCheckSelected(check.id) ? 'border-primary bg-primary/5' : 'border-default'"

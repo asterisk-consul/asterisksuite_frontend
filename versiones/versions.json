@@ -1,5 +1,27 @@
 [
   {
+    "version": "0.71.1-alpha",
+    "date": "2026-10-13",
+    "stage": "alpha",
+    "notes": "Se optimiza la selección de cheques en pagos y cobros para evitar bloqueos del formulario en empresas con carteras extensas.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "payments",
+        "title": "La selección de un cheque deja de generar un ciclo reactivo entre el formulario y su modelo"
+      },
+      {
+        "type": "perf",
+        "scope": "checks",
+        "title": "El selector limita el renderizado simultáneo e incorpora búsqueda por número, banco o emisor para carteras grandes"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Selector de cheques más rápido y estable"
+  },
+  {
     "version": "0.71.0-alpha",
     "date": "2026-10-09",
     "stage": "alpha",
