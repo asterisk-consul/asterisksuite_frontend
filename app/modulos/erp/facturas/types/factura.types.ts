@@ -65,6 +65,8 @@ export interface DocumentTax {
 export interface Document {
   id: string
 
+  updated_at?: string
+
   number: number
   document_type_id: string
   document_sequence_id?: string | null
@@ -120,6 +122,8 @@ export interface Document {
     ordered_total?: number | null
     paid_total?: number | null
   } | null
+
+  orden_venta_doc?: Record<string, any> | null
 
   business_parties?: {
     id: string
@@ -190,6 +194,8 @@ export interface FacturaItem {
 
 export interface FacturaFormValues {
   id?: string
+
+  updated_at?: string
 
   document_type_id: string
 

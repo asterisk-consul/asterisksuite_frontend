@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { reactive, ref, computed, onMounted, watch } from 'vue'
+import { reactive, ref, computed, defineAsyncComponent, onMounted, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 
 // Auth
@@ -11,7 +11,7 @@ import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 // BusinessParties
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
-import BusinessPartyModal from '~/modulos/logistica/master-data/bussiness-parties/components/BusinnesPartyModal.vue'
+import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
 
 // Products
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
@@ -36,31 +36,36 @@ import { useDocumentSequencesService } from '~/modulos/erp/document-sequences/se
 import type { DocumentSequence } from '~/modulos/erp/document-sequences/types/document-sequences.types'
 
 // Invoice
-import FacturaItemsTable from './FacturaItemsTable.vue'
-import FacturaTotals from './FacturaTotals.vue'
-import ReferenceDocumentPicker from './ReferenceDocumentPicker.vue'
 import { getDocumentTypeForVatCondition, type VatCondition } from '~/modulos/erp/invoices/utils/vatConditionMap'
 
-import type { Document, FacturaItem } from '../types/factura.types'
+import type { Document, FacturaFormValues, FacturaItem } from '../types/factura.types'
+
+const BusinessPartyModal = defineAsyncComponent(() => import('~/modulos/logistica/master-data/bussiness-parties/components/BusinnesPartyModal.vue'))
+const ReferenceDocumentPicker = defineAsyncComponent(() => import('./ReferenceDocumentPicker.vue'))
+const FacturaItemsTable = defineAsyncComponent(() => import('./FacturaItemsTable.vue'))
+const FacturaTotals = defineAsyncComponent(() => import('./FacturaTotals.vue'))
 
 interface Props {
   loading?: boolean
-  initialValues?: Partial<Document>
+  initialValues?: Partial<Document> | Partial<FacturaFormValues>
   moduleCode?: string
   category?: string
   parentDocumentId?: string
   operationalMode?: boolean
+  draftExtension?: Record<string, any>
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
   submit: [payload: any]
+  restoreExtension: [payload: Record<string, any>]
 }>()
 
 const toast = useToast()
 
 // ─── Stores ──────────────────────────────────────────
+const authStore = useAuthStore()
 const selectedBusinessParty = ref<BusinessParty | undefined>(undefined)
 const showBusinessPartiesModal = ref(false)
 const partiesStore = useBusinessPartiesStore()
@@ -72,8 +77,13 @@ const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 const canRegularizeStock = computed(() => isOwnerOrAdmin.value || hasPermission('stock.create'))
 const fiscalService = useFiscalService()
-const { items: parties } = storeToRefs(partiesStore)
-const { items: products } = storeToRefs(productsStore)
+const {
+  items: parties,
+  loading: partiesLoading,
+  refreshing: partiesRefreshing,
+  usingCache: partiesUsingCache,
+  refreshFailed: partiesRefreshFailed
+} = storeToRefs(partiesStore)
 const { items: documentsTypes } = storeToRefs(documentsTypesStore)
 const { warehouses } = storeToRefs(depositosStore)
 
@@ -86,10 +96,17 @@ const partyTypeLabels: Record<string, string> = {
   TAX_AUTHORITY: 'Ente impositivo',
   FINANCIAL: 'Entidad financiera'
 }
-const partyOptions = computed(() => parties.value
+const partySearch = ref('')
+const remoteParties = ref<BusinessParty[]>([])
+const partiesService = useBusinessPartiesService()
+let partySearchTimer: ReturnType<typeof setTimeout> | undefined
+let partySearchController: AbortController | undefined
+const partyOptions = computed(() => [...remoteParties.value, ...parties.value]
+  .filter((party, index, rows) => rows.findIndex(item => item.id === party.id) === index)
   .filter(party => props.moduleCode === 'SALES'
     ? party.type === 'CUSTOMER' || party.roles?.some(role => role.role === 'CUSTOMER' && role.active)
     : payablePartyTypes.has(party.type))
+  .slice(0, partySearch.value.trim() ? 30 : 100)
   .map(party => ({
     label: props.moduleCode === 'SALES'
       ? `${party.name}${party.type === 'EMPLOYEE' ? ' · Empleado · Cliente interno' : ''}`
@@ -97,13 +114,64 @@ const partyOptions = computed(() => parties.value
     value: party.id
   })))
 
+watch(partySearch, (value) => {
+  if (partySearchTimer) clearTimeout(partySearchTimer)
+  partySearchController?.abort()
+  const query = value.trim()
+  if (query.length < 2) {
+    remoteParties.value = []
+    return
+  }
+  partySearchTimer = setTimeout(async () => {
+    partySearchController = new AbortController()
+    try {
+      remoteParties.value = await partiesService.search(
+        query,
+        props.moduleCode === 'SALES' ? ['CUSTOMER'] : [...payablePartyTypes],
+        partySearchController.signal
+      )
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') remoteParties.value = []
+    }
+  }, 300)
+})
+
+onBeforeUnmount(() => {
+  if (partySearchTimer) clearTimeout(partySearchTimer)
+  partySearchController?.abort()
+  if (productSearchTimer) clearTimeout(productSearchTimer)
+  productSearchController?.abort()
+})
+
 // Filtrar productos según módulo (venta/compra)
 const usageFilter = computed(() => {
   if (props.moduleCode === 'SALES') return 'sale' as const
   if (props.moduleCode === 'PURCHASES') return 'purchase' as const
   return null
 })
-const { items: productOptions } = useProducts(products, usageFilter.value)
+const { items: productOptions } = useProducts(usageFilter.value)
+let productSearchTimer: ReturnType<typeof setTimeout> | undefined
+let productSearchController: AbortController | undefined
+
+function searchProducts(query: string) {
+  if (productSearchTimer) clearTimeout(productSearchTimer)
+  productSearchController?.abort()
+  if (query.trim().length < 2) return
+
+  productSearchTimer = setTimeout(() => {
+    productSearchController = new AbortController()
+    void productsStore.search(query.trim(), usageFilter.value, productSearchController.signal)
+      .catch((error: any) => {
+        if (error?.name !== 'AbortError') {
+          toast.add({
+            title: 'No se pudo buscar productos',
+            description: 'Reintentá cuando mejore la conexión.',
+            color: 'warning'
+          })
+        }
+      })
+  }, 300)
+}
 const { init: initCurrencies, codeSelectItems: currencyOptions, baseCurrency } = useCurrencies()
 const {
   exchangeRate: resolvedRate,
@@ -116,6 +184,11 @@ const {
 
 // Usar composable para filtrar tipos de documento por dirección + condición del emisor/receptor
 const moduleCode = computed(() => (props.moduleCode === 'SALES' ? 'SALES' : 'PURCHASES') as 'SALES' | 'PURCHASES')
+const dateFieldLabel = computed(() => {
+  if (props.category === 'REMITO') return 'Fecha de entrega / movimiento'
+  if (props.category === 'QUOTE') return 'Fecha de emisión'
+  return 'Fecha'
+})
 
 // ─── Form State ──────────────────────────────────────
 const form = reactive({
@@ -190,7 +263,7 @@ async function saveStockRegularization() {
 }
 
 async function loadStockAvailability() {
-  if (props.moduleCode !== 'SALES') return
+  if (props.moduleCode !== 'SALES' || !affectsStock.value || !items.value.some(item => item.product_id)) return
   const activeWarehouses = warehouses.value.filter(warehouse => warehouse.active)
   const entries = await Promise.all(activeWarehouses.map(async warehouse => {
     const stock = await stockService.getStock(warehouse.id)
@@ -401,6 +474,91 @@ const previewLoading = ref(false)
 let isRecalculating = false
 let previewDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
+type DocumentDraft = {
+  baseUpdatedAt?: string
+  form: typeof form
+  items: FacturaItem[]
+  selectedSequenceId: string
+  referenceDocumentId?: string
+  advancedWarehouseAssignment: boolean
+  manualIibbAmount: number | null
+  manualIibbReason: string
+  extension?: Record<string, any>
+}
+
+const draftEnabled = computed(() => true)
+const draftKey = computed(() => {
+  const companyId = authStore.selectedCompany?.id || 'company'
+  const userId = authStore.user?.id || 'user'
+  const context = [
+    props.moduleCode || 'DOCUMENT',
+    props.category || 'INVOICE',
+    props.initialValues?.id || props.parentDocumentId || 'NEW'
+  ].join(':')
+  return `asterisk:document-draft:${companyId}:${userId}:${context}`
+})
+
+const {
+  availableDraft,
+  status: draftStatus,
+  lastSavedAt: draftSavedAt,
+  restoreDraft: restoreLocalDraft,
+  discardDraft,
+  completeDraft
+} = useLocalFormDraft<DocumentDraft>({
+  key: draftKey,
+  enabled: draftEnabled,
+  source: () => ({
+    baseUpdatedAt: props.initialValues?.updated_at,
+    form: { ...form },
+    items: items.value,
+    selectedSequenceId: selectedSequenceId.value,
+    referenceDocumentId: referenceDocumentId.value,
+    advancedWarehouseAssignment: advancedWarehouseAssignment.value,
+    manualIibbAmount: manualIibbAmount.value,
+    manualIibbReason: manualIibbReason.value,
+    extension: props.draftExtension ? { ...props.draftExtension } : undefined
+  }),
+  restore: (draft) => {
+    Object.assign(form, draft.form)
+    items.value = draft.items.map(item => ({ ...item }))
+    selectedSequenceId.value = draft.selectedSequenceId || ''
+    referenceDocumentId.value = draft.referenceDocumentId
+    advancedWarehouseAssignment.value = draft.advancedWarehouseAssignment
+    manualIibbAmount.value = draft.manualIibbAmount
+    manualIibbReason.value = draft.manualIibbReason || ''
+    if (draft.extension) emit('restoreExtension', draft.extension)
+    toast.add({ title: 'Borrador recuperado', description: 'Podés continuar la carga donde la dejaste.', color: 'success' })
+  },
+  isMeaningful: draft => Boolean(
+    draft.form.party_id
+    || draft.form.descrip
+    || draft.form.ref
+    || draft.items.length
+    || Object.entries(draft.extension ?? {}).some(([key, value]) =>
+      value !== '' && value !== null && value !== undefined && key !== 'priority' && key !== 'commission_base'
+    )
+  )
+})
+
+function restoreDocumentDraft() {
+  const draftVersion = availableDraft.value?.data.baseUpdatedAt
+  const currentVersion = props.initialValues?.updated_at
+  if (draftVersion && currentVersion && draftVersion !== currentVersion) {
+    toast.add({
+      title: 'El documento cambió desde este borrador',
+      description: 'Para evitar sobrescribir información más nueva, descartá este borrador y revisá la versión actual.',
+      color: 'warning'
+    })
+    return
+  }
+  restoreLocalDraft()
+}
+
+const draftSavedLabel = computed(() => draftSavedAt.value
+  ? new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' }).format(draftSavedAt.value)
+  : '')
+
 async function fetchPreview() {
   if (!items.value.length || !form.document_type_id) {
     lastPreview.value = null
@@ -410,7 +568,6 @@ async function fetchPreview() {
   previewLoading.value = true
   isRecalculating = true
   try {
-    const authStore = useAuthStore()
     const currentDocType = documentsTypes.value.find((d) => d.id === form.document_type_id)
     const result = await $fetch('/api/backend/tax-engine/calculate-preview', {
       method: 'POST',
@@ -739,15 +896,27 @@ watch(() => form.document_type_id, (newId) => {
 
 onMounted(() => {
   fetchMyPermissionsIfNeeded()
-  partiesStore.fetchAll()
-  productsStore.fetchAll()
-  documentsTypesStore.fetchAll()
-  initCurrencies()
-  fetchIssuerCondition()
-  documentSequencesService.findAll().then(s => { sequences.value = s })
-  depositosStore.fetchAll().then(() => loadStockAvailability())
-  fiscalService.getTaxRules('IIBB').then(rows => { iibbPerceptionRules.value = rows })
-  fiscalService.getCompanyJurisdictions().then(rows => { companyIibbJurisdictions.value = rows })
+  void partiesStore.fetchAll().catch(() => {
+    // El formulario sigue utilizable; el store conserva la última lista disponible.
+  })
+  productsStore.hydrateCache()
+  void documentsTypesStore.fetchAll().catch(() => {
+    // Los demás bloques del formulario continúan disponibles si falla la red.
+  })
+  void initCurrencies().catch(() => {})
+  void fetchIssuerCondition().catch(() => {})
+  void documentSequencesService.findAll()
+    .then(s => { sequences.value = s })
+    .catch(() => {})
+  void depositosStore.fetchAll()
+    .then(() => loadStockAvailability())
+    .catch(() => {})
+  void fiscalService.getTaxRules('IIBB')
+    .then(rows => { iibbPerceptionRules.value = rows })
+    .catch(() => {})
+  void fiscalService.getCompanyJurisdictions()
+    .then(rows => { companyIibbJurisdictions.value = rows })
+    .catch(() => {})
 })
 
 watch(() => form.fiscal_jurisdiction_id, () => {
@@ -996,11 +1165,31 @@ const onEditBussinessParty = () => {
   showBusinessPartiesModal.value = true
 }
 
-defineExpose({ submit })
+defineExpose({ submit, completeDraft })
 </script>
 
 <template>
   <div class="w-full min-w-0 space-y-5">
+    <UAlert
+      v-if="availableDraft"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-file-clock"
+      title="Encontramos una carga sin terminar"
+      :description="`Fue guardada en este dispositivo el ${new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short' }).format(availableDraft.savedAt)}.`"
+    >
+      <template #actions>
+        <div class="flex flex-wrap gap-2">
+          <UButton label="Recuperar borrador" icon="i-lucide-rotate-ccw" size="sm" @click="restoreDocumentDraft" />
+          <UButton label="Descartar" icon="i-lucide-trash-2" size="sm" color="neutral" variant="outline" @click="discardDraft" />
+        </div>
+      </template>
+    </UAlert>
+
+    <div v-else-if="draftStatus !== 'idle'" class="flex items-center justify-end gap-1.5 text-xs text-muted" aria-live="polite">
+      <UIcon :name="draftStatus === 'saving' ? 'i-lucide-loader-circle' : 'i-lucide-check-circle-2'" :class="{ 'animate-spin': draftStatus === 'saving' }" />
+      <span>{{ draftStatus === 'saving' ? 'Guardando borrador…' : `Borrador guardado en este dispositivo${draftSavedLabel ? ` · ${draftSavedLabel}` : ''}` }}</span>
+    </div>
     <!-- Header: Party + Document Type + PV + Currency + Date -->
     <UCard>
       <template #header>
@@ -1010,29 +1199,41 @@ defineExpose({ submit })
         </div>
       </template>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
-        <UFormField :label="moduleCode === 'SALES' ? 'Cliente' : 'Proveedor o entidad'" class="min-w-0 md:col-span-2 xl:col-span-3">
+        <UFormField :label="moduleCode === 'SALES' ? 'Cliente' : 'Proveedor o entidad'" class="min-w-0 md:col-span-2 xl:col-span-12">
           <div class="flex min-w-0 gap-2">
             <USelectMenu
               v-model="selectedCustomer"
               :items="partyOptions"
               :placeholder="moduleCode === 'SALES' ? 'Buscar cliente...' : 'Buscar proveedor, servicio o ente impositivo...'"
               searchable
+              @update:search="partySearch = $event"
+              :loading="partiesLoading && partyOptions.length === 0"
               size="lg"
               class="min-w-0 flex-1"
             />
-            <UButton icon="i-lucide-plus" variant="outline" class="shrink-0" aria-label="Crear cliente o proveedor" @click="showBusinessPartiesModal = true" />
+            <UButton icon="i-lucide-plus" variant="outline" size="lg" square class="shrink-0" aria-label="Crear cliente o proveedor" @click="showBusinessPartiesModal = true" />
             <UButton
               icon="i-lucide-pencil"
               variant="outline"
+              size="lg"
+              square
               class="shrink-0"
               aria-label="Editar cliente o proveedor"
               :disabled="!selectedCustomer"
               @click="onEditBussinessParty"
             />
           </div>
+          <p v-if="partiesUsingCache" class="mt-1 flex items-center gap-1 text-xs text-muted">
+            <UIcon :name="partiesRefreshing ? 'i-lucide-refresh-cw' : 'i-lucide-cloud-off'" :class="{ 'animate-spin': partiesRefreshing }" />
+            {{ partiesRefreshing
+              ? 'Mostrando datos guardados mientras se actualizan.'
+              : partiesRefreshFailed
+                ? 'Sin conexión: podés continuar con la última lista disponible.'
+                : 'Lista guardada disponible al instante.' }}
+          </p>
         </UFormField>
 
-        <UFormField label="Tipo de documento" class="min-w-0 xl:col-span-3">
+        <UFormField label="Tipo de documento" class="min-w-0 xl:col-span-6">
           <USelectMenu
             v-model="selectedDocumentType"
             :items="documentTypeOptions"
@@ -1042,7 +1243,7 @@ defineExpose({ submit })
           />
         </UFormField>
 
-        <UFormField label="Punto de venta" class="min-w-0 xl:col-span-2">
+        <UFormField label="Punto de venta" class="min-w-0 xl:col-span-3">
           <USelectMenu
             v-model="selectedSequenceId"
             :items="sequenceOptions"
@@ -1053,7 +1254,11 @@ defineExpose({ submit })
           />
         </UFormField>
 
-        <UFormField v-if="!operationalMode" label="Moneda del comprobante" class="min-w-0 xl:col-span-2">
+        <UFormField :label="dateFieldLabel" class="min-w-0 xl:col-span-3">
+          <UInput v-model="form.date" type="date" size="lg" class="w-full min-w-0" />
+        </UFormField>
+
+        <UFormField v-if="!operationalMode" label="Moneda del comprobante" class="min-w-0 xl:col-span-3">
           <USelect
             v-model="form.currency_code"
             :items="currencyOptions"
@@ -1063,8 +1268,8 @@ defineExpose({ submit })
           />
         </UFormField>
 
-        <UFormField label="Fecha" class="min-w-0 xl:col-span-2">
-          <UInput v-model="form.date" type="date" size="lg" class="w-full min-w-0" />
+        <UFormField label="Referencia" :class="['min-w-0', operationalMode ? 'md:col-span-2 xl:col-span-12' : 'xl:col-span-9']">
+          <UInput v-model="form.descrip" placeholder="Referencia u observación breve (opcional)" class="w-full min-w-0" />
         </UFormField>
       </div>
 
@@ -1125,10 +1330,6 @@ defineExpose({ submit })
           </div>
         </div>
       </div>
-
-      <UFormField label="Referencia" class="mt-4 min-w-0">
-        <UInput v-model="form.descrip" placeholder="Referencia u observación breve (opcional)" class="w-full min-w-0" />
-      </UFormField>
 
       <div v-if="affectsStock && moduleCode !== 'SALES'" class="mt-4 rounded-lg border border-default bg-muted/30 p-4 space-y-3">
         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -1225,6 +1426,7 @@ defineExpose({ submit })
         @add="addItem"
         @update:warehouse="updateItemWarehouse"
         @regularize-stock="openStockRegularization"
+        @search-products="searchProducts"
       />
     </UCard>
 

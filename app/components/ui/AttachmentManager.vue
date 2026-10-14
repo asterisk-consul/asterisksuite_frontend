@@ -20,6 +20,12 @@ const onUploaded = async (file: any) => {
 }
 
 const onError = (message: string) => toast.add({ title: 'No se pudo adjuntar', description: message, color: 'error' })
+const toggleExpanded = () => { expanded.value = !expanded.value }
+const onQueued = () => toast.add({
+  title: 'Archivo guardado en este dispositivo',
+  description: 'Cuando vuelva la conexión, usá “Subir pendientes” para enviarlo.',
+  color: 'warning'
+})
 </script>
 
 <template>
@@ -37,7 +43,7 @@ const onError = (message: string) => toast.add({ title: 'No se pudo adjuntar', d
           color="neutral"
           variant="soft"
           size="sm"
-          @click="expanded = !expanded"
+          @click="toggleExpanded"
         />
       </div>
     </template>
@@ -50,6 +56,7 @@ const onError = (message: string) => toast.add({ title: 'No se pudo adjuntar', d
         :max-size-mb="5"
         allow-documents
         @uploaded="onUploaded"
+        @queued="onQueued"
         @error="onError"
       />
       <UiImageGallery ref="gallery" :entity-type="entityType" :entity-id="entityId" :max-files="maxFiles" :readonly="readonly" />

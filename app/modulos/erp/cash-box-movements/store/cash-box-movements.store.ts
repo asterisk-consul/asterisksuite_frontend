@@ -17,17 +17,27 @@ export const useCashBoxMovementsStore = defineStore('cash-box-movements', () => 
   const current = ref<CashBoxMovement | null>(null)
 
   const loading = ref(false)
+  let requestGeneration = 0
+
+  const reset = () => {
+    requestGeneration++
+    items.value = []
+    current.value = null
+    loading.value = false
+  }
 
   // =========================
   // LOAD ALL
   // =========================
 
   const fetchAll = async (params?: FilterCashBoxMovementInput) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      items.value = await service.findAll(params)
+      const data = await service.findAll(params)
+      if (generation === requestGeneration) items.value = data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -99,6 +109,7 @@ export const useCashBoxMovementsStore = defineStore('cash-box-movements', () => 
     fetchOne,
     create,
     update,
-    remove
+    remove,
+    reset
   }
 })

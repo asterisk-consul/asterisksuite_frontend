@@ -18,6 +18,16 @@ export const useChecksStore = defineStore('checks', () => {
   const pendingNotification = ref<Check[]>([])
 
   const loading = ref(false)
+  let requestGeneration = 0
+
+  const reset = () => {
+    requestGeneration++
+    items.value = []
+    current.value = null
+    upcoming.value = []
+    pendingNotification.value = []
+    loading.value = false
+  }
 
   // =========================
   // LOAD ALL
@@ -29,11 +39,13 @@ export const useChecksStore = defineStore('checks', () => {
     bank_name?: string
     due_before?: string
   }) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      items.value = await service.findAll(params)
+      const data = await service.findAll(params)
+      if (generation === requestGeneration) items.value = data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -42,13 +54,14 @@ export const useChecksStore = defineStore('checks', () => {
   // =========================
 
   const fetchOne = async (id: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
       const data = await service.findOne(id)
-      current.value = data
+      if (generation === requestGeneration) current.value = data
       return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -57,12 +70,14 @@ export const useChecksStore = defineStore('checks', () => {
   // =========================
 
   const fetchUpcoming = async (days?: number) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      upcoming.value = await service.findUpcoming(days)
-      return upcoming.value
+      const data = await service.findUpcoming(days)
+      if (generation === requestGeneration) upcoming.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -71,12 +86,14 @@ export const useChecksStore = defineStore('checks', () => {
   // =========================
 
   const fetchPendingNotification = async () => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      pendingNotification.value = await service.findPendingNotification()
-      return pendingNotification.value
+      const data = await service.findPendingNotification()
+      if (generation === requestGeneration) pendingNotification.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -213,6 +230,7 @@ export const useChecksStore = defineStore('checks', () => {
     deposit,
     collectInCashBox,
     debitOwnCheck,
-    revert
+    revert,
+    reset
   }
 })

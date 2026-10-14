@@ -20,6 +20,15 @@ export const useBankAccountsStore = defineStore('bank-accounts', () => {
   const movements = ref<BankAccountMovement[]>([])
 
   const loading = ref(false)
+  let requestGeneration = 0
+
+  const reset = () => {
+    requestGeneration++
+    items.value = []
+    current.value = null
+    movements.value = []
+    loading.value = false
+  }
 
   // =========================
   // COMPUTEDS
@@ -34,11 +43,13 @@ export const useBankAccountsStore = defineStore('bank-accounts', () => {
   // =========================
 
   const fetchAll = async () => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      items.value = await service.findAll()
+      const data = await service.findAll()
+      if (generation === requestGeneration) items.value = data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -47,13 +58,14 @@ export const useBankAccountsStore = defineStore('bank-accounts', () => {
   // =========================
 
   const fetchOne = async (id: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
       const data = await service.findOne(id)
-      current.value = data
+      if (generation === requestGeneration) current.value = data
       return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -62,12 +74,14 @@ export const useBankAccountsStore = defineStore('bank-accounts', () => {
   // =========================
 
   const fetchMovements = async (id: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      movements.value = await service.getMovements(id)
-      return movements.value
+      const data = await service.getMovements(id)
+      if (generation === requestGeneration) movements.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -145,6 +159,7 @@ export const useBankAccountsStore = defineStore('bank-accounts', () => {
     cancelMovement,
     create,
     update,
-    remove
+    remove,
+    reset
   }
 })

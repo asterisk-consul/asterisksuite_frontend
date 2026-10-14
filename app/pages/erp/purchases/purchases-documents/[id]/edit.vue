@@ -48,7 +48,11 @@ async function handleSubmit(payload: any) {
   try {
     saving.value = true
 
-    await documentsPurchasesStore.update(route.params.id as string, payload)
+    await documentsPurchasesStore.update(route.params.id as string, {
+      ...payload,
+      expected_updated_at: documentsPurchasesStore.current?.updated_at
+    })
+    formRef.value?.completeDraft()
 
     toast.add({
       title: 'Factura actualizada',
@@ -59,7 +63,7 @@ async function handleSubmit(payload: any) {
     router.push(`/erp/purchases/purchases-documents/${route.params.id}`)
   } catch (e: any) {
     toast.add({
-      title: 'Error al actualizar',
+      title: e?.statusCode === 409 || e?.status === 409 ? 'El documento cambió' : 'Error al actualizar',
       description: e?.data?.message,
       color: 'error'
     })

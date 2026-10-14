@@ -26,6 +26,7 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
   const sessions = ref<CashBoxSession[]>([])
 
   const loading = ref(false)
+  let requestGeneration = 0
 
   // =========================
   // COMPUTEDS
@@ -44,11 +45,13 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
   // =========================
 
   const fetchAll = async () => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      items.value = await service.findAll()
+      const data = await service.findAll()
+      if (generation === requestGeneration) items.value = data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -57,13 +60,14 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
   // =========================
 
   const fetchOne = async (id: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
       const data = await service.findOne(id)
-      current.value = data
+      if (generation === requestGeneration) current.value = data
       return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -72,10 +76,14 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
   // =========================
 
   const reset = () => {
+    requestGeneration++
+    items.value = []
     current.value = null
+    mainBox.value = null
     currentSession.value = null
     sessions.value = []
     balances.value = []
+    loading.value = false
   }
 
   // =========================
@@ -83,12 +91,14 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
   // =========================
 
   const fetchMain = async () => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      mainBox.value = await service.findMain()
-      return mainBox.value
+      const data = await service.findMain()
+      if (generation === requestGeneration) mainBox.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -97,12 +107,14 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
   // =========================
 
   const fetchBalances = async (id: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      balances.value = await service.getBalances(id)
-      return balances.value
+      const data = await service.getBalances(id)
+      if (generation === requestGeneration) balances.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -116,22 +128,26 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
   // =========================
 
   const fetchCurrentSession = async (id: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      currentSession.value = await service.getCurrentSession(id)
-      return currentSession.value
+      const data = await service.getCurrentSession(id)
+      if (generation === requestGeneration) currentSession.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
   const fetchSessions = async (id: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      sessions.value = await service.getSessions(id)
-      return sessions.value
+      const data = await service.getSessions(id)
+      if (generation === requestGeneration) sessions.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 

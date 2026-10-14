@@ -2,9 +2,10 @@
 definePageMeta({ middleware: ['auth'] })
 
 import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
-import PresupuestoForm from '~/modulos/erp/documents/presupuesto/PresupuestoForm.vue'
-import OrdenVentaForm from '~/modulos/erp/documents/orden-venta/OrdenVentaForm.vue'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
+
+const PresupuestoForm = defineAsyncComponent(() => import('~/modulos/erp/documents/presupuesto/PresupuestoForm.vue'))
+const OrdenVentaForm = defineAsyncComponent(() => import('~/modulos/erp/documents/orden-venta/OrdenVentaForm.vue'))
 
 const { mainCollapsed } = useSidebarState()
 const route = useRoute()
@@ -13,8 +14,9 @@ const toast = useToast()
 
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
-const presupuestoRef = ref<InstanceType<typeof PresupuestoForm> | null>(null)
-const ordenVentaRef = ref<InstanceType<typeof OrdenVentaForm> | null>(null)
+const presupuestoRef = ref<any>(null)
+const ordenVentaRef = ref<any>(null)
+const extensionDraft = ref<Record<string, any>>({})
 
 const partyId = computed(() => (route.query.party_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
@@ -114,6 +116,7 @@ async function handleSubmit(payload: any) {
     )
 
     const created = await DocumentsSalesService.create(normalizedPayload)
+    formRef.value?.completeDraft()
     if (intakeId.value) {
       await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
         method: 'POST', body: { target_type: 'SALES_DOCUMENT', target_id: created.id }
@@ -174,14 +177,16 @@ async function handleSubmit(payload: any) {
             :operational-mode="isRemito"
             :initial-values="initialValues"
             :parent-document-id="parentOrderId"
+            :draft-extension="extensionDraft"
             @submit="handleSubmit"
+            @restore-extension="extensionDraft = $event"
           />
 
           <!-- Extensión: Presupuesto -->
-          <PresupuestoForm v-if="isQuote" ref="presupuestoRef" />
+          <PresupuestoForm v-if="isQuote" ref="presupuestoRef" v-model="extensionDraft" />
 
           <!-- Extensión: Orden de Venta -->
-          <OrdenVentaForm v-if="isOrder" ref="ordenVentaRef" />
+          <OrdenVentaForm v-if="isOrder" ref="ordenVentaRef" v-model="extensionDraft" />
         </UPageBody>
       </UPage>
     </template>

@@ -25,6 +25,18 @@ export const usePaymentsStore = defineStore('payments', () => {
   const availableCustomerChecks = ref<AvailableCheck[]>([])
 
   const loading = ref(false)
+  let requestGeneration = 0
+
+  const reset = () => {
+    requestGeneration++
+    items.value = []
+    current.value = null
+    pendingSalesDocuments.value = []
+    pendingPurchaseDocuments.value = []
+    availableOwnChecks.value = []
+    availableCustomerChecks.value = []
+    loading.value = false
+  }
 
   // =========================
   // LOAD ALL
@@ -36,11 +48,13 @@ export const usePaymentsStore = defineStore('payments', () => {
     payment_method?: string
     status?: PaymentStatus
   }) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      items.value = await service.findAll(params)
+      const data = await service.findAll(params)
+      if (generation === requestGeneration) items.value = data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -49,13 +63,14 @@ export const usePaymentsStore = defineStore('payments', () => {
   // =========================
 
   const fetchOne = async (id: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
       const data = await service.findOne(id)
-      current.value = data
+      if (generation === requestGeneration) current.value = data
       return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -182,20 +197,24 @@ export const usePaymentsStore = defineStore('payments', () => {
   // =========================
 
   const fetchPendingSalesDocuments = async (partyId?: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      pendingSalesDocuments.value = await service.findPendingSalesDocuments(partyId)
+      const data = await service.findPendingSalesDocuments(partyId)
+      if (generation === requestGeneration) pendingSalesDocuments.value = data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
   const fetchPendingPurchaseDocuments = async (partyId?: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      pendingPurchaseDocuments.value = await service.findPendingPurchaseDocuments(partyId)
+      const data = await service.findPendingPurchaseDocuments(partyId)
+      if (generation === requestGeneration) pendingPurchaseDocuments.value = data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -204,20 +223,24 @@ export const usePaymentsStore = defineStore('payments', () => {
   // =========================
 
   const fetchAvailableOwnChecks = async () => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      availableOwnChecks.value = await service.findAvailableOwnChecks()
+      const data = await service.findAvailableOwnChecks()
+      if (generation === requestGeneration) availableOwnChecks.value = data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
   const fetchAvailableCustomerChecks = async () => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      availableCustomerChecks.value = await service.findAvailableCustomerChecks()
+      const data = await service.findAvailableCustomerChecks()
+      if (generation === requestGeneration) availableCustomerChecks.value = data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -290,6 +313,7 @@ export const usePaymentsStore = defineStore('payments', () => {
     reject,
     applyAdvance,
     removeAdvanceApplication,
-    fetchAdvanceAvailable
+    fetchAdvanceAvailable,
+    reset
   }
 })

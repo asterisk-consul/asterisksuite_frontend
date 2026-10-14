@@ -4,12 +4,14 @@ definePageMeta({ middleware: ['auth'] })
 import { useTreasuryObligationsService, type ObligationTemplate, type TreasuryObligation } from '~/modulos/erp/treasury-obligations/treasury-obligations.service'
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useAccountsStore } from '~/modulos/contabilidad/store/accounts.store'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 
 type View = 'upcoming' | 'obligations' | 'recurring' | 'reports'
 const service = useTreasuryObligationsService()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
+const authStore = useAuthStore()
 const productsStore = useProductsStore()
 const accountsStore = useAccountsStore()
 const activeView = ref<View>((route.query.view as View) || 'upcoming')
@@ -78,6 +80,19 @@ const emptyForm = () => ({
   occurrences: 12, due_day: new Date().getDate(), variable_amount: true
 })
 const form = reactive(emptyForm())
+const obligationDraftKey = computed(() => `asterisk:obligation-draft:${authStore.selectedCompany?.id || 'company'}:${authStore.user?.id || 'user'}:${recurring.value ? 'recurring' : 'single'}`)
+const {
+  availableDraft: obligationDraft,
+  restoreDraft: restoreObligationDraft,
+  discardDraft: discardObligationDraft,
+  completeDraft: completeObligationDraft
+} = useLocalFormDraft({
+  key: obligationDraftKey,
+  enabled: computed(() => modalOpen.value && !editing.value),
+  source: () => ({ ...form }),
+  restore: draft => Object.assign(form, draft),
+  isMeaningful: draft => Boolean(draft.party_id || draft.description || draft.name || Number(draft.amount) > 0)
+})
 const availableParties = computed(() => {
   const allowedTypes = partyTypeByCategory[form.category] ?? []
   return parties.value.filter(party => allowedTypes.includes(party.type))
@@ -190,6 +205,7 @@ async function save() {
       }
       editing.value ? await service.update(editing.value.id, payload) : await service.create(payload)
     }
+    if (!editing.value) completeObligationDraft()
     modalOpen.value = false
     toast.add({ title: recurring.value ? 'Recurrencia y períodos creados' : 'Obligación guardada', color: 'success' })
     await load()
@@ -316,6 +332,9 @@ onMounted(load)
 
     <UModal v-model:open="modalOpen" :title="recurring ? 'Nueva recurrencia' : editing ? 'Revisar obligación' : 'Nueva obligación'" :ui="{ content: 'sm:max-w-4xl' }">
       <template #body><div class="space-y-5">
+        <UAlert v-if="obligationDraft" color="warning" variant="subtle" title="Encontramos una obligación sin terminar" description="Podés recuperar los datos guardados en este dispositivo.">
+          <template #actions><div class="flex gap-2"><UButton label="Recuperar" size="xs" @click="restoreObligationDraft" /><UButton label="Descartar" size="xs" color="neutral" variant="outline" @click="discardObligationDraft" /></div></template>
+        </UAlert>
         <div class="rounded-xl border border-default bg-elevated/20 p-4 space-y-4">
           <div><p class="font-medium">Datos principales</p><p class="text-xs text-muted">Definí qué obligación vas a registrar y a quién corresponde.</p></div>
           <div class="grid gap-4 md:grid-cols-2">

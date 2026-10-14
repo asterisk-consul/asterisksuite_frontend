@@ -8,6 +8,7 @@ import { canSettleDocument } from '~/modulos/erp/documents/utils/document-paymen
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
+useDocumentFormPreload('/erp/sales/new?category=ORDER')
 
 const statusFilter = ref<number | undefined>(undefined)
 const documents = computed(() => store.items ?? [])

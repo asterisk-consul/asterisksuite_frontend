@@ -16,18 +16,28 @@ export const useTreasuryReportsStore = defineStore('treasury-reports', () => {
   const movements = ref<TreasuryMovement[]>([])
 
   const loading = ref(false)
+  let requestGeneration = 0
+
+  const reset = () => {
+    requestGeneration++
+    dashboard.value = null
+    movements.value = []
+    loading.value = false
+  }
 
   // =========================
   // DASHBOARD
   // =========================
 
   const fetchDashboard = async (checksDays?: number) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      dashboard.value = await service.dashboard(checksDays)
-      return dashboard.value
+      const data = await service.dashboard(checksDays)
+      if (generation === requestGeneration) dashboard.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -36,12 +46,14 @@ export const useTreasuryReportsStore = defineStore('treasury-reports', () => {
   // =========================
 
   const fetchMovements = async (params?: TreasuryMovementsQuery) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      movements.value = await service.movements(params)
-      return movements.value
+      const data = await service.movements(params)
+      if (generation === requestGeneration) movements.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -53,6 +65,7 @@ export const useTreasuryReportsStore = defineStore('treasury-reports', () => {
 
     // actions
     fetchDashboard,
-    fetchMovements
+    fetchMovements,
+    reset
   }
 })

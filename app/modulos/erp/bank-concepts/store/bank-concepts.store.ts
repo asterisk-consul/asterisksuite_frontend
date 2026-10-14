@@ -8,15 +8,25 @@ export const useBankConceptsStore = defineStore('bankConcepts', () => {
   const items = ref<any[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  let requestGeneration = 0
+
+  const reset = () => {
+    requestGeneration++
+    items.value = []
+    loading.value = false
+    error.value = null
+  }
 
   const activeItems = computed(() => items.value.filter(i => i.is_active !== false))
 
   const fetchAll = async () => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      items.value = await service.findAll()
+      const data = await service.findAll()
+      if (generation === requestGeneration) items.value = data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -41,6 +51,6 @@ export const useBankConceptsStore = defineStore('bankConcepts', () => {
   return {
     items, loading, error,
     activeItems,
-    fetchAll, create, update, remove
+    fetchAll, create, update, remove, reset
   }
 })

@@ -11,10 +11,12 @@ import type { Check } from '~/modulos/erp/checks/types/checks.types'
 import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
 import type { BankAccount } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 const toast = useToast()
+const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const intakeId = computed(() => route.query.intakeId as string | undefined)
@@ -48,6 +50,27 @@ const depositAmount = ref(0)
 const depositDate = ref('')
 const bankAccounts = ref<BankAccount[]>([])
 const depositing = ref(false)
+const depositDraftKey = computed(() => `asterisk:check-deposit-draft:${authStore.selectedCompany?.id || 'company'}:${authStore.user?.id || 'user'}:${depositingCheck.value?.id || 'none'}`)
+const {
+  availableDraft: depositDraft,
+  restoreDraft: restoreDepositDraft,
+  discardDraft: discardDepositDraft,
+  completeDraft: completeDepositDraft
+} = useLocalFormDraft({
+  key: depositDraftKey,
+  enabled: computed(() => depositModalOpen.value && Boolean(depositingCheck.value)),
+  source: () => ({
+    bankAccountId: depositBankAccountId.value,
+    amount: depositAmount.value,
+    date: depositDate.value
+  }),
+  restore: draft => {
+    depositBankAccountId.value = draft.bankAccountId
+    depositAmount.value = draft.amount
+    depositDate.value = draft.date
+  },
+  isMeaningful: draft => Boolean(draft.bankAccountId)
+})
 const resolveModalOpen = ref(false)
 const resolvingCheck = ref<Check | null>(null)
 const cashBoxId = ref('')
@@ -216,6 +239,7 @@ const handleDeposit = async () => {
       amount: depositAmount.value,
       date: depositDate.value
     })
+    completeDepositDraft()
     if (intakeId.value) {
       await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
         method: 'POST',
@@ -407,6 +431,9 @@ const sortFields: SortField[] = [
     <UModal v-model:open="depositModalOpen" title="Depositar cheque" :ui="{ width: 'w-[420px]' }">
       <template #body>
         <div v-if="depositingCheck" class="space-y-4">
+          <UAlert v-if="depositDraft" color="warning" variant="subtle" title="Hay un depósito sin terminar" description="Podés recuperar la cuenta, fecha e importe seleccionados.">
+            <template #actions><div class="flex gap-2"><UButton label="Recuperar" size="xs" @click="restoreDepositDraft" /><UButton label="Descartar" size="xs" color="neutral" variant="outline" @click="discardDepositDraft" /></div></template>
+          </UAlert>
           <div class="rounded-lg bg-muted/50 p-3 space-y-1">
             <p class="text-sm font-medium">Cheque N° {{ depositingCheck.check_number }}</p>
             <p class="text-xs text-muted">{{ depositingCheck.bank_name }} — Emisor: {{ depositingCheck.issuer_name }}</p>

@@ -9,7 +9,9 @@ const urlBase = '/api/backend/currencies'
 export const useCurrenciesService = () => {
   const findAll = () => {
     return $fetch<Currency[]>(urlBase, {
-      method: 'GET'
+      method: 'GET',
+      timeout: 10_000,
+      retry: 1
     })
   }
 
@@ -18,7 +20,7 @@ export const useCurrenciesService = () => {
   }
 
   const getBaseCurrency = () => {
-    return $fetch<Currency>(`${urlBase}/base`)
+    return $fetch<Currency>(`${urlBase}/base`, { timeout: 10_000, retry: 1 })
   }
 
   const create = (data: CreateCurrencyInput) => {

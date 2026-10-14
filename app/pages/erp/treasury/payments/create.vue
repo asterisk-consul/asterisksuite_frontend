@@ -78,6 +78,7 @@ const initialValues = ref<PaymentFormData | undefined>(
       } as PaymentFormData)
     : undefined
 )
+const paymentFormRef = ref<InstanceType<typeof PaymentForm> | null>(null)
 
 onMounted(async () => {
   const [, , , , companyUsers] = await Promise.all([
@@ -186,6 +187,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
     }
     const created = await create(apiPayload)
     if (created?.id) {
+      paymentFormRef.value?.completeDraft()
       if (intakeId.value) {
         await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
           method: 'POST', body: { target_type: 'PAYMENT', target_id: created.id }
@@ -284,6 +286,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
 
     <div class="max-w-5xl">
       <PaymentForm
+        ref="paymentFormRef"
         v-model="initialValues"
         :pending-sales-documents="pendingSalesDocuments"
         :pending-purchase-documents="pendingPurchaseDocuments"

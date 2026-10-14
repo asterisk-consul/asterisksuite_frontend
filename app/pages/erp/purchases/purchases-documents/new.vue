@@ -154,6 +154,7 @@ async function handleSubmit(payload: any) {
       parent_document_id: parentOrderId.value || undefined
     }
     const created = await DocumentsPurchasesService.create(fullPayload)
+    formRef.value?.completeDraft()
     if (obligationId.value) {
       await $fetch(`/api/backend/treasury/obligations/${obligationId.value}`, {
         method: 'PATCH',

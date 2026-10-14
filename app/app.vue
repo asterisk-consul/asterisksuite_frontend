@@ -42,6 +42,7 @@ useSeoMeta({
 <template>
   <UApp :toaster="toaster" :locale="locale">
     <NuxtLoadingIndicator />
+    <ConnectionStatus />
 
     <NuxtLayout>
       <NuxtPage />

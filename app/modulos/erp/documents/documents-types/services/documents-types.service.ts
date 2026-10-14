@@ -15,7 +15,11 @@ export const useDocumentsTypesService = () => {
       body: data
     })
 
-  const findAll = () => fetch<DocumentsType[]>(`${urlBase}`)
+  const findAll = () => fetch<DocumentsType[]>(`${urlBase}`, {
+    timeout: 15_000,
+    retry: 2,
+    retryDelay: 500
+  })
 
   const findOne = (id: string) => fetch<DocumentsType>(`${urlBase}/${id}`)
 

@@ -13,6 +13,7 @@ const documentsPurchasesStore = useDocumentsPurchasesStore()
 const router = useRouter()
 const toast = useToast()
 const { can: canDocument } = useDocumentPermissions()
+useDocumentFormPreload('/erp/purchases/purchases-documents/new')
 
 const PURCHASE_CATEGORIES = ['ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
 const purchaseCategorySet = new Set<string>(PURCHASE_CATEGORIES)

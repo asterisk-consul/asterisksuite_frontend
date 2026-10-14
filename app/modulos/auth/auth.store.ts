@@ -222,9 +222,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function selectCompany(company: CompanyMembership) {
-    // El empleado/vendedor es por empresa (tenant), invalidar cache y refetch
+    if (selectedCompany.value?.id === company.id) return
+
+    // Cambiar primero el contexto. Toda recarga posterior debe salir con el tenant nuevo.
     resetEmployeeCache()
-    fetchIfNeeded().catch(() => {})
     selectedCompany.value = company
     persistSelectedCompany(company)
     if (import.meta.client) {
@@ -233,6 +234,7 @@ export const useAuthStore = defineStore('auth', () => {
       const tenantCookie = useCookie('selected_tenant', { maxAge: 60 * 60 * 24 * 30, domain })
       tenantCookie.value = company.subdomain
     }
+    fetchIfNeeded().catch(() => {})
   }
 
   return {

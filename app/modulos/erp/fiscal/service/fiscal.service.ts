@@ -36,7 +36,7 @@ export function useFiscalService() {
   }
 
   function getPartyIibbRegistrations(partyId: string): Promise<BusinessPartyIibbRegistration[]> {
-    return $fetch(`${urlBase}/parties/${partyId}/iibb-registrations`)
+    return $fetch(`${urlBase}/parties/${partyId}/iibb-registrations`, { timeout: 10_000, retry: 1 })
   }
 
   function putPartyIibbRegistrations(partyId: string, registrations: BusinessPartyIibbRegistration[]) {
@@ -47,7 +47,7 @@ export function useFiscalService() {
   }
 
   function getCompanyJurisdictions(): Promise<CompanyTaxJurisdiction[]> {
-    return $fetch(`${urlBase}/company-jurisdictions`)
+    return $fetch(`${urlBase}/company-jurisdictions`, { timeout: 10_000, retry: 1 })
   }
 
   function putCompanyJurisdictions(jurisdictions: CompanyTaxJurisdiction[]) {
@@ -70,7 +70,7 @@ export function useFiscalService() {
 
   function getTaxRules(taxType?: string): Promise<TaxRule[]> {
     const query = taxType ? `?tax_type=${taxType}` : ''
-    return $fetch(`${urlBase}/tax-rules${query}`)
+    return $fetch(`${urlBase}/tax-rules${query}`, { timeout: 10_000, retry: 1 })
   }
 
   function createTaxRule(rule: Partial<TaxRule>): Promise<TaxRule> {

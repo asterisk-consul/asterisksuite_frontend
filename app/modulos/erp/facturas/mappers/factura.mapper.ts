@@ -85,6 +85,8 @@ export function mapDocumentToFacturaForm(
   return {
     id: document.id,
 
+    updated_at: document.updated_at,
+
     document_type_id: document.document_type_id,
 
     document_sequence_id: document.document_sequence_id ?? null,

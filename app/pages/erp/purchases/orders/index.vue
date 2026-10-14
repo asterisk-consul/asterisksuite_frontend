@@ -7,6 +7,7 @@ import { createSalesColumns } from '~/modulos/erp/sales/columns'
 
 const router = useRouter()
 const store = useDocumentsPurchasesStore()
+useDocumentFormPreload('/erp/purchases/orders/new')
 
 const statusFilter = ref<number | undefined>(undefined)
 const documents = computed(() => store.items ?? [])

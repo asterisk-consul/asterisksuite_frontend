@@ -7,6 +7,7 @@ import { createSalesColumns } from '~/modulos/erp/sales/columns'
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
+useDocumentFormPreload('/erp/sales/new?category=QUOTE')
 
 const statusFilter = ref<number | undefined>(undefined)
 const documents = computed(() => store.items ?? [])

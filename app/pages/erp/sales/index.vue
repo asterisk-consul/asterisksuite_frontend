@@ -14,6 +14,7 @@ const documentsSalesStore = useDocumentsSalesStore()
 const router = useRouter()
 const toast = useToast()
 const { can: canDocument } = useDocumentPermissions()
+useDocumentFormPreload('/erp/sales/new?category=INVOICE')
 
 const documents = computed(() => documentsSalesStore.items)
 const pending = computed(() => documentsSalesStore.loading)
@@ -220,7 +221,7 @@ const sortFields = [
           label="Crear Factura"
           icon="i-lucide-file-plus"
           color="primary"
-          @click="navigateTo('/erp/sales/new?category=INVOICE')"
+          to="/erp/sales/new?category=INVOICE"
         />
         <UButton
           icon="i-lucide-file-plus"

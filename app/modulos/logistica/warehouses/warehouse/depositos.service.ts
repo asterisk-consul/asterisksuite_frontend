@@ -6,7 +6,11 @@ import type {
 
 export const useDepositosService = () => {
   const urlBase = '/api/backend/warehouse/warehouses'
-  const getAll = () => $fetch<Warehouse[]>(`${urlBase}`)
+  const getAll = () => $fetch<Warehouse[]>(`${urlBase}`, {
+    timeout: 15_000,
+    retry: 2,
+    retryDelay: 500
+  })
 
   const getById = (id: string) => $fetch<Warehouse>(`${urlBase}/${id}`)
 

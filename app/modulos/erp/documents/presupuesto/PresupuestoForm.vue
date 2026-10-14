@@ -8,6 +8,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   submit: [any]
   cancel: []
+  'update:modelValue': [value: Record<string, any>]
 }>()
 
 const form = reactive({
@@ -22,6 +23,8 @@ const form = reactive({
 watch(() => props.modelValue, (val) => {
   if (val) Object.assign(form, val)
 }, { immediate: true })
+
+watch(form, value => emit('update:modelValue', { ...value }), { deep: true, immediate: true })
 
 // Expose form data for parent to read
 const getFormData = () => ({ ...form })

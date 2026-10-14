@@ -4,7 +4,7 @@ const urlBase = '/api/backend/document-sequences'
 
 export const useDocumentSequencesService = () => {
   const findAll = () => {
-    return $fetch<DocumentSequence[]>(urlBase, { method: 'GET' })
+    return $fetch<DocumentSequence[]>(urlBase, { method: 'GET', timeout: 10_000, retry: 1 })
   }
 
   const findOne = (id: string) => {

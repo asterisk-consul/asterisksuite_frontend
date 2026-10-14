@@ -21,6 +21,7 @@ import { useBankConcepts } from '~/modulos/erp/bank-concepts/composable/useBankC
 import { useCompanyRole } from '~/composables/useCompanyRole'
 import type { WithholdingProposal, PaymentWithholdingPayload } from '~/modulos/erp/fiscal/types/fiscal.types'
 import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 
 export interface PaymentFormData {
   type: 'PAYMENT' | 'COLLECTION' | 'EXPENSE'
@@ -102,6 +103,7 @@ const {
 const partiesService = useBusinessPartiesService()
 const fiscalService = useFiscalService()
 const toast = useToast()
+const authStore = useAuthStore()
 const cardService = useCreditCardsService()
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
@@ -286,6 +288,9 @@ const allParties = ref<Array<{
   roles?: Array<{ role: string; active: boolean }>
 }>>([])
 const partySearch = ref('')
+const remoteParties = ref<typeof allParties.value>([])
+let partySearchTimer: ReturnType<typeof setTimeout> | undefined
+let partySearchController: AbortController | undefined
 const cashBoxSearch = ref('')
 const bankAccountSearch = ref('')
 const payablePartyTypes = new Set(['SUPPLIER', 'SERVICE_PROVIDER', 'UTILITY', 'TAX_AUTHORITY', 'FINANCIAL'])
@@ -311,7 +316,9 @@ const formatPartyLabel = (party: { name: string; tax_id?: string; type: string }
 
 const filteredParties = computed(() => {
   const q = partySearch.value.toLowerCase().trim()
-  let filtered = allParties.value.filter(p =>
+  const merged = [...remoteParties.value, ...allParties.value]
+    .filter((party, index, rows) => rows.findIndex(item => item.id === party.id) === index)
+  let filtered = merged.filter(p =>
     isPayment.value ? payablePartyTypes.has(p.type) : isCustomerParty(p)
   )
   if (q) {
@@ -320,7 +327,7 @@ const filteredParties = computed(() => {
       (p.tax_id && p.tax_id.includes(q))
     )
   }
-  return filtered.map(p => ({
+  return filtered.slice(0, q ? 30 : 100).map(p => ({
     label: formatPartyLabel(p),
     value: p.id
   }))
@@ -328,7 +335,7 @@ const filteredParties = computed(() => {
 
 const selectedParty = computed({
   get: () => {
-    const party = allParties.value.find(p => p.id === form.party_id)
+    const party = [...remoteParties.value, ...allParties.value].find(p => p.id === form.party_id)
     if (!party) return null
     return {
       label: formatPartyLabel(party),
@@ -337,9 +344,36 @@ const selectedParty = computed({
   },
   set: (val: any) => {
     form.party_id = val?.value ?? ''
-    form.party_type = allParties.value.find(p => p.id === form.party_id)?.type
+    form.party_type = [...remoteParties.value, ...allParties.value].find(p => p.id === form.party_id)?.type
       ?? (isPayment.value ? 'SUPPLIER' : 'CUSTOMER')
   }
+})
+
+watch(partySearch, (value) => {
+  if (partySearchTimer) clearTimeout(partySearchTimer)
+  partySearchController?.abort()
+  const query = value.trim()
+  if (query.length < 2) {
+    remoteParties.value = []
+    return
+  }
+  partySearchTimer = setTimeout(async () => {
+    partySearchController = new AbortController()
+    try {
+      remoteParties.value = await partiesService.search(
+        query,
+        isPayment.value ? [...payablePartyTypes] : ['CUSTOMER'],
+        partySearchController.signal
+      )
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') remoteParties.value = []
+    }
+  }, 300)
+})
+
+onBeforeUnmount(() => {
+  if (partySearchTimer) clearTimeout(partySearchTimer)
+  partySearchController?.abort()
 })
 
 const defaultForm: PaymentFormData = {
@@ -370,6 +404,61 @@ const form = reactive<PaymentFormData>({ ...defaultForm })
 const selectedDocs = ref<Map<string, { doc: PendingDocument; amount: number }>>(new Map())
 const selectedChecks = ref<Map<string, AvailableCheck>>(new Map())
 const checkSearch = ref('')
+
+type PaymentDraft = {
+  form: PaymentFormData
+  selectedDocs: Array<[string, { doc: PendingDocument; amount: number }]>
+  selectedChecks: Array<[string, AvailableCheck]>
+  withholdings: WithholdingProposal[]
+  bankCharges: PaymentBankChargeForm[]
+}
+
+const paymentDraftKey = computed(() => {
+  const companyId = authStore.selectedCompany?.id || 'company'
+  const userId = authStore.user?.id || 'user'
+  return `asterisk:payment-draft:${companyId}:${userId}:new`
+})
+
+const {
+  availableDraft: paymentDraft,
+  status: paymentDraftStatus,
+  lastSavedAt: paymentDraftSavedAt,
+  restoreDraft: restorePaymentDraft,
+  discardDraft: discardPaymentDraft,
+  completeDraft: completePaymentDraft
+} = useLocalFormDraft<PaymentDraft>({
+  key: paymentDraftKey,
+  enabled: computed(() => !props.readonly),
+  source: () => ({
+    form: { ...form },
+    selectedDocs: Array.from(selectedDocs.value.entries()),
+    selectedChecks: Array.from(selectedChecks.value.entries()),
+    withholdings: withholdings.value,
+    bankCharges: bankCharges.value
+  }),
+  restore: (draft) => {
+    Object.assign(form, draft.form)
+    selectedDocs.value = new Map(draft.selectedDocs)
+    selectedChecks.value = new Map(draft.selectedChecks)
+    withholdings.value = draft.withholdings.map(item => ({ ...item }))
+    bankCharges.value = draft.bankCharges.map(item => ({ ...item }))
+    toast.add({ title: 'Borrador recuperado', description: 'Se restauraron también los documentos, cheques y retenciones.', color: 'success' })
+  },
+  isMeaningful: draft => Boolean(
+    draft.form.party_id
+    || draft.form.description
+    || draft.form.reference
+    || Number(draft.form.amount) > 0
+    || draft.selectedDocs.length
+    || draft.selectedChecks.length
+    || draft.withholdings.length
+    || draft.bankCharges.length
+  )
+})
+
+const paymentDraftSavedLabel = computed(() => paymentDraftSavedAt.value
+  ? new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' }).format(paymentDraftSavedAt.value)
+  : '')
 
 const sameStringArray = (left: string[] = [], right: string[] = []) =>
   left.length === right.length && left.every((value, index) => value === right[index])
@@ -1208,6 +1297,8 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
     maximumFractionDigits: 2
   }).format(amount)
 }
+
+defineExpose({ completeDraft: completePaymentDraft })
 </script>
 
 <template>
@@ -1330,6 +1421,25 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
   <!-- MODO EDITABLE (borrador)                              -->
   <!-- ═══════════════════════════════════════════════════════ -->
   <form v-else class="space-y-5" @submit.prevent="handleSubmit">
+    <UAlert
+      v-if="paymentDraft"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-file-clock"
+      title="Encontramos un pago o cobro sin terminar"
+      :description="`Guardado en este dispositivo el ${new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short' }).format(paymentDraft.savedAt)}.`"
+    >
+      <template #actions>
+        <div class="flex flex-wrap gap-2">
+          <UButton label="Recuperar borrador" size="sm" icon="i-lucide-rotate-ccw" @click="restorePaymentDraft" />
+          <UButton label="Descartar" size="sm" icon="i-lucide-trash-2" color="neutral" variant="outline" @click="discardPaymentDraft" />
+        </div>
+      </template>
+    </UAlert>
+    <div v-else-if="paymentDraftStatus !== 'idle'" class="flex items-center justify-end gap-1.5 text-xs text-muted" aria-live="polite">
+      <UIcon :name="paymentDraftStatus === 'saving' ? 'i-lucide-loader-circle' : 'i-lucide-check-circle-2'" :class="{ 'animate-spin': paymentDraftStatus === 'saving' }" />
+      <span>{{ paymentDraftStatus === 'saving' ? 'Guardando borrador…' : `Borrador guardado en este dispositivo${paymentDraftSavedLabel ? ` · ${paymentDraftSavedLabel}` : ''}` }}</span>
+    </div>
     <div class="grid grid-cols-3 gap-4">
       <UFormField label="Tipo" name="type" required>
         <USelectMenu v-model="selectedType" :items="typeOptions" class="w-full" />

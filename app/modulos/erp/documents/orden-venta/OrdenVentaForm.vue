@@ -11,6 +11,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   submit: [any]
   cancel: []
+  'update:modelValue': [value: Record<string, any>]
 }>()
 
 const employeesStore = useEmployeesStore()
@@ -70,6 +71,8 @@ watch(() => props.modelValue, (val) => {
     commission_base: val.commission_base ?? 'INVOICED',
   })
 }, { immediate: true })
+
+watch(form, value => emit('update:modelValue', { ...value }), { deep: true, immediate: true })
 
 // Set default seller when employees load and no seller is set
 watch(activeEmployees, (emps) => {

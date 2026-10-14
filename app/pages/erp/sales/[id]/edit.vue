@@ -44,6 +44,13 @@ const pageTitle = computed(() => {
   return labels[category.value ?? ''] ?? 'documento de venta'
 })
 const orderDetails = computed(() => documentsSalesStore.current?.orden_venta_doc ?? undefined)
+const extensionDraft = ref<Record<string, any>>({})
+
+watch(orderDetails, (details) => {
+  if (details && Object.keys(extensionDraft.value).length === 0) {
+    extensionDraft.value = { ...details }
+  }
+}, { immediate: true })
 
 useBreadcrumbEntityLabel(
   computed(() => `/erp/sales/${route.params.id as string}`),
@@ -71,8 +78,10 @@ async function handleSubmit(payload: any) {
 
     await documentsSalesStore.update(route.params.id as string, {
       ...payload,
-      ...extensionData
+      ...extensionData,
+      expected_updated_at: documentsSalesStore.current?.updated_at
     })
+    formRef.value?.completeDraft()
 
     toast.add({
       title: `${pageTitle.value.charAt(0).toUpperCase()}${pageTitle.value.slice(1)} actualizado`,
@@ -87,7 +96,7 @@ async function handleSubmit(payload: any) {
       : `/erp/sales/${route.params.id}`)
   } catch (e: any) {
     toast.add({
-      title: 'Error al actualizar',
+      title: e?.statusCode === 409 || e?.status === 409 ? 'El documento cambió' : 'Error al actualizar',
       description: e?.data?.message,
       color: 'error'
     })
@@ -137,15 +146,17 @@ async function handleSubmit(payload: any) {
             :initial-values="factura"
             :loading="saving"
             module-code="SALES"
-            :category="category"
+            :category="category ?? undefined"
             :operational-mode="isRemito"
+            :draft-extension="extensionDraft"
             @submit="handleSubmit"
+            @restore-extension="extensionDraft = $event"
           />
 
           <OrdenVentaForm
             v-if="factura && isOrder"
             ref="ordenVentaRef"
-            :model-value="orderDetails"
+            v-model="extensionDraft"
             :loading="saving"
           />
 

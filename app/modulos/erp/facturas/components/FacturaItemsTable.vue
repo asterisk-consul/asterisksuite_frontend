@@ -43,9 +43,19 @@ const emit = defineEmits<{
 
   'update:warehouse': [index: number, warehouseId: string | null]
   'regularize-stock': [index: number, item: FacturaItem]
+  'search-products': [query: string]
 }>()
 
 const selectedProduct = ref<any>(null)
+const productSearch = ref('')
+watch(productSearch, query => emit('search-products', query))
+const visibleProductOptions = computed(() => {
+  const query = productSearch.value.trim().toLocaleLowerCase('es-AR')
+  const matches = query
+    ? props.productOptions.filter(option => option.label.toLocaleLowerCase('es-AR').includes(query))
+    : props.productOptions
+  return matches.slice(0, 100)
+})
 const selectedVariant = ref<string | null>(null)
 const variantOptions = ref<any[]>([])
 const { selectItems: variantSelectItems, loadByProduct: loadVariants } = useProductVariants()
@@ -330,10 +340,11 @@ const columns = computed(() => [
         <UFormField label="Producto" class="min-w-0">
           <USelectMenu
             v-model="selectedProduct"
-            :items="props.productOptions"
+            :items="visibleProductOptions"
             value-key="value"
             placeholder="Buscar por código o nombre..."
             searchable
+            @update:search="productSearch = $event"
             class="w-full min-w-0"
           />
         </UFormField>

@@ -19,18 +19,32 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
   const currentBalance = ref<number | null>(null)
 
   const loading = ref(false)
+  let requestGeneration = 0
+
+  const reset = () => {
+    requestGeneration++
+    accounts.value = []
+    entries.value = []
+    statement.value = null
+    currentBalance.value = null
+    activeAccounts.value = []
+    allAccounts.value = []
+    loading.value = false
+  }
 
   // =========================
   // FIND BY PARTY
   // =========================
 
   const fetchByParty = async (partyId: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      accounts.value = await service.findByParty(partyId)
-      return accounts.value
+      const data = await service.findByParty(partyId)
+      if (generation === requestGeneration) accounts.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -39,12 +53,14 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
   // =========================
 
   const fetchEntries = async (partyId: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      entries.value = await service.getEntries(partyId)
-      return entries.value
+      const data = await service.getEntries(partyId)
+      if (generation === requestGeneration) entries.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -53,12 +69,14 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
   // =========================
 
   const fetchStatement = async (partyId: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      statement.value = await service.getStatement(partyId)
-      return statement.value
+      const data = await service.getStatement(partyId)
+      if (generation === requestGeneration) statement.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -67,13 +85,14 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
   // =========================
 
   const fetchBalance = async (partyId: string) => {
+    const generation = requestGeneration
     try {
       loading.value = true
       const data = await service.getBalance(partyId)
-      currentBalance.value = data.balance
+      if (generation === requestGeneration) currentBalance.value = data.balance
       return data.balance
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -94,12 +113,14 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
   const activeAccounts = ref<CurrentAccount[]>([])
 
   const fetchActive = async () => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      activeAccounts.value = await service.findActive()
-      return activeAccounts.value
+      const data = await service.findActive()
+      if (generation === requestGeneration) activeAccounts.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -110,12 +131,14 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
   const allAccounts = ref<CurrentAccount[]>([])
 
   const fetchAll = async (params?: { party_type?: string; balance_filter?: string }) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      allAccounts.value = await service.findAll(params)
-      return allAccounts.value
+      const data = await service.findAll(params)
+      if (generation === requestGeneration) allAccounts.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -136,6 +159,7 @@ export const useCurrentAccountsStore = defineStore('current-accounts', () => {
     fetchBalance,
     addEntry,
     fetchActive,
-    fetchAll
+    fetchAll,
+    reset
   }
 })

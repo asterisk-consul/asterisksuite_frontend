@@ -20,18 +20,30 @@ export const usePaymentReportsStore = defineStore('payment-reports', () => {
   const dailySummary = ref<DailySummaryReport[]>([])
 
   const loading = ref(false)
+  let requestGeneration = 0
+
+  const reset = () => {
+    requestGeneration++
+    byUser.value = []
+    cashBoxDaily.value = []
+    bankDaily.value = []
+    dailySummary.value = []
+    loading.value = false
+  }
 
   // =========================
   // BY USER
   // =========================
 
   const fetchByUser = async (params?: PaymentReportQuery) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      byUser.value = await service.findByUser(params)
-      return byUser.value
+      const data = await service.findByUser(params)
+      if (generation === requestGeneration) byUser.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -40,12 +52,14 @@ export const usePaymentReportsStore = defineStore('payment-reports', () => {
   // =========================
 
   const fetchCashBoxDaily = async (params?: PaymentReportQuery) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      cashBoxDaily.value = await service.cashBoxDaily(params)
-      return cashBoxDaily.value
+      const data = await service.cashBoxDaily(params)
+      if (generation === requestGeneration) cashBoxDaily.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -54,12 +68,14 @@ export const usePaymentReportsStore = defineStore('payment-reports', () => {
   // =========================
 
   const fetchBankDaily = async (params?: PaymentReportQuery) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      bankDaily.value = await service.bankDaily(params)
-      return bankDaily.value
+      const data = await service.bankDaily(params)
+      if (generation === requestGeneration) bankDaily.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -68,12 +84,14 @@ export const usePaymentReportsStore = defineStore('payment-reports', () => {
   // =========================
 
   const fetchDailySummary = async (params?: PaymentReportQuery) => {
+    const generation = requestGeneration
     try {
       loading.value = true
-      dailySummary.value = await service.dailySummary(params)
-      return dailySummary.value
+      const data = await service.dailySummary(params)
+      if (generation === requestGeneration) dailySummary.value = data
+      return data
     } finally {
-      loading.value = false
+      if (generation === requestGeneration) loading.value = false
     }
   }
 
@@ -89,6 +107,7 @@ export const usePaymentReportsStore = defineStore('payment-reports', () => {
     fetchByUser,
     fetchCashBoxDaily,
     fetchBankDaily,
-    fetchDailySummary
+    fetchDailySummary,
+    reset
   }
 })
