@@ -16,6 +16,7 @@ import OrderStockAvailability from '~/modulos/erp/documents/orden-venta/OrderSto
 import RemitoView from '~/modulos/erp/documents/remito/RemitoView.vue'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
+import { getOrderFlowPresentation } from '~/modulos/erp/documents/orden-venta/order-flow-status'
 
 const store = useDocumentsSalesStore()
 const companiesStore = useCompaniesStore()
@@ -34,6 +35,14 @@ const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
 const isSalesOrder = computed(() => category.value === 'ORDER' || doc.value?.document_types?.code === 'OV')
+const amountsVisible = computed(() => doc.value?.amounts_visible !== false)
+const orderFlowStatus = computed(() => getOrderFlowPresentation(doc.value))
+const canCreateDispatchOrder = computed(() => {
+  if (!isSalesOrder.value || Number(doc.value?.status) < 2 || Number(doc.value?.status) >= 7) return false
+  const operation = doc.value?.commercial_operation
+  if (!operation) return true
+  return operation.delivery_status === 'ELIGIBLE' && !operation.delivery_note_id
+})
 const documentNumber = computed(() => {
   if (!doc.value) return ''
   const code = doc.value.document_types?.code ?? ''
@@ -172,7 +181,7 @@ watch(confirmModalOpen, async (open) => {
           <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />
           <UBadge v-else-if="invoiceState === 'partial'" label="Factura parcial" color="warning" variant="subtle" />
           <UButton v-if="isSalesOrder" label="Ver disponibilidad" icon="i-lucide-warehouse" color="neutral" variant="outline" size="sm" :loading="stockAvailabilityLoading" @click="openStockAvailability" />
-          <UButton v-if="category === 'ORDER' && Number(doc?.status) >= 1 && Number(doc?.status) < 7" label="Crear Orden de Despacho" icon="i-lucide-clipboard-list" color="primary" variant="outline" size="sm" :loading="creatingDispatch" @click="createDispatchOrder" />
+          <UButton v-if="canCreateDispatchOrder" label="Crear Orden de Despacho" icon="i-lucide-clipboard-list" color="primary" variant="outline" size="sm" :loading="creatingDispatch" @click="createDispatchOrder" />
           <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
           <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
             <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
@@ -183,11 +192,17 @@ watch(confirmModalOpen, async (open) => {
     </AppPageHeader>
 
       <div class="p-4 space-y-6">
-        <DocumentHeader :document="doc" :loading="loading" />
+        <DocumentHeader
+          :document="doc"
+          :loading="loading"
+          :status-label="orderFlowStatus?.label"
+          :status-color="orderFlowStatus?.color"
+          :status-description="orderFlowStatus?.description"
+        />
         <DocumentChain v-if="doc" :document="doc" />
 
         <PresupuestoView v-if="doc && category === 'QUOTE'" :document="doc" />
-        <OrdenVentaView v-if="doc && category === 'ORDER'" :document="doc" />
+        <OrdenVentaView v-if="doc && category === 'ORDER'" :document="doc" :show-amounts="amountsVisible" />
         <!-- Tracking de entregas y facturación oculto temporalmente.
              El componente EntregasParciales se conserva para retomarlo más adelante. -->
         <RemitoView v-if="doc && category === 'REMITO'" :document="doc" />
@@ -200,10 +215,18 @@ watch(confirmModalOpen, async (open) => {
           :items="doc.document_items ?? []"
           :currency="doc.currency_code"
           :show-tracking="category === 'ORDER'"
-          :show-amounts="category !== 'REMITO'"
+          :show-amounts="category !== 'REMITO' && amountsVisible"
           :show-warehouse="category === 'REMITO'"
         />
-        <DocumentTotals v-if="doc && category !== 'REMITO'" :document="doc" />
+        <DocumentTotals v-if="doc && category !== 'REMITO' && amountsVisible" :document="doc" />
+        <UAlert
+          v-if="doc && category === 'ORDER' && !amountsVisible"
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-eye-off"
+          title="Importes restringidos"
+          description="En este estado podés consultar la información operativa de la orden, pero no sus precios, totales ni comisiones."
+        />
         <UiAttachmentManager
           v-if="doc"
           entity-type="document"

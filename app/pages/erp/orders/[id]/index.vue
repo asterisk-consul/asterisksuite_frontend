@@ -14,6 +14,7 @@ import DocumentPrintSelector from '~/components/documents/DocumentPrintSelector.
 import OrdenVentaView from '~/modulos/erp/documents/orden-venta/OrdenVentaView.vue'
 import EntregasParciales from '~/modulos/erp/documents/orden-venta/EntregasParciales.vue'
 import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
+import { getOrderFlowPresentation } from '~/modulos/erp/documents/orden-venta/order-flow-status'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,6 +28,8 @@ const loading = ref(true)
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
+const amountsVisible = computed(() => doc.value?.amounts_visible !== false)
+const orderFlowStatus = computed(() => getOrderFlowPresentation(doc.value))
 useBreadcrumbEntityLabel(
   computed(() => `/erp/orders/${route.params.id as string}`),
   computed(() => formatDocumentBreadcrumbLabel(doc.value))
@@ -98,15 +101,29 @@ async function handlePartialInvoice() {
 
     <template #body>
       <div class="p-4 space-y-6">
-        <DocumentHeader :document="doc" :loading="loading" />
+        <DocumentHeader
+          :document="doc"
+          :loading="loading"
+          :status-label="orderFlowStatus?.label"
+          :status-color="orderFlowStatus?.color"
+          :status-description="orderFlowStatus?.description"
+        />
         <DocumentChain v-if="doc" :document="doc" />
-        <OrdenVentaView v-if="doc" :document="doc" />
+        <OrdenVentaView v-if="doc" :document="doc" :show-amounts="amountsVisible" />
         <EntregasParciales v-if="doc" :document="doc" @partial-deliver="handlePartialDeliver" @partial-invoice="handlePartialInvoice" />
         <div v-if="doc && company" id="printable-document" class="print-only">
           <DocumentPrintSelector :document="doc" :company="company" />
         </div>
-        <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" show-tracking />
-        <DocumentTotals v-if="doc" :document="doc" />
+        <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" :show-amounts="amountsVisible" show-tracking />
+        <DocumentTotals v-if="doc && amountsVisible" :document="doc" />
+        <UAlert
+          v-if="doc && !amountsVisible"
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-eye-off"
+          title="Importes restringidos"
+          description="En este estado podés consultar la información operativa de la orden, pero no sus precios, totales ni comisiones."
+        />
       </div>
     </template>
   </UDashboardPanel>

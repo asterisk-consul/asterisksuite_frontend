@@ -124,7 +124,9 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const primaryActions = computed(() => {
     const items: any[] = []
 
-    if ((isDraft.value || isPending.value) && canDocument(module, category.value, 'update')) {
+    if ((isDraft.value || isPending.value)
+      && doc.value?.amounts_visible !== false
+      && canDocument(module, category.value, 'update')) {
       items.push({
         label: 'Editar',
         icon: 'i-lucide-pencil',
@@ -139,19 +141,21 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       })
     }
 
-    items.push({
-      label: 'Imprimir',
-      icon: 'i-lucide-printer',
-      help: 'Abre una nueva ventana con la vista de impresión del documento.',
-      onClick: () => {
-        if (config.printElement) {
-          config.printElement('printable-document', {
-            title: doc.value?.document_types?.description ?? 'Documento',
-            copies: copyCount.value,
-          })
+    if (doc.value?.amounts_visible !== false) {
+      items.push({
+        label: 'Imprimir',
+        icon: 'i-lucide-printer',
+        help: 'Abre una nueva ventana con la vista de impresión del documento.',
+        onClick: () => {
+          if (config.printElement) {
+            config.printElement('printable-document', {
+              title: doc.value?.document_types?.description ?? 'Documento',
+              copies: copyCount.value,
+            })
+          }
         }
-      }
-    })
+      })
+    }
 
     if (isDraft.value && canDocument(module, category.value, 'confirm')) {
       items.push({
@@ -197,11 +201,13 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   // ─── Secondary Actions ──────────────────────────────────
   const secondaryActions = computed(() => {
     const items: any[] = []
-    const isOrderActive = category.value === 'ORDER' && doc.value?.status >= 1 && doc.value?.status < 7
+    const isOrderActive = category.value === 'ORDER' && doc.value?.status >= 2 && doc.value?.status < 7
+    const orderOperation = category.value === 'ORDER' ? doc.value?.commercial_operation : null
     const canCreateRemito = canDocument(module, 'REMITO', 'create')
     const canCreateInvoice = canDocument(module, 'INVOICE', 'create')
 
     const canCancelCurrent = isDraft.value
+      || (category.value === 'ORDER' && Number(doc.value?.status) >= 2 && Number(doc.value?.status) < 7)
       || (category.value === 'INVOICE' && (isPending.value || isConfirmed.value))
     if (canCancelCurrent && canDocument(module, category.value, 'cancel')) {
       items.push([{ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onClick: () => { cancelModalOpen.value = true } }])
@@ -217,7 +223,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       }])
     }
 
-    if (validTransitions.value.length > 0 && canDocument(module, category.value, 'update')) {
+    if (category.value !== 'ORDER' && validTransitions.value.length > 0 && canDocument(module, category.value, 'update')) {
       items.push([{ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', onClick: () => { statusModalOpen.value = true } }])
     }
 
@@ -228,7 +234,22 @@ export function useDocumentActions(config: DocumentActionsConfig) {
 
     // Desde una OV activa se puede elegir Remito o Factura.
     if (isOrderActive && module === 'sales' && canCreateRemito) {
-      items.push([{ label: 'Crear Remito', icon: 'i-lucide-truck', color: 'success', onClick: () => { deliverModalOpen.value = true } }])
+      if (orderOperation?.delivery_note_id) {
+        const remitoPending = orderOperation.delivery_status === 'DRAFT_CREATED'
+        items.push([{
+          label: remitoPending ? 'Completar remito' : 'Ver remito',
+          icon: remitoPending ? 'i-lucide-clipboard-check' : 'i-lucide-truck',
+          color: remitoPending ? 'warning' : 'success',
+          onClick: () => router.push(`/erp/remitos/${orderOperation.delivery_note_id}`),
+        }])
+      } else if (!orderOperation || orderOperation.delivery_status === 'ELIGIBLE') {
+        items.push([{
+          label: orderOperation?.auto_create_delivery_note ? 'Generar remito pendiente' : 'Crear remito',
+          icon: 'i-lucide-truck',
+          color: 'success',
+          onClick: () => { deliverModalOpen.value = true },
+        }])
+      }
     }
 
     // Por defecto la factura nace desde la OV. Un remito no origina facturas.

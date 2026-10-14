@@ -5,6 +5,7 @@ definePageMeta({
 })
 
 import FacturaForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
+import OrdenVentaForm from '~/modulos/erp/documents/orden-venta/OrdenVentaForm.vue'
 
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 
@@ -28,7 +29,21 @@ const factura = computed(() => {
   const doc = documentsSalesStore.current
   return doc ? mapDocumentToFacturaForm(doc) : null
 })
-const isRemito = computed(() => documentsSalesStore.current?.document_types?.category === 'REMITO')
+const category = computed(() => documentsSalesStore.current?.document_types?.category)
+const isOrder = computed(() => category.value === 'ORDER')
+const isRemito = computed(() => category.value === 'REMITO')
+const pageTitle = computed(() => {
+  const labels: Record<string, string> = {
+    QUOTE: 'presupuesto',
+    ORDER: 'orden de venta',
+    REMITO: 'remito',
+    INVOICE: 'factura',
+    CREDIT_NOTE: 'nota de crédito',
+    DEBIT_NOTE: 'nota de débito'
+  }
+  return labels[category.value ?? ''] ?? 'documento de venta'
+})
+const orderDetails = computed(() => documentsSalesStore.current?.orden_venta_doc ?? undefined)
 
 useBreadcrumbEntityLabel(
   computed(() => `/erp/sales/${route.params.id as string}`),
@@ -36,6 +51,7 @@ useBreadcrumbEntityLabel(
 )
 
 const formRef = ref<InstanceType<typeof FacturaForm> | null>(null)
+const ordenVentaRef = ref<InstanceType<typeof OrdenVentaForm> | null>(null)
 
 onMounted(async () => {
   try {
@@ -49,11 +65,20 @@ async function handleSubmit(payload: any) {
   try {
     saving.value = true
 
-    await documentsSalesStore.update(route.params.id as string, payload)
+    const extensionData = isOrder.value && ordenVentaRef.value
+      ? ordenVentaRef.value.getFormData()
+      : {}
+
+    await documentsSalesStore.update(route.params.id as string, {
+      ...payload,
+      ...extensionData
+    })
 
     toast.add({
-      title: isRemito.value ? 'Remito actualizado' : 'Factura actualizada',
-      description: isRemito.value ? 'Se guardaron las cantidades y depósitos de salida.' : 'Factura actualizada con éxito',
+      title: `${pageTitle.value.charAt(0).toUpperCase()}${pageTitle.value.slice(1)} actualizado`,
+      description: isRemito.value
+        ? 'Se guardaron las cantidades y depósitos de salida.'
+        : `La ${pageTitle.value} se actualizó correctamente.`,
       color: 'success'
     })
 
@@ -75,7 +100,7 @@ async function handleSubmit(payload: any) {
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar :title="isRemito ? 'Editar remito' : 'Editar factura'">
+      <UDashboardNavbar :title="`Editar ${pageTitle}`">
         <template #leading>
           <UButton
             icon="i-lucide-panel-left-close"
@@ -90,8 +115,8 @@ async function handleSubmit(payload: any) {
     <template #body>
       <UPage>
         <UPageHeader
-          :title="isRemito ? 'Preparar remito' : 'Editar factura'"
-          :description="isRemito ? 'Revisá cantidades y elegí el depósito de salida de cada producto.' : 'Modificá la factura'"
+          :title="isRemito ? 'Preparar remito' : `Editar ${pageTitle}`"
+          :description="isRemito ? 'Revisá cantidades y elegí el depósito de salida de cada producto.' : `Modificá los datos de la ${pageTitle}.`"
           :links="[
             {
               label: 'Guardar Cambios',
@@ -112,8 +137,16 @@ async function handleSubmit(payload: any) {
             :initial-values="factura"
             :loading="saving"
             module-code="SALES"
+            :category="category"
             :operational-mode="isRemito"
             @submit="handleSubmit"
+          />
+
+          <OrdenVentaForm
+            v-if="factura && isOrder"
+            ref="ordenVentaRef"
+            :model-value="orderDetails"
+            :loading="saving"
           />
 
           <div v-else-if="loading" class="p-10 text-center">Cargando...</div>

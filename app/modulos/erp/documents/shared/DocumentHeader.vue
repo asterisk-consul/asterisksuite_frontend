@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import DocumentAssignment from './DocumentAssignment.vue'
-import { getStatusLabel, getStatusColor, getStatusDescription } from '~/modulos/erp/documents/types/document-statuses'
+import { getStatusLabel, getStatusColor, getStatusDescription, type BadgeColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 
 const props = defineProps<{
   document: any
   loading?: boolean
+  statusLabel?: string
+  statusColor?: BadgeColor
+  statusDescription?: string
 }>()
 
 const emit = defineEmits<{
@@ -29,9 +32,9 @@ function fmtDate(d?: string) {
 }
 
 const category = computed(() => props.document?.document_types?.category)
-const statusLabel = computed(() => getStatusLabel(category.value, props.document?.status))
-const statusColor = computed(() => getStatusColor(category.value, props.document?.status))
-const statusDescription = computed(() => getStatusDescription(category.value, props.document?.status))
+const statusLabel = computed(() => props.statusLabel ?? getStatusLabel(category.value, props.document?.status))
+const statusColor = computed(() => props.statusColor ?? getStatusColor(category.value, props.document?.status))
+const statusDescription = computed(() => props.statusDescription ?? getStatusDescription(category.value, props.document?.status))
 const pointOfSale = computed(() => props.document?.document_sequences?.point_of_sale)
 const docNumber = computed(() => {
   if (!props.document) return ''

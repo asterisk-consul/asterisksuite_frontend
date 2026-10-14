@@ -150,7 +150,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
     {
       label: 'Documentación',
       icon: 'i-lucide-book-open',
-      to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
+      to: 'https://docs.asterisksuite.cloud/',
       target: '_blank'
     },
     {

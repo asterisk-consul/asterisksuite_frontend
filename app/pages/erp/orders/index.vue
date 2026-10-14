@@ -21,17 +21,12 @@ watch(statusFilter, () => refresh())
 const stats = computed(() => {
   const docs = documents.value
   return {
-    total: docs.length,
     borrador: docs.filter(d => d.status === 0).length,
-    pendiente: docs.filter(d => d.status === 1).length,
-    confirmado: docs.filter(d => d.status === 2).length,
-    totalConfirmado: docs.filter(d => d.status === 2).reduce((a, d) => a + Number(d.total), 0),
+    preparacion: docs.filter(d => d.commercial_operation?.delivery_status === 'PENDING').length,
+    listas: docs.filter(d => d.commercial_operation?.delivery_status === 'ELIGIBLE').length,
+    remitosPendientes: docs.filter(d => d.commercial_operation?.delivery_status === 'DRAFT_CREATED').length,
   }
 })
-
-function fmt(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n ?? 0)
-}
 
 function openDocument(row: any) {
   router.push(`/erp/sales/${row.id}`)
@@ -64,7 +59,7 @@ const sortFields = [
   { label: 'N°', value: 'number' },
   { label: 'Fecha', value: 'date' },
   { label: 'Cliente', value: 'client' },
-  { label: 'Total', value: 'total' }
+  { label: 'Estado', value: 'status' }
 ]
 
 const statusOptions = [
@@ -95,21 +90,20 @@ const statusOptions = [
         </UPageCard>
         <UPageCard variant="subtle">
           <div class="space-y-1">
-            <p class="text-xs text-muted">Pendientes</p>
-            <p class="text-2xl font-semibold text-warning-500">{{ stats.pendiente }}</p>
+            <p class="text-xs text-muted">En preparación</p>
+            <p class="text-2xl font-semibold text-warning-500">{{ stats.preparacion }}</p>
           </div>
         </UPageCard>
         <UPageCard variant="subtle">
           <div class="space-y-1">
-            <p class="text-xs text-muted">Confirmadas</p>
-            <p class="text-2xl font-semibold text-success-500">{{ stats.confirmado }}</p>
-            <p class="text-xs text-muted">{{ fmt(stats.totalConfirmado) }}</p>
+            <p class="text-xs text-muted">Listas para despacho</p>
+            <p class="text-2xl font-semibold text-success-500">{{ stats.listas }}</p>
           </div>
         </UPageCard>
         <UPageCard variant="subtle">
           <div class="space-y-1">
-            <p class="text-xs text-muted">Total</p>
-            <p class="text-2xl font-semibold">{{ stats.total }}</p>
+            <p class="text-xs text-muted">Remitos pendientes</p>
+            <p class="text-2xl font-semibold text-info-500">{{ stats.remitosPendientes }}</p>
           </div>
         </UPageCard>
       </div>

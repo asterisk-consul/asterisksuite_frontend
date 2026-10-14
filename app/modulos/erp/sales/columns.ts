@@ -4,6 +4,7 @@ import { createTableBuilder } from '~/composables/table/createColumns'
 import { CATEGORY_LABELS, getStatusLabel, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
 import type { Document } from '~/modulos/erp/facturas/types/factura.types'
 import { canSettleDocument, getDocumentPaymentSummary } from '~/modulos/erp/documents/utils/document-payment-status'
+import { getOrderFlowPresentation } from '~/modulos/erp/documents/orden-venta/order-flow-status'
 
 type Row = Document
 
@@ -30,10 +31,13 @@ export const createSalesColumns = (actions: {
         label: 'Estado',
         sortable: true,
         badge: {
-          resolve: (doc) => ({
-            label: getStatusLabel(doc.document_types?.category, doc.status),
-            color: getStatusColor(doc.document_types?.category, doc.status) as any
-          })
+          resolve: (doc) => {
+            const orderFlow = getOrderFlowPresentation(doc)
+            return {
+              label: orderFlow?.label ?? getStatusLabel(doc.document_types?.category, doc.status),
+              color: (orderFlow?.color ?? getStatusColor(doc.document_types?.category, doc.status)) as any
+            }
+          }
         }
       },
       {
@@ -57,6 +61,21 @@ export const createSalesColumns = (actions: {
         id: 'payment_status',
         label: 'Cobro',
         cell: ({ row }) => {
+          if (row.original.amounts_visible === false) {
+            const percentage = Number(row.original.monetary_visibility?.paid_percentage ?? 0)
+            const required = Number(row.original.monetary_visibility?.required_percentage ?? 0)
+            const ready = percentage + 0.0001 >= required
+            return h('div', { class: 'min-w-[170px] space-y-1.5' }, [
+              h(UBadge, {
+                label: ready ? 'Condición cumplida' : 'Cobro requerido pendiente',
+                color: ready ? 'success' : 'warning',
+                variant: 'subtle',
+                size: 'xs'
+              }),
+              h(UProgress, { modelValue: percentage, color: ready ? 'success' : 'warning', size: 'xs' }),
+              h('span', { class: 'text-xs text-muted' }, `${percentage.toFixed(1)}% / ${required.toFixed(1)}% requerido`)
+            ])
+          }
           const summary = getDocumentPaymentSummary(row.original)
           if (!summary.applies) return h('span', { class: 'text-xs text-muted' }, 'No aplica')
           const config = summary.state === 'PAID'
@@ -119,9 +138,11 @@ export const createSalesColumns = (actions: {
         label: 'Total',
         sortable: true,
         cell: ({ row }) =>
-          new Intl.NumberFormat('es-AR', { style: 'currency', currency: row.original.currency_code ?? 'ARS' }).format(
-            Number(row.original.total)
-          )
+          row.original.amounts_visible === false
+            ? h('span', { class: 'text-xs text-muted' }, 'Restringido')
+            : new Intl.NumberFormat('es-AR', { style: 'currency', currency: row.original.currency_code ?? 'ARS' }).format(
+                Number(row.original.total)
+              )
       }]),
       { key: 'date', label: 'Fecha', sortable: true, date: true },
       {

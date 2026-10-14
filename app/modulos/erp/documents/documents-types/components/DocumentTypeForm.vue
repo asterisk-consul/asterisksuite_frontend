@@ -22,6 +22,7 @@ export interface DocumentTypeFormData {
   document_sequence_ids: string[]
   tax_ids?: string[]
   enabled_statuses?: number[] | null
+  hidden_amount_statuses?: number[] | null
 }
 
 const props = withDefaults(defineProps<{
@@ -55,7 +56,8 @@ const defaultForm: DocumentTypeFormData = {
   calculates_taxes: true,
   active: true, category: '', letter_type: '', afip_code: '',
   requires_cae: false, is_electronic: false, document_sequence_ids: [], tax_ids: [],
-  enabled_statuses: null
+  enabled_statuses: null,
+  hidden_amount_statuses: null
 }
 
 const form = reactive<DocumentTypeFormData>({ ...defaultForm })
@@ -94,6 +96,9 @@ const handleSubmit = () => {
     document_sequence_ids: (form.document_sequence_ids ?? []).map((item: any) => typeof item === 'string' ? item : item.value),
     tax_ids: form.tax_ids?.length ? form.tax_ids : undefined,
     enabled_statuses: form.enabled_statuses?.length ? form.enabled_statuses : null,
+    hidden_amount_statuses: form.category === 'ORDER' && form.hidden_amount_statuses?.length
+      ? form.hidden_amount_statuses
+      : null,
   }
   emit('submit', payload)
 }
@@ -175,6 +180,15 @@ const toggleStatus = (statusValue: number) => {
 
 const enableAllStatuses = () => {
   form.enabled_statuses = null
+}
+
+const isAmountHidden = (statusValue: number) => form.hidden_amount_statuses?.includes(statusValue) ?? false
+
+const toggleAmountVisibility = (statusValue: number) => {
+  const statuses = form.hidden_amount_statuses ?? []
+  form.hidden_amount_statuses = statuses.includes(statusValue)
+    ? statuses.filter(value => value !== statusValue)
+    : [...statuses, statusValue]
 }
 
 const directionOptions = [
@@ -420,6 +434,43 @@ const selectedCategory = computed({
           class="text-xs"
           :title="`${form.enabled_statuses.length} de ${availableStatuses.length} estados habilitados`"
           description="Los estados deshabilitados no aparecerán al filtrar documentos de este tipo."
+        />
+      </div>
+    </UPageCard>
+
+    <!-- VISIBILIDAD DE IMPORTES EN OV -->
+    <UPageCard v-if="form.category === 'ORDER'">
+      <div class="space-y-5">
+        <div class="flex items-start gap-3">
+          <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <UIcon name="i-lucide-eye-off" class="size-5" />
+          </div>
+          <div>
+            <h2 class="font-semibold text-highlighted">Visibilidad de importes</h2>
+            <p class="mt-0.5 text-sm text-muted">Marcá los estados en los que precios, totales y comisiones quedarán ocultos para usuarios sin el permiso especial.</p>
+          </div>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label
+            v-for="status in availableStatuses"
+            :key="`amount-${status.value}`"
+            class="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-default p-3"
+          >
+            <div>
+              <p class="text-sm font-medium">{{ status.label }}</p>
+              <p class="text-xs text-muted">{{ isAmountHidden(status.value) ? 'Importes restringidos' : 'Importes visibles' }}</p>
+            </div>
+            <USwitch :model-value="isAmountHidden(status.value)" @update:model-value="toggleAmountVisibility(status.value)" />
+          </label>
+        </div>
+
+        <UAlert
+          color="info"
+          variant="soft"
+          icon="i-lucide-shield-check"
+          title="Permiso especial"
+          description="OWNER, administradores y usuarios con sales.orders.view_amounts podrán ver los importes aun en estos estados."
         />
       </div>
     </UPageCard>

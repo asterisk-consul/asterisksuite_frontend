@@ -1,5 +1,47 @@
 [
   {
+    "version": "0.72.0-alpha",
+    "date": "2026-10-13",
+    "stage": "alpha",
+    "notes": "Las Órdenes de Venta incorporan un circuito operativo más claro, visibilidad segura de importes por estado y asignación automática de remitos al operario responsable.",
+    "changes": [
+      {
+        "type": "fix",
+        "scope": "sales-orders",
+        "title": "La edición de una OV conserva su categoría y permite actualizar correctamente entrega, vendedor y comisión sin enviar campos internos"
+      },
+      {
+        "type": "feat",
+        "scope": "sales-orders",
+        "title": "Los tipos de OV permiten restringir precios, totales y comisiones según el estado del documento"
+      },
+      {
+        "type": "feat",
+        "scope": "access-control",
+        "title": "Nuevo permiso sales.orders.view_amounts con protección de importes tanto en la interfaz como en la API"
+      },
+      {
+        "type": "feat",
+        "scope": "sales-orders",
+        "title": "Los listados muestran estados comerciales derivados, avance porcentual de cobro e indicadores operativos sin revelar dinero"
+      },
+      {
+        "type": "fix",
+        "scope": "delivery-notes",
+        "title": "Los remitos automáticos heredan el operario asignado en la OV y aparecen en su listado de trabajo"
+      },
+      {
+        "type": "style",
+        "scope": "navigation",
+        "title": "El acceso de Documentación del menú de usuario apunta al portal oficial de AsteriskSuite"
+      }
+    ],
+    "contributors": [
+      "agustin"
+    ],
+    "message": "Órdenes de Venta operativas, privadas y conectadas con remitos"
+  },
+  {
     "version": "0.71.1-alpha",
     "date": "2026-10-13",
     "stage": "alpha",

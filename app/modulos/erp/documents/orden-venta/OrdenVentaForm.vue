@@ -52,7 +52,23 @@ const defaultSellerId = computed(() => {
 })
 
 watch(() => props.modelValue, (val) => {
-  if (val) Object.assign(form, val)
+  if (!val) return
+
+  Object.assign(form, {
+    priority: val.priority ?? 'MEDIA',
+    delivery_address: val.delivery_address ?? '',
+    delivery_contact: val.delivery_contact ?? '',
+    delivery_phone: val.delivery_phone ?? '',
+    delivery_time: val.delivery_time ?? '',
+    delivery_instructions: val.delivery_instructions ?? '',
+    transport_provider: val.transport_provider ?? '',
+    confirmed_delivery_date: val.confirmed_delivery_date
+      ? String(val.confirmed_delivery_date).slice(0, 10)
+      : '',
+    seller_id: val.seller_id ?? '',
+    commission_rate: val.commission_rate == null ? null : Number(val.commission_rate),
+    commission_base: val.commission_base ?? 'INVOICED',
+  })
 }, { immediate: true })
 
 // Set default seller when employees load and no seller is set
@@ -81,7 +97,19 @@ onMounted(async () => {
 
 // Expose form data for parent to read
 const getFormData = () => {
-  const data: Record<string, any> = { ...form }
+  const data: Record<string, any> = {
+    priority: form.priority,
+    delivery_address: form.delivery_address,
+    delivery_contact: form.delivery_contact,
+    delivery_phone: form.delivery_phone,
+    delivery_time: form.delivery_time,
+    delivery_instructions: form.delivery_instructions,
+    transport_provider: form.transport_provider,
+    confirmed_delivery_date: form.confirmed_delivery_date,
+    seller_id: form.seller_id,
+    commission_rate: form.commission_rate,
+    commission_base: form.commission_base,
+  }
   // Los inputs date vacíos entregan ""; el backend espera una fecha ISO
   // válida o que la propiedad no sea enviada.
   if (!data.confirmed_delivery_date) data.confirmed_delivery_date = undefined
