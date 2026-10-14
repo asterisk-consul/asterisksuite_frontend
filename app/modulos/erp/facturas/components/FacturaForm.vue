@@ -900,6 +900,14 @@ onMounted(() => {
     // El formulario sigue utilizable; el store conserva la última lista disponible.
   })
   productsStore.hydrateCache()
+  void productsStore.search('', usageFilter.value).catch((error: any) => {
+    // Compatibilidad durante despliegues escalonados: si el frontend nuevo llega
+    // antes que el endpoint de búsqueda, usar temporalmente el catálogo clásico.
+    if (error?.status === 404 || error?.statusCode === 404) {
+      void productsStore.fetchAll().catch(() => {})
+    }
+    // Ante otros fallos se conservan los productos disponibles en caché.
+  })
   void documentsTypesStore.fetchAll().catch(() => {
     // Los demás bloques del formulario continúan disponibles si falla la red.
   })
@@ -1206,7 +1214,7 @@ defineExpose({ submit, completeDraft })
               :items="partyOptions"
               :placeholder="moduleCode === 'SALES' ? 'Buscar cliente...' : 'Buscar proveedor, servicio o ente impositivo...'"
               searchable
-              @update:search="partySearch = $event"
+              v-model:search-term="partySearch"
               :loading="partiesLoading && partyOptions.length === 0"
               size="lg"
               class="min-w-0 flex-1"

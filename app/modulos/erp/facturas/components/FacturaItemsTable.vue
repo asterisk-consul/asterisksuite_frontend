@@ -344,7 +344,7 @@ const columns = computed(() => [
             value-key="value"
             placeholder="Buscar por código o nombre..."
             searchable
-            @update:search="productSearch = $event"
+            v-model:search-term="productSearch"
             class="w-full min-w-0"
           />
         </UFormField>
