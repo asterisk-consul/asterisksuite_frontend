@@ -29,6 +29,11 @@
         "type": "fix",
         "scope": "multi-tenant",
         "title": "Mejoras de caché, precarga y aislamiento de datos al cambiar de empresa"
+      },
+      {
+        "type": "feat",
+        "scope": "hr-commissions",
+        "title": "Nueva bandeja mensual de RRHH para asignar varios vendedores, participación y liquidación por facturación o cobro"
       }
     ]
   },

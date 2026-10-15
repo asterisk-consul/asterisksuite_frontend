@@ -1,5 +1,35 @@
 ﻿import type { HrVale, HrAccount, HrAccountEntry, PartnerReport } from '../types/hr.types'
 
+export interface CommissionSeller {
+  id: string
+  name: string
+  default_commission_rate: number
+  commission_base: 'INVOICED' | 'PAID'
+}
+
+export interface CommissionAssignment {
+  seller_id: string
+  seller_name?: string
+  participation_rate: number
+  commission_rate: number
+  commission_base: 'INVOICED' | 'PAID'
+}
+
+export interface CommissionableDocument {
+  document_id: string
+  number: number
+  date: string
+  customer: string
+  document_type: string
+  subtotal: number
+  total: number
+  paid_amount: number
+  paid_percentage: number
+  currency_code: string
+  assignment_status: 'ASSIGNED' | 'UNASSIGNED'
+  assignments: CommissionAssignment[]
+}
+
 export const HrService = {
   // ══════════════════════════════════════════════════════════
   // VALES
@@ -32,20 +62,23 @@ export const HrService = {
   }): Promise<HrVale> {
     return $fetch('/api/backend/hr/vales', {
       method: 'POST' as any,
-      body: dto,
+      body: dto
     })
   },
 
-  async confirmVale(id: string, treasury?: { treasury_target_type: 'CASH_BOX' | 'BANK_ACCOUNT'; treasury_target_id: string }): Promise<HrVale> {
+  async confirmVale(
+    id: string,
+    treasury?: { treasury_target_type: 'CASH_BOX' | 'BANK_ACCOUNT'; treasury_target_id: string }
+  ): Promise<HrVale> {
     return $fetch(`/api/backend/hr/vales/${id}/confirm`, {
       method: 'PATCH' as any,
-      body: treasury,
+      body: treasury
     })
   },
 
   async cancelVale(id: string): Promise<HrVale> {
     return $fetch(`/api/backend/hr/vales/${id}/cancel`, {
-      method: 'PATCH' as any,
+      method: 'PATCH' as any
     })
   },
 
@@ -65,7 +98,10 @@ export const HrService = {
   // REPORTE DE COMISIONES
   // ══════════════════════════════════════════════════════════
 
-  async getCommissionsReport(month: string, sellerId?: string): Promise<{
+  async getCommissionsReport(
+    month: string,
+    sellerId?: string
+  ): Promise<{
     month: string
     sellers: {
       seller_id: string
@@ -91,14 +127,29 @@ export const HrService = {
     cantidad_ov: number
   }> {
     return $fetch('/api/backend/hr/commissions', {
-      query: { month, seller_id: sellerId },
+      query: { month, seller_id: sellerId }
     })
   },
 
   async generateCommissionVale(sellerId: string, month: string): Promise<any> {
     return $fetch('/api/backend/hr/commissions/vale', {
       method: 'POST' as any,
-      body: { seller_id: sellerId, month },
+      body: { seller_id: sellerId, month }
+    })
+  },
+
+  async getCommissionableDocuments(month: string): Promise<CommissionableDocument[]> {
+    return $fetch('/api/backend/hr/commissions/documents', { query: { month } })
+  },
+
+  async getCommissionSellers(): Promise<CommissionSeller[]> {
+    return $fetch('/api/backend/hr/commissions/sellers')
+  },
+
+  async saveCommissionAssignments(documentId: string, assignments: CommissionAssignment[]) {
+    return $fetch(`/api/backend/hr/commissions/documents/${documentId}/assignments`, {
+      method: 'PATCH' as any,
+      body: { assignments }
     })
   },
 
@@ -108,5 +159,5 @@ export const HrService = {
 
   async getPartnerReport(partyId: string): Promise<PartnerReport> {
     return $fetch(`/api/backend/hr/partner-report/${partyId}`)
-  },
+  }
 }

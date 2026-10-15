@@ -21,6 +21,7 @@ export interface CommissionReport {
       commission_rate: number
       commission_amount: number
       commission_base: 'INVOICED' | 'PAID'
+      participation_rate: number
       date: string
     }[]
   }[]
@@ -81,7 +82,10 @@ export const useHrStore = defineStore('hr', () => {
     }
   }
 
-  const confirmVale = async (id: string, treasury?: { treasury_target_type: 'CASH_BOX' | 'BANK_ACCOUNT'; treasury_target_id: string }) => {
+  const confirmVale = async (
+    id: string,
+    treasury?: { treasury_target_type: 'CASH_BOX' | 'BANK_ACCOUNT'; treasury_target_id: string }
+  ) => {
     loading.value = true
     error.value = null
     try {
@@ -211,6 +215,6 @@ export const useHrStore = defineStore('hr', () => {
     fetchAccountEntries,
     fetchCommissionsReport,
     generateCommissionVale,
-    fetchPartnerReport,
+    fetchPartnerReport
   }
 })

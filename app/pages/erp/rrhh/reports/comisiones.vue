@@ -4,6 +4,9 @@ import { useEmployeesStore } from '~/modulos/erp/employees/store/employees.store
 
 definePageMeta({ middleware: ['auth'] })
 
+// Compatibilidad con favoritos y enlaces anteriores.
+await navigateTo('/erp/rrhh/commissions', { replace: true })
+
 const hrStore = useHrStore()
 const employeesStore = useEmployeesStore()
 const toast = useToast()
