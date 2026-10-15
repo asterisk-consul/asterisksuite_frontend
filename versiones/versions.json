@@ -16,6 +16,11 @@
         "title": "Compresión Brotli y gzip con caché inmutable de larga duración para los recursos versionados de Nuxt"
       },
       {
+        "type": "perf",
+        "scope": "icons",
+        "title": "Los íconos de navegación y formularios se distribuyen localmente para evitar timeouts en conexiones lentas"
+      },
+      {
         "type": "feat",
         "scope": "observability",
         "title": "Medición muestreada de carga inicial, navegación, APIs, LCP y CLS para analizar tiempos reales en producción"

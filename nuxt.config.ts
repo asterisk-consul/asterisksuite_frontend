@@ -77,6 +77,46 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
+
+  // Los íconos usados por la aplicación se incluyen en el bundle del cliente.
+  // Así la navegación principal no espera llamadas a /api/_nuxt_icon en redes lentas.
+  icon: {
+    provider: 'server',
+    fetchTimeout: 5000,
+    serverBundle: {
+      collections: ['lucide', 'simple-icons']
+    },
+    clientBundle: {
+      scan: {
+        globInclude: ['app/**/*.{vue,ts,tsx,js,jsx}']
+      },
+      icons: [
+        'lucide:arrow-left',
+        'lucide:bar-chart-3',
+        'lucide:check',
+        'lucide:chevron-down',
+        'lucide:chevron-right',
+        'lucide:chevrons-up-down',
+        'lucide:factory',
+        'lucide:file-check',
+        'lucide:file-text',
+        'lucide:globe',
+        'lucide:house',
+        'lucide:layout-dashboard',
+        'lucide:map-pin',
+        'lucide:menu',
+        'lucide:panel-left-close',
+        'lucide:pencil',
+        'lucide:plus',
+        'lucide:settings',
+        'lucide:shopping-cart',
+        'lucide:truck',
+        'lucide:users'
+      ],
+      sizeLimitKb: 512
+    }
+  },
+
   runtimeConfig: {
     apiBase: '',
 
