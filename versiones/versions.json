@@ -34,6 +34,11 @@
         "type": "feat",
         "scope": "hr-commissions",
         "title": "Nueva bandeja mensual de RRHH para asignar varios vendedores, participación y liquidación por facturación o cobro"
+      },
+      {
+        "type": "fix",
+        "scope": "navigation",
+        "title": "El encabezado de página deja de titilar al desplazarse hacia el inicio"
       }
     ]
   },

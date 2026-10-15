@@ -17,7 +17,6 @@ function toggleMain() {
 }
 
 const isCompact = ref(false)
-const gapPx = ref(0)
 const rootRef = ref<HTMLElement | null>(null)
 
 function findScrollContainer(el: HTMLElement | null): HTMLElement | null {
@@ -39,26 +38,19 @@ onMounted(() => {
     return
   }
 
-  let lastCompact = false
-  let lastGap = 0
+  let frameId: number | null = null
 
   const handleScroll = () => {
-    const scrollTop = scrollContainer.scrollTop
-    const compact = scrollTop > 4
-    isCompact.value = compact
+    if (frameId !== null) return
+    frameId = requestAnimationFrame(() => {
+      frameId = null
+      const scrollTop = scrollContainer.scrollTop
 
-    if (compact && rootRef.value) {
-      const containerTop = scrollContainer.getBoundingClientRect().top
-      const barTop = rootRef.value.getBoundingClientRect().top
-      gapPx.value = Math.max(0, Math.round(barTop - containerTop))
-    } else {
-      gapPx.value = 0
-    }
-
-    if (compact !== lastCompact || gapPx.value !== lastGap) {
-      lastCompact = compact
-      lastGap = gapPx.value
-    }
+      // Dos umbrales evitan que el cambio de altura del encabezado haga
+      // oscilar el estado cuando el scroll está llegando al inicio.
+      if (!isCompact.value && scrollTop >= 48) isCompact.value = true
+      else if (isCompact.value && scrollTop <= 1) isCompact.value = false
+    })
   }
 
   scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
@@ -66,56 +58,32 @@ onMounted(() => {
 
   onUnmounted(() => {
     scrollContainer.removeEventListener('scroll', handleScroll)
+    if (frameId !== null) cancelAnimationFrame(frameId)
   })
 })
 
 const headerUi = computed(() => ({
   ...props.ui,
-  root: isCompact.value
-    ? 'py-2 border-b-0 transition-[padding] duration-300'
-    : (props.ui?.root ?? 'transition-[padding] duration-300'),
-  title: isCompact.value
-    ? 'text-base font-bold truncate min-w-0 transition-[font-size] duration-300'
-    : (props.ui?.title ?? 'transition-[font-size] duration-300'),
-  description: isCompact.value
-    ? 'hidden'
-    : (props.ui?.description ?? ''),
-  links: isCompact.value
-    ? 'flex-nowrap overflow-x-auto'
-    : (props.ui?.links ?? '')
+  root: isCompact.value ? 'py-2 border-b-0' : (props.ui?.root ?? ''),
+  title: isCompact.value ? 'text-base font-bold truncate min-w-0' : (props.ui?.title ?? ''),
+  description: isCompact.value ? 'hidden' : (props.ui?.description ?? ''),
+  links: isCompact.value ? 'flex-nowrap overflow-x-auto' : (props.ui?.links ?? '')
 }))
 
 const rootClasses = computed(() =>
-  isCompact.value
-    ? 'bg-default border-b border-default -mx-4 sm:-mx-6 px-4 sm:px-6'
-    : ''
-)
-
-const contentStyle = computed(() =>
-  isCompact.value && gapPx.value > 0
-    ? { transform: `translateY(-${Math.round(gapPx.value / 2)}px)` }
-    : { transform: 'translateY(0)' }
+  isCompact.value ? 'bg-default border-b border-default -mx-4 sm:-mx-6 px-4 sm:px-6' : ''
 )
 </script>
 
 <template>
   <div
     ref="rootRef"
-    class="sticky top-0 z-20"
+    class="sticky -top-4 z-20 -mt-4 bg-default pt-4 [overflow-anchor:none] sm:-top-6 sm:-mt-6 sm:pt-6"
     :class="rootClasses"
   >
-    <div
-      v-if="isCompact && gapPx > 0"
-      class="absolute inset-x-0 bg-default"
-      :style="{ top: -gapPx + 'px', height: gapPx + 'px' }"
-    />
     <slot v-if="!isCompact" name="breadcrumb" />
-    <div :style="contentStyle">
-      <UPageHeader
-        :description="description || undefined"
-        :ui="headerUi"
-        :links="links"
-      >
+    <div>
+      <UPageHeader :description="description || undefined" :ui="headerUi" :links="links">
         <template #title>
           <div class="flex items-center gap-2 min-w-0">
             <AppSidebarToggle :collapsed="mainCollapsed" @click="toggleMain" />
