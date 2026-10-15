@@ -35,7 +35,7 @@ export interface SelectItem {
   value: string
 }
 
-export function useProducts(usageFilter?: UsageType | null) {
+export function useProducts(usageFilter?: 'sale' | 'purchase' | null) {
   const store = useProductsStore()
 
   // =========================

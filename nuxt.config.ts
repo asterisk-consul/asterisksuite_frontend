@@ -56,10 +56,7 @@ export default defineNuxtConfig({
   },
   ssr: true,
   imports: {
-    dirs: [
-      'utils',
-      'stores'
-    ]
+    dirs: ['utils', 'stores']
   },
 
   devtools: {
@@ -86,7 +83,10 @@ export default defineNuxtConfig({
     public: {
       apiBase: '',
       baseDomain: '',
-      appVersion: getAppVersion()
+      appVersion: getAppVersion(),
+      performanceSampleRate: Number(
+        process.env.NUXT_PUBLIC_PERFORMANCE_SAMPLE_RATE ?? (process.env.NODE_ENV === 'production' ? '0.10' : '0')
+      )
     }
   },
 
@@ -108,6 +108,11 @@ export default defineNuxtConfig({
     compressPublicAssets: true,
     // ✅ CORS va acá
     routeRules: {
+      '/_nuxt/**': {
+        headers: {
+          'Cache-Control': 'public, max-age=31536000, immutable'
+        }
+      },
       '/api/**': {
         cors: true,
         headers: {

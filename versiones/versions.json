@@ -1,5 +1,33 @@
 [
   {
+    "version": "0.73.0-alpha",
+    "date": "2026-10-15",
+    "stage": "alpha",
+    "notes": "Mejoras de rendimiento para conexiones lentas, navegación entre empresas y observabilidad de tiempos reales en producción.",
+    "changes": [
+      {
+        "type": "perf",
+        "scope": "documents",
+        "title": "Carga inicial limitada y búsqueda remota para productos y terceros en los formularios de ventas y compras"
+      },
+      {
+        "type": "perf",
+        "scope": "frontend",
+        "title": "Compresión Brotli y gzip con caché inmutable de larga duración para los recursos versionados de Nuxt"
+      },
+      {
+        "type": "feat",
+        "scope": "observability",
+        "title": "Medición muestreada de carga inicial, navegación, APIs, LCP y CLS para analizar tiempos reales en producción"
+      },
+      {
+        "type": "fix",
+        "scope": "multi-tenant",
+        "title": "Mejoras de caché, precarga y aislamiento de datos al cambiar de empresa"
+      }
+    ]
+  },
+  {
     "version": "0.72.0-alpha",
     "date": "2026-10-13",
     "stage": "alpha",
@@ -36,9 +64,7 @@
         "title": "El acceso de Documentación del menú de usuario apunta al portal oficial de AsteriskSuite"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Órdenes de Venta operativas, privadas y conectadas con remitos"
   },
   {
@@ -58,9 +84,7 @@
         "title": "El selector limita el renderizado simultáneo e incorpora búsqueda por número, banco o emisor para carteras grandes"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Selector de cheques más rápido y estable"
   },
   {
@@ -150,9 +174,7 @@
         "title": "Las cuentas corrientes de RR. HH. muestran los descuentos de haberes, su evolución de saldo y la reversión automática al anular el cobro"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Circuito bancario integral, robustez contable y empleados como clientes internos"
   },
   {
@@ -187,9 +209,7 @@
         "title": "La confirmación de OV advierte faltantes, respeta la política de reservas y muestra errores específicos por producto"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Secuencias documentales independientes y disponibilidad preventiva en OV"
   },
   {
@@ -249,9 +269,7 @@
         "title": "El proceso de compilación valida UTF-8 para prevenir textos dañados en la interfaz"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Reposición por depósito, remitos con stock guiado y costos BOM por variante"
   },
   {
@@ -271,9 +289,7 @@
         "title": "El modal de fabricación de la página BOM usa la variante seleccionada"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Fabricación con selección de variante"
   },
   {
@@ -303,9 +319,7 @@
         "title": "La composición de costos incluye la porción Resto/Otros cuando el template suma componentes distintos de material"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Desglose de costos de ingeniería y tarjeta de costos corregidos"
   },
   {
@@ -325,9 +339,7 @@
         "title": "El indicador de producto compuesto se activa al agregar componentes y se desactiva al quitar el último"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Productos con BOM visibles al fabricar y flag compuesto sincronizado"
   },
   {
@@ -357,9 +369,7 @@
         "title": "El sueldo en datos laborales acepta decimales"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Comisiones y montos con decimales corregidos"
   },
   {
@@ -394,9 +404,7 @@
         "title": "Las cuentas bancarias y sus movimientos eliminados pueden restaurarse desde la Papelera"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Eliminación de cuentas bancarias con descarte de saldo y reasignación"
   },
   {
@@ -456,9 +464,7 @@
         "title": "Las reservas de órdenes de venta consultan únicamente estados válidos de contenedores al buscar mercadería en tránsito"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Fabricación operativa desde BOM y confirmación segura de facturas"
   },
   {
@@ -513,9 +519,7 @@
         "title": "Las rutas dinámicas sin una etiqueta cargada muestran Detalle y nunca exponen identificadores técnicos al usuario"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Obligaciones de Tesorería y navegación con referencias operativas"
   },
   {
@@ -565,9 +569,7 @@
         "title": "La Papelera incorpora acceso con icono en Configuración y puede encontrarse desde los buscadores"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Anulación trazable de comprobantes y recuperación segura desde la papelera"
   },
   {
@@ -617,9 +619,7 @@
         "title": "La disponibilidad comercial es accesible para responsables de stock y usuarios de ventas, además de owner y administradores"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Stock internacional sincronizado y disponibilidad comercial proyectada"
   },
   {
@@ -664,9 +664,7 @@
         "title": "Los avisos y la gestión de cheques se muestran únicamente a usuarios con permiso de Tesorería"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Cheques con vencimientos informados y movimientos bancarios controlados"
   },
   {
@@ -741,9 +739,7 @@
         "title": "La carga de presupuestos reutiliza el catálogo completo de productos y usa un único selector para evitar renderizados repetidos"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Circuito documental e internacional más claro y trazable"
   },
   {
@@ -808,9 +804,7 @@
         "title": "Las migas de navegación usan nombres en español y sólo enlazan páginas que realmente existen"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Navegación clara, stock consultable y mejor experiencia en pagos"
   },
   {
@@ -875,9 +869,7 @@
         "title": "Las facturas nuevas impactan en cuenta corriente según la base contable del circuito aunque la empresa aún no haya abierto su configuración"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Saldos iniciales protegidos y circuito de cobros consistente"
   },
   {
@@ -912,9 +904,7 @@
         "title": "La compilación deja de depender del tipo interno currency_ratesGetPayload eliminado por Prisma"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Medios de pago según saldo y compatibilidad con Prisma 7"
   },
   {
@@ -964,9 +954,7 @@
         "title": "La transferencia de saldo y la baja se ejecutan en una única transacción para evitar saldos incompletos"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Avisos de cheques y eliminación protegida de bancos y cajas"
   },
   {
@@ -1016,9 +1004,7 @@
         "title": "Pagos, cobros, transferencias y movimientos de socios utilizan la reconstrucción centralizada de saldos"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Recálculo histórico de saldos bancarios y cuentas corrientes"
   },
   {
@@ -1073,9 +1059,7 @@
         "title": "Los avisos de cheques recorren todas las empresas y utilizan la fecha de vencimiento en horario argentino"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Cheques programados y movimientos bancarios al vencimiento"
   },
   {
@@ -1125,9 +1109,7 @@
         "title": "Las órdenes de venta reflejan el saldo compartido de su operación comercial"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Estado de pagos y cobros visible en comprobantes"
   },
   {
@@ -1187,9 +1169,7 @@
         "title": "El saldo de apertura genera el primer movimiento y actualiza el saldo real de la caja en una única transacción"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Autorizaciones fiscales, operaciones internacionales y saldo inicial de cajas"
   },
   {
@@ -1244,9 +1224,7 @@
         "title": "Se documentó el plan para registrar vencimientos fiscales en remitos y configurar sus alertas"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Backend optimizado y almacenamiento de archivos deduplicado"
   },
   {
@@ -1291,9 +1269,7 @@
         "title": "Las acciones excepcionales de ajuste y eliminación se agrupan en el menú Acciones de cuenta"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Saldos iniciales flexibles y nueva experiencia de cuentas corrientes"
   },
   {
@@ -1338,9 +1314,7 @@
         "title": "Los usuarios con rol USER quedan limitados a sus cuentas asociadas en listado, detalle, movimientos y operaciones"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Saldos iniciales multimoneda y acceso bancario por rol"
   },
   {
@@ -1405,9 +1379,7 @@
         "title": "El reporte de socios se encuentra disponible desde el menú de reportes de RRHH"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Comisiones corregidas y circuito de socios integrado con tesorería"
   },
   {
@@ -1462,9 +1434,7 @@
         "title": "Los remitos no generan facturas ni ofrecen la acción de facturar por defecto"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Circuito comercial configurable con remitos operativos y cuentas corrientes netas"
   },
   {
@@ -1484,9 +1454,7 @@
         "title": "Páginas de compras (remitos, órdenes) ahora usan useDocumentsPurchasesStore en vez de useDocumentsSalesStore"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Fix de imports faltantes y store incorrecto en páginas de compras"
   },
   {
@@ -1531,9 +1499,7 @@
         "title": "Mapeo EXPENSE → PAYMENT para movimientos de caja/banco"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Estados configurables por tipo de documento, gastos varios y fix de saldos de caja"
   },
   {
@@ -1588,9 +1554,7 @@
         "title": "Nuevos subgrupos de logística (exportación reportes) y tesorería (importación/exportación, reportes)"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Permisos de documentos granulares por tipo con resolución de conflictos y nuevo decorator @RequireAnyPermission"
   },
   {
@@ -1610,9 +1574,7 @@
         "title": "Agregado de changelog page en estructura del frontend"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Documentación actualizada a Nuxt 4 y estructura de changelog agregada"
   },
   {
@@ -1647,9 +1609,7 @@
         "title": "Mapeo EXPENSE → PAYMENT para type de movimientos de caja/banco (AccountEntryType no incluye EXPENSE)"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Gastos varios, fix de saldos de caja y selectores rediseñados"
   },
   {
@@ -1674,9 +1634,7 @@
         "title": "Modal de cuentas bancarias estilizado al aesthetic de cash-boxes: cards, iconos, descripciones y submit sticky"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Fix de cadena duplicada, proxy de user-roles para cuentas bancarias y modal rediseñado"
   },
   {
@@ -1731,9 +1689,7 @@
         "title": "Gestión de adjuntos (AttachmentManager, view/download/thumb) e intake records con permisos y migraciones"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Estados por categoría en ventas/compras, fixes de mis ventas y reporte PV, datos laborales unificados, locaciones en Ajustes y módulo de adjuntos"
   },
   {
@@ -2217,9 +2173,7 @@
         "title": "Util compartido de conversion con tipo de cambio de mercado (frontend y backend)"
       }
     ],
-    "contributors": [
-      "agustin"
-    ],
+    "contributors": ["agustin"],
     "message": "Presupuestos de compra en operaciones internacionales, edición de operación y contenedores, doble moneda y rediseño del detalle"
   },
   {
@@ -2366,9 +2320,7 @@
         "version": "0.2.0-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.37.0-alpha",
@@ -2513,9 +2465,7 @@
         "version": "0.1.0-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.35.1-alpha",
@@ -2652,9 +2602,7 @@
         "version": "0.1.0-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.34.0-alpha",
@@ -2803,9 +2751,7 @@
         "version": "0.1.0-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.33.0-alpha",
@@ -2914,9 +2860,7 @@
         "version": "0.1.0-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.32.0-alpha",
@@ -2951,9 +2895,7 @@
         "version": "0.32.0-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.31.0-alpha",
@@ -3023,9 +2965,7 @@
         "version": "0.31.0-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.30.0-alpha",
@@ -3160,9 +3100,7 @@
         "version": "0.30.0-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.29.0-alpha",
@@ -4031,9 +3969,7 @@
         "title": "Reporte de saldos RRHH desglosa empleados/socios por moneda"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.14.0-alpha",
@@ -4092,9 +4028,7 @@
         "title": "Companies controller: endpoints de usuarios (create, update, password, delete)"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.15.0-alpha",
@@ -4153,9 +4087,7 @@
         "title": "documents-sales: entregas parciales y facturación parcial"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.16.0-alpha",
@@ -4249,9 +4181,7 @@
         "title": "affects_payment configurable desde frontend: checkbox en form, badge en cards y columna en export Excel"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.17.0-alpha",
@@ -4310,9 +4240,7 @@
         "title": "Eliminar SidebarModules, MainSidebar y navegaciones por módulo"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.18.0-alpha",
@@ -4391,9 +4319,7 @@
         "title": "Página de roles reestructurada con rutas anidadas (index + [id]/permissions)"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.19.0-alpha",
@@ -4437,9 +4363,7 @@
         "title": "seed-all.ts ahora ejecuta RBAC (permisos + 4 roles) como paso 11"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.20.0-alpha",
@@ -4468,9 +4392,7 @@
         "title": "employeeOptions incluye defaultCommissionRate"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.21.0-alpha",
@@ -4534,9 +4456,7 @@
         "title": "Filtro comisiones: aceptar facturas Borrador/Pendiente/Confirmada"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.22.0-alpha",
@@ -4585,9 +4505,7 @@
         "title": "companies.service.ts usa seed-sql.ts, eliminados ~200 líneas de datos hardcoded"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.25.0-alpha",
@@ -4607,9 +4525,7 @@
         "version": "0.7.0-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.24.0-alpha",
@@ -4644,9 +4560,7 @@
         "version": "2.3.0-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.23.0-alpha",
@@ -4730,9 +4644,7 @@
         "title": "Badge dinámico con prioridad: principal (md) vs secundario (sm) por tipo de tercero"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.25.1-alpha",
@@ -4777,9 +4689,7 @@
         "version": "2.3.1-alpha"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.26.0-alpha",
@@ -4838,9 +4748,7 @@
         "title": "Campo 'Fuente de costo' movido de General a Estructura"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.27.0-alpha",
@@ -4924,9 +4832,7 @@
         "title": "Scrollbar custom y selection color"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   },
   {
     "version": "0.28.0-alpha",
@@ -4950,8 +4856,6 @@
         "title": "Link Costos agregado al nav de la landing"
       }
     ],
-    "contributors": [
-      "agustin"
-    ]
+    "contributors": ["agustin"]
   }
 ]

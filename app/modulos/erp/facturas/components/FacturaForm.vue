@@ -84,6 +84,7 @@ const {
   usingCache: partiesUsingCache,
   refreshFailed: partiesRefreshFailed
 } = storeToRefs(partiesStore)
+const { items: products } = storeToRefs(productsStore)
 const { items: documentsTypes } = storeToRefs(documentsTypesStore)
 const { warehouses } = storeToRefs(depositosStore)
 
