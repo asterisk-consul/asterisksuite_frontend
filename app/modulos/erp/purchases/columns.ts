@@ -10,10 +10,10 @@ type Row = Document
 export const createPurchasesColumns = (actions: {
   onOpen: (row: Row) => void
   onPay?: (row: Row) => void
+  showCreator?: boolean
 }) => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
-  const fmtNumber = (row: Row) =>
-    `${row.document_types?.code ?? ''}-${String(row.number).padStart(8, '0')}`
+  const fmtNumber = (row: Row) => `${row.document_types?.code ?? ''}-${String(row.number).padStart(8, '0')}`
 
   return [
     ...build([
@@ -37,10 +37,25 @@ export const createPurchasesColumns = (actions: {
           const label = fmtNumber(row.original)
           const category = row.original.document_types?.category ?? ''
           return h('div', { class: 'min-w-[190px] space-y-1' }, [
-            h(UButton, { label, variant: 'link', size: 'sm', class: 'font-mono px-0 h-auto', onClick: () => actions.onOpen(row.original) }),
+            h(UButton, {
+              label,
+              variant: 'link',
+              size: 'sm',
+              class: 'font-mono px-0 h-auto',
+              onClick: () => actions.onOpen(row.original)
+            }),
             h('div', { class: 'flex items-center gap-2' }, [
-              h(UBadge, { label: CATEGORY_LABELS[category] ?? category, color: 'neutral', variant: 'subtle', size: 'xs' }),
-              h('span', { class: 'max-w-[150px] truncate text-xs text-muted' }, row.original.document_types?.description ?? '')
+              h(UBadge, {
+                label: CATEGORY_LABELS[category] ?? category,
+                color: 'neutral',
+                variant: 'subtle',
+                size: 'xs'
+              }),
+              h(
+                'span',
+                { class: 'max-w-[150px] truncate text-xs text-muted' },
+                row.original.document_types?.description ?? ''
+              )
             ])
           ])
         }
@@ -51,11 +66,12 @@ export const createPurchasesColumns = (actions: {
         cell: ({ row }) => {
           const summary = getDocumentPaymentSummary(row.original)
           if (!summary.applies) return h('span', { class: 'text-xs text-muted' }, 'No aplica')
-          const config = summary.state === 'PAID'
-            ? { label: 'Pagado', color: 'success' }
-            : summary.state === 'PARTIAL'
-              ? { label: 'Pago parcial', color: 'warning' }
-              : { label: 'Pendiente', color: 'error' }
+          const config =
+            summary.state === 'PAID'
+              ? { label: 'Pagado', color: 'success' }
+              : summary.state === 'PARTIAL'
+                ? { label: 'Pago parcial', color: 'warning' }
+                : { label: 'Pendiente', color: 'error' }
           const currency = row.original.currency_code ?? 'ARS'
           const amount = new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(summary.pending)
           return h('div', { class: 'min-w-[170px] space-y-1.5' }, [
@@ -115,7 +131,16 @@ export const createPurchasesColumns = (actions: {
             Number(row.original.total)
           )
       },
-      { key: 'date', label: 'Fecha', sortable: true, date: true }
+      { key: 'date', label: 'Fecha', sortable: true, date: true },
+      ...(actions.showCreator
+        ? [
+            {
+              id: 'creator',
+              label: 'Cargado por',
+              accessorFn: (row: Row) => row.creator?.name ?? row.creator?.email ?? '-'
+            }
+          ]
+        : [])
     ])
   ]
 }

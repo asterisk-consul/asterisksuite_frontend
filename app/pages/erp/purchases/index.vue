@@ -4,15 +4,25 @@ definePageMeta({ middleware: ['auth'] })
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
-import { CATEGORY_LABELS, getCategoryStatuses, getStatusColor, isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
+import {
+  CATEGORY_LABELS,
+  getCategoryStatuses,
+  getStatusColor,
+  isDocumentCancelled
+} from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
-import { canSettleDocument, getDocumentPaymentSummary, isDocumentFullyPaid } from '~/modulos/erp/documents/utils/document-payment-status'
+import {
+  canSettleDocument,
+  getDocumentPaymentSummary,
+  isDocumentFullyPaid
+} from '~/modulos/erp/documents/utils/document-payment-status'
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 const documentsPurchasesStore = useDocumentsPurchasesStore()
 const router = useRouter()
 const toast = useToast()
 const { can: canDocument } = useDocumentPermissions()
+const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/purchases/purchases-documents/new')
 
 const PURCHASE_CATEGORIES = ['ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
@@ -22,7 +32,7 @@ const purchaseCategorySet = new Set<string>(PURCHASE_CATEGORIES)
 // (por ejemplo, vales de RRHH y saldos iniciales). Este listado muestra sólo
 // comprobantes comerciales de compras.
 const documents = computed(() =>
-  (documentsPurchasesStore.items ?? []).filter(document =>
+  (documentsPurchasesStore.items ?? []).filter((document) =>
     purchaseCategorySet.has(document.document_types?.category ?? '')
   )
 )
@@ -34,13 +44,15 @@ const docTypes = ref<any[]>([])
 onMounted(async () => {
   try {
     docTypes.value = await $fetch<any[]>('/api/backend/documents/documents-types')
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 })
 
 const getEnabledStatusesForCategory = (category: string): number[] | null => {
-  const types = docTypes.value.filter(dt => dt.category === category)
+  const types = docTypes.value.filter((dt) => dt.category === category)
   if (types.length === 0) return null
-  const allEnabled = types.flatMap(dt => dt.enabled_statuses ?? [])
+  const allEnabled = types.flatMap((dt) => dt.enabled_statuses ?? [])
   return allEnabled.length > 0 ? [...new Set(allEnabled)] : null
 }
 
@@ -70,7 +82,7 @@ watch(statusFilter, () => refresh())
 // ─── Filtros de categoría ─────────────────────────────────────────────────────
 const categoryOptions = computed(() => [
   { label: 'Todos', value: undefined },
-  ...PURCHASE_CATEGORIES.filter(cat => canDocument('purchases', cat, 'read')).map((cat) => ({
+  ...PURCHASE_CATEGORIES.filter((cat) => canDocument('purchases', cat, 'read')).map((cat) => ({
     label: CATEGORY_LABELS[cat] ?? cat,
     value: cat
   }))
@@ -85,21 +97,22 @@ const statusOptions = computed(() =>
 
 const visibleDocuments = computed(() => {
   let rows = documents.value ?? []
-  if (!showCancelled.value) rows = rows.filter(document => !isDocumentCancelled(document.document_types?.category, document.status))
-  if (!showFullyPaid.value) rows = rows.filter(document => !isDocumentFullyPaid(document))
+  if (!showCancelled.value)
+    rows = rows.filter((document) => !isDocumentCancelled(document.document_types?.category, document.status))
+  if (!showFullyPaid.value) rows = rows.filter((document) => !isDocumentFullyPaid(document))
   return rows
 })
 
 const financialStats = computed(() => {
-  const rows = (documents.value ?? []).filter(document =>
-    !isDocumentCancelled(document.document_types?.category, document.status)
+  const rows = (documents.value ?? []).filter(
+    (document) => !isDocumentCancelled(document.document_types?.category, document.status)
   )
-  const summaries = rows.map(getDocumentPaymentSummary).filter(summary => summary.applies)
+  const summaries = rows.map(getDocumentPaymentSummary).filter((summary) => summary.applies)
   return {
     visible: visibleDocuments.value.length,
-    pending: summaries.filter(summary => summary.state === 'UNPAID').length,
-    partial: summaries.filter(summary => summary.state === 'PARTIAL').length,
-    paid: summaries.filter(summary => summary.state === 'PAID').length
+    pending: summaries.filter((summary) => summary.state === 'UNPAID').length,
+    partial: summaries.filter((summary) => summary.state === 'PARTIAL').length,
+    paid: summaries.filter((summary) => summary.state === 'PAID').length
   }
 })
 
@@ -169,27 +182,38 @@ function payDocument(row: any) {
 }
 
 async function deleteDrafts(rows: any[]) {
-  const unauthorized = rows.filter(row => !canDocument('purchases', row.document_types?.category, 'delete'))
+  const unauthorized = rows.filter((row) => !canDocument('purchases', row.document_types?.category, 'delete'))
   if (unauthorized.length) {
     toast.add({ title: 'No tenés permiso para eliminar uno o más tipos de documento', color: 'warning' })
     return
   }
-  const removable = rows.filter(row => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3))
+  const removable = rows.filter(
+    (row) => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3)
+  )
   if (removable.length !== rows.length) {
     toast.add({ title: 'Solo se pueden enviar a la papelera documentos en borrador o anulados', color: 'warning' })
     return
   }
   try {
     for (const document of removable) await documentsPurchasesStore.remove(document.id)
-    toast.add({ title: `${removable.length} documento${removable.length === 1 ? '' : 's'} enviado${removable.length === 1 ? '' : 's'} a la papelera`, color: 'success' })
+    toast.add({
+      title: `${removable.length} documento${removable.length === 1 ? '' : 's'} enviado${removable.length === 1 ? '' : 's'} a la papelera`,
+      color: 'success'
+    })
   } catch (e: any) {
-    toast.add({ title: 'No se pudieron enviar los documentos a la papelera', description: e?.data?.message || e?.message, color: 'error' })
+    toast.add({
+      title: 'No se pudieron enviar los documentos a la papelera',
+      description: e?.data?.message || e?.message,
+      color: 'error'
+    })
     await refresh()
   }
 }
 
 // ─── Columnas ─────────────────────────────────────────────────────────────────
-const columns = createPurchasesColumns({ onOpen: openDocument, onPay: payDocument })
+const columns = computed(() =>
+  createPurchasesColumns({ onOpen: openDocument, onPay: payDocument, showCreator: isOwnerOrAdmin.value })
+)
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },
@@ -203,7 +227,6 @@ const sortFields = [
   { label: 'Proveedor', value: 'supplier' },
   { label: 'Total', value: 'total' }
 ]
-
 </script>
 
 <template>
@@ -230,10 +253,48 @@ const sortFields = [
 
       <!-- Resumen operativo -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-files" class="size-5" /></div><div><p class="text-xs text-muted">Documentos visibles</p><p class="text-2xl font-semibold">{{ financialStats.visible }}</p></div></div></UPageCard>
-        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-error/10 p-2 text-error"><UIcon name="i-lucide-circle-dollar-sign" class="size-5" /></div><div><p class="text-xs text-muted">Sin pagos</p><p class="text-2xl font-semibold text-error">{{ financialStats.pending }}</p></div></div></UPageCard>
-        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-warning/10 p-2 text-warning"><UIcon name="i-lucide-chart-no-axes-column-increasing" class="size-5" /></div><div><p class="text-xs text-muted">Pago parcial</p><p class="text-2xl font-semibold text-warning">{{ financialStats.partial }}</p></div></div></UPageCard>
-        <UPageCard variant="subtle"><div class="flex items-center gap-3"><div class="rounded-lg bg-success/10 p-2 text-success"><UIcon name="i-lucide-circle-check" class="size-5" /></div><div><p class="text-xs text-muted">Pagados</p><p class="text-2xl font-semibold text-success">{{ financialStats.paid }}</p></div></div></UPageCard>
+        <UPageCard variant="subtle">
+          <div class="flex items-center gap-3">
+            <div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-files" class="size-5" /></div>
+            <div>
+              <p class="text-xs text-muted">Documentos visibles</p>
+              <p class="text-2xl font-semibold">{{ financialStats.visible }}</p>
+            </div>
+          </div>
+        </UPageCard>
+        <UPageCard variant="subtle">
+          <div class="flex items-center gap-3">
+            <div class="rounded-lg bg-error/10 p-2 text-error">
+              <UIcon name="i-lucide-circle-dollar-sign" class="size-5" />
+            </div>
+            <div>
+              <p class="text-xs text-muted">Sin pagos</p>
+              <p class="text-2xl font-semibold text-error">{{ financialStats.pending }}</p>
+            </div>
+          </div>
+        </UPageCard>
+        <UPageCard variant="subtle">
+          <div class="flex items-center gap-3">
+            <div class="rounded-lg bg-warning/10 p-2 text-warning">
+              <UIcon name="i-lucide-chart-no-axes-column-increasing" class="size-5" />
+            </div>
+            <div>
+              <p class="text-xs text-muted">Pago parcial</p>
+              <p class="text-2xl font-semibold text-warning">{{ financialStats.partial }}</p>
+            </div>
+          </div>
+        </UPageCard>
+        <UPageCard variant="subtle">
+          <div class="flex items-center gap-3">
+            <div class="rounded-lg bg-success/10 p-2 text-success">
+              <UIcon name="i-lucide-circle-check" class="size-5" />
+            </div>
+            <div>
+              <p class="text-xs text-muted">Pagados</p>
+              <p class="text-2xl font-semibold text-success">{{ financialStats.paid }}</p>
+            </div>
+          </div>
+        </UPageCard>
       </div>
 
       <!-- Filtro por categoría -->
@@ -245,7 +306,11 @@ const sortFields = [
           color="primary"
           size="sm"
           :label="opt.label"
-          @click="() => { categoryFilter = opt.value }"
+          @click="
+            () => {
+              categoryFilter = opt.value
+            }
+          "
         />
       </div>
 
@@ -256,7 +321,11 @@ const sortFields = [
           color="neutral"
           size="sm"
           label="Todos los estados"
-          @click="() => { statusFilter = undefined }"
+          @click="
+            () => {
+              statusFilter = undefined
+            }
+          "
         />
         <UButton
           v-for="opt in statusOptions"
@@ -265,11 +334,17 @@ const sortFields = [
           color="neutral"
           size="sm"
           :label="opt.label"
-          @click="() => { statusFilter = opt.value }"
+          @click="
+            () => {
+              statusFilter = opt.value
+            }
+          "
         />
       </div>
 
-      <div class="flex flex-col gap-3 rounded-xl border border-default bg-elevated/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        class="flex flex-col gap-3 rounded-xl border border-default bg-elevated/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div>
           <p class="text-sm font-medium">Visibilidad de documentos saldados</p>
           <p class="text-xs text-muted">Ocultalos para concentrarte en los pagos pendientes.</p>
@@ -291,7 +366,7 @@ const sortFields = [
         :sort-fields="sortFields"
         :on-delete="deleteDrafts"
         selectable
-        :can-select-row="row => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3)"
+        :can-select-row="(row) => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3)"
       />
     </div>
   </UPage>

@@ -67,6 +67,14 @@ export interface Document {
 
   updated_at?: string
 
+  created_by?: string | null
+
+  creator?: {
+    id: string
+    name?: string | null
+    email?: string | null
+  } | null
+
   number: number
   document_type_id: string
   document_sequence_id?: string | null

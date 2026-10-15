@@ -39,6 +39,11 @@
         "type": "fix",
         "scope": "navigation",
         "title": "El encabezado de página deja de titilar al desplazarse hacia el inicio"
+      },
+      {
+        "type": "feat",
+        "scope": "documents",
+        "title": "OWNER y administradores pueden identificar quién cargó cada venta, orden, remito y compra"
       }
     ]
   },

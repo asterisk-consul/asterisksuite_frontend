@@ -12,6 +12,7 @@ export const createSalesColumns = (actions: {
   onOpen: (row: Row) => void
   onCollect?: (row: Row) => void
   showAmounts?: boolean
+  showCreator?: boolean
 }) => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
   const fmtNumber = (row: Row) => {
@@ -49,10 +50,25 @@ export const createSalesColumns = (actions: {
           const label = fmtNumber(row.original)
           const category = row.original.document_types?.category ?? ''
           return h('div', { class: 'min-w-[190px] space-y-1' }, [
-            h(UButton, { label, variant: 'link', size: 'sm', class: 'font-mono px-0 h-auto', onClick: () => actions.onOpen(row.original) }),
+            h(UButton, {
+              label,
+              variant: 'link',
+              size: 'sm',
+              class: 'font-mono px-0 h-auto',
+              onClick: () => actions.onOpen(row.original)
+            }),
             h('div', { class: 'flex items-center gap-2' }, [
-              h(UBadge, { label: CATEGORY_LABELS[category] ?? category, color: 'neutral', variant: 'subtle', size: 'xs' }),
-              h('span', { class: 'max-w-[150px] truncate text-xs text-muted' }, row.original.document_types?.description ?? '')
+              h(UBadge, {
+                label: CATEGORY_LABELS[category] ?? category,
+                color: 'neutral',
+                variant: 'subtle',
+                size: 'xs'
+              }),
+              h(
+                'span',
+                { class: 'max-w-[150px] truncate text-xs text-muted' },
+                row.original.document_types?.description ?? ''
+              )
             ])
           ])
         }
@@ -73,16 +89,21 @@ export const createSalesColumns = (actions: {
                 size: 'xs'
               }),
               h(UProgress, { modelValue: percentage, color: ready ? 'success' : 'warning', size: 'xs' }),
-              h('span', { class: 'text-xs text-muted' }, `${percentage.toFixed(1)}% / ${required.toFixed(1)}% requerido`)
+              h(
+                'span',
+                { class: 'text-xs text-muted' },
+                `${percentage.toFixed(1)}% / ${required.toFixed(1)}% requerido`
+              )
             ])
           }
           const summary = getDocumentPaymentSummary(row.original)
           if (!summary.applies) return h('span', { class: 'text-xs text-muted' }, 'No aplica')
-          const config = summary.state === 'PAID'
-            ? { label: 'Cobrado', color: 'success' }
-            : summary.state === 'PARTIAL'
-              ? { label: 'Cobro parcial', color: 'warning' }
-              : { label: 'Pendiente', color: 'error' }
+          const config =
+            summary.state === 'PAID'
+              ? { label: 'Cobrado', color: 'success' }
+              : summary.state === 'PARTIAL'
+                ? { label: 'Cobro parcial', color: 'warning' }
+                : { label: 'Pendiente', color: 'error' }
           const currency = row.original.currency_code ?? 'ARS'
           const amount = new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(summary.pending)
           return h('div', { class: 'min-w-[170px] space-y-1.5' }, [
@@ -133,23 +154,37 @@ export const createSalesColumns = (actions: {
           )
         }
       },
-      ...(actions.showAmounts === false ? [] : [{
-        key: 'total',
-        label: 'Total',
-        sortable: true,
-        cell: ({ row }) =>
-          row.original.amounts_visible === false
-            ? h('span', { class: 'text-xs text-muted' }, 'Restringido')
-            : new Intl.NumberFormat('es-AR', { style: 'currency', currency: row.original.currency_code ?? 'ARS' }).format(
-                Number(row.original.total)
-              )
-      }]),
+      ...(actions.showAmounts === false
+        ? []
+        : [
+            {
+              key: 'total',
+              label: 'Total',
+              sortable: true,
+              cell: ({ row }) =>
+                row.original.amounts_visible === false
+                  ? h('span', { class: 'text-xs text-muted' }, 'Restringido')
+                  : new Intl.NumberFormat('es-AR', {
+                      style: 'currency',
+                      currency: row.original.currency_code ?? 'ARS'
+                    }).format(Number(row.original.total))
+            }
+          ]),
       { key: 'date', label: 'Fecha', sortable: true, date: true },
       {
         id: 'point_of_sale',
         label: 'Punto de venta',
         accessorFn: (row) => row.document_sequences?.point_of_sale ?? '-'
-      }
+      },
+      ...(actions.showCreator
+        ? [
+            {
+              id: 'creator',
+              label: 'Cargado por',
+              accessorFn: (row: Row) => row.creator?.name ?? row.creator?.email ?? '-'
+            }
+          ]
+        : [])
     ])
   ]
 }

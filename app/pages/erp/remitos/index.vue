@@ -7,6 +7,7 @@ import { createSalesColumns } from '~/modulos/erp/sales/columns'
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
+const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=REMITO')
 
 const statusFilter = ref<number | undefined>(undefined)
@@ -22,14 +23,14 @@ const stats = computed(() => {
   const docs = documents.value
   return {
     total: docs.length,
-    borrador: docs.filter(d => d.status === 0).length,
-    pendiente: docs.filter(d => d.status === 1).length,
-    confirmado: docs.filter(d => d.status === 2).length,
+    borrador: docs.filter((d) => d.status === 0).length,
+    pendiente: docs.filter((d) => d.status === 1).length,
+    confirmado: docs.filter((d) => d.status === 2).length,
     unidadesPendientes: docs
-      .filter(doc => doc.status === 0 || doc.status === 1)
+      .filter((doc) => doc.status === 0 || doc.status === 1)
       .reduce(
-        (total, doc) => total + (doc.document_items ?? [])
-          .reduce((sum: number, item: any) => sum + Number(item.quantity ?? 0), 0),
+        (total, doc) =>
+          total + (doc.document_items ?? []).reduce((sum: number, item: any) => sum + Number(item.quantity ?? 0), 0),
         0
       )
   }
@@ -39,7 +40,9 @@ function openDocument(row: any) {
   router.push(`/erp/remitos/${row.id}`)
 }
 
-const columns = createSalesColumns({ onOpen: openDocument, showAmounts: false })
+const columns = computed(() =>
+  createSalesColumns({ onOpen: openDocument, showAmounts: false, showCreator: isOwnerOrAdmin.value })
+)
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },
@@ -100,7 +103,15 @@ const statusOptions = [
       </div>
 
       <div class="flex gap-2 flex-wrap">
-        <UButton v-for="opt in statusOptions" :key="String(opt.value)" :variant="statusFilter === opt.value ? 'solid' : 'ghost'" color="neutral" size="sm" :label="opt.label" @click="statusFilter = opt.value" />
+        <UButton
+          v-for="opt in statusOptions"
+          :key="String(opt.value)"
+          :variant="statusFilter === opt.value ? 'solid' : 'ghost'"
+          color="neutral"
+          size="sm"
+          :label="opt.label"
+          @click="statusFilter = opt.value"
+        />
       </div>
 
       <LogisticaTable

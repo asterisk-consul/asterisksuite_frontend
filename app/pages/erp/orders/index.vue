@@ -8,6 +8,7 @@ import { canSettleDocument } from '~/modulos/erp/documents/utils/document-paymen
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
+const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=ORDER')
 
 const statusFilter = ref<number | undefined>(undefined)
@@ -22,10 +23,10 @@ watch(statusFilter, () => refresh())
 const stats = computed(() => {
   const docs = documents.value
   return {
-    borrador: docs.filter(d => d.status === 0).length,
-    preparacion: docs.filter(d => d.commercial_operation?.delivery_status === 'PENDING').length,
-    listas: docs.filter(d => d.commercial_operation?.delivery_status === 'ELIGIBLE').length,
-    remitosPendientes: docs.filter(d => d.commercial_operation?.delivery_status === 'DRAFT_CREATED').length,
+    borrador: docs.filter((d) => d.status === 0).length,
+    preparacion: docs.filter((d) => d.commercial_operation?.delivery_status === 'PENDING').length,
+    listas: docs.filter((d) => d.commercial_operation?.delivery_status === 'ELIGIBLE').length,
+    remitosPendientes: docs.filter((d) => d.commercial_operation?.delivery_status === 'DRAFT_CREATED').length
   }
 })
 
@@ -48,7 +49,9 @@ function collectDocument(row: any) {
   })
 }
 
-const columns = createSalesColumns({ onOpen: openDocument, onCollect: collectDocument })
+const columns = computed(() =>
+  createSalesColumns({ onOpen: openDocument, onCollect: collectDocument, showCreator: isOwnerOrAdmin.value })
+)
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },
@@ -110,7 +113,15 @@ const statusOptions = [
       </div>
 
       <div class="flex gap-2 flex-wrap">
-        <UButton v-for="opt in statusOptions" :key="String(opt.value)" :variant="statusFilter === opt.value ? 'solid' : 'ghost'" color="neutral" size="sm" :label="opt.label" @click="statusFilter = opt.value" />
+        <UButton
+          v-for="opt in statusOptions"
+          :key="String(opt.value)"
+          :variant="statusFilter === opt.value ? 'solid' : 'ghost'"
+          color="neutral"
+          size="sm"
+          :label="opt.label"
+          @click="statusFilter = opt.value"
+        />
       </div>
 
       <LogisticaTable

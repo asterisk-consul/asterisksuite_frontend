@@ -7,6 +7,7 @@ import { createSalesColumns } from '~/modulos/erp/sales/columns'
 
 const router = useRouter()
 const store = useDocumentsPurchasesStore()
+const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/purchases/orders/new')
 
 const statusFilter = ref<number | undefined>(undefined)
@@ -22,10 +23,10 @@ const stats = computed(() => {
   const docs = documents.value
   return {
     total: docs.length,
-    borrador: docs.filter(d => d.status === 0).length,
-    pendiente: docs.filter(d => d.status === 1).length,
-    confirmado: docs.filter(d => d.status === 2).length,
-    totalConfirmado: docs.filter(d => d.status === 2).reduce((a, d) => a + Number(d.total), 0),
+    borrador: docs.filter((d) => d.status === 0).length,
+    pendiente: docs.filter((d) => d.status === 1).length,
+    confirmado: docs.filter((d) => d.status === 2).length,
+    totalConfirmado: docs.filter((d) => d.status === 2).reduce((a, d) => a + Number(d.total), 0)
   }
 })
 
@@ -37,7 +38,7 @@ function openDocument(row: any) {
   router.push(`/erp/purchases/orders/${row.id}`)
 }
 
-const columns = createSalesColumns({ onOpen: openDocument })
+const columns = computed(() => createSalesColumns({ onOpen: openDocument, showCreator: isOwnerOrAdmin.value }))
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },
@@ -99,7 +100,15 @@ const statusOptions = [
       </div>
 
       <div class="flex gap-2 flex-wrap">
-        <UButton v-for="opt in statusOptions" :key="String(opt.value)" :variant="statusFilter === opt.value ? 'solid' : 'ghost'" color="neutral" size="sm" :label="opt.label" @click="statusFilter = opt.value" />
+        <UButton
+          v-for="opt in statusOptions"
+          :key="String(opt.value)"
+          :variant="statusFilter === opt.value ? 'solid' : 'ghost'"
+          color="neutral"
+          size="sm"
+          :label="opt.label"
+          @click="statusFilter = opt.value"
+        />
       </div>
 
       <LogisticaTable
