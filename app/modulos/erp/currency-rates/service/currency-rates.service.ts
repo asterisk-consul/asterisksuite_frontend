@@ -1,15 +1,19 @@
 ﻿import type {
   CurrencyRate,
   CreateCurrencyRateInput,
-  UpdateCurrencyRateInput
+  UpdateCurrencyRateInput,
+  CurrencyRatesPage
 } from '~/modulos/erp/currency-rates/types/currency-rates.types'
 
 const urlBase = '/api/backend/currencies-rate'
 
 export const useCurrencyRatesService = () => {
-  const findAll = () => {
-    return $fetch<CurrencyRate[]>(urlBase, {
-      method: 'GET'
+  const findAll = (params: { page?: number; pageSize?: number } = {}) => {
+    return $fetch<CurrencyRatesPage | CurrencyRate[]>(urlBase, {
+      method: 'GET',
+      query: params,
+      timeout: 10_000,
+      retry: 1
     })
   }
 

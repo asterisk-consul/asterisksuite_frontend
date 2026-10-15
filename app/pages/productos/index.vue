@@ -21,8 +21,10 @@ import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useTableDelete } from '~/composables/table/useTableDelete'
+import { useServerTable } from '~/composables/table/useServerTable'
 
-const { init, products, create, loading } = useProducts()
+const { products, create, loading } = useProducts()
+const productsStore = useProductsStore()
 const { exportToExcel } = useExcelExport()
 const form = reactive(createDefaultProductForm())
 
@@ -109,12 +111,12 @@ const { deleteOne, deleteMany } = useTableDelete('products')
 
 async function handleDeleteOne(row: any) {
   await deleteOne(row.id)
-  await init()
+  await refresh()
 }
 
 async function handleBulkDelete(rows: any[]) {
   await deleteMany(rows.map(r => r.id))
-  await init()
+  await refresh()
 }
 
 const columns = productColumns({
@@ -123,12 +125,14 @@ const columns = productColumns({
   onSortFieldSelect
 })
 
-onMounted(async () => {
-  await init()
-})
+const serverTable = useServerTable((query) => productsStore.fetchPage(query))
+const { page, pageSize, search, sorting: serverSorting, refresh } = serverTable
+watch(serverSorting, value => { sorting.value = value }, { deep: true })
+watch(sorting, value => { serverSorting.value = value }, { deep: true })
 const saveLocation = async () => {
   try {
     await create(toCreateProductPayload(form))
+    await refresh()
     open.value = false
     Object.assign(form, createDefaultProductForm())
   } catch (e: any) {
@@ -306,6 +310,8 @@ const sortFields: SortField[] = [
     </UAlert>
 
     <LogisticaTable
+      v-model:page="page"
+      v-model:search="search"
       :loading="loading"
       :data="products"
       :columns="columns"
@@ -313,6 +319,9 @@ const sortFields: SortField[] = [
       :sort-fields="sortFields"
       v-model:sorting="sorting"
       :on-delete="handleBulkDelete"
+      server-side
+      :page-size="pageSize"
+      :total-rows="productsStore.pagination.total"
     />
   </UPage>
   <ProductModalForm v-model:open="open" v-model:form="form" @submit="saveLocation" />
@@ -323,6 +332,6 @@ const sortFields: SortField[] = [
     description="Selecciona un archivo Excel con los productos a importar"
     :columns="importColumns"
     endpoint="/api/data-import/products"
-    @success="init"
+    @success="refresh"
   />
 </template>

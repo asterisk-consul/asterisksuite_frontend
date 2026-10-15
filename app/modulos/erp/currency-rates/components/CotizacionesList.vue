@@ -9,9 +9,13 @@ import { useCurrencyRatesStore } from '~/modulos/erp/currency-rates/store/curren
 import type { CurrencyRate } from '~/modulos/erp/currency-rates/types/currency-rates.types'
 
 const store = useCurrencyRatesStore()
-const { items } = storeToRefs(store)
+const { items, loading, pagination } = storeToRefs(store)
+const page = computed({
+  get: () => pagination.value.page,
+  set: (value: number) => store.fetchAll({ page: value })
+})
 onMounted(() => {
-  store.fetchAll()
+  store.fetchAll({ page: 1 })
 })
 
 const columns: TableColumn<CurrencyRate>[] = [
@@ -158,6 +162,13 @@ const columns: TableColumn<CurrencyRate>[] = [
       header: 'p-4 mb-0 border-b border-default'
     }"
   >
-    <UTable :columns="columns" :data="items" />
+    <UTable :columns="columns" :data="items" :loading="loading" />
+    <div v-if="pagination.total > pagination.pageSize" class="flex justify-center border-t border-default p-4">
+      <UPagination
+        v-model:page="page"
+        :total="pagination.total"
+        :items-per-page="pagination.pageSize"
+      />
+    </div>
   </UPageCard>
 </template>

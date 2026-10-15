@@ -16,6 +16,7 @@ export const useCurrencyRatesStore = defineStore('currencyRates', () => {
   const current = ref<CurrencyRate | null>(null)
 
   const loading = ref(false)
+  const pagination = ref({ page: 1, pageSize: 25, total: 0, pageCount: 0 })
 
   // =========================
   // COMPUTEDS
@@ -29,11 +30,28 @@ export const useCurrencyRatesStore = defineStore('currencyRates', () => {
   // LOAD ALL
   // =========================
 
-  const fetchAll = async () => {
+  const fetchAll = async (params: { page?: number; pageSize?: number } = {}) => {
     try {
       loading.value = true
 
-      items.value = await service.findAll()
+      const response = await service.findAll({
+        page: params.page ?? pagination.value.page,
+        pageSize: params.pageSize ?? pagination.value.pageSize
+      })
+      // Compatibilidad durante despliegues donde frontend y backend pueden
+      // quedar momentáneamente en versiones distintas.
+      if (Array.isArray(response)) {
+        items.value = response
+        pagination.value = {
+          page: 1,
+          pageSize: Math.max(response.length, 1),
+          total: response.length,
+          pageCount: response.length ? 1 : 0
+        }
+      } else {
+        items.value = response.items ?? []
+        pagination.value = response.pagination
+      }
     } finally {
       loading.value = false
     }
@@ -108,6 +126,7 @@ export const useCurrencyRatesStore = defineStore('currencyRates', () => {
     items,
     current,
     loading,
+    pagination,
 
     // computed
     activeItems,

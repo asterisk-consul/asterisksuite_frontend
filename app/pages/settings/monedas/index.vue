@@ -15,13 +15,16 @@ useSeoMeta({
 const items = ref<TabsItem[]>([
   {
     label: 'Monedas',
+    value: 'currencies',
     slot: 'monedas' as const
   },
   {
     label: 'Cotizaciones',
+    value: 'rates',
     slot: 'cotizaciones' as const
   }
 ])
+const activeTab = ref('currencies')
 
 import { useCurrenciesStore } from '~/modulos/erp/currencies/store/currencies.store'
 
@@ -33,7 +36,7 @@ onMounted(() => {
 })
 </script>
 <template>
-  <UTabs :items="items" variant="link" class="w-full">
+  <UTabs v-model="activeTab" :items="items" variant="link" class="w-full">
     <template #monedas="{ item }">
       <UPageCard
         title="Monedas"
@@ -49,7 +52,7 @@ onMounted(() => {
           class="w-fit lg:ms-auto"
         />
       </UPageCard>
-      <div class="grid gap-2 w-full lg:max-w-2xl mx-auto" v-if="!loading">
+      <div class="grid gap-2 w-full lg:max-w-2xl mx-auto" v-if="loading">
         <USkeleton class="h-4 w-55" />
         <USkeleton class="h-4 w-50" />
       </div>
@@ -67,7 +70,7 @@ onMounted(() => {
       </UPageCard>
     </template>
     <template #cotizaciones="{ item }">
-      <CotizacionesList />
+      <CotizacionesList v-if="activeTab === 'rates'" />
     </template>
   </UTabs>
 </template>

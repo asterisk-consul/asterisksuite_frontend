@@ -4,6 +4,8 @@ import { ref } from 'vue'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 
 import type { Document } from '~/modulos/erp/facturas/types/factura.types'
+import type { SalesListParams } from '~/modulos/erp/sales/services/sales.service'
+import type { PaginationMeta, ServerListParams } from '~/types/pagination'
 
 export const useDocumentsSalesStore = defineStore(
   'documents-sales',
@@ -19,6 +21,7 @@ export const useDocumentsSalesStore = defineStore(
     const loading = ref(false)
 
     const error = ref<string | null>(null)
+    const pagination = ref<PaginationMeta>({ page: 1, pageSize: 25, total: 0, pageCount: 0 })
 
     // ─────────────────────────────────────
     // Fetch all
@@ -45,6 +48,22 @@ export const useDocumentsSalesStore = defineStore(
         error.value =
           err?.data?.message || err?.message || 'Error loading documents'
 
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const fetchPage = async (params: SalesListParams & ServerListParams) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsSalesService.getPage(params)
+        items.value = response.items
+        pagination.value = response.pagination
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error loading documents'
         throw err
       } finally {
         loading.value = false
@@ -403,9 +422,11 @@ export const useDocumentsSalesStore = defineStore(
       current,
       loading,
       error,
+      pagination,
 
       // actions
       fetchAll,
+      fetchPage,
       fetchOne,
       create,
       update,

@@ -4,6 +4,7 @@ definePageMeta({ middleware: ['auth'] })
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
+import { useServerTable } from '~/composables/table/useServerTable'
 import {
   CATEGORY_LABELS,
   getCategoryStatuses,
@@ -62,22 +63,32 @@ const statusFilter = ref<number | undefined>(undefined)
 const showFullyPaid = ref(true)
 const showCancelled = ref(false)
 
-const refresh = () =>
-  documentsPurchasesStore.fetchAll({
+const serverTable = useServerTable((query) =>
+  documentsPurchasesStore.fetchPage({
+    ...query,
     status: statusFilter.value,
-    category: categoryFilter.value
+    category: categoryFilter.value,
+    categories: categoryFilter.value ? undefined : PURCHASE_CATEGORIES.join(','),
+    excludeCancelled: !showCancelled.value
   })
-
-onMounted(async () => {
-  await refresh()
-})
+)
+const { page, pageSize, search, sorting, refresh } = serverTable
 
 watch(categoryFilter, () => {
   statusFilter.value = undefined
-  refresh()
+  if (page.value !== 1) page.value = 1
+  else refresh()
 })
 
-watch(statusFilter, () => refresh())
+watch(statusFilter, () => {
+  if (page.value !== 1) page.value = 1
+  else refresh()
+})
+watch(showCancelled, () => {
+  if (page.value !== 1) page.value = 1
+  else refresh()
+})
+watch(showFullyPaid, () => { page.value = 1 })
 
 // ─── Filtros de categoría ─────────────────────────────────────────────────────
 const categoryOptions = computed(() => [
@@ -359,11 +370,17 @@ const sortFields = [
 
       <!-- Tabla -->
       <LogisticaTable
+        v-model:page="page"
+        v-model:search="search"
+        v-model:sorting="sorting"
         :data="visibleDocuments"
         :columns="columns"
         :loading="pending"
         :filter-fields="filterFields"
         :sort-fields="sortFields"
+        server-side
+        :page-size="pageSize"
+        :total-rows="documentsPurchasesStore.pagination.total"
         :on-delete="deleteDrafts"
         selectable
         :can-select-row="(row) => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3)"

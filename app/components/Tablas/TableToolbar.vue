@@ -21,10 +21,15 @@ const props = defineProps<{
   columns: any[] // ✅ columnas para el popover de filtros
   filterFields?: FilterField[]
   sortFields?: SortField[]
+  serverSide?: boolean
+  columnVisibilityItems?: Array<{ label: string; checked: boolean; onUpdateChecked: (checked: boolean) => void }>
 }>()
+
+const emit = defineEmits<{ resetColumns: [] }>()
 
 // --- Models ---
 const sorting = defineModel<SortingState>('sorting', { default: () => [] })
+const search = defineModel<string>('search', { default: '' })
 
 // --- Filtros dinámicos (popover) ---
 const tableRef = computed(() => props.table)
@@ -90,6 +95,7 @@ function toggleDirection() {
 // --- Limpiar todo ---
 function clearAll() {
   filterValues.value = {}
+  search.value = ''
   selectedSortField.value = undefined
   sortDesc.value = false
   clearFilters()
@@ -97,7 +103,7 @@ function clearAll() {
 
 const hasActiveFilters = computed(
   () =>
-    Object.values(filterValues.value).some((v) => v?.trim()) || !!selectedSortField.value || filters.value.length > 0
+    search.value.trim() || Object.values(filterValues.value).some((v) => v?.trim()) || !!selectedSortField.value || filters.value.length > 0
 )
 </script>
 
@@ -108,6 +114,17 @@ const hasActiveFilters = computed(
       <!-- Inputs rápidos -->
       <div class="flex flex-wrap items-center gap-2">
         <UInput
+          v-if="serverSide"
+          v-model="search"
+          placeholder="Buscar por N°, tercero o descripción..."
+          icon="i-lucide-search"
+          class="w-72 max-w-full"
+          size="sm"
+          variant="outline"
+          clearable
+        />
+        <UInput
+          v-else
           v-for="field in filterFields"
           :key="field.id"
           v-model="filterValues[field.id]"
@@ -122,6 +139,38 @@ const hasActiveFilters = computed(
 
       <!-- Acciones -->
       <div class="flex items-center gap-2">
+        <UPopover v-if="columnVisibilityItems?.length">
+          <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-columns-3" label="Columnas" />
+          <template #content>
+            <div class="w-64 p-3">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <div>
+                  <p class="text-sm font-medium">Columnas visibles</p>
+                  <p class="text-xs text-muted">Elegí qué información mostrar.</p>
+                </div>
+                <UButton
+                  icon="i-lucide-rotate-ccw"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Restablecer columnas"
+                  title="Restablecer"
+                  @click="emit('resetColumns')"
+                />
+              </div>
+              <div class="max-h-72 space-y-1 overflow-y-auto">
+                <label
+                  v-for="item in columnVisibilityItems"
+                  :key="item.label"
+                  class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-elevated"
+                >
+                  <UCheckbox :model-value="item.checked" @update:model-value="item.onUpdateChecked(Boolean($event))" />
+                  <span class="truncate">{{ item.label }}</span>
+                </label>
+              </div>
+            </div>
+          </template>
+        </UPopover>
         <!-- Chip filtros -->
 
         <!-- Popover -->

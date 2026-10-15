@@ -299,16 +299,18 @@ export function createTableBuilder<T extends { id: string }, K extends keyof T =
          META
       ========================= */
 
+      const filterEnabled = col.meta?.filter !== false && Boolean(accessorKey || accessorFn)
+      const customFilter = typeof col.meta?.filter === 'object' ? col.meta.filter : {}
       const meta = {
+        ...(col.meta || {}),
+
         label: col.label,
 
-        filter: {
+        filter: filterEnabled ? {
           ...inferredFilter,
 
-          ...(col.meta?.filter || {})
-        },
-
-        ...(col.meta || {})
+          ...customFilter
+        } : undefined
       }
 
       /* ========================

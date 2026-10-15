@@ -14,6 +14,7 @@ import type {
   CreateProductDto,
   UpdateProductInput
 } from '~/modulos/logistica/master-data/product/types/product.types'
+import type { PaginationMeta, ServerListParams } from '~/types/pagination'
 
 export const useProductsStore = defineStore('products', () => {
   const service = useProductsService()
@@ -62,6 +63,7 @@ export const useProductsStore = defineStore('products', () => {
   const loading = ref(false)
 
   const error = ref<string | null>(null)
+  const pagination = ref<PaginationMeta>({ page: 1, pageSize: 25, total: 0, pageCount: 0 })
 
   // =========================
   // LOAD ALL
@@ -100,6 +102,23 @@ export const useProductsStore = defineStore('products', () => {
     for (const product of data) merged.set(product.id, product)
     items.value = [...merged.values()]
     return data
+  }
+
+  const fetchPage = async (params: ServerListParams) => {
+    prepareCache()
+    loading.value = true
+    error.value = null
+    try {
+      const response = await service.findPage(params)
+      items.value = response.items
+      pagination.value = response.pagination
+      return response
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al cargar productos'
+      throw err
+    } finally {
+      loading.value = false
+    }
   }
 
   // =========================
@@ -256,9 +275,11 @@ export const useProductsStore = defineStore('products', () => {
 
     loading,
     error,
+    pagination,
 
     // actions
     fetchAll,
+    fetchPage,
     search,
     hydrateCache: prepareCache,
     fetchOne,

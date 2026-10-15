@@ -1,15 +1,26 @@
 ﻿import type { Document } from '~/modulos/erp/facturas/types/factura.types'
 
-export const DocumentsSalesService = {
-  async getAll(params?: {
+import type { PaginatedResponse, ServerListParams } from '~/types/pagination'
+
+export type SalesListParams = {
     documentTypeId?: string
     status?: number
     category?: string
+    categories?: string
     direction?: number
-  }): Promise<Document[]> {
+    party_id?: string
+    excludeCancelled?: boolean
+} & Partial<ServerListParams>
+
+export const DocumentsSalesService = {
+  async getAll(params?: SalesListParams): Promise<Document[]> {
     return $fetch('/api/backend/documents/sales', {
       query: params
     })
+  },
+
+  async getPage(params: SalesListParams & ServerListParams): Promise<PaginatedResponse<Document>> {
+    return $fetch('/api/backend/documents/sales', { query: params })
   },
 
   async getOne(id: string): Promise<Document> {

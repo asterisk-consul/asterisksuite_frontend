@@ -18,7 +18,7 @@ const safeColumns = computed(() => props.columns ?? [])
 // ✅ Solo columnas con id válido y meta de filtro
 const filterableColumns = computed(() =>
   safeColumns.value
-    .filter((c) => (c.accessorKey || c.id) && c.meta?.filter)
+    .filter((c) => (c.accessorKey || c.id) && c.meta?.filter && c.meta?.filter !== false)
     .map((c) => ({
       label: c.meta?.label || c.header || c.accessorKey || c.id,
       value: c.accessorKey || c.id
@@ -92,35 +92,48 @@ function onColumnChange(filter: TableFilter, column: string) {
 </script>
 
 <template>
-  <div class="flex flex-wrap gap-2">
-    <!-- Chips de filtros activos -->
-    <UBadge v-for="filter in filters" :key="filter.id" color="neutral" variant="soft" class="px-3 py-1">
-      <div class="flex items-center gap-2">
-        <span>{{ getColumnLabel(filter.column) }}</span>
-        <span class="opacity-60">{{ formatOperator(filter.operator) }}</span>
-        <span class="font-medium">
-          {{ typeof filter.value === 'object' ? 'Seleccionado' : filter.value }}
-        </span>
-        <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="emit('remove', filter.id)" />
-      </div>
-    </UBadge>
-
-    <!-- Botón Popover -->
+  <div class="shrink-0">
     <UPopover>
-      <UButton color="neutral" variant="soft" size="sm" icon="i-lucide-filter">
-        Filters
-
-        <UBadge v-if="filters.length" :label="String(filters.length)" color="primary" size="xs" class="ml-1" />
-      </UButton>
+      <div class="relative inline-flex">
+        <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-list-filter" label="Filtros" class="min-w-24 justify-center" />
+        <UBadge
+          v-if="filters.length"
+          :label="String(filters.length)"
+          color="primary"
+          size="xs"
+          class="pointer-events-none absolute -right-2 -top-2 min-w-5 justify-center rounded-full px-1"
+        />
+      </div>
 
       <template #content>
-        <div class="w-225 p-4 flex flex-col gap-3">
+        <div class="w-[min(92vw,760px)] p-4 flex flex-col gap-3">
+          <div>
+            <p class="text-sm font-medium">Filtros avanzados</p>
+            <p class="text-xs text-muted">Combiná campos para acotar los resultados de la tabla.</p>
+          </div>
+
+          <div v-if="filters.length" class="flex flex-wrap gap-1.5 border-b border-default pb-3">
+            <UBadge
+              v-for="filter in filters"
+              :key="`summary-${filter.id}`"
+              color="neutral"
+              variant="soft"
+              class="max-w-full px-2 py-1"
+            >
+              <span class="mr-1 font-medium">{{ getColumnLabel(filter.column) }}</span>
+              <span class="mr-1 opacity-60">{{ formatOperator(filter.operator) }}</span>
+              <span class="max-w-40 truncate">
+                {{ typeof filter.value === 'object' ? 'Seleccionado' : filter.value || 'Sin valor' }}
+              </span>
+            </UBadge>
+          </div>
+
           <!-- ✅ Guard: solo renderiza si hay columnas -->
           <template v-if="filterableColumns.length">
             <div
               v-for="filter in filters"
               :key="filter.id"
-              class="grid grid-cols-[220px_180px_1fr_auto] gap-2 items-start"
+              class="grid grid-cols-1 gap-2 rounded-lg border border-default bg-elevated/40 p-2 sm:grid-cols-[minmax(150px,1fr)_150px_minmax(180px,1.4fr)_auto] sm:items-start"
             >
               <!-- Columna -->
               <USelect
@@ -136,7 +149,7 @@ function onColumnChange(filter: TableFilter, column: string) {
               <FilterValueInput v-model="filter.value" :meta="getColumnMeta(filter.column)" />
 
               <!-- Eliminar -->
-              <UButton color="error" variant="ghost" icon="i-lucide-trash" @click="emit('remove', filter.id)" />
+              <UButton class="justify-self-end" color="error" variant="ghost" icon="i-lucide-trash" aria-label="Quitar filtro" @click="emit('remove', filter.id)" />
             </div>
           </template>
 
@@ -144,8 +157,8 @@ function onColumnChange(filter: TableFilter, column: string) {
           <p v-else class="text-sm text-muted text-center py-2">No hay columnas filtrables disponibles.</p>
 
           <!-- Footer -->
-          <div class="flex items-center justify-between pt-2 border-t">
-            <UButton icon="i-lucide-plus" variant="soft" :disabled="!filterableColumns.length" @click="emit('add')">
+          <div class="flex items-center justify-between border-t border-default pt-3">
+            <UButton icon="i-lucide-plus" variant="soft" size="sm" :disabled="!filterableColumns.length" @click="emit('add')">
               Agregar filtro
             </UButton>
           </div>

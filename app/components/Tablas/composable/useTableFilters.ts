@@ -49,7 +49,7 @@ export function useTableFilters(table: Ref<any>, columns?: Ref<any[]>) {
   }
 
   function addFilter() {
-    const firstColumn = columns?.value?.find((c) => c.accessorKey || c.id)
+    const firstColumn = columns?.value?.find((c) => (c.accessorKey || c.id) && c.meta?.filter)
 
     const columnId = firstColumn?.accessorKey || firstColumn?.id || ''
 

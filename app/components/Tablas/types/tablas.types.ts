@@ -4,6 +4,9 @@ export type ExtendedColumn<T> = TableColumn<T> & {
   accessorKey?: string
   meta?: {
     filterType?: FilterType
+    label?: string
+    filter?: ColumnFilterMeta | false
+    disableColumnVisibility?: boolean
   }
 }
 export interface TableApi<T> {

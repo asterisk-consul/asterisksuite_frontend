@@ -4,6 +4,7 @@ definePageMeta({ middleware: ['auth'] })
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
+import { useServerTable } from '~/composables/table/useServerTable'
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
@@ -13,11 +14,9 @@ useDocumentFormPreload('/erp/sales/new?category=REMITO')
 const statusFilter = ref<number | undefined>(undefined)
 const documents = computed(() => store.items ?? [])
 const loading = computed(() => store.loading)
-
-const refresh = () => store.fetchAll({ status: statusFilter.value, category: 'REMITO' })
-
-onMounted(() => refresh())
-watch(statusFilter, () => refresh())
+const serverTable = useServerTable((query) => store.fetchPage({ ...query, status: statusFilter.value, category: 'REMITO' }))
+const { page, pageSize, search, sorting, refresh } = serverTable
+watch(statusFilter, () => { page.value = 1; refresh() })
 
 const stats = computed(() => {
   const docs = documents.value
@@ -115,11 +114,17 @@ const statusOptions = [
       </div>
 
       <LogisticaTable
+        v-model:page="page"
+        v-model:search="search"
+        v-model:sorting="sorting"
         :data="documents"
         :columns="columns"
         :loading="loading"
         :filter-fields="filterFields"
         :sort-fields="sortFields"
+        server-side
+        :page-size="pageSize"
+        :total-rows="store.pagination.total"
       />
     </div>
   </UPage>

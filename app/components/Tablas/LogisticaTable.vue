@@ -8,6 +8,7 @@ import type { UTableInstance, ExtendedColumn } from './types/tablas.types'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 import { useColumnVisibility } from '@/composables/table/useColumnVisibility'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 
 import DeleteConfirmModal from './DeleteConfirmModal.vue'
 import TableSelectionBar from './TableSelectionBar.vue'
@@ -27,10 +28,16 @@ const props = defineProps<{
   deletePermanently?: boolean
   selectable?: boolean
   canSelectRow?: (row: T) => boolean
+  serverSide?: boolean
+  totalRows?: number
+  pageSize?: number
+  storageKey?: string
 }>()
 const sorting = defineModel<SortingState>('sorting', {
   default: () => []
 })
+const page = defineModel<number>('page', { default: 1 })
+const search = defineModel<string>('search', { default: '' })
 
 const emit = defineEmits<{
   'delete:rows': [rows: T[]]
@@ -47,13 +54,24 @@ defineExpose({ table })
 const rowSelection = ref<Record<string, boolean>>({})
 const showDeleteModal = ref(false)
 
-const { columnVisibility, columnVisibilityItems } = useColumnVisibility(table)
+const route = useRoute()
+const authStore = useAuthStore()
+const visibilityStorageKey = computed(() => {
+  const companyId = authStore.selectedCompany?.id ?? 'no-company'
+  const userId = authStore.user?.id ?? 'anonymous'
+  return `${companyId}:${userId}:${props.storageKey ?? route.path}`
+})
+const { columnVisibility, columnVisibilityItems, resetColumnVisibility } = useColumnVisibility(table, {
+  storageKey: visibilityStorageKey
+})
 
 const tableColumns = computed<ExtendedColumn<T>[]>(() => {
   if (!props.selectable) return props.columns
 
   const selectColumn: ExtendedColumn<T> = {
     id: 'select',
+    meta: { label: 'Selección', filter: false, disableColumnVisibility: true },
+    enableHiding: false,
     header: ({ table: tableApi }: any) => {
       const eligibleRows = tableApi
         .getRowModel()
@@ -99,13 +117,27 @@ const selectedRows = computed<T[]>(() => {
   void rowSelection.value
   return table.value?.tableApi?.getFilteredSelectedRowModel().rows.map(row => row.original) ?? []
 })
-const totalCount = computed<number>(() => table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0)
+const totalCount = computed<number>(() => props.serverSide
+  ? (props.totalRows ?? 0)
+  : (table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0))
 
 /* ========================
    Pagination
 ======================== */
 
-const pagination = ref({ pageIndex: 0, pageSize: 15 })
+const pagination = ref({ pageIndex: 0, pageSize: props.pageSize ?? 15 })
+
+watch(page, (value) => {
+  if (props.serverSide && pagination.value.pageIndex !== value - 1) pagination.value.pageIndex = value - 1
+})
+
+watch(() => props.pageSize, (value) => {
+  if (value) pagination.value.pageSize = value
+})
+
+watch(search, () => {
+  if (props.serverSide) page.value = 1
+})
 
 /* ========================
    Acciones
@@ -133,12 +165,16 @@ async function confirmDelete(): Promise<void> {
     ========================= -->
 
     <TableToolbar
-      v-if="filterFields?.length || sortFields?.length"
+      v-if="filterFields?.length || sortFields?.length || columns?.length"
       :table="table"
       :columns="tableColumns"
       v-model:sorting="sorting"
+      v-model:search="search"
+      :server-side="serverSide"
       :filter-fields="filterFields ?? []"
       :sort-fields="sortFields ?? []"
+      :column-visibility-items="columnVisibilityItems"
+      @reset-columns="resetColumnVisibility"
     />
 
     <TableSelectionBar
@@ -163,14 +199,13 @@ async function confirmDelete(): Promise<void> {
       :data="props.data"
       :columns="tableColumns"
       :loading="props.loading"
-      :pagination-options="{
-        getPaginationRowModel: getPaginationRowModel(),
-        autoResetPageIndex: false
-      }"
+      :pagination-options="serverSide
+        ? { manualPagination: true, rowCount: totalCount, autoResetPageIndex: false }
+        : { getPaginationRowModel: getPaginationRowModel(), autoResetPageIndex: false }"
       :ui="{
         base: 'table-fixed border-separate border-spacing-0',
         thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
-        tbody: '[&>tr]:last:[&>td]:border-b-0',
+        tbody: '[&>tr]:transition-colors [&>tr:hover]:bg-elevated/70 [&>tr]:last:[&>td]:border-b-0',
         th: 'first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r py-0.5',
         td: 'border-b border-default'
       }"
@@ -186,10 +221,10 @@ async function confirmDelete(): Promise<void> {
 
       <UPagination
         size="sm"
-        :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
-        :items-per-page="table?.tableApi?.getState().pagination.pageSize"
+        :page="serverSide ? page : (table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
+        :items-per-page="serverSide ? (pageSize ?? 25) : table?.tableApi?.getState().pagination.pageSize"
         :total="totalCount"
-        @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
+        @update:page="(p) => serverSide ? (page = p) : table?.tableApi?.setPageIndex(p - 1)"
       />
     </div>
 

@@ -1,5 +1,95 @@
 [
   {
+    "version": "0.75.0-alpha",
+    "date": "2026-10-15",
+    "stage": "alpha",
+    "notes": "Se reduce el consumo de memoria del backend multi-tenant y se fortalece el circuito de cotizaciones para mantener valores actuales, históricos eficientes y documentos con tipo de cambio inmutable.",
+    "changes": [
+      {
+        "type": "perf",
+        "scope": "multi-tenant",
+        "title": "Los clientes Prisma inactivos vencen a los cinco minutos y la caché aplica un límite LRU configurable"
+      },
+      {
+        "type": "perf",
+        "scope": "schedulers",
+        "title": "Las tareas programadas procesan cada empresa con clientes temporales sin llenar la caché utilizada por la navegación"
+      },
+      {
+        "type": "perf",
+        "scope": "exchange-rates",
+        "title": "DolarApi se consulta una vez por ejecución, en paralelo, y la respuesta se reutiliza para todas las empresas"
+      },
+      {
+        "type": "feat",
+        "scope": "exchange-rates",
+        "title": "Las cotizaciones se sincronizan cada treinta minutos y sólo generan historial cuando cambia el valor"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "Ventas y compras en moneda extranjera ya no aceptan silenciosamente una cotización igual a uno cuando falta el valor correspondiente"
+      },
+      {
+        "type": "perf",
+        "scope": "currencies",
+        "title": "La pantalla de monedas carga el historial bajo demanda y pagina las cotizaciones desde PostgreSQL"
+      },
+      {
+        "type": "feat",
+        "scope": "observability",
+        "title": "Diagnóstico opcional de heap, buffers, recursos activos, clientes tenant y conexiones PostgreSQL"
+      }
+    ],
+    "contributors": ["agustin"],
+    "message": "Memoria multi-tenant optimizada y cotizaciones confiables"
+  },
+  {
+    "version": "0.74.0-alpha",
+    "date": "2026-10-15",
+    "stage": "alpha",
+    "notes": "Los listados principales escalan mediante paginación y búsqueda en el servidor, mientras LogisticaTable incorpora vistas de columnas personalizadas y una experiencia de filtros más estable.",
+    "changes": [
+      {
+        "type": "perf",
+        "scope": "documents",
+        "title": "Ventas, órdenes, remitos y compras cargan páginas de 25 registros con búsqueda y ordenamiento en el servidor"
+      },
+      {
+        "type": "perf",
+        "scope": "products",
+        "title": "El listado de productos deja de descargar el catálogo completo y utiliza paginación remota"
+      },
+      {
+        "type": "perf",
+        "scope": "database",
+        "title": "Nuevos índices para acelerar listados de documentos y productos por estado, fecha, tercero y eliminación lógica"
+      },
+      {
+        "type": "feat",
+        "scope": "tables",
+        "title": "LogisticaTable permite elegir columnas visibles y conserva la preferencia por usuario, empresa y pantalla"
+      },
+      {
+        "type": "style",
+        "scope": "tables",
+        "title": "Hover uniforme sobre toda la fila y selector de columnas con opción para restablecer la vista"
+      },
+      {
+        "type": "fix",
+        "scope": "filters",
+        "title": "Las columnas calculadas o técnicas dejan de ofrecer filtros inválidos en los listados"
+      },
+      {
+        "type": "style",
+        "scope": "filters",
+        "title": "El contador de filtros se muestra superpuesto sin desplazar la barra y los detalles permanecen dentro del popover"
+      }
+    ],
+    "contributors": ["agustin"],
+    "message": "Listados paginados y tablas personalizables por usuario"
+  },
+  {
     "version": "0.73.0-alpha",
     "date": "2026-10-15",
     "stage": "alpha",

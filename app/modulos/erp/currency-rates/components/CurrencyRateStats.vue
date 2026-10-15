@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import type { CurrencyRate } from '~/modulos/erp/currency-rates/types/currency-rates.types'
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   rates: CurrencyRate[]
-}>()
+}>(), {
+  rates: () => []
+})
 
 const latestRates = computed(() => {
   const grouped = new Map<string, CurrencyRate>()
 
-  const validRates = props.rates.filter(
+  const validRates = (props.rates ?? []).filter(
     (rate) => rate.source?.toLowerCase() !== 'actualización manual'
   )
 

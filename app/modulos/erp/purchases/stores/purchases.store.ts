@@ -4,6 +4,8 @@ import { ref } from 'vue'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 
 import type { Document } from '~/modulos/erp/facturas/types/factura.types'
+import type { PurchasesListParams } from '~/modulos/erp/purchases/purchases-documents.services'
+import type { PaginationMeta, ServerListParams } from '~/types/pagination'
 
 export const useDocumentsPurchasesStore = defineStore(
   'purchases-documents',
@@ -19,6 +21,7 @@ export const useDocumentsPurchasesStore = defineStore(
     const loading = ref(false)
 
     const error = ref<string | null>(null)
+    const pagination = ref<PaginationMeta>({ page: 1, pageSize: 25, total: 0, pageCount: 0 })
 
     // ─────────────────────────────────────
     // Fetch all
@@ -39,6 +42,22 @@ export const useDocumentsPurchasesStore = defineStore(
 
         error.value = err?.data?.message || err?.message || 'Error loading documents'
 
+        throw err
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const fetchPage = async (params: PurchasesListParams & ServerListParams) => {
+      loading.value = true
+      error.value = null
+      try {
+        const response = await DocumentsPurchasesService.getPage(params)
+        items.value = response.items
+        pagination.value = response.pagination
+        return response
+      } catch (err: any) {
+        error.value = err?.data?.message || err?.message || 'Error loading documents'
         throw err
       } finally {
         loading.value = false
@@ -265,9 +284,11 @@ export const useDocumentsPurchasesStore = defineStore(
       current,
       loading,
       error,
+      pagination,
 
       // actions
       fetchAll,
+      fetchPage,
       fetchOne,
       create,
       update,

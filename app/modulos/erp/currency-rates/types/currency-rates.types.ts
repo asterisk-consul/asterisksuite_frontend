@@ -74,3 +74,13 @@ export interface CurrencyRateFilters {
 
   search?: string
 }
+
+export interface CurrencyRatesPage {
+  items: CurrencyRate[]
+  pagination: {
+    page: number
+    pageSize: number
+    total: number
+    pageCount: number
+  }
+}
