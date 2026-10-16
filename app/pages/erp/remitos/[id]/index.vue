@@ -12,6 +12,7 @@ import DocumentChain from '~/modulos/erp/documents/shared/DocumentChain.vue'
 import DocumentPrintSelector from '~/components/documents/DocumentPrintSelector.vue'
 import RemitoView from '~/modulos/erp/documents/remito/RemitoView.vue'
 import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
+import FiscalCaiAlert from '~/modulos/erp/documents/shared/FiscalCaiAlert.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,6 +23,8 @@ const { printElement } = usePrint()
 
 const loading = ref(true)
 const fiscalPreview = ref<any>(null)
+const caiStatus = ref<any>(null)
+const CAI_INVALID_STATUSES = ['MISSING', 'REPLACEMENT_AVAILABLE', 'EXPIRED_BEFORE_ISSUE', 'OUT_OF_RANGE']
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
@@ -104,8 +107,9 @@ const {
         <DocumentHeader :document="doc" :loading="loading" />
         <DocumentChain v-if="doc" :document="doc" />
         <RemitoView v-if="doc" :document="doc" />
+        <FiscalCaiAlert v-if="doc" :document="doc" @replaced="store.fetchOne(doc!.id)" @evaluated="(s: any) => (caiStatus = s)" />
         <UAlert
-          v-if="doc?.status === 0 && fiscalPreview"
+          v-if="doc?.status === 0 && fiscalPreview && !(caiStatus && CAI_INVALID_STATUSES.includes(caiStatus.status))"
           :color="fiscalPreview.status === 'BLOCKED' ? 'error' : fiscalPreview.status === 'WARNING' ? 'warning' : 'success'"
           variant="soft"
           icon="i-lucide-badge-check"
