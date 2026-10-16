@@ -1,5 +1,45 @@
 [
   {
+    "version": "0.76.0-alpha",
+    "date": "2026-10-16",
+    "stage": "alpha",
+    "notes": "Los documentos comerciales incorporan selección y validación de variantes de producto, mientras las órdenes de venta pueden sugerir o exigir un responsable al momento de confirmarlas.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "product-variants",
+        "title": "Órdenes de venta, facturas de compra y remitos permiten elegir la variante correspondiente de cada producto"
+      },
+      {
+        "type": "fix",
+        "scope": "documents",
+        "title": "La variante seleccionada se conserva al editar documentos y al convertir presupuestos u órdenes en nuevos comprobantes"
+      },
+      {
+        "type": "fix",
+        "scope": "validation",
+        "title": "El backend exige una variante activa cuando el producto la requiere y rechaza variantes pertenecientes a otro producto"
+      },
+      {
+        "type": "feat",
+        "scope": "sales-flow",
+        "title": "El circuito de ventas permite configurar un responsable sugerido para las órdenes de venta"
+      },
+      {
+        "type": "feat",
+        "scope": "sales-orders",
+        "title": "Al confirmar una orden se puede elegir su responsable y opcionalmente impedir la confirmación sin asignación"
+      },
+      {
+        "type": "fix",
+        "scope": "sales-flow",
+        "title": "La configuración normaliza registros anteriores y evita valores vacíos incompatibles con los selectores"
+      }
+    ],
+    "contributors": ["agustin"],
+    "message": "Variantes en documentos y asignación responsable de órdenes"
+  },
+  {
     "version": "0.75.0-alpha",
     "date": "2026-10-15",
     "stage": "alpha",

@@ -31,10 +31,38 @@ const stockAvailabilityOpen = ref(false)
 const stockAvailabilityLoading = ref(false)
 const stockAvailability = ref<any>(null)
 const stockWarningShown = ref(false)
+const NO_ASSIGNEE = '__NO_ASSIGNEE__'
+const assignmentContextLoading = ref(false)
+const confirmationAssigneeId = ref<string | null>(null)
+const assignmentSettings = ref({
+  prompt_order_assignee_on_confirmation: true,
+  require_order_assignee_on_confirmation: false,
+  default_order_assignee_id: null as string | null
+})
+const companyUsers = ref<Array<{ id: string, name: string, email: string }>>([])
+const assigneeOptions = computed(() => [
+  ...(assignmentSettings.value.require_order_assignee_on_confirmation
+    ? []
+    : [{ value: NO_ASSIGNEE, label: 'Continuar sin asignar', description: 'La OV no quedará en la bandeja de otra persona.' }]),
+  ...companyUsers.value.map(user => ({
+    value: user.id,
+    label: user.name || user.email,
+    description: user.email
+  }))
+])
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
 const isSalesOrder = computed(() => category.value === 'ORDER' || doc.value?.document_types?.code === 'OV')
+const orderHasAssignee = computed(() => !!doc.value?.assigned_to)
+const showAssigneePrompt = computed(() => isSalesOrder.value
+  && !orderHasAssignee.value
+  && (assignmentSettings.value.prompt_order_assignee_on_confirmation
+    || assignmentSettings.value.require_order_assignee_on_confirmation))
+const selectedAssignee = computed(() => companyUsers.value.find(user => user.id === (doc.value?.assigned_to || confirmationAssigneeId.value)))
+const effectiveConfirmationAssigneeId = computed(() => confirmationAssigneeId.value === NO_ASSIGNEE
+  ? null
+  : confirmationAssigneeId.value)
 const amountsVisible = computed(() => doc.value?.amounts_visible !== false)
 const orderFlowStatus = computed(() => getOrderFlowPresentation(doc.value))
 const canCreateDispatchOrder = computed(() => {
@@ -114,7 +142,37 @@ async function confirmWithAvailability() {
     if (!loaded) return
     if (stockAvailability.value?.policy?.blocks_confirmation) return
   }
+  if (isSalesOrder.value
+    && assignmentSettings.value.require_order_assignee_on_confirmation
+    && !doc.value?.assigned_to
+    && !effectiveConfirmationAssigneeId.value) {
+    useToast().add({ title: 'Falta asignar un responsable', description: 'Seleccioná quién continuará esta Orden de Venta.', color: 'warning' })
+    return
+  }
   await handleConfirm()
+}
+
+async function loadAssignmentContext() {
+  if (!isSalesOrder.value) return
+  assignmentContextLoading.value = true
+  try {
+    const [settings, users] = await Promise.all([
+      $fetch<typeof assignmentSettings.value>('/api/backend/sales-flow/settings'),
+      $fetch<Array<{ id: string, name: string, email: string }>>('/api/access-control/users/all')
+    ])
+    assignmentSettings.value = {
+      prompt_order_assignee_on_confirmation: settings.prompt_order_assignee_on_confirmation ?? true,
+      require_order_assignee_on_confirmation: settings.require_order_assignee_on_confirmation ?? false,
+      default_order_assignee_id: settings.default_order_assignee_id ?? null
+    }
+    companyUsers.value = users
+    confirmationAssigneeId.value = doc.value?.assigned_to
+      || (users.some(user => user.id === settings.default_order_assignee_id) ? settings.default_order_assignee_id : NO_ASSIGNEE)
+  } catch (error: any) {
+    useToast().add({ title: 'No se pudo cargar la asignación sugerida', description: error?.data?.message, color: 'warning' })
+  } finally {
+    assignmentContextLoading.value = false
+  }
 }
 
 async function createDispatchOrder() {
@@ -158,7 +216,9 @@ const {
   module: 'sales',
   printElement,
   store: {
-    confirm: (id) => store.confirm(id),
+    confirm: (id) => store.confirm(id, isSalesOrder.value && !doc.value?.assigned_to
+      ? { assigned_to: effectiveConfirmationAssigneeId.value }
+      : undefined),
     cancel: (id) => store.cancel(id),
     changeStatus: (id, status) => store.changeStatus(id, status),
     fetchOne: (id) => store.fetchOne(id),
@@ -169,7 +229,9 @@ const {
 })
 
 watch(confirmModalOpen, async (open) => {
-  if (open && isSalesOrder.value) await loadStockAvailability()
+  if (open && isSalesOrder.value) {
+    await Promise.all([loadStockAvailability(), loadAssignmentContext()])
+  }
 })
 </script>
 
@@ -245,6 +307,34 @@ watch(confirmModalOpen, async (open) => {
           <p class="text-sm text-muted mt-2">Una vez confirmado, no podrá ser editado.</p>
         </div>
         <OrderStockAvailability v-if="isSalesOrder" :availability="stockAvailability" :loading="stockAvailabilityLoading" />
+        <div v-if="showAssigneePrompt" class="rounded-xl border border-default bg-muted/30 p-4">
+          <div class="mb-3 flex items-start gap-3">
+            <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning"><UIcon name="i-lucide-user-round-search" class="size-5" /></div>
+            <div><p class="font-medium">Esta OV todavía no tiene responsable</p><p class="text-sm text-muted">Si continúa sin asignarla, ninguna persona quedará identificada para seguir su preparación.</p></div>
+          </div>
+          <UFormField label="Asignar a" :required="assignmentSettings.require_order_assignee_on_confirmation">
+            <USelectMenu
+              v-model="confirmationAssigneeId"
+              :items="assigneeOptions"
+              value-key="value"
+              label-key="label"
+              placeholder="Seleccionar responsable..."
+              searchable
+              :loading="assignmentContextLoading"
+              :disabled="assignmentContextLoading"
+              class="w-full"
+            />
+          </UFormField>
+          <p v-if="effectiveConfirmationAssigneeId && effectiveConfirmationAssigneeId === assignmentSettings.default_order_assignee_id" class="mt-2 text-xs text-primary">Responsable predeterminado sugerido por la configuración.</p>
+        </div>
+        <UAlert
+          v-else-if="isSalesOrder && orderHasAssignee"
+          color="success"
+          variant="subtle"
+          icon="i-lucide-user-check"
+          title="Orden asignada"
+          :description="selectedAssignee ? `${selectedAssignee.name || selectedAssignee.email} continuará esta OV.` : 'La OV ya tiene un responsable asignado.'"
+        />
         <UAlert
           v-if="isSalesOrder && stockAvailability?.policy?.blocks_confirmation"
           color="error"
@@ -257,10 +347,10 @@ watch(confirmModalOpen, async (open) => {
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
         <UButton
-          :label="isSalesOrder && stockAvailability?.summary?.with_shortage ? 'Confirmar OV con faltante' : 'Confirmar'"
+          :label="isSalesOrder && !orderHasAssignee && effectiveConfirmationAssigneeId ? 'Asignar y confirmar' : (isSalesOrder && stockAvailability?.summary?.with_shortage ? 'Confirmar OV con faltante' : (isSalesOrder && !orderHasAssignee ? 'Confirmar sin asignar' : 'Confirmar'))"
           color="success"
           :loading="processing || stockAvailabilityLoading"
-          :disabled="stockAvailabilityLoading || stockAvailability?.policy?.blocks_confirmation"
+          :disabled="stockAvailabilityLoading || assignmentContextLoading || stockAvailability?.policy?.blocks_confirmation || (isSalesOrder && assignmentSettings.require_order_assignee_on_confirmation && !orderHasAssignee && !effectiveConfirmationAssigneeId)"
           @click="confirmWithAvailability"
         />
       </div>

@@ -347,6 +347,8 @@ function applyReferenceDocument(doc: any) {
     const subtotal = remainingQty * Number(item.unit_price ?? 0)
     return {
       product_id: item.product_id,
+      variant_id: item.variant_id ?? null,
+      variant_name: item.product_variants?.name ?? null,
       product_name: item.products?.name || item.products?.description || 'Producto',
       quantity: remainingQty,
       unit_price: Number(item.unit_price ?? 0),
@@ -780,6 +782,8 @@ watch(
 
         return {
           product_id: item.product_id,
+          variant_id: item.variant_id ?? null,
+          variant_name: item.product_variants?.name ?? null,
           warehouse_id: item.warehouse_id ?? null,
           product_name: item.products?.name || item.products?.description || 'Producto',
           quantity: Number(item.quantity ?? 0),
@@ -1069,6 +1073,7 @@ async function addItem(prod: any) {
     product_id: prod.product_id,
     warehouse_id: singleWarehouseForProduct(prod.product_id),
     variant_id: prod.variant_id ?? null,
+    variant_name: prod.variant_name ?? null,
     product_name: prod.product_name,
     quantity,
     purchase_unit_id: props.moduleCode === 'PURCHASES' ? (prod.purchase_unit_id ?? null) : null,
@@ -1144,6 +1149,7 @@ function submit() {
     }] : [],
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
+      variant_id: i.variant_id || undefined,
       warehouse_id: props.operationalMode
         ? (i.warehouse_id || form.warehouse_id || undefined)
         : affectsStock.value

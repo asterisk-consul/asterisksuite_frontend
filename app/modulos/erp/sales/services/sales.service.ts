@@ -44,9 +44,10 @@ export const DocumentsSalesService = {
       body: dto
     })
   },
-  async confirm(id: string): Promise<Document> {
+  async confirm(id: string, options?: { assigned_to?: string | null }): Promise<Document> {
     return $fetch(`/api/backend/documents/sales/${id}/confirm`, {
-      method: 'PATCH' as any
+      method: 'PATCH' as any,
+      body: options ?? {}
     })
   },
 

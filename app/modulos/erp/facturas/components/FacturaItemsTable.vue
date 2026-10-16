@@ -19,6 +19,7 @@ interface Props {
     product_type?: string
 
     has_variants?: boolean
+    variants?: { id: string, name?: string | null, sku?: string | null, active?: boolean }[]
     purchase_unit_id?: string | null
     purchase_to_stock_factor?: number
   }[]
@@ -58,7 +59,10 @@ const visibleProductOptions = computed(() => {
 })
 const selectedVariant = ref<string | null>(null)
 const variantOptions = ref<any[]>([])
-const { selectItems: variantSelectItems, loadByProduct: loadVariants } = useProductVariants()
+const variantLoading = ref(false)
+const variantLoadError = ref<string | null>(null)
+const variantLabels = ref<Record<string, string>>({})
+const { loadByProduct: loadVariants } = useProductVariants()
 
 const selectedProductData = computed(() => {
   if (!selectedProduct.value) return null
@@ -67,22 +71,37 @@ const selectedProductData = computed(() => {
 
 const hasVariants = computed(() => {
   const product = selectedProductData.value
-  return product?.has_variants === true || product?.product_type === 'RAW_MATERIAL'
+  return product?.has_variants === true
 })
 
 watch(selectedProduct, async (productId) => {
   selectedVariant.value = null
   variantOptions.value = []
+  variantLoadError.value = null
 
   if (!productId) return
 
   const product = selectedProductData.value
-  if (product?.has_variants || product?.product_type === 'RAW_MATERIAL') {
+  if (product?.has_variants) {
+    variantLoading.value = true
     try {
-      await loadVariants(productId)
-      variantOptions.value = variantSelectItems.value
-    } catch {
+      const variants = product.variants?.length ? product.variants : await loadVariants(productId)
+      variantOptions.value = variants
+        .filter(variant => variant.active !== false && typeof variant.name === 'string' && variant.name.trim())
+        .map(variant => ({
+          label: variant.sku ? `${variant.sku} - ${variant.name}` : variant.name!,
+          value: variant.id
+        }))
+      for (const option of variantOptions.value) variantLabels.value[option.value] = option.label
+      if (variantOptions.value.length === 1) selectedVariant.value = variantOptions.value[0].value
+      if (variantOptions.value.length === 0) {
+        variantLoadError.value = 'El producto está configurado con variantes, pero no tiene ninguna variante activa.'
+      }
+    } catch (error: any) {
       variantOptions.value = []
+      variantLoadError.value = error?.data?.message || 'No se pudieron cargar las variantes del producto.'
+    } finally {
+      variantLoading.value = false
     }
   }
 })
@@ -124,15 +143,19 @@ function recalculateItem(item: FacturaItem) {
 }
 
 function handleAdd() {
-  if (!selectedProduct.value) {
+  if (!selectedProduct.value || (hasVariants.value && !selectedVariant.value)) {
     return
   }
 
   const product = selectedProductData.value
+  const variantName = selectedVariant.value
+    ? variantOptions.value.find(option => option.value === selectedVariant.value)?.label ?? null
+    : null
   emit('add', {
     ...product,
     product_id: selectedProduct.value,
     variant_id: selectedVariant.value || null,
+    variant_name: variantName,
     product_name: product?.label,
     has_variants: product?.has_variants
   })
@@ -157,8 +180,8 @@ const columns = computed(() => [
     header: 'Variante',
     cell: ({ row }: any) => {
       if (!row.original.variant_id) return h('span', { class: 'text-muted text-sm' }, '-')
-      const variant = variantOptions.value.find(v => v.value === row.original.variant_id)
-      return h('span', { class: 'text-sm' }, variant?.label ?? row.original.variant_id)
+      const label = row.original.variant_name || variantLabels.value[row.original.variant_id]
+      return h('span', { class: 'text-sm' }, label ?? 'Variante seleccionada')
     }
   },
   {
@@ -349,14 +372,17 @@ const columns = computed(() => [
           />
         </UFormField>
 
-        <UFormField v-if="hasVariants && variantOptions.length > 0" label="Variante" class="min-w-0">
+        <UFormField v-if="hasVariants" label="Variante" required class="min-w-0">
           <USelectMenu
             v-model="selectedVariant"
             :items="variantOptions"
             value-key="value"
-            placeholder="Seleccionar variante..."
+            :placeholder="variantLoading ? 'Cargando variantes...' : 'Seleccionar variante...'"
+            :loading="variantLoading"
+            :disabled="variantLoading || !!variantLoadError"
             class="w-full min-w-0"
           />
+          <p v-if="variantLoadError" class="mt-1 text-xs text-error">{{ variantLoadError }}</p>
         </UFormField>
 
         <UButton
@@ -364,7 +390,7 @@ const columns = computed(() => [
           label="Agregar producto"
           size="lg"
           class="w-full justify-center lg:w-auto"
-          :disabled="!selectedProduct || (hasVariants && variantOptions.length > 0 && !selectedVariant)"
+          :disabled="!selectedProduct || variantLoading || (hasVariants && (!selectedVariant || !!variantLoadError))"
           @click="handleAdd"
         />
       </div>

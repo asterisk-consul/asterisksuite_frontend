@@ -12,12 +12,25 @@ interface SalesFlowSettings {
   reserve_stock_on_order_confirmation: boolean
   allow_partial_stock_reservation: boolean
   allow_backorder_without_stock: boolean
+  prompt_order_assignee_on_confirmation: boolean
+  require_order_assignee_on_confirmation: boolean
+  default_order_assignee_id: string | null
 }
 
 const toast = useToast()
+const NO_ASSIGNEE = '__NO_ASSIGNEE__'
 const loading = ref(true)
 const saving = ref(false)
 const settings = ref<SalesFlowSettings>()
+const companyUsers = ref<Array<{ id: string, name: string, email: string }>>([])
+const userOptions = computed(() => [
+  { value: NO_ASSIGNEE, label: 'Sin responsable predeterminado', description: 'Se elegirá al confirmar cada OV.' },
+  ...companyUsers.value.map(user => ({
+    value: user.id,
+    label: user.name || user.email,
+    description: user.email
+  }))
+])
 
 const accountingOptions = [
   { label: 'Factura', value: 'INVOICE', description: 'La deuda nace cuando se confirma la factura.' },
@@ -33,7 +46,17 @@ const paymentOptions = [
 async function load() {
   loading.value = true
   try {
-    settings.value = await $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings')
+    const [flowSettings, users] = await Promise.all([
+      $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings'),
+      $fetch<Array<{ id: string, name: string, email: string }>>('/api/access-control/users/all')
+    ])
+    settings.value = {
+      ...flowSettings,
+      prompt_order_assignee_on_confirmation: flowSettings.prompt_order_assignee_on_confirmation ?? true,
+      require_order_assignee_on_confirmation: flowSettings.require_order_assignee_on_confirmation ?? false,
+      default_order_assignee_id: flowSettings.default_order_assignee_id || NO_ASSIGNEE
+    }
+    companyUsers.value = users
   } catch {
     toast.add({ title: 'No se pudo cargar la configuración', color: 'error' })
   } finally {
@@ -55,7 +78,12 @@ async function save() {
       allow_partial_delivery: settings.value.allow_partial_delivery,
       reserve_stock_on_order_confirmation: settings.value.reserve_stock_on_order_confirmation,
       allow_partial_stock_reservation: settings.value.allow_partial_stock_reservation,
-      allow_backorder_without_stock: settings.value.allow_backorder_without_stock
+      allow_backorder_without_stock: settings.value.allow_backorder_without_stock,
+      prompt_order_assignee_on_confirmation: settings.value.prompt_order_assignee_on_confirmation,
+      require_order_assignee_on_confirmation: settings.value.require_order_assignee_on_confirmation,
+      default_order_assignee_id: settings.value.default_order_assignee_id === NO_ASSIGNEE
+        ? null
+        : settings.value.default_order_assignee_id || null
     }
     settings.value = await $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings', {
       method: 'PATCH', body: payload
@@ -123,6 +151,33 @@ onMounted(load)
             </div>
           </template>
           <UAlert color="neutral" variant="subtle" icon="i-lucide-warehouse" title="El remito realiza la salida física" description="Al confirmarlo, consume la reserva de su OV y descuenta el stock del depósito en una sola operación." />
+        </div>
+      </UPageCard>
+
+      <UPageCard title="Responsable de la Orden de Venta" description="Evitá que una OV confirmada quede sin una persona encargada de continuarla.">
+        <div class="space-y-5">
+          <UFormField label="Responsable sugerido" help="Se preseleccionará al confirmar una OV que todavía no tenga responsable.">
+            <USelectMenu
+              v-model="settings.default_order_assignee_id"
+              :items="userOptions"
+              value-key="value"
+              label-key="label"
+              placeholder="Sin responsable predeterminado"
+              searchable
+              class="w-full"
+            />
+          </UFormField>
+          <USeparator />
+          <div class="flex items-start justify-between gap-6">
+            <div><p class="font-medium">Preguntar al confirmar</p><p class="text-sm text-muted">Si la OV no está asignada, muestra el selector y advierte que nadie recibirá la tarea.</p></div>
+            <USwitch v-model="settings.prompt_order_assignee_on_confirmation" />
+          </div>
+          <USeparator />
+          <div class="flex items-start justify-between gap-6">
+            <div><p class="font-medium">Exigir responsable</p><p class="text-sm text-muted">Impide confirmar una OV sin seleccionar a una persona responsable.</p></div>
+            <USwitch v-model="settings.require_order_assignee_on_confirmation" />
+          </div>
+          <UAlert color="primary" variant="subtle" icon="i-lucide-user-check" title="El vendedor y el responsable son datos diferentes" description="El vendedor conserva la relación comercial; el responsable recibe la OV para continuar su preparación o seguimiento." />
         </div>
       </UPageCard>
 

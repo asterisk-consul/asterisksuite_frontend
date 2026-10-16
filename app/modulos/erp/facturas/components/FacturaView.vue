@@ -153,7 +153,7 @@ const printCustomer = computed(() => {
 const printItems = computed(() =>
   enrichedItems.value.map(item => ({
     code: item.products?.code || '',
-    description: item.products?.name || item.products?.description || '—',
+    description: `${item.products?.name || item.products?.description || '—'}${item.product_variants?.name ? ` · ${item.product_variants.name}` : ''}`,
     quantity: Number(item.quantity),
     unit_price: Number(item.unit_price),
     tax_rate: item._taxes.length > 0 ? Math.round((item._taxes[0].amount / Number(item.price)) * 100) : undefined,
@@ -219,7 +219,12 @@ const printTotals = computed(() => ({
           </thead>
           <tbody>
             <tr v-for="item in enrichedItems" :key="item.id" class="border-b border-gray-100">
-              <td class="py-3 pr-4">{{ item.products?.name || item.products?.description || '—' }}</td>
+              <td class="py-3 pr-4">
+                <p>{{ item.products?.name || item.products?.description || '—' }}</p>
+                <p v-if="item.product_variants?.name" class="text-xs font-medium text-primary">
+                  Variante: {{ item.product_variants.name }}<template v-if="item.product_variants.sku"> · {{ item.product_variants.sku }}</template>
+                </p>
+              </td>
               <td class="py-3 text-right">{{ Number(item.quantity) }}</td>
               <td class="py-3 text-right">{{ fmt(item.unit_price) }}</td>
               <td class="py-3 text-right">{{ fmt(item.price) }}</td>

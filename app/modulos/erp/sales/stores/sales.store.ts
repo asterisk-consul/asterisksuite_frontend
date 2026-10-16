@@ -165,13 +165,13 @@ export const useDocumentsSalesStore = defineStore(
     // ─────────────────────────────────────
     // Confirm
     // ─────────────────────────────────────
-    const confirm = async (id: string) => {
+    const confirm = async (id: string, options?: { assigned_to?: string | null }) => {
       loading.value = true
 
       error.value = null
 
       try {
-        const response = await DocumentsSalesService.confirm(id)
+        const response = await DocumentsSalesService.confirm(id, options)
 
         const index = items.value.findIndex((i) => i.id === id)
 

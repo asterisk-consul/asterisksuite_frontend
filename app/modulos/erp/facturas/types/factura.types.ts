@@ -171,6 +171,8 @@ export interface FacturaItem {
 
   variant_id?: string | null
 
+  variant_name?: string | null
+
   warehouse_id?: string | null
 
   product_name?: string

@@ -68,6 +68,9 @@ const subtotal = computed(() => props.items.reduce((sum, item) => sum + Number(i
         <div>
           <p class="font-medium">{{ row.original.products?.name ?? 'Producto libre' }}</p>
           <p v-if="row.original.products?.sku" class="text-xs text-muted">SKU: {{ row.original.products.sku }}</p>
+          <p v-if="row.original.product_variants?.name" class="text-xs font-medium text-primary">
+            Variante: {{ row.original.product_variants.name }}<template v-if="row.original.product_variants.sku"> · {{ row.original.product_variants.sku }}</template>
+          </p>
         </div>
       </template>
 
