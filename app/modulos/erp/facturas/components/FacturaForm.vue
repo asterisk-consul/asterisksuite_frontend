@@ -431,9 +431,16 @@ const items = ref<FacturaItem[]>([])
 // ─── Punto de Venta (Secuencias) ─────────────────────────
 const documentSequencesService = useDocumentSequencesService()
 const sequences = ref<DocumentSequence[]>([])
+const sequencesUsingCache = ref(false)
+const sequencesRefreshFailed = ref(false)
 // Keep only the UUID in the form state. USelectMenu can otherwise return either
 // the whole option or its value depending on its configuration/version.
 const selectedSequenceId = ref<string>('')
+const sequencePreview = ref<{ formatted: string, source: 'SEQUENCE' | 'DOCUMENT_TYPE' } | null>(null)
+const sequencePreviewLoading = ref(false)
+const sequencePreviewError = ref<string | null>(null)
+let sequencePreviewRequest = 0
+const sequencePreviewCache = new Map<string, { formatted: string, source: 'SEQUENCE' | 'DOCUMENT_TYPE' }>()
 
 const sequenceOptions = computed(() => {
   return sequences.value
@@ -462,6 +469,84 @@ const sequenceOptions = computed(() => {
       point_of_sale: s.point_of_sale
     }))
 })
+
+async function loadDocumentSequences() {
+  const companyId = authStore.selectedCompany?.id ?? 'unknown'
+  const cacheKey = `document-sequences:${companyId}`
+  if (import.meta.client) {
+    try {
+      const cached = sessionStorage.getItem(cacheKey)
+      if (cached) {
+        sequences.value = JSON.parse(cached)
+        sequencesUsingCache.value = true
+      }
+    } catch { /* ignorar caché inválida */ }
+  }
+  try {
+    const fresh = await documentSequencesService.findAll()
+    sequences.value = fresh
+    sequencesUsingCache.value = false
+    sequencesRefreshFailed.value = false
+    if (import.meta.client) sessionStorage.setItem(cacheKey, JSON.stringify(fresh))
+  } catch {
+    sequencesRefreshFailed.value = true
+  }
+}
+
+async function loadSequencePreview() {
+  const requestId = ++sequencePreviewRequest
+  sequencePreview.value = null
+  sequencePreviewError.value = null
+  if (props.initialValues?.id || !form.document_type_id) return
+  if (sequenceOptions.value.length > 1 && !selectedSequenceId.value) {
+    sequencePreviewError.value = 'Elegí un punto de venta para conocer el próximo número.'
+    return
+  }
+
+  // Las series ya vienen en la carga inicial. Calcular localmente evita una
+  // petición adicional cada vez que el usuario cambia de punto de venta.
+  if (selectedSequenceId.value) {
+    const selected = sequences.value.find(item => item.id === selectedSequenceId.value)
+    if (selected) {
+      const nextNumber = Number(selected.current_number ?? 0) + 1
+      if (selected.range_end != null && nextNumber > Number(selected.range_end)) {
+        sequencePreviewError.value = 'La secuencia seleccionada está agotada.'
+        return
+      }
+      const pointOfSale = String(selected.point_of_sale || '').padStart(4, '0')
+      sequencePreview.value = {
+        formatted: `${selected.prefix ? `${selected.prefix} ` : ''}${pointOfSale}-${String(nextNumber).padStart(8, '0')}`,
+        source: 'SEQUENCE'
+      }
+      return
+    }
+  }
+
+  const cacheKey = `${form.document_type_id}:${selectedSequenceId.value || 'none'}`
+  const cached = sequencePreviewCache.get(cacheKey)
+  if (cached) {
+    sequencePreview.value = cached
+    return
+  }
+
+  sequencePreviewLoading.value = true
+  try {
+    const result = await documentSequencesService.previewNextNumber(
+      form.document_type_id,
+      selectedSequenceId.value || undefined
+    )
+    if (requestId === sequencePreviewRequest) {
+      sequencePreview.value = result
+      sequencePreviewCache.set(cacheKey, result)
+    }
+  } catch (error: any) {
+    if (requestId === sequencePreviewRequest) {
+      sequencePreviewError.value = error?.data?.message || 'Sin conexión para anticipar el número. Se asignará correctamente al guardar.'
+    }
+  } finally {
+    if (requestId === sequencePreviewRequest) sequencePreviewLoading.value = false
+  }
+}
 
 // ─── Validación de comprobante ─────────────────────────
 const documentTypeValidation = ref<string | null>(null)
@@ -890,7 +975,9 @@ watch(() => form.document_type_id, (newId) => {
   if (!props.initialValues?.id && newId && sequenceOptions.value.length > 0) {
     const currentSeqVal = selectedSequenceId.value
     if (!currentSeqVal || !sequenceOptions.value.some(s => s.value === currentSeqVal)) {
-      selectedSequenceId.value = sequenceOptions.value[0]?.value ?? ''
+      selectedSequenceId.value = sequenceOptions.value.length === 1
+        ? sequenceOptions.value[0]?.value ?? ''
+        : ''
     }
   }
 
@@ -918,9 +1005,7 @@ onMounted(() => {
   })
   void initCurrencies().catch(() => {})
   void fetchIssuerCondition().catch(() => {})
-  void documentSequencesService.findAll()
-    .then(s => { sequences.value = s })
-    .catch(() => {})
+  void loadDocumentSequences()
   void depositosStore.fetchAll()
     .then(() => loadStockAvailability())
     .catch(() => {})
@@ -948,6 +1033,20 @@ watch(sequences, () => {
     }
   }
 }, { immediate: true })
+
+watch(
+  () => [form.document_type_id, selectedSequenceId.value, sequenceOptions.value.map(option => option.value).join(',')],
+  () => {
+    if (!props.initialValues?.id) {
+      if (sequenceOptions.value.length === 1 && selectedSequenceId.value !== sequenceOptions.value[0]?.value) {
+        selectedSequenceId.value = sequenceOptions.value[0]?.value ?? ''
+        return
+      }
+      void loadSequencePreview()
+    }
+  },
+  { immediate: true }
+)
 
 // Auto-seleccionar tipo de documento por categoría
 watch(
@@ -1266,7 +1365,27 @@ defineExpose({ submit, completeDraft })
             placeholder="Seleccionar PV..."
             size="lg"
             class="w-full min-w-0"
+            :disabled="sequenceOptions.length === 1"
           />
+          <div v-if="!initialValues?.id" class="mt-2 min-h-5">
+            <div v-if="sequencePreviewLoading" class="flex items-center gap-2 text-xs text-muted">
+              <UIcon name="i-lucide-loader-circle" class="size-3.5 animate-spin" /> Calculando próximo número…
+            </div>
+            <div v-else-if="sequencePreview" class="flex flex-wrap items-center gap-1.5 text-xs">
+              <span class="text-muted">Próximo comprobante:</span>
+              <UBadge :label="sequencePreview.formatted" color="primary" variant="subtle" size="sm" />
+              <UTooltip text="El número se confirma al guardar; otro usuario podría crear un documento antes.">
+                <UIcon name="i-lucide-info" class="size-3.5 text-muted" />
+              </UTooltip>
+            </div>
+            <p v-else-if="sequencePreviewError" class="flex items-center gap-1 text-xs text-warning">
+              <UIcon name="i-lucide-circle-alert" class="size-3.5 shrink-0" /> {{ sequencePreviewError }}
+            </p>
+            <p v-if="sequencesUsingCache || sequencesRefreshFailed" class="mt-1 flex items-center gap-1 text-xs text-muted">
+              <UIcon name="i-lucide-cloud-off" class="size-3.5 shrink-0" />
+              {{ sequencesRefreshFailed ? 'Usando las series guardadas por conexión inestable.' : 'Series disponibles desde la caché local.' }}
+            </p>
+          </div>
         </UFormField>
 
         <UFormField :label="dateFieldLabel" class="min-w-0 xl:col-span-3">

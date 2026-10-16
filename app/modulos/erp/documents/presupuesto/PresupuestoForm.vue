@@ -16,6 +16,7 @@ const form = reactive({
   warranty_info: '',
   exclusions: '',
   commercial_notes: '',
+  product_specifications: '',
   internal_notes: '',
   terms_and_conditions: '',
 })
@@ -47,6 +48,9 @@ defineExpose({ getFormData })
       </div>
       <UFormField label="Observaciones comerciales" name="commercial_notes">
         <UTextarea v-model="form.commercial_notes" placeholder="Ej: El precio incluye instalación" class="w-full" :rows="2" />
+      </UFormField>
+      <UFormField label="Especificaciones de los productos" name="product_specifications" hint="Quedan guardadas en este presupuesto aunque luego cambie el producto.">
+        <UTextarea v-model="form.product_specifications" placeholder="Dimensiones, materiales, peso, terminación y método de unión..." class="w-full" :rows="6" />
       </UFormField>
       <UFormField label="Observaciones internas" name="internal_notes">
         <UTextarea v-model="form.internal_notes" placeholder="Ej: Seguimiento la semana próxima" class="w-full" :rows="2" />

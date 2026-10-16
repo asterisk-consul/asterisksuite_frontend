@@ -86,9 +86,37 @@ const observations = computed(() => {
   }
   return props.document?.descrip ?? ''
 })
+
+const templates = ref<any[]>([])
+const selectedTemplateId = ref<string | null>(null)
+const selectedTemplate = computed(() => {
+  if (!['QUOTE', 'ORDER'].includes(category.value)) return null
+  return templates.value.find(item => item.id === selectedTemplateId.value)
+    ?? templates.value.find(item => item.is_default)
+    ?? templates.value[0]
+    ?? null
+})
+
+watch(category, async (value) => {
+  templates.value = []
+  selectedTemplateId.value = null
+  if (!['QUOTE', 'ORDER'].includes(value)) return
+  try {
+    templates.value = await $fetch('/api/backend/sales-flow/print-templates', { query: { category: value } })
+    selectedTemplateId.value = templates.value.find(item => item.is_default)?.id ?? templates.value[0]?.id ?? null
+  } catch {
+    // La impresión estándar sigue disponible si aún no se aplicó la migración.
+  }
+}, { immediate: true })
 </script>
 
 <template>
+  <div v-if="templates.length > 1" class="no-print mb-4 rounded-lg border border-default bg-default p-3">
+    <UFormField label="Formato de impresión">
+      <USelect v-model="selectedTemplateId" :items="templates.map(item => ({ label: item.name, value: item.id }))" value-key="value" class="w-full sm:w-80" />
+    </UFormField>
+  </div>
+
   <PresupuestoPrint
     v-if="category === 'QUOTE'"
     :type="docMode"
@@ -101,6 +129,7 @@ const observations = computed(() => {
     :observations="observations"
     :point-of-sale="pointOfSale"
     :document="document"
+    :print-template="selectedTemplate"
   />
 
   <OrdenVentaPrint
@@ -115,6 +144,7 @@ const observations = computed(() => {
     :observations="observations"
     :point-of-sale="pointOfSale"
     :document="document"
+    :print-template="selectedTemplate"
   />
 
   <RemitoPrint

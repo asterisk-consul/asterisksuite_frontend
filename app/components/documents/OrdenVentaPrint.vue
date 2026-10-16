@@ -10,6 +10,7 @@ const props = defineProps<{
   observations?: string
   point_of_sale?: string
   document?: any
+  printTemplate?: any
 }>()
 
 const isPurchase = computed(() => props.type === 'purchase')
@@ -25,6 +26,16 @@ const formattedNumber = computed(() => {
 })
 
 const ov = computed(() => props.document?.orden_venta_doc || props.document?.orden_compra_doc)
+const config = computed(() => props.printTemplate?.config ?? {})
+const title = computed(() => props.printTemplate?.title || (isPurchase.value ? 'ORDEN DE COMPRA' : 'ORDEN DE VENTA'))
+const showCode = computed(() => config.value.show_code !== false)
+const showUnitPrice = computed(() => config.value.show_unit_price !== false)
+const showTaxes = computed(() => config.value.show_taxes !== false)
+const showSignature = computed(() => config.value.show_signature !== false)
+function blockOrder(block: string, fallback: number) {
+  const index = Array.isArray(config.value.blocks) ? config.value.blocks.indexOf(block) : -1
+  return index >= 0 ? index + 1 : fallback
+}
 
 // Header: para purchase, proveedor arriba (izq) y empresa abajo (der)
 const headerLeft = computed(() => {
@@ -43,7 +54,7 @@ const headerRight = computed(() => {
 </script>
 
 <template>
-  <div style="font-family: Arial, sans-serif; font-size: 12px; color: #111; max-width: 210mm; margin: 0 auto;">
+  <div style="font-family: Arial, sans-serif; font-size: 12px; color: #111; max-width: 210mm; margin: 0 auto; display: flex; flex-direction: column;">
 
     <!-- BLOQUE 1: HEADER -->
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
@@ -62,7 +73,7 @@ const headerRight = computed(() => {
           </div>
         </td>
         <td style="width: 45%; vertical-align: top; text-align: right;">
-          <div style="font-size: 18px; font-weight: 700; color: #111;">{{ isPurchase ? 'ORDEN DE COMPRA' : 'ORDEN DE VENTA' }}</div>
+          <div style="font-size: 18px; font-weight: 700; color: #111;">{{ title }}</div>
           <div style="font-size: 11px; margin-top: 6px;">
             <div>Punto de Venta: <strong>{{ point_of_sale ?? '0001' }}</strong></div>
             <div>Comp. Número: <strong>{{ formattedNumber }}</strong></div>
@@ -73,7 +84,7 @@ const headerRight = computed(() => {
     </table>
 
     <!-- BLOQUE 2: DATOS + ENTREGA -->
-    <table style="width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 16px;">
+    <table :style="{ order: blockOrder('customer', 1) }" style="width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 16px;">
       <tr style="background: #f5f5f5;">
         <td colspan="4" style="padding: 6px 10px; font-weight: 600; font-size: 11px; border-bottom: 1px solid #ddd;">
           {{ isPurchase ? 'PROVEEDOR Y ENTREGA' : 'CLIENTE Y ENTREGA' }}
@@ -119,29 +130,29 @@ const headerRight = computed(() => {
     </table>
 
     <!-- BLOQUE 3: ITEMS -->
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+    <table :style="{ order: blockOrder('items', 2) }" style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
       <thead>
         <tr style="background: #111; color: #fff;">
-          <th style="padding: 6px 10px; text-align: left; font-size: 11px; width: 15%;">Código</th>
+          <th v-if="showCode" style="padding: 6px 10px; text-align: left; font-size: 11px; width: 15%;">Código</th>
           <th style="padding: 6px 10px; text-align: left; font-size: 11px; width: 40%;">Descripción</th>
           <th style="padding: 6px 10px; text-align: center; font-size: 11px; width: 10%;">Cant.</th>
-          <th style="padding: 6px 10px; text-align: right; font-size: 11px; width: 17%;">P. Unitario</th>
+          <th v-if="showUnitPrice" style="padding: 6px 10px; text-align: right; font-size: 11px; width: 17%;">P. Unitario</th>
           <th style="padding: 6px 10px; text-align: right; font-size: 11px; width: 18%;">Total</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="(item, i) in items" :key="i" :style="{ background: i % 2 === 1 ? '#fafafa' : '#fff' }">
-          <td style="padding: 5px 10px; font-size: 11px; border-bottom: 1px solid #eee;">{{ item.code }}</td>
+          <td v-if="showCode" style="padding: 5px 10px; font-size: 11px; border-bottom: 1px solid #eee;">{{ item.code }}</td>
           <td style="padding: 5px 10px; font-size: 11px; border-bottom: 1px solid #eee;">{{ item.description }}</td>
           <td style="padding: 5px 10px; font-size: 11px; text-align: center; border-bottom: 1px solid #eee;">{{ item.quantity }}</td>
-          <td style="padding: 5px 10px; font-size: 11px; text-align: right; border-bottom: 1px solid #eee;">{{ fmt(item.unit_price) }}</td>
+          <td v-if="showUnitPrice" style="padding: 5px 10px; font-size: 11px; text-align: right; border-bottom: 1px solid #eee;">{{ fmt(item.unit_price) }}</td>
           <td style="padding: 5px 10px; font-size: 11px; text-align: right; border-bottom: 1px solid #eee; font-weight: 600;">{{ fmt(item.total) }}</td>
         </tr>
       </tbody>
     </table>
 
     <!-- BLOQUE 4: INSTRUCCIONES + TOTALES -->
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+    <table :style="{ order: blockOrder('totals', 5) }" style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
       <tr>
         <td style="width: 58%; vertical-align: top; padding-right: 16px;">
           <div v-if="ov?.delivery_instructions" style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px;">
@@ -159,7 +170,7 @@ const headerRight = computed(() => {
               <td style="padding: 6px 10px; font-size: 11px; border-bottom: 1px solid #eee;">Subtotal</td>
               <td style="padding: 6px 10px; font-size: 11px; text-align: right; border-bottom: 1px solid #eee;">{{ fmt(totals.subtotal) }}</td>
             </tr>
-            <tr v-for="tax in totals.taxes" :key="tax.name">
+            <tr v-for="tax in (showTaxes ? totals.taxes : [])" :key="tax.name">
               <td style="padding: 6px 10px; font-size: 11px; border-bottom: 1px solid #eee;">{{ tax.name }}</td>
               <td style="padding: 6px 10px; font-size: 11px; text-align: right; border-bottom: 1px solid #eee;">{{ fmt(tax.amount) }}</td>
             </tr>
@@ -172,8 +183,17 @@ const headerRight = computed(() => {
       </tr>
     </table>
 
+    <div v-if="config.specifications_text" :style="{ order: blockOrder('specifications', 3) }" style="border: 1px solid #ddd; padding: 10px; margin-bottom: 16px;">
+      <div style="font-weight: 600; font-size: 11px; margin-bottom: 6px; text-transform: uppercase;">{{ config.specifications_title || 'Especificaciones de productos' }}</div>
+      <div style="font-size: 10px; white-space: pre-wrap;">{{ config.specifications_text }}</div>
+    </div>
+    <div v-if="config.transport_text || config.currency_note" :style="{ order: blockOrder('commercial_terms', 4) }" style="border: 1px solid #ddd; padding: 10px; margin-bottom: 16px;">
+      <div v-if="config.transport_text" style="font-size: 10px; white-space: pre-wrap;">{{ config.transport_text }}</div>
+      <div v-if="config.currency_note" style="font-size: 10px; font-weight: 600; white-space: pre-wrap; margin-top: 6px;">{{ config.currency_note }}</div>
+    </div>
+
     <!-- FIRMA -->
-    <table style="width: 100%; margin-top: 30px;">
+    <table v-if="showSignature" :style="{ order: blockOrder('signatures', 6) }" style="width: 100%; margin-top: 30px;">
       <tr>
         <td style="width: 50%; text-align: center; padding-top: 40px; border-top: 1px solid #111;">
           <div style="font-size: 11px;">Firma y aclaración</div>
@@ -183,5 +203,6 @@ const headerRight = computed(() => {
         </td>
       </tr>
     </table>
+    <div v-if="config.footer_text" :style="{ order: blockOrder('footer', 7) }" style="margin-top: 18px; text-align: center; font-size: 9px; color: #666;">{{ config.footer_text }}</div>
   </div>
 </template>

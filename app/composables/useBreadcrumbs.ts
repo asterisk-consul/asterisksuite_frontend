@@ -139,6 +139,7 @@ const breadcrumbMap: Record<
   vales: { label: 'Vales' },
   comisiones: { label: 'Comisiones' },
   'sales-flow': { label: 'Circuito de ventas' },
+  'document-templates': { label: 'Plantillas comerciales' },
   'fiscal-authorizations': { label: 'Autorizaciones fiscales' },
   new: { label: 'Nuevo', clickable: false }
 }

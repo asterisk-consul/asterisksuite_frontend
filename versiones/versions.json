@@ -1,5 +1,50 @@
 [
   {
+    "version": "0.77.0-alpha",
+    "date": "2026-10-16",
+    "stage": "alpha",
+    "notes": "Cada empresa puede diseñar formatos comerciales propios para presupuestos, proformas y órdenes de venta, con vista previa y numeración anticipada preparada para conexiones inestables.",
+    "changes": [
+      {
+        "type": "feat",
+        "scope": "document-templates",
+        "title": "Nuevo constructor multi-tenant de plantillas comerciales con bloques ordenables y vista previa"
+      },
+      {
+        "type": "feat",
+        "scope": "quotes",
+        "title": "Los presupuestos admiten formato de factura proforma, especificaciones técnicas, transporte, moneda, firmas y pie personalizado"
+      },
+      {
+        "type": "feat",
+        "scope": "deposits",
+        "title": "La seña se calcula como porcentaje informativo y puede mostrar el saldo restante sin modificar el total original"
+      },
+      {
+        "type": "feat",
+        "scope": "sales-orders",
+        "title": "Las órdenes de venta utilizan plantillas comerciales configurables sin afectar facturas fiscales ni remitos"
+      },
+      {
+        "type": "style",
+        "scope": "document-templates",
+        "title": "El editor adapta listado, formulario y vista previa según el ancho disponible sin comprimir controles"
+      },
+      {
+        "type": "feat",
+        "scope": "document-sequences",
+        "title": "Los formularios anticipan el próximo número y seleccionan automáticamente el único punto de venta disponible"
+      },
+      {
+        "type": "perf",
+        "scope": "offline-resilience",
+        "title": "La numeración se calcula localmente y las series se almacenan temporalmente por empresa para conexiones lentas"
+      }
+    ],
+    "contributors": ["agustin"],
+    "message": "Plantillas comerciales configurables y numeración resiliente"
+  },
+  {
     "version": "0.76.0-alpha",
     "date": "2026-10-16",
     "stage": "alpha",
