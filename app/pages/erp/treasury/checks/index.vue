@@ -12,11 +12,15 @@ import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank
 import type { BankAccount } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 const toast = useToast()
 const authStore = useAuthStore()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
 const router = useRouter()
 const route = useRoute()
 const intakeId = computed(() => route.query.intakeId as string | undefined)
@@ -32,6 +36,7 @@ const {
   deposit,
   collectInCashBox,
   debitOwnCheck,
+  settleOwnCheckFromCashBox,
   revert
 } = useChecks()
 const { cashBoxes, init: initCashBoxes } = useCashBoxes()
@@ -46,6 +51,8 @@ const deletingCheck = ref<Check | null>(null)
 const depositModalOpen = ref(false)
 const depositingCheck = ref<Check | null>(null)
 const depositBankAccountId = ref('')
+const depositDestination = ref<'BANK' | 'CASH'>('BANK')
+const depositCashBoxId = ref('')
 const depositAmount = ref(0)
 const depositDate = ref('')
 const bankAccounts = ref<BankAccount[]>([])
@@ -61,15 +68,19 @@ const {
   enabled: computed(() => depositModalOpen.value && Boolean(depositingCheck.value)),
   source: () => ({
     bankAccountId: depositBankAccountId.value,
+    destination: depositDestination.value,
+    cashBoxId: depositCashBoxId.value,
     amount: depositAmount.value,
     date: depositDate.value
   }),
   restore: draft => {
     depositBankAccountId.value = draft.bankAccountId
+    depositDestination.value = draft.destination === 'CASH' ? 'CASH' : 'BANK'
+    depositCashBoxId.value = draft.cashBoxId || ''
     depositAmount.value = draft.amount
     depositDate.value = draft.date
   },
-  isMeaningful: draft => Boolean(draft.bankAccountId)
+  isMeaningful: draft => Boolean(draft.bankAccountId || draft.cashBoxId)
 })
 const resolveModalOpen = ref(false)
 const resolvingCheck = ref<Check | null>(null)
@@ -79,10 +90,27 @@ const resolving = ref(false)
 const debitModalOpen = ref(false)
 const debitingCheck = ref<Check | null>(null)
 const debitDate = ref('')
+const debitSource = ref<'BANK' | 'CASH'>('BANK')
+const debitCashBoxId = ref('')
 const debiting = ref(false)
 const revertModalOpen = ref(false)
 const revertingCheck = ref<Check | null>(null)
 const reverting = ref(false)
+const canSettleThroughCashBox = computed(() => isOwnerOrAdmin.value || (
+  hasPermission('checks.deposit') && hasPermission('cash_box_movements.create_manual')
+))
+const depositDestinationOptions = computed(() => [
+  { label: 'Depositar en una cuenta bancaria', value: 'BANK' },
+  ...(canSettleThroughCashBox.value
+    ? [{ label: 'Cobrar e ingresar el efectivo en una caja', value: 'CASH' }]
+    : [])
+])
+const debitSourceOptions = computed(() => [
+  { label: 'Débito directo de la cuenta bancaria', value: 'BANK' },
+  ...(canSettleThroughCashBox.value
+    ? [{ label: 'Efectivo de caja depositado para cubrir el cheque', value: 'CASH' }]
+    : [])
+])
 
 const todayInArgentina = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/Argentina/Buenos_Aires'
@@ -201,6 +229,8 @@ const handleDelete = async () => {
 
 const openDepositModal = async (check: Check) => {
   depositingCheck.value = check
+  depositDestination.value = 'BANK'
+  depositCashBoxId.value = ''
   depositAmount.value = Number(check.available_amount ?? check.amount)
   depositBankAccountId.value = check.bank_account_id ?? ''
   depositDate.value = todayInArgentina()
@@ -212,6 +242,7 @@ const openDepositModal = async (check: Check) => {
       bankAccounts.value = []
     }
   }
+  await initCashBoxes()
 
   depositModalOpen.value = true
 }
@@ -221,10 +252,24 @@ const filteredBankAccounts = computed(() => {
   return bankAccounts.value.filter(ba => ba.currency_code === depositingCheck.value!.currency_code && ba.active)
 })
 
+const availableDepositCashBoxes = computed(() => {
+  if (!depositingCheck.value) return []
+  return cashBoxes.value.filter(box =>
+    box.active &&
+    box.status === 'OPEN' &&
+    Boolean(box.current_session_id) &&
+    box.currency_code === depositingCheck.value?.currency_code
+  )
+})
+
 const handleDeposit = async () => {
   if (!depositingCheck.value) return
-  if (!depositBankAccountId.value) {
+  if (depositDestination.value === 'BANK' && !depositBankAccountId.value) {
     toast.add({ title: 'Seleccioná una cuenta bancaria', color: 'error' })
+    return
+  }
+  if (depositDestination.value === 'CASH' && !depositCashBoxId.value) {
+    toast.add({ title: 'Seleccioná una caja abierta', color: 'error' })
     return
   }
   if (depositAmount.value <= 0) {
@@ -234,11 +279,15 @@ const handleDeposit = async () => {
 
   try {
     depositing.value = true
-    await deposit(depositingCheck.value.id, {
-      bank_account_id: depositBankAccountId.value,
-      amount: depositAmount.value,
-      date: depositDate.value
-    })
+    if (depositDestination.value === 'CASH') {
+      await collectInCashBox(depositingCheck.value.id, depositCashBoxId.value, depositDate.value)
+    } else {
+      await deposit(depositingCheck.value.id, {
+        bank_account_id: depositBankAccountId.value,
+        amount: depositAmount.value,
+        date: depositDate.value
+      })
+    }
     completeDepositDraft()
     if (intakeId.value) {
       await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
@@ -246,7 +295,12 @@ const handleDeposit = async () => {
         body: { target_type: 'CHECK_DEPOSIT', target_id: depositingCheck.value.id }
       })
     }
-    toast.add({ title: `Cheque #${depositingCheck.value.check_number} depositado correctamente`, color: 'success' })
+    toast.add({
+      title: depositDestination.value === 'CASH'
+        ? `Cheque #${depositingCheck.value.check_number} cobrado e ingresado en caja`
+        : `Cheque #${depositingCheck.value.check_number} depositado correctamente`,
+      color: 'success'
+    })
     depositModalOpen.value = false
     await init()
   } catch (e: any) {
@@ -277,9 +331,22 @@ const handleRevert = async () => {
   }
 }
 
-const openDebitModal = (check: Check) => {
+const availableDebitCashBoxes = computed(() => {
+  if (!debitingCheck.value) return []
+  return cashBoxes.value.filter(box =>
+    box.active &&
+    box.status === 'OPEN' &&
+    Boolean(box.current_session_id) &&
+    box.currency_code === debitingCheck.value?.currency_code
+  )
+})
+
+const openDebitModal = async (check: Check) => {
   debitingCheck.value = check
   debitDate.value = todayInArgentina()
+  debitSource.value = 'BANK'
+  debitCashBoxId.value = ''
+  await initCashBoxes()
   debitModalOpen.value = true
 }
 
@@ -287,8 +354,21 @@ const processOwnCheck = async () => {
   if (!debitingCheck.value || !debitDate.value) return
   try {
     debiting.value = true
-    await debitOwnCheck(debitingCheck.value.id, debitDate.value)
-    toast.add({ title: `Débito del cheque #${debitingCheck.value.check_number} registrado`, color: 'success' })
+    if (debitSource.value === 'CASH') {
+      if (!debitCashBoxId.value) {
+        toast.add({ title: 'Seleccioná una caja abierta', color: 'error' })
+        return
+      }
+      await settleOwnCheckFromCashBox(debitingCheck.value.id, debitCashBoxId.value, debitDate.value)
+    } else {
+      await debitOwnCheck(debitingCheck.value.id, debitDate.value)
+    }
+    toast.add({
+      title: debitSource.value === 'CASH'
+        ? `Cheque #${debitingCheck.value.check_number} pagado con efectivo de caja`
+        : `Débito del cheque #${debitingCheck.value.check_number} registrado`,
+      color: 'success'
+    })
     debitModalOpen.value = false
     await init()
   } catch (error: any) {
@@ -320,7 +400,7 @@ const columns = checkColumns({
     }
     const prev = row.status
     try {
-      row.status = newStatus
+      row.status = newStatus as Check['status']
       if (newStatus === 'CONFIRMED') {
         await confirm(row.id)
         toast.add({
@@ -421,14 +501,14 @@ const sortFields: SortField[] = [
       <template #body>
         <p>¿Estás seguro de que deseas eliminar el cheque N° <strong>{{ deletingCheck?.check_number }}</strong>?</p>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
           <UButton label="Eliminar" color="error" @click="handleDelete" />
         </div>
       </template>
     </UModal>
 
     <!-- DEPOSIT MODAL -->
-    <UModal v-model:open="depositModalOpen" title="Depositar cheque" :ui="{ width: 'w-[420px]' }">
+    <UModal v-model:open="depositModalOpen" title="Cobrar o depositar cheque" :ui="{ content: 'sm:max-w-xl' }">
       <template #body>
         <div v-if="depositingCheck" class="space-y-4">
           <UAlert v-if="depositDraft" color="warning" variant="subtle" title="Hay un depósito sin terminar" description="Podés recuperar la cuenta, fecha e importe seleccionados.">
@@ -440,15 +520,37 @@ const sortFields: SortField[] = [
             <p class="text-sm font-semibold">{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: depositingCheck.currency_code || 'ARS' }).format(Number(depositingCheck.available_amount ?? depositingCheck.amount)) }}</p>
           </div>
 
-          <div class="space-y-2">
+          <UFormField label="Destino del cheque" required>
+            <USelect
+              v-model="depositDestination"
+              :items="depositDestinationOptions"
+              class="w-full"
+            />
+          </UFormField>
+
+          <div v-if="depositDestination === 'BANK'" class="space-y-2">
             <label class="text-sm font-medium">Cuenta bancaria destino</label>
             <USelect
               v-model="depositBankAccountId"
               :items="filteredBankAccounts.map(ba => ({ label: `${ba.bank_name} - ${ba.name} ($${ba.balance})`, value: ba.id }))"
+              class="w-full"
               placeholder="Seleccionar cuenta..."
             />
             <p v-if="filteredBankAccounts.length === 0" class="text-xs text-muted">
               No hay cuentas bancarias con la moneda {{ depositingCheck?.currency_code }}
+            </p>
+          </div>
+
+          <div v-else class="space-y-2">
+            <label class="text-sm font-medium">Caja destino</label>
+            <USelect
+              v-model="depositCashBoxId"
+              :items="availableDepositCashBoxes.map(box => ({ label: box.name, value: box.id }))"
+              class="w-full"
+              placeholder="Seleccionar caja abierta..."
+            />
+            <p v-if="availableDepositCashBoxes.length === 0" class="text-xs text-warning">
+              No hay cajas abiertas compatibles con la moneda {{ depositingCheck?.currency_code }}.
             </p>
           </div>
 
@@ -459,8 +561,10 @@ const sortFields: SortField[] = [
           <UAlert
             color="info"
             variant="subtle"
-            title="Depósito por el valor completo"
-            description="El cheque saldrá de cartera y se acreditará íntegramente en la cuenta seleccionada."
+            :title="depositDestination === 'BANK' ? 'Depósito por el valor completo' : 'Cobro por caja'"
+            :description="depositDestination === 'BANK'
+              ? 'El cheque saldrá de cartera y se acreditará íntegramente en la cuenta seleccionada.'
+              : 'El cheque quedará cobrado y el efectivo ingresará en la caja y su sesión actual.'"
           />
 
           <UiAttachmentManager
@@ -470,13 +574,13 @@ const sortFields: SortField[] = [
           />
 
           <div class="flex justify-end gap-2 pt-2">
-            <UButton label="Cancelar" variant="ghost" @click="depositModalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { depositModalOpen = false }" />
             <UButton
-              label="Depositar"
-              icon="i-lucide-building-2"
+              :label="depositDestination === 'BANK' ? 'Depositar' : 'Cobrar e ingresar'"
+              :icon="depositDestination === 'BANK' ? 'i-lucide-building-2' : 'i-lucide-banknote'"
               color="success"
               :loading="depositing"
-              :disabled="!depositBankAccountId || depositAmount <= 0 || !depositDate"
+              :disabled="depositAmount <= 0 || !depositDate || (depositDestination === 'BANK' ? !depositBankAccountId : !depositCashBoxId)"
               @click="handleDeposit"
             />
           </div>
@@ -527,7 +631,7 @@ const sortFields: SortField[] = [
 
           <div class="flex flex-wrap justify-between gap-2 border-t border-default pt-4">
             <UButton label="Marcar rechazado" icon="i-lucide-ban" color="error" variant="ghost" :loading="resolving" @click="rejectResolvedCheck" />
-            <UButton label="Mantener en cartera" variant="ghost" @click="resolveModalOpen = false" />
+            <UButton label="Mantener en cartera" variant="ghost" @click="() => { resolveModalOpen = false }" />
           </div>
         </div>
       </template>
@@ -535,8 +639,8 @@ const sortFields: SortField[] = [
 
     <UModal
       v-model:open="debitModalOpen"
-      title="Registrar débito bancario"
-      description="El vencimiento solo genera un aviso. Confirmá el movimiento cuando ya figure en el banco."
+      title="Procesar cheque propio"
+      description="Elegí si el cheque se debitó de la cuenta o si primero se depositó efectivo desde una caja."
     >
       <template #body>
         <div v-if="debitingCheck" class="space-y-4">
@@ -548,18 +652,54 @@ const sortFields: SortField[] = [
             </p>
           </div>
 
-          <UFormField label="Fecha efectiva del débito" required help="Usá la fecha que aparece en el extracto bancario.">
+          <UFormField label="Origen del pago" required>
+            <USelect
+              v-model="debitSource"
+              :items="debitSourceOptions"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UAlert
+            v-if="debitSource === 'BANK'"
+            color="info"
+            variant="soft"
+            title="Cuenta bancaria del cheque"
+            :description="`${debitingCheck.bank_name}. Se registrará el débito cuando ya figure en el banco.`"
+          />
+
+          <div v-else class="space-y-2">
+            <UFormField label="Caja de origen" required>
+              <USelect
+                v-model="debitCashBoxId"
+                :items="availableDebitCashBoxes.map(box => ({ label: box.name, value: box.id }))"
+                class="w-full"
+                placeholder="Seleccionar caja abierta..."
+              />
+            </UFormField>
+            <UAlert
+              color="warning"
+              variant="soft"
+              title="Depósito y débito vinculados"
+              description="El efectivo saldrá de la caja. En la cuenta bancaria se registrarán el depósito y el débito del cheque dentro de la misma operación."
+            />
+            <p v-if="availableDebitCashBoxes.length === 0" class="text-xs text-warning">
+              No hay cajas abiertas compatibles con la moneda del cheque.
+            </p>
+          </div>
+
+          <UFormField :label="debitSource === 'BANK' ? 'Fecha efectiva del débito' : 'Fecha del depósito y pago'" required>
             <UInput v-model="debitDate" type="date" class="w-full" />
           </UFormField>
 
           <div class="flex justify-end gap-2">
-            <UButton label="Cancelar" variant="ghost" @click="debitModalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { debitModalOpen = false }" />
             <UButton
-              label="Registrar débito"
-              icon="i-lucide-landmark"
+              :label="debitSource === 'BANK' ? 'Registrar débito' : 'Depositar y pagar'"
+              :icon="debitSource === 'BANK' ? 'i-lucide-landmark' : 'i-lucide-banknote'"
               color="primary"
               :loading="debiting"
-              :disabled="!debitDate"
+              :disabled="!debitDate || (debitSource === 'CASH' && !debitCashBoxId)"
               @click="processOwnCheck"
             />
           </div>
@@ -595,7 +735,7 @@ const sortFields: SortField[] = [
           </div>
 
           <div class="flex justify-end gap-2">
-            <UButton label="Cancelar" variant="ghost" :disabled="reverting" @click="revertModalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" :disabled="reverting" @click="() => { revertModalOpen = false }" />
             <UButton
               label="Sí, revertir"
               icon="i-lucide-undo-2"

@@ -1,5 +1,47 @@
 [
  {
+  "version": "0.80.0-alpha",
+  "date": "2026-10-19",
+  "stage": "alpha",
+  "notes": "El circuito de cheques puede operarse indistintamente desde la cartera de cheques o desde una caja, utilizando la misma lógica transaccional y preservando las configuraciones RBAC existentes.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "checks",
+    "title": "Al depositar un cheque de terceros se puede elegir entre acreditarlo en una cuenta bancaria o cobrarlo e ingresarlo en una caja"
+   },
+   {
+    "type": "feat",
+    "scope": "own-checks",
+    "title": "Al procesar un cheque propio se puede registrar el débito bancario directo o fondearlo previamente con efectivo de una caja"
+   },
+   {
+    "type": "fix",
+    "scope": "cash-boxes",
+    "title": "Los selectores muestran únicamente cajas abiertas, autorizadas y compatibles con la moneda del cheque"
+   },
+   {
+    "type": "fix",
+    "scope": "audit",
+    "title": "Caja, banco y cheque utilizan los mismos movimientos vinculados sin importar desde qué pantalla se inicia la operación"
+   },
+   {
+    "type": "fix",
+    "scope": "rbac",
+    "title": "El seed de permisos pasa a ser aditivo y preserva roles, permisos, asignaciones y personalizaciones existentes"
+   },
+   {
+    "type": "fix",
+    "scope": "rbac",
+    "title": "El comando del seed acepta el tenant con o sin el separador de argumentos de pnpm y valida su nombre antes de conectarse"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Operación unificada de cheques y seed RBAC no destructivo"
+ },
+ {
   "version": "0.79.0-alpha",
   "date": "2026-10-19",
   "stage": "alpha",
