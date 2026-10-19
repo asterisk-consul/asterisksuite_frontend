@@ -5,7 +5,8 @@ import type {
   CashBoxMovement,
   CreateCashBoxMovementInput,
   UpdateCashBoxMovementInput,
-  FilterCashBoxMovementInput
+  FilterCashBoxMovementInput,
+  ReverseCashBoxMovementInput
 } from '~/modulos/erp/cash-box-movements/types/cash-box-movements.types'
 
 export function useCashBoxMovements() {
@@ -16,6 +17,7 @@ export function useCashBoxMovements() {
   }
 
   const create = async (payload: CreateCashBoxMovementInput) => store.create(payload)
+  const reverse = async (id: string, payload: ReverseCashBoxMovementInput) => store.reverse(id, payload)
 
   const update = async (id: string, payload: UpdateCashBoxMovementInput) =>
     store.update(id, payload)
@@ -24,13 +26,13 @@ export function useCashBoxMovements() {
 
   const inflows = computed(() =>
     store.items.filter((m) =>
-      ['COLLECTION', 'ADVANCE', 'LOAN_PAYMENT', 'ADJUSTMENT', 'CHECK_RECEIVED'].includes(m.type)
+      ['COLLECTION', 'ADVANCE', 'LOAN_PAYMENT', 'ADJUSTMENT', 'CHECK_RECEIVED', 'CREDIT'].includes(m.type)
     )
   )
 
   const outflows = computed(() =>
     store.items.filter((m) =>
-      ['PAYMENT', 'LOAN', 'CHECK_ISSUED', 'TRANSFER'].includes(m.type)
+      ['PAYMENT', 'LOAN', 'CHECK_ISSUED', 'TRANSFER', 'DEBIT'].includes(m.type)
     )
   )
 
@@ -47,6 +49,7 @@ export function useCashBoxMovements() {
     // actions
     init,
     create,
+    reverse,
     update,
     remove,
     fetchOne: store.fetchOne

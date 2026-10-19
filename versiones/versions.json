@@ -1,5 +1,52 @@
 [
  {
+  "version": "0.79.0-alpha",
+  "date": "2026-10-19",
+  "stage": "alpha",
+  "notes": "Las cajas incorporan movimientos manuales auditables y operaciones directas con cheques, manteniendo sincronizados el efectivo, las sesiones y los movimientos bancarios.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "cash-boxes",
+    "title": "Las cajas permiten registrar ingresos y egresos manuales con concepto, descripción, fecha y vista previa del saldo resultante"
+   },
+   {
+    "type": "feat",
+    "scope": "cash-boxes",
+    "title": "Los movimientos manuales confirmados pueden anularse mediante un movimiento inverso sin perder su historial de auditoría"
+   },
+   {
+    "type": "feat",
+    "scope": "checks",
+    "title": "Los cheques de terceros pueden cobrarse por ventanilla e ingresar su importe directamente en una caja abierta"
+   },
+   {
+    "type": "feat",
+    "scope": "checks",
+    "title": "Los cheques propios pueden pagarse con efectivo de caja registrando el depósito y el débito vinculados en la cuenta bancaria"
+   },
+   {
+    "type": "feat",
+    "scope": "attachments",
+    "title": "Los movimientos de caja admiten comprobantes e imágenes adjuntas después de su confirmación"
+   },
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Las operaciones validan sesión abierta, permisos, moneda y saldo suficiente dentro de una única transacción"
+   },
+   {
+    "type": "fix",
+    "scope": "permissions",
+    "title": "Los permisos de cheques quedan alineados con los códigos RBAC existentes y se agregan permisos separados para crear y revertir movimientos manuales"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Movimientos manuales de caja y circuito directo de cheques"
+ },
+ {
   "version": "0.78.0-alpha",
   "date": "2026-10-19",
   "stage": "alpha",

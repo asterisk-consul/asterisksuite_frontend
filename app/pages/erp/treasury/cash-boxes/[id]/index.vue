@@ -7,6 +7,11 @@ import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vu
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useCashBoxMovements } from '~/modulos/erp/cash-box-movements/composables/useCashBoxMovements'
 import { cashBoxMovementColumns, MOVEMENT_TYPE_CONFIG } from '~/modulos/erp/cash-box-movements/movement-columns'
+import { useChecksService } from '~/modulos/erp/checks/service/checks.service'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
+import type { Check } from '~/modulos/erp/checks/types/checks.types'
+import type { CashBoxMovement } from '~/modulos/erp/cash-box-movements/types/cash-box-movements.types'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -29,7 +34,14 @@ const {
   reset: resetStore
 } = useCashBoxes()
 
-const { movements, init: fetchMovements } = useCashBoxMovements()
+const { movements, init: fetchMovements, create: createMovement, reverse: reverseMovement } = useCashBoxMovements()
+const checksService = useChecksService()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+
+const canCreateManualMovement = computed(() => isOwnerOrAdmin.value || hasPermission('cash_box_movements.create_manual'))
+const canOperateChecks = computed(() => canCreateManualMovement.value && (isOwnerOrAdmin.value || hasPermission('checks.deposit')))
+const canReverseMovement = computed(() => isOwnerOrAdmin.value || hasPermission('cash_box_movements.reverse'))
 
 useBreadcrumbEntityLabel(
   `/erp/treasury/cash-boxes/${boxId}`,
@@ -209,7 +221,14 @@ const canCloseSession = computed(() => {
   return sessionForm.notes.trim().length > 0
 })
 
-const columns = cashBoxMovementColumns({ onSortFieldSelect })
+const columns = cashBoxMovementColumns({
+  onSortFieldSelect,
+  onReverse: openReverseModal,
+  canReverse: movement => canReverseMovement.value
+    && movement.reference_type === 'manual_cash_movement'
+    && !reversedMovementIds.value.has(movement.id)
+    && Boolean(boxHasActiveSession.value)
+})
 
 const filterFields: FilterField[] = [
   { id: 'type', label: 'Filtrar por tipo...', class: 'w-40' },
@@ -243,6 +262,177 @@ const sessionMovements = computed(() =>
 
 const sessionIncome = computed(() => Number(currentSession.value?.total_income ?? 0))
 const sessionExpenses = computed(() => Number(currentSession.value?.total_expenses ?? 0))
+
+type MovementOperation = 'MANUAL_CREDIT' | 'MANUAL_DEBIT' | 'CHECK_TO_CASH' | 'CASH_TO_OWN_CHECK'
+const movementModalOpen = ref(false)
+const movementSaving = ref(false)
+const checksLoading = ref(false)
+const savedMovementId = ref<string | null>(null)
+const availableChecks = ref<Check[]>([])
+const movementForm = reactive({
+  operation: 'MANUAL_CREDIT' as MovementOperation,
+  concept: 'Aporte',
+  amount: null as number | null,
+  description: '',
+  check_id: '',
+  date: ''
+})
+
+const manualConcepts = [
+  { label: 'Aporte de efectivo', value: 'Aporte' },
+  { label: 'Gasto menor', value: 'Gasto menor' },
+  { label: 'Viático', value: 'Viático' },
+  { label: 'Retiro de efectivo', value: 'Retiro' },
+  { label: 'Ajuste', value: 'Ajuste' },
+  { label: 'Otro', value: 'Otro' }
+]
+const movementOperationOptions = computed(() => [
+  ...(canCreateManualMovement.value ? [
+    { label: 'Ingreso manual de efectivo', value: 'MANUAL_CREDIT' },
+    { label: 'Egreso manual de efectivo', value: 'MANUAL_DEBIT' }
+  ] : []),
+  ...(canOperateChecks.value ? [
+    { label: 'Cobrar cheque por ventanilla e ingresar a caja', value: 'CHECK_TO_CASH' },
+    { label: 'Depositar desde caja y pagar cheque propio', value: 'CASH_TO_OWN_CHECK' }
+  ] : [])
+])
+const isManualMovement = computed(() => movementForm.operation.startsWith('MANUAL_'))
+const selectedCheck = computed(() => availableChecks.value.find(check => check.id === movementForm.check_id) ?? null)
+const checkOptions = computed(() => availableChecks.value.map(check => ({
+  label: `#${check.check_number} · ${check.bank_name} · ${formatCurrency(check.available_amount ?? check.amount, check.currency_code)}`,
+  value: check.id
+})))
+const currentCashBalance = computed(() => Number(
+  balances.value.find(balance => balance.currency_code === box.value?.currency_code)?.balance ?? 0
+))
+const movementAmount = computed(() => isManualMovement.value
+  ? Number(movementForm.amount || 0)
+  : Number(selectedCheck.value?.available_amount ?? selectedCheck.value?.amount ?? 0)
+)
+const movementIsOutflow = computed(() => ['MANUAL_DEBIT', 'CASH_TO_OWN_CHECK'].includes(movementForm.operation))
+const resultingCashBalance = computed(() => currentCashBalance.value + (movementIsOutflow.value ? -movementAmount.value : movementAmount.value))
+const canSaveMovement = computed(() => {
+  if (!boxHasActiveSession.value || movementSaving.value || savedMovementId.value) return false
+  if (!movementAmount.value || movementAmount.value <= 0 || resultingCashBalance.value < 0) return false
+  if (isManualMovement.value) return Boolean(movementForm.concept && movementForm.description.trim())
+  return Boolean(movementForm.check_id)
+})
+
+const localDateTimeValue = () => {
+  const date = new Date()
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+  return date.toISOString().slice(0, 16)
+}
+
+async function loadChecksForOperation(operation: MovementOperation) {
+  if (!['CHECK_TO_CASH', 'CASH_TO_OWN_CHECK'].includes(operation)) return
+  checksLoading.value = true
+  try {
+    availableChecks.value = operation === 'CHECK_TO_CASH'
+      ? await checksService.findAll({ status: 'PENDING', is_own: false })
+      : await checksService.findAll({ status: 'CONFIRMED', is_own: true })
+    availableChecks.value = availableChecks.value.filter(check => check.currency_code === box.value?.currency_code)
+  } finally {
+    checksLoading.value = false
+  }
+}
+
+async function openMovementModal() {
+  savedMovementId.value = null
+  movementForm.operation = (movementOperationOptions.value[0]?.value as MovementOperation) || 'MANUAL_CREDIT'
+  movementForm.concept = 'Aporte'
+  movementForm.amount = null
+  movementForm.description = ''
+  movementForm.check_id = ''
+  movementForm.date = localDateTimeValue()
+  availableChecks.value = []
+  movementModalOpen.value = true
+  await loadChecksForOperation(movementForm.operation)
+}
+
+watch(() => movementForm.operation, async (operation) => {
+  movementForm.check_id = ''
+  movementForm.amount = null
+  if (!operation.startsWith('MANUAL_')) await loadChecksForOperation(operation)
+})
+
+async function refreshCashBoxActivity() {
+  await Promise.all([
+    fetchBalances(boxId),
+    fetchCurrentSession(boxId),
+    fetchMovements({ cash_box_id: boxId })
+  ])
+}
+
+async function saveMovement() {
+  if (!canSaveMovement.value) return
+  movementSaving.value = true
+  try {
+    if (movementForm.operation === 'MANUAL_CREDIT' || movementForm.operation === 'MANUAL_DEBIT') {
+      const movement = await createMovement({
+        cash_box_id: boxId,
+        type: movementForm.operation === 'MANUAL_DEBIT' ? 'DEBIT' : 'CREDIT',
+        amount: movementAmount.value,
+        currency_code: box.value?.currency_code || 'ARS',
+        concept: movementForm.concept,
+        description: movementForm.description.trim(),
+        date: movementForm.date
+      })
+      savedMovementId.value = movement.id
+    } else if (movementForm.operation === 'CHECK_TO_CASH') {
+      await checksService.collectInCashBox(movementForm.check_id, boxId, movementForm.date)
+      await fetchMovements({ cash_box_id: boxId })
+      savedMovementId.value = movements.value.find(movement =>
+        movement.reference_type === 'check_cash_collection' && movement.reference_id === movementForm.check_id
+      )?.id ?? null
+    } else {
+      await checksService.settleOwnCheckFromCashBox(movementForm.check_id, boxId, movementForm.date)
+      await fetchMovements({ cash_box_id: boxId })
+      savedMovementId.value = movements.value.find(movement =>
+        movement.reference_type === 'check_cash_payment' && movement.reference_id === movementForm.check_id
+      )?.id ?? null
+    }
+    await refreshCashBoxActivity()
+    toast.add({ title: 'Movimiento registrado', description: 'El saldo y la sesión fueron actualizados.', color: 'success' })
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo registrar el movimiento',
+      description: error?.data?.message || error?.message,
+      color: 'error'
+    })
+  } finally {
+    movementSaving.value = false
+  }
+}
+
+const reverseModalOpen = ref(false)
+const reversingMovement = ref<CashBoxMovement | null>(null)
+const reverseReason = ref('')
+const reverseSaving = ref(false)
+const reversedMovementIds = computed(() => new Set(
+  movements.value
+    .filter(movement => movement.reference_type === 'manual_cash_movement_reversal' && movement.reference_id)
+    .map(movement => movement.reference_id as string)
+))
+function openReverseModal(movement: CashBoxMovement) {
+  reversingMovement.value = movement
+  reverseReason.value = ''
+  reverseModalOpen.value = true
+}
+async function submitReversal() {
+  if (!reversingMovement.value || !reverseReason.value.trim()) return
+  reverseSaving.value = true
+  try {
+    await reverseMovement(reversingMovement.value.id, { cash_box_id: boxId, reason: reverseReason.value.trim() })
+    reverseModalOpen.value = false
+    await refreshCashBoxActivity()
+    toast.add({ title: 'Movimiento anulado', description: 'Se registró el movimiento inverso.', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo anular', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    reverseSaving.value = false
+  }
+}
 
 const links = computed(() => [
   {
@@ -344,6 +534,14 @@ const links = computed(() => [
       </div>
 
       <div class="flex justify-end gap-2 mt-4 pt-3 border-t border-default">
+        <UButton
+          v-if="movementOperationOptions.length"
+          label="Registrar movimiento"
+          icon="i-lucide-arrow-left-right"
+          color="primary"
+          size="sm"
+          @click="openMovementModal"
+        />
         <UButton
           label="Cerrar sesión"
           icon="i-lucide-lock"
@@ -595,6 +793,176 @@ const links = computed(() => [
             />
           </div>
         </UForm>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="movementModalOpen"
+      :title="savedMovementId ? 'Movimiento registrado' : 'Registrar movimiento de caja'"
+      :ui="{ content: 'sm:max-w-2xl' }"
+    >
+      <template #body>
+        <div class="space-y-5">
+          <UAlert
+            v-if="savedMovementId"
+            color="success"
+            variant="soft"
+            icon="i-lucide-circle-check"
+            title="El movimiento quedó confirmado"
+            description="El saldo y los totales de la sesión ya fueron actualizados. Podés adjuntar un comprobante antes de finalizar."
+          />
+
+          <template v-else>
+            <UFormField label="Operación" required>
+              <USelect
+                v-model="movementForm.operation"
+                :items="movementOperationOptions"
+                value-key="value"
+                label-key="label"
+                class="w-full"
+              />
+            </UFormField>
+
+            <UAlert
+              v-if="movementForm.operation === 'CHECK_TO_CASH'"
+              color="info"
+              variant="soft"
+              icon="i-lucide-badge-dollar-sign"
+              title="Cobro por ventanilla"
+              description="El cheque de tercero quedará cobrado y su importe ingresará como efectivo en esta caja."
+            />
+            <UAlert
+              v-else-if="movementForm.operation === 'CASH_TO_OWN_CHECK'"
+              color="warning"
+              variant="soft"
+              icon="i-lucide-landmark"
+              title="Depósito y pago de cheque propio"
+              description="El efectivo saldrá de la caja. En el banco quedarán registrados el depósito y el débito del cheque como dos movimientos vinculados."
+            />
+
+            <div v-if="isManualMovement" class="grid gap-4 sm:grid-cols-2">
+              <UFormField label="Concepto" required>
+                <USelect
+                  v-model="movementForm.concept"
+                  :items="manualConcepts"
+                  value-key="value"
+                  label-key="label"
+                  class="w-full"
+                />
+              </UFormField>
+              <UFormField label="Importe" required>
+                <UInput v-model.number="movementForm.amount" type="number" min="0.01" step="0.01" class="w-full" />
+              </UFormField>
+            </div>
+            <UFormField v-else label="Cheque" required>
+              <USelectMenu
+                v-model="movementForm.check_id"
+                :items="checkOptions"
+                value-key="value"
+                label-key="label"
+                searchable
+                :loading="checksLoading"
+                class="w-full"
+                :placeholder="checksLoading ? 'Cargando cheques...' : 'Seleccionar cheque'"
+              />
+              <p v-if="!checksLoading && checkOptions.length === 0" class="mt-2 text-xs text-warning">
+                No hay cheques compatibles con esta operación y la moneda de la caja.
+              </p>
+            </UFormField>
+
+            <UFormField label="Fecha y hora" required>
+              <UInput v-model="movementForm.date" type="datetime-local" class="w-full" />
+            </UFormField>
+            <UFormField v-if="isManualMovement" label="Descripción" required description="Indicá el motivo para que el movimiento sea auditable.">
+              <UTextarea v-model="movementForm.description" :rows="3" class="w-full" placeholder="Detalle del ingreso o egreso..." />
+            </UFormField>
+
+            <div class="grid grid-cols-3 gap-3 rounded-xl border border-default bg-muted/20 p-4 text-sm">
+              <div>
+                <p class="text-xs text-muted">Saldo actual</p>
+                <p class="font-semibold">{{ formatCurrency(currentCashBalance, box.currency_code || 'ARS') }}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-xs text-muted">Movimiento</p>
+                <p class="font-semibold" :class="movementIsOutflow ? 'text-error' : 'text-success'">
+                  {{ movementIsOutflow ? '-' : '+' }}{{ formatCurrency(movementAmount, box.currency_code || 'ARS') }}
+                </p>
+              </div>
+              <div class="text-right">
+                <p class="text-xs text-muted">Saldo resultante</p>
+                <p class="font-bold" :class="resultingCashBalance < 0 ? 'text-error' : 'text-primary'">
+                  {{ formatCurrency(resultingCashBalance, box.currency_code || 'ARS') }}
+                </p>
+              </div>
+            </div>
+            <UAlert
+              v-if="resultingCashBalance < 0"
+              color="error"
+              variant="soft"
+              title="Saldo insuficiente"
+              description="El egreso no puede superar el efectivo disponible en la caja."
+            />
+          </template>
+
+          <UiAttachmentManager
+            v-if="savedMovementId"
+            entity-type="cash_box_movement"
+            :entity-id="savedMovementId"
+            :max-files="5"
+            default-expanded
+          />
+
+          <div class="flex justify-end gap-2 border-t border-default pt-4">
+            <UButton
+              :label="savedMovementId ? 'Finalizar' : 'Cancelar'"
+              variant="ghost"
+              @click="() => { movementModalOpen = false }"
+            />
+            <UButton
+              v-if="!savedMovementId"
+              label="Confirmar movimiento"
+              icon="i-lucide-check"
+              :loading="movementSaving"
+              :disabled="!canSaveMovement"
+              @click="saveMovement"
+            />
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="reverseModalOpen" title="Anular movimiento manual" :ui="{ content: 'sm:max-w-lg' }">
+      <template #body>
+        <div class="space-y-4">
+          <UAlert
+            color="warning"
+            variant="soft"
+            icon="i-lucide-history"
+            title="Se registrará un movimiento inverso"
+            description="El movimiento original permanecerá visible para conservar la auditoría."
+          />
+          <div v-if="reversingMovement" class="rounded-lg border border-default p-4 text-sm">
+            <div class="flex justify-between gap-4">
+              <span class="text-muted">Movimiento original</span>
+              <strong>{{ formatCurrency(reversingMovement.amount, reversingMovement.currency_code) }}</strong>
+            </div>
+            <p class="mt-2 text-muted">{{ reversingMovement.description }}</p>
+          </div>
+          <UFormField label="Motivo de la anulación" required>
+            <UTextarea v-model="reverseReason" :rows="3" class="w-full" placeholder="Explicá por qué se revierte..." />
+          </UFormField>
+          <div class="flex justify-end gap-2">
+            <UButton label="Cancelar" variant="ghost" @click="() => { reverseModalOpen = false }" />
+            <UButton
+              label="Registrar reversión"
+              color="error"
+              icon="i-lucide-undo-2"
+              :loading="reverseSaving"
+              :disabled="!reverseReason.trim()"
+              @click="submitReversal"
+            />
+          </div>
+        </div>
       </template>
     </UModal>
   </UPage>

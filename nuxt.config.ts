@@ -93,6 +93,8 @@ export default defineNuxtConfig({
       icons: [
         'lucide:arrow-left',
         'lucide:bar-chart-3',
+        'lucide:box',
+        'lucide:boxes',
         'lucide:check',
         'lucide:chevron-down',
         'lucide:chevron-right',
@@ -103,6 +105,7 @@ export default defineNuxtConfig({
         'lucide:globe',
         'lucide:house',
         'lucide:layout-dashboard',
+        'lucide:lock',
         'lucide:map-pin',
         'lucide:menu',
         'lucide:panel-left-close',
@@ -111,6 +114,7 @@ export default defineNuxtConfig({
         'lucide:settings',
         'lucide:shopping-cart',
         'lucide:truck',
+        'lucide:triangle-alert',
         'lucide:users'
       ],
       sizeLimitKb: 512

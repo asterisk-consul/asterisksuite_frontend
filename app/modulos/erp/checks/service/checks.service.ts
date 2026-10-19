@@ -99,6 +99,13 @@ export const useChecksService = () => {
     })
   }
 
+  const settleOwnCheckFromCashBox = (id: string, cashBoxId: string, date: string) => {
+    return $fetch<Check>(`${urlBase}/${id}/pay-from-cash-box`, {
+      method: 'PATCH',
+      body: { cash_box_id: cashBoxId, date }
+    })
+  }
+
   const revert = (id: string) => {
     return $fetch<Check>(`${urlBase}/${id}/revert`, {
       method: 'PATCH'
@@ -120,6 +127,7 @@ export const useChecksService = () => {
     deposit,
     collectInCashBox,
     debitOwnCheck,
+    settleOwnCheckFromCashBox,
     revert
   }
 }

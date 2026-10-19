@@ -207,6 +207,14 @@ export const useChecksStore = defineStore('checks', () => {
     return updated
   }
 
+  const settleOwnCheckFromCashBox = async (id: string, cashBoxId: string, date: string) => {
+    const updated = await service.settleOwnCheckFromCashBox(id, cashBoxId, date)
+    const index = items.value.findIndex((i) => i.id === id)
+    if (index !== -1) items.value[index] = updated
+    if (current.value?.id === id) current.value = updated
+    return updated
+  }
+
   return {
     // state
     items,
@@ -230,6 +238,7 @@ export const useChecksStore = defineStore('checks', () => {
     deposit,
     collectInCashBox,
     debitOwnCheck,
+    settleOwnCheckFromCashBox,
     revert,
     reset
   }

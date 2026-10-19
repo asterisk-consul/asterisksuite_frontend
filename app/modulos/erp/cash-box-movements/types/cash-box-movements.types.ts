@@ -37,18 +37,17 @@ export interface CashBoxMovement {
 
 export interface CreateCashBoxMovementInput {
   cash_box_id: string
-  session_id?: string
-  employee_id?: string
-  type: AccountEntryType
+  type: 'DEBIT' | 'CREDIT'
   amount: number
   currency_code: string
-  exchange_rate?: number
-  description?: string
-  reference_type?: string
-  reference_id?: string
-  payment_id?: string
-  bank_account_id?: string
+  concept: string
+  description: string
   date?: string
+}
+
+export interface ReverseCashBoxMovementInput {
+  cash_box_id: string
+  reason: string
 }
 
 export interface UpdateCashBoxMovementInput {

@@ -51,6 +51,8 @@ export function useChecks() {
   const collectInCashBox = async (id: string, cashBoxId: string, date: string) => store.collectInCashBox(id, cashBoxId, date)
 
   const debitOwnCheck = async (id: string, date: string) => store.debitOwnCheck(id, date)
+  const settleOwnCheckFromCashBox = async (id: string, cashBoxId: string, date: string) =>
+    store.settleOwnCheckFromCashBox(id, cashBoxId, date)
 
   const revert = async (id: string) => store.revert(id)
 
@@ -123,6 +125,7 @@ export function useChecks() {
     deposit,
     collectInCashBox,
     debitOwnCheck,
+    settleOwnCheckFromCashBox,
     revert,
     fetchUpcoming: store.fetchUpcoming,
     fetchPendingNotification: store.fetchPendingNotification

@@ -7,7 +7,8 @@ import type {
   CashBoxMovement,
   CreateCashBoxMovementInput,
   UpdateCashBoxMovementInput,
-  FilterCashBoxMovementInput
+  FilterCashBoxMovementInput,
+  ReverseCashBoxMovementInput
 } from '~/modulos/erp/cash-box-movements/types/cash-box-movements.types'
 
 export const useCashBoxMovementsStore = defineStore('cash-box-movements', () => {
@@ -66,6 +67,12 @@ export const useCashBoxMovementsStore = defineStore('cash-box-movements', () => 
     return created
   }
 
+  const reverse = async (id: string, payload: ReverseCashBoxMovementInput) => {
+    const reversal = await service.reverse(id, payload)
+    items.value.unshift(reversal)
+    return reversal
+  }
+
   // =========================
   // UPDATE
   // =========================
@@ -108,6 +115,7 @@ export const useCashBoxMovementsStore = defineStore('cash-box-movements', () => 
     fetchAll,
     fetchOne,
     create,
+    reverse,
     update,
     remove,
     reset

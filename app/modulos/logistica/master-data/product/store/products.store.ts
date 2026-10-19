@@ -34,6 +34,7 @@ export const useProductsStore = defineStore('products', () => {
     if (cacheCompanyId.value !== cacheScope) {
       cacheCompanyId.value = cacheScope
       items.value = []
+      pageItems.value = []
       current.value = null
       lastUpdatedAt.value = null
       counts.value = null
@@ -57,6 +58,7 @@ export const useProductsStore = defineStore('products', () => {
   // =========================
 
   const items = ref<Product[]>([])
+  const pageItems = ref<Product[]>([])
 
   const current = ref<Product | null>(null)
 
@@ -114,7 +116,7 @@ export const useProductsStore = defineStore('products', () => {
     error.value = null
     try {
       const response = await service.findPage(params)
-      items.value = response.items
+      pageItems.value = response.items
       pagination.value = response.pagination
       return response
     } catch (err: any) {
@@ -172,6 +174,7 @@ export const useProductsStore = defineStore('products', () => {
       const created = await service.create(payload)
 
       items.value.unshift(created)
+      pageItems.value.unshift(created)
       persistCache()
 
       return created
@@ -209,6 +212,11 @@ export const useProductsStore = defineStore('products', () => {
         items.value[index] = merged
       }
 
+      const pageIndex = pageItems.value.findIndex((i) => i.id === id)
+      if (pageIndex !== -1) {
+        pageItems.value[pageIndex] = { ...pageItems.value[pageIndex], ...merged }
+      }
+
       if (current.value?.id === id) {
         current.value = merged
       }
@@ -235,6 +243,7 @@ export const useProductsStore = defineStore('products', () => {
       await service.remove(id)
 
       items.value = items.value.filter((i) => i.id !== id)
+      pageItems.value = pageItems.value.filter((i) => i.id !== id)
 
       if (current.value?.id === id) {
         current.value = null
@@ -285,6 +294,7 @@ export const useProductsStore = defineStore('products', () => {
   return {
     // state
     items,
+    pageItems,
     current,
     roots,
 

@@ -23,7 +23,7 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useTableDelete } from '~/composables/table/useTableDelete'
 import { useServerTable } from '~/composables/table/useServerTable'
 
-const { products, create, loading } = useProducts()
+const { pageProducts: products, create, loading } = useProducts()
 const productsStore = useProductsStore()
 const { exportToExcel } = useExcelExport()
 const form = reactive(createDefaultProductForm())

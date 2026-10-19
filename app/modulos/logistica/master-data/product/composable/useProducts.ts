@@ -174,6 +174,7 @@ export function useProducts(usageFilter?: 'sale' | 'purchase' | null) {
   return {
     // state
     products: computed(() => store.items),
+    pageProducts: computed(() => store.pageItems),
     current: computed(() => store.current),
     roots: computed(() => store.roots),
     loading: computed(() => store.loading),

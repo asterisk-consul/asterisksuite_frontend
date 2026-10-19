@@ -21,7 +21,7 @@ const stats = computed(() => {
     {
       label: 'Stock total',
       value: props.data.totalQuantity.toLocaleString('es-AR'),
-      icon: 'i-lucide-packages',
+      icon: 'i-lucide-boxes',
       color: 'success',
     },
     {
@@ -33,7 +33,7 @@ const stats = computed(() => {
     {
       label: 'Bajo stock',
       value: props.data.lowStockCount,
-      icon: 'i-lucide-alert-triangle',
+      icon: 'i-lucide-triangle-alert',
       color: props.data.lowStockCount > 0 ? 'error' : 'success',
     },
   ]

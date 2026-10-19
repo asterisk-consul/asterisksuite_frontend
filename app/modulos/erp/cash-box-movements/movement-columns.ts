@@ -1,5 +1,7 @@
 import type { CashBoxMovement } from '~/modulos/erp/cash-box-movements/types/cash-box-movements.types'
 import type { TableColumn } from '@nuxt/ui'
+import { h } from 'vue'
+import { UButton } from '#components'
 import { createTableBuilder } from '@/composables/table/createColumns'
 
 type Row = CashBoxMovement
@@ -26,6 +28,8 @@ export const MOVEMENT_TYPE_OPTIONS = Object.entries(MOVEMENT_TYPE_CONFIG).map(([
 
 export const cashBoxMovementColumns = (actions: {
   onSortFieldSelect?: (columnId: string) => void
+  onReverse?: (row: Row) => void
+  canReverse?: (row: Row) => boolean
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({
     locale: 'es-AR',
@@ -99,6 +103,20 @@ export const cashBoxMovementColumns = (actions: {
         key: 'description',
         label: 'Descripción',
         cell: ({ row }) => row.original.description ?? '—'
+      },
+      {
+        id: 'actions',
+        label: '',
+        cell: ({ row }) => actions.canReverse?.(row.original)
+          ? h(UButton, {
+              icon: 'i-lucide-undo-2',
+              label: 'Anular',
+              size: 'xs',
+              variant: 'ghost',
+              color: 'error',
+              onClick: () => actions.onReverse?.(row.original)
+            })
+          : null
       }
     ])
   ]
