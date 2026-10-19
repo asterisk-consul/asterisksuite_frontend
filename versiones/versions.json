@@ -1,5 +1,101 @@
 [
  {
+  "version": "0.81.0-alpha",
+  "date": "2026-10-19",
+  "stage": "alpha",
+  "notes": "Rediseño del inicio: KPIs relevantes del circuito comercial, widget de actividad con filtro de período, personalización con drag & drop y widget de dólar del día.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Saludo personalizado con nombre, empresa y fecha, más botón Actualizar con hora de última actualización"
+   },
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Tarjetas KPI del resumen: Por cobrar (cuentas corrientes de clientes), Cheques próximos, Alertas de stock y Órdenes de venta pendientes de entrega"
+   },
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Órdenes de venta reemplaza Viajes activos en el resumen superior del inicio"
+   },
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Widget Actividad de la empresa separa documentos (barras + dona) y productos (snapshot), con selector de período Hoy / 7 / 15 / 30 / 365 días"
+   },
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Click en el gráfico de barras, la dona o su leyenda navega al listado del documento (presupuestos, OV, comprobantes con categoría preseleccionada o remitos)"
+   },
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Widget Dólar del día con cotización oficial y blue, cacheada 5 minutos en el servidor"
+   },
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Finanzas muestra saldos por moneda, totales de pagos y cobros registrados, botón de actualización y estado de error con reintento"
+   },
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Modal Personalizar inicio con búsqueda, drag & drop, switches de visibilidad y guardado explícito con toast de confirmación"
+   },
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Widgets filtrados por permisos múltiples y categorías (personal, comercial, tesorería, operaciones, personas)"
+   },
+   {
+    "type": "feat",
+    "scope": "erp",
+    "title": "Alerta de CAI por vencer (5 días o menos) en remitos de venta con enlace para cargar la nueva autorización"
+   },
+   {
+    "type": "feat",
+    "scope": "erp",
+    "title": "Autorizaciones fiscales aceptan ?new=1 para precargar la renovación de un CAI y vuelven al remito luego de guardar"
+   },
+   {
+    "type": "feat",
+    "scope": "erp",
+    "title": "Listado de comprobantes acepta el deep-link ?category= desde el dashboard y lo persiste en la URL"
+   },
+   {
+    "type": "fix",
+    "scope": "dashboard",
+    "title": "Por cobrar suma los saldos positivos de cuentas corrientes de clientes (facturas, notas, cobros y saldos iniciales), no sólo facturas"
+   },
+   {
+    "type": "fix",
+    "scope": "dashboard",
+    "title": "Fechas de negocio del dashboard calculadas en zona horaria Argentina para el filtro por período"
+   },
+   {
+    "type": "fix",
+    "scope": "dashboard",
+    "title": "Cobertura de costeo representada como barra de progreso y merge de widgets nuevos preservando el orden guardado"
+   },
+   {
+    "type": "fix",
+    "scope": "stock",
+    "title": "Etiqueta SKU bajo el nombre del producto en tablas de stock, disponibilidad, reposición y modal de reposición"
+   },
+   {
+    "type": "fix",
+    "scope": "stock",
+    "title": "Selector de estado en reposición sin valor vacío (sentinela ALL) y import explícito de useRoles en el detalle de depósitos"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ]
+ },
+ {
   "version": "0.80.0-alpha",
   "date": "2026-10-19",
   "stage": "alpha",

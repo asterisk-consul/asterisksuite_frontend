@@ -2,6 +2,8 @@
 definePageMeta({ layout: 'default', middleware: ['auth'] })
 
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 const loading = ref(true)
 const saving = ref(false)
 const modalOpen = ref(false)
@@ -14,7 +16,7 @@ const search = ref('')
 const activeDocumentType = ref('all')
 const settings = ref<any>({
   alerts_enabled: true,
-  day_thresholds: [30, 15, 7, 3, 1],
+  day_thresholds: [30, 15, 7, 5, 3, 1],
   number_thresholds: [100, 50, 20, 10],
   expired_policy: 'BLOCK',
   missing_policy: 'BLOCK',
@@ -145,6 +147,8 @@ async function save() {
     toast.add({ title: editingId.value ? 'Autorización actualizada' : 'Autorización creada', color: 'success' })
     modalOpen.value = false
     await load()
+    const returnTo = typeof route.query.return_to === 'string' ? route.query.return_to : ''
+    if (returnTo.startsWith('/erp/remitos/')) await router.push(returnTo)
   } catch (error: any) { toast.add({ title: 'No se pudo guardar', description: error?.data?.message, color: 'error' }) }
   finally { saving.value = false }
 }
@@ -173,7 +177,25 @@ async function saveSettings() {
   finally { saving.value = false }
 }
 
-onMounted(load)
+async function openRequestedAuthorization() {
+  if (route.query.new !== '1') return
+  const authorizationId = typeof route.query.authorization_id === 'string' ? route.query.authorization_id : ''
+  const currentAuthorization = rows.value.find(row => row.id === authorizationId)
+  if (currentAuthorization) {
+    renew(currentAuthorization)
+    return
+  }
+
+  createNew()
+  if (typeof route.query.document_type_id === 'string') form.value.document_type_id = route.query.document_type_id
+  await nextTick()
+  if (typeof route.query.document_sequence_id === 'string') form.value.document_sequence_id = route.query.document_sequence_id
+}
+
+onMounted(async () => {
+  await load()
+  await openRequestedAuthorization()
+})
 </script>
 
 <template>

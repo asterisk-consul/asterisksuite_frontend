@@ -109,7 +109,7 @@ const {
         <RemitoView v-if="doc" :document="doc" />
         <FiscalCaiAlert v-if="doc" :document="doc" @replaced="store.fetchOne(doc!.id)" @evaluated="(s: any) => (caiStatus = s)" />
         <UAlert
-          v-if="doc?.status === 0 && fiscalPreview && !(caiStatus && CAI_INVALID_STATUSES.includes(caiStatus.status))"
+          v-if="doc?.status === 0 && fiscalPreview && !caiStatus?.expiringSoon && !(caiStatus && CAI_INVALID_STATUSES.includes(caiStatus.status))"
           :color="fiscalPreview.status === 'BLOCKED' ? 'error' : fiscalPreview.status === 'WARNING' ? 'warning' : 'success'"
           variant="soft"
           icon="i-lucide-badge-check"

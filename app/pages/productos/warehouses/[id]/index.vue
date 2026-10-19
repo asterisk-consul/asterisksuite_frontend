@@ -8,6 +8,7 @@ import { useUnitsStore } from '~/modulos/almacen/units/store/units.store'
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
 import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
 import { useExcelExport } from '~/composables/useExcelExport'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { warehouseFormFields } from '~/modulos/logistica/warehouses/warehouse/warehouseFormFields'
 import { movementColumns, MOVEMENT_TYPE_OPTIONS, DIRECTION_OPTIONS } from '~/modulos/logistica/warehouses/stock/movementColumns'
 import { warehouseStockColumns } from '~/modulos/logistica/warehouses/stock/stockColumns'
@@ -747,7 +748,7 @@ const links = ref<ButtonProps[]>([
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-muted">Producto</p>
               <p class="mt-1 font-semibold">{{ replenishmentProduct?.name }}</p>
-              <p class="text-xs text-muted">{{ replenishmentProduct?.sku || 'Sin SKU' }}</p>
+              <p class="text-xs text-muted">SKU: {{ replenishmentProduct?.sku || 'Sin SKU' }}</p>
             </div>
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-muted">Depósito</p>

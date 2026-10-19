@@ -4,14 +4,19 @@ export function useDashboardData() {
   const data = ref<DashboardData | null>(null)
   const personal = ref<DashboardPersonal | null>(null)
   const loading = ref(false)
+  let dataRequest = 0
 
-  const fetchData = async () => {
+  const fetchData = async (days?: number) => {
+    const request = ++dataRequest
     loading.value = true
     try {
-      data.value = await $fetch<DashboardData>('/api/backend/dashboard/data')
+      const result = await $fetch<DashboardData>('/api/backend/dashboard/data', {
+        query: { days: days ?? undefined },
+      })
+      if (request === dataRequest) data.value = result
     } catch {
     } finally {
-      loading.value = false
+      if (request === dataRequest) loading.value = false
     }
   }
 

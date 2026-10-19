@@ -22,10 +22,10 @@ const formatCurrency = (amount: number) => {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <UIcon name="i-lucide-receipt" class="size-5 text-warning" />
-          <h3 class="text-sm font-semibold">Documentos por cobrar</h3>
+          <h3 class="text-sm font-semibold">Por cobrar</h3>
         </div>
-        <NuxtLink to="/erp/sales" class="text-xs text-primary hover:underline font-medium">
-          Ver todos
+        <NuxtLink to="/erp/treasury/current-accounts" class="text-xs text-primary hover:underline font-medium">
+          Ver cuentas corrientes
         </NuxtLink>
       </div>
     </template>
@@ -36,13 +36,13 @@ const formatCurrency = (amount: number) => {
     </div>
 
     <div v-else-if="!data || data.total === 0" class="text-center py-6 text-muted text-sm">
-      No hay documentos pendientes
+      No hay saldos pendientes de cobro
     </div>
 
     <div v-else class="space-y-3">
       <div class="p-3 rounded-lg bg-muted/30">
         <div class="flex items-center justify-between min-w-0">
-          <span class="text-xs text-muted font-medium shrink-0">Facturas pendientes</span>
+          <span class="text-xs text-muted font-medium shrink-0">Clientes con saldo</span>
           <span class="text-sm font-bold shrink-0">{{ data.total }}</span>
         </div>
       </div>

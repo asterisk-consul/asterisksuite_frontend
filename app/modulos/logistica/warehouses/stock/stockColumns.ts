@@ -19,7 +19,7 @@ export const warehouseStockColumns: TableColumn<WarehouseStockItem>[] = [
         to: `/productos/${row.original.products.id}`,
         class: 'font-medium text-highlighted hover:text-primary hover:underline'
       }, () => row.original.products.name),
-      h('p', { class: 'text-xs text-muted' }, row.original.products.sku || 'Sin SKU')
+      h('p', { class: 'text-xs text-muted' }, row.original.products.sku ? `SKU: ${row.original.products.sku}` : 'Sin SKU')
     ])
   },
   {

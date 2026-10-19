@@ -147,7 +147,7 @@ onMounted(load)
               <tr class="border-b border-default hover:bg-elevated/40">
                 <td class="px-4 py-3">
                   <NuxtLink :to="`/productos/${product.id}`" class="font-medium text-highlighted hover:text-primary">{{ product.name }}</NuxtLink>
-                  <p class="text-xs text-muted">{{ product.sku || 'Sin código' }} · {{ product.unit }}</p>
+                  <p class="text-xs text-muted">SKU: {{ product.sku || 'Sin código' }} · {{ product.unit }}</p>
                 </td>
                 <td class="px-4 py-3 text-right font-medium">{{ formatQuantity(product.physical_stock) }}</td>
                 <td class="px-4 py-3 text-right">

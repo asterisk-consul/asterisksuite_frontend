@@ -23,7 +23,7 @@ type Row = {
 const rows = ref<Row[]>([])
 const loading = ref(false)
 const search = ref('')
-const status = ref('')
+const status = ref('ALL')
 const showUnconfigured = ref(false)
 const page = ref(1)
 const meta = ref({ total: 0, page: 1, limit: 25, pages: 0, summary: {} as Record<string, number> })
@@ -31,7 +31,7 @@ const toast = useToast()
 let timer: ReturnType<typeof setTimeout> | undefined
 
 const statusOptions = [
-  { label: 'Todos los estados', value: '' },
+  { label: 'Todos los estados', value: 'ALL' },
   { label: 'Críticos', value: 'CRITICAL' },
   { label: 'Para reponer', value: 'REORDER' },
   { label: 'Cubiertos por arribos', value: 'COVERED' },
@@ -54,7 +54,7 @@ async function load() {
     const response = await $fetch<{ data: Row[]; meta: typeof meta.value }>('/api/backend/warehouse/replenishment/report', {
       query: {
         search: search.value || undefined,
-        status: status.value || undefined,
+        status: status.value && status.value !== 'ALL' ? status.value : undefined,
         include_unconfigured: showUnconfigured.value ? 'true' : undefined,
         page: page.value,
         limit: 25
@@ -71,7 +71,7 @@ async function load() {
 
 function selectStatus(value: string) {
   if (value === 'UNCONFIGURED') showUnconfigured.value = true
-  status.value = status.value === value ? '' : value
+  status.value = status.value === value ? 'ALL' : value
 }
 
 watch(search, () => {
@@ -80,7 +80,7 @@ watch(search, () => {
 })
 watch(status, () => { page.value = 1; load() })
 watch(showUnconfigured, (enabled) => {
-  if (!enabled && status.value === 'UNCONFIGURED') status.value = ''
+  if (!enabled && status.value === 'UNCONFIGURED') status.value = 'ALL'
   page.value = 1
   load()
 })
@@ -123,7 +123,7 @@ onMounted(load)
           <tbody>
             <tr v-for="row in rows" :key="row.id" class="border-b border-default hover:bg-elevated/40">
               <td class="px-4 py-3"><UBadge :color="statusMeta[row.status].color" variant="subtle"><UIcon :name="statusMeta[row.status].icon" class="mr-1 size-3.5" />{{ statusMeta[row.status].label }}</UBadge></td>
-              <td class="px-4 py-3"><NuxtLink :to="`/productos/${row.product.id}/edit`" class="font-medium text-highlighted hover:text-primary">{{ row.product.name }}</NuxtLink><p class="text-xs text-muted">{{ row.product.sku || 'Sin código' }} · {{ row.unit }}</p></td>
+              <td class="px-4 py-3"><NuxtLink :to="`/productos/${row.product.id}/edit`" class="font-medium text-highlighted hover:text-primary">{{ row.product.name }}</NuxtLink><p class="text-xs text-muted">SKU: {{ row.product.sku || 'Sin código' }} · {{ row.unit }}</p></td>
               <td class="px-4 py-3">{{ row.warehouse?.name || 'Todos los depósitos' }}<p v-if="row.warehouse?.code" class="text-xs text-muted">{{ row.warehouse.code }}</p></td>
               <td class="px-4 py-3 text-right font-semibold">{{ format(row.available_now) }}</td>
               <td class="px-4 py-3 text-right text-warning">{{ format(row.reserved) }}</td>

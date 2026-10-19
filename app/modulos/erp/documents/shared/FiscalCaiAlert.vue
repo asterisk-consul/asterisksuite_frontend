@@ -17,6 +17,7 @@ const replacing = ref(false)
 const forcedConfirm = ref<any>(null)
 
 const canReplace = computed(() => isOwnerOrAdmin.value || hasPermission('delivery_notes.replace_authorization'))
+const canCreateAuthorization = computed(() => isOwnerOrAdmin.value || hasPermission('fiscal-authorizations.create'))
 const isSalesRemito = computed(() =>
   props.document?.document_types?.category === 'REMITO' && props.document?.document_types?.direction === 1,
 )
@@ -27,6 +28,24 @@ const compatible = computed(() => status.value?.compatibleAuthorization)
 const current = computed(() => status.value?.currentAuthorization)
 const candidates = computed(() => status.value?.candidates ?? [])
 const compatibleLabel = computed(() => authorizationLabel(compatible.value))
+const daysRemaining = computed(() => {
+  if (!current.value?.valid_to) return null
+  const expiration = new Date(`${String(current.value.valid_to).slice(0, 10)}T00:00:00`)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.ceil((expiration.getTime() - today.getTime()) / 86400000)
+})
+const isExpiringSoon = computed(() => status.value?.status === 'VALID' && daysRemaining.value != null && daysRemaining.value >= 0 && daysRemaining.value <= 5)
+const renewalLink = computed(() => ({
+  path: '/settings/fiscal-authorizations',
+  query: {
+    new: '1',
+    authorization_id: current.value?.id,
+    document_type_id: props.document?.document_type_id,
+    document_sequence_id: props.document?.document_sequence_id,
+    return_to: `/erp/remitos/${props.document?.id}`,
+  },
+}))
 
 function authorizationLabel(a: any) {
   if (!a) return ''
@@ -43,7 +62,7 @@ async function fetchStatus() {
   if (!props.document?.id || !isSalesRemito.value) return
   loading.value = true
   status.value = await $fetch(`/api/backend/fiscal-authorizations/documents/${props.document.id}/status`).catch(() => null)
-  if (status.value) emit('evaluated', status.value)
+  if (status.value) emit('evaluated', { ...status.value, expiringSoon: isExpiringSoon.value })
   loading.value = false
 }
 
@@ -99,6 +118,25 @@ watch(() => props.document?.id, fetchStatus)
 </script>
 
 <template>
+  <UAlert
+    v-if="isExpiringSoon && current"
+    color="warning"
+    variant="soft"
+    icon="i-lucide-calendar-clock"
+    :title="daysRemaining === 0 ? 'El CAI vence hoy' : `El CAI vence en ${daysRemaining} día(s)`"
+    :description="`${authorizationLabel(current)} vence el ${formatDate(current.valid_to)}. Podés cargar ahora la próxima autorización; el remito conserva el CAI que corresponde a su fecha.`"
+  >
+    <template v-if="canCreateAuthorization" #actions>
+      <UButton
+        label="Cargar nuevo CAI"
+        icon="i-lucide-badge-plus"
+        color="warning"
+        variant="solid"
+        :to="renewalLink"
+      />
+    </template>
+  </UAlert>
+
   <!-- Remito histórico válido: CAI vencido hoy, pero vigente al emitirse -->
   <UAlert
     v-if="status?.status === 'VALID_AT_ISSUE' && current"

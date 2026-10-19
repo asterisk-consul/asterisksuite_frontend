@@ -44,6 +44,7 @@ export interface DashboardStock {
 }
 
 export interface DashboardReceivables {
+  /** Clientes con saldo a favor (cuenta corriente) */
   total: number
   totalAmount: number
 }
@@ -63,6 +64,16 @@ export interface DashboardCurrentAccountItem {
 
 export interface DashboardPicking {
   pending: number
+}
+
+export interface DashboardProducts {
+  total: number
+  withStock: number
+  withStockUnits: number
+  costed: number
+  uncosted: number
+  forSale: number
+  forPurchase: number
 }
 
 export interface DashboardTrips {
@@ -95,7 +106,13 @@ export interface DashboardPaymentsDue {
   collections: DashboardPaymentsDueGroup
 }
 
+export interface DashboardMeta {
+  days: number
+  documents_from: string
+}
+
 export interface DashboardData {
+  meta?: DashboardMeta
   quotes: DashboardQuotes
   orders: DashboardOrders
   remitos: DashboardRemitos
@@ -106,6 +123,7 @@ export interface DashboardData {
   stock: DashboardStock
   receivables: DashboardReceivables
   costing: DashboardCosting
+  products: DashboardProducts
   currentAccounts: DashboardCurrentAccountItem[]
   picking: DashboardPicking
   trips: DashboardTrips
@@ -142,4 +160,6 @@ export interface DashboardWidget {
   defaultPosition: number
   defaultSize: WidgetSize
   permission?: string
+  permissions?: string[]
+  category: 'personal' | 'commercial' | 'treasury' | 'operations' | 'people'
 }

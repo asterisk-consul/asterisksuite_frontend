@@ -49,7 +49,9 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
 }
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
-const categoryFilter = ref<string | undefined>(undefined)
+const route = useRoute()
+const initialCategory = typeof route.query.category === 'string' ? route.query.category : undefined
+const categoryFilter = ref<string | undefined>(initialCategory)
 const statusFilter = ref<number | undefined>(undefined)
 const showFullyPaid = ref(true)
 const showCancelled = ref(false)
@@ -70,6 +72,8 @@ watch(categoryFilter, () => {
   statusFilter.value = undefined
   if (page.value !== 1) page.value = 1
   else refresh()
+  // Persistir la categoría en la URL (deep-link desde el dashboard)
+  router.replace({ query: { ...route.query, category: categoryFilter.value || undefined } })
 })
 
 watch(statusFilter, () => {

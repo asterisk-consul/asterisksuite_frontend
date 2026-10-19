@@ -38,6 +38,15 @@ const costPercentage = computed(() => {
     </div>
 
     <div v-else class="space-y-3">
+      <div class="rounded-xl bg-muted/30 p-3">
+        <div class="mb-2 flex items-center justify-between text-xs">
+          <span class="text-muted">Cobertura de costeo</span>
+          <span class="font-semibold text-primary">{{ costPercentage }}%</span>
+        </div>
+        <div class="h-2 overflow-hidden rounded-full bg-muted">
+          <div class="h-full rounded-full bg-gradient-to-r from-primary to-success transition-all duration-500" :style="{ width: `${costPercentage}%` }" />
+        </div>
+      </div>
       <div class="p-3 rounded-lg bg-success/5 border border-success/20">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -54,12 +63,6 @@ const costPercentage = computed(() => {
             <span class="text-xs text-muted font-medium">Sin costear</span>
           </div>
           <span class="text-sm font-bold text-error">{{ data.uncosted }}</span>
-        </div>
-      </div>
-      <div class="pt-2 border-t border-default">
-        <div class="flex items-center justify-between px-1">
-          <span class="text-xs text-muted">Cobertura de costeo</span>
-          <span class="text-sm font-bold text-primary">{{ costPercentage }}%</span>
         </div>
       </div>
     </div>
