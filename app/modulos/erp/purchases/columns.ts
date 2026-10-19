@@ -21,6 +21,7 @@ export const createPurchasesColumns = (actions: {
         key: 'status',
         label: 'Estado',
         sortable: true,
+        meta: { filter: { type: 'number', operators: ['equals'] } },
         badge: {
           resolve: (doc) => ({
             label: getStatusLabel(doc.document_types?.category, doc.status),
@@ -32,6 +33,7 @@ export const createPurchasesColumns = (actions: {
         key: 'number',
         label: 'Comprobante',
         sortable: true,
+        meta: { filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
         accessorFn: (row) => fmtNumber(row),
         cell: ({ row }) => {
           const label = fmtNumber(row.original)
@@ -126,6 +128,7 @@ export const createPurchasesColumns = (actions: {
         key: 'total',
         label: 'Total',
         sortable: true,
+        meta: { filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
         cell: ({ row }) =>
           new Intl.NumberFormat('es-AR', { style: 'currency', currency: row.original.currency_code ?? 'ARS' }).format(
             Number(row.original.total)
@@ -137,6 +140,7 @@ export const createPurchasesColumns = (actions: {
             {
               id: 'creator',
               label: 'Cargado por',
+              meta: { filter: false },
               accessorFn: (row: Row) => row.creator?.name ?? row.creator?.email ?? '-'
             }
           ]

@@ -31,6 +31,7 @@ export const createSalesColumns = (actions: {
         key: 'status',
         label: 'Estado',
         sortable: true,
+        meta: { filter: { type: 'number', operators: ['equals'] } },
         badge: {
           resolve: (doc) => {
             const orderFlow = getOrderFlowPresentation(doc)
@@ -45,6 +46,7 @@ export const createSalesColumns = (actions: {
         key: 'number',
         label: 'Comprobante',
         sortable: true,
+        meta: { filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
         accessorFn: (row) => fmtNumber(row),
         cell: ({ row }) => {
           const label = fmtNumber(row.original)
@@ -161,6 +163,7 @@ export const createSalesColumns = (actions: {
               key: 'total',
               label: 'Total',
               sortable: true,
+              meta: { filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
               cell: ({ row }) =>
                 row.original.amounts_visible === false
                   ? h('span', { class: 'text-xs text-muted' }, 'Restringido')
@@ -174,6 +177,7 @@ export const createSalesColumns = (actions: {
       {
         id: 'point_of_sale',
         label: 'Punto de venta',
+        meta: { filter: { type: 'number', operators: ['equals'] } },
         accessorFn: (row) => row.document_sequences?.point_of_sale ?? '-'
       },
       ...(actions.showCreator
@@ -181,6 +185,7 @@ export const createSalesColumns = (actions: {
             {
               id: 'creator',
               label: 'Cargado por',
+              meta: { filter: false },
               accessorFn: (row: Row) => row.creator?.name ?? row.creator?.email ?? '-'
             }
           ]

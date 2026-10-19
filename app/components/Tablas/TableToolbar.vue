@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SortingState } from '@tanstack/vue-table'
 import { useTableFilters } from '~/components/Tablas/composable/useTableFilters'
+import type { TableFilter } from '~/components/Tablas/types/tablas.types'
 
 import TableFiltersPopover from '~/components/Tablas/filters/TableFiltersPopover.vue'
 
@@ -22,6 +23,7 @@ const props = defineProps<{
   filterFields?: FilterField[]
   sortFields?: SortField[]
   serverSide?: boolean
+  searchPlaceholder?: string
   columnVisibilityItems?: Array<{ label: string; checked: boolean; onUpdateChecked: (checked: boolean) => void }>
 }>()
 
@@ -30,12 +32,16 @@ const emit = defineEmits<{ resetColumns: [] }>()
 // --- Models ---
 const sorting = defineModel<SortingState>('sorting', { default: () => [] })
 const search = defineModel<string>('search', { default: '' })
+const serverFilters = defineModel<TableFilter[]>('filters', { default: () => [] })
 
 // --- Filtros dinámicos (popover) ---
 const tableRef = computed(() => props.table)
 const columnsRef = computed(() => props.columns)
 
-const { filters, addFilter, removeFilter, clearFilters } = useTableFilters(tableRef, columnsRef)
+const { filters, addFilter, removeFilter, clearFilters } = useTableFilters(tableRef, columnsRef, {
+  filters: serverFilters,
+  applyLocally: !props.serverSide
+})
 
 // --- Filtros simples (inputs) ---
 const filterValues = ref<Record<string, string>>({})
@@ -116,7 +122,7 @@ const hasActiveFilters = computed(
         <UInput
           v-if="serverSide"
           v-model="search"
-          placeholder="Buscar por N°, tercero o descripción..."
+          :placeholder="searchPlaceholder || 'Buscar por N°, tercero o descripción...'"
           icon="i-lucide-search"
           class="w-72 max-w-full"
           size="sm"

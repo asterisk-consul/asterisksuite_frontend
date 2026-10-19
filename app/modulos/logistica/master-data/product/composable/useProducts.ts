@@ -47,6 +47,8 @@ export function useProducts(usageFilter?: 'sale' | 'purchase' | null) {
     await store.fetchAll()
   }
 
+  const loadCounts = async () => store.fetchCounts()
+
   // =========================
   // ACTIONS
   // =========================
@@ -155,11 +157,11 @@ export function useProducts(usageFilter?: 'sale' | 'purchase' | null) {
   // STATS
   // =========================
 
-  const totalProducts = computed(() => filteredItems.value.length)
+  const totalProducts = computed(() => store.counts?.total ?? filteredItems.value.length)
 
-  const activeProducts = computed(() => filteredItems.value.filter((p) => p.active !== false).length)
+  const activeProducts = computed(() => store.counts?.active ?? filteredItems.value.filter((p) => p.active !== false).length)
 
-  const inactiveProducts = computed(() => filteredItems.value.filter((p) => p.active === false).length)
+  const inactiveProducts = computed(() => store.counts?.inactive ?? filteredItems.value.filter((p) => p.active === false).length)
 
   const productsWithCostTemplate = computed(() => filteredItems.value.filter((p) => !!p.cost_template_id).length)
 
@@ -189,6 +191,7 @@ export function useProducts(usageFilter?: 'sale' | 'purchase' | null) {
     formatLabel,
     findById,
     loadOne,
+    loadCounts,
     getProduct,
 
     // stats

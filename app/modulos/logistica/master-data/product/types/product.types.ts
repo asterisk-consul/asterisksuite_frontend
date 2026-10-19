@@ -24,6 +24,12 @@ export interface ProductRoot {
   sku?: string
 }
 
+export interface ProductCounts {
+  total: number
+  active: number
+  inactive: number
+}
+
 export interface ProductTax {
   id: string
   product_id: string

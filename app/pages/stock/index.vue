@@ -4,7 +4,7 @@ definePageMeta({
   middleware: ['auth'],
 })
 
-const { init, activeProducts } = useProducts()
+const { loadCounts, activeProducts } = useProducts()
 
 const shortcuts = computed(() => [
   {
@@ -90,7 +90,7 @@ const sections = [
 ]
 
 onMounted(async () => {
-  await init()
+  await loadCounts()
 })
 </script>
 

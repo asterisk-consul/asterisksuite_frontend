@@ -10,6 +10,7 @@ import { useProductsService } from '~/modulos/logistica/master-data/product/serv
 import type {
   Product,
   ProductRoot,
+  ProductCounts,
   CreateProductInput,
   CreateProductDto,
   UpdateProductInput
@@ -35,6 +36,7 @@ export const useProductsStore = defineStore('products', () => {
       items.value = []
       current.value = null
       lastUpdatedAt.value = null
+      counts.value = null
       fetchPromise = null
       const cached = readTenantResourceCache<Product[]>(CACHE_RESOURCE, cacheScope, MAX_CACHE_AGE_MS)
       if (cached) {
@@ -64,6 +66,8 @@ export const useProductsStore = defineStore('products', () => {
 
   const error = ref<string | null>(null)
   const pagination = ref<PaginationMeta>({ page: 1, pageSize: 25, total: 0, pageCount: 0 })
+  const counts = ref<ProductCounts | null>(null)
+  const countsLoading = ref(false)
 
   // =========================
   // LOAD ALL
@@ -118,6 +122,17 @@ export const useProductsStore = defineStore('products', () => {
       throw err
     } finally {
       loading.value = false
+    }
+  }
+
+  const fetchCounts = async () => {
+    prepareCache()
+    countsLoading.value = true
+    try {
+      counts.value = await service.getCounts()
+      return counts.value
+    } finally {
+      countsLoading.value = false
     }
   }
 
@@ -276,10 +291,13 @@ export const useProductsStore = defineStore('products', () => {
     loading,
     error,
     pagination,
+    counts,
+    countsLoading,
 
     // actions
     fetchAll,
     fetchPage,
+    fetchCounts,
     search,
     hydrateCache: prepareCache,
     fetchOne,

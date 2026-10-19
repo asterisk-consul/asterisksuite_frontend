@@ -1,5 +1,4 @@
 import { ref, computed, watch } from 'vue'
-import { nanoid } from 'nanoid'
 import type { Ref } from 'vue'
 
 import type {
@@ -7,8 +6,15 @@ import type {
   FilterOperator
 } from '~/components/Tablas/types/tablas.types'
 
-export function useTableFilters(table: Ref<any>, columns?: Ref<any[]>) {
-  const filters = ref<TableFilter[]>([])
+let filterSequence = 0
+const nextFilterId = () => `${Date.now()}-${++filterSequence}`
+
+export function useTableFilters(
+  table: Ref<any>,
+  columns?: Ref<any[]>,
+  options: { filters?: Ref<TableFilter[]>; applyLocally?: boolean } = {}
+) {
+  const filters = options.filters ?? ref<TableFilter[]>([])
 
   function getColumnMeta(columnId: string) {
     return columns?.value?.find(
@@ -56,7 +62,7 @@ export function useTableFilters(table: Ref<any>, columns?: Ref<any[]>) {
     const meta = getColumnMeta(columnId)
 
     filters.value.push({
-      id: nanoid(),
+      id: nextFilterId(),
       column: columnId,
       operator: getDefaultOperator(meta?.type),
       value: getDefaultValue(meta?.type)
@@ -80,6 +86,7 @@ export function useTableFilters(table: Ref<any>, columns?: Ref<any[]>) {
   watch(
     filters,
     () => {
+      if (options.applyLocally === false) return
       const api = table.value?.tableApi
 
       if (!api) return

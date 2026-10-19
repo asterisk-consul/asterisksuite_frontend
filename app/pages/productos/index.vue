@@ -126,7 +126,7 @@ const columns = productColumns({
 })
 
 const serverTable = useServerTable((query) => productsStore.fetchPage(query))
-const { page, pageSize, search, sorting: serverSorting, refresh } = serverTable
+const { page, pageSize, search, sorting: serverSorting, filters, refresh } = serverTable
 watch(serverSorting, value => { sorting.value = value }, { deep: true })
 watch(sorting, value => { serverSorting.value = value }, { deep: true })
 const saveLocation = async () => {
@@ -312,6 +312,7 @@ const sortFields: SortField[] = [
     <LogisticaTable
       v-model:page="page"
       v-model:search="search"
+      v-model:filters="filters"
       :loading="loading"
       :data="products"
       :columns="columns"
@@ -320,6 +321,7 @@ const sortFields: SortField[] = [
       v-model:sorting="sorting"
       :on-delete="handleBulkDelete"
       server-side
+      search-placeholder="Buscar por nombre o SKU..."
       :page-size="pageSize"
       :total-rows="productsStore.pagination.total"
     />

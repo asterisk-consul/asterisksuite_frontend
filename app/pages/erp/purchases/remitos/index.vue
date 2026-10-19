@@ -14,7 +14,7 @@ const statusFilter = ref<number | undefined>(undefined)
 const documents = computed(() => store.items ?? [])
 const loading = computed(() => store.loading)
 const serverTable = useServerTable((query) => store.fetchPage({ ...query, status: statusFilter.value, category: 'REMITO', direction: -1 }))
-const { page, pageSize, search, sorting, refresh } = serverTable
+const { page, pageSize, search, sorting, filters, refresh } = serverTable
 watch(statusFilter, () => { page.value = 1; refresh() })
 
 const stats = computed(() => {
@@ -112,6 +112,7 @@ const statusOptions = [
       <LogisticaTable
         v-model:page="page"
         v-model:search="search"
+        v-model:filters="filters"
         v-model:sorting="sorting"
         :data="documents"
         :columns="columns"

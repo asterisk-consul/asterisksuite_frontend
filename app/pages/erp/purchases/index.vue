@@ -72,7 +72,7 @@ const serverTable = useServerTable((query) =>
     excludeCancelled: !showCancelled.value
   })
 )
-const { page, pageSize, search, sorting, refresh } = serverTable
+const { page, pageSize, search, sorting, filters, refresh } = serverTable
 
 watch(categoryFilter, () => {
   statusFilter.value = undefined
@@ -372,6 +372,7 @@ const sortFields = [
       <LogisticaTable
         v-model:page="page"
         v-model:search="search"
+        v-model:filters="filters"
         v-model:sorting="sorting"
         :data="visibleDocuments"
         :columns="columns"

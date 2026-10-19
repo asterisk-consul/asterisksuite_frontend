@@ -2,6 +2,7 @@
 import { ref, computed, h } from 'vue'
 import { getPaginationRowModel } from '@tanstack/vue-table'
 import type { SortingState } from '@tanstack/vue-table'
+import type { TableFilter } from './types/tablas.types'
 import { UCheckbox } from '#components'
 
 import type { UTableInstance, ExtendedColumn } from './types/tablas.types'
@@ -32,12 +33,14 @@ const props = defineProps<{
   totalRows?: number
   pageSize?: number
   storageKey?: string
+  searchPlaceholder?: string
 }>()
 const sorting = defineModel<SortingState>('sorting', {
   default: () => []
 })
 const page = defineModel<number>('page', { default: 1 })
 const search = defineModel<string>('search', { default: '' })
+const filters = defineModel<TableFilter[]>('filters', { default: () => [] })
 
 const emit = defineEmits<{
   'delete:rows': [rows: T[]]
@@ -170,7 +173,9 @@ async function confirmDelete(): Promise<void> {
       :columns="tableColumns"
       v-model:sorting="sorting"
       v-model:search="search"
+      v-model:filters="filters"
       :server-side="serverSide"
+      :search-placeholder="searchPlaceholder"
       :filter-fields="filterFields ?? []"
       :sort-fields="sortFields ?? []"
       :column-visibility-items="columnVisibilityItems"

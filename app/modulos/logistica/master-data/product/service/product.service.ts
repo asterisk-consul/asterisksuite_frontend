@@ -1,6 +1,7 @@
 import type {
   Product,
   ProductRoot,
+  ProductCounts,
   CreateProductDto,
   UpdateProductInput
 } from '~/modulos/logistica/master-data/product/types/product.types'
@@ -22,6 +23,11 @@ export const useProductsService = () => {
   const findPage = (params: ServerListParams) => $fetch<PaginatedResponse<Product>>(baseUrl, {
     query: params,
     timeout: 15_000,
+    retry: 1
+  })
+
+  const getCounts = () => $fetch<ProductCounts>(`${baseUrl}/summary/counts`, {
+    timeout: 10_000,
     retry: 1
   })
 
@@ -77,6 +83,7 @@ export const useProductsService = () => {
   return {
     findAll,
     findPage,
+    getCounts,
     search,
     findOne,
     create,

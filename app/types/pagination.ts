@@ -16,4 +16,5 @@ export interface ServerListParams {
   search?: string
   sort?: string
   order?: 'asc' | 'desc'
+  filters?: string
 }

@@ -1,5 +1,47 @@
 [
  {
+  "version": "0.78.0-alpha",
+  "date": "2026-10-19",
+  "stage": "alpha",
+  "notes": "Los listados paginados ahora buscan y filtran sobre todos los registros desde el servidor, mientras el módulo de stock conserva conteos correctos sin descargar el catálogo completo.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "products",
+    "title": "La búsqueda de productos por nombre o SKU deja de consultar una columna inexistente y ya no produce un error interno"
+   },
+   {
+    "type": "feat",
+    "scope": "server-tables",
+    "title": "Los filtros avanzados se aplican antes de paginar en productos, ventas, órdenes, remitos y compras"
+   },
+   {
+    "type": "fix",
+    "scope": "pagination",
+    "title": "Al modificar una búsqueda o filtro la tabla vuelve a la primera página y calcula el total de coincidencias completo"
+   },
+   {
+    "type": "perf",
+    "scope": "table-filters",
+    "title": "Las búsquedas y filtros incorporan una espera breve para evitar solicitudes innecesarias mientras se escribe"
+   },
+   {
+    "type": "fix",
+    "scope": "stock",
+    "title": "El badge de productos conserva la cantidad real después de visitar un listado paginado"
+   },
+   {
+    "type": "perf",
+    "scope": "stock",
+    "title": "La portada de stock obtiene conteos de productos activos e inactivos sin descargar todos los productos"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Filtros globales y conteos de productos consistentes"
+ },
+ {
   "version": "0.77.0-alpha",
   "date": "2026-10-16",
   "stage": "alpha",

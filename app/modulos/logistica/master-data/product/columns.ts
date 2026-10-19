@@ -114,6 +114,17 @@ export const productColumns = (actions: {
               color: config?.color ?? 'neutral'
             }
           }
+        },
+
+        meta: {
+          filter: {
+            type: 'select',
+            operators: ['equals'],
+            options: Object.entries(costSourceConfig).map(([value, config]) => ({
+              label: config.label,
+              value
+            }))
+          }
         }
       },
 
@@ -127,6 +138,10 @@ export const productColumns = (actions: {
         label: 'Costo',
 
         sortable: true,
+
+        meta: {
+          filter: { type: 'number', operators: ['equals', 'gt', 'lt'] }
+        },
 
         cell: ({ row }) => {
           const value = row.original.current_cost
@@ -206,6 +221,10 @@ export const productColumns = (actions: {
         key: 'needs_cost_recalculation',
 
         label: 'Recálculo',
+
+        meta: {
+          filter: { type: 'boolean', operators: ['equals'] }
+        },
 
         badge: {
           resolve: (row) => ({
