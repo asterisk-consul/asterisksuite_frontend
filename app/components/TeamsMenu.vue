@@ -5,7 +5,6 @@ import { useAuthStore } from '~/modulos/auth/auth.store'
 defineProps<{ collapsed?: boolean }>()
 
 const auth = useAuthStore()
-const router = useRouter()
 
 const selectedCompany = computed(() => auth.selectedCompany)
 const hasMultipleCompanies = computed(() => auth.companies.length > 1)
@@ -13,11 +12,15 @@ const hasMultipleCompanies = computed(() => auth.companies.length > 1)
 const loading = ref(false)
 const loadingCompanyName = ref('')
 
-function redirectToSubdomain(company: (typeof auth.companies)[number]) {
+async function redirectToSubdomain(company: (typeof auth.companies)[number]) {
   loadingCompanyName.value = company.name
   loading.value = true
 
   auth.selectCompany(company)
+  // Esperar a que useCookie persista el tenant antes de navegar. Si la primera
+  // petición llega al nuevo host con la cookie anterior, el backend rechaza
+  // el acceso y la pantalla de comprobantes queda en 401.
+  await nextTick()
 
   const config = useRuntimeConfig()
   const baseDomain = config.public.baseDomain
@@ -26,7 +29,9 @@ function redirectToSubdomain(company: (typeof auth.companies)[number]) {
     const portSuffix = port ? `:${port}` : ''
     window.location.href = `${protocol}//${company.subdomain}.${baseDomain}${portSuffix}${pathname}`
   } else {
-    router.push(window.location.pathname)
+    // En desarrollo puede no haber subdominios; recargar limpia los stores
+    // del tenant previo y vuelve a pedir los datos con la cookie actualizada.
+    window.location.reload()
   }
 }
 

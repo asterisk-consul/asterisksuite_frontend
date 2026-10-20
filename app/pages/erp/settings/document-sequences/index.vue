@@ -24,8 +24,9 @@ const form = reactive({
   name: '',
   point_of_sale: '0001',
   prefix: '',
-  range_start: 0,
+  range_start: 1,
   range_end: 9999999,
+  next_number: 1,
   automatic: true,
   document_type_id: ''
 })
@@ -102,8 +103,9 @@ const openCreate = () => {
     name: '',
     point_of_sale: '0001',
     prefix: '',
-    range_start: 0,
+    range_start: 1,
     range_end: 9999999,
+    next_number: 1,
     automatic: true,
     document_type_id: ''
   })
@@ -119,8 +121,9 @@ const openEdit = (seq: any) => {
     name: seq.name,
     point_of_sale: seq.point_of_sale,
     prefix: seq.prefix || '',
-    range_start: seq.range_start ?? 0,
+    range_start: seq.range_start && seq.range_start > 0 ? seq.range_start : 1,
     range_end: seq.range_end ?? 9999999,
+    next_number: Number(seq.current_number ?? 0) + 1,
     automatic: seq.automatic,
     document_type_id: linkedTypeId
   })
@@ -272,8 +275,8 @@ function formatSequenceNumber(value: number | string | null | undefined, fallbac
             <p class="text-sm font-semibold">{{ formatSequenceNumber(seq.range_start, 0) }}</p>
           </div>
           <div class="text-center p-2 rounded bg-muted/30">
-            <p class="text-xs text-muted">Actual</p>
-            <p class="text-sm font-bold text-primary">{{ seq.current_number }}</p>
+            <p class="text-xs text-muted">Próximo</p>
+            <p class="text-sm font-bold text-primary">{{ Number(seq.current_number ?? 0) + 1 }}</p>
           </div>
           <div class="text-center p-2 rounded bg-muted/30">
             <p class="text-xs text-muted">Fin</p>
@@ -322,16 +325,24 @@ function formatSequenceNumber(value: number | string | null | undefined, fallbac
               <UInput v-model="form.prefix" placeholder="A, B, C..." />
             </UFormField>
           </div>
+          <UFormField
+            label="Próximo número a emitir"
+            name="next_number"
+            required
+            description="Ingresá el número que debe recibir el próximo comprobante. Por ejemplo, si el último comprobante externo fue el 1250, ingresá 1251."
+          >
+            <UInput v-model.number="form.next_number" type="number" min="1" class="w-full" />
+          </UFormField>
           <div class="grid grid-cols-2 gap-4">
-            <UFormField label="Rango inicio" name="range_start">
-              <UInput v-model.number="form.range_start" type="number" />
+            <UFormField label="Rango habilitado desde" name="range_start">
+              <UInput v-model.number="form.range_start" type="number" min="1" />
             </UFormField>
             <UFormField label="Rango fin" name="range_end">
               <UInput v-model.number="form.range_end" type="number" />
             </UFormField>
           </div>
           <UCheckbox v-model="form.automatic" label="Numeración automática" />
-          <UAlert color="info" variant="subtle" icon="i-lucide-info" title="Numeración independiente" description="Podés repetir el punto de venta en otra serie si corresponde a un tipo documental diferente." />
+          <UAlert color="info" variant="subtle" icon="i-lucide-info" title="Continuidad de la numeración" description="El sistema guardará el número anterior internamente y asignará el próximo al crear el comprobante. Los números ya emitidos nunca se reutilizan." />
           <UFormField label="Tipo de documento" name="document_type_id" required description="Una serie pertenece a un solo tipo para no mezclar contadores.">
             <USelectMenu
               v-model="form.document_type_id"
@@ -344,7 +355,7 @@ function formatSequenceNumber(value: number | string | null | undefined, fallbac
           </UFormField>
           <div class="flex justify-end gap-2 pt-4">
             <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
-            <UButton label="Guardar" type="submit" :loading="saving" :disabled="!form.name || !form.point_of_sale || !form.document_type_id" />
+            <UButton label="Guardar" type="submit" :loading="saving" :disabled="!form.name || !form.point_of_sale || !form.document_type_id || form.next_number < 1" />
           </div>
         </UForm>
       </template>

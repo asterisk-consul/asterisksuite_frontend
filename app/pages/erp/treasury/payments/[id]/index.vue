@@ -154,7 +154,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       cash_box_id: formData.cash_box_id || undefined,
       account_id: formData.account_id || null,
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
-      documents: formData.documents?.length ? formData.documents : undefined,
+      documents: formData.documents ?? [],
       obligations: formData.obligations ?? [],
     })
     currentPayment.value = updated as Payment

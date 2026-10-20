@@ -5,6 +5,7 @@ definePageMeta({
 
 import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
+import { buildDocumentDuplicateValues } from '~/modulos/erp/documents/utils/document-duplicate'
 import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 import { normalizeMarketRate } from '~/utils/currency'
@@ -28,6 +29,7 @@ const obligationCurrency = computed(() => (route.query.currency as string) || un
 const obligationDescription = computed(() => (route.query.description as string) || undefined)
 const parentOrderId = computed(() => (route.query.parent_order_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
+const duplicateId = computed(() => (route.query.duplicate_id as string) || undefined)
 const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
 const internationalOperationId = computed(() => (route.query.international_operation_id as string) || undefined)
 const internationalContainerId = computed(() => (route.query.container_id as string) || undefined)
@@ -69,8 +71,21 @@ const pageTitle = computed(() => {
 
 // Cargar datos de la OC si viene de "Crear Factura"
 const orderData = ref<any>(null)
+const duplicateData = ref<any>(null)
 
 onMounted(async () => {
+  if (duplicateId.value) {
+    try {
+      duplicateData.value = await DocumentsPurchasesService.getOne(duplicateId.value)
+      if (duplicateData.value.document_types?.category !== category.value || category.value !== 'INVOICE') {
+        throw new Error('Sólo se pueden duplicar facturas de compra desde esta pantalla.')
+      }
+      toast.add({ title: 'Copia preparada', description: 'Revisá los datos y guardá para crear el borrador con el próximo número disponible.', color: 'info' })
+    } catch (e: any) {
+      duplicateData.value = null
+      toast.add({ title: 'No se pudo cargar la factura para duplicarla', description: e?.data?.message || e?.message, color: 'error' })
+    }
+  }
   if (internationalOperationId.value) {
     try {
       const operation = await internationalOperationsService.findOne(internationalOperationId.value)
@@ -94,6 +109,8 @@ onMounted(async () => {
 })
 
 const initialValues = computed(() => {
+  if (duplicateData.value) return buildDocumentDuplicateValues(duplicateData.value)
+
   const base: any = {}
 
   if (orderData.value) {

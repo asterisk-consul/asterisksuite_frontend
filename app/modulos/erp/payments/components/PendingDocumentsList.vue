@@ -109,13 +109,17 @@ function getMaxAmount(doc: PendingDocument): number {
             </span>
           </div>
         </div>
-        <div v-if="isSelected(doc.id)" class="w-28">
+        <div v-if="isSelected(doc.id)" class="w-32 shrink-0">
+          <label class="mb-1 block text-[10px] font-medium text-muted">Importe a aplicar</label>
           <UInput
             :model-value="selectedDocs.get(doc.id)?.amount ?? 0"
             type="number"
+            min="0.01"
             :max="getMaxAmount(doc)"
             :step="0.01"
             size="xs"
+            :aria-label="`Importe a aplicar al documento ${doc.number}`"
+            title="Importe de este pago o cobro que se imputará a la factura"
             @update:model-value="(v: string) => updateAmount(doc.id, v)"
           />
         </div>

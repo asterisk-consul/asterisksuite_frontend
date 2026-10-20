@@ -182,6 +182,12 @@ function openDocument(row: any) {
   router.push(`/erp/sales/${row.id}`)
 }
 
+function duplicateDocument(row: any) {
+  const category = row.document_types?.category
+  if (!['ORDER', 'INVOICE'].includes(category) || !canDocument('sales', category, 'create')) return
+  router.push({ path: '/erp/sales/new', query: { category, duplicate_id: row.id } })
+}
+
 function collectDocument(row: any) {
   if (!canSettleDocument(row) || !row.party_id) {
     openDocument(row)
@@ -232,7 +238,13 @@ async function deleteDrafts(rows: any[]) {
 
 // ─── Columnas ─────────────────────────────────────────────────────────────────
 const columns = computed(() =>
-  createSalesColumns({ onOpen: openDocument, onCollect: collectDocument, showCreator: isOwnerOrAdmin.value })
+  createSalesColumns({
+    onOpen: openDocument,
+    onCollect: collectDocument,
+    onDuplicate: duplicateDocument,
+    canDuplicate: (row) => canDocument('sales', row.document_types?.category ?? '', 'create'),
+    showCreator: isOwnerOrAdmin.value
+  })
 )
 
 const filterFields = [

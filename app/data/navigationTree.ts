@@ -386,6 +386,12 @@ export const navigationTree: DrilldownNode[] = [
       { label: 'Socios', icon: 'i-lucide-users', to: '/erp/rrhh/partners', permission: 'partners.read' },
       { label: 'Vales', icon: 'i-lucide-receipt', to: '/erp/rrhh/vales', permission: 'vales.read' },
       {
+        label: 'Comisiones',
+        icon: 'i-lucide-percent',
+        to: '/erp/rrhh/commissions',
+        permission: 'commissions.view'
+      },
+      {
         label: 'Cuentas Corrientes',
         icon: 'i-lucide-file-text',
         to: '/erp/rrhh/current-accounts',
@@ -401,26 +407,7 @@ export const navigationTree: DrilldownNode[] = [
             icon: 'i-lucide-chart-no-axes-combined',
             to: '/erp/rrhh/reports/socios',
             permission: 'partners.read'
-          },
-          {
-            label: 'Vales por período',
-            icon: 'i-lucide-calendar',
-            to: '/erp/rrhh/reports/vales-periodo',
-            permission: 'vales.read'
-          },
-          {
-            label: 'Comisiones',
-            icon: 'i-lucide-percent',
-            to: '/erp/rrhh/commissions',
-            permission: 'commissions.view'
-          },
-          {
-            label: 'Movimientos',
-            icon: 'i-lucide-activity',
-            to: '/erp/rrhh/reports/movimientos',
-            permission: 'employees.read'
-          },
-          { label: 'Saldos', icon: 'i-lucide-wallet', to: '/erp/rrhh/reports/saldos', permission: 'employees.read' }
+          }
         ]
       }
     ]

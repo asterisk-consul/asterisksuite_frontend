@@ -22,11 +22,12 @@ if (auth.companies.length <= 1 || auth.selectedCompany) {
   navigateTo('/')
 }
 
-function selectCompany(company: (typeof auth.companies)[number]) {
+async function selectCompany(company: (typeof auth.companies)[number]) {
   loadingCompanyName.value = company.name
   loading.value = true
 
   auth.selectCompany(company)
+  await nextTick()
 
   const config = useRuntimeConfig()
   const baseDomain = config.public.baseDomain

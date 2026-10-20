@@ -237,7 +237,6 @@ const routeSegmentLabels: Record<string, string> = {
   warehouses: 'Depósitos',
   disponibilidad: 'Disponibilidad',
   withholdings: 'Retenciones',
-  'vales-periodo': 'Vales por período',
   salesProducts: 'Productos vendidos',
   ReporteBiPages: 'Reporte BI'
 }

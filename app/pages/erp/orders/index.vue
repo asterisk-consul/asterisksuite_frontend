@@ -5,10 +5,12 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import { canSettleDocument } from '~/modulos/erp/documents/utils/document-payment-status'
+import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 import { useServerTable } from '~/composables/table/useServerTable'
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
+const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=ORDER')
 
@@ -33,6 +35,11 @@ function openDocument(row: any) {
   router.push(`/erp/sales/${row.id}`)
 }
 
+function duplicateDocument(row: any) {
+  if (!canDocument('sales', 'ORDER', 'create')) return
+  router.push({ path: '/erp/sales/new', query: { category: 'ORDER', duplicate_id: row.id } })
+}
+
 function collectDocument(row: any) {
   if (!canSettleDocument(row) || !row.party_id) {
     openDocument(row)
@@ -49,7 +56,13 @@ function collectDocument(row: any) {
 }
 
 const columns = computed(() =>
-  createSalesColumns({ onOpen: openDocument, onCollect: collectDocument, showCreator: isOwnerOrAdmin.value })
+  createSalesColumns({
+    onOpen: openDocument,
+    onCollect: collectDocument,
+    onDuplicate: duplicateDocument,
+    canDuplicate: () => canDocument('sales', 'ORDER', 'create'),
+    showCreator: isOwnerOrAdmin.value
+  })
 )
 
 const filterFields = [

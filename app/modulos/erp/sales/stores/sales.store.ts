@@ -416,6 +416,14 @@ export const useDocumentsSalesStore = defineStore(
       error.value = null
     }
 
+    const reset = () => {
+      items.value = []
+      current.value = null
+      loading.value = false
+      error.value = null
+      pagination.value = { page: 1, pageSize: 25, total: 0, pageCount: 0 }
+    }
+
     return {
       // state
       items,
@@ -444,7 +452,8 @@ export const useDocumentsSalesStore = defineStore(
 
       // helpers
       clearCurrent,
-      clearError
+      clearError,
+      reset
     }
   }
 )

@@ -1,5 +1,5 @@
 import { h } from 'vue'
-import { UTooltip, UButton, UBadge, UProgress } from '#components'
+import { UTooltip, UButton, UBadge, UProgress, UDropdownMenu } from '#components'
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { CATEGORY_LABELS, getStatusLabel, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
 import type { Document } from '~/modulos/erp/facturas/types/factura.types'
@@ -10,6 +10,8 @@ type Row = Document
 export const createPurchasesColumns = (actions: {
   onOpen: (row: Row) => void
   onPay?: (row: Row) => void
+  onDuplicate?: (row: Row) => void
+  canDuplicate?: (row: Row) => boolean
   showCreator?: boolean
 }) => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
@@ -145,6 +147,36 @@ export const createPurchasesColumns = (actions: {
             }
           ]
         : [])
-    ])
+    ]),
+    ...(actions.onDuplicate
+      ? [{
+          id: 'document_actions',
+          header: '',
+          meta: { label: 'Acciones', filter: false, disableColumnVisibility: true },
+          enableHiding: false,
+          cell: ({ row }: any) => {
+            const document = row.original as Row
+            const category = document.document_types?.category
+            if (!['ORDER', 'INVOICE'].includes(category ?? '') || actions.canDuplicate?.(document) === false) return null
+            return h(UDropdownMenu, {
+              items: [[{
+                label: 'Duplicar como borrador',
+                icon: 'i-lucide-copy',
+                onSelect: () => actions.onDuplicate?.(document)
+              }]],
+              content: { align: 'end' }
+            }, {
+              default: () => h(UButton, {
+                icon: 'i-lucide-ellipsis-vertical',
+                color: 'neutral',
+                variant: 'ghost',
+                size: 'sm',
+                'aria-label': `Acciones para ${CATEGORY_LABELS[category ?? ''] ?? 'documento'}`,
+                title: 'Más acciones'
+              })
+            })
+          }
+        }]
+      : [])
   ]
 }

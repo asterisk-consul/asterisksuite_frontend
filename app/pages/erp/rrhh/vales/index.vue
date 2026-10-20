@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { UButton } from '#components'
 import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
 import {
   HR_VALE_TYPE_LABELS,
@@ -6,7 +7,12 @@ import {
   HR_VALE_STATUS_LABELS,
   HR_VALE_STATUS_COLORS
 } from '~/modulos/erp/hr/types/hr.types'
+import type { HrVale } from '~/modulos/erp/hr/types/hr.types'
 import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
+import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { createTableBuilder } from '~/composables/table/createColumns'
+import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
+import RrhhTotalsCards from '~/components/rrhh/RrhhTotalsCards.vue'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -15,52 +21,42 @@ const vales = computed(() => hrStore.vales)
 const loading = computed(() => hrStore.loading)
 const toast = useToast()
 
-const filterType = ref<string | undefined>(undefined)
-const filterStatus = ref<string | undefined>(undefined)
+// Rango de fechas (vacío = sin límite)
+const dateFrom = ref('')
+const dateTo = ref('')
 
 const showCreateModal = ref(false)
 const showCancelModal = ref(false)
 const showCommissionModal = ref(false)
-const selectedVale = ref<any>(null)
-const cancellingVale = ref<any>(null)
+const selectedVale = ref<HrVale | null>(null)
+const cancellingVale = ref<HrVale | null>(null)
 const cancelConfirmText = ref('')
 const showTreasuryModal = ref(false)
-const confirmingVale = ref<any>(null)
+const confirmingVale = ref<HrVale | null>(null)
 const treasuryTargetType = ref<'CASH_BOX' | 'BANK_ACCOUNT'>('CASH_BOX')
 const treasuryTargetId = ref('')
 const treasuryTargets = ref<any[]>([])
 
 async function loadVales() {
-  await hrStore.fetchVales({
-    ...(filterType.value ? { type: filterType.value } : {}),
-    ...(filterStatus.value ? { status: filterStatus.value } : {})
-  })
+  await hrStore.fetchVales()
 }
 
 onMounted(() => loadVales())
 
-watch([filterType, filterStatus], () => loadVales())
-
 // =========================
-// FILTROS TABLA
+// FILTRO POR PERÍODO + TOTALES
 // =========================
 
-const filterTypeOptions = [
-  { label: 'Sueldo', value: 'SUELDO' },
-  { label: 'Adelanto', value: 'ADELANTO' },
-  { label: 'Extras', value: 'EXTRAS' },
-  { label: 'Retiro', value: 'RETIRO' },
-  { label: 'Aporte', value: 'APORTE' },
-  { label: 'Reembolso', value: 'REEMBOLSO' },
-  { label: 'Préstamo', value: 'PRESTAMO' }
-]
+const filteredVales = computed(() =>
+  vales.value.filter((v) => {
+    const d = v.date?.split('T')[0] ?? v.date
+    if (dateFrom.value && d < dateFrom.value) return false
+    if (dateTo.value && d > dateTo.value) return false
+    return true
+  })
+)
 
-const statusOptions = [
-  { label: 'Borrador', value: 'DRAFT' },
-  { label: 'Confirmado', value: 'CONFIRMED' },
-  { label: 'Pagado', value: 'PAID' },
-  { label: 'Anulado', value: 'CANCELLED' }
-]
+const totals = useRrhhTotals(() => filteredVales.value)
 
 // =========================
 // HELPERS
@@ -76,6 +72,12 @@ function fmtCurrency(n: number, currencyCode: string = 'ARS') {
 
 function fmtDate(d: string) {
   return d ? new Date(d).toLocaleDateString('es-AR') : '-'
+}
+
+const OUTFLOW_TYPES = ['RETIRO', 'REEMBOLSO', 'PRESTAMO']
+
+function isOutflowVale(vale: HrVale | null) {
+  return !!vale && OUTFLOW_TYPES.includes(vale.type)
 }
 
 // =========================
@@ -129,7 +131,7 @@ watch(treasuryTargetType, async type => {
 })
 
 function handleCancel(id: string) {
-  cancellingVale.value = vales.value.find(v => v.id === id)
+  cancellingVale.value = vales.value.find(v => v.id === id) ?? null
   cancelConfirmText.value = ''
   showCancelModal.value = true
 }
@@ -148,18 +150,158 @@ async function confirmCancel() {
   }
 }
 
+function openCommissionDetails(vale: HrVale) {
+  selectedVale.value = vale
+  showCommissionModal.value = true
+}
+
+function closeCancelModal() {
+  showCancelModal.value = false
+  cancellingVale.value = null
+  cancelConfirmText.value = ''
+}
+
+function closeCommissionModal() {
+  showCommissionModal.value = false
+  selectedVale.value = null
+}
+
+function closeTreasuryModal() {
+  showTreasuryModal.value = false
+}
+
+function openCreateModal() {
+  showCreateModal.value = true
+}
+
 // =========================
 // TABLA
 // =========================
 
-const columns = [
-  { id: 'number', header: 'Nº' },
-  { id: 'person', header: 'Persona' },
-  { id: 'type', header: 'Tipo' },
-  { id: 'amount', header: 'Monto' },
-  { id: 'date', header: 'Fecha' },
-  { id: 'status', header: 'Estado' },
-  { id: 'actions', header: '' }
+const build = createTableBuilder<HrVale>({ locale: 'es-AR' })
+
+const typeFilterOptions = Object.entries(HR_VALE_TYPE_LABELS).map(([value, label]) => ({ label, value }))
+const statusFilterOptions = Object.entries(HR_VALE_STATUS_LABELS).map(([value, label]) => ({ label, value }))
+
+const columns = build([
+  {
+    key: 'number',
+    label: 'Nº',
+    sortable: true,
+    meta: { filter: { type: 'number', operators: ['equals'] } }
+  },
+  {
+    id: 'person',
+    label: 'Persona',
+    accessorFn: (vale) => vale.party?.name ?? '-',
+    meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } }
+  },
+  {
+    key: 'type',
+    label: 'Tipo',
+    badge: {
+      resolve: (vale) => ({
+        label: HR_VALE_TYPE_LABELS[vale.type] ?? vale.type,
+        color: HR_VALE_TYPE_COLORS[vale.type] as any
+      })
+    },
+    meta: {
+      filter: {
+        type: 'select',
+        operators: ['equals'],
+        options: typeFilterOptions
+      }
+    }
+  },
+  {
+    key: 'amount',
+    label: 'Monto',
+    sortable: true,
+    accessorFn: (vale) => Number(vale.amount),
+    meta: { filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
+    cell: ({ row }) => {
+      const vale = row.original
+      return h('div', {}, [
+        h('span', { class: 'font-medium' }, fmtCurrency(Number(vale.amount), vale.currency_code)),
+        vale.converted_amount
+          ? h('p', { class: 'text-xs text-muted' },
+              `≈ ${fmtCurrency(Number(vale.converted_amount), vale.currency_code === 'USD' ? 'ARS' : 'USD')}`)
+          : null
+      ])
+    }
+  },
+  {
+    key: 'date',
+    label: 'Fecha',
+    sortable: true,
+    date: true
+  },
+  {
+    key: 'status',
+    label: 'Estado',
+    badge: {
+      resolve: (vale) => ({
+        label: HR_VALE_STATUS_LABELS[vale.status] ?? vale.status,
+        color: HR_VALE_STATUS_COLORS[vale.status] as any
+      })
+    },
+    meta: {
+      filter: {
+        type: 'select',
+        operators: ['equals'],
+        options: statusFilterOptions
+      }
+    }
+  },
+  {
+    id: 'actions',
+    label: '',
+    header: '',
+    meta: { filter: false },
+    cell: ({ row }) => {
+      const vale = row.original
+      return h('div', { class: 'flex gap-1' }, [
+        vale.commission_details?.length
+          ? h(UButton, {
+              icon: 'i-lucide-list',
+              variant: 'ghost',
+              color: 'info',
+              size: 'sm',
+              onClick: () => openCommissionDetails(vale)
+            })
+          : null,
+        vale.status === 'DRAFT'
+          ? h(UButton, {
+              icon: 'i-lucide-check',
+              variant: 'ghost',
+              color: 'success',
+              size: 'sm',
+              onClick: () => handleConfirm(vale.id)
+            })
+          : null,
+        vale.status !== 'CANCELLED'
+          ? h(UButton, {
+              icon: 'i-lucide-x',
+              variant: 'ghost',
+              color: 'error',
+              size: 'sm',
+              onClick: () => handleCancel(vale.id)
+            })
+          : null
+      ])
+    }
+  }
+])
+
+const filterFields = [
+  { id: 'number', label: 'Buscar por Nº...' },
+  { id: 'person', label: 'Buscar por persona...' }
+]
+
+const sortFields = [
+  { label: 'Nº', value: 'number' },
+  { label: 'Monto', value: 'amount' },
+  { label: 'Fecha', value: 'date' }
 ]
 </script>
 
@@ -167,86 +309,38 @@ const columns = [
   <UPage class="space-y-6 px-4">
     <AppPageHeader title="Vales RRHH" description="Comprobantes internos de empleados y socios">
       <template #links>
-        <UButton label="Nuevo vale" icon="i-lucide-plus" @click="showCreateModal = true" />
+        <UButton label="Nuevo vale" icon="i-lucide-plus" @click="openCreateModal" />
       </template>
     </AppPageHeader>
 
-    <!-- Filtros -->
-    <div class="flex gap-2 flex-wrap py-4">
-      <USelect v-model="filterType" :items="filterTypeOptions" placeholder="Tipo" class="w-40" />
-      <USelect v-model="filterStatus" :items="statusOptions" placeholder="Estado" class="w-40" />
+    <!-- Filtros de período + totales -->
+    <div class="space-y-4 py-2">
+      <div class="flex gap-3 flex-wrap items-end">
+        <div class="space-y-1">
+          <label class="text-xs text-muted">Desde</label>
+          <UInput v-model="dateFrom" type="date" clearable />
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs text-muted">Hasta</label>
+          <UInput v-model="dateTo" type="date" clearable />
+        </div>
+      </div>
+      <RrhhTotalsCards
+        :total-debit="totals.totalDebit.value"
+        :total-credit="totals.totalCredit.value"
+      />
     </div>
 
     <!-- Tabla -->
-    <UPageCard variant="subtle">
-      <UTable :data="vales" :columns="columns" :loading="loading">
-        <template #number-cell="{ row }">
-          <span class="font-mono font-medium">#{{ row.original.number }}</span>
-        </template>
-
-        <template #person-cell="{ row }">
-          {{ row.original.party?.name ?? '-' }}
-        </template>
-
-        <template #type-cell="{ row }">
-          <UBadge
-            :label="HR_VALE_TYPE_LABELS[row.original.type as keyof typeof HR_VALE_TYPE_LABELS] ?? row.original.type"
-            :color="HR_VALE_TYPE_COLORS[row.original.type as keyof typeof HR_VALE_TYPE_COLORS] as any ?? 'neutral'"
-            variant="subtle"
-          />
-        </template>
-
-        <template #amount-cell="{ row }">
-          <div>
-            <span class="font-medium">{{ fmtCurrency(Number(row.original.amount), row.original.currency_code) }}</span>
-            <p v-if="row.original.converted_amount" class="text-xs text-muted">
-              ≈ {{ fmtCurrency(Number(row.original.converted_amount), row.original.currency_code === 'USD' ? 'ARS' : 'USD') }}
-            </p>
-          </div>
-        </template>
-
-        <template #date-cell="{ row }">
-          {{ fmtDate(row.original.date) }}
-        </template>
-
-        <template #status-cell="{ row }">
-          <UBadge
-            :label="HR_VALE_STATUS_LABELS[row.original.status as keyof typeof HR_VALE_STATUS_LABELS]"
-            :color="HR_VALE_STATUS_COLORS[row.original.status as keyof typeof HR_VALE_STATUS_COLORS] as any"
-            variant="subtle"
-          />
-        </template>
-
-        <template #actions-cell="{ row }">
-          <div class="flex gap-1">
-            <UButton
-              v-if="row.original.type === 'EXTRAS' && row.original.commission_details?.length"
-              icon="i-lucide-list"
-              variant="ghost"
-              color="info"
-              size="sm"
-              @click="selectedVale = row.original; showCommissionModal = true"
-            />
-            <UButton
-              v-if="row.original.status === 'DRAFT'"
-              icon="i-lucide-check"
-              variant="ghost"
-              color="success"
-              size="sm"
-              @click="handleConfirm(row.original.id)"
-            />
-            <UButton
-              v-if="row.original.status !== 'CANCELLED'"
-              icon="i-lucide-x"
-              variant="ghost"
-              color="error"
-              size="sm"
-              @click="handleCancel(row.original.id)"
-            />
-          </div>
-        </template>
-      </UTable>
-    </UPageCard>
+    <LogisticaTable
+      :data="filteredVales"
+      :columns="columns"
+      :loading="loading"
+      :filter-fields="filterFields"
+      :sort-fields="sortFields"
+      storage-key="rrhh-vales"
+      search-placeholder="Buscar vale..."
+    />
 
     <!-- ========================= -->
     <!-- MODAL CREAR VALE          -->
@@ -260,9 +354,9 @@ const columns = [
       <template #body>
         <div class="space-y-4">
           <UAlert
-            :title="['RETIRO', 'REEMBOLSO', 'PRESTAMO'].includes(confirmingVale?.type) ? 'El dinero saldrá de Tesorería' : 'El dinero ingresará en Tesorería'"
+            :title="isOutflowVale(confirmingVale) ? 'El dinero saldrá de Tesorería' : 'El dinero ingresará en Tesorería'"
             :description="`Vale #${confirmingVale?.number ?? ''} · ${fmtCurrency(Number(confirmingVale?.amount ?? 0), confirmingVale?.currency_code)}`"
-            :color="['RETIRO', 'REEMBOLSO', 'PRESTAMO'].includes(confirmingVale?.type) ? 'error' : 'success'"
+            :color="isOutflowVale(confirmingVale) ? 'error' : 'success'"
             variant="subtle"
           />
           <UFormField label="Medio" required>
@@ -275,7 +369,7 @@ const columns = [
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showTreasuryModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="closeTreasuryModal" />
           <UButton label="Confirmar y registrar" color="success" :loading="loading" :disabled="!treasuryTargetId" @click="confirmPartnerVale" />
         </div>
       </template>
@@ -308,7 +402,7 @@ const columns = [
           <UInput v-model="cancelConfirmText" placeholder="anular" />
 
           <div class="flex justify-end gap-2 pt-3 border-t border-default">
-            <UButton label="Cancelar" variant="ghost" color="neutral" @click="showCancelModal = false; cancellingVale = null; cancelConfirmText = ''" />
+            <UButton label="Cancelar" variant="ghost" color="neutral" @click="closeCancelModal" />
             <UButton
               label="Anular"
               color="error"
@@ -376,7 +470,7 @@ const columns = [
           </div>
 
           <div class="flex justify-end pt-3 border-t border-default">
-            <UButton label="Cerrar" variant="ghost" color="neutral" @click="showCommissionModal = false; selectedVale = null" />
+            <UButton label="Cerrar" variant="ghost" color="neutral" @click="closeCommissionModal" />
           </div>
         </div>
       </template>

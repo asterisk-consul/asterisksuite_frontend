@@ -23,7 +23,8 @@ const valeType = computed(() => {
   const map: Record<string, string> = {
     SUELDO: 'Sueldo',
     ADELANTO: 'Adelanto de Sueldo',
-    EXTRAS: 'Bonuses / Horas Extras / Comisiones',
+    EXTRAS: 'Bonuses / Horas Extras',
+    COMISION: 'Comisiones',
     RETIRO: 'Retiro de Socio',
     APORTE: 'Aporte de Capital',
     REEMBOLSO: 'Reembolso de Gastos',

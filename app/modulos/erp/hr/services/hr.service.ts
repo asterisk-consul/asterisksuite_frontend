@@ -13,6 +13,9 @@ export interface CommissionAssignment {
   participation_rate: number
   commission_rate: number
   commission_base: 'INVOICED' | 'PAID'
+  accrued_amount?: number
+  settled_amount?: number
+  pending_amount?: number
 }
 
 export interface CommissionableDocument {
@@ -28,6 +31,11 @@ export interface CommissionableDocument {
   currency_code: string
   assignment_status: 'ASSIGNED' | 'UNASSIGNED'
   assignments: CommissionAssignment[]
+  commission_accrued: number
+  commission_settled: number
+  commission_pending: number
+  commission_base_amount: number
+  settled: boolean
 }
 
 export const HrService = {

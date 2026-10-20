@@ -47,7 +47,7 @@ const valeTypeOptions: Record<string, { label: string; value: string; icon: stri
   EMPLOYEE: [
     { label: 'Sueldo', value: 'SUELDO', icon: 'i-lucide-banknote', description: 'Pago de sueldo regular' },
     { label: 'Adelanto', value: 'ADELANTO', icon: 'i-lucide-hand-coins', description: 'Adelanto de sueldo' },
-    { label: 'Extras', value: 'EXTRAS', icon: 'i-lucide-gift', description: 'Bonuses, horas extras, comisiones' }
+    { label: 'Extras', value: 'EXTRAS', icon: 'i-lucide-gift', description: 'Bonuses y horas extras' }
   ],
   PARTNER: [
     { label: 'Retiro', value: 'RETIRO', icon: 'i-lucide-arrow-up-right', description: 'El socio retira dinero' },

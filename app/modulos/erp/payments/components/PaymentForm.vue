@@ -886,6 +886,17 @@ const totalApplied = computed(() => {
   return Math.round(total * 100) / 100
 })
 
+const syncDocumentAllocationsToForm = () => {
+  const entries = Array.from(selectedDocs.value.values())
+  form.documents = entries
+    .filter(entry => entry.doc.source_type !== 'TREASURY_OBLIGATION')
+    .map(entry => ({ document_id: entry.doc.id, amount_applied: entry.amount }))
+  form.obligations = entries
+    .filter(entry => entry.doc.source_type === 'TREASURY_OBLIGATION')
+    .map(entry => ({ obligation_id: entry.doc.id, amount_applied: entry.amount }))
+  form.amount = totalApplied.value
+}
+
 watch([() => form.bank_account_id, () => form.type], ([accountId], [previousAccountId]) => {
   if (accountId && accountId !== previousAccountId && form.payment_method === 'BANK_TRANSFER') {
     loadSuggestedBankCharges()
@@ -930,7 +941,7 @@ const redistributeAppliedAmounts = () => {
     budget = Math.round((budget - entry.amount) * 100) / 100
   }
   selectedDocs.value = new Map(selectedDocs.value)
-  form.amount = totalApplied.value
+  syncDocumentAllocationsToForm()
 }
 
 watch(selectedPaymentMethod, async (val) => {
@@ -973,7 +984,7 @@ watch(resolvedRate, (newRate) => {
     }
   }
   selectedDocs.value = new Map(selectedDocs.value)
-  form.amount = totalApplied.value
+  syncDocumentAllocationsToForm()
 })
 
 // ═══ Exchange Rate: auto-resolve on currency change ═══
@@ -1155,16 +1166,20 @@ const toggleDoc = (doc: PendingDocument) => {
     form.party_id = ''
   }
 
-  form.amount = totalApplied.value
   redistributeAppliedAmounts()
+  syncDocumentAllocationsToForm()
 }
 
 const updateDocAmount = (docId: string, amount: number) => {
   const entry = selectedDocs.value.get(docId)
   if (entry) {
-    selectedDocs.value.set(docId, { ...entry, amount })
+    const sameCurrency = entry.doc.currency_code?.toUpperCase() === form.currency_code?.toUpperCase()
+    const rate = entry.doc.exchange_rate ?? resolvedRate.value ?? 1
+    const maximum = sameCurrency ? Number(entry.doc.pending_amount) : Number(entry.doc.pending_amount) * Number(rate)
+    const normalizedAmount = Math.min(maximum, Math.max(0, Number(amount) || 0))
+    selectedDocs.value.set(docId, { ...entry, amount: Math.round(normalizedAmount * 100) / 100 })
     selectedDocs.value = new Map(selectedDocs.value)
-    form.amount = totalApplied.value
+    syncDocumentAllocationsToForm()
   }
 }
 

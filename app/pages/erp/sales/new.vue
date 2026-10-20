@@ -3,6 +3,7 @@ definePageMeta({ middleware: ['auth'] })
 
 import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
+import { buildDocumentDuplicateValues, buildDocumentExtensionDuplicateValues } from '~/modulos/erp/documents/utils/document-duplicate'
 
 const PresupuestoForm = defineAsyncComponent(() => import('~/modulos/erp/documents/presupuesto/PresupuestoForm.vue'))
 const OrdenVentaForm = defineAsyncComponent(() => import('~/modulos/erp/documents/orden-venta/OrdenVentaForm.vue'))
@@ -21,6 +22,7 @@ const extensionDraft = ref<Record<string, any>>({})
 const partyId = computed(() => (route.query.party_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
 const parentOrderId = computed(() => (route.query.parent_order_id as string) || undefined)
+const duplicateId = computed(() => (route.query.duplicate_id as string) || undefined)
 const intakeId = computed(() => route.query.intakeId as string | undefined)
 
 const isQuote = computed(() => category.value === 'QUOTE')
@@ -46,8 +48,23 @@ const pageTitle = computed(() => {
 
 // Cargar datos de la OV si viene de "Crear Factura"
 const orderData = ref<any>(null)
+const duplicateData = ref<any>(null)
 
 onMounted(async () => {
+  if (duplicateId.value) {
+    try {
+      duplicateData.value = await DocumentsSalesService.getOne(duplicateId.value)
+      const sourceCategory = duplicateData.value.document_types?.category
+      if (sourceCategory !== category.value || !['ORDER', 'INVOICE'].includes(sourceCategory)) {
+        throw new Error('El documento no coincide con el tipo que se quiere duplicar.')
+      }
+      if (isOrder.value) extensionDraft.value = buildDocumentExtensionDuplicateValues(duplicateData.value.orden_venta_doc)
+      toast.add({ title: 'Copia preparada', description: 'Revisá los datos y guardá para crear el borrador con el próximo número disponible.', color: 'info' })
+    } catch (e: any) {
+      duplicateData.value = null
+      toast.add({ title: 'No se pudo cargar el documento para duplicarlo', description: e?.data?.message || e?.message, color: 'error' })
+    }
+  }
   if (parentOrderId.value) {
     try {
       const order = await DocumentsSalesService.getOne(parentOrderId.value)
@@ -59,6 +76,8 @@ onMounted(async () => {
 })
 
 const initialValues = computed(() => {
+  if (duplicateData.value) return buildDocumentDuplicateValues(duplicateData.value)
+
   const base: any = {}
 
   // Si viene de una OV, pre-cargar datos

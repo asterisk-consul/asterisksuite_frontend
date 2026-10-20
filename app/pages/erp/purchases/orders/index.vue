@@ -5,9 +5,11 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import { useServerTable } from '~/composables/table/useServerTable'
+import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 
 const router = useRouter()
 const store = useDocumentsPurchasesStore()
+const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/purchases/orders/new')
 
@@ -37,7 +39,17 @@ function openDocument(row: any) {
   router.push(`/erp/purchases/orders/${row.id}`)
 }
 
-const columns = computed(() => createSalesColumns({ onOpen: openDocument, showCreator: isOwnerOrAdmin.value }))
+function duplicateDocument(row: any) {
+  if (!canDocument('purchases', 'ORDER', 'create')) return
+  router.push({ path: '/erp/purchases/orders/new', query: { duplicate_id: row.id } })
+}
+
+const columns = computed(() => createSalesColumns({
+  onOpen: openDocument,
+  onDuplicate: duplicateDocument,
+  canDuplicate: () => canDocument('purchases', 'ORDER', 'create'),
+  showCreator: isOwnerOrAdmin.value
+}))
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },

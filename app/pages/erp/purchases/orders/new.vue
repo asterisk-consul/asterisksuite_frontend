@@ -4,6 +4,7 @@ definePageMeta({ middleware: ['auth'] })
 import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
 import OrdenCompraForm from '~/modulos/erp/documents/orden-compra/OrdenCompraForm.vue'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
+import { buildDocumentDuplicateValues, buildDocumentExtensionDuplicateValues } from '~/modulos/erp/documents/utils/document-duplicate'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +15,27 @@ const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
 const extensionRef = ref<InstanceType<typeof OrdenCompraForm> | null>(null)
 
 const partyId = computed(() => (route.query.party_id as string) || undefined)
+const duplicateId = computed(() => (route.query.duplicate_id as string) || undefined)
+const duplicateData = ref<any>(null)
+const extensionDraft = ref<Record<string, any>>({})
+
+onMounted(async () => {
+  if (!duplicateId.value) return
+  try {
+    duplicateData.value = await DocumentsPurchasesService.getOne(duplicateId.value)
+    if (duplicateData.value.document_types?.category !== 'ORDER') throw new Error('El documento no es una orden de compra.')
+    extensionDraft.value = buildDocumentExtensionDuplicateValues(duplicateData.value.orden_compra_doc)
+    toast.add({ title: 'Copia preparada', description: 'Revisá los datos y guardá para crear el borrador con el próximo número disponible.', color: 'info' })
+  } catch (e: any) {
+    duplicateData.value = null
+    toast.add({ title: 'No se pudo cargar la orden para duplicarla', description: e?.data?.message || e?.message, color: 'error' })
+  }
+})
+
+const initialValues = computed(() => {
+  if (duplicateData.value) return buildDocumentDuplicateValues(duplicateData.value)
+  return partyId.value ? { party_id: partyId.value } : undefined
+})
 
 async function handleSubmit(payload: any) {
   try {
@@ -57,10 +79,10 @@ async function handleSubmit(payload: any) {
         :loading="saving"
         module-code="PURCHASES"
         category="ORDER"
-        :initial-values="partyId ? { party_id: partyId } : undefined"
+        :initial-values="initialValues"
         @submit="handleSubmit"
       />
-      <OrdenCompraForm ref="extensionRef" />
+      <OrdenCompraForm ref="extensionRef" v-model="extensionDraft" />
     </div>
   </UPage>
 </template>

@@ -9,6 +9,7 @@ import { useCurrentAccountsStore } from '~/modulos/erp/current-accounts/store/cu
 import { usePaymentsStore } from '~/modulos/erp/payments/store/payments.store'
 import { usePaymentReportsStore } from '~/modulos/erp/payment-reports/store/payment-reports.store'
 import { useTreasuryReportsStore } from '~/modulos/erp/treasury-reports/store/treasury-reports.store'
+import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 
 export default defineNuxtPlugin(() => {
   const auth = useAuthStore()
@@ -21,7 +22,8 @@ export default defineNuxtPlugin(() => {
     useCurrentAccountsStore(),
     usePaymentsStore(),
     usePaymentReportsStore(),
-    useTreasuryReportsStore()
+    useTreasuryReportsStore(),
+    useDocumentsSalesStore()
   ]
 
   watch(

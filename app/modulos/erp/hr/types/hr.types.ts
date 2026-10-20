@@ -1,4 +1,4 @@
-export type HrValeType = 'SUELDO' | 'ADELANTO' | 'EXTRAS' | 'RETIRO' | 'REEMBOLSO' | 'PRESTAMO' | 'APORTE'
+export type HrValeType = 'SUELDO' | 'ADELANTO' | 'EXTRAS' | 'COMISION' | 'RETIRO' | 'REEMBOLSO' | 'PRESTAMO' | 'APORTE'
 
 export type HrValeStatus = 'DRAFT' | 'CONFIRMED' | 'PAID' | 'CANCELLED'
 
@@ -64,6 +64,7 @@ export const HR_VALE_TYPE_LABELS: Record<HrValeType, string> = {
   SUELDO: 'Sueldo',
   ADELANTO: 'Adelanto',
   EXTRAS: 'Extras',
+  COMISION: 'Comisiones',
   RETIRO: 'Retiro',
   REEMBOLSO: 'Reembolso',
   PRESTAMO: 'Préstamo',
@@ -74,6 +75,7 @@ export const HR_VALE_TYPE_COLORS: Record<HrValeType, string> = {
   SUELDO: 'success',
   ADELANTO: 'warning',
   EXTRAS: 'info',
+  COMISION: 'primary',
   RETIRO: 'error',
   REEMBOLSO: 'success',
   PRESTAMO: 'info',

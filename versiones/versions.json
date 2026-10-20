@@ -1,5 +1,62 @@
 [
  {
+  "version": "0.84.0-alpha",
+  "date": "2026-10-20",
+  "stage": "alpha",
+  "notes": "Mejoras al circuito administrativo: duplicación segura de documentos como borrador, numeración configurable, liquidación de comisiones en RR. HH. y reportes operativos más completos.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "documents",
+    "title": "Duplicación de órdenes y facturas de compra y venta desde las tablas, respetando permisos y preparando una copia nueva como borrador"
+   },
+   {
+    "type": "fix",
+    "scope": "documents",
+    "title": "La copia conserva los datos operativos y productos o variantes, pero genera una numeración nueva y no arrastra estado, identificadores ni datos fiscales del original"
+   },
+   {
+    "type": "feat",
+    "scope": "sequences",
+    "title": "Configuración del próximo número de cada secuencia, con validaciones para evitar repetir comprobantes ya emitidos o salir del rango"
+   },
+   {
+    "type": "feat",
+    "scope": "hr",
+    "title": "Gestión de comisiones de venta en RR. HH. con asignación de varios vendedores, porcentajes de participación y seguimiento de lo devengado, liquidado y pendiente"
+   },
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Las comisiones se liquidan con un tipo de vale propio y quedan identificadas en los vales, totales y reportes"
+   },
+   {
+    "type": "feat",
+    "scope": "hr",
+    "title": "Vales de RR. HH. centralizados en una tabla con filtros por período y totales; las comisiones se administran desde su sección específica"
+   },
+   {
+    "type": "fix",
+    "scope": "payments",
+    "title": "Edición de pagos actualiza de forma transaccional los importes aplicados por documento y admite importes parciales o en cero"
+   },
+   {
+    "type": "feat",
+    "scope": "reports",
+    "title": "Inventario y logística muestra el total facturado y el importe cobrado asociado a cada orden de venta, sin duplicar importes por artículo en las exportaciones"
+   },
+   {
+    "type": "fix",
+    "scope": "tenancy",
+    "title": "Al cambiar de empresa se limpia el estado de documentos de ventas para evitar mostrar información de la empresa anterior"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Mejoras en documentos, comisiones y reportes operativos"
+ },
+ {
   "version": "0.83.0-alpha",
   "date": "2026-10-20",
   "stage": "alpha",

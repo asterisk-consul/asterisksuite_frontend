@@ -62,7 +62,7 @@ async function generateVale(sellerId: string, sellerName: string) {
   try {
     const vale = await hrStore.generateCommissionVale(sellerId, currentMonth.value)
     toast.add({
-      title: `Vale EXTRAS #${vale.number} generado`,
+      title: `Vale COMISION #${vale.number} generado`,
       description: `${sellerName} — ${fmt(vale.amount)}`,
       color: 'success',
     })
@@ -122,7 +122,7 @@ watch([currentMonth, selectedSellerId], () => loadReport())
 
 <template>
   <UPage class="space-y-6 px-4">
-    <AppPageHeader title="Comisiones de Ventas" description="Reporte de comisiones por vendedor y generación de vales EXTRAS" />
+    <AppPageHeader title="Comisiones de Ventas" description="Reporte de comisiones por vendedor y generación de vales COMISION" />
 
     <!-- Filtros -->
     <div class="flex gap-4 flex-wrap items-end">

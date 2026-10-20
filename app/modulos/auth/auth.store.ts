@@ -4,7 +4,7 @@ import type { AuthUser, CompanyMembership } from './auth.types'
 import { useCurrentUserEmployee } from '~/composables/useCurrentUserEmployee'
 
 export const useAuthStore = defineStore('auth', () => {
-  const { fetchIfNeeded, $reset: resetEmployeeCache } = useCurrentUserEmployee()
+  const { $reset: resetEmployeeCache } = useCurrentUserEmployee()
   const user = ref<AuthUser | null>(null)
   const companies = ref<CompanyMembership[]>([])
   const selectedCompany = ref<CompanyMembership | null>(null)
@@ -234,7 +234,6 @@ export const useAuthStore = defineStore('auth', () => {
       const tenantCookie = useCookie('selected_tenant', { maxAge: 60 * 60 * 24 * 30, domain })
       tenantCookie.value = company.subdomain
     }
-    fetchIfNeeded().catch(() => {})
   }
 
   return {

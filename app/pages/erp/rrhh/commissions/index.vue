@@ -26,9 +26,69 @@ const modalOpen = ref(false)
 const selected = ref<CommissionableDocument | null>(null)
 const rows = ref<CommissionAssignment[]>([])
 
-const sellerOptions = computed(() => sellers.value.map((item) => ({ label: item.name, value: item.id })))
+const ALL_SELLERS = '__all__'
+const filterSeller = ref<string>(ALL_SELLERS)
+
+const sellerOptions = computed(() => [
+  { label: 'Todos los vendedores', value: ALL_SELLERS, icon: 'i-lucide-users' },
+  ...sellers.value.map((item) => ({ label: item.name, value: item.id }))
+])
 const participation = computed(() => rows.value.reduce((sum, item) => sum + Number(item.participation_rate || 0), 0))
 const pending = computed(() => documents.value.filter((item) => !item.assignments.length).length)
+
+const filteredDocuments = computed(() => {
+  if (!filterSeller.value || filterSeller.value === ALL_SELLERS) return documents.value
+  return documents.value.filter((item) =>
+    item.assignments.some((assignment) => assignment.seller_id === filterSeller.value)
+  )
+})
+
+/** Resumen de comisiones por vendedor en el período (todas las OVs, sin filtro). */
+const sellerSummary = computed(() => {
+  const map = new Map<string, { seller_id: string; name: string; accrued: number; settled: number; pending: number }>()
+  for (const document of documents.value) {
+    for (const assignment of document.assignments) {
+      const entry = map.get(assignment.seller_id) ?? {
+        seller_id: assignment.seller_id,
+        name: assignment.seller_name || 'Vendedor',
+        accrued: 0,
+        settled: 0,
+        pending: 0
+      }
+      entry.accrued += Number(assignment.accrued_amount ?? 0)
+      entry.settled += Number(assignment.settled_amount ?? 0)
+      entry.pending += Number(assignment.pending_amount ?? 0)
+      map.set(assignment.seller_id, entry)
+    }
+  }
+  return [...map.values()]
+    .map((entry) => ({
+      ...entry,
+      accrued: Math.round(entry.accrued * 100) / 100,
+      settled: Math.round(entry.settled * 100) / 100,
+      pending: Math.round(entry.pending * 100) / 100
+    }))
+    .sort((a, b) => b.accrued - a.accrued)
+})
+
+/** Total general de comisiones del período. */
+const summaryTotal = computed(() =>
+  sellerSummary.value.reduce(
+    (acc, entry) => ({ accrued: acc.accrued + entry.accrued, settled: acc.settled + entry.settled, pending: acc.pending + entry.pending }),
+    { accrued: 0, settled: 0, pending: 0 }
+  )
+)
+
+function toggleSellerFilter(sellerId: string) {
+  filterSeller.value = filterSeller.value === sellerId ? ALL_SELLERS : sellerId
+}
+
+/** % de la comisión devengada que ya está liquidada en vales. */
+const settledPercentage = (document: CommissionableDocument) => {
+  if (document.commission_accrued <= 0) return 0
+  return Math.min(100, (document.commission_settled / document.commission_accrued) * 100)
+}
+
 const money = (value: number, currency = 'ARS') =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(Number(value || 0))
 const date = (value: string) => (value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('es-AR') : '-')
@@ -65,6 +125,14 @@ function defaults(seller?: CommissionSeller): CommissionAssignment {
 }
 
 function openAssignments(document: CommissionableDocument) {
+  if (document.settled) {
+    toast.add({
+      title: 'La comisión ya fue liquidada',
+      description: 'Esta OV tiene un vale generado; sus asignaciones no se pueden modificar.',
+      color: 'warning'
+    })
+    return
+  }
   selected.value = document
   rows.value = document.assignments.length
     ? document.assignments.map((item) => ({ ...item }))
@@ -75,7 +143,10 @@ function openAssignments(document: CommissionableDocument) {
 function addSeller() {
   const used = new Set(rows.value.map((item) => item.seller_id))
   const seller = sellers.value.find((item) => !used.has(item.id))
-  if (!seller) return toast.add({ title: 'No quedan vendedores disponibles', color: 'warning' })
+  if (!seller) {
+    toast.add({ title: 'No quedan vendedores disponibles', color: 'warning' })
+    return
+  }
   rows.value.push(defaults(seller))
 }
 
@@ -88,12 +159,18 @@ function applySellerDefaults(row: CommissionAssignment) {
 
 async function save() {
   if (!selected.value) return
-  if (rows.value.some((item) => !item.seller_id))
-    return toast.add({ title: 'Seleccioná todos los vendedores', color: 'warning' })
-  if (new Set(rows.value.map((item) => item.seller_id)).size !== rows.value.length)
-    return toast.add({ title: 'Un vendedor no puede repetirse', color: 'warning' })
-  if (Math.abs(participation.value - 100) > 0.01)
-    return toast.add({ title: 'La participación debe sumar 100%', color: 'warning' })
+  if (rows.value.some((item) => !item.seller_id)) {
+    toast.add({ title: 'Seleccioná todos los vendedores', color: 'warning' })
+    return
+  }
+  if (new Set(rows.value.map((item) => item.seller_id)).size !== rows.value.length) {
+    toast.add({ title: 'Un vendedor no puede repetirse', color: 'warning' })
+    return
+  }
+  if (Math.abs(participation.value - 100) > 0.01) {
+    toast.add({ title: 'La participación debe sumar 100%', color: 'warning' })
+    return
+  }
   saving.value = true
   try {
     await HrService.saveCommissionAssignments(selected.value.document_id, rows.value)
@@ -112,7 +189,7 @@ async function generate(seller: any) {
   try {
     const vale = await HrService.generateCommissionVale(seller.seller_id, month.value)
     toast.add({
-      title: `Vale EXTRAS #${vale.number} generado`,
+      title: `Vale COMISION #${vale.number} generado`,
       description: `${seller.seller_name} · ${money(vale.amount)}`,
       color: 'success'
     })
@@ -143,13 +220,13 @@ onMounted(load)
             label="Documentos"
             icon="i-lucide-files"
             :variant="tab === 'documents' ? 'solid' : 'ghost'"
-            @click="tab = 'documents'"
+            @click="() => { tab = 'documents' }"
           />
           <UButton
             label="Devengadas y liquidación"
             icon="i-lucide-hand-coins"
             :variant="tab === 'settlements' ? 'solid' : 'ghost'"
-            @click="tab = 'settlements'"
+            @click="() => { tab = 'settlements' }"
           />
         </div>
       </div>
@@ -164,56 +241,161 @@ onMounted(load)
         title="La OV ya no define comisiones"
         description="Elegí aquí los vendedores, su participación y la tasa. La regla inicial por facturación o cobro se toma del empleado."
       />
+
+      <!-- Resumen de comisiones por vendedor -->
+      <div v-if="sellerSummary.length" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <button
+          v-for="entry in sellerSummary"
+          :key="entry.seller_id"
+          type="button"
+          class="rounded-lg border bg-elevated/30 p-4 text-left transition-colors"
+          :class="
+            filterSeller === entry.seller_id
+              ? 'border-primary/60 bg-primary/10'
+              : 'border-default hover:border-default/80 hover:bg-elevated/50'
+          "
+          @click="() => toggleSellerFilter(entry.seller_id)"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="truncate text-sm font-medium">{{ entry.name }}</span>
+            <UIcon
+              :name="filterSeller === entry.seller_id ? 'i-lucide-filter-x' : 'i-lucide-user'"
+              class="size-4 shrink-0 text-muted"
+            />
+          </div>
+          <p class="mt-2 text-xl font-semibold tabular-nums">{{ money(entry.accrued) }}</p>
+          <div class="mt-2 flex items-center gap-2">
+            <div class="h-1 flex-1 overflow-hidden rounded-full bg-elevated">
+              <div
+                class="h-full bg-success"
+                :style="{ width: `${entry.accrued > 0 ? Math.min(100, (entry.settled / entry.accrued) * 100) : 0}%` }"
+              />
+            </div>
+            <span class="text-[11px] tabular-nums" :class="entry.pending > 0 ? 'text-warning' : 'text-success'">
+              {{ entry.pending > 0 ? `${money(entry.pending)} pend.` : 'Liquidada' }}
+            </span>
+          </div>
+        </button>
+      </div>
+
       <UCard :ui="{ body: 'p-0 sm:p-0' }">
+        <div class="flex flex-wrap items-center gap-3 border-b border-default px-4 py-3">
+          <USelectMenu
+            v-model="filterSeller"
+            :items="sellerOptions"
+            value-key="value"
+            searchable
+            clearable
+            placeholder="Filtrar por vendedor..."
+            class="w-64"
+          />
+          <span v-if="filterSeller !== ALL_SELLERS" class="text-xs text-muted">
+            Mostrando {{ filteredDocuments.length }} de {{ documents.length }} documento(s)
+          </span>
+          <span v-else class="text-xs text-muted">{{ documents.length }} documento(s)</span>
+          <UButton
+            v-if="filterSeller !== ALL_SELLERS"
+            label="Ver todos"
+            icon="i-lucide-x"
+            size="xs"
+            color="neutral"
+            variant="soft"
+            class="ml-auto"
+            @click="() => { filterSeller = ALL_SELLERS }"
+          />
+        </div>
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[960px] text-sm">
-            <thead class="border-b border-default bg-elevated/50 text-left text-muted">
-              <tr>
-                <th class="p-3">Documento</th>
-                <th class="p-3">Fecha</th>
-                <th class="p-3">Cliente</th>
-                <th class="p-3 text-right">Total</th>
-                <th class="p-3">Cobrado</th>
-                <th class="p-3">Vendedores</th>
-                <th class="p-3 text-right">Acciones</th>
+          <table class="w-full min-w-[1040px] text-sm">
+            <thead class="border-b border-default bg-elevated/50">
+              <tr class="text-left text-[11px] font-medium uppercase tracking-wide text-muted">
+                <th class="px-4 py-3">Documento</th>
+                <th class="px-4 py-3">Fecha</th>
+                <th class="px-4 py-3">Cliente</th>
+                <th class="px-4 py-3 text-right">Total OV</th>
+                <th class="px-4 py-3">Comisión</th>
+                <th class="px-4 py-3">Vendedores</th>
+                <th class="px-4 py-3 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="document in documents" :key="document.document_id" class="border-b border-default/60">
-                <td class="p-3">
-                  <p class="font-medium">{{ document.document_type }} #{{ document.number }}</p>
-                  <p class="text-xs text-muted">Orden de venta</p>
+              <tr
+                v-for="document in filteredDocuments"
+                :key="document.document_id"
+                class="border-b border-default/60 transition-colors hover:bg-elevated/30"
+              >
+                <td class="px-4 py-3">
+                  <span class="font-medium">{{ document.document_type }} #{{ document.number }}</span>
                 </td>
-                <td class="p-3">{{ date(document.date) }}</td>
-                <td class="p-3 font-medium">{{ document.customer }}</td>
-                <td class="p-3 text-right">{{ money(document.total, document.currency_code) }}</td>
-                <td class="p-3">
-                  <div class="w-36 space-y-1">
-                    <div class="flex justify-between text-xs">
-                      <span>{{ document.paid_percentage.toFixed(0) }}%</span>
-                      <span class="text-muted">{{ money(document.paid_amount, document.currency_code) }}</span>
+                <td class="px-4 py-3 text-muted">{{ date(document.date) }}</td>
+                <td class="px-4 py-3">{{ document.customer }}</td>
+                <td class="px-4 py-3 text-right">
+                  <p class="tabular-nums">{{ money(document.total, document.currency_code) }}</p>
+                  <p class="text-[11px] tabular-nums text-muted">
+                    sin IVA {{ money(document.subtotal, document.currency_code) }}
+                  </p>
+                </td>
+                <td class="px-4 py-3">
+                  <div v-if="document.assignments.length" class="w-52 space-y-1.5">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-semibold tabular-nums">
+                        {{ money(document.commission_accrued, document.currency_code) }}
+                      </span>
+                      <UBadge
+                        v-if="document.commission_pending <= 0"
+                        color="success"
+                        variant="subtle"
+                        size="sm"
+                      >
+                        Liquidada
+                      </UBadge>
+                      <UBadge
+                        v-else-if="document.commission_settled > 0"
+                        color="info"
+                        variant="subtle"
+                        size="sm"
+                      >
+                        Parcial
+                      </UBadge>
+                      <UBadge v-else color="warning" variant="subtle" size="sm">
+                        Pendiente
+                      </UBadge>
                     </div>
-                    <div class="h-1.5 overflow-hidden rounded-full bg-elevated">
-                      <div class="h-full bg-success" :style="{ width: `${document.paid_percentage}%` }" />
-                    </div>
+                    <p class="text-[11px] tabular-nums text-muted">
+                      Base sin IVA {{ money(document.commission_base_amount, document.currency_code) }}
+                    </p>
+                    <template v-if="document.commission_settled > 0 && document.commission_pending > 0">
+                      <div class="h-1 overflow-hidden rounded-full bg-elevated">
+                        <div class="h-full bg-info" :style="{ width: `${settledPercentage(document)}%` }" />
+                      </div>
+                      <p class="text-xs text-muted tabular-nums">
+                        {{ money(document.commission_settled, document.currency_code) }} liquidada
+                        · {{ money(document.commission_pending, document.currency_code) }} pendiente
+                      </p>
+                    </template>
                   </div>
+                  <span v-else class="text-muted">—</span>
                 </td>
-                <td class="p-3">
-                  <div v-if="document.assignments.length" class="flex flex-wrap gap-1">
-                    <UBadge
+                <td class="px-4 py-3">
+                  <div v-if="document.assignments.length" class="space-y-1">
+                    <div
                       v-for="assignment in document.assignments"
                       :key="assignment.seller_id"
-                      color="neutral"
-                      variant="subtle"
+                      class="flex items-baseline gap-1.5"
                     >
-                      {{ assignment.seller_name }} · {{ assignment.participation_rate }}%
-                    </UBadge>
+                      <span class="text-sm font-medium">{{ assignment.seller_name }}</span>
+                      <span class="text-xs text-muted tabular-nums">
+                        {{ assignment.participation_rate }}% part. · {{ assignment.commission_rate }}% com.
+                      </span>
+                    </div>
                   </div>
                   <UBadge v-else color="warning" variant="subtle">Sin asignar</UBadge>
                 </td>
-                <td class="p-3 text-right">
+                <td class="px-4 py-3 text-right">
+                  <UBadge v-if="document.settled" color="info" variant="subtle" icon="i-lucide-lock">
+                    Liquidada
+                  </UBadge>
                   <UButton
-                    v-if="canManage"
+                    v-else-if="canManage"
                     :label="document.assignments.length ? 'Editar' : 'Asignar'"
                     :icon="document.assignments.length ? 'i-lucide-pencil' : 'i-lucide-user-plus'"
                     size="sm"
@@ -227,8 +409,8 @@ onMounted(load)
           </table>
         </div>
         <div v-if="loading" class="p-10 text-center text-muted">Cargando documentos…</div>
-        <div v-else-if="!documents.length" class="p-10 text-center text-muted">
-          No hay órdenes de venta en este período.
+        <div v-else-if="!filteredDocuments.length" class="p-10 text-center text-muted">
+          {{ filterSeller && filterSeller !== ALL_SELLERS ? 'Este vendedor no tiene comisiones asignadas en el período.' : 'No hay órdenes de venta en este período.' }}
         </div>
       </UCard>
     </template>
@@ -351,7 +533,7 @@ onMounted(load)
                 color="error"
                 variant="ghost"
                 :disabled="rows.length === 1"
-                @click="rows.splice(index, 1)"
+                @click="() => { rows.splice(index, 1) }"
               />
             </div>
           </div>
@@ -362,7 +544,7 @@ onMounted(load)
             </UBadge>
           </div>
           <div class="flex justify-end gap-2 border-t border-default pt-4">
-            <UButton label="Cancelar" color="neutral" variant="ghost" @click="modalOpen = false" />
+            <UButton label="Cancelar" color="neutral" variant="ghost" @click="() => { modalOpen = false }" />
             <UButton
               label="Guardar asignación"
               icon="i-lucide-save"

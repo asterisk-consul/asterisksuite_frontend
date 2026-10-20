@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 
 const DEBIT_TYPES = ['RETIRO', 'REEMBOLSO', 'PRESTAMO']
-const CREDIT_TYPES = ['SUELDO', 'ADELANTO', 'EXTRAS', 'APORTE']
+const CREDIT_TYPES = ['SUELDO', 'ADELANTO', 'EXTRAS', 'COMISION', 'APORTE']
 
 export function useRrhhTotals(getter: () => any[], options?: { status?: string }) {
   const filteredItems = computed(() => {
