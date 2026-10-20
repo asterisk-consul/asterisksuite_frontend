@@ -87,11 +87,12 @@ const totalActivity = computed(() => chartData.value.series.reduce(
 
 const documentMix = computed(() => {
   if (!props.data) return []
+  const groups = [props.data.quotes, props.data.orders, props.data.invoices, props.data.creditNotes, props.data.debitNotes, props.data.remitos]
+  const sales = groups.reduce((sum, group) => sum + Number(group.byDirection?.sales ?? group.total), 0)
+  const purchases = groups.reduce((sum, group) => sum + Number(group.byDirection?.purchases ?? 0), 0)
   return [
-    { name: 'Presupuestos', value: props.data.quotes.total, direction: props.data.quotes.byDirection, itemStyle: { color: '#3b82f6' } },
-    { name: 'Órdenes', value: props.data.orders.total, direction: props.data.orders.byDirection, itemStyle: { color: '#f59e0b' } },
-    { name: 'Facturas', value: props.data.invoices.total, direction: props.data.invoices.byDirection, itemStyle: { color: '#10b981' } },
-    { name: 'Remitos', value: props.data.remitos.total, direction: props.data.remitos.byDirection, itemStyle: { color: '#06b6d4' } },
+    { name: 'Ventas', value: sales, to: '/erp/sales', itemStyle: { color: '#10b981' } },
+    { name: 'Compras', value: purchases, to: '/erp/purchases', itemStyle: { color: '#f59e0b' } },
   ].filter(item => item.value > 0)
 })
 
@@ -115,13 +116,27 @@ const showDocuments = computed(() => chartData.value.categories.length > 0)
 const showProducts = computed(() => canSeeProducts.value && productStats.value.length > 0)
 
 // ── Click en el gráfico → listado correspondiente ────────────────────────────
-const documentRoutes: Record<string, string> = {
-  'Presupuestos': '/erp/budgets',
-  'Órdenes': '/erp/orders',
-  'Facturas': '/erp/sales?category=INVOICE',
+const salesDocumentRoutes: Record<string, string> = {
+  Presupuestos: '/erp/budgets',
+  Órdenes: '/erp/orders',
+  Facturas: '/erp/sales?category=INVOICE',
   'Notas crédito': '/erp/sales?category=CREDIT_NOTE',
   'Notas débito': '/erp/sales?category=DEBIT_NOTE',
-  'Remitos': '/erp/remitos',
+  Remitos: '/erp/remitos',
+}
+const purchaseDocumentRoutes: Record<string, string> = {
+  Órdenes: '/erp/purchases/orders',
+  Facturas: '/erp/purchases?category=INVOICE',
+  'Notas crédito': '/erp/purchases?category=CREDIT_NOTE',
+  'Notas débito': '/erp/purchases?category=DEBIT_NOTE',
+  Remitos: '/erp/purchases/remitos',
+}
+
+function resolveChartRoute(params: any): string | undefined {
+  const name = String(params?.name ?? '')
+  if (name === 'Ventas') return '/erp/sales'
+  if (name === 'Compras') return '/erp/purchases'
+  return params?.seriesName === 'Compras' ? purchaseDocumentRoutes[name] : salesDocumentRoutes[name]
 }
 
 const chartsHost = ref<HTMLElement | null>(null)
@@ -133,12 +148,12 @@ const setChartCursor = (cursor: string) => {
 }
 
 const handleChartClick = (params: any) => {
-  const to = documentRoutes[String(params?.name ?? '')]
+  const to = resolveChartRoute(params)
   if (to) navigateTo(to)
 }
 
 const handleChartOver = (params: any) => {
-  if (params?.componentType === 'series' && documentRoutes[String(params?.name ?? '')]) {
+  if (params?.componentType === 'series' && resolveChartRoute(params)) {
     setChartCursor('pointer')
   }
 }
@@ -256,17 +271,11 @@ const barTooltipFormatter = (params: any) => {
               v-for="item in documentMix"
               :key="item.name"
               type="button"
-              class="flex items-center gap-2 rounded-lg bg-default px-2 py-1.5 text-left transition hover:bg-elevated"
-              :class="documentRoutes[item.name] ? 'cursor-pointer' : 'cursor-default'"
-              @click="documentRoutes[item.name] && navigateTo(documentRoutes[item.name])"
+              class="flex cursor-pointer items-center gap-2 rounded-lg bg-default px-2 py-1.5 text-left transition hover:bg-elevated"
+              @click="navigateTo(item.to)"
             >
               <span class="size-2 rounded-full" :style="{ backgroundColor: item.itemStyle.color }" />
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-[11px] text-muted">{{ item.name }}</span>
-                <span class="block text-[10px] text-muted/80">
-                  Ventas {{ item.direction?.sales ?? item.value }} · Compras {{ item.direction?.purchases ?? 0 }}
-                </span>
-              </span>
+              <span class="min-w-0 flex-1 truncate text-[11px] text-muted">{{ item.name }}</span>
               <span class="text-xs font-semibold">{{ item.value }}</span>
             </button>
           </div>

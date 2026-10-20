@@ -112,6 +112,7 @@ async function handleSubmit(payload: any) {
         :loading="saving"
         module-code="PURCHASES"
         category="REMITO"
+        operational-mode
         :initial-values="initialValues"
         :parent-document-id="parentInvoiceId"
         @submit="handleSubmit"

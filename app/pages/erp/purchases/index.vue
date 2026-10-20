@@ -21,6 +21,7 @@ import {
 // ─── Store ──────────────────────────────────────────────────────────────────
 const documentsPurchasesStore = useDocumentsPurchasesStore()
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
@@ -58,7 +59,10 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
 }
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
-const categoryFilter = ref<string | undefined>(undefined)
+const initialCategory = typeof route.query.category === 'string' && purchaseCategorySet.has(route.query.category)
+  ? route.query.category
+  : undefined
+const categoryFilter = ref<string | undefined>(initialCategory)
 const statusFilter = ref<number | undefined>(undefined)
 const showFullyPaid = ref(true)
 const showCancelled = ref(false)
@@ -78,6 +82,7 @@ watch(categoryFilter, () => {
   statusFilter.value = undefined
   if (page.value !== 1) page.value = 1
   else refresh()
+  router.replace({ query: { ...route.query, category: categoryFilter.value || undefined } })
 })
 
 watch(statusFilter, () => {

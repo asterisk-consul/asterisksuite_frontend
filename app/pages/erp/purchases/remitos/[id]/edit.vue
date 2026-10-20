@@ -66,6 +66,7 @@ async function handleSubmit(payload: any) {
         :loading="saving"
         module-code="PURCHASES"
         category="REMITO"
+        operational-mode
         @submit="handleSubmit"
       />
       <div v-else-if="loading" class="p-10 text-center">Cargando...</div>

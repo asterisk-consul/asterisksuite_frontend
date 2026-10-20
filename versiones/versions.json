@@ -53,7 +53,7 @@
    {
     "type": "feat",
     "scope": "dashboard",
-    "title": "Actividad de la empresa diferencia documentos de ventas y compras mediante barras apiladas y cantidades desglosadas"
+    "title": "Actividad de la empresa diferencia documentos de ventas y compras mediante barras apiladas y abre el listado correspondiente al hacer clic"
    }
   ],
   "contributors": [

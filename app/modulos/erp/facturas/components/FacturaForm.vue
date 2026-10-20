@@ -1521,7 +1521,7 @@ defineExpose({ submit, completeDraft })
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 class="text-base font-semibold">Detalle de productos</h2>
-            <p class="mt-1 text-sm text-muted">{{ operationalMode ? 'Indicá las cantidades y el depósito desde el que sale cada producto.' : 'La bonificación se aplica sobre cada artículo antes de calcular IVA e IIBB.' }}</p>
+            <p class="mt-1 text-sm text-muted">{{ operationalMode ? (moduleCode === 'SALES' ? 'Indicá las cantidades y el depósito desde el que sale cada producto.' : 'Indicá las cantidades y el depósito en el que ingresa cada producto.') : 'La bonificación se aplica sobre cada artículo antes de calcular IVA e IIBB.' }}</p>
           </div>
           <UBadge color="neutral" variant="soft">
             {{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}
