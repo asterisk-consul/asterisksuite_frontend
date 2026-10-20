@@ -16,7 +16,7 @@ export const warehouseStockColumns: TableColumn<WarehouseStockItem>[] = [
     accessorFn: row => `${row.products.name} ${row.products.sku ?? ''}`.trim(),
     cell: ({ row }) => h('div', { class: 'min-w-[220px] space-y-0.5' }, [
       h(NuxtLink, {
-        to: `/productos/${row.original.products.id}`,
+        to: `/productos/${row.original.products.id}/edit`,
         class: 'font-medium text-highlighted hover:text-primary hover:underline'
       }, () => row.original.products.name),
       h('p', { class: 'text-xs text-muted' }, row.original.products.sku ? `SKU: ${row.original.products.sku}` : 'Sin SKU')

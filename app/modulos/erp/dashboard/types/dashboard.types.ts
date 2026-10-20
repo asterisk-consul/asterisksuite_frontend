@@ -15,17 +15,25 @@ export interface DashboardQuotes {
   total: number
   byStatus: Record<number, number>
   totalValue: number
+  byDirection: DashboardDirectionCounts
 }
 
 export interface DashboardOrders {
   total: number
   byStatus: Record<number, number>
   totalValue: number
+  byDirection: DashboardDirectionCounts
 }
 
 export interface DashboardRemitos {
   total: number
   byStatus: Record<number, number>
+  byDirection: DashboardDirectionCounts
+}
+
+export interface DashboardDirectionCounts {
+  sales: number
+  purchases: number
 }
 
 export interface DashboardHr {
@@ -135,6 +143,7 @@ export interface DashboardDocumentCounts {
   total: number
   byStatus: Record<number, number>
   totalValue: number
+  byDirection: DashboardDirectionCounts
 }
 
 export interface PersonalActivity {

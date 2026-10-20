@@ -173,6 +173,15 @@ function fmt(n: number) {
 
 // ─── Acciones ─────────────────────────────────────────────────────────────────
 function openDocument(row: any) {
+  const category = row.document_types?.category
+  if (category === 'ORDER') {
+    router.push(`/erp/purchases/orders/${row.id}`)
+    return
+  }
+  if (category === 'REMITO') {
+    router.push(`/erp/purchases/remitos/${row.id}`)
+    return
+  }
   router.push(`/erp/purchases/purchases-documents/${row.id}`)
 }
 

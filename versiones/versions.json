@@ -1,5 +1,67 @@
 [
  {
+  "version": "0.82.0-alpha",
+  "date": "2026-10-20",
+  "stage": "alpha",
+  "notes": "Circuito de compras trazable desde la orden hasta el ingreso de mercadería, remitos operativos sin importes, accesos más útiles a productos y actividad comercial separada entre compras y ventas.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "purchases",
+    "title": "Circuito Orden de compra → Factura de compra → Remito de compra con documentos vinculados y acciones para crear o abrir el siguiente comprobante"
+   },
+   {
+    "type": "fix",
+    "scope": "purchases",
+    "title": "La factura creada desde una orden utiliza el servicio de compras y conserva productos, variantes, unidades, descuentos y depósitos"
+   },
+   {
+    "type": "fix",
+    "scope": "purchases",
+    "title": "Validaciones de backend evitan saltos en el circuito y facturas o remitos activos duplicados para el mismo documento de origen"
+   },
+   {
+    "type": "feat",
+    "scope": "purchases",
+    "title": "Facturas y remitos de compra muestran la cadena documental con enlaces correctos según categoría y permisos"
+   },
+   {
+    "type": "feat",
+    "scope": "stock",
+    "title": "Remito de compra orientado a recepción: cantidades, variantes y depósitos de ingreso sin precios ni totales"
+   },
+   {
+    "type": "fix",
+    "scope": "stock",
+    "title": "El remito no puede confirmarse ni ingresar stock mientras existan productos sin depósito general o individual"
+   },
+   {
+    "type": "fix",
+    "scope": "purchases",
+    "title": "El listado unificado de comprobantes abre órdenes, facturas y remitos en su vista específica"
+   },
+   {
+    "type": "feat",
+    "scope": "products",
+    "title": "Los productos de depósitos y disponibilidad abren directamente su edición, mientras la ficha general incorpora resumen y accesos operativos"
+   },
+   {
+    "type": "fix",
+    "scope": "products",
+    "title": "La ficha selecciona General por defecto, mantiene Depósitos disponible y oculta Ingeniería o Costos cuando no aplican"
+   },
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Actividad de la empresa diferencia documentos de ventas y compras mediante barras apiladas y cantidades desglosadas"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Circuito documental de compras y actividad separada por operación"
+ },
+ {
   "version": "0.81.0-alpha",
   "date": "2026-10-19",
   "stage": "alpha",

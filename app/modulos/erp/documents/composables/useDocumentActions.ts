@@ -201,6 +201,13 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   // ─── Secondary Actions ──────────────────────────────────
   const secondaryActions = computed(() => {
     const items: any[] = []
+    const activeChildren = (doc.value?.child_documents ?? []).filter((child: any) => Number(child.status) !== 3)
+    const purchaseInvoice = module === 'purchases'
+      ? activeChildren.find((child: any) => child.document_types?.category === 'INVOICE')
+      : null
+    const purchaseRemito = module === 'purchases'
+      ? activeChildren.find((child: any) => child.document_types?.category === 'REMITO')
+      : null
     const isOrderActive = category.value === 'ORDER' && doc.value?.status >= 2 && doc.value?.status < 7
     const orderOperation = category.value === 'ORDER' ? doc.value?.commercial_operation : null
     const canCreateRemito = canDocument(module, 'REMITO', 'create')
@@ -252,12 +259,38 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       }
     }
 
-    // Por defecto la factura nace desde la OV. Un remito no origina facturas.
-    if (isOrderActive && canCreateInvoice) {
+    // Por defecto la factura nace desde la orden. Un remito no origina facturas.
+    if (isOrderActive && canCreateInvoice && purchaseInvoice) {
+      items.push([{
+        label: 'Ver factura',
+        icon: 'i-lucide-file-check',
+        color: 'success',
+        onClick: () => router.push(`/erp/purchases/purchases-documents/${purchaseInvoice.id}`)
+      }])
+    } else if (isOrderActive && canCreateInvoice) {
       const createUrl = module === 'sales'
         ? `/erp/sales/new?category=INVOICE&parent_order_id=${id.value}`
         : `/erp/purchases/purchases-documents/new?parent_order_id=${id.value}`
       items.push([{ label: 'Crear Factura', icon: 'i-lucide-file-text', color: 'info', onClick: () => router.push(createUrl) }])
+    }
+
+    // En compras el circuito canónico es OC → Factura → Remito. El remito es el único que ingresa stock.
+    if (module === 'purchases' && isConfirmed.value && category.value === 'INVOICE' && canCreateRemito) {
+      if (purchaseRemito) {
+        items.push([{
+          label: 'Ver remito',
+          icon: 'i-lucide-truck',
+          color: 'success',
+          onClick: () => router.push(`/erp/purchases/remitos/${purchaseRemito.id}`)
+        }])
+      } else {
+        items.push([{
+          label: 'Crear remito',
+          icon: 'i-lucide-truck',
+          color: 'success',
+          onClick: () => router.push(`/erp/purchases/remitos/new?parent_invoice_id=${id.value}`)
+        }])
+      }
     }
 
     // Crear NC/ND (from INVOICE confirmed)

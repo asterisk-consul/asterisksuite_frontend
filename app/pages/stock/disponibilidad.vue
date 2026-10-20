@@ -146,7 +146,7 @@ onMounted(load)
             <template v-for="product in products" :key="product.id">
               <tr class="border-b border-default hover:bg-elevated/40">
                 <td class="px-4 py-3">
-                  <NuxtLink :to="`/productos/${product.id}`" class="font-medium text-highlighted hover:text-primary">{{ product.name }}</NuxtLink>
+                  <NuxtLink :to="`/productos/${product.id}/edit`" class="font-medium text-highlighted hover:text-primary hover:underline">{{ product.name }}</NuxtLink>
                   <p class="text-xs text-muted">SKU: {{ product.sku || 'Sin código' }} · {{ product.unit }}</p>
                 </td>
                 <td class="px-4 py-3 text-right font-medium">{{ formatQuantity(product.physical_stock) }}</td>

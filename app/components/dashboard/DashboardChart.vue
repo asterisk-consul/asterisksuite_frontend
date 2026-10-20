@@ -5,12 +5,12 @@ import { useCompanyRole } from '~/composables/useCompanyRole'
 const props = defineProps<{
   data?: {
     meta?: { days: number; documents_from: string }
-    quotes: { total: number; totalValue: number }
-    orders: { total: number; totalValue: number }
-    remitos: { total: number }
-    invoices: { total: number; totalValue: number }
-    creditNotes: { total: number; totalValue: number }
-    debitNotes: { total: number; totalValue: number }
+    quotes: { total: number; totalValue: number; byDirection?: { sales: number; purchases: number } }
+    orders: { total: number; totalValue: number; byDirection?: { sales: number; purchases: number } }
+    remitos: { total: number; byDirection?: { sales: number; purchases: number } }
+    invoices: { total: number; totalValue: number; byDirection?: { sales: number; purchases: number } }
+    creditNotes: { total: number; totalValue: number; byDirection?: { sales: number; purchases: number } }
+    debitNotes: { total: number; totalValue: number; byDirection?: { sales: number; purchases: number } }
     products?: { total: number; withStock: number; withStockUnits: number; costed: number; uncosted: number; forSale: number; forPurchase: number }
   }
   loading?: boolean
@@ -54,12 +54,12 @@ const chartData = computed(() => {
   if (!props.data) return { categories: [], series: [] }
 
   const categories = [
-    { label: 'Presupuestos', value: props.data.quotes.total, color: '#3b82f6' },
-    { label: 'Órdenes', value: props.data.orders.total, color: '#f59e0b' },
-    { label: 'Facturas', value: props.data.invoices.total, color: '#10b981' },
-    { label: 'Notas crédito', value: props.data.creditNotes.total, color: '#8b5cf6' },
-    { label: 'Notas débito', value: props.data.debitNotes.total, color: '#ec4899' },
-    { label: 'Remitos', value: props.data.remitos.total, color: '#06b6d4' },
+    { label: 'Presupuestos', value: props.data.quotes.total, direction: props.data.quotes.byDirection },
+    { label: 'Órdenes', value: props.data.orders.total, direction: props.data.orders.byDirection },
+    { label: 'Facturas', value: props.data.invoices.total, direction: props.data.invoices.byDirection },
+    { label: 'Notas crédito', value: props.data.creditNotes.total, direction: props.data.creditNotes.byDirection },
+    { label: 'Notas débito', value: props.data.debitNotes.total, direction: props.data.debitNotes.byDirection },
+    { label: 'Remitos', value: props.data.remitos.total, direction: props.data.remitos.byDirection },
   ]
 
   const canSeeDocuments = isOwnerOrAdmin.value || hasPermission('documents.read')
@@ -69,22 +69,29 @@ const chartData = computed(() => {
     categories: filtered.map((c) => c.label),
     series: [
       {
-        name: 'Cantidad',
-        data: filtered.map((c) => ({ value: c.value, itemStyle: { color: c.color } })),
+        name: 'Ventas',
+        data: filtered.map((c) => c.direction?.sales ?? c.value),
+      },
+      {
+        name: 'Compras',
+        data: filtered.map((c) => c.direction?.purchases ?? 0),
       },
     ],
   }
 })
 
-const totalActivity = computed(() => chartData.value.series[0]?.data.reduce((sum, item) => sum + Number(item.value), 0) ?? 0)
+const totalActivity = computed(() => chartData.value.series.reduce(
+  (total, series) => total + series.data.reduce((sum, item) => sum + Number(item), 0),
+  0
+))
 
 const documentMix = computed(() => {
   if (!props.data) return []
   return [
-    { name: 'Presupuestos', value: props.data.quotes.total, itemStyle: { color: '#3b82f6' } },
-    { name: 'Órdenes', value: props.data.orders.total, itemStyle: { color: '#f59e0b' } },
-    { name: 'Facturas', value: props.data.invoices.total, itemStyle: { color: '#10b981' } },
-    { name: 'Remitos', value: props.data.remitos.total, itemStyle: { color: '#06b6d4' } },
+    { name: 'Presupuestos', value: props.data.quotes.total, direction: props.data.quotes.byDirection, itemStyle: { color: '#3b82f6' } },
+    { name: 'Órdenes', value: props.data.orders.total, direction: props.data.orders.byDirection, itemStyle: { color: '#f59e0b' } },
+    { name: 'Facturas', value: props.data.invoices.total, direction: props.data.invoices.byDirection, itemStyle: { color: '#10b981' } },
+    { name: 'Remitos', value: props.data.remitos.total, direction: props.data.remitos.byDirection, itemStyle: { color: '#06b6d4' } },
   ].filter(item => item.value > 0)
 })
 
@@ -139,9 +146,10 @@ const handleChartOver = (params: any) => {
 const handleChartOut = () => setChartCursor('')
 
 const barTooltipFormatter = (params: any) => {
-  const p = Array.isArray(params) ? params[0] : params
-  if (!p) return ''
-  return `${p.name}: <b>${p.value}</b><br/><span style='opacity:.7'>Clic para abrir</span>`
+  const points = Array.isArray(params) ? params : [params]
+  if (!points.length) return ''
+  const total = points.reduce((sum: number, point: any) => sum + Number(point.value ?? 0), 0)
+  return `${points[0].name}: <b>${total}</b><br/>${points.map((point: any) => `${point.marker}${point.seriesName}: ${point.value}`).join('<br/>')}<br/><span style='opacity:.7'>Clic para abrir</span>`
 }
 </script>
 
@@ -215,13 +223,13 @@ const barTooltipFormatter = (params: any) => {
               series: chartData.series.map(s => ({
                 ...s,
                 type: 'bar',
+                stack: 'documentos',
                 barMaxWidth: 18,
-                showBackground: true,
-                backgroundStyle: { color: 'rgba(148, 163, 184, .08)', borderRadius: 8 },
-                label: { show: true, position: 'right', fontWeight: 600 },
-                itemStyle: { borderRadius: [0, 8, 8, 0] },
+                label: { show: true, position: 'inside', fontWeight: 600, formatter: (p: any) => Number(p.value) > 0 ? p.value : '' },
+                itemStyle: { color: s.name === 'Ventas' ? '#10b981' : '#f59e0b', borderRadius: 4 },
               })),
-              grid: { left: 105, right: 40, top: 8, bottom: 15 },
+              legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 11 } },
+              grid: { left: 105, right: 25, top: 8, bottom: 38 },
             }" autoresize class="size-full" @click="handleChartClick" @mouseover="handleChartOver" @mouseout="handleChartOut" />
           </div>
         </div>
@@ -253,7 +261,12 @@ const barTooltipFormatter = (params: any) => {
               @click="documentRoutes[item.name] && navigateTo(documentRoutes[item.name])"
             >
               <span class="size-2 rounded-full" :style="{ backgroundColor: item.itemStyle.color }" />
-              <span class="min-w-0 flex-1 truncate text-[11px] text-muted">{{ item.name }}</span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-[11px] text-muted">{{ item.name }}</span>
+                <span class="block text-[10px] text-muted/80">
+                  Ventas {{ item.direction?.sales ?? item.value }} · Compras {{ item.direction?.purchases ?? 0 }}
+                </span>
+              </span>
               <span class="text-xs font-semibold">{{ item.value }}</span>
             </button>
           </div>

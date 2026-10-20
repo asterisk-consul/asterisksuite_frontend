@@ -7,6 +7,7 @@ const props = withDefaults(defineProps<{
   quantityLabel?: string
   title?: string
   showWarehouse?: boolean
+  warehouseLabel?: string
   editable?: boolean
 }>(), {
   showAmounts: true
@@ -33,7 +34,7 @@ const columns = computed(() => {
   }
 
   if (props.showWarehouse) {
-    cols.splice(2, 0, { id: 'warehouse', header: 'Depósito de salida' })
+    cols.splice(2, 0, { id: 'warehouse', header: props.warehouseLabel ?? 'Depósito de salida' })
   }
 
   if (props.showTracking) {

@@ -5,7 +5,6 @@ definePageMeta({
 
 import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
-import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 import { normalizeMarketRate } from '~/utils/currency'
@@ -86,7 +85,7 @@ onMounted(async () => {
   }
   if (parentOrderId.value) {
     try {
-      const order = await DocumentsSalesService.getOne(parentOrderId.value)
+      const order = await DocumentsPurchasesService.getOne(parentOrderId.value)
       orderData.value = order
     } catch (e: any) {
       toast.add({ title: 'Error al cargar la orden', description: e?.data?.message, color: 'error' })
@@ -105,8 +104,16 @@ const initialValues = computed(() => {
     base.items = (orderData.value.document_items ?? [])
       .map((item: any) => ({
         product_id: item.product_id,
+        variant_id: item.variant_id ?? undefined,
+        variant_name: item.product_variants?.name ?? item.variant?.name ?? item.variant_name,
+        product_name: item.products?.name ?? item.product?.name ?? item.product_name,
         quantity: Number(item.quantity) - Number(item.quantity_invoiced ?? 0),
-        unit_price: Number(item.unit_price)
+        unit_price: Number(item.original_unit_price ?? item.unit_price),
+        discount_percentage: Number(item.discount_percentage ?? 0),
+        purchase_unit_id: item.purchase_unit_id ?? undefined,
+        unit_conversion_factor: Number(item.unit_conversion_factor ?? 1),
+        stock_quantity: Number(item.stock_quantity ?? item.quantity),
+        warehouse_id: item.warehouse_id ?? undefined,
       }))
       .filter((item: any) => item.quantity > 0)
   }

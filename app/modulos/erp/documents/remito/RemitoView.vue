@@ -1,7 +1,10 @@
 <script setup lang="ts">
 const props = defineProps<{
   document: any
+  mode?: 'sale' | 'purchase'
 }>()
+
+const warehouseLabel = computed(() => props.mode === 'purchase' ? 'Depósito de ingreso' : 'Depósito de salida')
 
 const sourceWarehouses = computed(() => {
   const values = (props.document?.document_items ?? [])
@@ -32,7 +35,7 @@ function fmtDate(d?: string) {
           <p class="font-medium">{{ document.descrip }}</p>
         </div>
         <div v-if="sourceWarehouses.length" class="col-span-2">
-          <p class="text-muted">Depósito de salida</p>
+          <p class="text-muted">{{ warehouseLabel }}</p>
           <div class="mt-1 flex flex-wrap gap-2">
             <UBadge v-for="warehouse in sourceWarehouses" :key="warehouse.id" color="neutral" variant="subtle">
               {{ warehouse.name }}
