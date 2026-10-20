@@ -1,4 +1,5 @@
-﻿import type { ManagementReportMetadata, ManagementReportResponse, PaymentState, ProgressState, ReportBasis, ReportGroupBy } from './management-reports.types'
+import type { ManagementReportMetadata, ManagementReportResponse, PaymentState, ProgressState, ReportBasis, ReportGroupBy } from './management-reports.types'
+import type { ConsolidatedReportCompanyOption, ConsolidatedReportResponse, ConsolidatedReportView } from './consolidated-reports.types'
 
 export interface ManagementReportQuery {
   basis: ReportBasis
@@ -16,8 +17,11 @@ export interface ManagementReportQuery {
 }
 
 export const useManagementReportsService = () => ({
-  getReport: (query: ManagementReportQuery) => $fetch<ManagementReportResponse>('/api/backend/reports/management', {
-    query
-  }),
-  getMetadata: () => $fetch<ManagementReportMetadata>('/api/backend/reports/management/metadata')
+  getReport: (query: ManagementReportQuery) => $fetch<ManagementReportResponse>('/api/backend/reports/management', { query }),
+  getMetadata: () => $fetch<ManagementReportMetadata>('/api/backend/reports/management/metadata'),
+  getConsolidatedCompanies: () => $fetch<ConsolidatedReportCompanyOption[]>('/api/backend/reports/management/consolidated/companies'),
+  getConsolidatedReport: (body: { company_ids: string[]; date_from: string; date_to: string; view?: ConsolidatedReportView }) =>
+    $fetch<ConsolidatedReportResponse>('/api/backend/reports/management/consolidated', { method: 'POST', body }),
+  exportConsolidatedReport: (body: { company_ids: string[]; date_from: string; date_to: string; view?: ConsolidatedReportView; format: 'pdf' | 'xlsx' | 'csv' }) =>
+    $fetch<Blob>('/api/backend/reports/management/consolidated/export', { method: 'POST', body, responseType: 'blob' })
 })

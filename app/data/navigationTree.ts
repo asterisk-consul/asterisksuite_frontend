@@ -248,16 +248,10 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'payments.read'
       },
       {
-        label: 'Reportes',
+        label: 'Reportes de tesorería',
         icon: 'i-lucide-bar-chart-3',
         permission: 'payments.read',
         children: [
-          {
-            label: 'Reporte gerencial',
-            icon: 'i-lucide-chart-no-axes-combined',
-            to: '/erp/reports/management',
-            permission: 'treasury.reports.read'
-          },
           {
             label: 'Movimientos',
             icon: 'i-lucide-activity',
@@ -319,6 +313,63 @@ export const navigationTree: DrilldownNode[] = [
             permission: 'payments.read'
           }
         ]
+      }
+    ]
+  },
+
+  // ─── ERP: REPORTES ─────────────────────────────────────────────
+  {
+    label: 'Reportes',
+    icon: 'i-lucide-chart-column-big',
+    permission: 'treasury.reports.read',
+    children: [
+      {
+        label: 'Resumen gerencial',
+        icon: 'i-lucide-chart-no-axes-combined',
+        to: '/erp/reports/management',
+        permission: 'treasury.reports.read'
+      },
+      {
+        label: 'Consolidado de empresas',
+        icon: 'i-lucide-building-2',
+        to: '/erp/reports/consolidated',
+        permission: 'treasury.reports.read'
+      },
+      {
+        label: 'Clientes',
+        icon: 'i-lucide-users',
+        to: '/erp/reports/consolidated?view=customers',
+        permission: 'treasury.reports.read'
+      },
+      {
+        label: 'Proveedores',
+        icon: 'i-lucide-truck',
+        to: '/erp/reports/consolidated?view=suppliers',
+        permission: 'treasury.reports.read'
+      },
+      {
+        label: 'Empleados y socios',
+        icon: 'i-lucide-user-round-cog',
+        to: '/erp/reports/consolidated?view=hr',
+        permission: 'treasury.reports.read'
+      },
+      {
+        label: 'Bancos, cajas y cheques',
+        icon: 'i-lucide-landmark',
+        to: '/erp/reports/consolidated?view=treasury',
+        permission: 'treasury.reports.read'
+      },
+      {
+        label: 'Documentos',
+        icon: 'i-lucide-files',
+        to: '/erp/reports/consolidated?view=documents',
+        permission: 'treasury.reports.read'
+      },
+      {
+        label: 'Inventario y logística',
+        icon: 'i-lucide-package-search',
+        to: '/erp/reports/consolidated?view=inventory',
+        permission: 'treasury.reports.read'
       }
     ]
   },

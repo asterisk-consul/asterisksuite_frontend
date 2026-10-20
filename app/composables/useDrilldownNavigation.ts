@@ -10,32 +10,33 @@ export interface StackLevel {
   parentNode?: DrilldownNode
 }
 
-function matchesPath(node: DrilldownNode, path: string): boolean {
+function matchesPath(node: DrilldownNode, path: string, fullPath = path): boolean {
   const target = node.to
   if (!target) return false
   if (target.startsWith('http')) return false
 
   const targetPath = target.split('?')[0]
+  if (target.includes('?')) return fullPath === target
   if (node.exact) return path === targetPath
   return path === targetPath || path.startsWith(`${targetPath}/`)
 }
 
 // Prioriza la ruta coincidente más específica; la profundidad resuelve empates.
-function findBranch(nodes: DrilldownNode[], path: string): DrilldownNode[] {
+function findBranch(nodes: DrilldownNode[], path: string, fullPath = path): DrilldownNode[] {
   let best: DrilldownNode[] = []
   let bestTargetLength = -1
 
   const walk = (list: DrilldownNode[], chain: DrilldownNode[]) => {
     for (const node of list) {
       const next = [...chain, node]
-      if (node.to && matchesPath(node, path)) {
-        const targetPath = node.to.split('?')[0]?.replace(/\/$/, '') ?? ''
-        const isMoreSpecific = targetPath.length > bestTargetLength
-        const isDeeperTie = targetPath.length === bestTargetLength && next.length > best.length
+      if (node.to && matchesPath(node, path, fullPath)) {
+        const targetLocation = node.to.replace(/\/$/, '')
+        const isMoreSpecific = targetLocation.length > bestTargetLength
+        const isDeeperTie = targetLocation.length === bestTargetLength && next.length > best.length
 
         if (isMoreSpecific || isDeeperTie) {
           best = next
-          bestTargetLength = targetPath.length
+          bestTargetLength = targetLocation.length
         }
       }
       if (node.children?.length) {
@@ -104,7 +105,7 @@ export const useDrilldownNavigation = () => {
 
   const activeTo = computed(() => {
     const path = route.path
-    const chain = findBranch(navigationTree, path)
+    const chain = findBranch(navigationTree, path, route.fullPath)
     return chain[chain.length - 1]?.to ?? null
   })
 
@@ -112,7 +113,7 @@ export const useDrilldownNavigation = () => {
     const target = node.to
     if (!target) return false
     if (activeTo.value === null) return false
-    if (node.exact) return matchesPath(node, route.path)
+    if (node.exact) return matchesPath(node, route.path, route.fullPath)
     return target === activeTo.value
   }
 
@@ -137,7 +138,7 @@ export const useDrilldownNavigation = () => {
       return
     }
 
-    const parentNode = poppedLevel.parentNode
+    const parentNode = poppedLevel?.parentNode
     if (parentNode?.to) {
       navigateTo(parentNode.to)
     }
@@ -162,9 +163,9 @@ export const useDrilldownNavigation = () => {
 
   // Sync con la ruta: deep-link / refresh abren el nivel correcto
   watch(
-    () => route.path,
+    () => route.fullPath,
     () => {
-      const chain = findBranch(navigationTree, route.path)
+      const chain = findBranch(navigationTree, route.path, route.fullPath)
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
@@ -180,7 +181,7 @@ export const useDrilldownNavigation = () => {
   watch(
     () => filteredTree.value,
     () => {
-      const chain = findBranch(navigationTree, route.path)
+      const chain = findBranch(navigationTree, route.path, route.fullPath)
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {

@@ -1,5 +1,67 @@
 [
  {
+  "version": "0.83.0-alpha",
+  "date": "2026-10-20",
+  "stage": "alpha",
+  "notes": "Nuevo módulo de reportes gerenciales multiempresa con vistas consolidadas y específicas, información operativa en español y exportación a PDF, Excel y CSV.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "reports",
+    "title": "Reporte consolidado para seleccionar una o varias empresas asociadas al usuario y analizar un período común"
+   },
+   {
+    "type": "feat",
+    "scope": "reports",
+    "title": "Reportes independientes de clientes, proveedores, empleados y socios, tesorería, documentos e inventario y logística"
+   },
+   {
+    "type": "feat",
+    "scope": "reports",
+    "title": "Exportación de la vista seleccionada a PDF, Excel y CSV con información agrupada por empresa"
+   },
+   {
+    "type": "feat",
+    "scope": "inventory",
+    "title": "Reporte operativo de órdenes de venta por artículo con empresa, OV, fecha, cliente, producto o variante, cantidad, estado, confirmación y usuario"
+   },
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "Resumen de bancos, cajas, cheques y movimientos del período con saldos y variaciones diferenciados"
+   },
+   {
+    "type": "feat",
+    "scope": "management",
+    "title": "Detalle de partes interesadas, empleados, socios y documentos comerciales con indicadores y explicaciones de lectura"
+   },
+   {
+    "type": "fix",
+    "scope": "reports",
+    "title": "Estados, tipos de documentos, movimientos y unidades se presentan con nombres comprensibles en español"
+   },
+   {
+    "type": "fix",
+    "scope": "reports",
+    "title": "Las tablas extensas conservan desplazamiento horizontal y vertical sin cortar columnas ni bloquear el contenido inferior"
+   },
+   {
+    "type": "fix",
+    "scope": "navigation",
+    "title": "El menú lateral identifica correctamente cada reporte seleccionado, incluso cuando las vistas comparten la misma página"
+   },
+   {
+    "type": "fix",
+    "scope": "reports",
+    "title": "El PDF de inventario comienza directamente con la información operativa y omite la portada administrativa"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Reportes gerenciales multiempresa y exportaciones operativas"
+ },
+ {
   "version": "0.82.0-alpha",
   "date": "2026-10-20",
   "stage": "alpha",
