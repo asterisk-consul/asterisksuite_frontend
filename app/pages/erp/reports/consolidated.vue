@@ -2,7 +2,7 @@
 import { useManagementReportsService } from '~/modulos/erp/management-reports/management-reports.service'
 import type { ConsolidatedReportCompanyOption, ConsolidatedReportResponse, ConsolidatedReportView, CurrencyTotals } from '~/modulos/erp/management-reports/consolidated-reports.types'
 
-definePageMeta({ middleware: ['auth'] })
+definePageMeta({ middleware: ['auth', 'management-reports'] })
 
 const service = useManagementReportsService()
 const route = useRoute()

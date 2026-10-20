@@ -2,7 +2,7 @@
 import { useManagementReportsService } from '~/modulos/erp/management-reports/management-reports.service'
 import type { ManagementReportMetadata, ManagementReportResponse, PaymentState, ProgressState, ReportBasis, ReportGroupBy } from '~/modulos/erp/management-reports/management-reports.types'
 
-definePageMeta({ middleware: ['auth'] })
+definePageMeta({ middleware: ['auth', 'management-reports'] })
 
 const service = useManagementReportsService()
 const toast = useToast()
