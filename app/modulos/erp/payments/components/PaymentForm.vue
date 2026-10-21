@@ -56,6 +56,7 @@ export interface PaymentFormData {
     amount_applied: number
     obligation?: any
   }>
+  withholdings?: PaymentWithholdingPayload[]
   bank_account?: any
   cash_box?: any
   payment_allocations?: any[]

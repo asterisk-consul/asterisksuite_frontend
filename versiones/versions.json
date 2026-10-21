@@ -1,5 +1,52 @@
 [
  {
+  "version": "0.91.0-alpha",
+  "date": "2026-10-21",
+  "stage": "alpha",
+  "notes": "Tesorería multiempresa, gestión operativa de retenciones y mejoras en la edición de pagos.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "Transferencias desde bancos o cajas de la empresa activa hacia fondos de otras empresas accesibles por el usuario"
+   },
+   {
+    "type": "feat",
+    "scope": "security",
+    "title": "Validación de membresía, permisos RBAC y acceso al fondo en las empresas de origen y destino"
+   },
+   {
+    "type": "feat",
+    "scope": "database",
+    "title": "Ejecución interempresa idempotente con trazabilidad, estados recuperables e índices que evitan movimientos duplicados"
+   },
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "Reintento de transferencias incompletas desde el listado y detalle de la operación"
+   },
+   {
+    "type": "feat",
+    "scope": "fiscal",
+    "title": "Vista de retenciones practicadas a depositar y retenciones sufridas con totales, agrupación por período y estado de VEP"
+   },
+   {
+    "type": "feat",
+    "scope": "payments",
+    "title": "Alta y edición de pagos con retenciones y cargos bancarios asociados"
+   },
+   {
+    "type": "fix",
+    "scope": "permissions",
+    "title": "Alineación de los permisos de transferencias de caja con los códigos RBAC configurados"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Agregar tesorería multiempresa y gestión de retenciones"
+ },
+ {
   "version": "0.90.0-alpha",
   "date": "2026-10-21",
   "stage": "alpha",

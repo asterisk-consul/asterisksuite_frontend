@@ -6,7 +6,9 @@ import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vu
 
 import { useCashBoxTransfers } from '~/modulos/erp/cash-box-transfers/composables/useCashBoxTransfers'
 import { cashBoxTransferColumns } from '~/modulos/erp/cash-box-transfers/columns'
-import type { CreateCashBoxTransferInput, CashBoxTransfer, TransferType } from '~/modulos/erp/cash-box-transfers/types/cash-box-transfers.types'
+import type { CreateCashBoxTransferInput, CashBoxTransfer, TransferDestinationOptions, TransferType } from '~/modulos/erp/cash-box-transfers/types/cash-box-transfers.types'
+import { useCashBoxTransfersService } from '~/modulos/erp/cash-box-transfers/service/cash-box-transfers.service'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
@@ -15,6 +17,8 @@ import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchang
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 const toast = useToast()
+const authStore = useAuthStore()
+const transfersService = useCashBoxTransfersService()
 const { transfers, loading, init, create, confirm, cancel, remove } = useCashBoxTransfers()
 const { selectItems: cashBoxItems, findById: findCashBox, init: initCashBoxes } = useCashBoxes()
 const { selectItems: bankAccountItems, findById: findBankAccount, init: initBankAccounts } = useBankAccounts()
@@ -26,6 +30,15 @@ const modalOpen = ref(false)
 const detailModalOpen = ref(false)
 const selectedTransfer = ref<CashBoxTransfer | null>(null)
 const loadingRate = ref(false)
+const loadingDestinations = ref(false)
+const remoteDestinations = ref<TransferDestinationOptions | null>(null)
+const destinationCompanyId = ref('')
+
+const companyItems = computed(() => authStore.companies.map(company => ({
+  label: company.id === authStore.selectedCompany?.id ? `${company.name} (actual)` : company.name,
+  value: company.id
+})))
+const isIntercompany = computed(() => Boolean(destinationCompanyId.value && destinationCompanyId.value !== authStore.selectedCompany?.id))
 
 const detailSourceName = computed(() => {
   if (!selectedTransfer.value) return '—'
@@ -41,12 +54,13 @@ const detailSourceName = computed(() => {
 const detailDestName = computed(() => {
   if (!selectedTransfer.value) return '—'
   const t = selectedTransfer.value
+  if (t.dest_name) return t.dest_name
   if (t.dest_type === 'cash_box') {
     const box = findCashBox(t.dest_id)
-    return box?.name ?? 'Caja'
+    return box?.name ?? (t.dest_company_name ? `Caja de ${t.dest_company_name}` : 'Caja')
   }
   const account = findBankAccount(t.dest_id)
-  return account ? `${account.bank_name} - ${account.name}` : 'Banco'
+  return account ? `${account.bank_name} - ${account.name}` : (t.dest_company_name ? `Banco de ${t.dest_company_name}` : 'Banco')
 })
 
 const form = reactive<CreateCashBoxTransferInput>({
@@ -77,6 +91,15 @@ const transferTypeMap: Record<string, string> = {
   BANK_TO_BANK: 'Banco a Banco'
 }
 
+const statusMap: Record<string, { label: string; color: 'warning' | 'success' | 'error' | 'info' }> = {
+  pending: { label: 'Pendiente', color: 'warning' },
+  processing: { label: 'Procesando', color: 'info' },
+  debit_applied: { label: 'Débito aplicado', color: 'warning' },
+  failed: { label: 'Requiere reintento', color: 'error' },
+  completed: { label: 'Completada', color: 'success' },
+  cancelled: { label: 'Cancelada', color: 'error' }
+}
+
 const rateTypeItems = [
   { label: 'Oficial', value: 'OFFICIAL' },
   { label: 'Blue', value: 'BLUE' },
@@ -91,7 +114,17 @@ const originLabel = computed(() => isSourceCashBox.value ? 'Caja de origen' : 'B
 const destLabel = computed(() => isDestCashBox.value ? 'Caja de destino' : 'Banco de destino')
 
 const originItems = computed(() => isSourceCashBox.value ? cashBoxItems.value : bankAccountItems.value)
-const destItems = computed(() => isDestCashBox.value ? cashBoxItems.value : bankAccountItems.value)
+const destItems = computed(() => {
+  if (!isIntercompany.value) return isDestCashBox.value ? cashBoxItems.value : bankAccountItems.value
+  const items = isDestCashBox.value ? remoteDestinations.value?.cash_boxes : remoteDestinations.value?.bank_accounts
+  return (items ?? []).map((item: any) => ({ label: item.bank_name ? `${item.bank_name} - ${item.name}` : item.name, value: item.id }))
+})
+
+const remoteDestinationById = computed(() => {
+  if (!isIntercompany.value || !form.dest_id) return null
+  const items = isDestCashBox.value ? remoteDestinations.value?.cash_boxes : remoteDestinations.value?.bank_accounts
+  return items?.find(item => item.id === form.dest_id) ?? null
+})
 
 const sourceCurrency = computed(() => {
   if (!form.source_id) return null
@@ -105,6 +138,7 @@ const sourceCurrency = computed(() => {
 
 const destCurrency = computed(() => {
   if (!form.dest_id) return null
+  if (isIntercompany.value) return remoteDestinationById.value?.currency_code ?? null
   if (isDestCashBox.value) {
     const box = findCashBox(form.dest_id)
     return box?.currency_code ?? null
@@ -149,6 +183,26 @@ function onTransferTypeChange(type: TransferType) {
   form.dest_type = type.endsWith('CASH') ? 'cash_box' : 'bank_account'
   form.source_id = ''
   form.dest_id = ''
+}
+
+async function onDestinationCompanyChange(companyId: string) {
+  form.dest_id = ''
+  remoteDestinations.value = null
+  if (!companyId || companyId === authStore.selectedCompany?.id) {
+    form.dest_company_id = undefined
+    return
+  }
+  loadingDestinations.value = true
+  try {
+    remoteDestinations.value = await transfersService.destinationOptions(companyId)
+    form.dest_company_id = companyId
+  } catch (e: any) {
+    destinationCompanyId.value = authStore.selectedCompany?.id ?? ''
+    form.dest_company_id = undefined
+    toast.add({ title: e?.data?.message ?? 'No se pudieron cargar los fondos de la empresa destino', color: 'error' })
+  } finally {
+    loadingDestinations.value = false
+  }
 }
 
 function onSourceChange(id: string) {
@@ -210,9 +264,11 @@ function onSortFieldSelect(columnId: string) {
 const openCreate = () => {
   Object.assign(form, {
     source_type: 'cash_box', source_id: '', dest_type: 'bank_account',
-    dest_id: '', amount: 0, currency_code: 'ARS', transfer_type: 'CASH_TO_BANK',
+    dest_id: '', dest_company_id: undefined, amount: 0, currency_code: 'ARS', transfer_type: 'CASH_TO_BANK',
     exchange_rate: undefined, rate_type: 'OFFICIAL', converted_amount: undefined, description: ''
   })
+  destinationCompanyId.value = authStore.selectedCompany?.id ?? ''
+  remoteDestinations.value = null
   modalOpen.value = true
 }
 
@@ -332,12 +388,22 @@ const sortFields: SortField[] = [
           </div>
 
           <!-- Destino -->
+          <UFormField label="Empresa destino" required>
+            <USelect
+              v-model="destinationCompanyId"
+              :items="companyItems"
+              placeholder="Seleccionar empresa"
+              @update:model-value="onDestinationCompanyChange"
+            />
+          </UFormField>
+
           <UFormField :label="destLabel" required>
             <USelect
               :items="destItems"
               v-model="form.dest_id"
               placeholder="Seleccionar..."
-              :disabled="!form.source_id"
+              :loading="loadingDestinations"
+              :disabled="!form.source_id || !destinationCompanyId || loadingDestinations"
             />
           </UFormField>
 
@@ -434,8 +500,8 @@ const sortFields: SortField[] = [
           <div class="flex items-center justify-between">
             <span class="text-sm text-muted">Estado</span>
             <UBadge
-              :label="selectedTransfer.status === 'pending' ? 'Pendiente' : selectedTransfer.status === 'completed' ? 'Completada' : 'Cancelada'"
-              :color="selectedTransfer.status === 'pending' ? 'warning' : selectedTransfer.status === 'completed' ? 'success' : 'error'"
+              :label="statusMap[selectedTransfer.status]?.label ?? selectedTransfer.status"
+              :color="statusMap[selectedTransfer.status]?.color ?? 'neutral'"
             />
           </div>
 
@@ -455,6 +521,10 @@ const sortFields: SortField[] = [
             <div>
               <span class="text-muted">Destino</span>
               <p class="font-medium">{{ detailDestName }}</p>
+            </div>
+            <div v-if="selectedTransfer.dest_company_name">
+              <span class="text-muted">Empresa destino</span>
+              <p class="font-medium">{{ selectedTransfer.dest_company_name }}</p>
             </div>
           </div>
 
@@ -478,6 +548,10 @@ const sortFields: SortField[] = [
             <p class="font-medium">{{ selectedTransfer.description }}</p>
           </div>
 
+          <div v-if="selectedTransfer.execution_error" class="text-sm rounded-md bg-error/10 p-3 text-error">
+            {{ selectedTransfer.execution_error }}
+          </div>
+
           <div v-if="selectedTransfer.reference" class="text-sm">
             <span class="text-muted">Referencia</span>
             <p class="font-medium">{{ selectedTransfer.reference }}</p>
@@ -493,8 +567,8 @@ const sortFields: SortField[] = [
       <template #footer>
         <div class="flex justify-end gap-2">
           <UButton
-            v-if="selectedTransfer?.status === 'pending'"
-            label="Confirmar"
+            v-if="selectedTransfer && ['pending', 'processing', 'debit_applied', 'failed'].includes(selectedTransfer.status)"
+            :label="selectedTransfer.status === 'pending' ? 'Confirmar' : 'Reintentar ejecución'"
             icon="i-lucide-check-circle"
             color="success"
             @click="handleConfirm(selectedTransfer!); detailModalOpen = false"

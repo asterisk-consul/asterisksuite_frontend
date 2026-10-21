@@ -1,3 +1,5 @@
+import type { PaymentWithholdingPayload } from '~/modulos/erp/fiscal/types/fiscal.types'
+
 export type PaymentType = 'PAYMENT' | 'COLLECTION'
 
 export type PaymentMode = 'NORMAL' | 'ADVANCE'
@@ -100,6 +102,22 @@ export interface CreatePaymentObligationInput {
   amount_applied: number
 }
 
+export interface CreatePaymentBankChargeInput {
+  bank_concept_id: string
+  nature?: 'DEBIT' | 'CREDIT'
+  base_amount: number
+  percentage?: number
+  tax_amount?: number
+  total_amount: number
+  reference?: string
+  retention?: {
+    jurisdiction?: string
+    tax_code?: string
+    certificate_number?: string
+    period?: string
+  }
+}
+
 export interface CreatePaymentInput {
   type: PaymentType
   payment_mode?: PaymentMode
@@ -126,6 +144,8 @@ export interface CreatePaymentInput {
   checks?: CreatePaymentCheckInput[]
   documents?: CreatePaymentDocumentInput[]
   obligations?: CreatePaymentObligationInput[]
+  withholdings?: PaymentWithholdingPayload[]
+  bank_charges?: CreatePaymentBankChargeInput[]
   status?: PaymentStatus
 }
 

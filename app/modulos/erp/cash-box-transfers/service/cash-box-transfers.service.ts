@@ -1,6 +1,7 @@
 import type {
   CashBoxTransfer,
-  CreateCashBoxTransferInput
+  CreateCashBoxTransferInput,
+  TransferDestinationOptions
 } from '~/modulos/erp/cash-box-transfers/types/cash-box-transfers.types'
 
 const urlBase = '/api/backend/cash-box-transfers'
@@ -30,6 +31,12 @@ export const useCashBoxTransfersService = () => {
     })
   }
 
+  const destinationOptions = (companyId: string) => {
+    return $fetch<TransferDestinationOptions>(`${urlBase}/destination-options`, {
+      query: { company_id: companyId }
+    })
+  }
+
   const confirm = (id: string) => {
     return $fetch<CashBoxTransfer>(`${urlBase}/${id}/confirm`, {
       method: 'PATCH'
@@ -52,6 +59,7 @@ export const useCashBoxTransfersService = () => {
     findAll,
     findOne,
     create,
+    destinationOptions,
     confirm,
     cancel,
     remove

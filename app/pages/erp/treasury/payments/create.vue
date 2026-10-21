@@ -184,6 +184,8 @@ const handleSubmit = async (formData: PaymentFormData) => {
       checks: formData.checks?.length ? formData.checks : undefined,
       documents: formData.documents?.length ? formData.documents : undefined,
       obligations: formData.obligations ?? [],
+      withholdings: formData.withholdings?.length ? formData.withholdings : undefined,
+      bank_charges: formData.bank_charges?.length ? formData.bank_charges : undefined,
     }
     const created = await create(apiPayload)
     if (created?.id) {

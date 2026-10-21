@@ -156,6 +156,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
       documents: formData.documents ?? [],
       obligations: formData.obligations ?? [],
+      withholdings: formData.withholdings ?? [],
     })
     currentPayment.value = updated as Payment
     toast.add({ title: 'Pago actualizado', color: 'success' })

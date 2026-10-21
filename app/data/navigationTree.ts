@@ -248,6 +248,12 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'payments.read'
       },
       {
+        label: 'Retenciones fiscales',
+        icon: 'i-lucide-hand-coins',
+        to: '/erp/fiscal/withholdings',
+        permission: 'payments.read'
+      },
+      {
         label: 'Reportes de tesorería',
         icon: 'i-lucide-bar-chart-3',
         permission: 'payments.read',

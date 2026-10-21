@@ -16,6 +16,9 @@ const transferTypeConfig: Record<string, { label: string; color?: string }> = {
 
 const statusConfig: Record<string, { label: string; color?: string }> = {
   pending: { label: 'Pendiente', color: 'warning' },
+  processing: { label: 'Procesando', color: 'info' },
+  debit_applied: { label: 'Débito aplicado', color: 'warning' },
+  failed: { label: 'Requiere reintento', color: 'error' },
   completed: { label: 'Completada', color: 'success' },
   cancelled: { label: 'Cancelada', color: 'error' }
 }
@@ -125,6 +128,9 @@ export const cashBoxTransferColumns = (actions: {
             buttons.push({ icon: 'i-lucide-check-circle', color: 'success', onClick: () => actions.onConfirm?.(row.original) })
             buttons.push({ icon: 'i-lucide-x-circle', color: 'warning', onClick: () => actions.onCancel?.(row.original) })
             buttons.push({ icon: 'i-lucide-trash-2', color: 'error', onClick: () => actions.onDelete?.(row.original) })
+          } else if (['processing', 'debit_applied', 'failed'].includes(status)) {
+            buttons.push({ icon: 'i-lucide-refresh-cw', color: 'warning', onClick: () => actions.onConfirm?.(row.original) })
+            buttons.push({ icon: 'i-lucide-eye', color: 'neutral', onClick: () => actions.onDetail?.(row.original) })
           } else if (status === 'completed') {
             buttons.push({ icon: 'i-lucide-eye', color: 'neutral', onClick: () => actions.onDetail?.(row.original) })
           }
