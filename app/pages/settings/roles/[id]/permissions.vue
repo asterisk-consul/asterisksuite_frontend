@@ -19,8 +19,54 @@ const saving = ref(false)
 const permSearch = ref('')
 const collapsedModules = ref<Set<string>>(new Set())
 const collapsedSubgroups = ref<Set<string>>(new Set())
+const generalPermissionsExpanded = ref(false)
 const selectedPermissionCodes = ref<string[]>([])
 const initialPermissionCodes = ref<string[]>([])
+
+const normalizeSearch = (value: unknown) => String(value ?? '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLocaleLowerCase('es-AR')
+
+const matchesPermission = (permission: any, query: string) =>
+  !query || [permission.name, permission.description, permission.code]
+    .some(value => normalizeSearch(value).includes(query))
+
+const subgroupKey = (groupLabel: string, subgroupLabel: string) => {
+  const group = groupedByModule.value.find(item => item.label === groupLabel)
+  const index = group?.subgroups?.findIndex(item => item.label === subgroupLabel) ?? -1
+  return `${groupLabel}-${index}`
+}
+
+const visibleGroups = computed(() => {
+  const query = normalizeSearch(permSearch.value.trim())
+  return groupedByModule.value.flatMap((group) => {
+    const groupMatches = query && normalizeSearch(group.label).includes(query)
+    const visibleSubgroups = (group.subgroups ?? []).flatMap((sub) => {
+      const subgroupMatches = Boolean(groupMatches || normalizeSearch(sub.label).includes(query))
+      const permissions = subgroupMatches
+        ? sub.permissions
+        : sub.permissions.filter(permission => matchesPermission(permission, query))
+      return permissions.length ? [{ ...sub, permissions }] : []
+    })
+    const subgroupPermissionCodes = new Set((group.subgroups ?? []).flatMap(sub => sub.permissions.map(permission => permission.code)))
+    const ungroupedPermissions = group.permissions.filter(permission => !subgroupPermissionCodes.has(permission.code))
+    const visibleUngrouped = groupMatches
+      ? ungroupedPermissions
+      : ungroupedPermissions.filter(permission => matchesPermission(permission, query))
+    const visiblePermissions = groupMatches
+      ? group.permissions
+      : [...visibleSubgroups.flatMap(sub => sub.permissions), ...visibleUngrouped]
+
+    if (!visiblePermissions.length) return []
+    return [{
+      ...group,
+      permissions: visiblePermissions,
+      subgroups: visibleSubgroups,
+      ungroupedPermissions: visibleUngrouped,
+    }]
+  })
+})
 
 const hasUnsavedChanges = computed(() => {
   const sortedSelected = [...selectedPermissionCodes.value].sort()
@@ -62,6 +108,10 @@ const removeConflictingGeneralPermissions = (code: string) => {
 onMounted(async () => {
   try {
     await initPermissions()
+    collapsedModules.value = new Set(groupedByModule.value.map(group => group.label))
+    collapsedSubgroups.value = new Set(groupedByModule.value.flatMap(group =>
+      (group.subgroups ?? []).map((_, index) => `${group.label}-${index}`),
+    ))
     const data = await $fetch<any>(`/api/access-control/roles/${roleId}`)
     roleName.value = data.name || ''
     const codes = (data.permissions || []).map((p: any) => p.permission?.code).filter(Boolean)
@@ -109,24 +159,38 @@ const documentSubgroupHelp = (label: string) => {
   return ''
 }
 
-const filteredPerms = (perms: any[]) => {
-  if (!permSearch.value.trim()) return perms
-  const q = permSearch.value.toLowerCase().trim()
-  return perms.filter((p) =>
-    p.code.toLowerCase().includes(q) ||
-    (p.description && p.description.toLowerCase().includes(q))
-  )
-}
-
 watch(permSearch, (val) => {
   if (val.trim()) {
-    for (const group of groupedByModule.value) {
-      if (filteredPerms(group.permissions).length > 0) {
-        collapsedModules.value.delete(group.label)
+    for (const group of visibleGroups.value) {
+      collapsedModules.value.delete(group.label)
+      for (const subgroup of group.subgroups ?? []) {
+        collapsedSubgroups.value.delete(subgroupKey(group.label, subgroup.label))
       }
     }
   }
 })
+
+watch(visibleGroups, (groups) => {
+  if (!permSearch.value.trim()) return
+  for (const group of groups) {
+    collapsedModules.value.delete(group.label)
+    for (const subgroup of group.subgroups ?? []) {
+      collapsedSubgroups.value.delete(subgroupKey(group.label, subgroup.label))
+    }
+  }
+})
+
+const collapseAll = () => {
+  collapsedModules.value = new Set(groupedByModule.value.map(group => group.label))
+  collapsedSubgroups.value = new Set(groupedByModule.value.flatMap(group =>
+    (group.subgroups ?? []).map((_, index) => `${group.label}-${index}`),
+  ))
+}
+
+const expandAll = () => {
+  collapsedModules.value = new Set()
+  collapsedSubgroups.value = new Set()
+}
 
 const togglePermission = (code: string) => {
   const idx = selectedPermissionCodes.value.indexOf(code)
@@ -186,7 +250,7 @@ const savePermissions = async () => {
 </script>
 
 <template>
-  <UPage class="space-y-4">
+  <UPage class="space-y-8 pb-32">
     <AppPageHeader
       :title="`Permisos: ${roleName}`"
       description="Gestiona los permisos asignados a este rol"
@@ -217,29 +281,34 @@ const savePermissions = async () => {
         </div>
       </template>
       <template #footer>
-        <div class="flex items-center gap-2 pt-3 mt-2">
-          <UInput
-            v-model="permSearch"
-            icon="i-lucide-search"
-            placeholder="Buscar permisos... (ej: pagos, vehiculos, documentos)"
-            size="sm"
-            class="flex-1"
-          />
-          <UButton
-            v-if="isOwnerOrAdmin"
-            label="Todos"
-            size="xs"
-            variant="outline"
-            @click="selectAll"
-          />
-          <UButton
-            v-if="isOwnerOrAdmin"
-            label="Ninguno"
-            size="xs"
-            variant="outline"
-            color="neutral"
-            @click="clearAll"
-          />
+        <div class="mt-5 w-full space-y-4 border-t border-default pt-5">
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <UInput
+              v-model="permSearch"
+              icon="i-lucide-search"
+              placeholder="Buscar por nombre, módulo o acción (ej.: productos, stock, editar)"
+              size="sm"
+              class="min-w-0 flex-1"
+            >
+              <template v-if="permSearch" #trailing>
+                <UButton icon="i-lucide-x" color="neutral" variant="link" size="xs" aria-label="Limpiar búsqueda" @click="permSearch = ''" />
+              </template>
+            </UInput>
+            <div class="flex shrink-0 gap-2">
+              <UButton label="Expandir" icon="i-lucide-chevrons-down-up" size="xs" color="neutral" variant="outline" @click="expandAll" />
+              <UButton label="Plegar" icon="i-lucide-chevrons-up-down" size="xs" color="neutral" variant="outline" @click="collapseAll" />
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <p class="text-xs text-muted">
+              {{ permSearch ? `${visibleGroups.reduce((sum, group) => sum + group.permissions.length, 0)} resultados` : `${totalPermissions} permisos disponibles` }}
+              · {{ selectedCount }} seleccionados
+            </p>
+            <div v-if="isOwnerOrAdmin" class="flex gap-2">
+              <UButton label="Seleccionar todos" size="xs" variant="outline" @click="selectAll" />
+              <UButton label="Quitar selección" size="xs" variant="outline" color="neutral" @click="clearAll" />
+            </div>
+          </div>
         </div>
       </template>
     </AppPageHeader>
@@ -251,49 +320,63 @@ const savePermissions = async () => {
       icon="i-lucide-shield-alert"
       title="Solo visualización"
       description="Solo los usuarios con rol OWNER o ADMIN pueden editar permisos."
+      class="mx-4 sm:mx-6"
     />
 
-    <UAlert
+    <section
       v-if="generalDocumentPermissions.length"
-      color="warning"
-      variant="soft"
-      icon="i-lucide-layers-3"
-      title="Este rol todavía tiene permisos generales de documentos"
+      class="mt-3 mx-4 overflow-hidden rounded-xl border border-warning/30 bg-warning/5 sm:mx-6"
     >
-      <template #description>
-        <div class="space-y-3">
-          <p>
-            Los permisos generales habilitan todos los tipos de documento para esa acción,
-            aunque abajo selecciones solamente Presupuestos, Facturas o Remitos.
-          </p>
-          <div class="flex flex-wrap gap-1.5">
-            <UBadge
-              v-for="code in generalDocumentPermissions"
-              :key="code"
-              :label="formatGeneralPermission(code)"
-              color="warning"
-              variant="subtle"
-            />
-          </div>
-          <UButton
-            v-if="isOwnerOrAdmin"
-            label="Usar configuración por tipo de documento"
-            icon="i-lucide-list-checks"
+      <button
+        type="button"
+        class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-warning/10 sm:px-5"
+        :aria-expanded="generalPermissionsExpanded"
+        @click="generalPermissionsExpanded = !generalPermissionsExpanded"
+      >
+        <UIcon name="i-lucide-triangle-alert" class="size-5 shrink-0 text-warning" />
+        <span class="min-w-0 flex-1">
+          <span class="block text-sm font-semibold text-warning sm:text-base">Permisos generales de documentos</span>
+          <span class="mt-0.5 block text-xs text-muted">
+            Este rol tiene {{ generalDocumentPermissions.length }} permisos que habilitan acciones para todos los tipos de documento.
+          </span>
+        </span>
+        <UBadge :label="String(generalDocumentPermissions.length)" color="warning" variant="subtle" size="sm" />
+        <UIcon
+          :name="generalPermissionsExpanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+          class="size-4 shrink-0 text-warning transition-transform"
+        />
+      </button>
+
+      <div v-if="generalPermissionsExpanded" class="space-y-4 border-t border-warning/20 px-4 py-4 sm:px-5">
+        <p class="max-w-4xl text-sm leading-6 text-muted">
+          Habilitan todos los tipos de documento para esa acción, aunque abajo selecciones solamente Presupuestos, Facturas o Remitos.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <UBadge
+            v-for="code in generalDocumentPermissions"
+            :key="code"
+            :label="formatGeneralPermission(code)"
             color="warning"
-            variant="outline"
-            size="sm"
-            @click="removeGeneralDocumentPermissions"
+            variant="subtle"
           />
         </div>
-      </template>
-    </UAlert>
+        <UButton
+          v-if="isOwnerOrAdmin"
+          label="Usar configuración por tipo de documento"
+          icon="i-lucide-list-checks"
+          color="warning"
+          variant="outline"
+          size="sm"
+          @click="removeGeneralDocumentPermissions"
+        />
+      </div>
+    </section>
 
     <!-- Lista de permisos -->
-    <div class="space-y-2 px-4">
+    <div class="mt-6 space-y-5 px-4 pb-8 sm:px-6">
       <div
-        v-for="group in groupedByModule"
+        v-for="group in visibleGroups"
         :key="group.label"
-        v-show="filteredPerms(group.permissions).length > 0"
         class="border border-default rounded-lg overflow-hidden"
       >
         <button
@@ -312,7 +395,7 @@ const savePermissions = async () => {
             @click.stop
           />
           <UIcon :name="group.icon" class="size-4 text-muted" />
-          <span class="text-xs font-semibold uppercase text-muted flex-1 text-left">{{ group.label }}</span>
+          <span class="flex-1 text-left text-sm font-semibold text-highlighted">{{ group.label }}</span>
           <UBadge
             :label="`${group.permissions.filter((p: any) => selectedPermissionCodes.includes(p.code)).length}/${group.permissions.length}`"
             variant="soft"
@@ -327,9 +410,9 @@ const savePermissions = async () => {
 
         <div v-if="!collapsedModules.has(group.label)" class="border-t border-default px-3 py-2">
           <!-- Sin subgrupos -->
-          <div v-if="!group.subgroups?.length" class="grid grid-cols-2 gap-1">
+          <div v-if="!group.subgroups?.length" class="grid grid-cols-1 gap-1 sm:grid-cols-2">
             <label
-              v-for="perm in filteredPerms(group.permissions)"
+              v-for="perm in group.permissions"
               :key="perm.code"
               class="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 rounded px-2 py-1.5"
               :title="perm.code"
@@ -340,7 +423,7 @@ const savePermissions = async () => {
                 @update:model-value="togglePermission(perm.code)"
               />
               <span class="min-w-0">
-                <span class="block truncate">{{ perm.description || perm.code }}</span>
+                <span class="block truncate">{{ perm.name || perm.description || perm.code }}</span>
                 <span class="block truncate text-[10px] text-dimmed">{{ perm.code }}</span>
               </span>
             </label>
@@ -348,8 +431,26 @@ const savePermissions = async () => {
 
           <!-- Con subgrupos -->
           <div v-else class="space-y-2">
+            <div v-if="group.ungroupedPermissions.length" class="grid grid-cols-1 gap-1 sm:grid-cols-2">
+              <label
+                v-for="perm in group.ungroupedPermissions"
+                :key="perm.code"
+                class="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 rounded px-2 py-1.5"
+                :title="perm.code"
+              >
+                <UCheckbox
+                  :disabled="!isOwnerOrAdmin"
+                  :model-value="selectedPermissionCodes.includes(perm.code)"
+                  @update:model-value="togglePermission(perm.code)"
+                />
+                <span class="min-w-0">
+                  <span class="block truncate">{{ perm.name || perm.description || perm.code }}</span>
+                  <span class="block truncate text-[10px] text-dimmed">{{ perm.code }}</span>
+                </span>
+              </label>
+            </div>
             <div
-              v-for="(sub, subIdx) in group.subgroups"
+              v-for="sub in group.subgroups"
               :key="sub.label"
               class="space-y-1 rounded-lg"
               :class="group.label === 'Documentos' ? [
@@ -361,7 +462,7 @@ const savePermissions = async () => {
               <button
                 type="button"
                 class="flex items-center gap-2 w-full px-2 py-1 hover:bg-muted/50 rounded transition-colors"
-                @click="toggleSubgroupCollapse(`${group.label}-${subIdx}`)"
+                @click="toggleSubgroupCollapse(subgroupKey(group.label, sub.label))"
               >
                 <UCheckbox
                   :disabled="!isOwnerOrAdmin"
@@ -395,14 +496,17 @@ const savePermissions = async () => {
                   color="neutral"
                 />
                 <UIcon
-                  :name="collapsedSubgroups.has(`${group.label}-${subIdx}`) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
+                  :name="collapsedSubgroups.has(subgroupKey(group.label, sub.label)) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
                   class="size-3 text-muted transition-transform"
                 />
               </button>
-              <div v-if="!collapsedSubgroups.has(`${group.label}-${subIdx}`)" class="ml-5">
-                <div class="grid grid-cols-2 gap-1">
+              <div
+                v-if="!collapsedSubgroups.has(subgroupKey(group.label, sub.label))"
+                class="ml-5"
+              >
+                <div class="grid grid-cols-1 gap-1 sm:grid-cols-2">
                   <label
-                    v-for="perm in filteredPerms(sub.permissions)"
+                    v-for="perm in sub.permissions"
                     :key="perm.code"
                     class="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 rounded px-2 py-1.5"
                     :title="perm.code"
@@ -413,7 +517,7 @@ const savePermissions = async () => {
                       @update:model-value="togglePermission(perm.code)"
                     />
                     <span class="min-w-0">
-                      <span class="block truncate">{{ perm.description || perm.code }}</span>
+                      <span class="block truncate">{{ perm.name || perm.description || perm.code }}</span>
                       <span class="block truncate text-[10px] text-dimmed">{{ perm.code }}</span>
                     </span>
                   </label>
@@ -423,17 +527,22 @@ const savePermissions = async () => {
           </div>
         </div>
       </div>
+      <div v-if="!visibleGroups.length" class="rounded-xl border border-dashed border-default px-5 py-10 text-center">
+        <UIcon name="i-lucide-search-x" class="mx-auto mb-2 size-8 text-muted" />
+        <p class="font-medium">No encontramos permisos</p>
+        <p class="mt-1 text-sm text-muted">Probá con el nombre del módulo, una acción o el código. Ej.: “productos”, “ver” o “production”.</p>
+      </div>
     </div>
 
     <div
       v-if="isOwnerOrAdmin"
-      class="sticky bottom-3 z-20 mx-4 flex items-center justify-between gap-3 rounded-xl border border-default bg-default/95 px-4 py-3 shadow-lg backdrop-blur"
+      class="sticky bottom-3 z-20 mx-4 flex flex-col gap-3 rounded-xl border border-default bg-default/95 px-4 py-3 shadow-lg backdrop-blur sm:mx-6 sm:flex-row sm:items-center sm:justify-between"
     >
       <div>
         <p class="text-sm font-medium">{{ hasUnsavedChanges ? 'Hay cambios sin guardar' : 'Permisos guardados' }}</p>
         <p class="text-xs text-muted">{{ selectedCount }} permisos seleccionados</p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex w-full gap-2 sm:w-auto">
         <UButton
           v-if="hasUnsavedChanges"
           label="Descartar"
@@ -444,6 +553,7 @@ const savePermissions = async () => {
         <UButton
           label="Guardar cambios"
           icon="i-lucide-check"
+          class="flex-1 sm:flex-none"
           :loading="saving"
           :disabled="!hasUnsavedChanges"
           @click="savePermissions"

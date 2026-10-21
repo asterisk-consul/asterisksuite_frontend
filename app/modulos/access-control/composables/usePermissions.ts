@@ -93,8 +93,13 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
       'logistics.reports': 'Exportación de reportes'
     }
   },
+  manufacturing: {
+    label: 'Fabricación', icon: 'i-lucide-factory', order: 35,
+    modules: ['production'],
+    subgroups: { production: 'Fabricación y producción' }
+  },
   intake: {
-    label: 'Capturas y adjuntos', icon: 'i-lucide-paperclip', order: 35,
+    label: 'Capturas y adjuntos', icon: 'i-lucide-paperclip', order: 36,
     modules: ['intake']
   },
   treasury: {

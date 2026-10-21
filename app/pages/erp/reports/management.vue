@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { useManagementReportsService } from '~/modulos/erp/management-reports/management-reports.service'
 import type { ManagementReportMetadata, ManagementReportResponse, PaymentState, ProgressState, ReportBasis, ReportGroupBy } from '~/modulos/erp/management-reports/management-reports.types'
+import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
+import { h, resolveComponent } from 'vue'
 
 definePageMeta({ middleware: ['auth', 'management-reports'] })
 
@@ -9,6 +13,20 @@ const toast = useToast()
 const loading = ref(false)
 const report = ref<ManagementReportResponse | null>(null)
 const metadata = ref<ManagementReportMetadata | null>(null)
+type ManagementTableRow = Record<string, any> & { id: string }
+const textColumn = (accessorKey: string, label: string): ExtendedColumn<ManagementTableRow> => ({
+  accessorKey, header: label, meta: { label, filter: { type: 'text', operators: ['contains', 'equals'] } },
+})
+const numberColumn = (accessorKey: string, label: string): ExtendedColumn<ManagementTableRow> => ({
+  accessorKey, header: label, meta: { label, filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
+})
+const selectColumn = (accessorKey: string, label: string, options: string[]): ExtendedColumn<ManagementTableRow> => ({
+  accessorKey, header: label, meta: { label, filter: { type: 'select', options: options.map(value => ({ label: value, value })) } },
+})
+const quickFilters = (...fields: Array<[string, string]>): FilterField[] => fields.map(([id, label]) => ({ id, label }))
+const sortOptions = (...fields: Array<[string, string]>): SortField[] => fields.map(([label, value]) => ({ label, value }))
+const ULinkComponent = resolveComponent('ULink')
+const UBadgeComponent = resolveComponent('UBadge')
 let reloadTimer: ReturnType<typeof setTimeout> | null = null
 let requestSequence = 0
 
@@ -76,6 +94,42 @@ const selectedBasis = computed(() => basisOptions.find(item => item.value === fi
 const formatCurrency = (value: number, currency = 'ARS') => new Intl.NumberFormat('es-AR', {
   style: 'currency', currency, maximumFractionDigits: 2,
 }).format(Number(value) || 0)
+
+const revenueProductColumns: ExtendedColumn<ManagementTableRow>[] = [
+  textColumn('product_display', 'Producto'), numberColumn('quantity', 'Unidades'), numberColumn('document_count', 'Documentos'),
+  textColumn('revenue_display', 'Venta neta'),
+]
+const sellerColumns: ExtendedColumn<ManagementTableRow>[] = [
+  textColumn('name', 'Vendedor'), numberColumn('document_count', 'Documentos'), numberColumn('quantity', 'Unidades'),
+  textColumn('revenue_display', 'Venta'), textColumn('paid_display', 'Cobrado'),
+]
+const reportRowColumns: ExtendedColumn<ManagementTableRow>[] = [
+  textColumn('date_display', 'Fecha'),
+  { ...textColumn('label', 'Documento'), cell: ({ row }: any) => h(ULinkComponent, { to: documentRoute(row.original), class: 'text-primary hover:underline' }, () => row.original.label) },
+  textColumn('party_name', 'Cliente'), selectColumn('currency_code', 'Moneda', ['ARS', 'USD']),
+  textColumn('total_display', 'Total'), textColumn('paid_display', 'Cobrado'), textColumn('pending_display', 'Pendiente'),
+  { ...selectColumn('payment_state_label', 'Estado', ['Cobrado', 'Parcial', 'Pendiente']), cell: ({ row }: any) => h(UBadgeComponent, { label: row.original.payment_state_label, variant: 'subtle' }) },
+]
+const revenueProductRows = computed(() => (report.value?.commercial_performance?.products_by_revenue ?? []).map(product => ({
+  ...product,
+  id: product.product_id,
+  product_display: product.sku ? `${product.name} · ${product.sku}` : product.name,
+  revenue_display: formatCurrency(product.revenue),
+})))
+const sellerRows = computed(() => (report.value?.commercial_performance?.sellers ?? []).map((seller, index) => ({
+  ...seller,
+  id: seller.seller_id ?? `seller-${index}`,
+  revenue_display: formatCurrency(seller.revenue),
+  paid_display: formatCurrency(seller.paid),
+})))
+const reportTableRows = computed(() => (report.value?.rows ?? []).map(row => ({
+  ...row,
+  date_display: new Date(row.date).toLocaleDateString('es-AR'),
+  total_display: formatCurrency(row.amount, row.currency_code),
+  paid_display: formatCurrency(row.paid_amount, row.currency_code),
+  pending_display: formatCurrency(row.pending_amount, row.currency_code),
+  payment_state_label: row.payment_state === 'PAID' ? 'Cobrado' : row.payment_state === 'PARTIAL' ? 'Parcial' : 'Pendiente',
+})))
 
 const chartOption = computed(() => ({
   tooltip: { trigger: 'axis' },
@@ -300,12 +354,15 @@ onMounted(loadMetadata)
             <template #header>
               <div><p class="font-semibold">Productos con mayor facturación</p><p class="text-xs text-muted">Importe neto convertido a ARS con la cotización histórica</p></div>
             </template>
-            <div class="max-h-80 overflow-auto">
-              <table class="w-full min-w-[520px] text-sm">
-                <thead class="sticky top-0 bg-default text-left text-xs uppercase text-muted"><tr><th class="p-3">Producto</th><th class="p-3 text-right">Unidades</th><th class="p-3 text-right">Documentos</th><th class="p-3 text-right">Venta neta</th></tr></thead>
-                <tbody><tr v-for="product in report.commercial_performance.products_by_revenue" :key="product.product_id" class="border-t border-default/60"><td class="p-3"><p class="font-medium">{{ product.name }}</p><p v-if="product.sku" class="text-xs text-muted">{{ product.sku }}</p></td><td class="p-3 text-right">{{ product.quantity.toLocaleString('es-AR') }}</td><td class="p-3 text-right">{{ product.document_count }}</td><td class="p-3 text-right font-medium">{{ formatCurrency(product.revenue) }}<UIcon v-if="product.missing_exchange_rate_count" name="i-lucide-triangle-alert" class="ml-1 size-4 text-warning" title="Hay líneas sin cotización histórica" /></td></tr></tbody>
-              </table>
-            </div>
+            <AsteriskTable
+              compact
+              storage-key="management-report-revenue-products"
+              :data="revenueProductRows"
+              :columns="revenueProductColumns"
+              :filter-fields="quickFilters(['product_display', 'Producto'])"
+              :sort-fields="sortOptions(['Producto', 'product_display'], ['Venta neta', 'revenue_display'])"
+              search-placeholder="Buscar producto..."
+            />
           </UPageCard>
         </div>
 
@@ -313,23 +370,29 @@ onMounted(loadMetadata)
           <template #header>
             <div><p class="font-semibold">Desempeño por vendedor</p><p class="text-xs text-muted">Filtrá un vendedor arriba para descubrir sus productos estrella</p></div>
           </template>
-          <div class="overflow-x-auto">
-            <table class="w-full min-w-[720px] text-sm">
-              <thead class="border-b border-default text-left text-xs uppercase text-muted"><tr><th class="p-3">Vendedor</th><th class="p-3 text-right">Documentos</th><th class="p-3 text-right">Unidades</th><th class="p-3 text-right">Venta</th><th class="p-3 text-right">Cobrado</th></tr></thead>
-              <tbody><tr v-for="seller in report.commercial_performance.sellers" :key="seller.seller_id ?? 'none'" class="border-b border-default/60"><td class="p-3 font-medium">{{ seller.name }}</td><td class="p-3 text-right">{{ seller.document_count }}</td><td class="p-3 text-right">{{ seller.quantity.toLocaleString('es-AR') }}</td><td class="p-3 text-right">{{ formatCurrency(seller.revenue) }}</td><td class="p-3 text-right text-success">{{ formatCurrency(seller.paid) }}</td></tr></tbody>
-            </table>
-          </div>
+          <AsteriskTable
+            compact
+            storage-key="management-report-sellers"
+            :data="sellerRows"
+            :columns="sellerColumns"
+            :filter-fields="quickFilters(['name', 'Vendedor'])"
+            :sort-fields="sortOptions(['Vendedor', 'name'], ['Venta', 'revenue_display'], ['Cobrado', 'paid_display'])"
+            search-placeholder="Buscar vendedor..."
+          />
         </UPageCard>
       </div>
 
       <UPageCard variant="subtle" class="overflow-hidden">
         <template #header><div><p class="font-semibold">Detalle del reporte</p><p class="text-xs text-muted">Primeros 200 resultados de la base seleccionada</p></div></template>
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[900px] text-sm">
-            <thead class="border-b border-default text-left text-xs uppercase text-muted"><tr><th class="p-3">Fecha</th><th class="p-3">Documento</th><th class="p-3">Cliente</th><th class="p-3">Moneda</th><th class="p-3 text-right">Total</th><th class="p-3 text-right">Cobrado</th><th class="p-3 text-right">Pendiente</th><th class="p-3">Estado</th></tr></thead>
-            <tbody><tr v-for="row in report.rows" :key="row.id" class="border-b border-default/60 hover:bg-elevated/40"><td class="p-3">{{ new Date(row.date).toLocaleDateString('es-AR') }}</td><td class="p-3 font-medium"><ULink :to="documentRoute(row)" class="text-primary hover:underline">{{ row.label }}</ULink></td><td class="p-3">{{ row.party_name }}</td><td class="p-3">{{ row.currency_code }}</td><td class="p-3 text-right">{{ formatCurrency(row.amount, row.currency_code) }}</td><td class="p-3 text-right text-success">{{ formatCurrency(row.paid_amount, row.currency_code) }}</td><td class="p-3 text-right text-warning">{{ formatCurrency(row.pending_amount, row.currency_code) }}</td><td class="p-3"><UBadge :label="row.payment_state === 'PAID' ? 'Cobrado' : row.payment_state === 'PARTIAL' ? 'Parcial' : 'Pendiente'" variant="subtle" /></td></tr></tbody>
-          </table>
-        </div>
+        <AsteriskTable
+          compact
+          storage-key="management-report-detail"
+          :data="reportTableRows"
+          :columns="reportRowColumns"
+          :filter-fields="quickFilters(['label', 'Documento'], ['party_name', 'Cliente'])"
+          :sort-fields="sortOptions(['Fecha', 'date'], ['Total', 'amount_display'], ['Cobrado', 'paid_display'], ['Pendiente', 'pending_display'])"
+          search-placeholder="Buscar documento o cliente..."
+        />
       </UPageCard>
     </div>
   </UPage>

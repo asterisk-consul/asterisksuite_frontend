@@ -1,5 +1,59 @@
 [
  {
+  "version": "0.88.0-alpha",
+  "date": "2026-10-21",
+  "stage": "alpha",
+  "notes": "Estandarización de tablas de reportes con filtros y orden consistentes, vista multiempresa conjunta o separada y mejor contención de tablas anchas.",
+  "changes": [
+   {
+    "type": "refactor",
+    "scope": "tables",
+    "title": "Se incorpora AsteriskTable como nombre estándar reutilizable, manteniendo LogisticaTable por compatibilidad"
+   },
+   {
+    "type": "feat",
+    "scope": "reports",
+    "title": "Las tablas de reportes incorporan búsqueda, filtros, orden y selección de columnas con AsteriskTable"
+   },
+   {
+    "type": "feat",
+    "scope": "reports",
+    "title": "El reporte multiempresa permite mostrar tablas conjuntas con empresa identificada por color o separarlas por empresa"
+   },
+   {
+    "type": "fix",
+    "scope": "tables",
+    "title": "Las tablas anchas quedan contenidas dentro de sus tarjetas y permiten desplazamiento horizontal"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Estandarizar tablas y mejorar reportes multiempresa"
+ },
+ {
+  "version": "0.87.0-alpha",
+  "date": "2026-10-21",
+  "stage": "alpha",
+  "notes": "Mejora visual de la administración de permisos por rol, con advertencias plegables y controles mejor espaciados.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "access-control",
+    "title": "La advertencia de permisos generales de documentos se puede expandir y contraer para reducir el espacio ocupado"
+   },
+   {
+    "type": "ui",
+    "scope": "access-control",
+    "title": "Se mejora la separación visual entre búsqueda, advertencias, grupos de permisos y barra de guardado"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Mejorar la visualización de permisos por rol"
+ },
+ {
   "version": "0.86.0-alpha",
   "date": "2026-10-21",
   "stage": "alpha",

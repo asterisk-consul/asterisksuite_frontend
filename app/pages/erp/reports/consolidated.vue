@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { useManagementReportsService } from '~/modulos/erp/management-reports/management-reports.service'
 import type { ConsolidatedReportCompanyOption, ConsolidatedReportResponse, ConsolidatedReportView, CurrencyTotals } from '~/modulos/erp/management-reports/consolidated-reports.types'
+import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
+import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 definePageMeta({ middleware: ['auth', 'management-reports'] })
 
@@ -25,6 +28,7 @@ useHead(() => ({ title: `${currentView.value.title} | AsteriskSuite` }))
 const now = new Date()
 const isoDate = (date: Date) => date.toISOString().slice(0, 10)
 const filters = reactive({ date_from: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)), date_to: isoDate(now) })
+const companyDisplayMode = ref<'combined' | 'separate'>('combined')
 const companies = ref<ConsolidatedReportCompanyOption[]>([])
 const selectedCompanyIds = ref<string[]>([])
 const report = ref<ConsolidatedReportResponse | null>(null)
@@ -38,6 +42,82 @@ const metrics = [
   { key: 'receivables', label: 'Por cobrar actual', icon: 'i-lucide-circle-dollar-sign' },
   { key: 'payables', label: 'Por pagar actual', icon: 'i-lucide-receipt-text' }
 ] as const
+type ReportTableRow = Record<string, any> & { id: string }
+const companyTones = [
+  'bg-primary/10 text-primary ring-primary/20',
+  'bg-info/10 text-info ring-info/20',
+  'bg-success/10 text-success ring-success/20',
+  'bg-warning/10 text-warning ring-warning/20',
+  'bg-error/10 text-error ring-error/20',
+  'bg-secondary/10 text-secondary ring-secondary/20',
+]
+const textColumn = (accessorKey: string, label: string): ExtendedColumn<ReportTableRow> => ({
+  accessorKey, header: label, meta: { label, filter: { type: 'text', operators: ['contains', 'equals'] } },
+})
+const numberColumn = (accessorKey: string, label: string): ExtendedColumn<ReportTableRow> => ({
+  accessorKey, header: label, meta: { label, filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
+})
+const selectColumn = (accessorKey: string, label: string, values: string[]): ExtendedColumn<ReportTableRow> => ({
+  accessorKey, header: label, meta: { label, filter: { type: 'select', options: values.map(value => ({ label: value, value })) } },
+})
+const quickFilters = (...fields: Array<[string, string]>): FilterField[] => fields.map(([id, label]) => ({ id, label }))
+const sortOptions = (...fields: Array<[string, string]>): SortField[] => fields.map(([label, value]) => ({ label, value }))
+const withRowIds = (rows: Record<string, any>[], prefix: string): ReportTableRow[] => rows.map((row, index) => ({
+  ...row,
+  id: String(row.id ?? `${prefix}-${index}`),
+}))
+const companySummaryColumns: ExtendedColumn<ReportTableRow>[] = [
+  textColumn('company_name', 'Empresa'), textColumn('subdomain', 'Base'),
+  ...metrics.map(metric => textColumn(`${metric.key}_display`, metric.label)),
+  textColumn('banks_display', 'Bancos'), textColumn('cash_display', 'Cajas'), textColumn('checks_display', 'Cheques pendientes'),
+]
+const partyColumns: ExtendedColumn<ReportTableRow>[] = [
+  textColumn('role_label', 'Grupo'), numberColumn('total', 'Registrados'), numberColumn('active', 'Activos'),
+  numberColumn('with_balance', 'Con saldo'), textColumn('balance_display', 'Saldo neto'),
+]
+const financialColumns: ExtendedColumn<ReportTableRow>[] = [
+  selectColumn('type', 'Tipo', ['Banco', 'Caja']), textColumn('name', 'Cuenta'), textColumn('status', 'Estado'),
+  numberColumn('movement_count', 'Movimientos'), textColumn('opening_display', 'Apertura'),
+  textColumn('variation_display', 'Variación'), textColumn('balance_display', 'Saldo actual'),
+]
+const peopleColumns: ExtendedColumn<ReportTableRow>[] = [
+  selectColumn('kind_label', 'Tipo', ['Empleado', 'Socio']), textColumn('name', 'Persona'), textColumn('active_label', 'Estado'),
+  textColumn('detail', 'Datos'), numberColumn('movements_count', 'Movimientos'),
+  textColumn('movements_display', 'Importe período'), textColumn('pending_display', 'Pendiente'),
+]
+const documentColumns: ExtendedColumn<ReportTableRow>[] = [
+  selectColumn('direction_label', 'Circuito', ['Venta', 'Compra']), textColumn('category_label', 'Documento'),
+  textColumn('status_label', 'Estado'), numberColumn('count', 'Cantidad'), textColumn('amount_display', 'Importe'),
+]
+const inventoryColumns: ExtendedColumn<ReportTableRow>[] = [
+  textColumn('company_name', 'Empresa'), selectColumn('type_label', 'Tipo', ['Orden de venta', 'Factura']),
+  numberColumn('document_number', 'Documento'), textColumn('document_date', 'Fecha'), textColumn('customer', 'Cliente'),
+  textColumn('product', 'Artículo'), numberColumn('quantity', 'Cantidad'), textColumn('status', 'Estado'),
+  textColumn('confirmation_display', 'Confirmación'), textColumn('user', 'Usuario'),
+  textColumn('invoice_display', 'Total facturado'), textColumn('paid_display', 'Importe cobrado'),
+]
+const stockColumns: ExtendedColumn<ReportTableRow>[] = [
+  textColumn('product', 'Producto'), textColumn('movement_type', 'Origen'), textColumn('direction', 'Movimiento'),
+  numberColumn('quantity', 'Cantidad neta'), numberColumn('count', 'Movimientos'),
+]
+const detailColumns = (showBalance: boolean): ExtendedColumn<ReportTableRow>[] => [
+  textColumn('label', 'Detalle'), numberColumn('count', 'Registros'), textColumn('amount_display', 'Importe'),
+  ...(showBalance ? [textColumn('balance_display', 'Saldo')] : []),
+]
+const companyColumn: ExtendedColumn<ReportTableRow> = {
+  accessorKey: 'company_name', header: 'Empresa',
+  meta: { label: 'Empresa', filter: { type: 'text', operators: ['contains', 'equals'] } },
+  cell: ({ row }: any) => h('span', { class: `inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${row.original.company_tone}` }, row.original.company_name),
+}
+const withCompanyColumn = (columns: ExtendedColumn<ReportTableRow>[]) => [companyColumn, ...columns.filter(column => !('accessorKey' in column) || column.accessorKey !== 'company_name')]
+const companySummaryRows = computed(() => (report.value?.companies ?? []).map(company => ({
+  ...company,
+  id: company.company_id,
+  ...Object.fromEntries(metrics.map(metric => [`${metric.key}_display`, formatTotals(company[metric.key])])),
+  banks_display: formatTotals(company.banks),
+  cash_display: formatTotals(company.cash),
+  checks_display: formatTotals(company.pending_checks),
+})))
 const allSelected = computed(() => companies.value.length > 0 && selectedCompanyIds.value.length === companies.value.length)
 const canGenerate = computed(() => selectedCompanyIds.value.length > 0 && filters.date_from <= filters.date_to)
 
@@ -98,6 +178,92 @@ function visiblePartyRows(company: ConsolidatedReportResponse['companies'][numbe
   if (reportView.value === 'suppliers') return company.details.party_summary.filter(row => row.role === 'SUPPLIER')
   return company.details.party_summary
 }
+function partyTableRows(company: ConsolidatedReportResponse['companies'][number]): ReportTableRow[] {
+  return withRowIds(visiblePartyRows(company).map(row => ({
+    ...row,
+    role_label: partyRoleLabel(row.role),
+    balance_display: formatAmount(row.balance, row.currency_code),
+  })), `${company.company_id}-party`)
+}
+function financialTableRows(company: ConsolidatedReportResponse['companies'][number]): ReportTableRow[] {
+  return withRowIds([
+    ...company.details.bank_accounts.map(row => ({ ...row, type: 'Banco' })),
+    ...company.details.cash_boxes.map(row => ({ ...row, type: 'Caja' })),
+  ].map(row => ({
+    ...row,
+    opening_display: formatAmount(row.opening_amount, row.currency_code),
+    variation_display: formatAmount(row.period_change, row.currency_code),
+    balance_display: formatAmount(row.current_balance, row.currency_code),
+    status: `${row.status} · ${row.currency_code}`,
+    name: row.institution ? `${row.name} · ${row.institution}` : row.name,
+  })), `${company.company_id}-financial`)
+}
+function peopleTableRows(company: ConsolidatedReportResponse['companies'][number]): ReportTableRow[] {
+  return withRowIds([...company.details.employees, ...company.details.partners].map(row => ({
+    ...row,
+    kind_label: row.kind === 'EMPLOYEE' ? 'Empleado' : 'Socio',
+    active_label: row.active ? 'Activo' : 'Inactivo',
+    movements_display: formatAmount(row.movements_amount, row.currency_code),
+    pending_display: formatAmount(row.pending_amount, row.currency_code),
+  })), `${company.company_id}-people`)
+}
+function documentTableRows(company: ConsolidatedReportResponse['companies'][number]): ReportTableRow[] {
+  return withRowIds(company.details.documents.map(row => ({
+    ...row,
+    direction_label: row.direction === 'SALE' ? 'Venta' : 'Compra',
+    category_label: documentCategoryLabel(row.category),
+    status_label: documentStatusLabel(row.status, row.category),
+    amount_display: formatAmount(row.amount, row.currency_code),
+  })), `${company.company_id}-documents`)
+}
+function inventoryTableRows(company: ConsolidatedReportResponse['companies'][number]): ReportTableRow[] {
+  return withRowIds(company.details.inventory_orders.map(row => ({
+    ...row,
+    company_name: company.company_name,
+    type_label: row.document_type === 'ORDER' ? 'Orden de venta' : 'Factura',
+    confirmation_display: formatConfirmation(row.confirmation_at),
+    invoice_display: row.invoice_total == null ? '—' : formatAmount(row.invoice_total, row.currency_code),
+    paid_display: row.paid_amount == null ? '—' : formatAmount(row.paid_amount, row.currency_code),
+  })), `${company.company_id}-inventory`)
+}
+function stockTableRows(company: ConsolidatedReportResponse['companies'][number]): ReportTableRow[] {
+  return withRowIds(company.details.stock_movements.map(row => ({
+    ...row,
+    direction: row.direction === 'IN' ? 'Entrada' : row.direction === 'OUT' ? 'Salida' : row.direction,
+  })), `${company.company_id}-stock`)
+}
+function detailTableRows(company: ConsolidatedReportResponse['companies'][number], key: typeof detailSections[number]['key']): ReportTableRow[] {
+  const rows = company.details[key] as Array<{ label: string; currency_code: string; amount: number; count: number; balance?: number }>
+  return withRowIds(rows.map(row => ({
+    ...row,
+    amount_display: formatAmount(row.amount, row.currency_code),
+    balance_display: row.balance == null ? '' : formatAmount(row.balance, row.currency_code),
+  })), `${company.company_id}-${key}`)
+}
+function combineCompanyRows(buildRows: (company: ConsolidatedReportResponse['companies'][number]) => ReportTableRow[]): ReportTableRow[] {
+  return (report.value?.companies ?? []).flatMap((company, companyIndex) => buildRows(company).map(row => ({
+    ...row,
+    id: `${company.company_id}-${row.id}`,
+    company_id: company.company_id,
+    company_name: company.company_name,
+    company_tone: companyTones[companyIndex % companyTones.length],
+  })))
+}
+const combinedPartyRows = computed(() => combineCompanyRows(partyTableRows))
+const combinedFinancialRows = computed(() => combineCompanyRows(financialTableRows))
+const combinedPeopleRows = computed(() => combineCompanyRows(peopleTableRows))
+const combinedDocumentRows = computed(() => combineCompanyRows(documentTableRows))
+const combinedInventoryRows = computed(() => combineCompanyRows(inventoryTableRows))
+const combinedStockRows = computed(() => combineCompanyRows(stockTableRows))
+const combinedDetailRows = (key: typeof detailSections[number]['key']) => combineCompanyRows(company => detailTableRows(company, key))
+const combinedAlertRows = computed(() => (report.value?.companies ?? []).flatMap((company, companyIndex) => company.details.alerts.map((alert, index) => ({
+  id: `${company.company_id}-alert-${index}`, company_name: company.company_name, company_tone: companyTones[companyIndex % companyTones.length], alert,
+}))))
+const combinedNarrativeRows = computed(() => (report.value?.companies ?? []).flatMap((company, companyIndex) => visibleNarratives(company).map((narrative, index) => ({
+  id: `${company.company_id}-narrative-${index}`, company_name: company.company_name, company_tone: companyTones[companyIndex % companyTones.length], narrative,
+}))))
+const alertColumns: ExtendedColumn<ReportTableRow>[] = [companyColumn, textColumn('alert', 'Seguimiento')]
+const narrativeColumns: ExtendedColumn<ReportTableRow>[] = [companyColumn, textColumn('narrative', 'Resumen')]
 function visibleNarratives(company: ConsolidatedReportResponse['companies'][number]) {
   const indexes: Record<ConsolidatedReportView, number[]> = {
     consolidated: [0, 1, 2, 3, 4], customers: [0, 1, 4], suppliers: [0, 1, 4], hr: [3, 4], treasury: [2, 4], documents: [0, 4], inventory: [4]
@@ -163,6 +329,13 @@ watch(reportView, () => { report.value = null })
         <UFormField label="Desde"><UInput v-model="filters.date_from" type="date" class="w-full" @update:model-value="report = null" /></UFormField>
         <UFormField label="Hasta"><UInput v-model="filters.date_to" type="date" class="w-full" @update:model-value="report = null" /></UFormField>
       </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-default bg-elevated/20 p-4">
+        <div><p class="font-medium">Presentación de empresas</p><p class="text-sm text-muted">Elegí si combinar los registros en una tabla por tema o mantenerlos separados.</p></div>
+        <div class="flex gap-2">
+          <UButton label="Juntas" icon="i-lucide-layers-2" :color="companyDisplayMode === 'combined' ? 'primary' : 'neutral'" :variant="companyDisplayMode === 'combined' ? 'solid' : 'outline'" @click="companyDisplayMode = 'combined'" />
+          <UButton label="Por empresa" icon="i-lucide-building-2" :color="companyDisplayMode === 'separate' ? 'primary' : 'neutral'" :variant="companyDisplayMode === 'separate' ? 'solid' : 'outline'" @click="companyDisplayMode = 'separate'" />
+        </div>
+      </div>
       <p v-if="filters.date_from > filters.date_to" class="text-sm text-error">La fecha desde no puede ser posterior a la fecha hasta.</p>
     </UPageCard>
 
@@ -182,10 +355,34 @@ watch(reportView, () => { report.value = null })
       <UAlert color="info" icon="i-lucide-info" title="Criterio del reporte" :description="report.currency_note + ' Los saldos financieros son actuales; ventas, compras, pagos y cobros corresponden al período.'" />
       <UPageCard v-if="reportView === 'consolidated'" variant="subtle" class="overflow-hidden">
         <template #header><div><p class="font-semibold">Comparativo por empresa</p><p class="text-xs text-muted">Los importes en moneda extranjera permanecen separados.</p></div></template>
-        <div class="overflow-x-auto"><table class="w-full min-w-[1100px] text-sm"><thead class="border-b border-default text-left text-xs uppercase text-muted"><tr><th class="p-3">Empresa</th><th v-for="metric in metrics" :key="metric.key" class="p-3 text-right">{{ metric.label }}</th><th class="p-3 text-right">Bancos</th><th class="p-3 text-right">Cajas</th><th class="p-3 text-right">Cheques pendientes</th></tr></thead><tbody><tr v-for="company in report.companies" :key="company.company_id" class="border-b border-default/60 hover:bg-elevated/40"><td class="p-3"><p class="font-medium">{{ company.company_name }}</p><p class="text-xs text-muted">{{ company.subdomain }}</p></td><td v-for="metric in metrics" :key="metric.key" class="p-3 text-right whitespace-nowrap">{{ formatTotals(company[metric.key]) }}</td><td class="p-3 text-right whitespace-nowrap">{{ formatTotals(company.banks) }}</td><td class="p-3 text-right whitespace-nowrap">{{ formatTotals(company.cash) }}</td><td class="p-3 text-right whitespace-nowrap">{{ formatTotals(company.pending_checks) }}</td></tr></tbody></table></div>
+        <div class="max-w-full overflow-x-auto">
+          <AsteriskTable
+            compact
+            storage-key="management-report-company-summary"
+            :data="companySummaryRows"
+            :columns="companySummaryColumns"
+            :filter-fields="quickFilters(['company_name', 'Empresa'], ['subdomain', 'Base'])"
+            :sort-fields="sortOptions(['Empresa', 'company_name'])"
+            search-placeholder="Buscar empresa..."
+          />
+        </div>
       </UPageCard>
 
-      <div class="space-y-5">
+      <div v-if="companyDisplayMode === 'combined'" class="min-w-0 max-w-full space-y-5 overflow-x-clip">
+        <div><p class="text-lg font-semibold">3. Detalle por tema</p><p class="text-sm text-muted">Una tabla por tipo de información. El distintivo de color identifica la empresa de cada fila.</p></div>
+
+        <UPageCard v-if="combinedAlertRows.length" variant="subtle" class="min-w-0 max-w-full overflow-hidden"><template #header><p class="font-semibold">Prioridades de seguimiento</p></template><AsteriskTable compact class="min-w-0 max-w-full" storage-key="report-combined-alerts" :data="combinedAlertRows" :columns="alertColumns" :filter-fields="quickFilters(['company_name', 'Empresa'], ['alert', 'Alerta'])" :sort-fields="sortOptions(['Empresa', 'company_name'])" search-placeholder="Buscar alerta o empresa..." /></UPageCard>
+        <UPageCard v-if="combinedNarrativeRows.length" variant="subtle" class="min-w-0 max-w-full overflow-hidden"><template #header><p class="font-semibold">Lectura ejecutiva</p></template><AsteriskTable compact class="min-w-0 max-w-full" storage-key="report-combined-narratives" :data="combinedNarrativeRows" :columns="narrativeColumns" :filter-fields="quickFilters(['company_name', 'Empresa'], ['narrative', 'Resumen'])" :sort-fields="sortOptions(['Empresa', 'company_name'])" search-placeholder="Buscar resumen o empresa..." /></UPageCard>
+        <UPageCard v-if="showArea('customers') || showArea('suppliers')" variant="subtle" class="min-w-0 max-w-full overflow-hidden"><template #header><p class="font-semibold">Partes interesadas y cuentas corrientes</p></template><AsteriskTable compact class="min-w-0 max-w-full" storage-key="report-combined-parties" :data="combinedPartyRows" :columns="withCompanyColumn(partyColumns)" :filter-fields="quickFilters(['company_name', 'Empresa'], ['role_label', 'Grupo'])" :sort-fields="sortOptions(['Empresa', 'company_name'], ['Grupo', 'role_label'])" search-placeholder="Buscar grupo o empresa..." /></UPageCard>
+        <UPageCard v-if="showArea('treasury') && combinedFinancialRows.length" variant="subtle" class="min-w-0 max-w-full overflow-hidden"><template #header><div><p class="font-semibold">Bancos y cajas</p><p class="text-xs text-muted">Los saldos de distintas empresas y monedas se conservan por separado.</p></div></template><AsteriskTable compact class="min-w-0 max-w-full" storage-key="report-combined-treasury" :data="combinedFinancialRows" :columns="withCompanyColumn(financialColumns)" :filter-fields="quickFilters(['company_name', 'Empresa'], ['type', 'Tipo'], ['name', 'Cuenta'], ['status', 'Estado'])" :sort-fields="sortOptions(['Empresa', 'company_name'], ['Cuenta', 'name'])" search-placeholder="Buscar banco, caja o empresa..." /></UPageCard>
+        <UPageCard v-if="showArea('hr') && combinedPeopleRows.length" variant="subtle" class="min-w-0 max-w-full overflow-hidden"><template #header><p class="font-semibold">Empleados y socios</p></template><AsteriskTable compact class="min-w-0 max-w-full" storage-key="report-combined-people" :data="combinedPeopleRows" :columns="withCompanyColumn(peopleColumns)" :filter-fields="quickFilters(['company_name', 'Empresa'], ['name', 'Persona'], ['kind_label', 'Tipo'])" :sort-fields="sortOptions(['Empresa', 'company_name'], ['Persona', 'name'])" search-placeholder="Buscar persona o empresa..." /></UPageCard>
+        <UPageCard v-if="showArea('documents') && combinedDocumentRows.length" variant="subtle" class="min-w-0 max-w-full overflow-hidden"><template #header><p class="font-semibold">Documentos de venta y compra</p></template><AsteriskTable compact class="min-w-0 max-w-full" storage-key="report-combined-documents" :data="combinedDocumentRows" :columns="withCompanyColumn(documentColumns)" :filter-fields="quickFilters(['company_name', 'Empresa'], ['direction_label', 'Circuito'], ['category_label', 'Documento'], ['status_label', 'Estado'])" :sort-fields="sortOptions(['Empresa', 'company_name'], ['Documento', 'category_label'])" search-placeholder="Buscar documento o empresa..." /></UPageCard>
+        <UPageCard v-if="showArea('inventory') && combinedInventoryRows.length" variant="subtle" class="min-w-0 max-w-full overflow-hidden"><template #header><div><p class="font-semibold">Documentos de venta por artículo</p><p class="text-xs text-muted">Incluye órdenes y facturas asociadas, sin duplicar importes.</p></div></template><AsteriskTable compact class="min-w-0 max-w-full" storage-key="report-combined-inventory" :data="combinedInventoryRows" :columns="withCompanyColumn(inventoryColumns)" :filter-fields="quickFilters(['company_name', 'Empresa'], ['type_label', 'Tipo'], ['customer', 'Cliente'], ['product', 'Artículo'], ['user', 'Usuario'])" :sort-fields="sortOptions(['Empresa', 'company_name'], ['Fecha', 'document_date'], ['Artículo', 'product'])" search-placeholder="Buscar artículo, cliente o empresa..." /></UPageCard>
+        <UPageCard v-if="showArea('inventory') && combinedStockRows.length" variant="subtle" class="min-w-0 max-w-full overflow-hidden"><template #header><p class="font-semibold">Movimientos de stock</p></template><AsteriskTable compact class="min-w-0 max-w-full" storage-key="report-combined-stock" :data="combinedStockRows" :columns="withCompanyColumn(stockColumns)" :filter-fields="quickFilters(['company_name', 'Empresa'], ['product', 'Producto'], ['movement_type', 'Origen'], ['direction', 'Movimiento'])" :sort-fields="sortOptions(['Empresa', 'company_name'], ['Producto', 'product'])" search-placeholder="Buscar producto o empresa..." /></UPageCard>
+        <UPageCard v-for="section in detailSections.filter(item => showDetailSection(item.key) && (report?.companies.some(company => company.details[item.key].length)))" :key="`combined-${section.key}`" variant="subtle" class="min-w-0 max-w-full overflow-hidden"><template #header><p class="font-semibold">{{ section.label }}</p></template><AsteriskTable compact class="min-w-0 max-w-full" :storage-key="`report-combined-${section.key}`" :data="combinedDetailRows(section.key)" :columns="withCompanyColumn(detailColumns(['customer_balances', 'supplier_balances'].includes(section.key)))" :filter-fields="quickFilters(['company_name', 'Empresa'], ['label', 'Detalle'])" :sort-fields="sortOptions(['Empresa', 'company_name'], ['Detalle', 'label'])" search-placeholder="Buscar detalle o empresa..." /></UPageCard>
+      </div>
+
+      <div v-else class="space-y-5">
         <div><p class="text-lg font-semibold">3. Detalle por empresa</p><p class="text-sm text-muted">Anexos operativos equivalentes al informe completo de referencia.</p></div>
         <UPageCard v-for="company in report.companies" :key="`detail-${company.company_id}`" variant="subtle" class="w-0 min-w-full max-w-full overflow-x-clip">
           <template #header><div><p class="text-lg font-semibold">{{ company.company_name }}</p><p class="text-xs text-muted">Movimientos del período y saldos actuales</p></div></template>
@@ -201,41 +398,41 @@ watch(reportView, () => { report.value = null })
 
             <section v-if="showArea('customers') || showArea('suppliers')">
               <p class="mb-2 font-semibold">Partes interesadas y cuentas corrientes</p>
-              <div class="overflow-x-auto"><table class="w-full min-w-[760px] text-sm"><thead class="border-b border-default text-xs uppercase text-muted"><tr><th class="p-2 text-left">Grupo</th><th class="p-2 text-right">Registrados</th><th class="p-2 text-right">Activos</th><th class="p-2 text-right">Con saldo</th><th class="p-2 text-right">Saldo neto</th></tr></thead><tbody><tr v-for="row in visiblePartyRows(company)" :key="row.role" class="border-b border-default/50"><td class="p-2 font-medium">{{ partyRoleLabel(row.role) }}</td><td class="p-2 text-right">{{ row.total }}</td><td class="p-2 text-right">{{ row.active }}</td><td class="p-2 text-right">{{ row.with_balance }}</td><td class="p-2 text-right">{{ formatAmount(row.balance, row.currency_code) }}</td></tr></tbody></table></div>
+              <div class="max-w-full overflow-x-auto"><AsteriskTable compact :storage-key="`report-${company.company_id}-parties`" :data="partyTableRows(company)" :columns="partyColumns" :filter-fields="quickFilters(['role_label', 'Grupo'])" :sort-fields="sortOptions(['Grupo', 'role_label'], ['Saldo neto', 'balance_display'])" search-placeholder="Buscar grupo..." /></div>
             </section>
 
             <section v-if="showArea('treasury') && (company.details.bank_accounts.length || company.details.cash_boxes.length)">
               <p class="mb-2 font-semibold">Bancos y cajas</p>
               <p class="mb-3 text-sm text-muted">El saldo es el valor actual. La variación excluye aperturas y corresponde únicamente al período seleccionado.</p>
-              <div class="overflow-x-auto"><table class="w-full min-w-[900px] text-sm"><thead class="border-b border-default text-xs uppercase text-muted"><tr><th class="p-2 text-left">Tipo</th><th class="p-2 text-left">Cuenta</th><th class="p-2 text-left">Estado</th><th class="p-2 text-right">Movimientos</th><th class="p-2 text-right">Apertura</th><th class="p-2 text-right">Variación</th><th class="p-2 text-right">Saldo actual</th></tr></thead><tbody><tr v-for="row in company.details.bank_accounts" :key="`bank-${row.name}-${row.currency_code}`" class="border-b border-default/50"><td class="p-2">Banco</td><td class="p-2"><p class="font-medium">{{ row.name }}</p><p class="text-xs text-muted">{{ row.institution }}</p></td><td class="p-2">{{ row.status }}</td><td class="p-2 text-right">{{ row.movement_count }}</td><td class="p-2 text-right">{{ formatAmount(row.opening_amount, row.currency_code) }}</td><td class="p-2 text-right">{{ formatAmount(row.period_change, row.currency_code) }}</td><td class="p-2 text-right font-medium">{{ formatAmount(row.current_balance, row.currency_code) }}</td></tr><tr v-for="row in company.details.cash_boxes" :key="`cash-${row.name}-${row.currency_code}`" class="border-b border-default/50"><td class="p-2">Caja</td><td class="p-2"><p class="font-medium">{{ row.name }}</p><p class="text-xs text-muted">{{ row.institution }}</p></td><td class="p-2">{{ row.status }}</td><td class="p-2 text-right">{{ row.movement_count }}</td><td class="p-2 text-right">{{ formatAmount(row.opening_amount, row.currency_code) }}</td><td class="p-2 text-right">{{ formatAmount(row.period_change, row.currency_code) }}</td><td class="p-2 text-right font-medium">{{ formatAmount(row.current_balance, row.currency_code) }}</td></tr></tbody></table></div>
+              <div class="max-w-full overflow-x-auto"><AsteriskTable compact :storage-key="`report-${company.company_id}-treasury-accounts`" :data="financialTableRows(company)" :columns="financialColumns" :filter-fields="quickFilters(['type', 'Tipo'], ['name', 'Cuenta'], ['status', 'Estado'])" :sort-fields="sortOptions(['Cuenta', 'name'], ['Saldo actual', 'balance_display'])" search-placeholder="Buscar banco o caja..." /></div>
             </section>
 
             <section v-if="showArea('hr') && (company.details.employees.length || company.details.partners.length)">
               <p class="mb-2 font-semibold">Empleados y socios</p>
               <p class="mb-3 text-sm text-muted">Los movimientos muestran vales y retiros del período. Los pendientes se presentan separados de los importes ya registrados.</p>
-              <div class="overflow-x-auto"><table class="w-full min-w-[900px] text-sm"><thead class="border-b border-default text-xs uppercase text-muted"><tr><th class="p-2 text-left">Tipo</th><th class="p-2 text-left">Persona</th><th class="p-2 text-left">Datos</th><th class="p-2 text-right">Movimientos</th><th class="p-2 text-right">Importe período</th><th class="p-2 text-right">Pendiente</th></tr></thead><tbody><tr v-for="row in [...company.details.employees, ...company.details.partners]" :key="`${row.kind}-${row.name}`" class="border-b border-default/50"><td class="p-2">{{ row.kind === 'EMPLOYEE' ? 'Empleado' : 'Socio' }}</td><td class="p-2"><p class="font-medium">{{ row.name }}</p><p class="text-xs text-muted">{{ row.active ? 'Activo' : 'Inactivo' }}</p></td><td class="p-2">{{ row.detail }}</td><td class="p-2 text-right">{{ row.movements_count }}</td><td class="p-2 text-right">{{ formatAmount(row.movements_amount, row.currency_code) }}</td><td class="p-2 text-right">{{ formatAmount(row.pending_amount, row.currency_code) }}</td></tr></tbody></table></div>
+              <div class="max-w-full overflow-x-auto"><AsteriskTable compact :storage-key="`report-${company.company_id}-people`" :data="peopleTableRows(company)" :columns="peopleColumns" :filter-fields="quickFilters(['name', 'Persona'], ['kind_label', 'Tipo'], ['detail', 'Datos'])" :sort-fields="sortOptions(['Persona', 'name'], ['Tipo', 'kind_label'])" search-placeholder="Buscar persona..." /></div>
             </section>
 
             <section v-if="showArea('documents')">
               <p class="mb-2 font-semibold">Documentos de venta y compra</p>
-              <div class="overflow-x-auto"><table class="w-full min-w-[680px] text-sm"><thead class="border-b border-default text-xs uppercase text-muted"><tr><th class="p-2 text-left">Circuito</th><th class="p-2 text-left">Documento</th><th class="p-2 text-left">Estado</th><th class="p-2 text-right">Cantidad</th><th class="p-2 text-right">Importe</th></tr></thead><tbody><tr v-for="row in company.details.documents" :key="`${row.direction}-${row.category}-${row.status}-${row.currency_code}`" class="border-b border-default/50"><td class="p-2">{{ row.direction === 'SALE' ? 'Venta' : 'Compra' }}</td><td class="p-2">{{ documentCategoryLabel(row.category) }}</td><td class="p-2">{{ documentStatusLabel(row.status, row.category) }}</td><td class="p-2 text-right">{{ row.count }}</td><td class="p-2 text-right">{{ formatAmount(row.amount, row.currency_code) }}</td></tr></tbody></table></div>
+              <div class="max-w-full overflow-x-auto"><AsteriskTable compact :storage-key="`report-${company.company_id}-documents`" :data="documentTableRows(company)" :columns="documentColumns" :filter-fields="quickFilters(['direction_label', 'Circuito'], ['category_label', 'Documento'], ['status_label', 'Estado'])" :sort-fields="sortOptions(['Documento', 'category_label'], ['Cantidad', 'count'])" search-placeholder="Buscar documento..." /></div>
             </section>
 
             <section v-if="showArea('inventory') && company.details.inventory_orders.length" class="min-w-0 max-w-full overflow-hidden">
-              <p class="mb-2 font-semibold">Órdenes de venta por artículo</p>
-              <p class="mb-3 text-sm text-muted">Detalle operativo de los artículos solicitados, su estado y el usuario que cargó cada orden. Los importes corresponden a la OV completa y se muestran una sola vez por orden.</p>
-              <div class="max-h-[65vh] w-full max-w-full overflow-auto overscroll-contain rounded-lg border border-default"><table class="min-w-[1500px] text-sm"><thead class="sticky top-0 z-10 border-b border-default bg-default text-xs uppercase text-muted"><tr><th class="p-3 text-left">Empresa</th><th class="p-3 text-right">OV</th><th class="p-3 text-left">Fecha OV</th><th class="p-3 text-left">Cliente</th><th class="p-3 text-left">Artículo</th><th class="p-3 text-right">Cantidad</th><th class="p-3 text-left">Estado</th><th class="p-3 text-left">Confirmación</th><th class="p-3 text-left">Usuario</th><th class="p-3 text-right">Total facturado</th><th class="p-3 text-right">Importe cobrado</th></tr></thead><tbody><tr v-for="row in company.details.inventory_orders" :key="`${row.order_number}-${row.product}-${row.quantity}`" class="border-b border-default/50 hover:bg-elevated/40"><td class="p-3">{{ company.company_name }}</td><td class="p-3 text-right font-medium">{{ row.order_number }}</td><td class="p-3 whitespace-nowrap">{{ row.order_date }}</td><td class="p-3">{{ row.customer }}</td><td class="p-3">{{ row.product }}</td><td class="p-3 text-right">{{ row.quantity.toLocaleString('es-AR') }}</td><td class="p-3">{{ row.status }}</td><td class="p-3 whitespace-nowrap">{{ formatConfirmation(row.confirmation_at) }}</td><td class="p-3">{{ row.user }}</td><td class="p-3 whitespace-nowrap text-right">{{ row.invoice_total == null ? '—' : formatAmount(row.invoice_total, row.currency_code) }}</td><td class="p-3 whitespace-nowrap text-right">{{ row.paid_amount == null ? '—' : formatAmount(row.paid_amount, row.currency_code) }}</td></tr></tbody></table></div>
+              <p class="mb-2 font-semibold">Documentos de venta por artículo</p>
+              <p class="mb-3 text-sm text-muted">Incluye órdenes de venta con sus facturas asociadas y facturas directas cuando la empresa no utiliza OV. Los importes se muestran una sola vez por documento.</p>
+              <div class="max-w-full overflow-x-auto"><AsteriskTable compact :storage-key="`report-${company.company_id}-inventory-documents`" :data="inventoryTableRows(company)" :columns="inventoryColumns" :filter-fields="quickFilters(['type_label', 'Tipo'], ['customer', 'Cliente'], ['product', 'Artículo'], ['user', 'Usuario'])" :sort-fields="sortOptions(['Fecha', 'document_date'], ['Documento', 'document_number'], ['Artículo', 'product'])" search-placeholder="Buscar artículo, cliente o documento..." /></div>
             </section>
 
             <section v-if="showArea('inventory') && company.details.stock_movements.length">
               <p class="mb-2 font-semibold">Movimientos de stock</p>
               <p class="mb-3 text-sm text-muted">Las entradas se muestran positivas y las salidas negativas. “Movimientos” indica cuántos registros forman la cantidad neta.</p>
-              <div class="max-w-full overflow-x-auto pb-2"><table class="w-full min-w-[760px] text-sm"><thead class="border-b border-default text-xs uppercase text-muted"><tr><th class="p-2 text-left">Producto</th><th class="p-2 text-left">Origen</th><th class="p-2 text-left">Movimiento</th><th class="p-2 text-right">Cantidad neta</th><th class="p-2 text-right">Movimientos</th></tr></thead><tbody><tr v-for="row in company.details.stock_movements" :key="`${row.product}-${row.movement_type}-${row.direction}`" class="border-b border-default/50"><td class="p-2 font-medium">{{ row.product }}</td><td class="p-2">{{ row.movement_type }}</td><td class="p-2">{{ row.direction }}</td><td class="p-2 text-right">{{ row.quantity.toLocaleString('es-AR', { maximumFractionDigits: 3 }) }}</td><td class="p-2 text-right">{{ row.count }}</td></tr></tbody></table></div>
+              <div class="max-w-full overflow-x-auto"><AsteriskTable compact :storage-key="`report-${company.company_id}-stock-movements`" :data="stockTableRows(company)" :columns="stockColumns" :filter-fields="quickFilters(['product', 'Producto'], ['movement_type', 'Origen'], ['direction', 'Movimiento'])" :sort-fields="sortOptions(['Producto', 'product'], ['Cantidad neta', 'quantity'])" search-placeholder="Buscar producto..." /></div>
             </section>
 
             <section v-for="section in detailSections" :key="section.key" v-show="showDetailSection(section.key) && company.details[section.key].length">
               <p class="mb-2 font-semibold">{{ section.label }}</p>
-              <div class="overflow-x-auto"><table class="w-full min-w-[680px] text-sm"><thead class="border-b border-default text-xs uppercase text-muted"><tr><th class="p-2 text-left">Detalle</th><th class="p-2 text-right">Registros</th><th class="p-2 text-right">Importe</th><th v-if="['customer_balances', 'supplier_balances'].includes(section.key)" class="p-2 text-right">Saldo</th></tr></thead><tbody><tr v-for="row in company.details[section.key]" :key="`${row.label}-${row.currency_code}`" class="border-b border-default/50"><td class="p-2">{{ row.label }}</td><td class="p-2 text-right">{{ row.count }}</td><td class="p-2 text-right">{{ formatAmount(row.amount, row.currency_code) }}</td><td v-if="['customer_balances', 'supplier_balances'].includes(section.key)" class="p-2 text-right">{{ formatAmount(row.balance ?? 0, row.currency_code) }}</td></tr></tbody></table></div>
+              <div class="max-w-full overflow-x-auto"><AsteriskTable compact :storage-key="`report-${company.company_id}-${section.key}`" :data="detailTableRows(company, section.key)" :columns="detailColumns(['customer_balances', 'supplier_balances'].includes(section.key))" :filter-fields="quickFilters(['label', 'Detalle'])" :sort-fields="sortOptions(['Detalle', 'label'], ['Registros', 'count'])" search-placeholder="Buscar detalle..." /></div>
             </section>
           </div>
         </UPageCard>

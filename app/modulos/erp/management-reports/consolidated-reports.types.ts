@@ -5,7 +5,7 @@ export interface DocumentSummaryRow { direction: 'SALE' | 'PURCHASE'; category: 
 export interface PartySummaryRow { role: string; total: number; active: number; with_balance: number; currency_code: string; balance: number }
 export interface PersonSummaryRow { name: string; kind: 'EMPLOYEE' | 'PARTNER'; active: boolean; detail: string; currency_code: string; configured_amount: number; movements_amount: number; movements_count: number; pending_amount: number }
 export interface FinancialAccountRow { name: string; institution?: string; status: string; currency_code: string; current_balance: number; period_change: number; opening_amount: number; movement_count: number }
-export interface InventoryOrderRow { order_number: number; order_date: string; customer: string; product: string; quantity: number; status: string; confirmation_at: string | null; user: string; invoice_total: number | null; paid_amount: number | null; currency_code: string }
+export interface InventoryOrderRow { document_type: 'ORDER' | 'INVOICE'; document_number: number; document_date: string; customer: string; product: string; quantity: number; status: string; confirmation_at: string | null; user: string; invoice_total: number | null; paid_amount: number | null; currency_code: string }
 export interface StockMovementSummaryRow { product: string; movement_type: string; direction: string; quantity: number; count: number }
 export interface ConsolidatedReportCompany {
   company_id: string

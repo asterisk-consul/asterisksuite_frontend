@@ -598,32 +598,32 @@ export const navigationTree: DrilldownNode[] = [
     label: 'Fabricación',
     icon: 'i-lucide-factory',
     to: '/fabricacion',
-    permission: 'products.read',
+    permissions: ['production.read', 'production.execute', 'production.history', 'production.manage_bom'],
     children: [
-      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/fabricacion', permission: 'products.read' },
+      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/fabricacion', permission: 'production.read' },
       {
         label: 'Fabricar productos',
         icon: 'i-lucide-factory',
         to: '/fabricacion/fabricar',
-        permissions: ['production.execute', 'stock.create']
+        permission: 'production.execute'
       },
       {
         label: 'Historial de fabricación',
         icon: 'i-lucide-history',
         to: '/fabricacion/historial',
-        permissions: ['production.history', 'stock.movements']
+        permission: 'production.history'
       },
       {
         label: 'BOM (Ingeniería)',
         icon: 'i-lucide-git-branch',
         to: '/bom',
-        permissions: ['production.manage_bom', 'products.update']
+        permission: 'production.manage_bom'
       },
       {
         label: 'Nuevo BOM',
         icon: 'i-lucide-plus',
         to: '/bom/create',
-        permissions: ['production.manage_bom', 'products.create']
+        permission: 'production.manage_bom'
       },
       { label: 'Productos y materiales', icon: 'i-lucide-package', to: '/productos', permission: 'products.read' },
       {

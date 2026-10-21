@@ -34,6 +34,8 @@ const props = defineProps<{
   pageSize?: number
   storageKey?: string
   searchPlaceholder?: string
+  getRowId?: (row: T, index: number) => string
+  compact?: boolean
 }>()
 const sorting = defineModel<SortingState>('sorting', {
   default: () => []
@@ -162,7 +164,7 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex-1 w-full pb-20">
+  <div :class="['min-w-0 max-w-full flex-1 w-full', props.compact ? 'pb-3' : 'pb-20']">
     <!-- ========================
          Toolbar (si hay filterFields o sortFields)
     ========================= -->
@@ -193,6 +195,7 @@ async function confirmDelete(): Promise<void> {
          Tabla
     ========================= -->
 
+    <div class="min-w-0 max-w-full overflow-x-auto">
     <UTable
       ref="table"
       v-model:pagination="pagination"
@@ -200,7 +203,7 @@ async function confirmDelete(): Promise<void> {
       v-model:column-visibility="columnVisibility"
       v-model:sorting="sorting"
       sticky
-      :get-row-id="(row: T) => (row as any).id"
+      :get-row-id="(row: T, index: number) => props.getRowId?.(row, index) ?? String((row as any).id ?? index)"
       :data="props.data"
       :columns="tableColumns"
       :loading="props.loading"
@@ -214,8 +217,9 @@ async function confirmDelete(): Promise<void> {
         th: 'first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r py-0.5',
         td: 'border-b border-default'
       }"
-      :class="['max-h-[75vh] overflow-y-auto', selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg']"
+      :class="['min-w-0 max-w-full max-h-[75vh] overflow-y-auto', selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg']"
     />
+    </div>
 
     <!-- ========================
          Footer
