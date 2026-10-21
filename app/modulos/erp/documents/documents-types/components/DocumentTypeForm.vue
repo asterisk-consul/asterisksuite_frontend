@@ -23,11 +23,20 @@ export interface DocumentTypeFormData {
   tax_ids?: string[]
   enabled_statuses?: number[] | null
   hidden_amount_statuses?: number[] | null
+  pending_sequence_drafts?: Array<{
+    name: string
+    point_of_sale: string
+    prefix?: string
+    range_start?: number
+    range_end?: number
+    automatic?: boolean
+  }>
 }
 
 const props = withDefaults(defineProps<{
   modelValue?: DocumentTypeFormData
   loading?: boolean
+  documentTypes?: Array<{ id: string; code: string }>
 }>(), {})
 
 const emit = defineEmits<{
@@ -61,14 +70,28 @@ const defaultForm: DocumentTypeFormData = {
 }
 
 const form = reactive<DocumentTypeFormData>({ ...defaultForm })
+const pendingSequenceDrafts = ref<NonNullable<DocumentTypeFormData['pending_sequence_drafts']>>([])
+const selectValue = (value: unknown): string => {
+  if (typeof value === 'string') return value
+  const selected = (value as { value?: unknown } | null)?.value
+  return typeof selected === 'string' ? selected : ''
+}
+const codeValidationError = computed(() => {
+  const code = form.code.trim()
+  if (!code) return 'Ingresá un código para el tipo de documento.'
+  if (code.length > 20) return 'El código no puede superar los 20 caracteres.'
+  const duplicate = props.documentTypes?.some(type => type.id !== form.id && type.code.trim().toLocaleLowerCase() === code.toLocaleLowerCase())
+  return duplicate ? `El código “${code}” ya está utilizado. Elegí otro.` : ''
+})
 
-watch([() => props.modelValue, () => sequencesStore.items], ([val]) => {
+watch(() => props.modelValue, (val) => {
+  pendingSequenceDrafts.value = []
   if (!val) { Object.assign(form, { ...defaultForm }); return }
   const valAny = val as any
   const linkedSequenceIds = valAny.document_type_sequences?.length
     ? valAny.document_type_sequences.map((dts: any) => dts.document_sequences?.id ?? dts.sequence_id)
     : (val.document_sequence_ids ?? [])
-  Object.assign(form, { ...val, document_sequence_ids: linkedSequenceIds })
+  Object.assign(form, { ...val, letter_type: selectValue(valAny.letter_type), document_sequence_ids: linkedSequenceIds })
 }, { immediate: true })
 
 watch(form, (val) => { emit('update:modelValue', { ...val }) }, { deep: true })
@@ -78,8 +101,12 @@ watch(() => form.category, (category) => {
 }, { immediate: true })
 
 const handleSubmit = () => {
+  if (codeValidationError.value) {
+    toast.add({ title: 'Revisá el código', description: codeValidationError.value, color: 'error', icon: 'i-lucide-circle-alert' })
+    return
+  }
   const payload: DocumentTypeFormData = {
-    code: form.code,
+    code: form.code.trim(),
     description: form.description,
     direction: form.direction,
     affects_stock: form.affects_stock,
@@ -89,11 +116,12 @@ const handleSubmit = () => {
     calculates_taxes: form.calculates_taxes ?? true,
     active: form.active,
     category: form.category,
-    letter_type: form.letter_type,
+    letter_type: selectValue(form.letter_type),
     afip_code: form.afip_code,
     requires_cae: form.requires_cae,
     is_electronic: form.is_electronic,
     document_sequence_ids: (form.document_sequence_ids ?? []).map((item: any) => typeof item === 'string' ? item : item.value),
+    ...(pendingSequenceDrafts.value.length ? { pending_sequence_drafts: pendingSequenceDrafts.value.map(item => ({ ...item })) } : {}),
     tax_ids: form.tax_ids?.length ? form.tax_ids : undefined,
     enabled_statuses: form.enabled_statuses?.length ? form.enabled_statuses : null,
     hidden_amount_statuses: form.category === 'ORDER' && form.hidden_amount_statuses?.length
@@ -113,17 +141,23 @@ const openSeqCreate = () => {
 }
 
 const handleSeqCreate = async () => {
+  if (!seqForm.name.trim() || !seqForm.point_of_sale.trim()) {
+    toast.add({ title: 'Completá los datos requeridos', description: 'La secuencia necesita un nombre y un punto de venta.', color: 'warning' })
+    return
+  }
+  if (seqForm.range_start < 1 || seqForm.range_end < seqForm.range_start) {
+    toast.add({ title: 'Revisá el rango', description: 'El inicio debe ser mayor a cero y el fin no puede ser menor que el inicio.', color: 'warning' })
+    return
+  }
   if (!form.id) {
-    toast.add({
-      title: 'Guardá primero el tipo de documento',
-      description: 'Después podrás crear una secuencia vinculada exclusivamente a este tipo.',
-      color: 'warning'
-    })
+    pendingSequenceDrafts.value.push({ ...seqForm, name: seqForm.name.trim(), point_of_sale: seqForm.point_of_sale.trim(), prefix: seqForm.prefix.trim() })
+    showSeqCreate.value = false
+    toast.add({ title: 'Secuencia preparada', description: 'Se creará y vinculará cuando guardes este tipo de documento.', color: 'success' })
     return
   }
   seqCreating.value = true
   try {
-    const created = await sequencesStore.create({ ...seqForm, document_type_ids: [form.id] })
+    const created = await sequencesStore.create({ ...seqForm, name: seqForm.name.trim(), point_of_sale: seqForm.point_of_sale.trim(), prefix: seqForm.prefix.trim(), document_type_ids: [form.id] })
     form.document_sequence_ids = [...(form.document_sequence_ids ?? []), created.id]
     showSeqCreate.value = false
     toast.add({ title: 'Secuencia creada', color: 'success' })
@@ -242,6 +276,11 @@ const selectedCategory = computed({
   get: () => categoryOptions.find(o => o.value === form.category) ?? categoryOptions[0],
   set: (val: any) => { form.category = val?.value ?? val ?? '' }
 })
+
+const selectedLetterType = computed({
+  get: () => letterOptions.find(o => o.value === form.letter_type) ?? undefined,
+  set: (val: any) => { form.letter_type = selectValue(val) }
+})
 </script>
 
 <template>
@@ -260,8 +299,8 @@ const selectedCategory = computed({
         </div>
 
         <div class="grid gap-5 sm:grid-cols-2">
-          <UFormField label="Código" name="code" required description="Identificador corto del tipo (ej: FA-A, OV, REM).">
-            <UInput v-model="form.code" placeholder="Ej: FA-A" :disabled="!!form.id" class="w-full" icon="i-lucide-hash" />
+          <UFormField label="Código" name="code" required :error="codeValidationError || undefined" :description="`${form.code.length}/20 caracteres · Ej.: FA-A, OV, REM`">
+            <UInput v-model="form.code" placeholder="Ej: FA-A" maxlength="20" :disabled="!!form.id" class="w-full" icon="i-lucide-hash" />
           </UFormField>
           <UFormField label="Dirección" name="direction" required description="Si es de emisión o recepción.">
             <USelectMenu v-model="selectedDirection" :items="directionOptions" class="w-full" />
@@ -273,7 +312,7 @@ const selectedCategory = computed({
             <USelectMenu v-model="selectedCategory" :items="categoryOptions" placeholder="Seleccionar..." class="w-full" />
           </UFormField>
           <UFormField label="Letra AFIP" name="letter_type" description="Letra del comprobante (A, B, C, X).">
-            <USelectMenu v-model="form.letter_type" :items="letterOptions" placeholder="A, B, C, X" class="w-full" />
+            <USelectMenu v-model="selectedLetterType" :items="letterOptions" value-key="value" placeholder="A, B, C, X" class="w-full" />
           </UFormField>
           <UFormField label="Código AFIP" name="afip_code" description="Código numérico ante ARCA/AFIP.">
             <UInput v-model="form.afip_code" placeholder="Ej: 01, 06, 11" class="w-full" icon="i-lucide-stamp" />
@@ -298,8 +337,7 @@ const selectedCategory = computed({
             variant="outline"
             size="xs"
             icon="i-lucide-plus"
-            :disabled="!form.id"
-            :title="form.id ? 'Crear una secuencia para este tipo' : 'Guardá primero el tipo de documento'"
+            type="button"
             @click="openSeqCreate"
           />
         </div>
@@ -317,6 +355,13 @@ const selectedCategory = computed({
             Cada secuencia pertenece a un solo tipo de documento. Podés reutilizar el mismo número de punto de venta creando otra secuencia para este comprobante.
           </template>
         </UFormField>
+        <div v-if="pendingSequenceDrafts.length" class="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <p class="text-sm font-medium">Secuencias que se crearán al guardar</p>
+          <div v-for="(sequence, index) in pendingSequenceDrafts" :key="`${sequence.point_of_sale}-${index}`" class="flex items-center justify-between gap-3 text-sm">
+            <span class="min-w-0 truncate">{{ sequence.name }} · PV {{ sequence.point_of_sale }}{{ sequence.prefix ? ` · ${sequence.prefix}` : '' }}</span>
+            <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" type="button" :aria-label="`Quitar ${sequence.name}`" @click="pendingSequenceDrafts.splice(index, 1)" />
+          </div>
+        </div>
       </div>
     </UPageCard>
 

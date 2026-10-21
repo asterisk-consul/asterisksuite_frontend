@@ -323,6 +323,14 @@ export const navigationTree: DrilldownNode[] = [
     icon: 'i-lucide-chart-column-big',
     permission: 'management_reports.read',
     children: [
+      /* Diseñador oculto temporalmente hasta terminar su validación funcional.
+      {
+        label: 'Diseñador de reportes',
+        icon: 'i-lucide-panels-top-left',
+        to: '/erp/reports/builder',
+        permission: 'management_reports.read'
+      },
+      */
       {
         label: 'Resumen gerencial',
         icon: 'i-lucide-chart-no-axes-combined',

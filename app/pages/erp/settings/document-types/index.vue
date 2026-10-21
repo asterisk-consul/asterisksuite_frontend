@@ -3,6 +3,7 @@ definePageMeta({ middleware: ['auth'] })
 
 import { useCompanyRole } from '~/composables/useCompanyRole'
 import { useDocumentTypes } from '~/modulos/erp/documents/documents-types/composable/useDocumentTypes'
+import { useDocumentSequencesStore } from '~/modulos/erp/document-sequences/store/document-sequences.store'
 import DocumentTypeModal from '~/modulos/erp/documents/documents-types/components/DocumentTypeModal.vue'
 import type { DocumentTypeFormData } from '~/modulos/erp/documents/documents-types/components/DocumentTypeForm.vue'
 import type {
@@ -13,6 +14,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 
 const { isOwnerOrAdmin } = useCompanyRole()
 const docTypes = useDocumentTypes()
+const sequencesStore = useDocumentSequencesStore()
 const toast = useToast()
 const router = useRouter()
 
@@ -102,22 +104,77 @@ const openEdit = (type: DocumentsType) => {
   modalOpen.value = true
 }
 
+const validationFieldLabels: Record<string, string> = {
+  code: 'Código', description: 'Descripción', direction: 'Dirección', category: 'Categoría', letter_type: 'Letra AFIP',
+  point_of_sale: 'Punto de venta', name: 'Nombre', document_sequence_ids: 'Secuencias'
+}
+function describeValidationConstraint(constraint: string) {
+  const maxLength = constraint.match(/shorter than or equal to (\d+)/i)
+  if (maxLength) return `no puede superar los ${maxLength[1]} caracteres`
+  if (/must be a string/i.test(constraint)) return 'debe ser texto'
+  if (/should not be empty|must not be empty/i.test(constraint)) return 'es obligatorio'
+  if (/must be an integer/i.test(constraint)) return 'debe ser un número entero'
+  if (/must be a uuid/i.test(constraint)) return 'no tiene un identificador válido'
+  return constraint
+}
+function getSubmitErrorMessage(error: any, code: string) {
+  const response = error?.data ?? error?.response?._data ?? {}
+  const message = response?.message
+  const validationItems = Array.isArray(message) ? message : response?.constraints ? [response] : []
+  if (validationItems.length) {
+    const details = validationItems.flatMap((item: any) => {
+      if (typeof item === 'string') return [item]
+      if (!item || typeof item !== 'object') return []
+      const field = validationFieldLabels[item.property] ?? item.property ?? 'Dato'
+      const constraints = item.constraints && typeof item.constraints === 'object' ? Object.values(item.constraints) : []
+      return constraints.map((constraint: any) => `${field}: ${describeValidationConstraint(String(constraint))}`)
+    })
+    if (details.length) return [...new Set(details)].join('. ')
+  }
+  if (message && typeof message === 'object' && message.constraints) {
+    const details = Object.values(message.constraints).map((item: any) => describeValidationConstraint(String(item)))
+    if (details.length) return `${validationFieldLabels[message.property] ?? message.property ?? 'Dato'}: ${details.join(', ')}`
+  }
+  const rawMessage = typeof message === 'string' ? message : error?.message
+  if (/unique constraint/i.test(String(rawMessage)) || /P2002/.test(String(error?.data?.code))) {
+    return `Ya existe un tipo de documento con el código “${code}”. Elegí otro código.`
+  }
+  const englishValidation = String(rawMessage ?? '').match(/^([\w_]+) must be (.+)$/i)
+  if (englishValidation) {
+    const field = validationFieldLabels[englishValidation[1]] ?? englishValidation[1]
+    return `${field}: ${describeValidationConstraint(`must be ${englishValidation[2]}`)}`
+  }
+  return rawMessage || 'No se pudo guardar el tipo de documento. Revisá los datos e intentá nuevamente.'
+}
+
 const handleSubmit = async (formData: DocumentTypeFormData) => {
+  const { pending_sequence_drafts = [], ...documentTypePayload } = formData
+  let savedTypeId: string | undefined
+  const wasEditing = !!editingType.value
   try {
     saving.value = true
     if (editingType.value) {
-      await docTypes.update(editingType.value.id, { ...formData })
-      toast.add({ title: 'Tipo actualizado', color: 'success' })
+      await docTypes.update(editingType.value.id, { ...documentTypePayload })
+      savedTypeId = editingType.value.id
     } else {
-      await docTypes.create({ ...formData })
-      toast.add({ title: 'Tipo creado', color: 'success' })
+      const created = await docTypes.create({ ...documentTypePayload })
+      savedTypeId = created.id
+      editingType.value = created
     }
+    for (const sequence of pending_sequence_drafts) {
+      await sequencesStore.create({ ...sequence, document_type_ids: [savedTypeId!] })
+    }
+    if (pending_sequence_drafts.length) await docTypes.init()
+    toast.add({
+      title: pending_sequence_drafts.length ? 'Tipo y secuencia creados' : wasEditing ? 'Tipo actualizado' : 'Tipo creado',
+      color: 'success'
+    })
     modalOpen.value = false
   } catch (e: any) {
     toast.add({
-      title: 'Error',
-      description: e?.data?.message || e?.message,
-      color: 'error',
+      title: savedTypeId ? 'El tipo se guardó, pero no se pudo completar la secuencia' : 'Error',
+      description: getSubmitErrorMessage(e, formData.code),
+      color: savedTypeId ? 'warning' : 'error',
       icon: 'i-lucide-alert-circle'
     })
   } finally {
@@ -454,6 +511,7 @@ const badgeForTab = (index: number) => {
     <DocumentTypeModal
       v-model:open="modalOpen"
       :document-type="editingType"
+      :document-types="docTypes.items.value"
       :loading="saving"
       @success="handleSubmit"
     />

@@ -37,6 +37,7 @@ export interface ManagementReportResponse {
     missing_exchange_rate_count: number
   }
   grouped: Array<{ key: string; label: string; total: number; paid: number; pending: number; count: number }>
+  grouped_by_currency?: Array<{ key: string; label: string; currency_code: string; total: number; paid: number; pending: number; count: number }>
   commercial_performance: null | {
     products_by_quantity: ProductPerformance[]
     products_by_revenue: ProductPerformance[]
@@ -62,4 +63,22 @@ export interface SellerPerformance {
   paid: number
   quantity: number
   document_count: number
+}
+
+export type ReportTemplateColumn = 'date' | 'label' | 'party_name' | 'currency_code' | 'amount' | 'paid_amount' | 'pending_amount' | 'payment_state'
+export type ReportVisualization = 'KPIS' | 'CHART' | 'TABLE'
+export type ReportChartType = 'BAR' | 'LINE' | 'DONUT'
+export interface SavedManagementReportTemplate {
+  id: string
+  name: string
+  source: 'SALES'
+  columns: ReportTemplateColumn[]
+  visualizations?: ReportVisualization[]
+  chart_type?: ReportChartType
+  query: Record<string, unknown>
+  shared: boolean
+  created_at: string
+  updated_at: string
+  owner_id: string
+  is_owner: boolean
 }

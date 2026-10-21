@@ -5,6 +5,7 @@ import type { DocumentTypeFormData } from './DocumentTypeForm.vue'
 const props = defineProps<{
   documentType?: any
   loading?: boolean
+  documentTypes?: Array<{ id: string; code: string }>
 }>()
 
 const emit = defineEmits<{
@@ -25,7 +26,7 @@ const handleSubmit = (form: DocumentTypeFormData) => {
     :ui="{ content: 'max-w-4xl' }"
   >
     <template #body>
-      <DocumentTypeForm :model-value="documentType" :loading="loading" @submit="handleSubmit" @cancel="open = false" />
+      <DocumentTypeForm :model-value="documentType" :loading="loading" :document-types="documentTypes" @submit="handleSubmit" @cancel="open = false" />
     </template>
   </UModal>
 </template>

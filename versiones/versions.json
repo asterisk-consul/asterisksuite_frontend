@@ -1,5 +1,42 @@
 [
  {
+  "version": "0.89.0-alpha",
+  "date": "2026-10-21",
+  "stage": "alpha",
+  "notes": "Correcciones al alta de tipos de documento y secuencias, más la primera versión del diseñador de reportes, temporalmente oculto en la navegación.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "documents",
+    "title": "La letra AFIP se envía como texto y el código valida longitud máxima y duplicados antes de guardar"
+   },
+   {
+    "type": "feat",
+    "scope": "documents",
+    "title": "Se pueden preparar secuencias desde el modal de un tipo nuevo y se vinculan al guardar"
+   },
+   {
+    "type": "feat",
+    "scope": "reports",
+    "title": "El diseñador permite combinar indicadores, tablas y gráficos de columnas, líneas o dona, y guardar la presentación en plantillas"
+   },
+   {
+    "type": "fix",
+    "scope": "reports",
+    "title": "Los gráficos comparan importes agrupados por moneda sin sumar monedas distintas"
+   },
+   {
+    "type": "ui",
+    "scope": "reports",
+    "title": "El enlace al diseñador se oculta temporalmente del menú mientras se completa su validación"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Corregir tipos de documento y preparar reportes configurables"
+ },
+ {
   "version": "0.88.0-alpha",
   "date": "2026-10-21",
   "stage": "alpha",
