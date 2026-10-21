@@ -19,6 +19,7 @@ const formatCurrency = (amount: number) => {
         <UIcon name="i-lucide-user" class="size-5 text-primary" />
         <h3 class="text-sm font-semibold">Mi Actividad</h3>
       </div>
+      <UButton to="/erp/mis-pendientes" label="Ver mis pendientes" icon="i-lucide-arrow-up-right" size="xs" variant="ghost" />
     </template>
 
     <div v-if="loading" class="space-y-3">
@@ -33,10 +34,10 @@ const formatCurrency = (amount: number) => {
     <div v-else class="space-y-4">
       <!-- Stats rapidos -->
       <div class="grid grid-cols-3 gap-2">
-        <div class="text-center p-2.5 rounded-lg bg-muted/30 min-w-0">
+        <NuxtLink to="/erp/mis-pendientes" class="text-center p-2.5 rounded-lg bg-muted/30 min-w-0 transition-colors hover:bg-muted/50">
           <p class="text-xl font-bold text-info truncate">{{ data.pendingDocuments }}</p>
           <p class="text-[10px] text-muted mt-0.5 truncate">Pendientes</p>
-        </div>
+        </NuxtLink>
         <div class="text-center p-2.5 rounded-lg bg-muted/30 min-w-0">
           <p class="text-xl font-bold text-success truncate">{{ data.monthlyPayments }}</p>
           <p class="text-[10px] text-muted mt-0.5 truncate">Pagos mes</p>

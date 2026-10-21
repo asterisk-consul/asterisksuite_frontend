@@ -14,6 +14,11 @@ const showConfig = ref(false)
 const initialLoading = ref(true)
 const refreshing = ref(false)
 const lastUpdated = ref<Date | null>(null)
+const overviewScrollEl = ref<HTMLElement | null>(null)
+const overviewCanScroll = ref(false)
+const overviewCanScrollLeft = ref(false)
+const overviewCanScrollRight = ref(false)
+const overviewOrder = ref<string[]>([])
 const toast = useToast()
 const auth = useAuthStore()
 const { hasPermission } = useRoles()
@@ -62,28 +67,109 @@ const formatCurrency = (value: number) => new Intl.NumberFormat('es-AR', {
   style: 'currency', currency: 'ARS', maximumFractionDigits: 0,
 }).format(value || 0)
 
+const overviewOrderStorageKey = computed(() => {
+  const userId = auth.user?.id
+  const companyId = auth.selectedCompany?.id
+  return userId && companyId ? `asterisk:dashboard:overview-order:${userId}:${companyId}` : null
+})
+
+const loadOverviewOrder = () => {
+  if (!import.meta.client || !overviewOrderStorageKey.value) {
+    overviewOrder.value = []
+    return
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem(overviewOrderStorageKey.value) || '[]')
+    overviewOrder.value = Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : []
+  } catch {
+    overviewOrder.value = []
+  }
+}
+
+const saveOverviewOrder = (ids: string[]) => {
+  overviewOrder.value = ids
+  if (import.meta.client && overviewOrderStorageKey.value) {
+    localStorage.setItem(overviewOrderStorageKey.value, JSON.stringify(ids))
+  }
+}
+
 const overviewItems = computed(() => {
-  const items: Array<{ label: string; value: string; detail: string; icon: string; cardClass: string; iconClass: string; to: string }> = []
+  const items: Array<{ id: string; label: string; value: string; detail: string; icon: string; cardClass: string; iconClass: string; to: string }> = []
   const data = dashboardData.value
 
   if ((isOwnerOrAdmin.value || hasPermission('documents.read')) && data?.receivables) {
-    items.push({ label: 'Por cobrar', value: formatCurrency(data.receivables.totalAmount), detail: `${data.receivables.total} clientes con saldo`, icon: 'i-lucide-hand-coins', cardClass: 'from-emerald-500 to-teal-600', iconClass: 'bg-white/20', to: '/erp/treasury/current-accounts' })
+    items.push({ id: 'receivables', label: 'Por cobrar', value: formatCurrency(data.receivables.totalAmount), detail: `${data.receivables.total} clientes con saldo`, icon: 'i-lucide-hand-coins', cardClass: 'from-emerald-500 to-teal-600', iconClass: 'bg-white/20', to: '/erp/treasury/current-accounts' })
   }
   if ((isOwnerOrAdmin.value || hasPermission('checks.read')) && data?.checksDue) {
-    items.push({ label: 'Cheques próximos', value: String(data.checksDue.count), detail: formatCurrency(data.checksDue.totalAmount), icon: 'i-lucide-calendar-clock', cardClass: 'from-amber-500 to-orange-600', iconClass: 'bg-white/20', to: '/erp/treasury/checks' })
+    items.push({ id: 'checks_due', label: 'Cheques próximos', value: String(data.checksDue.count), detail: formatCurrency(data.checksDue.totalAmount), icon: 'i-lucide-calendar-clock', cardClass: 'from-amber-500 to-orange-600', iconClass: 'bg-white/20', to: '/erp/treasury/checks' })
   }
-  if ((isOwnerOrAdmin.value || hasPermission('products.read')) && data?.stock) {
-    items.push({ label: 'Alertas de stock', value: String(data.stock.lowStockCount), detail: `${data.stock.totalProducts} productos con stock`, icon: 'i-lucide-package-search', cardClass: 'from-rose-500 to-pink-600', iconClass: 'bg-white/20', to: '/stock' })
+  if ((isOwnerOrAdmin.value || hasPermission('products.read') || hasPermission('stock.replenishment.read')) && data?.stock) {
+    const stock = data.stock.replenishment
+    const hasPolicies = stock?.configuredLocations > 0
+    const needsAction = (stock?.actionProducts ?? 0) > 0
+    items.push({
+      id: 'stock_replenishment',
+      label: !stock?.available ? 'Error de reposición' : hasPolicies ? 'Reposición pendiente' : 'Configurar reposición',
+      value: !stock?.available ? '—' : hasPolicies ? String(stock.actionProducts) : '—',
+      detail: !stock?.available
+        ? 'No se pudo consultar el stock'
+        : hasPolicies
+          ? needsAction
+            ? `${stock.criticalCount} ubicaciones críticas · ${stock.reorderCount} para reponer`
+            : `${stock.coveredCount} cubiertas por arribos · sin faltantes urgentes`
+          : 'No hay políticas activas para los productos',
+      icon: 'i-lucide-package-search',
+      cardClass: !stock?.available ? 'from-amber-500 to-orange-600' : needsAction ? 'from-rose-500 to-pink-600' : 'from-emerald-500 to-teal-600',
+      iconClass: 'bg-white/20',
+      to: !stock?.available
+        ? '/stock/reposicion'
+        : hasPolicies
+          ? needsAction ? '/stock/reposicion?status=ACTION' : '/stock/reposicion'
+          : '/stock/reposicion?status=UNCONFIGURED&include_unconfigured=true',
+    })
+  }
+  if (personalData.value) {
+    items.push({
+      id: 'my_pending',
+      label: 'Mis pendientes',
+      value: String(personalData.value.pendingDocuments),
+      detail: 'Documentos y capturas por resolver',
+      icon: 'i-lucide-clipboard-list',
+      cardClass: personalData.value.pendingDocuments > 0 ? 'from-violet-600 to-indigo-600' : 'from-slate-500 to-slate-600',
+      iconClass: 'bg-white/20',
+      to: '/erp/mis-pendientes',
+    })
   }
   if ((isOwnerOrAdmin.value || hasPermission('documents.read')) && data?.orders) {
     const pendingDelivery = (data.orders.byStatus[1] ?? 0) + (data.orders.byStatus[2] ?? 0) + (data.orders.byStatus[3] ?? 0) + (data.orders.byStatus[4] ?? 0)
-    items.push({ label: 'Órdenes de venta', value: String(pendingDelivery), detail: `${data.orders.total} en total · ${formatCurrency(data.orders.totalValue)}`, icon: 'i-lucide-shopping-cart', cardClass: 'from-sky-500 to-blue-600', iconClass: 'bg-white/20', to: '/erp/orders' })
+    items.push({ id: 'orders', label: 'Órdenes de venta', value: String(pendingDelivery), detail: `${data.orders.total} en total · ${formatCurrency(data.orders.totalValue)}`, icon: 'i-lucide-shopping-cart', cardClass: 'from-sky-500 to-blue-600', iconClass: 'bg-white/20', to: '/erp/orders' })
   }
-  if (items.length < 4 && personalData.value) {
-    items.push({ label: 'Mis pendientes', value: String(personalData.value.pendingDocuments), detail: 'Documentos por completar', icon: 'i-lucide-list-checks', cardClass: 'from-violet-500 to-indigo-600', iconClass: 'bg-white/20', to: '/' })
-  }
-  return items.slice(0, 4)
+  const order = new Map(overviewOrder.value.map((id, index) => [id, index]))
+  return items.sort((a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER))
 })
+
+const overviewCardOptions = computed(() => overviewItems.value.map(({ id, label, icon }) => ({ id, label, icon })))
+
+const updateOverviewScrollState = () => {
+  const element = overviewScrollEl.value
+  if (!element) {
+    overviewCanScroll.value = false
+    overviewCanScrollLeft.value = false
+    overviewCanScrollRight.value = false
+    return
+  }
+  overviewCanScroll.value = element.scrollWidth > element.clientWidth + 2
+  overviewCanScrollLeft.value = element.scrollLeft > 2
+  overviewCanScrollRight.value = element.scrollLeft + element.clientWidth < element.scrollWidth - 2
+}
+
+const scrollOverview = (direction: -1 | 1) => {
+  const element = overviewScrollEl.value
+  if (!element) return
+  element.scrollBy({ left: direction * element.clientWidth * 0.85, behavior: 'smooth' })
+}
+
+const handleOverviewOrderUpdate = (ids: string[]) => saveOverviewOrder(ids)
 
 const gridLayout = computed(() => buildLayout(filteredWidgets.value))
 
@@ -103,6 +189,7 @@ const handleConfigUpdate = async (newWidgets: WidgetConfig[]) => {
 
 const handleReset = async () => {
   const saved = await resetConfig()
+  saveOverviewOrder([])
   showConfig.value = false
   toast.add(saved
     ? { title: 'Vista restablecida', description: 'Volvimos a la organización recomendada.', color: 'success' }
@@ -121,10 +208,23 @@ const openConfig = () => {
 }
 
 onMounted(async () => {
+  loadOverviewOrder()
   await Promise.allSettled([fetchConfig(), fetchData(dashboardRange.value), fetchPersonal()])
   lastUpdated.value = new Date()
   initialLoading.value = false
+  await nextTick()
+  updateOverviewScrollState()
 })
+
+watch(overviewItems, async () => {
+  await nextTick()
+  updateOverviewScrollState()
+})
+
+watch(overviewOrderStorageKey, loadOverviewOrder)
+
+onMounted(() => window.addEventListener('resize', updateOverviewScrollState))
+onBeforeUnmount(() => window.removeEventListener('resize', updateOverviewScrollState))
 </script>
 
 <template>
@@ -177,28 +277,59 @@ onMounted(async () => {
 
     </section>
 
-    <section v-if="!initialLoading && overviewItems.length" class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4" style="gap: 1.25rem">
-      <NuxtLink
-        v-for="item in overviewItems"
-        :key="item.label"
-        :to="item.to"
-        class="group relative min-h-32 overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
-        :class="item.cardClass"
+    <section v-if="!initialLoading && overviewItems.length" class="relative">
+      <div
+        ref="overviewScrollEl"
+        class="overview-carousel flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth"
+        :class="overviewCanScroll ? 'px-10' : ''"
+        @scroll.passive="updateOverviewScrollState"
       >
-        <div class="absolute -right-6 -top-8 size-28 rounded-full bg-white/10" />
-        <div class="absolute -bottom-10 right-10 size-24 rounded-full bg-black/5" />
-        <div class="relative flex items-start gap-3">
-          <div class="grid size-11 shrink-0 place-items-center rounded-full backdrop-blur-sm" :class="item.iconClass">
-            <UIcon :name="item.icon" class="size-5" />
+        <NuxtLink
+          v-for="item in overviewItems"
+          :key="item.id"
+          :to="item.to"
+          class="group relative min-h-32 w-full flex-none snap-start overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg sm:flex-1 xl:flex-1"
+          :class="[
+            item.cardClass,
+            overviewItems.length > 2 ? 'sm:w-[calc((100%-1.25rem)/2)] sm:flex-none' : '',
+            overviewItems.length > 4 ? 'xl:w-[calc((100%-3.75rem)/4)] xl:flex-none' : '',
+          ]"
+        >
+          <div class="absolute -right-6 -top-8 size-28 rounded-full bg-white/10" />
+          <div class="absolute -bottom-10 right-10 size-24 rounded-full bg-black/5" />
+          <div class="relative flex items-start gap-3">
+            <div class="grid size-11 shrink-0 place-items-center rounded-full backdrop-blur-sm" :class="item.iconClass">
+              <UIcon :name="item.icon" class="size-5" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-xs font-medium text-white/80">{{ item.label }}</p>
+              <p class="mt-1 truncate text-xl font-bold tracking-tight">{{ item.value }}</p>
+              <p class="mt-1 truncate text-xs text-white/75">{{ item.detail }}</p>
+            </div>
+            <UIcon name="i-lucide-arrow-up-right" class="size-4 text-white/70 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </div>
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-xs font-medium text-white/80">{{ item.label }}</p>
-            <p class="mt-1 truncate text-xl font-bold tracking-tight">{{ item.value }}</p>
-            <p class="mt-1 truncate text-xs text-white/75">{{ item.detail }}</p>
-          </div>
-          <UIcon name="i-lucide-arrow-up-right" class="size-4 text-white/70 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-        </div>
-      </NuxtLink>
+        </NuxtLink>
+      </div>
+      <template v-if="overviewCanScroll">
+        <UButton
+          icon="i-lucide-chevron-left"
+          color="neutral"
+          variant="solid"
+          class="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full shadow-lg"
+          aria-label="Ver tarjetas anteriores"
+          :disabled="!overviewCanScrollLeft"
+          @click="scrollOverview(-1)"
+        />
+        <UButton
+          icon="i-lucide-chevron-right"
+          color="neutral"
+          variant="solid"
+          class="absolute right-0 top-1/2 z-10 -translate-y-1/2 rounded-full shadow-lg"
+          aria-label="Ver más tarjetas"
+          :disabled="!overviewCanScrollRight"
+          @click="scrollOverview(1)"
+        />
+      </template>
     </section>
 
     <!-- SKELETON LOADING -->
@@ -337,8 +468,11 @@ onMounted(async () => {
       :open="showConfig"
       :widgets="config"
       :allowed-widget-ids="allowedWidgetIds"
+      :overview-cards="overviewCardOptions"
+      :overview-order="overviewOrder"
       @update:open="showConfig = $event"
       @update:widgets="handleConfigUpdate"
+      @update:overview-order="handleOverviewOrderUpdate"
       @reset="handleReset"
     />
   </UPage>
@@ -364,5 +498,13 @@ onMounted(async () => {
 .dashboard-widget:hover {
   transform: translateY(-2px);
   filter: drop-shadow(0 12px 18px rgb(0 0 0 / 0.08));
+}
+
+.overview-carousel {
+  scrollbar-width: none;
+}
+
+.overview-carousel::-webkit-scrollbar {
+  display: none;
 }
 </style>

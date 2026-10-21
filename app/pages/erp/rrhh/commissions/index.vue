@@ -125,10 +125,10 @@ function defaults(seller?: CommissionSeller): CommissionAssignment {
 }
 
 function openAssignments(document: CommissionableDocument) {
-  if (document.settled) {
+  if (document.assignment_locked) {
     toast.add({
-      title: 'La comisión ya fue liquidada',
-      description: 'Esta OV tiene un vale generado; sus asignaciones no se pueden modificar.',
+      title: 'La asignación está bloqueada',
+      description: 'Esta OV ya tiene una liquidación. Podés liquidar nuevos importes si se registran más cobros, pero no cambiar sus vendedores.',
       color: 'warning'
     })
     return
@@ -324,7 +324,12 @@ onMounted(load)
                 class="border-b border-default/60 transition-colors hover:bg-elevated/30"
               >
                 <td class="px-4 py-3">
-                  <span class="font-medium">{{ document.document_type }} #{{ document.number }}</span>
+                  <div class="flex flex-col items-start gap-1">
+                    <span class="font-medium">{{ document.document_type }} #{{ document.number }}</span>
+                    <UBadge v-if="document.is_carryover" color="warning" variant="subtle" size="xs">
+                      Arrastre de período anterior
+                    </UBadge>
+                  </div>
                 </td>
                 <td class="px-4 py-3 text-muted">{{ date(document.date) }}</td>
                 <td class="px-4 py-3">{{ document.customer }}</td>
@@ -341,12 +346,20 @@ onMounted(load)
                         {{ money(document.commission_accrued, document.currency_code) }}
                       </span>
                       <UBadge
-                        v-if="document.commission_pending <= 0"
-                        color="success"
+                        v-if="document.commission_accrued <= 0.005"
+                        color="warning"
                         variant="subtle"
                         size="sm"
                       >
-                        Liquidada
+                        {{ document.has_unpaid_collection_commission ? 'A la espera del cobro' : 'Sin devengar' }}
+                      </UBadge>
+                      <UBadge
+                        v-else-if="document.commission_pending <= 0.005"
+                        :color="document.has_unpaid_collection_commission ? 'info' : 'success'"
+                        variant="subtle"
+                        size="sm"
+                      >
+                        {{ document.has_unpaid_collection_commission ? 'Liquidada al día' : 'Liquidada' }}
                       </UBadge>
                       <UBadge
                         v-else-if="document.commission_settled > 0"
@@ -362,6 +375,9 @@ onMounted(load)
                     </div>
                     <p class="text-[11px] tabular-nums text-muted">
                       Base sin IVA {{ money(document.commission_base_amount, document.currency_code) }}
+                    </p>
+                    <p v-if="document.has_unpaid_collection_commission" class="text-[11px] text-info">
+                      Cobrado {{ document.paid_percentage.toFixed(1) }}%; la comisión puede aumentar con nuevos cobros.
                     </p>
                     <template v-if="document.commission_settled > 0 && document.commission_pending > 0">
                       <div class="h-1 overflow-hidden rounded-full bg-elevated">
@@ -391,8 +407,8 @@ onMounted(load)
                   <UBadge v-else color="warning" variant="subtle">Sin asignar</UBadge>
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <UBadge v-if="document.settled" color="info" variant="subtle" icon="i-lucide-lock">
-                    Liquidada
+                  <UBadge v-if="document.assignment_locked" color="neutral" variant="subtle" icon="i-lucide-lock">
+                    Asignación bloqueada
                   </UBadge>
                   <UButton
                     v-else-if="canManage"
@@ -410,7 +426,7 @@ onMounted(load)
         </div>
         <div v-if="loading" class="p-10 text-center text-muted">Cargando documentos…</div>
         <div v-else-if="!filteredDocuments.length" class="p-10 text-center text-muted">
-          {{ filterSeller && filterSeller !== ALL_SELLERS ? 'Este vendedor no tiene comisiones asignadas en el período.' : 'No hay órdenes de venta en este período.' }}
+          {{ filterSeller && filterSeller !== ALL_SELLERS ? 'Este vendedor no tiene comisiones pendientes ni documentos del período.' : 'No hay órdenes de venta ni comisiones pendientes de períodos anteriores.' }}
         </div>
       </UCard>
     </template>

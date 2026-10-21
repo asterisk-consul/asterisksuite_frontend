@@ -36,6 +36,9 @@ export interface CommissionableDocument {
   commission_pending: number
   commission_base_amount: number
   settled: boolean
+  assignment_locked: boolean
+  is_carryover: boolean
+  has_unpaid_collection_commission: boolean
 }
 
 export const HrService = {

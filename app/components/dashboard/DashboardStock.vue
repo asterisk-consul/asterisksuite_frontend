@@ -5,6 +5,13 @@ const props = defineProps<{
     totalQuantity: number
     totalReserved: number
     lowStockCount: number
+    replenishment?: {
+      actionProducts: number
+      criticalCount: number
+      reorderCount: number
+      coveredCount: number
+      suggestedQuantity: number
+    }
   }
   loading?: boolean
 }>()
@@ -31,10 +38,10 @@ const stats = computed(() => {
       color: 'warning',
     },
     {
-      label: 'Bajo stock',
-      value: props.data.lowStockCount,
+      label: 'Necesitan reposición',
+      value: props.data.replenishment?.actionProducts ?? 0,
       icon: 'i-lucide-triangle-alert',
-      color: props.data.lowStockCount > 0 ? 'error' : 'success',
+      color: (props.data.replenishment?.actionProducts ?? 0) > 0 ? 'error' : 'success',
     },
   ]
 })
@@ -48,7 +55,7 @@ const stats = computed(() => {
           <UIcon name="i-lucide-box" class="size-5 text-primary" />
           <h3 class="text-sm font-semibold">Stock</h3>
         </div>
-        <NuxtLink to="/stock" class="text-xs text-primary hover:underline font-medium">
+        <NuxtLink to="/stock/reposicion?status=ACTION" class="text-xs text-primary hover:underline font-medium">
           Ver más
         </NuxtLink>
       </div>

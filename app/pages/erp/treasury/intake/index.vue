@@ -19,6 +19,7 @@ interface IntakeRecord {
 }
 
 const toast = useToast()
+const route = useRoute()
 const authStore = useAuthStore()
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
@@ -114,8 +115,6 @@ const load = async () => {
   } finally { loading.value = false }
 }
 
-onMounted(load)
-
 const createCapture = async () => {
   creating.value = true
   try {
@@ -153,6 +152,19 @@ const openRecord = (record: IntakeRecord) => {
   assignedTo.value = record.assigned_to || ''
   detailOpen.value = true
 }
+
+const openRecordFromQuery = () => {
+  const recordId = typeof route.query.record === 'string' ? route.query.record : null
+  const record = recordId ? records.value.find(item => item.id === recordId) : null
+  if (record) openRecord(record)
+}
+
+onMounted(async () => {
+  await load()
+  openRecordFromQuery()
+})
+
+watch(() => route.query.record, openRecordFromQuery)
 
 const sendRecord = async () => {
   if (!selected.value) return

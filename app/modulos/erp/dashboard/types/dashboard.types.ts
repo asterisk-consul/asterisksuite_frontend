@@ -49,6 +49,15 @@ export interface DashboardStock {
   totalQuantity: number
   totalReserved: number
   lowStockCount: number
+  replenishment: {
+    available: boolean
+    configuredLocations: number
+    actionProducts: number
+    criticalCount: number
+    reorderCount: number
+    coveredCount: number
+    suggestedQuantity: number
+  }
 }
 
 export interface DashboardReceivables {
@@ -156,6 +165,15 @@ export interface PersonalActivity {
 export interface DashboardPersonal {
   recentActivity: PersonalActivity[]
   pendingDocuments: number
+  pendingItems: {
+    id: string
+    kind: 'DOCUMENT' | 'CAPTURE'
+    title: string
+    detail: string
+    status: string
+    date: string
+    to: string
+  }[]
   monthlyPayments: number
   monthlyAmount: number
 }

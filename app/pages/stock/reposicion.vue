@@ -23,8 +23,11 @@ type Row = {
 const rows = ref<Row[]>([])
 const loading = ref(false)
 const search = ref('')
-const status = ref('ALL')
-const showUnconfigured = ref(false)
+const route = useRoute()
+const validStatuses = ['ALL', 'ACTION', 'CRITICAL', 'REORDER', 'COVERED', 'OK', 'UNCONFIGURED']
+const routeStatus = String(route.query.status ?? 'ALL')
+const status = ref(validStatuses.includes(routeStatus) ? routeStatus : 'ALL')
+const showUnconfigured = ref(route.query.include_unconfigured === 'true')
 const page = ref(1)
 const meta = ref({ total: 0, page: 1, limit: 25, pages: 0, summary: {} as Record<string, number> })
 const toast = useToast()
@@ -32,6 +35,7 @@ let timer: ReturnType<typeof setTimeout> | undefined
 
 const statusOptions = [
   { label: 'Todos los estados', value: 'ALL' },
+  { label: 'Requieren acción', value: 'ACTION' },
   { label: 'Críticos', value: 'CRITICAL' },
   { label: 'Para reponer', value: 'REORDER' },
   { label: 'Cubiertos por arribos', value: 'COVERED' },
@@ -39,6 +43,7 @@ const statusOptions = [
   { label: 'Sin configuración', value: 'UNCONFIGURED' }
 ]
 const statusMeta = {
+  ACTION: { label: 'Requieren acción', color: 'warning', icon: 'i-lucide-package-search' },
   CRITICAL: { label: 'Crítico', color: 'error', icon: 'i-lucide-circle-alert' },
   REORDER: { label: 'Reponer', color: 'warning', icon: 'i-lucide-package-plus' },
   COVERED: { label: 'Cubierto', color: 'info', icon: 'i-lucide-ship' },
@@ -92,7 +97,7 @@ onMounted(load)
   <UPage class="space-y-5 px-4 pb-8">
     <AppPageHeader title="Reposición de stock" description="Detectá faltantes, considerá los arribos próximos y prepará las cantidades a reponer." />
 
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
       <button v-for="item in statusOptions.slice(1)" :key="item.value" type="button" class="rounded-xl border p-4 text-left transition hover:border-primary" :class="status === item.value ? 'border-primary bg-primary/5' : 'border-default bg-default'" @click="selectStatus(item.value)">
         <div class="flex items-center justify-between"><UIcon :name="statusMeta[item.value as keyof typeof statusMeta].icon" class="size-5 text-muted" /><span class="text-2xl font-bold">{{ counts[item.value] ?? '—' }}</span></div>
         <p class="mt-2 text-sm font-medium">{{ item.label }}</p>

@@ -1,5 +1,37 @@
 [
  {
+  "version": "0.86.0-alpha",
+  "date": "2026-10-21",
+  "stage": "alpha",
+  "notes": "Bandeja personal de tareas pendientes accesible desde el inicio y corrección de la consulta del resumen de reposición de stock.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "La tarjeta Mis pendientes muestra documentos y capturas por resolver y abre una bandeja personal con búsqueda y filtros"
+   },
+   {
+    "type": "feat",
+    "scope": "dashboard",
+    "title": "Los documentos pendientes abren su registro y las capturas llevan directamente a su ficha"
+   },
+   {
+    "type": "fix",
+    "scope": "stock",
+    "title": "Se corrige el filtro de relaciones del resumen de reposición para mostrar disponibilidad y alertas"
+   },
+   {
+    "type": "fix",
+    "scope": "intake",
+    "title": "La bandeja de capturas puede abrir directamente el comprobante seleccionado desde Mis pendientes"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Agregar bandeja personal de pendientes y corregir resumen de reposición"
+ },
+ {
   "version": "0.85.0-alpha",
   "date": "2026-10-21",
   "stage": "alpha",
