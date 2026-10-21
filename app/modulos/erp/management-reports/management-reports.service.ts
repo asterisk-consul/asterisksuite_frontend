@@ -1,4 +1,4 @@
-import type { ManagementReportMetadata, ManagementReportResponse, PaymentState, ProgressState, ReportBasis, ReportChartType, ReportGroupBy, ReportTemplateColumn, ReportVisualization, SavedManagementReportTemplate } from './management-reports.types'
+import type { ManagementReportMetadata, ManagementReportResponse, PaymentState, ProgressState, ReportBasis, ReportCanvasComponent, ReportChartType, ReportGroupBy, ReportTemplateColumn, ReportVisualization, SavedManagementReportTemplate } from './management-reports.types'
 import type { ConsolidatedReportCompanyOption, ConsolidatedReportResponse, ConsolidatedReportView } from './consolidated-reports.types'
 
 export interface ManagementReportQuery {
@@ -21,7 +21,7 @@ export const useManagementReportsService = () => ({
   getReport: (query: ManagementReportQuery) => $fetch<ManagementReportResponse>('/api/backend/reports/management', { query }),
   getMetadata: () => $fetch<ManagementReportMetadata>('/api/backend/reports/management/metadata'),
   getTemplates: () => $fetch<SavedManagementReportTemplate[]>('/api/backend/reports/management/templates'),
-  saveTemplate: (body: { id?: string; name: string; source: 'SALES'; columns: ReportTemplateColumn[]; visualizations: ReportVisualization[]; chart_type: ReportChartType; query: ManagementReportQuery; shared: boolean }) =>
+  saveTemplate: (body: { id?: string; name: string; source: 'SALES'; columns: ReportTemplateColumn[]; visualizations: ReportVisualization[]; chart_type: ReportChartType; components?: ReportCanvasComponent[]; query: ManagementReportQuery; shared: boolean }) =>
     $fetch<SavedManagementReportTemplate>('/api/backend/reports/management/templates', { method: 'POST', body }),
   deleteTemplate: (id: string) => $fetch<{ success: boolean }>(`/api/backend/reports/management/templates/${id}`, { method: 'DELETE' }),
   getConsolidatedCompanies: () => $fetch<ConsolidatedReportCompanyOption[]>('/api/backend/reports/management/consolidated/companies'),

@@ -9,6 +9,8 @@ export interface ManagementReportRow {
   label: string
   party_id: string | null
   party_name: string
+  seller_id?: string | null
+  seller_name?: string
   currency_code: string
   amount: number
   converted_amount: number | null
@@ -68,6 +70,17 @@ export interface SellerPerformance {
 export type ReportTemplateColumn = 'date' | 'label' | 'party_name' | 'currency_code' | 'amount' | 'paid_amount' | 'pending_amount' | 'payment_state'
 export type ReportVisualization = 'KPIS' | 'CHART' | 'TABLE'
 export type ReportChartType = 'BAR' | 'LINE' | 'DONUT'
+export type ReportCanvasComponentType = 'KPI' | 'BAR' | 'LINE' | 'DONUT' | 'TABLE'
+export type ReportCanvasDimension = 'MONTH' | 'DAY' | 'PARTY' | 'SELLER' | 'CURRENCY' | 'PAYMENT_STATE'
+export type ReportCanvasMetric = 'TOTAL' | 'PAID' | 'PENDING' | 'COUNT'
+export interface ReportCanvasComponent {
+  id: string
+  type: ReportCanvasComponentType
+  title: string
+  dimension: ReportCanvasDimension
+  metric: ReportCanvasMetric
+  width: 4 | 6 | 8 | 12
+}
 export interface SavedManagementReportTemplate {
   id: string
   name: string
@@ -75,6 +88,7 @@ export interface SavedManagementReportTemplate {
   columns: ReportTemplateColumn[]
   visualizations?: ReportVisualization[]
   chart_type?: ReportChartType
+  components?: ReportCanvasComponent[]
   query: Record<string, unknown>
   shared: boolean
   created_at: string

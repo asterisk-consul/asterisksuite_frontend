@@ -1,5 +1,37 @@
 [
  {
+  "version": "0.90.0-alpha",
+  "date": "2026-10-21",
+  "stage": "alpha",
+  "notes": "Reducción de creación repetida de clientes Prisma en schedulers, revisión de reservas vencidas bajo demanda y diagnóstico de crecimiento de memoria residente.",
+  "changes": [
+   {
+    "type": "perf",
+    "scope": "backend",
+    "title": "Los schedulers de cotizaciones, cheques y autorizaciones fiscales reutilizan clientes Prisma y evitan crear pools temporales repetidamente"
+   },
+   {
+    "type": "perf",
+    "scope": "exchange",
+    "title": "La actualización de cotizaciones se programa una vez al día a las 15:00 de Argentina y permite configurar el horario por ambiente"
+   },
+   {
+    "type": "perf",
+    "scope": "stock",
+    "title": "Las reservas manuales vencidas se revisan al consultar o usar stock y se mantienen con una reconciliación diaria de respaldo"
+   },
+   {
+    "type": "feat",
+    "scope": "diagnostics",
+    "title": "El diagnóstico de memoria informa el crecimiento de RSS y estima la memoria nativa o mapeada cuando el heap permanece estable"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Reducir crecimiento de memoria en tareas programadas"
+ },
+ {
   "version": "0.89.0-alpha",
   "date": "2026-10-21",
   "stage": "alpha",
