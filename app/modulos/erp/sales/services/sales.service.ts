@@ -20,7 +20,9 @@ export const DocumentsSalesService = {
   },
 
   async getPage(params: SalesListParams & ServerListParams): Promise<PaginatedResponse<Document>> {
-    return $fetch('/api/backend/documents/sales', { query: params })
+    // La tabla inicia su carga también durante SSR. Reenviar cookies es necesario
+    // para que el proxy backend reciba la sesión en la primera carga directa.
+    return useRequestFetch()('/api/backend/documents/sales', { query: params })
   },
 
   async getOne(id: string): Promise<Document> {

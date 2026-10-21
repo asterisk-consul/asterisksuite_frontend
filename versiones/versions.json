@@ -1,5 +1,27 @@
 [
  {
+  "version": "0.85.0-alpha",
+  "date": "2026-10-21",
+  "stage": "alpha",
+  "notes": "Corrección de autenticación en la carga inicial de los listados de ventas y compras con renderizado del servidor.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "sales",
+    "title": "El listado paginado reenvía las cookies de sesión al proxy durante SSR y evita respuestas 401 al entrar directamente a Ventas"
+   },
+   {
+    "type": "fix",
+    "scope": "purchases",
+    "title": "El listado paginado reenvía las cookies de sesión al proxy durante SSR y evita respuestas 401 al entrar directamente a Compras"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Corregir autenticación SSR en listados de ventas y compras"
+ },
+ {
   "version": "0.84.0-alpha",
   "date": "2026-10-20",
   "stage": "alpha",
