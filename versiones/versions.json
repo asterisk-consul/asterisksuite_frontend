@@ -1,5 +1,27 @@
 [
  {
+  "version": "0.92.0-alpha",
+  "date": "2026-10-21",
+  "stage": "alpha",
+  "notes": "Mejora del flujo visual para registrar transferencias de tesorería, con origen y destino claramente identificados.",
+  "changes": [
+   {
+    "type": "ui",
+    "scope": "treasury",
+    "title": "El modal distingue los fondos de origen y destino, y solo muestra el selector de empresa cuando hay varias disponibles"
+   },
+   {
+    "type": "ui",
+    "scope": "treasury",
+    "title": "Se aclara que el registro queda pendiente y que los saldos cambian al confirmar la transferencia"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Mejorar el modal de transferencias de tesorería"
+ },
+ {
   "version": "0.91.0-alpha",
   "date": "2026-10-21",
   "stage": "alpha",
@@ -8,7 +30,7 @@
    {
     "type": "feat",
     "scope": "treasury",
-    "title": "Transferencias desde bancos o cajas de la empresa activa hacia fondos de otras empresas accesibles por el usuario"
+    "title": "Transferencias desde bancos o cajas hacia otras empresas, con registro espejo en el historial de operaciones recibidas"
    },
    {
     "type": "feat",

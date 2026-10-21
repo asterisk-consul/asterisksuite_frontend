@@ -70,6 +70,21 @@ export const cashBoxTransferColumns = (actions: {
         }
       },
       {
+        key: 'record_side',
+        label: 'Dirección',
+        cell: ({ row }) => row.original.record_side === 'destination' ? 'Recibida' : 'Enviada',
+        meta: {
+          filter: {
+            type: 'select',
+            operators: ['equals'],
+            options: [
+              { label: 'Enviada', value: 'source' },
+              { label: 'Recibida', value: 'destination' }
+            ]
+          }
+        }
+      },
+      {
         key: 'amount',
         label: 'Monto',
         sortable: true,
@@ -132,6 +147,9 @@ export const cashBoxTransferColumns = (actions: {
             buttons.push({ icon: 'i-lucide-refresh-cw', color: 'warning', onClick: () => actions.onConfirm?.(row.original) })
             buttons.push({ icon: 'i-lucide-eye', color: 'neutral', onClick: () => actions.onDetail?.(row.original) })
           } else if (status === 'completed') {
+            if (row.original.record_side !== 'destination' && row.original.dest_company_id) {
+              buttons.push({ icon: 'i-lucide-refresh-cw', color: 'warning', onClick: () => actions.onConfirm?.(row.original) })
+            }
             buttons.push({ icon: 'i-lucide-eye', color: 'neutral', onClick: () => actions.onDetail?.(row.original) })
           }
 

@@ -19,6 +19,9 @@ export interface CashBoxTransfer {
   session_id?: string | null
   source_type: TransferSourceType
   source_id: string
+  source_company_id?: string | null
+  source_company_name?: string | null
+  source_name?: string | null
   dest_type: TransferSourceType
   dest_id: string
   dest_company_id?: string | null
@@ -33,6 +36,7 @@ export interface CashBoxTransfer {
   reference?: string | null
   transfer_type: TransferType
   status: TransferStatus
+  record_side?: 'source' | 'destination'
   creator?: TransferUser | null
   execution_error?: string | null
 

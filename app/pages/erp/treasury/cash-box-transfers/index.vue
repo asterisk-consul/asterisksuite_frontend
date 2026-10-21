@@ -43,6 +43,7 @@ const isIntercompany = computed(() => Boolean(destinationCompanyId.value && dest
 const detailSourceName = computed(() => {
   if (!selectedTransfer.value) return '—'
   const t = selectedTransfer.value
+  if (t.source_name) return t.source_name
   if (t.source_type === 'cash_box') {
     const box = findCashBox(t.source_id)
     return box?.name ?? 'Caja'
@@ -358,137 +359,166 @@ const sortFields: SortField[] = [
       v-model:sorting="sorting"
     />
 
-    <UModal v-model:open="modalOpen" title="Nueva transferencia" :ui="{ width: 'w-full sm:max-w-xl' }">
+    <UModal v-model:open="modalOpen" title="Nueva transferencia" :ui="{ content: 'w-full sm:max-w-3xl' }">
       <template #body>
         <UForm :state="form" class="space-y-5">
-
-          <!-- Tipo de transferencia -->
           <UFormField label="Tipo de transferencia" required>
             <USelect
-              :items="transferTypeItems"
               v-model="form.transfer_type"
-              placeholder="Seleccionar tipo"
+              :items="transferTypeItems"
+              value-key="value"
+              placeholder="Elegí de dónde sale y a dónde va"
+              class="w-full"
               @update:model-value="onTransferTypeChange"
             />
           </UFormField>
 
-          <!-- Origen -->
-          <UFormField :label="originLabel" required>
-            <USelect
-              :items="originItems"
-              v-model="form.source_id"
-              placeholder="Seleccionar..."
-              @update:model-value="onSourceChange"
-            />
-          </UFormField>
+          <div class="grid items-stretch gap-3 md:grid-cols-[1fr_auto_1fr]">
+            <section class="space-y-3 rounded-xl border border-default bg-elevated/30 p-4">
+              <div class="flex items-center gap-2">
+                <span class="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary"><UIcon name="i-lucide-arrow-up-right" /></span>
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted">Sale de</p>
+                  <p class="text-sm font-medium text-highlighted">{{ authStore.selectedCompany?.name ?? 'Empresa actual' }}</p>
+                </div>
+              </div>
+              <UFormField :label="originLabel" required>
+                <USelectMenu
+                  v-model="form.source_id"
+                  :items="originItems"
+                  value-key="value"
+                  searchable
+                  placeholder="Buscar caja o banco"
+                  class="w-full"
+                  @update:model-value="onSourceChange"
+                />
+              </UFormField>
+              <div v-if="form.source_id && sourceBalance !== null" class="rounded-lg bg-default/60 px-3 py-2 text-sm">
+                <span class="text-muted">Saldo disponible</span>
+                <p class="font-semibold text-highlighted">{{ formatMoney(sourceBalance, sourceCurrency) }}</p>
+              </div>
+            </section>
 
-          <div v-if="form.source_id && sourceBalance !== null" class="flex items-center gap-2 text-sm text-muted">
-            <UIcon name="i-heroicons-banknotes" class="text-primary" />
-            <span>Saldo disponible: <span class="font-semibold text-highlighted">{{ formatMoney(sourceBalance, form.currency_code) }}</span></span>
+            <div class="flex items-center justify-center text-muted">
+              <UIcon name="i-lucide-arrow-right" class="hidden size-5 md:block" />
+              <UIcon name="i-lucide-arrow-down" class="size-5 md:hidden" />
+            </div>
+
+            <section class="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+              <div class="flex items-center gap-2">
+                <span class="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary"><UIcon name="i-lucide-arrow-down-left" /></span>
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted">Entra en</p>
+                  <p class="text-sm font-medium text-highlighted">{{ companyItems.length > 1 ? 'Empresa y fondo que reciben' : 'Fondo que recibe' }}</p>
+                </div>
+              </div>
+              <UFormField v-if="companyItems.length > 1" label="Empresa destino" required>
+                <USelectMenu
+                  v-model="destinationCompanyId"
+                  :items="companyItems"
+                  value-key="value"
+                  searchable
+                  placeholder="Buscar empresa"
+                  class="w-full"
+                  @update:model-value="onDestinationCompanyChange"
+                />
+              </UFormField>
+              <UFormField :label="destLabel" required>
+                <USelectMenu
+                  v-model="form.dest_id"
+                  :items="destItems"
+                  value-key="value"
+                  searchable
+                  :placeholder="loadingDestinations ? 'Cargando fondos...' : 'Buscar caja o banco destino'"
+                  :loading="loadingDestinations"
+                  :disabled="!form.source_id || !destinationCompanyId || loadingDestinations"
+                  class="w-full"
+                />
+              </UFormField>
+            </section>
           </div>
 
-          <!-- Destino -->
-          <UFormField label="Empresa destino" required>
-            <USelect
-              v-model="destinationCompanyId"
-              :items="companyItems"
-              placeholder="Seleccionar empresa"
-              @update:model-value="onDestinationCompanyChange"
-            />
-          </UFormField>
+          <UAlert
+            icon="i-lucide-info"
+            color="info"
+            variant="subtle"
+            :description="isIntercompany
+              ? 'Al registrar queda pendiente. Al confirmar, se debita el fondo de origen y se acredita el destino; la recepción también quedará registrada en la otra empresa.'
+              : 'Al registrar queda pendiente. Los saldos se actualizan recién cuando confirmás la transferencia.'"
+          />
 
-          <UFormField :label="destLabel" required>
-            <USelect
-              :items="destItems"
-              v-model="form.dest_id"
-              placeholder="Seleccionar..."
-              :loading="loadingDestinations"
-              :disabled="!form.source_id || !destinationCompanyId || loadingDestinations"
-            />
-          </UFormField>
-
-          <!-- Monto + Moneda -->
-          <div class="grid grid-cols-2 gap-4">
-            <UFormField label="Monto" required>
-              <UInput v-model.number="form.amount" type="number" :min="0" placeholder="0.00" />
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_10rem]">
+            <UFormField label="Monto a transferir" required>
+              <UInput v-model.number="form.amount" type="number" :min="0" step="0.01" placeholder="0,00" class="w-full">
+                <template #trailing><span class="text-xs text-muted">{{ form.currency_code }}</span></template>
+              </UInput>
             </UFormField>
             <UFormField label="Moneda" required>
               <USelect
-                :items="currencyItems"
                 v-model="form.currency_code"
+                :items="currencyItems"
+                value-key="value"
                 placeholder="Moneda"
+                class="w-full"
                 @update:model-value="onCurrencyChange"
               />
             </UFormField>
           </div>
 
-          <!-- Tipo de cambio + Convertido -->
           <template v-if="showExchangeRate">
-            <div class="grid grid-cols-2 gap-4">
-              <UFormField label="Tipo de cambio">
-                <USelect
-                  :items="rateTypeItems"
-                  v-model="form.rate_type"
-                  @update:model-value="onRateTypeChange"
-                />
-              </UFormField>
-              <UFormField label="Tasa de cambio">
-                <UInput
-                  v-model.number="form.exchange_rate"
-                  type="number"
-                  :min="0"
-                  step="0.0001"
-                  placeholder="1.0000"
-                  :loading="loadingRate"
-                >
-                  <template #trailing>
-                    <UButton
-                      v-if="form.exchange_rate"
-                      icon="i-heroicons-arrow-path"
-                      variant="link"
-                      color="neutral"
-                      size="xs"
-                      @click="onRateTypeChange"
-                      :loading="loadingRate"
-                    />
-                  </template>
-                </UInput>
-              </UFormField>
-            </div>
-            <div v-if="showConvertedAmount" class="flex items-center gap-2 text-sm text-muted p-2 bg-elevated/50 rounded-lg">
-              <UIcon name="i-heroicons-calculator" class="text-primary" />
-              <span>Monto convertido: <span class="font-semibold text-highlighted">{{ formatMoney(computedConvertedAmount, destCurrency) }}</span></span>
+            <div class="rounded-xl border border-default p-4">
+              <p class="mb-3 text-sm font-semibold text-highlighted">Conversión de moneda</p>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <UFormField label="Tipo de cambio">
+                  <USelect v-model="form.rate_type" :items="rateTypeItems" value-key="value" class="w-full" @update:model-value="onRateTypeChange" />
+                </UFormField>
+                <UFormField label="Tasa de cambio">
+                  <UInput v-model.number="form.exchange_rate" type="number" :min="0" step="0.0001" placeholder="1,0000" :loading="loadingRate" class="w-full">
+                    <template #trailing>
+                      <UButton v-if="form.exchange_rate" icon="i-heroicons-arrow-path" variant="link" color="neutral" size="xs" :loading="loadingRate" @click="onRateTypeChange" />
+                    </template>
+                  </UInput>
+                </UFormField>
+              </div>
+              <div v-if="showConvertedAmount" class="mt-3 flex items-center justify-between rounded-lg bg-elevated/60 px-3 py-2 text-sm">
+                <span class="text-muted">Recibe aproximadamente</span>
+                <span class="font-semibold text-highlighted">{{ formatMoney(computedConvertedAmount, destCurrency) }}</span>
+              </div>
             </div>
           </template>
 
-          <!-- Referencia + Fecha -->
-          <div class="grid grid-cols-2 gap-4">
-            <UFormField label="Referencia">
-              <UInput v-model="form.reference" placeholder="Nro comprobante" />
-            </UFormField>
-            <UFormField label="Fecha">
-              <UInput v-model="form.date" type="date" />
-            </UFormField>
-          </div>
-
-          <!-- Descripcion -->
-          <UFormField label="Descripcion">
-            <UTextarea v-model="form.description" placeholder="Detalle de la transferencia..." :rows="2" />
-          </UFormField>
-
+          <details class="group rounded-xl border border-default">
+            <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium text-highlighted">
+              Más detalles <UIcon name="i-lucide-chevron-down" class="transition-transform group-open:rotate-180" />
+            </summary>
+            <div class="grid gap-4 border-t border-default p-4 sm:grid-cols-2">
+              <UFormField label="Referencia">
+                <UInput v-model="form.reference" placeholder="N.º de comprobante" class="w-full" />
+              </UFormField>
+              <UFormField label="Fecha de la operación">
+                <UInput v-model="form.date" type="date" class="w-full" />
+              </UFormField>
+              <UFormField label="Descripción" class="sm:col-span-2">
+                <UTextarea v-model="form.description" placeholder="Motivo o detalle de la transferencia" :rows="2" class="w-full" />
+              </UFormField>
+            </div>
+          </details>
         </UForm>
       </template>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
+        <div class="flex w-full flex-col-reverse justify-between gap-3 sm:flex-row sm:items-center">
+          <p class="text-xs text-muted">Registrar no mueve saldos; la transferencia queda pendiente de confirmación.</p>
+          <div class="flex justify-end gap-2">
           <UButton label="Cancelar" color="neutral" variant="outline" @click="modalOpen = false" />
           <UButton
-            label="Crear transferencia"
-            icon="i-heroicons-arrow-right"
+            label="Registrar pendiente"
+            icon="i-lucide-file-plus-2"
             :loading="loading"
-            :disabled="!form.source_id || !form.dest_id || form.amount <= 0"
+            :disabled="!form.source_id || !form.dest_id || form.amount <= 0 || loadingDestinations"
             @click="handleSubmit"
           />
+          </div>
         </div>
       </template>
     </UModal>
@@ -507,6 +537,10 @@ const sortFields: SortField[] = [
 
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
+              <span class="text-muted">Registro</span>
+              <p class="font-medium">{{ selectedTransfer.record_side === 'destination' ? 'Transferencia recibida' : 'Transferencia enviada' }}</p>
+            </div>
+            <div>
               <span class="text-muted">Tipo</span>
               <p class="font-medium">{{ transferTypeMap[selectedTransfer.transfer_type] ?? selectedTransfer.transfer_type }}</p>
             </div>
@@ -517,6 +551,10 @@ const sortFields: SortField[] = [
             <div>
               <span class="text-muted">Origen</span>
               <p class="font-medium">{{ detailSourceName }}</p>
+            </div>
+            <div v-if="selectedTransfer.source_company_name">
+              <span class="text-muted">Empresa origen</span>
+              <p class="font-medium">{{ selectedTransfer.source_company_name }}</p>
             </div>
             <div>
               <span class="text-muted">Destino</span>
@@ -572,6 +610,14 @@ const sortFields: SortField[] = [
             icon="i-lucide-check-circle"
             color="success"
             @click="handleConfirm(selectedTransfer!); detailModalOpen = false"
+          />
+          <UButton
+            v-if="selectedTransfer?.status === 'completed' && selectedTransfer.record_side !== 'destination' && selectedTransfer.dest_company_id"
+            label="Sincronizar recepción"
+            icon="i-lucide-refresh-cw"
+            color="warning"
+            variant="outline"
+            @click="handleConfirm(selectedTransfer); detailModalOpen = false"
           />
           <UButton
             v-if="selectedTransfer?.status === 'pending'"
