@@ -119,6 +119,7 @@ export interface CreatePaymentBankChargeInput {
 }
 
 export interface CreatePaymentInput {
+  withholding_remittance_id?: string
   type: PaymentType
   payment_mode?: PaymentMode
   date: string

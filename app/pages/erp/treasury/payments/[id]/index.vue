@@ -122,6 +122,7 @@ onMounted(async () => {
     const rawWithholdings = (payment as any).withholdings
     if (rawWithholdings && rawWithholdings.length > 0) {
       initialWithholdings.value = rawWithholdings.map((w: any) => ({
+        is_manual: !w.tax_rule_id && !w.withholding_concept_id,
         tax_type: w.tax_type,
         jurisdiction_id: w.jurisdiction_id ?? null,
         jurisdiction_name: w.jurisdiction?.name ?? w.jurisdiction_name ?? null,

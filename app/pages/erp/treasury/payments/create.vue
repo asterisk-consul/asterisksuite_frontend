@@ -56,14 +56,15 @@ const obligationAmount = computed(() => Number(route.query.amount || 0))
 const obligationCurrency = computed(() => (route.query.currency as string) || 'ARS')
 const obligationDescription = computed(() => (route.query.description as string) || '')
 const obligationAccountId = computed(() => (route.query.account_id as string) || '')
+const withholdingRemittanceId = computed(() => (route.query.withholding_remittance_id as string) || undefined)
 
 const initialValues = ref<PaymentFormData | undefined>(
-  partyId.value || checkId.value
+  partyId.value || checkId.value || obligationId.value || withholdingRemittanceId.value
     ? ({
         type: paymentType.value,
         payment_mode: 'NORMAL',
         date: today(),
-        payment_method: checkId.value ? 'CHECK' : 'CASH',
+        payment_method: withholdingRemittanceId.value ? 'BANK_TRANSFER' : checkId.value ? 'CHECK' : 'CASH',
         amount: obligationAmount.value,
         currency_code: obligationCurrency.value,
         description: obligationDescription.value,
@@ -72,6 +73,7 @@ const initialValues = ref<PaymentFormData | undefined>(
         bank_account_id: '',
         cash_box_id: '',
         account_id: obligationAccountId.value,
+        withholding_remittance_id: withholdingRemittanceId.value,
         check_ids: checkId.value ? [checkId.value] : [],
         documents: documentId.value ? [{ document_id: documentId.value, amount_applied: 0 }] : undefined,
         obligations: obligationId.value ? [{ obligation_id: obligationId.value, amount_applied: obligationAmount.value }] : undefined
@@ -167,7 +169,8 @@ const sendQuickCapture = async () => {
 const handleSubmit = async (formData: PaymentFormData) => {
   try {
     const apiPayload = {
-      type: formData.type,
+      type: formData.type as any,
+      withholding_remittance_id: formData.withholding_remittance_id || undefined,
       payment_mode: formData.payment_mode as any,
       date: formData.date,
       payment_method: formData.payment_method as any,

@@ -1,5 +1,37 @@
 [
  {
+  "version": "0.93.0-alpha",
+  "date": "2026-10-22",
+  "stage": "alpha",
+  "notes": "Integración del circuito de VEP de retenciones con Tesorería y mejoras para consultar obligaciones e historial.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "fiscal",
+    "title": "Los VEP de retenciones aparecen entre los impuestos pendientes y conservan el pago vinculado al registro original"
+   },
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "Servicios e impuestos muestra el detalle de retenciones por VEP y un historial consultable de pagos"
+   },
+   {
+    "type": "ui",
+    "scope": "treasury",
+    "title": "Las tablas de obligaciones y VEP usan AsteriskTable con búsqueda, filtros, ordenamiento y paginación"
+   },
+   {
+    "type": "feat",
+    "scope": "fiscal",
+    "title": "Las retenciones sufridas permiten registrar y revertir imputaciones fiscales parciales"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Integrar VEP de retenciones e historial en Tesorería"
+ },
+ {
   "version": "0.92.0-alpha",
   "date": "2026-10-21",
   "stage": "alpha",

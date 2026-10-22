@@ -11,6 +11,7 @@ export function resolveSide(type: string, partyType?: string): 'debit' | 'credit
   if (type === 'ORDER_INVOICE_REPLACEMENT') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
   if (type === 'ORDER_INVOICE_REPLACEMENT_REVERSAL') return partyType === 'CUSTOMER' ? 'debit' : 'credit'
   if (type === 'PAYMENT' || type === 'COLLECTION') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
+  if (type === 'WITHHOLDING') return partyType === 'CUSTOMER' ? 'credit' : 'debit'
   if (type === 'PAYROLL_DEDUCTION') return 'debit'
   if (type === 'OPENING_BALANCE') return partyType === 'CUSTOMER' ? 'debit' : 'credit'
   if (type === 'SUELDO') return 'credit'
@@ -38,6 +39,7 @@ const ENTRY_TYPE_LABELS: Record<string, string> = {
   ORDER_INVOICE_REPLACEMENT_REVERSAL: 'Reversión reemplazo OV → factura',
   DEBIT_NOTE: 'Nota de débito',
   PAYMENT: 'Pago',
+  WITHHOLDING: 'Retención practicada',
   COLLECTION: 'Cobro',
   ADVANCE: 'Anticipo',
   OPENING_BALANCE: 'Saldo inicial',

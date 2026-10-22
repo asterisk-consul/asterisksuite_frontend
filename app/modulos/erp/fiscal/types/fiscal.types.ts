@@ -1,4 +1,5 @@
 export interface WithholdingProposal {
+  is_manual?: boolean
   tax_type: string
   jurisdiction_id: string | null
   jurisdiction_name: string | null

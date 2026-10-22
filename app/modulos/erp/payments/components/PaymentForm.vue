@@ -29,6 +29,7 @@ export interface PaymentFormData {
   date: string
   payment_method: string
   amount: number
+  withholding_remittance_id?: string
   currency_code: string
   exchange_rate?: number | null
   rate_type?: string
@@ -123,8 +124,17 @@ const removeWithholding = (index: number) => {
   withholdings.value.splice(index, 1)
 }
 
+const recalculateManualWithholding = (withholding: WithholdingProposal) => {
+  if (!withholding.is_manual) return
+
+  const base = Number(withholding.base_amount) || 0
+  const rate = Number(withholding.rate) || 0
+  withholding.withheld_amount = Math.round((base * rate / 100 + Number.EPSILON) * 100) / 100
+}
+
 const addManualWithholding = () => {
   withholdings.value.push({
+    is_manual: true,
     tax_type: 'GANANCIAS',
     jurisdiction_id: null,
     jurisdiction_name: null,
@@ -1923,10 +1933,10 @@ defineExpose({ completeDraft: completePaymentDraft })
             />
           </div>
           <div class="col-span-2">
-            <UInput v-model.number="wh.base_amount" type="number" size="xs" title="Monto base sobre el que se calcula la retención" placeholder="Base" />
+            <UInput v-model.number="wh.base_amount" type="number" size="xs" title="Monto base sobre el que se calcula la retención" placeholder="Base" @update:model-value="recalculateManualWithholding(wh)" />
           </div>
           <div class="col-span-2">
-            <UInput v-model.number="wh.rate" type="number" size="xs" title="Porcentaje de alícuota" placeholder="Alícuota %" />
+            <UInput v-model.number="wh.rate" type="number" size="xs" title="Porcentaje de alícuota" placeholder="Alícuota %" @update:model-value="recalculateManualWithholding(wh)" />
           </div>
           <div class="col-span-3">
             <UInput v-model.number="wh.withheld_amount" type="number" size="xs" :placeholder="suggestedWithheld(wh) ? `≈ ${suggestedWithheld(wh)}` : 'Importe'" title="Importe total retenido" />
@@ -1966,6 +1976,7 @@ defineExpose({ completeDraft: completePaymentDraft })
           step="0.01"
           size="lg"
           class="w-full"
+          :disabled="!!form.withholding_remittance_id"
           placeholder="0,00"
         />
       </UFormField>

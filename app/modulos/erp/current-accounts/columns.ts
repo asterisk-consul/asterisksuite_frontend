@@ -10,6 +10,7 @@ type Row = CurrentAccountEntry
 
 export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; side?: 'debit' | 'credit' }> = {
   PAYMENT: { label: 'Pago', color: 'error', side: 'debit' },
+  WITHHOLDING: { label: 'Retención practicada', color: 'warning', side: 'debit' },
   COLLECTION: { label: 'Cobro', color: 'success', side: 'credit' },
   ADVANCE: { label: 'Anticipo', color: 'info', side: 'credit' },
   LOAN: { label: 'Préstamo', color: 'primary', side: 'credit' },
