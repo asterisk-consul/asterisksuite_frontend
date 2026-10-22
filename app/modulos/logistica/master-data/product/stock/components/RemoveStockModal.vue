@@ -6,6 +6,7 @@ const props = defineProps<{
     reserved_quantity: string
     warehouse?: { name: string; units?: { symbol: string } | null }
   } | null
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -71,13 +72,15 @@ const hasReserved = computed(() => {
       <div class="flex justify-end gap-2">
         <UButton
           variant="outline"
+          :disabled="loading"
           @click="open = false"
         >
           Cancelar
         </UButton>
         <UButton
           color="error"
-          :disabled="!stockItem"
+          :loading="loading"
+          :disabled="loading || !stockItem"
           @click="emit('confirm')"
         >
           Eliminar stock

@@ -16,6 +16,8 @@ async function redirectToSubdomain(company: (typeof auth.companies)[number]) {
   loadingCompanyName.value = company.name
   loading.value = true
 
+  const currentPath = window.location.pathname
+  const nextPath = getPathForCompanySwitch(currentPath)
   auth.selectCompany(company)
   // Esperar a que useCookie persista el tenant antes de navegar. Si la primera
   // petición llega al nuevo host con la cookie anterior, el backend rechaza
@@ -25,14 +27,24 @@ async function redirectToSubdomain(company: (typeof auth.companies)[number]) {
   const config = useRuntimeConfig()
   const baseDomain = config.public.baseDomain
   if (baseDomain) {
-    const { protocol, port, pathname } = window.location
+    const { protocol, port } = window.location
     const portSuffix = port ? `:${port}` : ''
-    window.location.href = `${protocol}//${company.subdomain}.${baseDomain}${portSuffix}${pathname}`
+    window.location.href = `${protocol}//${company.subdomain}.${baseDomain}${portSuffix}${nextPath}`
   } else {
     // En desarrollo puede no haber subdominios; recargar limpia los stores
     // del tenant previo y vuelve a pedir los datos con la cookie actualizada.
-    window.location.reload()
+    window.location.href = nextPath
   }
+}
+
+function getPathForCompanySwitch(path: string) {
+  const cashBoxDetail = /^\/erp\/treasury\/cash-boxes\/([^/]+)(?:\/edit)?\/?$/.exec(path)
+  if (cashBoxDetail && !['create', 'new'].includes(cashBoxDetail[1])) return '/erp/treasury/cash-boxes'
+
+  const bankAccountDetail = /^\/erp\/treasury\/bank-accounts\/([^/]+)(?:\/edit)?\/?$/.exec(path)
+  if (bankAccountDetail && !['create', 'new'].includes(bankAccountDetail[1])) return '/erp/treasury/bank-accounts'
+
+  return path
 }
 
 const items = computed<DropdownMenuItem[]>(() =>

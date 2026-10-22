@@ -64,6 +64,7 @@ onMounted(async () => {
 })
 
 const handleSubmit = async () => {
+  if (submitting.value) return
   if (!selectedDocId.value || amount.value <= 0) return
   if (amount.value > props.availableBalance) return
 
@@ -148,7 +149,7 @@ const formatCurrency = (value: number) => {
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton label="Cancelar" variant="ghost" @click="emit('update:open', false)" />
+        <UButton label="Cancelar" variant="ghost" :disabled="submitting" @click="emit('update:open', false)" />
         <UButton
           label="Aplicar"
           color="info"

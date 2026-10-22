@@ -299,6 +299,7 @@ const allParties = ref<Array<{
   roles?: Array<{ role: string; active: boolean }>
 }>>([])
 const partySearch = ref('')
+const partySearching = ref(false)
 const remoteParties = ref<typeof allParties.value>([])
 let partySearchTimer: ReturnType<typeof setTimeout> | undefined
 let partySearchController: AbortController | undefined
@@ -327,9 +328,11 @@ const formatPartyLabel = (party: { name: string; tax_id?: string; type: string }
 
 const filteredParties = computed(() => {
   const q = partySearch.value.toLowerCase().trim()
-  const merged = [...remoteParties.value, ...allParties.value]
-    .filter((party, index, rows) => rows.findIndex(item => item.id === party.id) === index)
-  let filtered = merged.filter(p =>
+  // Con búsqueda activa, el servidor ya devuelve resultados acotados y
+  // filtrados por nombre/CUIT/tipo. Evitamos recorrer toda la lista local
+  // (que puede ser grande) en cada tecla.
+  const source = q.length >= 2 ? remoteParties.value : allParties.value
+  let filtered = source.filter(p =>
     isPayment.value ? payablePartyTypes.has(p.type) : isCustomerParty(p)
   )
   if (q) {
@@ -366,20 +369,25 @@ watch(partySearch, (value) => {
   const query = value.trim()
   if (query.length < 2) {
     remoteParties.value = []
+    partySearching.value = false
     return
   }
   partySearchTimer = setTimeout(async () => {
-    partySearchController = new AbortController()
+    const controller = new AbortController()
+    partySearchController = controller
+    partySearching.value = true
     try {
       remoteParties.value = await partiesService.search(
         query,
         isPayment.value ? [...payablePartyTypes] : ['CUSTOMER'],
-        partySearchController.signal
+        controller.signal
       )
     } catch (error: any) {
       if (error?.name !== 'AbortError') remoteParties.value = []
+    } finally {
+      if (partySearchController === controller) partySearching.value = false
     }
-  }, 300)
+  }, 160)
 })
 
 onBeforeUnmount(() => {
@@ -475,6 +483,7 @@ const sameStringArray = (left: string[] = [], right: string[] = []) =>
   left.length === right.length && left.every((value, index) => value === right[index])
 const docSearch = ref('')
 const checkModalOpen = ref(false)
+const checkSaving = ref(false)
 
 // Session open modal
 const openSessionModalOpen = ref(false)
@@ -831,22 +840,24 @@ const availableChecks = computed(() => {
 
 const visibleChecks = computed(() => {
   const query = checkSearch.value.trim().toLowerCase()
-  const matches = query
-    ? availableChecks.value.filter(check =>
-        check.check_number?.toLowerCase().includes(query)
-        || check.bank_name?.toLowerCase().includes(query)
-        || check.issuer_name?.toLowerCase().includes(query)
-      )
-    : availableChecks.value
+  const matchesQuery = (check: AvailableCheck) => !query
+    || check.check_number?.toLowerCase().includes(query)
+    || check.bank_name?.toLowerCase().includes(query)
+    || check.issuer_name?.toLowerCase().includes(query)
 
-  // Evitar montar cientos o miles de tarjetas reactivas. Las seleccionadas se
-  // mantienen al comienzo sin ordenar nuevamente toda la cartera.
-  const selected: AvailableCheck[] = []
-  const remaining: AvailableCheck[] = []
-  for (const check of matches) {
-    (selectedChecks.value.has(check.id) ? selected : remaining).push(check)
-  }
-  return selected.concat(remaining).slice(0, 100)
+  // Mantener el orden natural por vencimiento: promover los seleccionados al
+  // inicio hacía que cambiaran de lugar y parecía que el clic no funcionaba.
+  const matchingChecks = query
+    ? availableChecks.value.filter(matchesQuery)
+    : availableChecks.value
+  const visible = matchingChecks.slice(0, 100)
+  const visibleIds = new Set(visible.map(check => check.id))
+  // Si se eligió un cheque desde una búsqueda y luego se limpia, mantenerlo
+  // accesible sin reordenar las primeras opciones de la cartera.
+  const selectedOutsideWindow = Array.from(selectedChecks.value.values())
+    .filter(check => !visibleIds.has(check.id) && matchesQuery(check))
+    .sort((a, b) => a.due_date.localeCompare(b.due_date))
+  return visible.concat(selectedOutsideWindow)
 })
 
 const filteredCashBoxes = computed(() => {
@@ -1094,7 +1105,7 @@ const openBoxSession = async (box: any) => {
 }
 
 const handleOpenSession = async () => {
-  if (!openingBox.value) return
+  if (openingSaving.value || !openingBox.value) return
   openingSaving.value = true
   try {
     await openSession(openingBox.value.id, { opening_balance: openingBalance.value })
@@ -1195,24 +1206,33 @@ const updateDocAmount = (docId: string, amount: number) => {
 }
 
 const handleCheckCreated = async (checkData: CheckFormData) => {
+  if (checkSaving.value) return
+  checkSaving.value = true
   const isOwn = isPayment.value
-  await createLightCheck({
-    check_number: checkData.check_number,
-    bank_name: checkData.bank_name,
-    bank_branch: checkData.bank_branch || undefined,
-    account_number: checkData.account_number || undefined,
-    bank_account_id: checkData.bank_account_id || undefined,
-    issuer_name: checkData.issuer_name,
-    issuer_id: checkData.issuer_id || undefined,
-    amount: checkData.amount,
-    currency_code: checkData.currency_code,
-    issue_date: checkData.issue_date,
-    due_date: checkData.due_date,
-    is_own: isOwn,
-    notes: checkData.notes || undefined,
-  })
-  checkModalOpen.value = false
-  await fetchAvailableChecks()
+  try {
+    await createLightCheck({
+      check_number: checkData.check_number,
+      bank_name: checkData.bank_name,
+      bank_branch: checkData.bank_branch || undefined,
+      account_number: checkData.account_number || undefined,
+      bank_account_id: checkData.bank_account_id || undefined,
+      issuer_name: checkData.issuer_name,
+      issuer_id: checkData.issuer_id || undefined,
+      amount: checkData.amount,
+      currency_code: checkData.currency_code,
+      issue_date: checkData.issue_date,
+      due_date: checkData.due_date,
+      is_own: isOwn,
+      notes: checkData.notes || undefined,
+    })
+    checkModalOpen.value = false
+    await fetchAvailableChecks()
+    toast.add({ title: 'Cheque creado', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo crear el cheque', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    checkSaving.value = false
+  }
 }
 
 const handleSubmit = async () => {
@@ -1466,30 +1486,162 @@ defineExpose({ completeDraft: completePaymentDraft })
       <UIcon :name="paymentDraftStatus === 'saving' ? 'i-lucide-loader-circle' : 'i-lucide-check-circle-2'" :class="{ 'animate-spin': paymentDraftStatus === 'saving' }" />
       <span>{{ paymentDraftStatus === 'saving' ? 'Guardando borrador…' : `Borrador guardado en este dispositivo${paymentDraftSavedLabel ? ` · ${paymentDraftSavedLabel}` : ''}` }}</span>
     </div>
-    <div class="grid grid-cols-3 gap-4">
-      <UFormField label="Tipo" name="type" required>
-        <USelectMenu v-model="selectedType" :items="typeOptions" class="w-full" />
-      </UFormField>
-      <UFormField label="Modo" name="payment_mode">
-        <USelectMenu v-model="selectedPaymentMode" :items="paymentModeOptions" class="w-full" />
-      </UFormField>
-      <UFormField label="Fecha" name="date" required>
-        <DataPicker v-model="form.date" />
-      </UFormField>
-    </div>
+    <section class="rounded-xl border border-default bg-elevated/20 p-4 space-y-4 sm:p-5">
+      <div class="flex items-start gap-3">
+        <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">1</span>
+        <div>
+          <h3 class="font-semibold">Definí el movimiento</h3>
+          <p class="text-sm text-muted">Indicá si es un pago, cobro o gasto, su fecha y moneda.</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <UFormField label="Tipo" name="type" required>
+          <USelectMenu v-model="selectedType" :items="typeOptions" class="w-full" />
+        </UFormField>
+        <UFormField label="Modo" name="payment_mode">
+          <USelectMenu v-model="selectedPaymentMode" :items="paymentModeOptions" class="w-full" />
+        </UFormField>
+        <UFormField label="Fecha" name="date" required>
+          <DataPicker v-model="form.date" />
+        </UFormField>
+      </div>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <UFormField label="Moneda" name="currency_code">
+          <USelectMenu v-model="selectedCurrency" :items="currencyOptions" placeholder="Seleccionar moneda" class="w-full" />
+        </UFormField>
+        <UFormField label="Cuenta contable (opcional)" name="account_id">
+          <USelectMenu
+            v-model="selectedAccount"
+            :items="accountOptions"
+            placeholder="Sin asignar"
+            searchable
+            clearable
+            class="w-full"
+          />
+        </UFormField>
+      </div>
 
-    <UAlert
-      v-if="instrumentValidationMessage"
-      color="warning"
-      variant="soft"
-      icon="i-lucide-circle-alert"
-      title="Selección obligatoria"
-      :description="instrumentValidationMessage"
-    />
-    <div class="grid grid-cols-3 gap-4">
-      <UFormField label="Método de pago" name="payment_method" required>
+      <!-- Cotización para movimientos en moneda extranjera -->
+      <div v-if="isForeignCurrency" class="grid grid-cols-1 gap-4 rounded-lg border border-default bg-default/50 p-3 sm:grid-cols-3">
+        <UFormField label="Tipo de cambio" name="rate_type">
+          <USelect
+            v-model="form.rate_type"
+            :items="[
+              { label: 'Oficial (AFIP)', value: 'OFFICIAL' },
+              { label: 'Blue', value: 'BLUE' },
+              { label: 'MEP', value: 'MEP' },
+              { label: 'CCL', value: 'CCL' },
+            ]"
+            placeholder="Tipo"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Cotización" name="exchange_rate">
+          <UInput
+            v-model.number="form.exchange_rate"
+            type="number"
+            step="0.000001"
+            min="0"
+            placeholder="1.000000"
+            @input="() => { if (form.exchange_rate) setManualRate(form.exchange_rate) }"
+          />
+        </UFormField>
+        <UFormField v-if="form.exchange_rate && form.amount" label="Equivalente ARS">
+          <div class="h-10 flex items-center text-lg font-semibold text-primary">
+            {{ formatCurrency(convertAmount(form.amount) ?? 0, 'ARS') }}
+          </div>
+        </UFormField>
+      </div>
+    </section>
+
+    <section class="rounded-xl border border-default bg-elevated/20 p-4 space-y-4 sm:p-5">
+      <div class="flex items-start gap-3">
+        <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">2</span>
+        <div>
+          <h3 class="font-semibold">¿Qué vas a pagar o cobrar?</h3>
+          <p class="text-sm text-muted">Elegí el tercero y los comprobantes, o ingresá el importe del movimiento.</p>
+        </div>
+      </div>
+
+      <div v-if="form.payment_mode === 'ADVANCE' || form.type === 'EXPENSE'" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <UFormField :label="isPayment ? 'Proveedor o entidad' : 'Cliente'" name="party_id" required>
+          <USelectMenu
+            v-model="selectedParty"
+            :items="filteredParties"
+            :placeholder="isPayment ? 'Buscar proveedor, impuesto o servicio...' : 'Buscar cliente...'"
+            searchable
+            :loading="partySearching"
+            class="w-full"
+            v-model:search-term="partySearch"
+          />
+        </UFormField>
+      </div>
+
+      <PendingDocumentsList
+        v-if="form.payment_mode !== 'ADVANCE' && form.type !== 'EXPENSE'"
+        :documents="filteredDocs"
+        :selected-docs="selectedDocs"
+        :currency-code="form.currency_code"
+        :exchange-rate="null"
+        :resolved-rate="resolvedRate"
+        :format-currency="formatCurrency"
+        :actions-disabled="props.loading || checkSaving || openingSaving"
+        @toggle="toggleDoc"
+        @update-amount="updateDocAmount"
+        @create-invoice="openInvoiceModal"
+        @create-vale="openValeModal"
+      />
+
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <UFormField v-if="selectedDocs.size === 0 && selectedChecks.size === 0" label="Monto" name="amount" required>
+          <UInput
+            v-model.number="form.amount"
+            type="number"
+            min="0"
+            step="0.01"
+            size="lg"
+            class="w-full"
+            :disabled="!!form.withholding_remittance_id"
+            placeholder="0,00"
+          />
+        </UFormField>
+        <UFormField label="Referencia" name="reference" :class="selectedDocs.size > 0 || selectedChecks.size > 0 ? 'md:col-span-2' : ''">
+          <UInput v-model="form.reference" placeholder="Número de operación, recibo o referencia interna" size="lg" class="w-full" />
+        </UFormField>
+      </div>
+      <UFormField label="Descripción" name="description" :required="form.type === 'EXPENSE'">
+        <UTextarea
+          v-model="form.description"
+          :placeholder="form.type === 'EXPENSE' ? 'Describí el motivo y detalle del gasto' : 'Agregá una observación opcional'"
+          :rows="3"
+          autoresize
+          size="lg"
+          class="w-full"
+        />
+      </UFormField>
+    </section>
+
+    <section class="rounded-xl border border-default bg-elevated/20 p-4 space-y-4 sm:p-5">
+      <div class="flex items-start gap-3">
+        <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">3</span>
+        <div>
+          <h3 class="font-semibold">¿Cómo lo vas a pagar o cobrar?</h3>
+          <p class="text-sm text-muted">Seleccioná el medio y la caja, cuenta, cheque o tarjeta que vas a utilizar.</p>
+        </div>
+      </div>
+
+      <UFormField label="Medio de pago o cobro" name="payment_method" required>
         <USelectMenu v-model="selectedPaymentMethod" :items="paymentMethods" class="w-full" />
       </UFormField>
+
+      <UAlert
+        v-if="instrumentValidationMessage"
+        color="warning"
+        variant="soft"
+        icon="i-lucide-circle-alert"
+        title="Selección obligatoria"
+        :description="instrumentValidationMessage"
+      />
       <UAlert
         v-if="form.payment_method === 'PAYROLL_DEDUCTION'"
         color="info"
@@ -1498,66 +1650,6 @@ defineExpose({ completeDraft: completePaymentDraft })
         title="Cobro mediante descuento de haberes"
         description="Cancela la deuda comercial y registra el importe pendiente de descontar en la cuenta de RR. HH. del empleado. No mueve caja ni banco."
       />
-      <UFormField label="Moneda" name="currency_code">
-        <USelectMenu v-model="selectedCurrency" :items="currencyOptions" placeholder="Seleccionar moneda" class="w-full" />
-      </UFormField>
-      <UFormField label="Cuenta contable (opc.)" name="account_id">
-        <USelectMenu
-          v-model="selectedAccount"
-          :items="accountOptions"
-          placeholder="Sin asignar"
-          searchable
-          clearable
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-
-    <!-- Exchange Rate (solo si moneda extranjera) -->
-    <div v-if="isForeignCurrency" class="grid grid-cols-3 gap-4">
-      <UFormField label="Tipo de cambio" name="rate_type">
-        <USelect
-          v-model="form.rate_type"
-          :items="[
-            { label: 'Oficial (AFIP)', value: 'OFFICIAL' },
-            { label: 'Blue', value: 'BLUE' },
-            { label: 'MEP', value: 'MEP' },
-            { label: 'CCL', value: 'CCL' },
-          ]"
-          placeholder="Tipo"
-          class="w-full"
-        />
-      </UFormField>
-      <UFormField label="Cotización" name="exchange_rate">
-        <UInput
-          v-model.number="form.exchange_rate"
-          type="number"
-          step="0.000001"
-          min="0"
-          placeholder="1.000000"
-          @input="() => { if (form.exchange_rate) setManualRate(form.exchange_rate) }"
-        />
-      </UFormField>
-      <UFormField v-if="form.exchange_rate && form.amount" label="Equivalente ARS">
-        <div class="h-10 flex items-center text-lg font-semibold text-primary">
-          {{ formatCurrency(convertAmount(form.amount) ?? 0, 'ARS') }}
-        </div>
-      </UFormField>
-    </div>
-
-    <!-- SELECTOR DE TERCERO (ADVANCE o EXPENSE) -->
-    <div v-if="form.payment_mode === 'ADVANCE' || form.type === 'EXPENSE'" class="grid grid-cols-2 gap-4">
-      <UFormField :label="isPayment ? 'Proveedor o entidad' : 'Cliente'" name="party_id" required>
-        <USelectMenu
-          v-model="selectedParty"
-          :items="filteredParties"
-          :placeholder="isPayment ? 'Buscar proveedor, impuesto o servicio...' : 'Buscar cliente...'"
-          searchable
-          class="w-full"
-          @update:search="partySearch = $event"
-        />
-      </UFormField>
-    </div>
 
     <!-- SELECTOR DE CAJA (EFECTIVO) -->
     <div v-if="selectedPaymentMethod?.value === 'CASH'" class="border border-default rounded-lg p-4 space-y-3">
@@ -1629,6 +1721,7 @@ defineExpose({ completeDraft: completePaymentDraft })
                 variant="outline"
                 size="xs"
                 class="w-full"
+                :disabled="props.loading || openingSaving"
                 @click.stop="openBoxSession(cb)"
               />
             </div>
@@ -1647,7 +1740,7 @@ defineExpose({ completeDraft: completePaymentDraft })
           {{ isCollection ? 'Seleccionar cheques de terceros' : 'Seleccionar cheques (propios y de terceros)' }}
         </h4>
         <div class="flex items-center gap-2">
-          <UButton label="Crear cheque" size="xs" variant="outline" @click="checkModalOpen = true" />
+          <UButton label="Crear cheque" size="xs" variant="outline" :disabled="props.loading || checkSaving" @click="checkModalOpen = true" />
           <div v-if="selectedChecks.size > 0" class="text-sm font-semibold text-primary">
             Total: {{ formatCurrency(totalChecksAmount, form.currency_code) }}
           </div>
@@ -1696,6 +1789,7 @@ defineExpose({ completeDraft: completePaymentDraft })
               <span class="text-xs text-muted">{{ check.bank_name }}</span>
               <UBadge :label="check.is_own ? 'Propio' : 'Tercero'" color="neutral" variant="outline" size="xs" />
               <UBadge label="Pendiente" color="warning" size="xs" />
+              <UBadge v-if="isCheckSelected(check.id)" label="Seleccionado" color="primary" size="xs" />
             </div>
             <div class="flex items-center gap-4 text-xs text-muted mt-1">
               <span>Emisor: {{ check.issuer_name }}</span>
@@ -1867,20 +1961,7 @@ defineExpose({ completeDraft: completePaymentDraft })
       </div>
     </div>
 
-    <!-- DOCUMENTOS PENDIENTES (oculto en modo ADVANCE y EXPENSE) -->
-    <PendingDocumentsList
-      v-if="form.payment_mode !== 'ADVANCE' && form.type !== 'EXPENSE'"
-      :documents="filteredDocs"
-      :selected-docs="selectedDocs"
-      :currency-code="form.currency_code"
-      :exchange-rate="null"
-      :resolved-rate="resolvedRate"
-      :format-currency="formatCurrency"
-      @toggle="toggleDoc"
-      @update-amount="updateDocAmount"
-      @create-invoice="openInvoiceModal"
-      @create-vale="openValeModal"
-    />
+    </section>
 
     <!-- RETENCIONES (motor fiscal) -->
     <div v-if="form.party_id" class="border border-default rounded-lg p-4 space-y-3">
@@ -1967,35 +2048,7 @@ defineExpose({ completeDraft: completePaymentDraft })
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <UFormField v-if="selectedDocs.size === 0 && selectedChecks.size === 0" label="Monto" name="amount" required>
-        <UInput
-          v-model.number="form.amount"
-          type="number"
-          min="0"
-          step="0.01"
-          size="lg"
-          class="w-full"
-          :disabled="!!form.withholding_remittance_id"
-          placeholder="0,00"
-        />
-      </UFormField>
-      <UFormField label="Referencia" name="reference" :class="selectedDocs.size > 0 || selectedChecks.size > 0 ? 'md:col-span-2' : ''">
-        <UInput v-model="form.reference" placeholder="Número de operación, recibo o referencia interna" size="lg" class="w-full" />
-      </UFormField>
-    </div>
-    <UFormField label="Descripción" name="description" :required="form.type === 'EXPENSE'">
-      <UTextarea
-        v-model="form.description"
-        :placeholder="form.type === 'EXPENSE' ? 'Describí el motivo y detalle del gasto' : 'Agregá una observación opcional'"
-        :rows="3"
-        autoresize
-        size="lg"
-        class="w-full"
-      />
-    </UFormField>
-
-    <div class="sticky bottom-0 bg-default border-t border-default -mx-4 px-4 py-3 flex items-center justify-between">
+    <div class="sticky bottom-0 z-20 min-h-20 bg-default border-t border-default shadow-[0_-8px_24px_rgba(0,0,0,0.12)] -mx-4 px-4 py-4 sm:px-5 sm:py-5 flex items-center justify-between">
       <div class="text-sm space-y-0.5">
         <div class="font-semibold">
           Total: {{ formatCurrency(displayedPaymentAmount, form.currency_code) }}
@@ -2010,13 +2063,19 @@ defineExpose({ completeDraft: completePaymentDraft })
         </div>
       </div>
       <div class="flex gap-2">
-        <UButton label="Cancelar" variant="ghost" @click="emit('cancel')" />
-        <UButton label="Guardar" type="submit" :disabled="(selectedDocs.size > 0 && totalApplied <= 0) || !hasInstrumentSelection" />
+        <UButton label="Cancelar" variant="ghost" :disabled="props.loading" @click="emit('cancel')" />
+        <UButton
+          :label="props.loading ? 'Guardando…' : 'Guardar'"
+          type="submit"
+          :loading="props.loading"
+          :disabled="props.loading || (selectedDocs.size > 0 && totalApplied <= 0) || !hasInstrumentSelection"
+        />
       </div>
     </div>
 
     <CheckModal
       v-model:open="checkModalOpen"
+      :loading="checkSaving"
       :bank-account-items="bankAccountItems"
       :currency-items="currencyOptions"
       :forced-type="isPayment ? 'OWN' : 'THIRD_PARTY'"
@@ -2045,8 +2104,8 @@ defineExpose({ completeDraft: completePaymentDraft })
             <UInput v-model.number="openingBalance" type="number" />
           </UFormField>
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="openSessionModalOpen = false" />
-            <UButton label="Abrir sesión" color="success" :loading="openingSaving" @click="handleOpenSession" />
+            <UButton label="Cancelar" variant="ghost" :disabled="openingSaving" @click="openSessionModalOpen = false" />
+            <UButton label="Abrir sesión" color="success" :loading="openingSaving" :disabled="openingSaving" @click="handleOpenSession" />
           </div>
         </div>
       </template>

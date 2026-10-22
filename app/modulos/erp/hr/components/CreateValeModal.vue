@@ -198,6 +198,7 @@ function resetForm() {
 }
 
 async function handleCreate() {
+  if (saving.value) return
   try {
     saving.value = true
     const vale = pendingCreatedValeId.value
@@ -477,13 +478,13 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           {{ isPartner && confirmAutomatically ? `${isOutflow ? 'Se debitará' : 'Se acreditará'} en ${treasuryTargetType === 'CASH_BOX' ? 'caja' : 'banco'}.` : 'Revisá los datos antes de guardar.' }}
         </p>
         <div class="flex justify-end gap-2">
-        <UButton label="Cancelar" variant="ghost" @click="open = false" />
+        <UButton label="Cancelar" variant="ghost" :disabled="saving" @click="open = false" />
         <UButton
           v-if="!confirmAutomatically"
           label="Crear borrador"
           variant="outline"
           :loading="saving"
-          :disabled="!createForm.party_id || createForm.amount <= 0 || !createForm.exchange_rate"
+          :disabled="saving || !createForm.party_id || createForm.amount <= 0 || !createForm.exchange_rate"
           @click="handleCreate"
         />
         <UButton
@@ -491,7 +492,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           color="success"
           icon="i-lucide-check"
           :loading="saving"
-          :disabled="!createForm.party_id || createForm.amount <= 0 || !createForm.exchange_rate || (isPartner && !treasuryTargetId)"
+          :disabled="saving || !createForm.party_id || createForm.amount <= 0 || !createForm.exchange_rate || (isPartner && !treasuryTargetId)"
           @click="handleCreate"
         />
         </div>

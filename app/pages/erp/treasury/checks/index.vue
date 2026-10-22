@@ -46,6 +46,7 @@ const bankAccountsService = useBankAccountsService()
 const sorting = ref<SortingState>([])
 const deleteModalOpen = ref(false)
 const deletingCheck = ref<Check | null>(null)
+const deleting = ref(false)
 
 // Deposit modal state
 const depositModalOpen = ref(false)
@@ -169,7 +170,7 @@ const depositResolvedCheck = () => {
 }
 
 const collectResolvedCheck = async () => {
-  if (!resolvingCheck.value || !cashBoxId.value) return
+  if (resolving.value || !resolvingCheck.value || !cashBoxId.value) return
   resolving.value = true
   try {
     await collectInCashBox(resolvingCheck.value.id, cashBoxId.value, cashCollectionDate.value)
@@ -184,7 +185,7 @@ const collectResolvedCheck = async () => {
 }
 
 const rejectResolvedCheck = async () => {
-  if (!resolvingCheck.value) return
+  if (resolving.value || !resolvingCheck.value) return
   resolving.value = true
   try {
     await bounce(resolvingCheck.value.id)
@@ -222,9 +223,14 @@ const confirmDelete = (check: Check) => {
 }
 
 const handleDelete = async () => {
-  if (!deletingCheck.value) return
-  await remove(deletingCheck.value.id)
-  deleteModalOpen.value = false
+  if (deleting.value || !deletingCheck.value) return
+  deleting.value = true
+  try {
+    await remove(deletingCheck.value.id)
+    deleteModalOpen.value = false
+  } finally {
+    deleting.value = false
+  }
 }
 
 const openDepositModal = async (check: Check) => {
@@ -263,7 +269,7 @@ const availableDepositCashBoxes = computed(() => {
 })
 
 const handleDeposit = async () => {
-  if (!depositingCheck.value) return
+  if (depositing.value || !depositingCheck.value) return
   if (depositDestination.value === 'BANK' && !depositBankAccountId.value) {
     toast.add({ title: 'Seleccioná una cuenta bancaria', color: 'error' })
     return
@@ -316,7 +322,7 @@ const openRevertModal = (check: Check) => {
 }
 
 const handleRevert = async () => {
-  if (!revertingCheck.value) return
+  if (reverting.value || !revertingCheck.value) return
   try {
     reverting.value = true
     await revert(revertingCheck.value.id)
@@ -351,7 +357,7 @@ const openDebitModal = async (check: Check) => {
 }
 
 const processOwnCheck = async () => {
-  if (!debitingCheck.value || !debitDate.value) return
+  if (debiting.value || !debitingCheck.value || !debitDate.value) return
   try {
     debiting.value = true
     if (debitSource.value === 'CASH') {
@@ -501,8 +507,8 @@ const sortFields: SortField[] = [
       <template #body>
         <p>¿Estás seguro de que deseas eliminar el cheque N° <strong>{{ deletingCheck?.check_number }}</strong>?</p>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
-          <UButton label="Eliminar" color="error" @click="handleDelete" />
+          <UButton label="Cancelar" variant="ghost" :disabled="deleting" @click="() => { deleteModalOpen = false }" />
+          <UButton label="Eliminar" color="error" :loading="deleting" :disabled="deleting" @click="handleDelete" />
         </div>
       </template>
     </UModal>
@@ -574,13 +580,13 @@ const sortFields: SortField[] = [
           />
 
           <div class="flex justify-end gap-2 pt-2">
-            <UButton label="Cancelar" variant="ghost" @click="() => { depositModalOpen = false }" />
+            <UButton label="Cancelar" variant="ghost" :disabled="depositing" @click="() => { depositModalOpen = false }" />
             <UButton
               :label="depositDestination === 'BANK' ? 'Depositar' : 'Cobrar e ingresar'"
               :icon="depositDestination === 'BANK' ? 'i-lucide-building-2' : 'i-lucide-banknote'"
               color="success"
               :loading="depositing"
-              :disabled="depositAmount <= 0 || !depositDate || (depositDestination === 'BANK' ? !depositBankAccountId : !depositCashBoxId)"
+              :disabled="depositing || depositAmount <= 0 || !depositDate || (depositDestination === 'BANK' ? !depositBankAccountId : !depositCashBoxId)"
               @click="handleDeposit"
             />
           </div>
@@ -619,7 +625,7 @@ const sortFields: SortField[] = [
                 :items="availableCashBoxes.map(box => ({ label: box.name, value: box.id }))"
                 placeholder="Seleccionar caja abierta"
               />
-              <UButton label="Cobrar" icon="i-lucide-banknote" color="success" :loading="resolving" :disabled="!cashBoxId || !cashCollectionDate" @click="collectResolvedCheck" />
+              <UButton label="Cobrar" icon="i-lucide-banknote" color="success" :loading="resolving" :disabled="resolving || !cashBoxId || !cashCollectionDate" @click="collectResolvedCheck" />
             </div>
             <UFormField label="Fecha efectiva del cobro" required>
               <UInput v-model="cashCollectionDate" type="date" class="w-full" />
@@ -630,8 +636,8 @@ const sortFields: SortField[] = [
           </div>
 
           <div class="flex flex-wrap justify-between gap-2 border-t border-default pt-4">
-            <UButton label="Marcar rechazado" icon="i-lucide-ban" color="error" variant="ghost" :loading="resolving" @click="rejectResolvedCheck" />
-            <UButton label="Mantener en cartera" variant="ghost" @click="() => { resolveModalOpen = false }" />
+            <UButton label="Marcar rechazado" icon="i-lucide-ban" color="error" variant="ghost" :loading="resolving" :disabled="resolving" @click="rejectResolvedCheck" />
+            <UButton label="Mantener en cartera" variant="ghost" :disabled="resolving" @click="() => { resolveModalOpen = false }" />
           </div>
         </div>
       </template>
@@ -693,13 +699,13 @@ const sortFields: SortField[] = [
           </UFormField>
 
           <div class="flex justify-end gap-2">
-            <UButton label="Cancelar" variant="ghost" @click="() => { debitModalOpen = false }" />
+            <UButton label="Cancelar" variant="ghost" :disabled="debiting" @click="() => { debitModalOpen = false }" />
             <UButton
               :label="debitSource === 'BANK' ? 'Registrar débito' : 'Depositar y pagar'"
               :icon="debitSource === 'BANK' ? 'i-lucide-landmark' : 'i-lucide-banknote'"
               color="primary"
               :loading="debiting"
-              :disabled="!debitDate || (debitSource === 'CASH' && !debitCashBoxId)"
+              :disabled="debiting || !debitDate || (debitSource === 'CASH' && !debitCashBoxId)"
               @click="processOwnCheck"
             />
           </div>
@@ -741,6 +747,7 @@ const sortFields: SortField[] = [
               icon="i-lucide-undo-2"
               color="warning"
               :loading="reverting"
+              :disabled="reverting"
               @click="handleRevert"
             />
           </div>

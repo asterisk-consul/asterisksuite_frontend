@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
-import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
+import type { SortField } from '~/components/Tablas/TableToolbar.vue'
+import { reportTableFilter } from '~/modulos/erp/management-reports/report-table-filter'
 definePageMeta({ middleware: ['auth'] })
 
 import { useTreasuryObligationsService, type ObligationTemplate, type TreasuryObligation } from '~/modulos/erp/treasury-obligations/treasury-obligations.service'
@@ -10,7 +12,7 @@ import { useProductsStore } from '~/modulos/logistica/master-data/product/store/
 import { useAccountsStore } from '~/modulos/contabilidad/store/accounts.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 
-type View = 'upcoming' | 'obligations' | 'recurring' | 'reports'
+type View = 'pending' | 'recurring' | 'reports'
 type WithholdingRemittance = {
   id: string; vep_number: string; tax_type: string; tax_regime_code: string | null; period_key: string
   status: 'REGISTERED' | 'PAID'; vep_amount: number | string; currency_code: string; due_date: string | null
@@ -26,10 +28,13 @@ const route = useRoute()
 const toast = useToast()
 const UButtonComponent = resolveComponent('UButton')
 const UBadgeComponent = resolveComponent('UBadge')
+const UDropdownMenuComponent = resolveComponent('UDropdownMenu')
 const authStore = useAuthStore()
 const productsStore = useProductsStore()
 const accountsStore = useAccountsStore()
-const activeView = ref<View>((route.query.view as View) || 'upcoming')
+const initialView = String(route.query.view ?? '')
+const activeView = ref<View>(initialView === 'recurring' || initialView === 'reports' ? initialView : 'pending')
+const pendingSection = ref<'obligations' | 'vep'>('obligations')
 const loading = ref(false)
 const saving = ref(false)
 const rows = ref<TreasuryObligation[]>([])
@@ -58,8 +63,7 @@ const partyTypeByCategory: Record<string, string[]> = {
 }
 
 const tabs = [
-  { label: 'Próximos vencimientos', value: 'upcoming', icon: 'i-lucide-calendar-clock' },
-  { label: 'Servicios e impuestos', value: 'obligations', icon: 'i-lucide-receipt-text' },
+  { label: 'Pendientes', value: 'pending', icon: 'i-lucide-calendar-clock' },
   { label: 'Recurrentes', value: 'recurring', icon: 'i-lucide-repeat-2' },
   { label: 'Historial y reportes', value: 'reports', icon: 'i-lucide-chart-column' }
 ]
@@ -129,6 +133,13 @@ const filteredRows = computed(() => rows.value.filter(row => {
     && (categoryFilter.value === 'ALL' || row.category === categoryFilter.value)
 }))
 const upcomingRows = computed(() => filteredRows.value.filter(row => !['PAID', 'CANCELLED'].includes(row.status)))
+const visibleObligationRows = computed(() => {
+  const source = upcomingRows.value
+  const term = obligationSearch.value.trim().toLocaleLowerCase('es-AR')
+  if (!term) return source
+  return source.filter(row => [row.description, row.party?.name, row.reference, row.period_key]
+    .some(value => String(value ?? '').toLocaleLowerCase('es-AR').includes(term)))
+})
 const reportRows = computed(() => rows.value.filter(row => row.status === 'PAID'))
 const reminderRows = computed(() => rows.value.filter(row => row.should_notify))
 const reportTotals = computed(() => reportRows.value.reduce<Record<string, number>>((totals, row) => {
@@ -140,8 +151,8 @@ const filteredRemittances = computed(() => remittances.value.filter(item => {
   const termMatches = !term || item.vep_number.toLowerCase().includes(term) || item.tax_type.toLowerCase().includes(term)
     || item.period_key.includes(term) || item.jurisdiction?.name.toLowerCase().includes(term)
   const state = item.status === 'PAID' ? 'PAID' : item.due_date && daysUntil(item.due_date) < 0 ? 'OVERDUE' : 'READY'
-  return termMatches && (statusFilter.value === 'ALL' || statusFilter.value === state)
-    && (categoryFilter.value === 'ALL' || categoryFilter.value === 'TAX')
+  const statusMatches = activeView.value !== 'pending' || statusFilter.value === 'ALL' || statusFilter.value === state
+  return termMatches && statusMatches
 }))
 const payableRemittances = computed(() => filteredRemittances.value.filter(item => item.status !== 'PAID'))
 const historicalRemittances = computed(() => filteredRemittances.value.filter(item => item.status === 'PAID'))
@@ -159,63 +170,103 @@ const pendingByCurrency = computed(() => {
 })
 const vepOverdueCount = computed(() => remittances.value.filter(item => item.status !== 'PAID' && item.due_date && daysUntil(item.due_date) < 0).length)
 const vepDueSoonCount = computed(() => remittances.value.filter(item => item.status !== 'PAID' && item.due_date && daysUntil(item.due_date) >= 0 && daysUntil(item.due_date) <= 30).length)
+const pendingTabs = computed(() => [
+  { label: `Obligaciones (${upcomingRows.value.length})`, value: 'obligations', icon: 'i-lucide-receipt-text' },
+  { label: `VEP ARCA (${payableRemittances.value.length})`, value: 'vep', icon: 'i-lucide-landmark' }
+])
+const pendingStatusOptions = computed(() => [
+  { label: 'Todos los estados', value: 'ALL' },
+  ...(pendingSection.value === 'vep'
+    ? [{ label: 'Pendiente', value: 'READY' }, { label: 'Vencido', value: 'OVERDUE' }]
+    : Object.entries(statusInfo).map(([value, item]) => ({ label: item.label, value })))
+])
 
 const fmt = (amount: number | string, currency = 'ARS') => new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(Number(amount) || 0)
 const fmtDate = (date: string) => new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(date))
 const daysUntil = (date: string) => Math.ceil((new Date(date).getTime() - new Date(today()).getTime()) / 86400000)
 const categoryLabel = (value: string) => categories.find(item => item.value === value)?.label ?? value
-const tableFilterFields: FilterField[] = [
-  { id: 'description', label: 'Concepto' }, { id: 'party_name', label: 'Entidad' },
-  { id: 'reference', label: 'Referencia' }, { id: 'period_key', label: 'Período' },
-]
+const columnWidth = (width: number, wrapText = false) => ({
+  th: { width: `${width}px` },
+  td: { width: `${width}px`, ...(wrapText ? { whiteSpace: 'normal' } : {}) },
+})
+const renderActionMenu = (items: DropdownMenuItem[], label: string) => items.length
+  ? h(UDropdownMenuComponent, { items, content: { align: 'end' } }, {
+      default: () => h(UButtonComponent, {
+        icon: 'i-lucide-ellipsis-vertical',
+        color: 'neutral',
+        variant: 'ghost',
+        size: 'sm',
+        'aria-label': `Acciones: ${label}`,
+        title: 'Más acciones',
+      }),
+    })
+  : h('span', { class: 'text-muted', 'aria-label': 'Sin acciones' }, '—')
 const tableSortFields: SortField[] = [
-  { label: 'Vencimiento', value: 'due_date' }, { label: 'Concepto', value: 'description' },
-  { label: 'Entidad', value: 'party_name' }, { label: 'Importe', value: 'amount' },
-]
-const remittanceFilterFields: FilterField[] = [
-  { id: 'vep_number', label: 'Número de VEP' }, { id: 'tax_type', label: 'Impuesto' },
-  { id: 'period_key', label: 'Período' }, { id: 'jurisdiction.name', label: 'Jurisdicción' },
+  { label: 'Vencimiento', value: 'due_date' }, { label: 'Importe', value: 'amount' },
+  { label: 'Estado', value: 'effective_status' }, { label: 'Concepto', value: 'description' },
+  { label: 'Entidad', value: 'party.name' },
 ]
 const remittanceSortFields: SortField[] = [
-  { label: 'Período', value: 'period_key' }, { label: 'Vencimiento', value: 'due_date' },
-  { label: 'Importe', value: 'vep_amount' }, { label: 'Número de VEP', value: 'vep_number' },
+  { label: 'Vencimiento / pago', value: 'due_date' }, { label: 'Importe', value: 'vep_amount' },
+  { label: 'Impuesto', value: 'tax_type' }, { label: 'Período', value: 'period_key' },
+  { label: 'Número de VEP', value: 'vep_number' },
 ]
 const remittanceColumns: ExtendedColumn<WithholdingRemittance>[] = [
-  { accessorKey: 'vep_number', header: 'VEP ARCA', meta: { label: 'VEP ARCA', filter: { type: 'text', operators: ['contains', 'equals'] } } },
-  { accessorKey: 'tax_type', header: 'Impuesto', meta: { label: 'Impuesto', filter: { type: 'text', operators: ['contains', 'equals'] } } },
-  { accessorKey: 'jurisdiction.name', id: 'jurisdiction.name', header: 'Jurisdicción', meta: { label: 'Jurisdicción', filter: { type: 'text', operators: ['contains', 'equals'] } }, cell: ({ row }) => row.original.jurisdiction?.name ?? 'Nacional' },
-  { accessorKey: 'period_key', header: 'Período', meta: { label: 'Período', filter: { type: 'text', operators: ['contains', 'equals'] } } },
-  { accessorKey: 'withholdings_count', header: 'Retenciones', meta: { label: 'Retenciones', filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } } },
-  { accessorKey: 'vep_amount', header: 'Importe', meta: { label: 'Importe', filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } }, cell: ({ row }) => h('span', { class: 'font-semibold' }, fmt(row.original.vep_amount, row.original.currency_code)) },
-  { accessorKey: 'due_date', header: 'Vencimiento / pago', meta: { label: 'Vencimiento / pago', filter: { type: 'date-range', operators: ['between'] } }, cell: ({ row }) => h('div', [h(UBadgeComponent, { label: row.original.status === 'PAID' ? 'Pagado' : row.original.due_date && daysUntil(row.original.due_date) < 0 ? 'Vencido' : 'Pendiente', color: row.original.status === 'PAID' ? 'success' : row.original.due_date && daysUntil(row.original.due_date) < 0 ? 'error' : 'warning', variant: 'subtle', size: 'xs' }), h('p', { class: 'mt-1 text-xs text-muted' }, row.original.status === 'PAID' ? fmtDate(row.original.paid_at || row.original.created_at) : row.original.due_date ? fmtDate(row.original.due_date) : 'Sin vencimiento')]) },
-  { id: 'actions', header: 'Acciones', meta: { label: 'Acciones', filter: false, disableColumnVisibility: true }, enableHiding: false, cell: ({ row }) => h('div', { class: 'flex justify-end gap-1' }, [
-    h(UButtonComponent, { label: 'Detalle', size: 'xs', variant: 'ghost', onClick: () => openRemittance(row.original) }),
-    ...(row.original.status === 'PAID' ? [] : [h(UButtonComponent, { label: 'Pagar VEP', icon: 'i-lucide-hand-coins', size: 'xs', color: 'success', onClick: () => payRemittance(row.original) })]),
-    ...(row.original.payments[0]?.id ? [h(UButtonComponent, { label: 'Ver pago', size: 'xs', variant: 'ghost', onClick: () => openPayment(row.original.payments[0].id) })] : []),
-  ]) },
+  { accessorKey: 'tax_type', header: 'Impuesto', filterFn: reportTableFilter, meta: { label: 'Impuesto', filter: { type: 'text', operators: ['contains', 'equals'] }, style: columnWidth(140, true) } },
+  { accessorKey: 'period_key', header: 'Período', filterFn: reportTableFilter, meta: { label: 'Período', filter: { type: 'text', operators: ['contains', 'equals'] }, style: columnWidth(85) } },
+  { accessorKey: 'vep_number', header: 'VEP ARCA', filterFn: reportTableFilter, meta: { label: 'VEP ARCA', filter: { type: 'text', operators: ['contains', 'equals'] }, style: columnWidth(130) } },
+  { accessorKey: 'vep_amount', header: 'Importe', filterFn: reportTableFilter, meta: { label: 'Importe', filter: { type: 'number', operators: ['equals', 'gt', 'lt'] }, class: { th: 'text-right', td: 'text-right' }, style: columnWidth(130) }, cell: ({ row }) => h('span', { class: 'font-semibold' }, fmt(row.original.vep_amount, row.original.currency_code)) },
+  { accessorKey: 'due_date', header: 'Estado / vencimiento', filterFn: reportTableFilter, meta: { label: 'Estado / vencimiento', filter: { type: 'date-range', operators: ['between'] }, style: columnWidth(160, true) }, cell: ({ row }) => h('div', [h(UBadgeComponent, { label: row.original.status === 'PAID' ? 'Pagado' : row.original.due_date && daysUntil(row.original.due_date) < 0 ? 'Vencido' : 'Pendiente', color: row.original.status === 'PAID' ? 'success' : row.original.due_date && daysUntil(row.original.due_date) < 0 ? 'error' : 'warning', variant: 'subtle', size: 'xs' }), h('p', { class: 'mt-1 text-xs text-muted' }, row.original.status === 'PAID' ? fmtDate(row.original.paid_at || row.original.created_at) : row.original.due_date ? fmtDate(row.original.due_date) : 'Sin vencimiento')]) },
+  { accessorKey: 'jurisdiction.name', id: 'jurisdiction.name', header: 'Jurisdicción', filterFn: reportTableFilter, meta: { label: 'Jurisdicción', filter: { type: 'text', operators: ['contains', 'equals'] }, style: columnWidth(130, true) }, cell: ({ row }) => row.original.jurisdiction?.name ?? 'Nacional' },
+  { accessorKey: 'withholdings_count', header: 'Retenciones', filterFn: reportTableFilter, meta: { label: 'Retenciones', filter: { type: 'number', operators: ['equals', 'gt', 'lt'] }, class: { th: 'text-center', td: 'text-center' }, style: columnWidth(90) } },
+  { id: 'actions', header: 'Acciones', meta: { label: 'Acciones', filter: false, disableColumnVisibility: true, class: { th: 'text-right', td: 'text-right' }, style: columnWidth(64) }, enableHiding: false, cell: ({ row }) => {
+    const remittance = row.original
+    const actions: DropdownMenuItem[] = [
+      { label: 'Ver detalle', icon: 'i-lucide-eye', onSelect: () => openRemittance(remittance) },
+    ]
+    if (remittance.status !== 'PAID') actions.push({ label: 'Pagar VEP', icon: 'i-lucide-hand-coins', onSelect: () => payRemittance(remittance) })
+    const paymentId = remittance.payments[0]?.id
+    if (paymentId) actions.push({ label: 'Ver pago', icon: 'i-lucide-receipt-text', onSelect: () => openPayment(paymentId) })
+    return renderActionMenu(actions, `VEP ${remittance.vep_number}`)
+  } },
 ]
 const obligationColumns: ExtendedColumn<TreasuryObligation>[] = [
-  { accessorKey: 'description', header: 'Obligación', meta: { label: 'Obligación', filter: { type: 'text', operators: ['contains', 'equals'] } }, cell: ({ row }) => h('div', { class: 'min-w-48' }, [
+  { accessorKey: 'description', header: 'Obligación', filterFn: reportTableFilter, meta: { label: 'Obligación', filter: { type: 'text', operators: ['contains', 'equals'] }, style: columnWidth(240, true) }, cell: ({ row }) => h('div', { class: 'min-w-0' }, [
     h('p', { class: 'font-medium' }, row.original.description),
     h('p', { class: 'text-xs text-muted' }, `${categoryLabel(row.original.category)} · ${row.original.treatment === 'FISCAL_INVOICE' ? 'Factura fiscal' : 'Pago directo'}${row.original.reference ? ` · ${row.original.reference}` : ''}`),
   ]) },
-  { accessorKey: 'effective_status', header: 'Estado', meta: { label: 'Estado', filter: { type: 'select', options: Object.entries(statusInfo).map(([value, item]) => ({ label: item.label, value })) } }, cell: ({ row }) => h(UBadgeComponent, { label: statusInfo[row.original.effective_status]?.label ?? row.original.effective_status, color: statusInfo[row.original.effective_status]?.color ?? 'neutral', variant: 'subtle' }) },
-  { accessorKey: 'party.name', id: 'party_name', header: 'Entidad', meta: { label: 'Entidad', filter: { type: 'text', operators: ['contains', 'equals'] } }, cell: ({ row }) => h('div', [h('p', { class: 'font-medium' }, row.original.party?.name ?? '—'), h('p', { class: 'text-xs text-muted' }, row.original.party?.tax_id ?? '')]) },
-  { accessorKey: 'period_key', header: 'Período', meta: { label: 'Período', filter: { type: 'text', operators: ['contains', 'equals'] } } },
-  { accessorKey: 'amount', header: 'Importe', meta: { label: 'Importe', filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } }, cell: ({ row }) => h('div', { class: 'text-right font-semibold' }, fmt(row.original.amount ?? row.original.estimated_amount, row.original.currency_code)) },
-  { accessorKey: 'due_date', header: 'Vencimiento', meta: { label: 'Vencimiento', filter: { type: 'date-range', operators: ['between'] } }, cell: ({ row }) => h('div', [h('p', { class: row.original.effective_status === 'OVERDUE' ? 'font-medium text-error' : 'font-medium' }, fmtDate(row.original.due_date)), h('p', { class: 'text-xs text-muted' }, daysUntil(row.original.due_date) < 0 ? `Venció hace ${Math.abs(daysUntil(row.original.due_date))} días` : `Faltan ${daysUntil(row.original.due_date)} días`)]) },
-  { id: 'actions', header: 'Acciones', meta: { label: 'Acciones', filter: false, disableColumnVisibility: true }, enableHiding: false, cell: ({ row }) => {
+  { accessorKey: 'party.name', id: 'party.name', header: 'Entidad', filterFn: reportTableFilter, meta: { label: 'Entidad', filter: { type: 'text', operators: ['contains', 'equals'] }, style: columnWidth(155, true) }, cell: ({ row }) => h('div', { class: 'min-w-0' }, [h('p', { class: 'font-medium' }, row.original.party?.name ?? '—'), h('p', { class: 'text-xs text-muted' }, row.original.party?.tax_id ?? '')]) },
+  { accessorKey: 'period_key', header: 'Período', filterFn: reportTableFilter, meta: { label: 'Período', filter: { type: 'text', operators: ['contains', 'equals'] }, style: columnWidth(90) } },
+  { accessorKey: 'amount', header: 'Importe', filterFn: reportTableFilter, meta: { label: 'Importe', filter: { type: 'number', operators: ['equals', 'gt', 'lt'] }, class: { th: 'text-right', td: 'text-right' }, style: columnWidth(125) }, cell: ({ row }) => h('div', { class: 'text-right font-semibold' }, fmt(row.original.amount ?? row.original.estimated_amount, row.original.currency_code)) },
+  { accessorKey: 'due_date', header: 'Vencimiento', filterFn: reportTableFilter, meta: { label: 'Vencimiento', filter: { type: 'date-range', operators: ['between'] }, style: columnWidth(150, true) }, cell: ({ row }) => h('div', [h('p', { class: row.original.effective_status === 'OVERDUE' ? 'font-medium text-error' : 'font-medium' }, fmtDate(row.original.due_date)), h('p', { class: 'text-xs text-muted' }, daysUntil(row.original.due_date) < 0 ? `Venció hace ${Math.abs(daysUntil(row.original.due_date))} días` : `Faltan ${daysUntil(row.original.due_date)} días`)]) },
+  { accessorKey: 'effective_status', header: 'Estado', filterFn: reportTableFilter, meta: { label: 'Estado', filter: { type: 'select', options: Object.entries(statusInfo).map(([value, item]) => ({ label: item.label, value })) }, class: { th: 'text-center', td: 'text-center' }, style: columnWidth(95) }, cell: ({ row }) => h(UBadgeComponent, { label: statusInfo[row.original.effective_status]?.label ?? row.original.effective_status, color: statusInfo[row.original.effective_status]?.color ?? 'neutral', variant: 'subtle' }) },
+  { id: 'actions', header: 'Acciones', meta: { label: 'Acciones', filter: false, disableColumnVisibility: true, class: { th: 'text-right', td: 'text-right' }, style: columnWidth(64) }, enableHiding: false, cell: ({ row }) => {
     const item = row.original
-    const actions = []
-    if (['PLANNED', 'REVIEW'].includes(item.status)) actions.push(h(UButtonComponent, { label: 'Revisar', size: 'xs', variant: 'soft', onClick: () => openEdit(item) }))
-    if (item.treatment === 'FISCAL_INVOICE' && !item.document_id && !['PAID', 'CANCELLED'].includes(item.status)) actions.push(h(UButtonComponent, { label: 'Cargar factura', icon: 'i-lucide-file-plus-2', size: 'xs', variant: 'ghost', onClick: () => createInvoice(item) }))
-    if (item.treatment === 'DIRECT_EXPENSE' && ['PLANNED', 'REVIEW'].includes(item.status)) actions.push(h(UButtonComponent, { label: 'Confirmar', size: 'xs', color: 'info', variant: 'ghost', onClick: () => confirm(item) }))
-    if (item.treatment === 'DIRECT_EXPENSE' && (item.status === 'READY' || item.effective_status === 'OVERDUE')) actions.push(h(UButtonComponent, { label: 'Pagar', icon: 'i-lucide-hand-coins', size: 'xs', color: 'success', onClick: () => pay(item) }))
-    if (item.document_id) actions.push(h(resolveComponent('NuxtLink'), { to: `/erp/purchases/purchases-documents/${item.document_id}`, class: 'text-xs text-primary hover:underline' }, () => 'Ver factura'))
-    if (item.payment_id) actions.push(h(UButtonComponent, { label: 'Ver pago', size: 'xs', variant: 'ghost', onClick: () => openPayment(item.payment_id!) }))
-    if (!['PAID', 'CANCELLED'].includes(item.status)) actions.push(h(UButtonComponent, { icon: 'i-lucide-pencil', 'aria-label': 'Editar obligación', size: 'xs', color: 'neutral', variant: 'ghost', onClick: () => openEdit(item) }))
-    if (!['PAID', 'CANCELLED'].includes(item.status)) actions.push(h(UButtonComponent, { icon: 'i-lucide-ban', 'aria-label': 'Cancelar obligación', size: 'xs', color: 'error', variant: 'ghost', onClick: () => askCancel(item) }))
-    return h('div', { class: 'flex min-w-40 flex-wrap justify-end gap-1' }, actions)
+    const actions: DropdownMenuItem[] = []
+    if (!['PAID', 'CANCELLED'].includes(item.status)) {
+      actions.push({
+        label: ['PLANNED', 'REVIEW'].includes(item.status) ? 'Revisar obligación' : 'Editar obligación',
+        icon: ['PLANNED', 'REVIEW'].includes(item.status) ? 'i-lucide-clipboard-check' : 'i-lucide-pencil',
+        onSelect: () => openEdit(item),
+      })
+    }
+    if (item.treatment === 'FISCAL_INVOICE' && !item.document_id && !['PAID', 'CANCELLED'].includes(item.status)) {
+      actions.push({ label: 'Cargar factura', icon: 'i-lucide-file-plus-2', onSelect: () => createInvoice(item) })
+    }
+    if (item.treatment === 'DIRECT_EXPENSE' && ['PLANNED', 'REVIEW'].includes(item.status)) {
+      actions.push({ label: 'Confirmar', icon: 'i-lucide-circle-check', onSelect: () => confirm(item) })
+    }
+    if (item.treatment === 'DIRECT_EXPENSE' && (item.status === 'READY' || item.effective_status === 'OVERDUE')) {
+      actions.push({ label: 'Pagar', icon: 'i-lucide-hand-coins', onSelect: () => pay(item) })
+    }
+    if (item.document_id) {
+      actions.push({ label: 'Ver factura', icon: 'i-lucide-file-text', onSelect: () => router.push(`/erp/purchases/purchases-documents/${item.document_id}`) })
+    }
+    if (item.payment_id) actions.push({ label: 'Ver pago', icon: 'i-lucide-receipt-text', onSelect: () => openPayment(item.payment_id!) })
+    if (!['PAID', 'CANCELLED'].includes(item.status)) {
+      actions.push({ label: 'Cancelar obligación', icon: 'i-lucide-ban', color: 'error', onSelect: () => askCancel(item) })
+    }
+    return renderActionMenu(actions, item.description)
   } },
 ]
 
@@ -259,6 +310,7 @@ function openEdit(row: TreasuryObligation) {
   modalOpen.value = true
 }
 async function save() {
+  if (saving.value) return
   if (!form.party_id || (recurring.value ? !form.name || !form.start_date : !form.description || !form.due_date)) {
     toast.add({ title: 'Completá entidad, descripción y vencimiento', color: 'warning' }); return
   }
@@ -366,6 +418,7 @@ async function toggleTemplate(template: ObligationTemplate) {
 }
 
 watch(activeView, value => router.replace({ query: { view: value } }))
+watch(pendingSection, () => { statusFilter.value = 'ALL' })
 watch(() => form.category, () => {
   if (form.party_id && !availableParties.value.some(party => party.id === form.party_id)) form.party_id = ''
 })
@@ -373,7 +426,7 @@ onMounted(load)
 </script>
 
 <template>
-  <UPage class="space-y-5 px-4 pb-8">
+  <UPage class="min-w-0 max-w-full space-y-6 px-4 pb-8">
     <AppPageHeader title="Servicios e impuestos" description="Planificá vencimientos, revisá importes y registrá los pagos desde un solo lugar.">
       <template #links>
         <UButton label="Nueva obligación" icon="i-lucide-plus" variant="outline" @click="openCreate(false)" />
@@ -381,37 +434,61 @@ onMounted(load)
       </template>
     </AppPageHeader>
 
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <UPageCard variant="subtle"><p class="text-xs text-muted">Pendiente estimado (incluye VEP)</p><div class="mt-1 flex flex-wrap gap-x-3"><p v-for="(amount, currency) in pendingByCurrency" :key="currency" class="text-xl font-semibold">{{ fmt(amount, currency) }}</p><p v-if="!Object.keys(pendingByCurrency).length" class="text-xl font-semibold">{{ fmt(0) }}</p></div></UPageCard>
-      <UPageCard variant="subtle"><p class="text-xs text-muted">Vencidas</p><p class="mt-1 text-xl font-semibold text-error">{{ summary.overdue + vepOverdueCount }}</p></UPageCard>
-      <UPageCard variant="subtle"><p class="text-xs text-muted">Próximos 30 días</p><p class="mt-1 text-xl font-semibold text-warning">{{ summary.due_soon + vepDueSoonCount }}</p></UPageCard>
-      <UPageCard variant="subtle"><p class="text-xs text-muted">Requieren revisión</p><p class="mt-1 text-xl font-semibold text-info">{{ summary.requires_review }}</p></UPageCard>
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <UPageCard variant="subtle" class="min-w-0"><div class="space-y-2"><p class="text-xs text-muted">Pendiente estimado · incluye VEP</p><div class="flex flex-wrap gap-x-3 gap-y-1"><p v-for="(amount, currency) in pendingByCurrency" :key="currency" class="text-xl font-semibold">{{ fmt(amount, currency) }}</p><p v-if="!Object.keys(pendingByCurrency).length" class="text-xl font-semibold">{{ fmt(0) }}</p></div></div></UPageCard>
+      <UPageCard variant="subtle"><div class="space-y-2"><p class="text-xs text-muted">Vencidas</p><p class="text-xl font-semibold text-error">{{ summary.overdue + vepOverdueCount }}</p></div></UPageCard>
+      <UPageCard variant="subtle"><div class="space-y-2"><p class="text-xs text-muted">Próximos 30 días</p><p class="text-xl font-semibold text-warning">{{ summary.due_soon + vepDueSoonCount }}</p></div></UPageCard>
+      <UPageCard variant="subtle"><div class="space-y-2"><p class="text-xs text-muted">Requieren revisión</p><p class="text-xl font-semibold text-info">{{ summary.requires_review }}</p></div></UPageCard>
     </div>
 
+    <div class="w-full min-w-0 space-y-5">
     <UAlert v-if="totalOverdue" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="`${totalOverdue} obligación(es) o VEP vencido(s)`" description="Revisá el importe y registrá el pago o cancelá el período si no corresponde." />
     <UAlert v-else-if="reminderRows.length" color="warning" variant="subtle" icon="i-lucide-bell-ring" :title="`${reminderRows.length} vencimiento(s) requieren atención hoy`" description="Los avisos respetan la anticipación configurada en cada obligación." />
     <UTabs v-model="activeView" :items="tabs" :content="false" variant="link" class="w-full" />
 
-    <template v-if="activeView === 'upcoming' || activeView === 'obligations'">
-      <UPageCard>
-        <div class="grid gap-3 md:grid-cols-[190px_190px_auto]">
-          <USelect v-model="statusFilter" :items="[{ label: 'Todos los estados', value: 'ALL' }, ...Object.entries(statusInfo).map(([value, item]) => ({ label: item.label, value }))]" />
-          <USelect v-model="categoryFilter" :items="[{ label: 'Todas las categorías', value: 'ALL' }, ...categories]" />
-          <UButton label="Actualizar" icon="i-lucide-refresh-cw" variant="outline" :loading="loading" @click="load" />
-        </div>
-      </UPageCard>
+    <template v-if="activeView === 'pending'">
+      <UPageCard variant="subtle" class="w-full min-w-0 max-w-full" :ui="{ container: 'min-w-0', body: 'min-w-0' }">
+          <template #header>
+            <div class="min-w-0">
+              <h3 class="font-semibold">Pendientes de pago</h3>
+              <p class="text-sm text-muted">Alterná entre obligaciones y VEP sin cambiar de pantalla.</p>
+            </div>
+          </template>
 
-      <UPageCard variant="subtle">
-        <template #header><div class="flex flex-wrap items-center justify-between gap-2"><div><h3 class="font-semibold">VEP de retenciones</h3><p class="text-sm text-muted">Importes registrados desde Retenciones; se muestran acá sin duplicar la obligación.</p></div><UBadge :label="`${payableRemittances.length} pendiente(s)`" color="warning" variant="subtle" /></div></template>
-        <AsteriskTable v-if="payableRemittances.length" v-model:search="remittanceSearch" compact storage-key="treasury-services-vep-pending" :data="payableRemittances" :columns="remittanceColumns" :filter-fields="remittanceFilterFields" :sort-fields="remittanceSortFields" search-placeholder="Buscar VEP, impuesto o período..." />
-        <p v-else class="py-5 text-center text-sm text-muted">No hay VEP pendientes para estos filtros.</p>
-      </UPageCard>
+          <UTabs v-model="pendingSection" :items="pendingTabs" :content="false" variant="link" class="mb-4 w-full" />
 
-      <UPageCard variant="subtle" class="min-w-0 overflow-hidden">
-        <template #header><div><h3 class="font-semibold">Obligaciones registradas</h3><p class="text-xs text-muted">La tabla permite buscar, ordenar, filtrar columnas, elegir qué datos ver y paginar.</p></div></template>
-        <div v-if="loading" class="py-8 text-center"><ULoader /></div>
-        <AsteriskTable v-else-if="(activeView === 'upcoming' ? upcomingRows : filteredRows).length" v-model:search="obligationSearch" compact storage-key="treasury-services-obligations" :data="activeView === 'upcoming' ? upcomingRows : filteredRows" :columns="obligationColumns" :filter-fields="tableFilterFields" :sort-fields="tableSortFields" search-placeholder="Buscar entidad, referencia o concepto..." />
-        <p v-else class="py-8 text-center text-sm text-muted">No hay obligaciones para mostrar con estos filtros.</p>
+          <div class="mb-5 grid gap-3 rounded-lg border border-default bg-elevated/20 p-3 sm:items-center" :class="pendingSection === 'vep' ? 'sm:grid-cols-[minmax(190px,240px)_1fr]' : 'sm:grid-cols-[minmax(190px,240px)_minmax(200px,260px)_1fr]'">
+            <USelect v-model="statusFilter" :items="pendingStatusOptions" class="w-full min-w-0" />
+            <USelect v-if="pendingSection === 'obligations'" v-model="categoryFilter" :items="[{ label: 'Todas las categorías', value: 'ALL' }, ...categories]" class="w-full min-w-0" />
+            <UButton label="Actualizar" icon="i-lucide-refresh-cw" variant="outline" :loading="loading" class="w-fit sm:justify-self-end" @click="load" />
+          </div>
+
+          <div v-if="pendingSection === 'vep'" class="min-w-0 max-w-full space-y-4">
+            <div class="grid w-full min-w-0 grid-cols-1 items-center gap-3 sm:grid-cols-[minmax(0,1fr)_18rem]">
+              <p class="min-w-0 text-sm text-muted">VEP registrados desde Retenciones; no duplican la obligación original.</p>
+              <UInput v-model="remittanceSearch" icon="i-lucide-search" placeholder="Buscar VEP, impuesto o período..." class="w-full min-w-0" clearable />
+            </div>
+            <AsteriskTable v-if="payableRemittances.length" compact storage-key="treasury-services-vep-pending" :table-min-width="950" :data="payableRemittances" :columns="remittanceColumns" :sort-fields="remittanceSortFields" />
+            <div v-else class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default bg-elevated/20 px-4 py-6 text-center">
+              <UIcon name="i-lucide-receipt-text" class="size-6 text-muted" />
+              <p class="text-sm font-medium">No hay VEP pendientes para estos filtros.</p>
+              <p class="text-xs text-muted">Los VEP que registres en Retenciones aparecerán acá para que puedas seguirlos y pagarlos.</p>
+              <UButton label="Ir a Retenciones" icon="i-lucide-arrow-up-right" to="/erp/fiscal/withholdings" variant="outline" size="sm" class="mt-1" />
+            </div>
+          </div>
+
+          <div v-else class="min-w-0 max-w-full space-y-4">
+            <div class="grid w-full min-w-0 grid-cols-1 items-center gap-3 sm:grid-cols-[minmax(0,1fr)_18rem]">
+              <p class="min-w-0 text-sm text-muted">Obligaciones pendientes de pago.</p>
+              <UInput v-model="obligationSearch" icon="i-lucide-search" placeholder="Buscar por concepto, entidad o período..." class="w-full min-w-0" clearable />
+            </div>
+            <div v-if="loading" class="py-8 text-center"><ULoader /></div>
+            <AsteriskTable v-else-if="visibleObligationRows.length" compact storage-key="treasury-services-obligations" :table-min-width="940" :data="visibleObligationRows" :columns="obligationColumns" :sort-fields="tableSortFields" />
+            <div v-else class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default bg-elevated/20 px-4 py-8 text-center">
+              <UIcon name="i-lucide-file-search" class="size-6 text-muted" />
+              <p class="text-sm font-medium">No hay obligaciones para mostrar con estos filtros.</p>
+            </div>
+          </div>
       </UPageCard>
     </template>
 
@@ -428,9 +505,22 @@ onMounted(load)
 
     <template v-else>
       <div class="grid gap-4 sm:grid-cols-3"><UPageCard variant="subtle"><p class="text-xs text-muted">Total pagado (obligaciones y VEP)</p><div class="flex flex-wrap gap-x-3"><p v-for="(amount, currency) in reportTotalsWithRemittances" :key="currency" class="text-xl font-semibold">{{ fmt(amount, currency) }}</p><p v-if="!Object.keys(reportTotalsWithRemittances).length" class="text-xl font-semibold">{{ fmt(0) }}</p></div></UPageCard><UPageCard variant="subtle"><p class="text-xs text-muted">Pagos registrados</p><p class="text-xl font-semibold">{{ reportRows.length + historicalRemittances.length }}</p></UPageCard><UPageCard variant="subtle"><p class="text-xs text-muted">Recurrentes activas</p><p class="text-xl font-semibold">{{ templates.filter(item => item.active).length }}</p></UPageCard></div>
-      <UPageCard><template #header><h3 class="font-semibold">Historial de VEP pagados</h3></template><AsteriskTable v-if="historicalRemittances.length" v-model:search="remittanceSearch" compact storage-key="treasury-services-vep-history" :data="historicalRemittances" :columns="remittanceColumns" :filter-fields="remittanceFilterFields" :sort-fields="remittanceSortFields" search-placeholder="Buscar VEP, impuesto o período..." /><p v-else class="py-6 text-center text-sm text-muted">Todavía no hay VEP pagados.</p></UPageCard>
+      <UPageCard>
+        <template #header>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h3 class="font-semibold">Historial de VEP pagados</h3>
+            <UInput v-model="remittanceSearch" icon="i-lucide-search" placeholder="Buscar VEP, impuesto o período..." class="w-full sm:w-72" clearable />
+          </div>
+        </template>
+        <AsteriskTable v-if="historicalRemittances.length" compact storage-key="treasury-services-vep-history" :data="historicalRemittances" :columns="remittanceColumns" :sort-fields="remittanceSortFields" />
+        <div v-else class="flex flex-col items-center gap-2 py-6 text-center">
+          <UIcon name="i-lucide-receipt-text" class="size-6 text-muted" />
+          <p class="text-sm text-muted">Todavía no hay VEP pagados para esta búsqueda.</p>
+        </div>
+      </UPageCard>
       <UPageCard><template #header><h3 class="font-semibold">Historial pagado</h3></template><div class="divide-y divide-default"><div v-for="row in reportRows" :key="row.id" class="flex items-center gap-4 py-3"><div class="min-w-0 flex-1"><p class="truncate font-medium">{{ row.description }}</p><p class="text-xs text-muted">{{ row.party?.name }} · {{ fmtDate(row.paid_at || row.due_date) }}</p></div><strong>{{ fmt(row.amount ?? row.estimated_amount, row.currency_code) }}</strong><UButton v-if="row.payment_id" label="Pago" variant="ghost" size="xs" @click="openPayment(row.payment_id)" /></div><p v-if="!reportRows.length" class="py-8 text-center text-sm text-muted">Todavía no hay obligaciones pagadas.</p></div></UPageCard>
     </template>
+    </div>
 
     <UModal v-model:open="remittanceDetailOpen" :title="selectedRemittance ? `VEP ARCA ${selectedRemittance.vep_number}` : 'Detalle del VEP'" :ui="{ content: 'sm:max-w-2xl' }">
       <template #body><div v-if="selectedRemittance" class="space-y-4"><div class="grid gap-3 sm:grid-cols-3"><div><p class="text-xs text-muted">Impuesto / período</p><p class="font-medium">{{ selectedRemittance.tax_type }} · {{ selectedRemittance.period_key }}</p></div><div><p class="text-xs text-muted">Jurisdicción</p><p class="font-medium">{{ selectedRemittance.jurisdiction?.name || 'Nacional' }}</p></div><div><p class="text-xs text-muted">Importe VEP</p><p class="font-semibold">{{ fmt(selectedRemittance.vep_amount, selectedRemittance.currency_code) }}</p></div></div><div v-if="remittanceDetailLoading" class="py-6 text-center"><ULoader /></div><div v-else class="max-h-96 overflow-y-auto rounded-lg border border-default"><div v-for="withholding in selectedRemittance.withholdings || []" :key="withholding.id" class="flex justify-between gap-4 border-b border-default px-3 py-2 last:border-0"><div><p class="text-sm font-medium">{{ withholding.business_party?.name || 'Sujeto retenido' }}</p><p class="text-xs text-muted">{{ withholding.tax_type }} · {{ fmtDate(withholding.date) }}<span v-if="withholding.business_party?.tax_id"> · CUIT {{ withholding.business_party.tax_id }}</span></p></div><strong class="text-sm">{{ fmt(withholding.withheld_amount, withholding.currency_code) }}</strong></div><p v-if="!selectedRemittance.withholdings?.length" class="p-4 text-center text-sm text-muted">Este VEP no tiene retenciones asociadas.</p></div><div class="flex justify-end gap-2"><UButton label="Cerrar" variant="ghost" @click="remittanceDetailOpen = false" /><UButton v-if="selectedRemittance.status !== 'PAID'" label="Pagar VEP" icon="i-lucide-hand-coins" color="success" @click="payRemittance(selectedRemittance)" /></div></div></template>
@@ -481,7 +571,7 @@ onMounted(load)
           />
         </UFormField>
         <UFormField label="Observaciones"><UTextarea v-model="form.notes" class="w-full" /></UFormField>
-        <div class="flex justify-end gap-2"><UButton label="Cancelar" variant="ghost" @click="closeModal" /><UButton :label="recurring ? 'Crear períodos' : 'Guardar obligación'" :loading="saving" @click="save" /></div>
+        <div class="flex justify-end gap-2"><UButton label="Cancelar" variant="ghost" :disabled="saving" @click="closeModal" /><UButton :label="recurring ? 'Crear períodos' : 'Guardar obligación'" :loading="saving" :disabled="saving" @click="save" /></div>
       </div></template>
     </UModal>
 

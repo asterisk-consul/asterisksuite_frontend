@@ -29,6 +29,7 @@ onMounted(async () => {
 })
 
 async function handleSubmit(payload: any) {
+  if (saving.value) return
   try {
     saving.value = true
     await store.update(route.params.id as string, payload)

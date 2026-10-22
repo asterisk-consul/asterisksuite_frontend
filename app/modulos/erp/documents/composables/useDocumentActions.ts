@@ -323,6 +323,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
 
   // ─── Handlers ───────────────────────────────────────────
   async function handleConfirm() {
+    if (processing.value) return
     try {
       processing.value = true
       const options = updateProductPrices.value ? { updateProductPrices: true } : undefined
@@ -337,6 +338,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   }
 
   async function handleCancel() {
+    if (processing.value) return
     try {
       processing.value = true
       await store.cancel(id.value)
@@ -354,6 +356,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   }
 
   async function handleRemove() {
+    if (processing.value) return
     if (!store.remove) return
     try {
       processing.value = true
@@ -367,6 +370,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   }
 
   async function handleStatus(status: number) {
+    if (processing.value) return
     try {
       processing.value = true
       await store.changeStatus(id.value, status)
@@ -379,6 +383,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   }
 
   async function handleAccept() {
+    if (processing.value) return
     if (!store.accept) return
     try {
       processing.value = true
@@ -392,6 +397,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   }
 
   async function handleDeliver() {
+    if (processing.value) return
     if (!store.deliver) return
     try {
       processing.value = true

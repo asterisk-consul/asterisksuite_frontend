@@ -53,9 +53,11 @@ const editRow = ref<any>(null)
 
 // Transfer modal
 const showTransferModal = ref(false)
+const transferSaving = ref(false)
 const showReservationModal = ref(false)
 const reservations = ref<any[]>([])
 const reservationSaving = ref(false)
+const releasingReservationIds = ref(new Set<string>())
 const reservationForm = reactive({ product_id: '', quantity: 1, reason: '', expires_at: '' })
 
 // Replenishment policy for a product in this warehouse
@@ -166,6 +168,8 @@ async function handleEditSubmit(data: any) {
 
 // Transfer handler
 async function handleTransfer(data: { from_warehouse_id: string; to_warehouse_id: string; product_id: string; quantity: string }) {
+  if (transferSaving.value) return
+  transferSaving.value = true
   try {
     await stockStore.transferStock({
       product_id: data.product_id,
@@ -185,6 +189,8 @@ async function handleTransfer(data: { from_warehouse_id: string; to_warehouse_id
       color: 'error',
       description: err?.data?.message || err?.message || 'Error desconocido'
     })
+  } finally {
+    transferSaving.value = false
   }
 }
 
@@ -195,6 +201,7 @@ async function loadReservations() {
 }
 
 async function createReservation() {
+  if (reservationSaving.value) return
   if (!reservationForm.product_id || reservationForm.quantity <= 0 || !reservationForm.reason.trim()) {
     toast.add({ title: 'Completá producto, cantidad y motivo', color: 'warning' })
     return
@@ -223,12 +230,16 @@ async function createReservation() {
 }
 
 async function releaseReservation(id: string) {
+  if (releasingReservationIds.value.has(id)) return
+  releasingReservationIds.value.add(id)
   try {
     await $fetch(`/api/backend/warehouse/stock-reservations/${id}/release`, { method: 'PATCH' })
     await Promise.all([stockStore.fetchStock(warehouseId.value), loadReservations()])
     toast.add({ title: 'Reserva liberada', color: 'success' })
   } catch (error: any) {
     toast.add({ title: 'No se pudo liberar', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    releasingReservationIds.value.delete(id)
   }
 }
 
@@ -639,7 +650,7 @@ const links = ref<ButtonProps[]>([
             </div>
             <div class="flex items-center gap-3">
               <div class="text-right"><p class="text-xs text-muted">Pendiente</p><p class="font-semibold tabular-nums text-warning">{{ Number(reservation.quantity_reserved) - Number(reservation.quantity_consumed) - Number(reservation.quantity_released) }}</p></div>
-              <UButton v-if="reservation.reservation_type === 'MANUAL'" label="Liberar" icon="i-lucide-unlock" size="xs" color="neutral" variant="outline" @click="releaseReservation(reservation.id)" />
+              <UButton v-if="reservation.reservation_type === 'MANUAL'" label="Liberar" icon="i-lucide-unlock" size="xs" color="neutral" variant="outline" :loading="releasingReservationIds.has(reservation.id)" :disabled="releasingReservationIds.has(reservation.id)" @click="releaseReservation(reservation.id)" />
             </div>
           </div>
         </div>
@@ -710,6 +721,7 @@ const links = ref<ButtonProps[]>([
       :warehouse-symbol="(warehouse as any)?.units?.symbol"
       :stock="stock"
       :warehouses="warehouses"
+      :loading="transferSaving"
       @submit="handleTransfer"
     />
 
@@ -731,8 +743,8 @@ const links = ref<ButtonProps[]>([
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancelar" color="neutral" variant="ghost" @click="showReservationModal = false" />
-          <UButton label="Crear reserva" icon="i-lucide-bookmark-plus" :loading="reservationSaving" @click="createReservation" />
+          <UButton label="Cancelar" color="neutral" variant="ghost" :disabled="reservationSaving" @click="showReservationModal = false" />
+          <UButton label="Crear reserva" icon="i-lucide-bookmark-plus" :loading="reservationSaving" :disabled="reservationSaving" @click="createReservation" />
         </div>
       </template>
     </UModal>

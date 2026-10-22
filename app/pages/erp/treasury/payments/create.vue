@@ -36,6 +36,7 @@ const {
 
 const router = useRouter()
 const toast = useToast()
+const creatingPayment = ref(false)
 const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
 const quickCaptureLoading = ref(false)
 const quickCaptureActive = ref(Boolean(intakeId.value))
@@ -167,6 +168,9 @@ const sendQuickCapture = async () => {
 }
 
 const handleSubmit = async (formData: PaymentFormData) => {
+  // Evita que doble clic o doble submit cree dos borradores iguales.
+  if (creatingPayment.value) return
+  creatingPayment.value = true
   try {
     const apiPayload = {
       type: formData.type as any,
@@ -198,9 +202,9 @@ const handleSubmit = async (formData: PaymentFormData) => {
           method: 'POST', body: { target_type: 'PAYMENT', target_id: created.id }
         })
       }
-      router.push(`/erp/treasury/payments/${created.id}`)
+      await router.push(`/erp/treasury/payments/${created.id}`)
     } else {
-      router.push('/erp/treasury/payments')
+      await router.push('/erp/treasury/payments')
     }
   } catch (error: any) {
     toast.add({
@@ -208,6 +212,8 @@ const handleSubmit = async (formData: PaymentFormData) => {
       description: error?.data?.message || error?.message,
       color: 'error'
     })
+  } finally {
+    creatingPayment.value = false
   }
 }
 </script>
@@ -219,7 +225,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       description="Crear un nuevo pago o cobro"
     />
 
-    <UCard class="max-w-5xl">
+    <UCard class="max-w-5xl mb-2">
       <div v-if="!quickCaptureActive" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <p class="font-medium">Adjuntos del pago (opcional)</p>
@@ -292,12 +298,12 @@ const handleSubmit = async (formData: PaymentFormData) => {
     <div class="max-w-5xl">
       <PaymentForm
         ref="paymentFormRef"
-        v-model="initialValues"
+        :model-value="initialValues"
         :pending-sales-documents="pendingSalesDocuments"
         :pending-purchase-documents="pendingPurchaseDocuments"
         :available-own-checks="availableOwnChecks"
         :available-customer-checks="availableCustomerChecks"
-        :loading="loading"
+        :loading="creatingPayment"
         @submit="handleSubmit"
         @cancel="router.push('/erp/treasury/payments')"
       />

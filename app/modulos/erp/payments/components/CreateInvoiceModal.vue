@@ -134,7 +134,7 @@ async function handleSubmit(payload: any) {
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton label="Cancelar" variant="ghost" @click="open = false" />
+        <UButton label="Cancelar" variant="ghost" :disabled="saving" @click="open = false" />
         <UButton
           v-if="!confirmAutomatically"
           label="Crear borrador"

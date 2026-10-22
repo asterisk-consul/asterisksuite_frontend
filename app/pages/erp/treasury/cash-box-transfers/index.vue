@@ -31,6 +31,8 @@ const detailModalOpen = ref(false)
 const selectedTransfer = ref<CashBoxTransfer | null>(null)
 const loadingRate = ref(false)
 const loadingDestinations = ref(false)
+const savingTransfer = ref(false)
+const processingTransferAction = ref(false)
 const remoteDestinations = ref<TransferDestinationOptions | null>(null)
 const destinationCompanyId = ref('')
 
@@ -279,33 +281,50 @@ const openDetail = (row: CashBoxTransfer) => {
 }
 
 async function handleConfirm(row: CashBoxTransfer) {
+  if (processingTransferAction.value) return
+  processingTransferAction.value = true
   try {
     await confirm(row.id)
+    if (selectedTransfer.value?.id === row.id) detailModalOpen.value = false
     toast.add({ title: 'Transferencia confirmada', color: 'success' })
   } catch (e: any) {
     toast.add({ title: e?.data?.message ?? 'Error al confirmar', color: 'error' })
+  } finally {
+    processingTransferAction.value = false
   }
 }
 
 async function handleCancel(row: CashBoxTransfer) {
+  if (processingTransferAction.value) return
+  processingTransferAction.value = true
   try {
     await cancel(row.id)
+    if (selectedTransfer.value?.id === row.id) detailModalOpen.value = false
     toast.add({ title: 'Transferencia cancelada', color: 'warning' })
   } catch (e: any) {
     toast.add({ title: e?.data?.message ?? 'Error al cancelar', color: 'error' })
+  } finally {
+    processingTransferAction.value = false
   }
 }
 
 async function handleDelete(row: CashBoxTransfer) {
+  if (processingTransferAction.value) return
+  processingTransferAction.value = true
   try {
     await remove(row.id)
+    if (selectedTransfer.value?.id === row.id) detailModalOpen.value = false
     toast.add({ title: 'Transferencia eliminada', color: 'error' })
   } catch (e: any) {
     toast.add({ title: e?.data?.message ?? 'Error al eliminar', color: 'error' })
+  } finally {
+    processingTransferAction.value = false
   }
 }
 
 const handleSubmit = async () => {
+  if (savingTransfer.value) return
+  savingTransfer.value = true
   try {
     form.converted_amount = computedConvertedAmount.value ?? undefined
     form.exchange_rate = form.exchange_rate ? Number(form.exchange_rate) : undefined
@@ -314,6 +333,8 @@ const handleSubmit = async () => {
     toast.add({ title: 'Transferencia creada', color: 'success' })
   } catch (e: any) {
     toast.add({ title: e?.data?.message ?? 'Error al crear transferencia', color: 'error' })
+  } finally {
+    savingTransfer.value = false
   }
 }
 
@@ -510,12 +531,12 @@ const sortFields: SortField[] = [
         <div class="flex w-full flex-col-reverse justify-between gap-3 sm:flex-row sm:items-center">
           <p class="text-xs text-muted">Registrar no mueve saldos; la transferencia queda pendiente de confirmación.</p>
           <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" color="neutral" variant="outline" @click="modalOpen = false" />
+          <UButton label="Cancelar" color="neutral" variant="outline" :disabled="savingTransfer" @click="modalOpen = false" />
           <UButton
             label="Registrar pendiente"
             icon="i-lucide-file-plus-2"
-            :loading="loading"
-            :disabled="!form.source_id || !form.dest_id || form.amount <= 0 || loadingDestinations"
+            :loading="savingTransfer"
+            :disabled="savingTransfer || !form.source_id || !form.dest_id || form.amount <= 0 || loadingDestinations"
             @click="handleSubmit"
           />
           </div>
@@ -609,7 +630,9 @@ const sortFields: SortField[] = [
             :label="selectedTransfer.status === 'pending' ? 'Confirmar' : 'Reintentar ejecución'"
             icon="i-lucide-check-circle"
             color="success"
-            @click="handleConfirm(selectedTransfer!); detailModalOpen = false"
+            :loading="processingTransferAction"
+            :disabled="processingTransferAction"
+            @click="handleConfirm(selectedTransfer!)"
           />
           <UButton
             v-if="selectedTransfer?.status === 'completed' && selectedTransfer.record_side !== 'destination' && selectedTransfer.dest_company_id"
@@ -617,7 +640,9 @@ const sortFields: SortField[] = [
             icon="i-lucide-refresh-cw"
             color="warning"
             variant="outline"
-            @click="handleConfirm(selectedTransfer); detailModalOpen = false"
+            :loading="processingTransferAction"
+            :disabled="processingTransferAction"
+            @click="handleConfirm(selectedTransfer)"
           />
           <UButton
             v-if="selectedTransfer?.status === 'pending'"
@@ -625,9 +650,11 @@ const sortFields: SortField[] = [
             icon="i-lucide-x-circle"
             color="warning"
             variant="outline"
-            @click="handleCancel(selectedTransfer!); detailModalOpen = false"
+            :loading="processingTransferAction"
+            :disabled="processingTransferAction"
+            @click="handleCancel(selectedTransfer!)"
           />
-          <UButton label="Cerrar" color="neutral" variant="outline" @click="detailModalOpen = false" />
+          <UButton label="Cerrar" color="neutral" variant="outline" :disabled="processingTransferAction" @click="detailModalOpen = false" />
         </div>
       </template>
     </UModal>

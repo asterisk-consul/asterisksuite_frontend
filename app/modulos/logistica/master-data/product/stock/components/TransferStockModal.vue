@@ -14,6 +14,7 @@ const props = defineProps<{
     is_virtual?: boolean
     units?: { id: string; name: string; symbol: string } | null
   }>
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -41,16 +42,21 @@ const maxQuantity = computed(() => {
 })
 
 const handleSubmit = () => {
-  if (selectedDestWarehouseId.value && quantity.value) {
+  if (!props.loading && selectedDestWarehouseId.value && quantity.value) {
     emit('submit', {
       from_warehouse_id: props.sourceWarehouse!.warehouse_id,
       to_warehouse_id: selectedDestWarehouseId.value,
       quantity: quantity.value
     })
+  }
+}
+
+watch([open, () => props.loading], ([isOpen, isLoading]) => {
+  if (!isOpen && !isLoading) {
     selectedDestWarehouseId.value = ''
     quantity.value = ''
   }
-}
+})
 </script>
 
 <template>
@@ -99,12 +105,14 @@ const handleSubmit = () => {
       <div class="flex justify-end gap-2">
         <UButton
           variant="outline"
+          :disabled="loading"
           @click="() => { open = false }"
         >
           Cancelar
         </UButton>
         <UButton
-          :disabled="!selectedDestWarehouseId || !quantity"
+          :loading="loading"
+          :disabled="loading || !selectedDestWarehouseId || !quantity"
           @click="handleSubmit"
         >
           Transferir

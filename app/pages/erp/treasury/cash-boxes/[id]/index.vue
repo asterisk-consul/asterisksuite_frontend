@@ -164,6 +164,7 @@ const expectedBalance = ref(0)
 const balanceDifference = ref(0)
 
 const openSessionModal = async (action: 'open' | 'close') => {
+  if (sessionSaving.value) return
   sessionAction.value = action
   if (action === 'open') {
     const currentBalances = await fetchBalances(boxId)
@@ -179,6 +180,7 @@ const openSessionModal = async (action: 'open' | 'close') => {
 }
 
 const handleSession = async () => {
+  if (sessionSaving.value) return
   sessionSaving.value = true
   try {
     if (sessionAction.value === 'open') {
@@ -365,7 +367,7 @@ async function refreshCashBoxActivity() {
 }
 
 async function saveMovement() {
-  if (!canSaveMovement.value) return
+  if (movementSaving.value || !canSaveMovement.value) return
   movementSaving.value = true
   try {
     if (movementForm.operation === 'MANUAL_CREDIT' || movementForm.operation === 'MANUAL_DEBIT') {
@@ -420,7 +422,7 @@ function openReverseModal(movement: CashBoxMovement) {
   reverseModalOpen.value = true
 }
 async function submitReversal() {
-  if (!reversingMovement.value || !reverseReason.value.trim()) return
+  if (reverseSaving.value || !reversingMovement.value || !reverseReason.value.trim()) return
   reverseSaving.value = true
   try {
     await reverseMovement(reversingMovement.value.id, { cash_box_id: boxId, reason: reverseReason.value.trim() })
@@ -783,13 +785,13 @@ const links = computed(() => [
             </UFormField>
           </template>
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="sessionModalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" :disabled="sessionSaving" @click="sessionModalOpen = false" />
             <UButton
               :label="sessionAction === 'open' ? 'Abrir' : 'Cerrar sesión'"
               :color="sessionAction === 'open' ? 'success' : 'warning'"
               type="submit"
               :loading="sessionSaving"
-              :disabled="!canCloseSession"
+              :disabled="sessionSaving || !canCloseSession"
             />
           </div>
         </UForm>
@@ -916,6 +918,7 @@ const links = computed(() => [
             <UButton
               :label="savedMovementId ? 'Finalizar' : 'Cancelar'"
               variant="ghost"
+              :disabled="movementSaving"
               @click="() => { movementModalOpen = false }"
             />
             <UButton
@@ -952,13 +955,13 @@ const links = computed(() => [
             <UTextarea v-model="reverseReason" :rows="3" class="w-full" placeholder="Explicá por qué se revierte..." />
           </UFormField>
           <div class="flex justify-end gap-2">
-            <UButton label="Cancelar" variant="ghost" @click="() => { reverseModalOpen = false }" />
+            <UButton label="Cancelar" variant="ghost" :disabled="reverseSaving" @click="() => { reverseModalOpen = false }" />
             <UButton
               label="Registrar reversión"
               color="error"
               icon="i-lucide-undo-2"
               :loading="reverseSaving"
-              :disabled="!reverseReason.trim()"
+              :disabled="reverseSaving || !reverseReason.trim()"
               @click="submitReversal"
             />
           </div>

@@ -10,16 +10,17 @@ const rows = ref<any[]>([])
 const showCleared = ref(false)
 const modalOpen = ref(false)
 const selected = ref<any>(null)
+const saving = ref(false)
 const form = reactive({ bank_account_id: '', date: today(), commission_amount: 0, tax_amount: 0, withholding_amount: 0, other_deductions: 0, net_amount: 0, reference: '', notes: '' })
 const bankOptions = computed(() => bankAccounts.value.filter((b: any) => b.active && (!selected.value || b.currency_code === selected.value.currency_code)).map((b: any) => ({ label: `${b.bank_name} · ${b.name} · ${b.currency_code}`, value: b.id })))
 const deductions = computed(() => Number(form.commission_amount || 0) + Number(form.tax_amount || 0) + Number(form.withholding_amount || 0) + Number(form.other_deductions || 0))
 const calculatedNet = computed(() => Number(selected.value?.amount || 0) - deductions.value)
 const load = async () => { loading.value = true; try { rows.value = await service.transactions({ type: 'COLLECTION', ...(showCleared.value ? {} : { status: 'PENDING' }) }) } finally { loading.value = false } }
 watch(showCleared, load)
-const openSettle = (row: any) => { selected.value = row; Object.assign(form, { bank_account_id: '', date: today(), commission_amount: Number(row.commission_amount || 0), tax_amount: 0, withholding_amount: 0, other_deductions: 0, net_amount: Number(row.net_amount || row.amount), reference: '', notes: '' }); modalOpen.value = true }
+const openSettle = (row: any) => { if (saving.value) return; selected.value = row; Object.assign(form, { bank_account_id: '', date: today(), commission_amount: Number(row.commission_amount || 0), tax_amount: 0, withholding_amount: 0, other_deductions: 0, net_amount: Number(row.net_amount || row.amount), reference: '', notes: '' }); modalOpen.value = true }
 watch(calculatedNet, value => { if (modalOpen.value) form.net_amount = Number(value.toFixed(2)) })
-const settle = async () => { try { await service.settle(selected.value.id, form); toast.add({ title: 'Liquidación acreditada en el banco', color: 'success' }); modalOpen.value = false; await load() } catch (error: any) { toast.add({ title: 'No se pudo acreditar', description: error?.data?.message, color: 'error' }) } }
-const closeModal = () => { modalOpen.value = false }
+const settle = async () => { if (saving.value || !selected.value) return; saving.value = true; try { await service.settle(selected.value.id, { ...form }); toast.add({ title: 'Liquidación acreditada en el banco', color: 'success' }); modalOpen.value = false; await load() } catch (error: any) { toast.add({ title: 'No se pudo acreditar', description: error?.data?.message, color: 'error' }) } finally { saving.value = false } }
+const closeModal = () => { if (saving.value) return; modalOpen.value = false }
 const dateLabel = (value?: string) => value ? new Date(value).toLocaleDateString('es-AR') : 'Sin fecha'
 const money = (value: any, currency = 'ARS') => new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(Number(value || 0))
 onMounted(async () => { await Promise.all([load(), initBanks()]) })
@@ -39,7 +40,7 @@ onMounted(async () => { await Promise.all([load(), initBanks()]) })
           <div><p class="text-xs text-muted">Fecha esperada</p><strong>{{ dateLabel(row.expected_clearing_date) }}</strong></div>
           <div><p class="text-xs text-muted">Bruto</p><strong>{{ money(row.amount, row.currency_code) }}</strong></div>
           <div><p class="text-xs text-muted">Neto esperado</p><strong>{{ money(row.net_amount, row.currency_code) }}</strong></div>
-          <UButton v-if="row.clearing_status !== 'CLEARED'" label="Acreditar" icon="i-lucide-landmark" @click="openSettle(row)" />
+          <UButton v-if="row.clearing_status !== 'CLEARED'" label="Acreditar" icon="i-lucide-landmark" :disabled="saving" @click="openSettle(row)" />
         </div>
       </UCard>
       <UAlert v-if="!rows.length" color="neutral" variant="subtle" title="No hay liquidaciones para mostrar" />
@@ -55,7 +56,7 @@ onMounted(async () => { await Promise.all([load(), initBanks()]) })
           <UFormField class="sm:col-span-2" label="Motivo de diferencia" :description="Math.abs(calculatedNet - form.net_amount) > .01 ? `Diferencia: ${money(form.net_amount - calculatedNet, selected?.currency_code)}` : 'El neto coincide con el cálculo'"><UTextarea v-model="form.notes" class="w-full" /></UFormField>
         </div>
         <div class="rounded-lg bg-elevated p-4 mt-5 flex justify-between"><span>Bruto {{ money(selected?.amount, selected?.currency_code) }} · descuentos {{ money(deductions, selected?.currency_code) }}</span><strong>Neto {{ money(form.net_amount, selected?.currency_code) }}</strong></div>
-        <div class="flex justify-end gap-2 pt-6"><UButton label="Cancelar" variant="ghost" @click="closeModal" /><UButton label="Confirmar acreditación" :disabled="!form.bank_account_id" @click="settle" /></div>
+        <div class="flex justify-end gap-2 pt-6"><UButton label="Cancelar" variant="ghost" :disabled="saving" @click="closeModal" /><UButton label="Confirmar acreditación" :loading="saving" :disabled="saving || !form.bank_account_id" @click="settle" /></div>
       </template>
     </UModal>
   </UPage>

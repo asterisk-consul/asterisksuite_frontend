@@ -235,6 +235,7 @@ watch(() => regularizationForm.warehouse_id, (warehouseId) => {
 })
 
 async function saveStockRegularization() {
+  if (regularizationSaving.value) return
   const item = regularizationItem.value
   if (!item?.product_id || !regularizationForm.warehouse_id || regularizationForm.quantity <= 0 || !regularizationForm.notes.trim()) return
   regularizationSaving.value = true
@@ -1588,8 +1589,8 @@ defineExpose({ submit, completeDraft })
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancelar" color="neutral" variant="outline" @click="() => { regularizationOpen = false }" />
-          <UButton label="Registrar y seleccionar" icon="i-lucide-package-plus" :loading="regularizationSaving" :disabled="!regularizationForm.warehouse_id || regularizationForm.quantity <= 0 || !regularizationForm.notes.trim()" @click="saveStockRegularization" />
+          <UButton label="Cancelar" color="neutral" variant="outline" :disabled="regularizationSaving" @click="() => { regularizationOpen = false }" />
+          <UButton label="Registrar y seleccionar" icon="i-lucide-package-plus" :loading="regularizationSaving" :disabled="regularizationSaving || !regularizationForm.warehouse_id || regularizationForm.quantity <= 0 || !regularizationForm.notes.trim()" @click="saveStockRegularization" />
         </div>
       </template>
     </UModal>

@@ -16,6 +16,7 @@ const showAddModal = ref(false)
 const showTransferModal = ref(false)
 const showRemoveModal = ref(false)
 const selectedWarehouse = ref<any>(null)
+const stockMutationLoading = ref(false)
 
 // Filtro por depósito
 const selectedWarehouseIds = ref<string[]>([])
@@ -53,6 +54,8 @@ onMounted(async () => {
 })
 
 const handleAdd = async (warehouseId: string, quantity: string) => {
+  if (stockMutationLoading.value) return
+  stockMutationLoading.value = true
   try {
     await productStock.addStock(warehouseId, quantity)
     showAddModal.value = false
@@ -69,21 +72,39 @@ const handleAdd = async (warehouseId: string, quantity: string) => {
       color: 'error',
       icon: 'i-lucide-circle-alert'
     })
+  } finally {
+    stockMutationLoading.value = false
   }
 }
 
 const handleTransfer = async (data: { from_warehouse_id: string; to_warehouse_id: string; quantity: string }) => {
-  await productStock.transferStock(data)
-  showTransferModal.value = false
-  selectedWarehouse.value = null
+  if (stockMutationLoading.value) return
+  stockMutationLoading.value = true
+  try {
+    await productStock.transferStock(data)
+    showTransferModal.value = false
+    selectedWarehouse.value = null
+    toast.add({ title: 'Stock transferido', color: 'success', icon: 'i-lucide-circle-check' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo transferir el stock', description: error?.data?.message || error?.message || 'Intentá nuevamente.', color: 'error' })
+  } finally {
+    stockMutationLoading.value = false
+  }
 }
 
 const handleRemove = async () => {
-  if (selectedWarehouse.value) {
+  if (stockMutationLoading.value || !selectedWarehouse.value) return
+  stockMutationLoading.value = true
+  try {
     await productStock.removeStock(selectedWarehouse.value.warehouse_id)
+    showRemoveModal.value = false
+    selectedWarehouse.value = null
+    toast.add({ title: 'Stock eliminado del depósito', color: 'success', icon: 'i-lucide-circle-check' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo eliminar el stock', description: error?.data?.message || error?.message || 'Intentá nuevamente.', color: 'error' })
+  } finally {
+    stockMutationLoading.value = false
   }
-  showRemoveModal.value = false
-  selectedWarehouse.value = null
 }
 
 const openTransfer = (item: any) => {
@@ -233,6 +254,7 @@ const openRemove = (item: any) => {
       v-model:open="showAddModal"
       :product-id="productId"
       :available-warehouses="productStock.availableWarehouses.value"
+      :loading="stockMutationLoading"
       @submit="handleAdd"
     />
 
@@ -241,12 +263,14 @@ const openRemove = (item: any) => {
       :product-id="productId"
       :source-warehouse="selectedWarehouse"
       :warehouses="productStock.warehouses.value"
+      :loading="stockMutationLoading"
       @submit="handleTransfer"
     />
 
     <RemoveStockModal
       v-model:open="showRemoveModal"
       :stock-item="selectedWarehouse"
+      :loading="stockMutationLoading"
       @confirm="handleRemove"
     />
   </div>

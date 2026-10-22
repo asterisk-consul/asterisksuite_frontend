@@ -1,5 +1,52 @@
 [
  {
+  "version": "0.93.1-alpha",
+  "date": "2026-10-22",
+  "stage": "alpha",
+  "notes": "Mejoras de uso en Tesorería y pagos, con protecciones contra envíos repetidos en operaciones de dinero y stock.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Las tablas de obligaciones e impuestos exponen mejor sus filtros y mantienen el desplazamiento horizontal dentro de las tarjetas"
+   },
+   {
+    "type": "style",
+    "scope": "payments",
+    "title": "El formulario organiza movimiento, documentos y medio de pago en secciones, y conserva el orden de los cheques seleccionados"
+   },
+   {
+    "type": "fix",
+    "scope": "payments",
+    "title": "Los formularios de pago y las acciones relacionadas ignoran un segundo envío mientras la operación está en curso"
+   },
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Los movimientos de caja y banco, transferencias, cheques, liquidaciones e inversiones bloquean reenvíos simultáneos"
+   },
+   {
+    "type": "fix",
+    "scope": "stock",
+    "title": "Las altas, bajas, transferencias y regularizaciones de stock, junto con la producción, evitan repetir movimientos por doble clic"
+   },
+   {
+    "type": "fix",
+    "scope": "documents",
+    "title": "Las confirmaciones de documentos con impacto operativo no se ejecutan nuevamente mientras se procesa la primera solicitud"
+   },
+   {
+    "type": "style",
+    "scope": "navigation",
+    "title": "Tarjetas e Inversiones quedan fuera del menú lateral mientras se completa la revisión de su recorrido"
+   }
+  ],
+  "contributors": [
+   "agustin"
+  ],
+  "message": "Mejorar Tesorería y prevenir movimientos duplicados"
+ },
+ {
   "version": "0.93.0-alpha",
   "date": "2026-10-22",
   "stage": "alpha",

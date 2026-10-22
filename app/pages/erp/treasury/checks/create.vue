@@ -19,6 +19,7 @@ const { codeSelectItems: currencyItems, init: initCurrencies } = useCurrencies()
 const saving = ref(false)
 
 const handleSubmit = async (formData: CheckFormData) => {
+  if (saving.value) return
   saving.value = true
   try {
     const created = await create({

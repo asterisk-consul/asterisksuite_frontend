@@ -176,7 +176,7 @@ async function loadAssignmentContext() {
 }
 
 async function createDispatchOrder() {
-  if (!doc.value) return
+  if (creatingDispatch.value || !doc.value) return
   creatingDispatch.value = true
   try {
     const dispatch = await $fetch<any>(`/api/backend/documents/sales/${doc.value.id}/create-dispatch`, { method: 'POST' })

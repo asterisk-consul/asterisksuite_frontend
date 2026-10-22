@@ -43,7 +43,7 @@ const loadPreview = async () => {
 }
 
 const execute = async () => {
-  if (!preview.value?.can_produce) return
+  if (producing.value || !preview.value?.can_produce) return
   producing.value = true
   try {
     const result = await $fetch('/api/backend/warehouse/stock/production/execute', {
@@ -147,8 +147,8 @@ const formatQuantity = (value: number) => Number(value).toLocaleString('es-AR', 
       <div class="flex w-full items-center justify-between gap-3">
         <p class="text-xs text-muted">Los consumos y el ingreso quedan vinculados por una misma referencia de fabricación.</p>
         <div class="flex gap-2">
-          <UButton label="Cancelar" variant="ghost" color="neutral" @click="emit('update:open', false)" />
-          <UButton label="Confirmar fabricación" icon="i-lucide-factory" :loading="producing" :disabled="!preview?.can_produce" @click="execute" />
+          <UButton label="Cancelar" variant="ghost" color="neutral" :disabled="producing" @click="emit('update:open', false)" />
+          <UButton label="Confirmar fabricación" icon="i-lucide-factory" :loading="producing" :disabled="producing || !preview?.can_produce" @click="execute" />
         </div>
       </div>
     </template>

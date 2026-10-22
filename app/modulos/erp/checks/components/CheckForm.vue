@@ -244,8 +244,8 @@ watch(
     </section>
 
     <div class="flex justify-end gap-2 border-t border-default pt-4">
-      <UButton label="Cancelar" variant="ghost" @click="emit('cancel')" />
-      <UButton :label="modelValue?.id ? 'Guardar cambios' : 'Crear cheque'" icon="i-lucide-check" type="submit" :loading="loading" />
+      <UButton label="Cancelar" variant="ghost" :disabled="loading" @click="emit('cancel')" />
+      <UButton :label="modelValue?.id ? 'Guardar cambios' : 'Crear cheque'" icon="i-lucide-check" type="submit" :loading="loading" :disabled="loading" />
     </div>
   </form>
 </template>

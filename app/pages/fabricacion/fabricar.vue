@@ -85,7 +85,7 @@ async function calculate() {
 }
 
 async function produce() {
-  if (!preview.value?.can_produce) return
+  if (producing.value || !preview.value?.can_produce) return
   producing.value = true
   try {
     await $fetch('/api/backend/warehouse/stock/production/execute', {
@@ -161,7 +161,7 @@ const formatQuantity = (value: number) => Number(value).toLocaleString('es-AR', 
               <UBadge :color="material.sufficient ? 'success' : 'error'" variant="soft" :label="material.sufficient ? 'Disponible' : `Faltan ${formatQuantity(material.missing)}`" />
             </div>
           </div>
-          <template #footer><div class="flex justify-end"><UButton label="Confirmar fabricación" icon="i-lucide-factory" color="success" :disabled="!preview.can_produce" :loading="producing" @click="produce" /></div></template>
+          <template #footer><div class="flex justify-end"><UButton label="Confirmar fabricación" icon="i-lucide-factory" color="success" :disabled="producing || !preview.can_produce" :loading="producing" @click="produce" /></div></template>
         </UCard>
       </UPageBody>
     </UPage>

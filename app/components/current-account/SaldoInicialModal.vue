@@ -156,6 +156,7 @@ function close() {
 }
 
 async function handleSubmit() {
+  if (loading.value) return
   if (!form.party_id) {
     toast.add({ title: 'Seleccioná un tercero', color: 'error' })
     return
@@ -356,12 +357,12 @@ async function handleSubmit() {
 
     <template #footer>
       <div class="flex justify-end gap-2 w-full">
-        <UButton label="Cancelar" variant="ghost" @click="close" />
+        <UButton label="Cancelar" variant="ghost" :disabled="loading" @click="close" />
         <UButton
           label="Guardar"
           color="primary"
           :loading="loading"
-          :disabled="!form.party_id || form.amount <= 0 || (isForeignCurrency && (!form.exchange_rate || form.exchange_rate <= 0))"
+          :disabled="loading || !form.party_id || form.amount <= 0 || (isForeignCurrency && (!form.exchange_rate || form.exchange_rate <= 0))"
           @click="handleSubmit"
         />
       </div>

@@ -90,6 +90,7 @@ watch(() => props.open, async (value) => {
 })
 
 async function handleSubmit() {
+  if (saving.value) return
   if (!form.bank_concept_id) {
     toast.add({ title: 'Seleccioná un concepto', color: 'warning' })
     return
@@ -249,8 +250,8 @@ async function handleSubmit() {
         </div>
 
         <div class="sticky bottom-0 -mx-6 -mb-6 flex justify-end gap-2 border-t border-default bg-default/95 px-6 py-4 backdrop-blur">
-          <UButton label="Cancelar" variant="ghost" @click="emit('update:open', false)" />
-          <UButton label="Registrar movimiento" type="submit" :loading="saving" />
+          <UButton label="Cancelar" variant="ghost" :disabled="saving" @click="emit('update:open', false)" />
+          <UButton label="Registrar movimiento" type="submit" :loading="saving" :disabled="saving" />
         </div>
       </UForm>
     </template>

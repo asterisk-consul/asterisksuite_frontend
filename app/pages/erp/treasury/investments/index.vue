@@ -50,7 +50,7 @@ watch(() => form.type, type => {
   if (type === 'INVESTMENT_FUND') { form.maturity_date = ''; form.annual_nominal_rate = null; form.auto_renew = false }
 })
 watch(() => form.liquidity_type, type => { if (type === 'NON_CANCELABLE') { form.early_cancel_available_from = ''; form.early_cancel_annual_rate = null } })
-const save = async () => { saving.value = true; try { await service.create({ ...form, units: form.type === 'INVESTMENT_FUND' ? (form.units || expectedUnits.value) : undefined, maturity_date: form.type === 'FIXED_TERM' ? form.maturity_date : undefined, annual_nominal_rate: form.type === 'FIXED_TERM' ? form.annual_nominal_rate : undefined, initial_unit_value: form.type === 'INVESTMENT_FUND' ? form.initial_unit_value : undefined }); toast.add({ title: 'Inversión constituida', description: 'El capital fue debitado de la cuenta bancaria.', color: 'success' }); modalOpen.value = false; await load() } catch (e: any) { toast.add({ title: 'No se pudo constituir', description: e?.data?.message || e?.message, color: 'error' }) } finally { saving.value = false } }
+const save = async () => { if (saving.value) return; saving.value = true; try { await service.create({ ...form, units: form.type === 'INVESTMENT_FUND' ? (form.units || expectedUnits.value) : undefined, maturity_date: form.type === 'FIXED_TERM' ? form.maturity_date : undefined, annual_nominal_rate: form.type === 'FIXED_TERM' ? form.annual_nominal_rate : undefined, initial_unit_value: form.type === 'INVESTMENT_FUND' ? form.initial_unit_value : undefined }); toast.add({ title: 'Inversión constituida', description: 'El capital fue debitado de la cuenta bancaria.', color: 'success' }); modalOpen.value = false; await load() } catch (e: any) { toast.add({ title: 'No se pudo constituir', description: e?.data?.message || e?.message, color: 'error' }) } finally { saving.value = false } }
 onMounted(async () => { await initBanks(); await load() })
 </script>
 
@@ -95,7 +95,7 @@ onMounted(async () => { await initBanks(); await load() })
           <div v-if="expectedUnits" class="flex items-center justify-between rounded-md border border-default bg-default p-3"><span class="text-sm text-muted">Cálculo automático: capital ÷ valor de cuotaparte</span><strong>{{ expectedUnits.toLocaleString('es-AR', { maximumFractionDigits: 8 }) }} cuotapartes</strong></div>
         </div>
         <div class="grid gap-4 sm:grid-cols-2"><UFormField label="Referencia"><UInput v-model="form.reference" class="w-full"/></UFormField><UFormField label="Notas"><UTextarea v-model="form.notes" class="w-full"/></UFormField></div>
-        <div class="flex justify-end gap-2"><UButton label="Cancelar" variant="ghost" @click="modalOpen=false"/><UButton label="Constituir inversión" :loading="saving" :disabled="!canSubmit" @click="save"/></div>
+        <div class="flex justify-end gap-2"><UButton label="Cancelar" variant="ghost" :disabled="saving" @click="modalOpen=false"/><UButton label="Constituir inversión" :loading="saving" :disabled="saving || !canSubmit" @click="save"/></div>
       </div></template>
     </UModal>
   </UPage>

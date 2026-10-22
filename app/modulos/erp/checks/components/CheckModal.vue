@@ -19,8 +19,8 @@ const emit = defineEmits<{
 const open = defineModel<boolean>('open', { default: false })
 
 const handleSubmit = (form: CheckFormData) => {
+  if (props.loading) return
   emit('success', form)
-  open.value = false
 }
 </script>
 

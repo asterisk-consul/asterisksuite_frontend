@@ -60,6 +60,7 @@ async function reloadAccount() {
 }
 
 async function deleteOpeningBalance() {
+  if (deletingOpeningBalance.value) return
   try {
     deletingOpeningBalance.value = true
     await currentAccountsService.deleteOpeningBalance(partyId)
@@ -284,12 +285,13 @@ const accountActionItems = computed(() => [
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showDeleteConfirmation = false" />
+          <UButton label="Cancelar" variant="ghost" :disabled="deletingOpeningBalance" @click="showDeleteConfirmation = false" />
           <UButton
             label="Eliminar saldo inicial"
             icon="i-lucide-trash-2"
             color="error"
             :loading="deletingOpeningBalance"
+            :disabled="deletingOpeningBalance"
             @click="deleteOpeningBalance"
           />
         </div>

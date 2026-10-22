@@ -33,6 +33,7 @@ onMounted(async () => {
 })
 
 async function handleSubmit(payload: any) {
+  if (saving.value) return
   try {
     saving.value = true
     const extension = extensionRef.value?.getFormData()

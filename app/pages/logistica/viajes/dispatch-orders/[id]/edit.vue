@@ -34,6 +34,7 @@ const submit = async (dto: CreateDispatchOrderDto) => {
 }
 
 async function createRemito() {
+  if (creatingRemito.value) return
   creatingRemito.value = true
   try {
     const remito = await $fetch<any>(`/api/backend/documents/sales/dispatch/${id}/create-remito`, { method: 'POST' })

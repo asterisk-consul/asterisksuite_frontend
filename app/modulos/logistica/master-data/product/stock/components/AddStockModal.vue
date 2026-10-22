@@ -7,6 +7,7 @@ const props = defineProps<{
     code?: string | null
     units?: { symbol: string } | null
   }>
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -26,12 +27,17 @@ const warehouseOptions = computed(() =>
 )
 
 const handleSubmit = () => {
-  if (selectedWarehouseId.value && quantity.value) {
+  if (!props.loading && selectedWarehouseId.value && quantity.value) {
     emit('submit', selectedWarehouseId.value, quantity.value)
+  }
+}
+
+watch([open, () => props.loading], ([isOpen, isLoading]) => {
+  if (!isOpen && !isLoading) {
     selectedWarehouseId.value = ''
     quantity.value = ''
   }
-}
+})
 </script>
 
 <template>
@@ -68,12 +74,14 @@ const handleSubmit = () => {
       <div class="flex justify-end gap-2">
         <UButton
           variant="outline"
+          :disabled="loading"
           @click="open = false"
         >
           Cancelar
         </UButton>
         <UButton
-          :disabled="!selectedWarehouseId || !quantity"
+          :loading="loading"
+          :disabled="loading || !selectedWarehouseId || !quantity"
           @click="handleSubmit"
         >
           Agregar

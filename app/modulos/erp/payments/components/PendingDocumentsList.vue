@@ -9,6 +9,7 @@ const props = defineProps<{
   exchangeRate?: number | null
   resolvedRate?: number | null
   formatCurrency: (amount: number, currency?: string) => string
+  actionsDisabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -67,7 +68,7 @@ function getMaxAmount(doc: PendingDocument): number {
         <span class="text-muted">({{ filteredDocs.length }})</span>
       </h4>
       <UDropdownMenu :items="createInvoiceItems">
-        <UButton label="Crear Factura" icon="i-lucide-file-plus" size="xs" variant="outline" color="info" />
+        <UButton label="Crear Factura" icon="i-lucide-file-plus" size="xs" variant="outline" color="info" :disabled="actionsDisabled" />
       </UDropdownMenu>
     </div>
 

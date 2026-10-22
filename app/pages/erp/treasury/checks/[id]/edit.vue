@@ -65,6 +65,7 @@ onMounted(async () => {
 })
 
 const handleSubmit = async (formData: CheckFormData) => {
+  if (saving.value) return
   if (!formData.id) return
   saving.value = true
   try {

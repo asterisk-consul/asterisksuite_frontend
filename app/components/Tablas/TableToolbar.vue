@@ -114,11 +114,11 @@ const hasActiveFilters = computed(
 </script>
 
 <template>
-  <div class="border-b border-default">
+  <div class="min-w-0 max-w-full border-b border-default">
     <!-- Toolbar -->
-    <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+    <div class="flex min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-3">
       <!-- Inputs rápidos -->
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
         <UInput
           v-if="serverSide"
           v-model="search"
@@ -144,7 +144,7 @@ const hasActiveFilters = computed(
       </div>
 
       <!-- Acciones -->
-      <div class="flex items-center gap-2">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
         <UPopover v-if="columnVisibilityItems?.length">
           <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-columns-3" label="Columnas" />
           <template #content>

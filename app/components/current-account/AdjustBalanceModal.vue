@@ -25,6 +25,7 @@ const formatCurrency = (value: number) => new Intl.NumberFormat('es-AR', {
 }).format(value)
 
 async function submit() {
+  if (loading.value) return
   if (Math.abs(difference.value) < 0.01) {
     toast.add({ title: 'El saldo correcto es igual al saldo actual', color: 'warning' })
     return
@@ -103,8 +104,8 @@ async function submit() {
     </template>
     <template #footer>
       <div class="flex w-full justify-end gap-2">
-        <UButton label="Cancelar" variant="ghost" @click="emit('update:open', false)" />
-        <UButton label="Registrar movimiento de ajuste" icon="i-lucide-check" :loading="loading" @click="submit" />
+        <UButton label="Cancelar" variant="ghost" :disabled="loading" @click="emit('update:open', false)" />
+        <UButton label="Registrar movimiento de ajuste" icon="i-lucide-check" :loading="loading" :disabled="loading" @click="submit" />
       </div>
     </template>
   </UModal>

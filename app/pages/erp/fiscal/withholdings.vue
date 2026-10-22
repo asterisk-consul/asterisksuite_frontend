@@ -317,7 +317,7 @@ const openRemittanceModal = () => {
 const closeRemittanceModal = () => { remittanceModalOpen.value = false }
 const markVepAmountEdited = () => { vepAmountEdited.value = true }
 const createRemittance = async () => {
-  if (!selectedIds.value.length || !vepNumber.value.trim()) return
+  if (savingRemittance.value || !selectedIds.value.length || !vepNumber.value.trim()) return
   savingRemittance.value = true
   try {
     await $fetch('/api/backend/fiscal/withholdings/remittances', { method: 'POST', body: {
@@ -505,7 +505,7 @@ onMounted(fetchWithholdings)
       </div>
     </template>
     <template #footer>
-      <div class="flex flex-col-reverse justify-between gap-3 sm:flex-row sm:items-center"><p class="text-xs text-muted">Este registro agrupa; el pago posterior cancela el VEP completo.</p><div class="flex justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" @click="closeRemittanceModal" /><UButton label="Asociar VEP" icon="i-lucide-link" :loading="savingRemittance" :disabled="!vepNumber.trim() || !selectedIds.length || vepAmount < selectedTotal" @click="createRemittance" /></div></div>
+      <div class="flex flex-col-reverse justify-between gap-3 sm:flex-row sm:items-center"><p class="text-xs text-muted">Este registro agrupa; el pago posterior cancela el VEP completo.</p><div class="flex justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" :disabled="savingRemittance" @click="closeRemittanceModal" /><UButton label="Asociar VEP" icon="i-lucide-link" :loading="savingRemittance" :disabled="savingRemittance || !vepNumber.trim() || !selectedIds.length || vepAmount < selectedTotal" @click="createRemittance" /></div></div>
     </template>
   </UModal>
   <UModal v-model:open="taxApplicationModalOpen" title="Imputar retención sufrida" description="Registrá el uso de este crédito fiscal en una declaración; no genera un movimiento de caja o banco." :ui="{ content: 'sm:max-w-2xl' }">

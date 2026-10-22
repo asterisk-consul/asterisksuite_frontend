@@ -37,6 +37,7 @@ const paymentData = ref<PaymentFormData | null>(null)
 const currentPayment = ref<Payment | null>(null)
 const initialWithholdings = ref<any[]>([])
 const isProcessing = ref(false)
+const isSaving = ref(false)
 const actionModalOpen = ref(false)
 const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse'>('confirm')
 const checkAction = ref<'RETURN_TO_PORTFOLIO' | 'CANCEL'>('RETURN_TO_PORTFOLIO')
@@ -141,6 +142,8 @@ onMounted(async () => {
 })
 
 const handleSubmit = async (formData: PaymentFormData) => {
+  if (isSaving.value || !isDraft.value) return
+  isSaving.value = true
   try {
     const updated = await update(paymentId, {
       date: formData.date,
@@ -168,6 +171,8 @@ const handleSubmit = async (formData: PaymentFormData) => {
       color: 'error',
       icon: 'i-lucide-alert-circle'
     })
+  } finally {
+    isSaving.value = false
   }
 }
 
@@ -321,7 +326,7 @@ const handleAdvanceSuccess = async () => {
           :available-own-checks="availableOwnChecks"
           :available-customer-checks="availableCustomerChecks"
           :initial-withholdings="initialWithholdings"
-          :loading="loading"
+          :loading="isSaving"
           @submit="handleSubmit"
           @cancel="router.push('/erp/treasury/payments')"
         />

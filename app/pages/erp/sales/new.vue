@@ -108,6 +108,7 @@ const initialValues = computed(() => {
 })
 
 async function handleSubmit(payload: any) {
+  if (saving.value) return
   try {
     saving.value = true
 

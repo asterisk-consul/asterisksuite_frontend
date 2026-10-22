@@ -13,6 +13,7 @@ const props = defineProps<{
     active: boolean
     units?: { id: string; name: string; symbol: string } | null
   }>
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -51,18 +52,23 @@ const maxQuantity = computed(() => {
 })
 
 const handleSubmit = () => {
-  if (selectedDestWarehouseId.value && selectedProductId.value && quantity.value) {
+  if (!props.loading && selectedDestWarehouseId.value && selectedProductId.value && quantity.value) {
     emit('submit', {
       from_warehouse_id: props.warehouseId,
       to_warehouse_id: selectedDestWarehouseId.value,
       product_id: selectedProductId.value,
       quantity: quantity.value
     })
+  }
+}
+
+watch([open, () => props.loading], ([isOpen, isLoading]) => {
+  if (!isOpen && !isLoading) {
     selectedDestWarehouseId.value = ''
     selectedProductId.value = ''
     quantity.value = ''
   }
-}
+})
 </script>
 
 <template>
@@ -109,11 +115,12 @@ const handleSubmit = () => {
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton variant="outline" @click="open = false">
+        <UButton variant="outline" :disabled="loading" @click="open = false">
           Cancelar
         </UButton>
         <UButton
-          :disabled="!selectedDestWarehouseId || !selectedProductId || !quantity"
+          :loading="loading"
+          :disabled="loading || !selectedDestWarehouseId || !selectedProductId || !quantity"
           @click="handleSubmit"
         >
           Transferir

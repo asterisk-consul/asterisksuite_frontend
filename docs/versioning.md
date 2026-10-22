@@ -105,6 +105,32 @@ Flujo típico:
 1.2.0-alpha → 1.2.0-beta → 1.2.0
 ```
 
+### Política activa de Asterisk Suite
+
+Mientras el producto siga en desarrollo, la versión global usa el formato
+`0.MINOR.PATCH-alpha`. La versión mayor permanece en `0` y el canal `alpha` se
+mantiene hasta que el responsable del producto indique explícitamente pasar a
+`beta`. No se promueve de etapa automáticamente por una fecha, despliegue o cantidad
+de cambios.
+
+La numeración representa el alcance del cambio, no la cantidad de commits:
+
+- `PATCH`: correcciones, ajustes de interfaz, rendimiento, refactors y cambios internos
+  compatibles. Ejemplo: `0.93.0-alpha` → `0.93.1-alpha`.
+- `MINOR`: funcionalidad nueva compatible o un módulo integrado. Se incrementa MINOR y
+  PATCH vuelve a cero. Ejemplo: `0.93.1-alpha` → `0.94.0-alpha`.
+- `MAJOR`: se reserva para una versión estable posterior a `1.0.0`; no se incrementa
+  durante la etapa `0.x`.
+
+Un cambio incompatible durante `0.x` debe quedar explicado en las notas y se maneja
+como una nueva versión MINOR, manteniendo `MAJOR` en `0`. Al aceptar el paso a beta,
+se cambia el sufijo y `stage` solo con autorización explícita; los cambios posteriores
+siguen aplicando las reglas de PATCH/MINOR.
+
+Las versiones históricas son registros publicados: no se renumeran para corregir la
+política nueva. Cada entrada nueva sí debe tener una etiqueta única y concordancia
+entre el sufijo de `version` y el campo `stage`.
+
 ---
 
 # 6. Cuándo cambiar PATCH, MINOR o MAJOR
@@ -123,7 +149,7 @@ Ejemplos:
 Ejemplo:
 
 ```
-1.2.0 → 1.2.1
+0.93.0-alpha → 0.93.1-alpha
 ```
 
 ---
@@ -142,7 +168,7 @@ Ejemplos:
 Ejemplo:
 
 ```
-1.2.0 → 1.3.0
+0.93.1-alpha → 0.94.0-alpha
 ```
 
 Caso típico en este sistema:
@@ -153,7 +179,9 @@ Caso típico en este sistema:
 
 ## MAJOR
 
-Se usa cuando un cambio **rompe compatibilidad existente**.
+Desde `1.0.0`, se usa cuando un cambio **rompe compatibilidad existente**. Durante
+`0.x`, una incompatibilidad se documenta y se incrementa MINOR; la versión mayor se
+mantiene en `0` hasta una decisión explícita de publicar `1.0.0`.
 
 Ejemplos:
 
@@ -245,16 +273,18 @@ MAJOR
 
 # 9. Archivo versions.json
 
-El archivo `versions.json` mantiene el historial de versiones del sistema.
-
-Se almacenan las últimas **20–30 versiones**.
+El archivo `versiones/versions.json` es la fuente de verdad del historial que consume
+el frontend para mostrar la versión actual y el changelog. La entrada más nueva se
+agrega al principio del array; la aplicación toma `versions[0]` como versión vigente.
+Se conserva el historial completo: no se eliminan versiones antiguas para cumplir un
+límite arbitrario. Antes de editar, comprobar que la nueva etiqueta no esté repetida.
 
 Ejemplo:
 
 ```json
 [
   {
-    "version": "1.3.0-beta",
+    "version": "0.94.0-beta",
     "date": "2026-04-01",
     "stage": "beta",
     "notes": "Integración del módulo de compras",
@@ -264,7 +294,7 @@ Ejemplo:
     ]
   },
   {
-    "version": "1.2.1",
+    "version": "0.93.1-alpha",
     "date": "2026-03-20",
     "stage": "alpha",
     "notes": "Fix en endpoint de update de vehículos"
@@ -319,45 +349,17 @@ Ejemplo:
 
 # 11. Flujo de trabajo recomendado
 
-### 1 Desarrollo de módulo
-
-Cada módulo evoluciona internamente.
-
-Ejemplo:
-
-```
-transporte 0.5.3-alpha
-```
-
----
-
-### 2 Integración al sistema
-
-Cuando se integra un módulo:
-
-```
-1.2.0 → 1.3.0-beta
-```
-
----
-
-### 3 Pruebas
-
-El sistema pasa por:
-
-```
-alpha → beta
-```
-
----
-
-### 4 Release
-
-Cuando todo está estable:
-
-```
-1.3.0
-```
+1. Revisar la versión en la primera entrada de `versiones/versions.json` y los cambios
+   funcionales que realmente se incluirán en la versión.
+2. Elegir el incremento PATCH o MINOR con las reglas de esta guía; mantener `alpha`
+   salvo que exista una indicación explícita de promover el canal.
+3. Agregar una entrada nueva al principio del array, con fecha local `YYYY-MM-DD`,
+   notas, cambios concretos, contribuyentes, mensaje y un `stage` que coincida con el
+   sufijo de versión.
+4. Validar que el JSON sea válido, que la versión nueva sea única y que no se haya
+   alterado el historial anterior.
+5. Proponer un mensaje de commit Conventional Commits (`tipo(scope): resumen`). No
+   crear el commit salvo que se solicite expresamente.
 
 ---
 
@@ -386,10 +388,9 @@ Cuando todo está estable:
 1. El **versionado global refleja el sistema completo**.
 2. El **major solo cambia si se rompe compatibilidad**.
 3. Los módulos pueden evolucionar internamente sin afectar el global.
-4. Cada release debe registrarse en:
-
-- `versions.json`
-- `CHANGELOG.md`
+4. Cada versión visible para la aplicación se registra en `versiones/versions.json`,
+   que también alimenta la página de changelog. `CHANGELOG.md` solo es necesario si el
+   repositorio lo adopta explícitamente como artefacto adicional.
 
 ---
 
@@ -397,5 +398,5 @@ Cuando todo está estable:
 
 - documentar cada release
 - mantener changelog actualizado
-- limitar `versions.json` a últimas 20–30 versiones
+- conservar el historial completo y no renumerar entradas publicadas
 - evitar cambios incompatibles sin migración

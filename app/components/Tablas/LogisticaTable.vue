@@ -36,6 +36,7 @@ const props = defineProps<{
   searchPlaceholder?: string
   getRowId?: (row: T, index: number) => string
   compact?: boolean
+  tableMinWidth?: number
 }>()
 const sorting = defineModel<SortingState>('sorting', {
   default: () => []
@@ -195,7 +196,8 @@ async function confirmDelete(): Promise<void> {
          Tabla
     ========================= -->
 
-    <div class="min-w-0 max-w-full overflow-x-auto">
+    <div class="w-full min-w-0 max-w-full">
+    <p v-if="tableMinWidth" class="mb-2 px-1 text-xs text-muted">Deslizá horizontalmente para ver todas las columnas.</p>
     <UTable
       ref="table"
       v-model:pagination="pagination"
@@ -217,7 +219,8 @@ async function confirmDelete(): Promise<void> {
         th: 'first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r py-0.5',
         td: 'border-b border-default'
       }"
-      :class="['min-w-0 max-w-full max-h-[75vh] overflow-y-auto', selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg']"
+      :class="['w-full min-w-0 max-w-full max-h-[75vh] overflow-x-auto overflow-y-auto', tableMinWidth ? 'table-with-min-width' : '', selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg']"
+      :style="tableMinWidth ? { '--table-min-width': `${tableMinWidth}px` } : undefined"
     />
     </div>
 
@@ -252,3 +255,9 @@ async function confirmDelete(): Promise<void> {
     />
   </div>
 </template>
+
+<style scoped>
+.table-with-min-width :deep(table) {
+  min-width: var(--table-min-width);
+}
+</style>

@@ -171,18 +171,12 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'payments.read'
       },
       {
-        label: 'Cuentas bancarias',
-        icon: 'i-lucide-landmark',
-        to: '/erp/treasury/bank-accounts',
-        permission: 'bank_accounts.read'
-      },
-      {
-        label: 'Cajas',
-        icon: 'i-lucide-wallet',
+        label: 'Cajas y bancos',
+        icon: 'i-lucide-wallet-cards',
         to: '/erp/treasury/cash-boxes',
-        permission: 'cash_boxes.read',
         children: [
           { label: 'Cajas', icon: 'i-lucide-wallet', to: '/erp/treasury/cash-boxes', permission: 'cash_boxes.read' },
+          { label: 'Cuentas bancarias', icon: 'i-lucide-landmark', to: '/erp/treasury/bank-accounts', permission: 'bank_accounts.read' },
           {
             label: 'Transferencias',
             icon: 'i-lucide-arrow-left-right',
@@ -204,6 +198,7 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'intake.read'
       },
       { label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', permission: 'payments.read' },
+      /* Oculto temporalmente del sidebar a pedido; las pantallas y rutas se conservan.
       {
         label: 'Tarjetas',
         icon: 'i-lucide-credit-card',
@@ -229,18 +224,21 @@ export const navigationTree: DrilldownNode[] = [
           }
         ]
       },
+      */
       {
         label: 'Cuentas corrientes',
         icon: 'i-lucide-file-text',
         to: '/erp/treasury/current-accounts',
         permission: 'payments.read'
       },
+      /* Oculto temporalmente del sidebar a pedido; las pantallas y rutas se conservan.
       {
         label: 'Inversiones',
         icon: 'i-lucide-chart-no-axes-combined',
         to: '/erp/treasury/investments',
         permission: 'financial_investments.read'
       },
+      */
       {
         label: 'Impuestos y servicios',
         icon: 'i-lucide-landmark',
