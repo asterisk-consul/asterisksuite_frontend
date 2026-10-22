@@ -5,6 +5,7 @@ import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 import { h, resolveComponent } from 'vue'
+import { reportTableFilter } from '~/modulos/erp/management-reports/report-table-filter'
 
 definePageMeta({ middleware: ['auth', 'management-reports'] })
 
@@ -15,13 +16,13 @@ const report = ref<ManagementReportResponse | null>(null)
 const metadata = ref<ManagementReportMetadata | null>(null)
 type ManagementTableRow = Record<string, any> & { id: string }
 const textColumn = (accessorKey: string, label: string): ExtendedColumn<ManagementTableRow> => ({
-  accessorKey, header: label, meta: { label, filter: { type: 'text', operators: ['contains', 'equals'] } },
+  accessorKey, header: label, filterFn: reportTableFilter, meta: { label, filter: { type: 'text', operators: ['contains', 'equals'] } },
 })
 const numberColumn = (accessorKey: string, label: string): ExtendedColumn<ManagementTableRow> => ({
-  accessorKey, header: label, meta: { label, filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
+  accessorKey, header: label, filterFn: reportTableFilter, meta: { label, filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
 })
 const selectColumn = (accessorKey: string, label: string, options: string[]): ExtendedColumn<ManagementTableRow> => ({
-  accessorKey, header: label, meta: { label, filter: { type: 'select', options: options.map(value => ({ label: value, value })) } },
+  accessorKey, header: label, filterFn: reportTableFilter, meta: { label, filter: { type: 'select', options: options.map(value => ({ label: value, value })) } },
 })
 const quickFilters = (...fields: Array<[string, string]>): FilterField[] => fields.map(([id, label]) => ({ id, label }))
 const sortOptions = (...fields: Array<[string, string]>): SortField[] => fields.map(([label, value]) => ({ label, value }))

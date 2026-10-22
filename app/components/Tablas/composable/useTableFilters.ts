@@ -61,12 +61,16 @@ export function useTableFilters(
 
     const meta = getColumnMeta(columnId)
 
-    filters.value.push({
+    filters.value = [...filters.value, {
       id: nextFilterId(),
       column: columnId,
       operator: getDefaultOperator(meta?.type),
       value: getDefaultValue(meta?.type)
-    })
+    }]
+  }
+
+  function updateFilter(updatedFilter: TableFilter) {
+    filters.value = filters.value.map((filter) => filter.id === updatedFilter.id ? updatedFilter : filter)
   }
 
   function removeFilter(id: string) {
@@ -110,6 +114,7 @@ export function useTableFilters(
   return {
     filters,
     addFilter,
+    updateFilter,
     removeFilter,
     clearFilters
   }

@@ -9,6 +9,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   add: []
+  update: [filter: TableFilter]
   remove: [id: string]
 }>()
 
@@ -74,20 +75,20 @@ function formatOperator(operator: string) {
 }
 
 function onColumnChange(filter: TableFilter, column: string) {
-  filter.column = column
   const meta = getColumnMeta(column)
-  filter.operator = getDefaultOperator(meta?.type)
+  const updatedFilter = { ...filter, column, operator: getDefaultOperator(meta?.type) }
 
   switch (meta?.type) {
     case 'date-range':
-      filter.value = { start: undefined, end: undefined }
+      updatedFilter.value = { start: undefined, end: undefined }
       break
     case 'boolean':
-      filter.value = false
+      updatedFilter.value = false
       break
     default:
-      filter.value = ''
+      updatedFilter.value = ''
   }
+  emit('update', updatedFilter)
 }
 </script>
 
@@ -143,10 +144,18 @@ function onColumnChange(filter: TableFilter, column: string) {
               />
 
               <!-- Operador -->
-              <USelect v-model="filter.operator" :items="getOperators(filter.column)" />
+              <USelect
+                :model-value="filter.operator"
+                :items="getOperators(filter.column)"
+                @update:model-value="(operator) => emit('update', { ...filter, operator: operator as FilterOperator })"
+              />
 
               <!-- Valor -->
-              <FilterValueInput v-model="filter.value" :meta="getColumnMeta(filter.column)" />
+              <FilterValueInput
+                :model-value="filter.value"
+                :meta="getColumnMeta(filter.column)"
+                @update:model-value="(value) => emit('update', { ...filter, value })"
+              />
 
               <!-- Eliminar -->
               <UButton class="justify-self-end" color="error" variant="ghost" icon="i-lucide-trash" aria-label="Quitar filtro" @click="emit('remove', filter.id)" />

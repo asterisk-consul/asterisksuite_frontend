@@ -38,7 +38,7 @@ const serverFilters = defineModel<TableFilter[]>('filters', { default: () => [] 
 const tableRef = computed(() => props.table)
 const columnsRef = computed(() => props.columns)
 
-const { filters, addFilter, removeFilter, clearFilters } = useTableFilters(tableRef, columnsRef, {
+const { filters, addFilter, updateFilter, removeFilter, clearFilters } = useTableFilters(tableRef, columnsRef, {
   filters: serverFilters,
   applyLocally: !props.serverSide
 })
@@ -180,7 +180,7 @@ const hasActiveFilters = computed(
         <!-- Chip filtros -->
 
         <!-- Popover -->
-        <TableFiltersPopover :filters="filters" :columns="columns" @add="addFilter" @remove="removeFilter" />
+        <TableFiltersPopover :filters="filters" :columns="columns" @add="addFilter" @update="updateFilter" @remove="removeFilter" />
 
         <!-- Limpiar -->
         <UButton

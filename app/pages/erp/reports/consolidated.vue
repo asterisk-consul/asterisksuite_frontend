@@ -4,6 +4,7 @@ import type { ConsolidatedReportCompanyOption, ConsolidatedReportResponse, Conso
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
+import { reportTableFilter } from '~/modulos/erp/management-reports/report-table-filter'
 
 definePageMeta({ middleware: ['auth', 'management-reports'] })
 
@@ -52,13 +53,13 @@ const companyTones = [
   'bg-secondary/10 text-secondary ring-secondary/20',
 ]
 const textColumn = (accessorKey: string, label: string): ExtendedColumn<ReportTableRow> => ({
-  accessorKey, header: label, meta: { label, filter: { type: 'text', operators: ['contains', 'equals'] } },
+  accessorKey, header: label, filterFn: reportTableFilter, meta: { label, filter: { type: 'text', operators: ['contains', 'equals'] } },
 })
 const numberColumn = (accessorKey: string, label: string): ExtendedColumn<ReportTableRow> => ({
-  accessorKey, header: label, meta: { label, filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
+  accessorKey, header: label, filterFn: reportTableFilter, meta: { label, filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
 })
 const selectColumn = (accessorKey: string, label: string, values: string[]): ExtendedColumn<ReportTableRow> => ({
-  accessorKey, header: label, meta: { label, filter: { type: 'select', options: values.map(value => ({ label: value, value })) } },
+  accessorKey, header: label, filterFn: reportTableFilter, meta: { label, filter: { type: 'select', options: values.map(value => ({ label: value, value })) } },
 })
 const quickFilters = (...fields: Array<[string, string]>): FilterField[] => fields.map(([id, label]) => ({ id, label }))
 const sortOptions = (...fields: Array<[string, string]>): SortField[] => fields.map(([label, value]) => ({ label, value }))
@@ -106,6 +107,7 @@ const detailColumns = (showBalance: boolean): ExtendedColumn<ReportTableRow>[] =
 ]
 const companyColumn: ExtendedColumn<ReportTableRow> = {
   accessorKey: 'company_name', header: 'Empresa',
+  filterFn: reportTableFilter,
   meta: { label: 'Empresa', filter: { type: 'text', operators: ['contains', 'equals'] } },
   cell: ({ row }: any) => h('span', { class: `inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${row.original.company_tone}` }, row.original.company_name),
 }
