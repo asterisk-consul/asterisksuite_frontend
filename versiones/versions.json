@@ -1,5 +1,60 @@
 [
  {
+  "version": "0.96.0-alpha",
+  "date": "2026-10-23",
+  "stage": "alpha",
+  "notes": "Los cobros por POS, app, QR y otros canales se liquidan en lotes hacia bancos o billeteras virtuales, con descuentos y trazabilidad de las transferencias.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "Configurar canales POS, app, QR, link y e-commerce sin depender de la marca de tarjeta del cliente"
+   },
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "Agrupar cobros por canal y moneda y registrar liquidaciones netas con comisiones, impuestos, retenciones y referencia"
+   },
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "Acreditar liquidaciones en bancos o billeteras virtuales y transferir saldos entre cuentas sin duplicar ingresos"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Registrar cobros y liquidaciones por canal"
+ },
+ {
+  "version": "0.95.0-alpha",
+  "date": "2026-10-23",
+  "stage": "alpha",
+  "notes": "Las tarjetas corporativas agrupan consumos en resúmenes según cierre y vencimiento; el pago total genera un único débito bancario y puede revertirse de forma controlada.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "Las compras confirmadas con tarjeta corporativa se agrupan en resúmenes mensuales con detalle de cuotas"
+   },
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "El pago total de un resumen salda sus cuotas y registra un único débito en la cuenta bancaria"
+   },
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "La reversión anula el débito bancario y restablece las cuotas pendientes"
+   },
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Las cuotas aplican cierre y vencimiento, admiten hasta 48 cuotas y distribuyen los centavos sin diferencias"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Administrar resúmenes de tarjetas corporativas"
+ },
+ {
   "version": "0.94.0-alpha",
   "date": "2026-10-23",
   "stage": "alpha",

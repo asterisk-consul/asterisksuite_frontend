@@ -57,6 +57,9 @@ export const useBankAccountsService = () => {
     })
   }
 
+  const createTransfer = (id: string, data: { destination_bank_account_id: string; amount: number; date: string; reference?: string; notes?: string }) =>
+    $fetch(`${urlBase}/${id}/transfers`, { method: 'POST', body: data })
+
   const cancelMovement = (id: string, movementId: string) => {
     return $fetch<{ ok: boolean }>(`${urlBase}/${id}/movements/${movementId}/cancel`, {
       method: 'POST'
@@ -95,6 +98,7 @@ export const useBankAccountsService = () => {
     remove,
     getMovements,
     createMovement,
+    createTransfer,
     cancelMovement,
     getUserRoles,
     addUserRole,

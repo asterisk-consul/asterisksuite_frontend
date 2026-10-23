@@ -198,14 +198,13 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'intake.read'
       },
       { label: 'Cheques', icon: 'i-lucide-square-check', to: '/erp/treasury/checks', permission: 'payments.read' },
-      /* Oculto temporalmente del sidebar a pedido; las pantallas y rutas se conservan.
       {
         label: 'Tarjetas',
         icon: 'i-lucide-credit-card',
         permissions: ['credit_cards.company.read', 'card_collections.read', 'card_settlements.read'],
         children: [
           {
-            label: 'Tarjetas y canales',
+            label: 'Tarjetas y resúmenes',
             icon: 'i-lucide-wallet-cards',
             to: '/erp/treasury/cards',
             permissions: ['credit_cards.company.read', 'card_settings.read']
@@ -224,14 +223,13 @@ export const navigationTree: DrilldownNode[] = [
           }
         ]
       },
-      */
       {
         label: 'Cuentas corrientes',
         icon: 'i-lucide-file-text',
         to: '/erp/treasury/current-accounts',
         permission: 'payments.read'
       },
-      /* Oculto temporalmente del sidebar a pedido; las pantallas y rutas se conservan.
+      /* Oculto temporalmente del sidebar; la pantalla y la ruta se conservan.
       {
         label: 'Inversiones',
         icon: 'i-lucide-chart-no-axes-combined',

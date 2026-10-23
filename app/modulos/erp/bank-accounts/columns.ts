@@ -9,6 +9,7 @@ const accountTypeConfig: Record<string, { label: string; color?: string }> = {
   SAVINGS: { label: 'Caja de ahorro', color: 'info' },
   CHECKING: { label: 'Cuenta corriente', color: 'primary' },
   SALARY: { label: 'Cuenta sueldo', color: 'success' },
+  VIRTUAL_WALLET: { label: 'Billetera virtual', color: 'info' },
   OTHER: { label: 'Otra', color: 'neutral' }
 }
 

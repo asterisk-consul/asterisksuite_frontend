@@ -671,7 +671,7 @@ const paymentMethods = computed(() => [
   { label: 'Cheque', value: 'CHECK' },
   { label: 'Transferencia bancaria', value: 'BANK_TRANSFER' },
   ...((isOwnerOrAdmin.value || (isCollection.value ? hasPermission('card_collections.create') : hasPermission('credit_cards.company.use')))
-    ? [{ label: isCollection.value ? 'Tarjeta de crédito' : 'Tarjeta corporativa', value: 'CREDIT_CARD' }]
+    ? [{ label: isCollection.value ? 'Tarjeta / POS / app' : 'Tarjeta corporativa', value: 'CREDIT_CARD' }]
     : []),
   ...(isCollection.value && (payrollDeductionEligible.value || form.payment_method === 'PAYROLL_DEDUCTION')
     ? [{ label: 'Descuento de haberes', value: 'PAYROLL_DEDUCTION' }]
@@ -742,7 +742,10 @@ const isCheck = computed(() => form.payment_method === 'CHECK')
 const isCreditCard = computed(() => form.payment_method === 'CREDIT_CARD')
 const availableCardOptions = computed(() => cardOptions.value
   .filter(card => card.active && card.type === (isCollection.value ? 'CUSTOMER' : 'COMPANY') && card.currency_code === form.currency_code)
-  .map(card => ({ label: `${card.name} · ${card.brand}${card.type === 'COMPANY' ? ` · •••• ${card.last_four}` : ''}`, value: card.id })))
+  .map(card => ({ label: card.type === 'COMPANY'
+    ? `${card.name} · ${card.brand} · •••• ${card.last_four}`
+    : `${card.name} · ${({ POS: 'POS', APP: 'App', QR: 'QR', PAYMENT_LINK: 'Link de pago', ECOMMERCE: 'E-commerce', OTHER: 'Otro' } as Record<string, string>)[card.channel_type] || 'Canal'} · ${card.bank_name}`,
+  value: card.id })))
 const isCollectingCheck = computed(() => isCollection.value && isCheck.value)
 const isPayingWithCheck = computed(() => isPayment.value && isCheck.value)
 const instrumentValidationAttempted = ref(false)
@@ -1942,14 +1945,14 @@ defineExpose({ completeDraft: completePaymentDraft })
     <!-- TARJETA DE CRÉDITO -->
     <div v-if="isCreditCard" class="border border-primary/30 bg-primary/5 rounded-lg p-4 space-y-4">
       <div>
-        <h3 class="font-semibold">{{ isCollection ? 'Cobro con tarjeta' : 'Pago con tarjeta corporativa' }}</h3>
-        <p class="text-sm text-muted">{{ isCollection ? 'La factura quedará cobrada y el importe permanecerá pendiente hasta registrar la liquidación bancaria.' : 'La factura quedará pagada y el consumo se incorporará a las cuotas de la tarjeta.' }}</p>
+        <h3 class="font-semibold">{{ isCollection ? 'Cobro por tarjeta o canal' : 'Pago con tarjeta corporativa' }}</h3>
+        <p class="text-sm text-muted">{{ isCollection ? 'La factura queda cobrada al cliente; el dinero queda pendiente hasta conciliar el depósito del POS o procesador.' : 'La factura quedará pagada y el consumo se incorporará a las cuotas de la tarjeta.' }}</p>
       </div>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <UFormField :label="isCollection ? 'Canal de cobro' : 'Tarjeta corporativa'" required class="sm:col-span-2">
-          <USelectMenu v-model="form.credit_card_id" :items="availableCardOptions" value-key="value" searchable class="w-full" :placeholder="isCollection ? 'Seleccionar adquirente o comercio' : 'Seleccionar tarjeta'" />
+          <USelectMenu v-model="form.credit_card_id" :items="availableCardOptions" value-key="value" searchable class="w-full" :placeholder="isCollection ? 'Seleccionar POS, app o procesador' : 'Seleccionar tarjeta'" />
         </UFormField>
-        <UFormField label="Cuotas" required><UInput v-model.number="form.installments_total" type="number" min="1" class="w-full" /></UFormField>
+        <UFormField label="Cuotas" required><UInput v-model.number="form.installments_total" type="number" min="1" max="48" class="w-full" /></UFormField>
         <UFormField label="Autorización / cupón"><UInput v-model="form.card_authorization" class="w-full" /></UFormField>
         <UFormField v-if="isCollection" label="Acreditación estimada"><DataPicker v-model="form.expected_clearing_date" /></UFormField>
       </div>

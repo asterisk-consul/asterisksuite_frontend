@@ -93,6 +93,7 @@ const ACCOUNT_TYPE_CONFIG: Record<string, { label: string; icon: string }> = {
   SAVINGS: { label: 'Caja de ahorro', icon: 'i-lucide-piggy-bank' },
   CHECKING: { label: 'Cuenta corriente', icon: 'i-lucide-landmark' },
   SALARY: { label: 'Cuenta sueldo', icon: 'i-lucide-wallet' },
+  VIRTUAL_WALLET: { label: 'Billetera virtual', icon: 'i-lucide-wallet-cards' },
   OTHER: { label: 'Otra', icon: 'i-lucide-circle-dot' }
 }
 
@@ -422,6 +423,7 @@ const accountTypes = [
   { label: 'Caja de ahorro', value: 'SAVINGS' },
   { label: 'Cuenta corriente', value: 'CHECKING' },
   { label: 'Cuenta sueldo', value: 'SALARY' },
+  { label: 'Billetera virtual', value: 'VIRTUAL_WALLET' },
   { label: 'Otra', value: 'OTHER' }
 ]
 
@@ -598,10 +600,10 @@ const selectedAccountType = computed({
                     icon="i-lucide-wallet"
                   />
                 </UFormField>
-                <UFormField label="Banco" name="bank_name" required description="Entidad bancaria.">
+                <UFormField :label="form.account_type === 'VIRTUAL_WALLET' ? 'Plataforma' : 'Banco'" name="bank_name" required :description="form.account_type === 'VIRTUAL_WALLET' ? 'Ej.: Mercado Pago, Ualá o la billetera que uses.' : 'Entidad bancaria.'">
                   <UInput
                     v-model="form.bank_name"
-                    placeholder="Ej: Banco Nación"
+                    :placeholder="form.account_type === 'VIRTUAL_WALLET' ? 'Ej: Mercado Pago' : 'Ej: Banco Nación'"
                     class="w-full"
                     icon="i-lucide-building-2"
                   />

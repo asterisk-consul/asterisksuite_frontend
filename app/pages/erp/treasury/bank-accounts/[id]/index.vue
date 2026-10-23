@@ -15,9 +15,14 @@ const route = useRoute()
 const router = useRouter()
 const accountId = route.params.id as string
 
-const { current: account, movements, fetchOne, fetchMovements, loading } = useBankAccounts()
+const { current: account, movements, bankAccounts, init, createTransfer, fetchOne, fetchMovements, loading } = useBankAccounts()
 
 const movementModalOpen = ref(false)
+const transferModalOpen = ref(false)
+const transferring = ref(false)
+const toast = useToast()
+const transferDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
+const transferForm = reactive({ destination_bank_account_id: '', amount: 0, date: transferDate(), reference: '', notes: '' })
 
 useBreadcrumbEntityLabel(
   `/erp/treasury/bank-accounts/${accountId}`,
@@ -32,7 +37,7 @@ function onSortFieldSelect(columnId: string) {
 }
 
 onMounted(async () => {
-  await fetchOne(accountId)
+  await Promise.all([fetchOne(accountId), init()])
   await fetchMovements(accountId)
 })
 
@@ -56,15 +61,18 @@ const ACCOUNT_TYPE_CONFIG: Record<string, { label: string; icon: string }> = {
   SAVINGS: { label: 'Caja de ahorro', icon: 'i-lucide-piggy-bank' },
   CHECKING: { label: 'Cuenta corriente', icon: 'i-lucide-landmark' },
   SALARY: { label: 'Cuenta sueldo', icon: 'i-lucide-wallet' },
+  VIRTUAL_WALLET: { label: 'Billetera virtual', icon: 'i-lucide-wallet-cards' },
   OTHER: { label: 'Otra', icon: 'i-lucide-circle-dot' }
 }
 
 const getCurrencyConfig = (code: string) =>
   CURRENCY_CONFIG[code] ?? { label: code, color: 'text-muted', icon: '💰', bg: 'bg-muted/10' }
 const getAccountTypeConfig = (type: string) => ACCOUNT_TYPE_CONFIG[type] ?? { label: type, icon: 'i-lucide-circle-dot' }
+const isInternalTransfer = (movement: any) => movement.reference_type === 'bank_account_transfer'
 
 const totalIn = computed(() =>
   movements.value
+    .filter(movement => !isInternalTransfer(movement))
     .map(getMovementSignedAmount)
     .filter(amount => amount > 0)
     .reduce((sum, amount) => sum + amount, 0)
@@ -72,6 +80,7 @@ const totalIn = computed(() =>
 
 const totalOut = computed(() =>
   movements.value
+    .filter(movement => !isInternalTransfer(movement))
     .map(getMovementSignedAmount)
     .filter(amount => amount < 0)
     .reduce((sum, amount) => sum + Math.abs(amount), 0)
@@ -80,11 +89,11 @@ const totalOut = computed(() =>
 const realBalance = computed(() => Number(account.value?.balance ?? 0))
 
 const incomeMovementCount = computed(() =>
-  movements.value.filter(movement => getMovementSignedAmount(movement) > 0).length
+  movements.value.filter(movement => !isInternalTransfer(movement) && getMovementSignedAmount(movement) > 0).length
 )
 
 const expenseMovementCount = computed(() =>
-  movements.value.filter(movement => getMovementSignedAmount(movement) < 0).length
+  movements.value.filter(movement => !isInternalTransfer(movement) && getMovementSignedAmount(movement) < 0).length
 )
 
 const columns = bankMovementColumns({ onSortFieldSelect })
@@ -113,6 +122,15 @@ const links = computed(() => [
     onClick: goBack
   },
   {
+    label: 'Transferir a otra cuenta',
+    icon: 'i-lucide-arrow-left-right',
+    variant: 'outline' as const,
+    onClick: () => {
+      Object.assign(transferForm, { destination_bank_account_id: '', amount: 0, date: transferDate(), reference: '', notes: '' })
+      transferModalOpen.value = true
+    }
+  },
+  {
     label: 'Registrar movimiento',
     icon: 'i-lucide-plus',
     color: 'primary' as const,
@@ -120,6 +138,29 @@ const links = computed(() => [
     onClick: () => { movementModalOpen.value = true }
   }
 ])
+
+const transferDestinations = computed(() => bankAccounts.value
+  .filter(item => item.id !== accountId && item.active && item.currency_code === account.value?.currency_code)
+  .map(item => ({ label: `${item.bank_name} · ${item.name} · ${formatCurrency(item.balance, item.currency_code)}`, value: item.id })))
+
+const submitTransfer = async () => {
+  if (transferring.value || !account.value || !transferForm.destination_bank_account_id || Number(transferForm.amount) <= 0) return
+  transferring.value = true
+  try {
+    await createTransfer(accountId, { ...transferForm, amount: Number(transferForm.amount) })
+    toast.add({ title: 'Transferencia registrada', description: 'Se actualizaron los saldos de ambas cuentas.', color: 'success' })
+    transferModalOpen.value = false
+    await Promise.all([fetchOne(accountId), fetchMovements(accountId), init()])
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo transferir', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    transferring.value = false
+  }
+}
+
+const closeTransferModal = () => {
+  if (!transferring.value) transferModalOpen.value = false
+}
 
 const handleMovementSaved = async () => {
   await fetchOne(accountId)
@@ -216,5 +257,24 @@ const handleMovementSaved = async () => {
       :current-balance="realBalance"
       @saved="handleMovementSaved"
     />
+
+    <UModal v-model:open="transferModalOpen" title="Transferir entre cuentas" :ui="{ content: 'sm:max-w-xl' }">
+      <template #body>
+        <div class="space-y-4">
+          <UAlert color="info" variant="subtle" icon="i-lucide-arrow-left-right" :title="`${account.name} → destino`" description="Se registrarán juntos el débito de esta cuenta y el crédito de la cuenta destino. No es un gasto ni un ingreso." />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField class="sm:col-span-2" label="Cuenta destino" required><USelectMenu v-model="transferForm.destination_bank_account_id" :items="transferDestinations" value-key="value" class="w-full" placeholder="Banco o billetera virtual" /></UFormField>
+            <UFormField label="Importe" required><UInput v-model.number="transferForm.amount" type="number" min="0.01" step="0.01" class="w-full" :max="realBalance" /><p class="mt-1 text-xs text-muted">Disponible: {{ formatCurrency(realBalance, account.currency_code) }}</p></UFormField>
+            <UFormField label="Fecha" required><UInput v-model="transferForm.date" type="date" class="w-full" /></UFormField>
+            <UFormField label="Referencia"><UInput v-model="transferForm.reference" class="w-full" /></UFormField>
+            <UFormField label="Observaciones"><UInput v-model="transferForm.notes" class="w-full" /></UFormField>
+          </div>
+          <div class="flex justify-end gap-2 border-t border-default pt-4">
+            <UButton label="Cancelar" variant="ghost" :disabled="transferring" @click="closeTransferModal" />
+            <UButton label="Confirmar transferencia" icon="i-lucide-arrow-left-right" :loading="transferring" :disabled="transferring || !transferForm.destination_bank_account_id || Number(transferForm.amount) <= 0 || Number(transferForm.amount) > realBalance" @click="submitTransfer" />
+          </div>
+        </div>
+      </template>
+    </UModal>
   </UPage>
 </template>

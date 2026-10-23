@@ -21,6 +21,7 @@ const PATH_MAP: Record<string, string> = {
   'bank-accounts': '/erp/bank-accounts',
   'bank-concepts': '/erp/bank-concepts',
   'checks': '/erp/checks',
+  'credit-cards': '/erp/credit-cards',
   'current-accounts': '/erp/current-accounts',
   'dashboard': '/erp/dashboard',
   'document-sequences': '/erp/document-sequences',

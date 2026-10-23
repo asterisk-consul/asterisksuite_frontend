@@ -43,6 +43,9 @@ export function useBankAccounts() {
   const createMovement = async (id: string, payload: CreateBankMovementInput) =>
     store.createMovement(id, payload)
 
+  const createTransfer = async (id: string, payload: { destination_bank_account_id: string; amount: number; date: string; reference?: string; notes?: string }) =>
+    service.createTransfer(id, payload)
+
   const cancelMovement = async (id: string, movementId: string) =>
     store.cancelMovement(id, movementId)
 
@@ -111,6 +114,7 @@ export function useBankAccounts() {
     remove,
     fetchMovements,
     createMovement,
+    createTransfer,
     cancelMovement,
     fetchOne: store.fetchOne,
 

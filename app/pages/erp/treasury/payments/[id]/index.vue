@@ -153,6 +153,14 @@ const handleSubmit = async (formData: PaymentFormData) => {
     const updated = await update(paymentId, {
       date: formData.date,
       payment_method: formData.payment_method as any,
+      credit_card_id:
+        formData.payment_method === 'CREDIT_CARD' ? formData.credit_card_id || undefined : undefined,
+      installments_total:
+        formData.payment_method === 'CREDIT_CARD' ? formData.installments_total ?? 1 : undefined,
+      card_authorization:
+        formData.payment_method === 'CREDIT_CARD' ? formData.card_authorization || undefined : undefined,
+      expected_clearing_date:
+        formData.payment_method === 'CREDIT_CARD' ? formData.expected_clearing_date || undefined : undefined,
       payment_mode: formData.payment_mode as any,
       amount: formData.amount,
       currency_code: formData.currency_code,
