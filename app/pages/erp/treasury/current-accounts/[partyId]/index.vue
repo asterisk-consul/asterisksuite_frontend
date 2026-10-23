@@ -22,6 +22,11 @@ const { statement, entries: storeEntries, loading, fetchStatement, fetchEntries 
 const partyId = route.params.partyId as string
 
 const account = ref<CurrentAccount | null>(null)
+const activeAccountTab = ref('detail')
+const accountTabs = [
+  { label: 'Detalle de la cuenta', value: 'detail', slot: 'detail', icon: 'i-lucide-list' },
+  { label: 'Análisis de la cuenta', value: 'analysis', slot: 'analysis', icon: 'i-lucide-chart-no-axes-combined' }
+]
 
 useBreadcrumbEntityLabel(
   `/erp/treasury/current-accounts/${partyId}`,
@@ -236,30 +241,44 @@ const accountActionItems = computed(() => [
       :account-count="entries.length"
     />
 
-    <div class="flex items-end justify-between pt-2">
-      <div>
-        <p class="text-base font-semibold">Análisis de la cuenta</p>
-        <p class="text-sm text-muted">Evolución y composición de los movimientos</p>
-      </div>
-    </div>
+    <UTabs
+      v-model="activeAccountTab"
+      :items="accountTabs"
+      variant="link"
+      :ui="{ trigger: 'cursor-pointer' }"
+      class="w-full"
+    >
+      <template #detail>
+        <div class="space-y-4 pt-4">
+          <div>
+            <p class="text-base font-semibold">Detalle de la cuenta</p>
+            <p class="text-sm text-muted">Consultá, filtrá y ordená todos los movimientos</p>
+          </div>
 
-    <CurrentAccountChart
-      :entries="entries"
-      :balance="balance"
-      :party-type="account?.party_type"
-    />
+          <CurrentAccountEntryTable
+            v-if="account"
+            :entries="entries"
+            :loading="loading"
+            :party-type="account.party_type"
+          />
+        </div>
+      </template>
 
-    <div class="pt-2">
-      <p class="text-base font-semibold">Detalle de la cuenta</p>
-      <p class="text-sm text-muted">Consultá, filtrá y ordená todos los movimientos</p>
-    </div>
+      <template #analysis>
+        <div class="space-y-4 pt-4">
+          <div>
+            <p class="text-base font-semibold">Análisis de la cuenta</p>
+            <p class="text-sm text-muted">Evolución y composición de los movimientos</p>
+          </div>
 
-    <CurrentAccountEntryTable
-      v-if="account"
-      :entries="entries"
-      :loading="loading"
-      :party-type="account.party_type"
-    />
+          <CurrentAccountChart
+            :entries="entries"
+            :balance="balance"
+            :party-type="account?.party_type"
+          />
+        </div>
+      </template>
+    </UTabs>
 
     <AdjustBalanceModal
       v-if="account"

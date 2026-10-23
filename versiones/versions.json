@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.93.5-alpha",
+  "date": "2026-10-23",
+  "stage": "alpha",
+  "notes": "La cuenta corriente organiza el detalle de movimientos y el análisis en pestañas, con el detalle como vista inicial.",
+  "changes": [
+   {
+    "type": "style",
+    "scope": "treasury",
+    "title": "El detalle de movimientos y el análisis de la cuenta se consultan en pestañas, con el detalle seleccionado al ingresar"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Organizar la vista de cuenta corriente en pestañas"
+ },
+ {
   "version": "0.93.4-alpha",
   "date": "2026-10-23",
   "stage": "alpha",
