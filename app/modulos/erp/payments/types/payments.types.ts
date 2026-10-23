@@ -28,7 +28,13 @@ export interface PaymentDocument {
     party_id: string | null
     date: string
     currency_code: string
-    document_types?: { id?: string; code: string; description: string; category?: string | null } | null
+    document_types?: {
+      id?: string
+      code: string
+      description: string
+      category?: string | null
+      system_modules?: { code: string } | null
+    } | null
   }
 }
 

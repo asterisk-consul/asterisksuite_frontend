@@ -1,5 +1,5 @@
 import { h } from 'vue'
-import { UButton } from '#components'
+import { NuxtLink, UButton } from '#components'
 import type { Payment } from '~/modulos/erp/payments/types/payments.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
@@ -46,9 +46,16 @@ function getDocumentReferences(row: Row) {
     const kind = document?.document_types?.description ?? document?.document_types?.code ?? 'Comprobante'
     const number = document?.number != null ? `N° ${document.number}` : 'Documento'
     const applied = formatPaymentAmount(allocation.amount_applied, document?.currency_code ?? row.currency_code)
+    const moduleCode = document?.document_types?.system_modules?.code
+    const to = moduleCode === 'SALES'
+      ? `/erp/sales/${document?.id}`
+      : moduleCode === 'PURCHASES'
+        ? `/erp/purchases/purchases-documents/${document?.id}`
+        : undefined
     return {
       label: `${kind} · ${number}`,
-      detail: applied ? `Aplicado: ${applied}` : undefined
+      detail: applied ? `Aplicado: ${applied}` : undefined,
+      to
     }
   })
 
@@ -156,7 +163,14 @@ export const paymentColumns = (actions: {
           const visibleReferences = references.slice(0, 2)
           return h('div', { class: 'flex min-w-48 flex-col gap-1' }, [
             ...visibleReferences.map(reference => h('div', { class: 'min-w-0' }, [
-              h('p', { class: 'truncate text-sm font-medium', title: reference.label }, reference.label),
+              reference.to
+                ? h(NuxtLink, {
+                    to: reference.to,
+                    class: 'block truncate text-sm font-medium text-primary hover:underline',
+                    title: `Abrir ${reference.label}`,
+                    onClick: (event: MouseEvent) => event.stopPropagation()
+                  }, () => reference.label)
+                : h('p', { class: 'truncate text-sm font-medium', title: reference.label }, reference.label),
               reference.detail ? h('p', { class: 'truncate text-xs text-muted', title: reference.detail }, reference.detail) : null
             ])),
             references.length > visibleReferences.length

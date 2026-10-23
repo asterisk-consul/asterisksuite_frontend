@@ -82,6 +82,7 @@ const props = defineProps<{
   initialWithholdings?: WithholdingProposal[]
   loading?: boolean
   readonly?: boolean
+  localDraftEnabled?: boolean
   submitLabel?: string
 }>()
 
@@ -448,7 +449,7 @@ const {
   completeDraft: completePaymentDraft
 } = useLocalFormDraft<PaymentDraft>({
   key: paymentDraftKey,
-  enabled: computed(() => !props.readonly),
+  enabled: computed(() => props.localDraftEnabled !== false && !props.readonly),
   source: () => ({
     form: { ...form },
     selectedDocs: Array.from(selectedDocs.value.entries()),
@@ -540,13 +541,17 @@ onMounted(async () => {
 
 watch(
   [() => props.modelValue, () => props.pendingPurchaseDocuments, () => props.pendingSalesDocuments],
-  ([val]) => {
+  ([val], oldValues) => {
     if (!val) {
       Object.assign(form, { ...defaultForm })
       selectedDocs.value.clear()
       return
     }
-    Object.assign(form, val)
+
+    // Los documentos pendientes llegan después del pago. Al cambiar esas listas,
+    // solo hay que rehidratar las asociaciones; volver a copiar el modelo inicial
+    // podía pisar cambios hechos por el usuario, incluida la fecha.
+    if (val !== oldValues?.[0]) Object.assign(form, val)
 
     // Poblar selectedDocs desde comprobantes y obligaciones de Tesorería.
     if (val.documents?.length || val.obligations?.length) {

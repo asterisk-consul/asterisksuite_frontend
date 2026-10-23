@@ -1,5 +1,25 @@
 [
  {
+  "version": "0.93.6-alpha",
+  "date": "2026-10-23",
+  "stage": "alpha",
+  "notes": "Mejoras en la consulta y edición de pagos: acceso directo a comprobantes y conservación de la fecha editada.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "payments",
+    "title": "La referencia de una factura aplicada en pagos permite abrir directamente el comprobante de ventas o compras"
+   },
+   {
+    "type": "fix",
+    "scope": "payments",
+    "title": "La fecha editada de un pago se conserva mientras se cargan documentos pendientes y los borradores locales no pisan la edición"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Facilitar la consulta y edición de pagos"
+ },
+ {
   "version": "0.93.5-alpha",
   "date": "2026-10-23",
   "stage": "alpha",

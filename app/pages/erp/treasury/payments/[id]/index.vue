@@ -372,6 +372,7 @@ const handleAdvanceSuccess = async () => {
           :available-own-checks="availableOwnChecks"
           :available-customer-checks="availableCustomerChecks"
           :initial-withholdings="initialWithholdings"
+          :local-draft-enabled="false"
           :loading="isSaving"
           submit-label="Guardar borrador"
           @update:model-value="handleFormModelUpdate"
