@@ -11,7 +11,7 @@ import { paymentColumns } from '~/modulos/erp/payments/columns'
 import type { Payment } from '~/modulos/erp/payments/types/payments.types'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 
-import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 
 const { payments, loading, init, confirm: confirmPayment, markAsPaid, reject, reverse, remove } = usePayments()
@@ -132,14 +132,16 @@ const links: ButtonProps[] = [
 
 const filterFields: FilterField[] = [
   { id: 'number', label: 'Filtrar por N°...', class: 'w-32' },
-  { id: 'description', label: 'Filtrar por descripción...', class: 'w-56' },
-  { id: 'account', label: 'Filtrar por cuenta...', class: 'w-48' }
+  { id: 'party_name', label: 'Filtrar por tercero...', class: 'w-48' },
+  { id: 'document_reference', label: 'Filtrar por documento o concepto...', class: 'w-64' }
 ]
 
 const sortFields: SortField[] = [
   { label: 'N°', value: 'number' },
   { label: 'Fecha', value: 'date' },
   { label: 'Tipo', value: 'type' },
+  { label: 'Tercero', value: 'party_name' },
+  { label: 'Documento / concepto', value: 'document_reference' },
   { label: 'Método', value: 'payment_method' },
   { label: 'Monto', value: 'amount' },
   { label: 'Cuenta', value: 'account' },
@@ -231,12 +233,13 @@ const dataActions = computed(() => [
       </div>
     </div>
 
-    <LogisticaTable
+    <AsteriskTable
       :loading="loading"
       :data="filteredPayments"
       :columns="columns"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
+      storage-key="treasury-payments"
       v-model:sorting="sorting"
     />
 

@@ -31,6 +31,54 @@ const methodConfig: Record<string, { label: string; color?: string }> = {
   // VIRTUAL_WALLET: { label: 'Billetera virtual', color: 'success' }
 }
 
+const formatPaymentAmount = (amount: number | string | null | undefined, currency = 'ARS') => {
+  if (amount == null) return null
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 2
+  }).format(Number(amount) || 0)
+}
+
+function getDocumentReferences(row: Row) {
+  const documents = (row.documents ?? []).map((allocation) => {
+    const document = allocation.document
+    const kind = document?.document_types?.description ?? document?.document_types?.code ?? 'Comprobante'
+    const number = document?.number != null ? `N° ${document.number}` : 'Documento'
+    const applied = formatPaymentAmount(allocation.amount_applied, document?.currency_code ?? row.currency_code)
+    return {
+      label: `${kind} · ${number}`,
+      detail: applied ? `Aplicado: ${applied}` : undefined
+    }
+  })
+
+  const obligations = (row.obligations ?? []).map((obligation) => {
+    const amount = formatPaymentAmount(obligation.amount ?? obligation.estimated_amount, obligation.currency_code)
+    return {
+      label: obligation.description,
+      detail: [`Período ${obligation.period_key}`, amount].filter(Boolean).join(' · ')
+    }
+  })
+
+  if (documents.length || obligations.length) return [...documents, ...obligations]
+  return row.description
+    ? [{ label: 'Sin comprobante asociado', detail: row.description }]
+    : []
+}
+
+function getDocumentSearchText(row: Row) {
+  return [
+    ...getDocumentReferences(row).flatMap(reference => [reference.label, reference.detail]),
+    row.description
+  ].filter(Boolean).join(' ')
+}
+
+function getAvailableAdvanceAmount(row: Row) {
+  if (row.payment_mode !== 'ADVANCE') return null
+  const applied = row.documents?.reduce((sum, document) => sum + Number(document.amount_applied), 0) ?? 0
+  return Math.max(0, Number(row.amount) - applied)
+}
+
 export const paymentColumns = (actions: {
   onDetail?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
@@ -89,6 +137,69 @@ export const paymentColumns = (actions: {
         }
       },
       {
+        id: 'party_name',
+        label: 'Tercero',
+        accessorFn: (row) => row.party?.name ?? '',
+        sortable: true,
+        meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } },
+        cell: ({ row }) => row.original.party?.name ?? '—'
+      },
+      {
+        id: 'document_reference',
+        label: 'Documento / concepto pagado',
+        accessorFn: getDocumentSearchText,
+        sortable: true,
+        meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } },
+        cell: ({ row }) => {
+          const references = getDocumentReferences(row.original)
+          if (!references.length) return h('span', { class: 'text-sm text-muted' }, 'Sin documento asociado')
+          const visibleReferences = references.slice(0, 2)
+          return h('div', { class: 'flex min-w-48 flex-col gap-1' }, [
+            ...visibleReferences.map(reference => h('div', { class: 'min-w-0' }, [
+              h('p', { class: 'truncate text-sm font-medium', title: reference.label }, reference.label),
+              reference.detail ? h('p', { class: 'truncate text-xs text-muted', title: reference.detail }, reference.detail) : null
+            ])),
+            references.length > visibleReferences.length
+              ? h('span', { class: 'text-xs text-primary' }, `+ ${references.length - visibleReferences.length} más · abrir pago para ver todo`)
+              : null
+          ])
+        }
+      },
+      {
+        key: 'amount',
+        label: 'Monto',
+        sortable: true,
+        meta: { filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
+        cell: ({ row }) => {
+          const value = row.original.amount
+          if (value == null) return '—'
+          return new Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: row.original.currency_code || 'ARS',
+            maximumFractionDigits: 2
+          }).format(Number(value))
+        }
+      },
+      {
+        key: 'available_amount',
+        label: 'Disponible',
+        meta: { filter: false },
+        cell: ({ row }) => {
+          if (row.original.payment_mode !== 'ADVANCE') return '—'
+          const available = getAvailableAdvanceAmount(row.original) ?? 0
+          if (available <= 0) return 'Saldado'
+          const formatted = new Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: row.original.currency_code || 'ARS',
+            maximumFractionDigits: 2
+          }).format(available)
+          return h('div', { class: 'flex items-center gap-1' }, [
+            h('span', { class: 'text-xs text-warning-600 dark:text-warning-400' }, 'Pendiente de asociar documento'),
+            h('span', {}, formatted)
+          ])
+        }
+      },
+      {
         key: 'payment_method',
         label: 'Método',
         sortable: true,
@@ -113,39 +224,6 @@ export const paymentColumns = (actions: {
         }
       },
       {
-        key: 'amount',
-        label: 'Monto',
-        sortable: true,
-        cell: ({ row }) => {
-          const value = row.original.amount
-          if (value == null) return '—'
-          return new Intl.NumberFormat('es-AR', {
-            style: 'currency',
-            currency: row.original.currency_code || 'ARS',
-            maximumFractionDigits: 2
-          }).format(Number(value))
-        }
-      },
-      {
-        key: 'available_amount',
-        label: 'Disponible',
-        cell: ({ row }) => {
-          if (row.original.payment_mode !== 'ADVANCE') return '—'
-          const applied = row.original.documents?.reduce((s: number, d: any) => s + Number(d.amount_applied), 0) ?? 0
-          const available = Number(row.original.amount) - applied
-          if (available <= 0) return 'Saldado'
-          const formatted = new Intl.NumberFormat('es-AR', {
-            style: 'currency',
-            currency: row.original.currency_code || 'ARS',
-            maximumFractionDigits: 2
-          }).format(available)
-          return h('div', { class: 'flex items-center gap-1' }, [
-            h('span', { class: 'text-xs text-warning-600 dark:text-warning-400' }, 'Pendiente de asociar documento'),
-            h('span', {}, formatted)
-          ])
-        }
-      },
-      {
         key: 'description',
         label: 'Descripción',
         cell: ({ row }) => row.original.description ?? '—'
@@ -155,6 +233,7 @@ export const paymentColumns = (actions: {
         label: 'Cuenta',
         accessorFn: (row: any) => (row.account ? `${row.account.code} - ${row.account.name}` : ''),
         sortable: true,
+        meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } },
         cell: ({ row }) => {
           const acc = (row.original as any).account
           if (!acc) return '—'
@@ -171,6 +250,13 @@ export const paymentColumns = (actions: {
               label: config?.label ?? row.status,
               color: (config?.color as any) ?? 'neutral'
             }
+          }
+        },
+        meta: {
+          filter: {
+            type: 'select',
+            operators: ['equals'],
+            options: Object.entries(statusConfig).map(([value, config]) => ({ label: config.label, value }))
           }
         }
       },

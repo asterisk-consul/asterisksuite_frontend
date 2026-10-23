@@ -19,18 +19,29 @@ export interface PaymentDocument {
   id: string
   payment_id: string
   document_id: string
-  amount_applied: number
+  amount_applied: number | string
   document?: {
     id: string
     number: number
-    total: number
-    paid_amount: number
+    total: number | string
+    paid_amount?: number | string
     party_id: string | null
     date: string
     currency_code: string
-    business_parties?: { id: string; name: string } | null
-    document_types?: { id: string; code: string; description: string; category: string } | null
+    document_types?: { id?: string; code: string; description: string; category?: string | null } | null
   }
+}
+
+export interface PaymentObligationSummary {
+  id: string
+  payment_id: string
+  period_key: string
+  description: string
+  amount: number | string | null
+  estimated_amount: number | string
+  currency_code: string
+  due_date: string
+  reference?: string | null
 }
 
 export interface Payment {
@@ -58,6 +69,7 @@ export interface Payment {
   expected_clearing_date?: string | null
   credit_card_transactions?: any[]
   account?: { id: string; code: string; name: string; account_type: string } | null
+  party?: { id: string; name: string } | null
   bank_account?: {
     id: string; name: string; bank_name: string; account_number?: string | null
     cbu?: string | null; alias?: string | null; currency_code: string
@@ -84,6 +96,7 @@ export interface Payment {
   creator?: { name: string; email: string } | null
 
   documents?: PaymentDocument[]
+  obligations?: PaymentObligationSummary[]
   obligations?: Array<Record<string, any>>
 }
 

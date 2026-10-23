@@ -1,7 +1,7 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { ref, computed, h } from 'vue'
 import { getPaginationRowModel } from '@tanstack/vue-table'
-import type { SortingState } from '@tanstack/vue-table'
+import type { ColumnFiltersState, SortingState } from '@tanstack/vue-table'
 import type { TableFilter } from './types/tablas.types'
 import { UCheckbox } from '#components'
 
@@ -39,6 +39,9 @@ const props = defineProps<{
   tableMinWidth?: number
 }>()
 const sorting = defineModel<SortingState>('sorting', {
+  default: () => []
+})
+const columnFilters = defineModel<ColumnFiltersState>('columnFilters', {
   default: () => []
 })
 const page = defineModel<number>('page', { default: 1 })
@@ -203,6 +206,7 @@ async function confirmDelete(): Promise<void> {
       v-model:pagination="pagination"
       v-model:row-selection="rowSelection"
       v-model:column-visibility="columnVisibility"
+      v-model:column-filters="columnFilters"
       v-model:sorting="sorting"
       sticky
       :get-row-id="(row: T, index: number) => props.getRowId?.(row, index) ?? String((row as any).id ?? index)"
