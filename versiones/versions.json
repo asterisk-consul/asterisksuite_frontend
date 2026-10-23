@@ -1,5 +1,35 @@
 [
  {
+  "version": "0.93.3-alpha",
+  "date": "2026-10-23",
+  "stage": "alpha",
+  "notes": "La vista de caja separa los movimientos vigentes de los pagos anulados sin alterar el saldo ni el historial contable.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Los movimientos de pagos anulados y sus reversiones se ocultan por defecto en caja, con opción para consultarlos"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ocultar por defecto movimientos de pagos anulados en caja"
+ },
+ {
+  "version": "0.93.2-alpha",
+  "date": "2026-10-23",
+  "stage": "alpha",
+  "notes": "Se distingue claramente guardar un borrador de confirmarlo y se evita confirmar cambios de fecha que todavía no se guardaron.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "payments",
+    "title": "La edición de pagos y cobros diferencia Guardar borrador de Confirmar y bloquea la confirmación si la fecha cambió y todavía no se guardó"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Aclarar guardado y confirmación de pagos y cobros"
+ },
+ {
   "version": "0.93.1-alpha",
   "date": "2026-10-22",
   "stage": "alpha",

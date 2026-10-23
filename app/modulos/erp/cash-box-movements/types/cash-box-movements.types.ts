@@ -27,6 +27,7 @@ export interface CashBoxMovement {
   reference_type?: string | null
   reference_id?: string | null
   payment_id?: string | null
+  payment?: { status: string } | null
   bank_account_id?: string | null
   date: string
 

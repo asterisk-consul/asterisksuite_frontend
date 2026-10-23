@@ -82,6 +82,7 @@ const props = defineProps<{
   initialWithholdings?: WithholdingProposal[]
   loading?: boolean
   readonly?: boolean
+  submitLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -2065,7 +2066,7 @@ defineExpose({ completeDraft: completePaymentDraft })
       <div class="flex gap-2">
         <UButton label="Cancelar" variant="ghost" :disabled="props.loading" @click="emit('cancel')" />
         <UButton
-          :label="props.loading ? 'Guardando…' : 'Guardar'"
+          :label="props.loading ? 'Guardando…' : (props.submitLabel ?? 'Guardar')"
           type="submit"
           :loading="props.loading"
           :disabled="props.loading || (selectedDocs.size > 0 && totalApplied <= 0) || !hasInstrumentSelection"

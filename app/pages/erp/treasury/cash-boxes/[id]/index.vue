@@ -246,16 +246,30 @@ const sortFields: SortField[] = [
 
 // Movements tabs
 const movementsTab = ref('today')
+const showCancelledMovements = ref(false)
 const movementsTabs = [
   { label: 'Hoy', icon: 'i-lucide-calendar-check', value: 'today', slot: 'today' },
   { label: 'Histórico', icon: 'i-lucide-history', value: 'history', slot: 'history' }
 ]
+const isCancelledPaymentMovement = (movement: CashBoxMovement) =>
+  movement.reference_type === 'payment_reversal'
+  || ['CANCELLED', 'REVERSED'].includes(movement.payment?.status ?? '')
+
+const cancelledMovements = computed(() => movements.value.filter(isCancelledPaymentMovement))
+const visibleMovements = computed(() => showCancelledMovements.value
+  ? movements.value
+  : movements.value.filter(movement => !isCancelledPaymentMovement(movement)))
+
 const todayMovements = computed(() => {
   const todayDate = today()
-  return movements.value.filter((m) => {
+  return visibleMovements.value.filter((m) => {
     const moveDate = m.date?.split('T')[0]
     return moveDate === todayDate
   })
+})
+const todayCancelledMovementCount = computed(() => {
+  const todayDate = today()
+  return cancelledMovements.value.filter(movement => movement.date?.split('T')[0] === todayDate).length
 })
 
 const sessionMovements = computed(() =>
@@ -606,11 +620,21 @@ const links = computed(() => [
               <UIcon name="i-lucide-calendar-check" class="size-4 text-success" />
               <h3 class="text-sm font-semibold">Movimientos de hoy</h3>
               <UBadge :label="`${todayMovements.length}`" color="success" variant="soft" size="xs" />
+              <UButton
+                v-if="todayCancelledMovementCount"
+                :label="showCancelledMovements ? 'Ocultar anulados' : `Mostrar anulados (${todayCancelledMovementCount})`"
+                :icon="showCancelledMovements ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                class="ml-auto"
+                @click="showCancelledMovements = !showCancelledMovements"
+              />
             </div>
           </template>
           <div v-if="todayMovements.length === 0" class="text-center py-8 text-muted text-sm">
             <UIcon name="i-lucide-inbox" class="size-8 mx-auto mb-2 opacity-30" />
-            No hay movimientos hoy
+            {{ todayCancelledMovementCount ? 'No hay movimientos vigentes hoy. Los anulados están ocultos.' : 'No hay movimientos hoy' }}
           </div>
           <div v-else class="overflow-x-auto">
             <LogisticaTable
@@ -631,17 +655,27 @@ const links = computed(() => [
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-history" class="size-4 text-muted" />
               <h3 class="text-sm font-semibold">Historial completo</h3>
-              <UBadge :label="`${movements.length}`" color="neutral" variant="soft" size="xs" />
+              <UBadge :label="`${visibleMovements.length}`" color="neutral" variant="soft" size="xs" />
+              <UButton
+                v-if="cancelledMovements.length"
+                :label="showCancelledMovements ? 'Ocultar anulados' : `Mostrar anulados (${cancelledMovements.length})`"
+                :icon="showCancelledMovements ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                class="ml-auto"
+                @click="showCancelledMovements = !showCancelledMovements"
+              />
             </div>
           </template>
-          <div v-if="movements.length === 0" class="text-center py-8 text-muted text-sm">
+          <div v-if="visibleMovements.length === 0" class="text-center py-8 text-muted text-sm">
             <UIcon name="i-lucide-inbox" class="size-8 mx-auto mb-2 opacity-30" />
-            No hay movimientos registrados
+            {{ cancelledMovements.length ? 'No hay movimientos vigentes. Los anulados están ocultos.' : 'No hay movimientos registrados' }}
           </div>
           <div v-else class="overflow-x-auto">
             <LogisticaTable
               :loading="false"
-              :data="movements"
+              :data="visibleMovements"
               :columns="columns"
               :filter-fields="filterFields"
               :sort-fields="sortFields"

@@ -35,6 +35,8 @@ const {
 
 const paymentData = ref<PaymentFormData | null>(null)
 const currentPayment = ref<Payment | null>(null)
+const savedDate = ref('')
+const editingDate = ref('')
 const initialWithholdings = ref<any[]>([])
 const isProcessing = ref(false)
 const isSaving = ref(false)
@@ -48,7 +50,7 @@ useBreadcrumbEntityLabel(
 )
 
 const actionLabels: Record<string, { title: string; button: string; color: string; description: string }> = {
-  confirm: { title: 'Confirmar pago', button: 'Confirmar', color: 'info', description: 'Se aplicarán los efectos: documentos, caja/banco y cuenta corriente.' },
+  confirm: { title: 'Confirmar pago', button: 'Confirmar', color: 'info', description: 'Se aplicarán los datos guardados: documentos, caja/banco y cuenta corriente. Si cambiaste la fecha, primero guardá el borrador.' },
   pay: { title: 'Marcar como pagado', button: 'Marcar pagado', color: 'success', description: 'El pago pasará a estado Pagado.' },
   reject: { title: 'Rechazar pago', button: 'Rechazar', color: 'warning', description: 'Se revertirán todos los efectos (documentos, caja/banco, cuenta corriente).' },
   reverse: { title: 'Anular pago', button: 'Anular', color: 'error', description: 'Se revertirán todos los efectos y el pago quedará anulado.' }
@@ -58,6 +60,7 @@ const isDraft = computed(() => currentPayment.value?.status === 'DRAFT')
 const isConfirmed = computed(() => currentPayment.value?.status === 'CONFIRMED')
 const isPaid = computed(() => currentPayment.value?.status === 'PAID')
 const isAdvance = computed(() => currentPayment.value?.payment_mode === 'ADVANCE')
+const hasUnsavedDateChange = computed(() => isDraft.value && editingDate.value !== savedDate.value)
 
 const availableBalance = computed(() => {
   if (!currentPayment.value) return 0
@@ -74,6 +77,8 @@ onMounted(async () => {
 
   if (payment) {
     currentPayment.value = payment as Payment
+    savedDate.value = payment.date?.split('T')[0] ?? ''
+    editingDate.value = savedDate.value
     paymentData.value = {
       type: payment.type as 'PAYMENT' | 'COLLECTION',
       payment_mode: (payment.payment_mode as 'NORMAL' | 'ADVANCE') ?? 'NORMAL',
@@ -163,6 +168,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       withholdings: formData.withholdings ?? [],
     })
     currentPayment.value = updated as Payment
+    savedDate.value = updated.date?.split('T')[0] ?? formData.date
     toast.add({ title: 'Pago actualizado', color: 'success' })
   } catch (error: any) {
     toast.add({
@@ -177,14 +183,36 @@ const handleSubmit = async (formData: PaymentFormData) => {
 }
 
 const openAction = (type: typeof actionType.value) => {
+  if (type === 'confirm' && hasUnsavedDateChange.value) {
+    toast.add({
+      title: 'Primero guardá la fecha',
+      description: 'Usá “Guardar borrador” antes de confirmar el pago o cobro.',
+      color: 'warning',
+      icon: 'i-lucide-save'
+    })
+    return
+  }
   actionType.value = type
   checkAction.value = 'RETURN_TO_PORTFOLIO'
   actionModalOpen.value = true
 }
 
+const handleFormModelUpdate = (value: PaymentFormData) => {
+  editingDate.value = value.date ?? ''
+}
+
 const handleAction = async () => {
   if (isProcessing.value) return
   if (!currentPayment.value) return
+  if (actionType.value === 'confirm' && hasUnsavedDateChange.value) {
+    toast.add({
+      title: 'Primero guardá la fecha',
+      description: 'Usá “Guardar borrador” antes de confirmar el pago o cobro.',
+      color: 'warning',
+      icon: 'i-lucide-save'
+    })
+    return
+  }
 
   isProcessing.value = true
   try {
@@ -241,8 +269,8 @@ const handleAdvanceSuccess = async () => {
 <template>
   <UPage class="space-y-4">
     <AppPageHeader
-      :title="isAdvance ? 'Editar anticipo' : 'Editar pago / cobro'"
-      :description="isAdvance ? 'Anticipo a proveedor o cliente' : 'Modificar pago o cobro existente'"
+      :title="isDraft ? (isAdvance ? 'Editar anticipo' : 'Editar pago / cobro') : (isAdvance ? 'Detalle del anticipo' : 'Detalle de pago / cobro')"
+      :description="isDraft ? (isAdvance ? 'Anticipo a proveedor o cliente' : 'Modificar pago o cobro en borrador') : 'Solo se pueden editar operaciones en borrador. Esta operación ya no admite cambios.'"
     />
 
     <div v-if="loading" class="flex justify-center py-8">
@@ -308,13 +336,31 @@ const handleAdvanceSuccess = async () => {
           <template v-if="isAdvance && availableBalance <= 0 && (isConfirmed || isPaid)">
             <UBadge label="Saldado" color="success" variant="subtle" />
           </template>
-          <UButton v-if="isDraft" label="Confirmar" icon="i-lucide-check-circle" size="sm" color="info" :loading="isProcessing" :disabled="isProcessing" @click="openAction('confirm')" />
+          <UButton v-if="isDraft" label="Confirmar" icon="i-lucide-check-circle" size="sm" color="info" :loading="isProcessing" :disabled="isProcessing || hasUnsavedDateChange" @click="openAction('confirm')" />
           <UButton v-if="isConfirmed" label="Marcar pagado" icon="i-lucide-check" size="sm" color="success" :loading="isProcessing" :disabled="isProcessing" @click="openAction('pay')" />
           <UButton v-if="isConfirmed" label="Rechazar" icon="i-lucide-x-circle" size="sm" color="warning" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reject')" />
           <UButton v-if="isConfirmed || isPaid" label="Anular" icon="i-lucide-undo-2" size="sm" color="error" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reverse')" />
           <UButton v-if="(isConfirmed || isPaid) && currentPayment?.party_id" label="Cuenta corriente" icon="i-lucide-arrow-right-circle" size="sm" color="primary" variant="outline" @click="router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)" />
         </div>
       </div>
+
+      <UAlert
+        v-if="isDraft && hasUnsavedDateChange"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-save"
+        title="Tenés una fecha sin guardar"
+        description="La fecha todavía no se aplicó al pago o cobro. Hacé clic en “Guardar borrador” al pie del formulario; después vas a poder confirmarlo."
+      />
+
+      <UAlert
+        v-if="!isDraft"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-lock-keyhole"
+        title="Operación de solo lectura"
+        description="La fecha y los demás datos se bloquean al confirmar el pago o cobro para preservar sus movimientos de tesorería y cuenta corriente."
+      />
 
       <!-- FORM (readonly when not DRAFT) -->
       <div class="max-w-4xl">
@@ -327,6 +373,8 @@ const handleAdvanceSuccess = async () => {
           :available-customer-checks="availableCustomerChecks"
           :initial-withholdings="initialWithholdings"
           :loading="isSaving"
+          submit-label="Guardar borrador"
+          @update:model-value="handleFormModelUpdate"
           @submit="handleSubmit"
           @cancel="router.push('/erp/treasury/payments')"
         />
@@ -343,6 +391,15 @@ const handleAdvanceSuccess = async () => {
     <UModal v-model:open="actionModalOpen" :title="actionLabels[actionType]?.title">
       <template #body>
         <p>{{ actionLabels[actionType]?.description }}</p>
+        <UAlert
+          v-if="actionType === 'confirm' && hasUnsavedDateChange"
+          class="mt-3"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-save"
+          title="La fecha todavía no está guardada"
+          description="Cerrá este cuadro y usá “Guardar borrador” antes de confirmar."
+        />
         <div v-if="actionType === 'reverse' && currentPayment?.payment_method === 'CHECK'" class="mt-4 space-y-2">
           <p class="text-sm font-medium">¿Qué debe ocurrir con el cheque?</p>
           <URadioGroup
@@ -360,7 +417,7 @@ const handleAdvanceSuccess = async () => {
             :label="actionLabels[actionType]?.button"
             :color="(actionLabels[actionType]?.color as any)"
             :loading="isProcessing"
-            :disabled="isProcessing"
+            :disabled="isProcessing || (actionType === 'confirm' && hasUnsavedDateChange)"
             @click="handleAction"
           />
         </div>
