@@ -226,34 +226,42 @@ const quickActions = computed(() => {
 <template>
   <UPage class="space-y-6 px-4">
     <AppPageHeader title="Dashboard Tesorería" description="Resumen general de la situación financiera" />
-    <UAlert
-      v-if="showChecks && upcomingChecksCount > 0"
-      color="info"
-      variant="subtle"
-      icon="i-lucide-bell-ring"
-      :title="`${upcomingChecksCount} cheque(s) próximos a vencer`"
-      :description="`Aviso preventivo para los próximos ${checkAlertDays} días. Todavía no genera débitos, depósitos ni pagos.`"
-      :actions="[{ label: 'Ver próximos', to: '/erp/treasury/checks', color: 'info', variant: 'soft' }]"
-    />
-    <UAlert
-      v-if="showChecks && thirdPartyChecksToResolve.length > 0"
-      color="warning"
-      variant="subtle"
-      icon="i-lucide-calendar-clock"
-      :title="`${thirdPartyChecksToResolve.length} cheque(s) de terceros requieren una decisión`"
-      description="Están vencidos o vencen hoy y permanecen en cartera hasta que decidas depositarlos, cobrarlos por caja o usarlos para pagar."
-      :actions="[{ label: 'Resolver cheques', to: '/erp/treasury/checks', color: 'warning', variant: 'solid' }]"
-    />
-
-    <UAlert
-      v-if="showChecks && ownChecksToVerify.length > 0"
-      color="warning"
-      variant="subtle"
-      icon="i-lucide-landmark"
-      :title="`${ownChecksToVerify.length} cheque(s) propio(s) requieren verificar el débito`"
-      description="Llegaron a su vencimiento. Revisá el extracto y registrá el débito con la fecha bancaria real; el sistema no lo hará automáticamente."
-      :actions="[{ label: 'Revisar cheques', to: '/erp/treasury/checks', color: 'warning', variant: 'solid' }]"
-    />
+    <div
+      v-if="showChecks && (upcomingChecksCount > 0 || thirdPartyChecksToResolve.length > 0 || ownChecksToVerify.length > 0)"
+      class="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3"
+      aria-label="Avisos de cheques"
+    >
+      <UAlert
+        v-if="upcomingChecksCount > 0"
+        color="info"
+        variant="subtle"
+        icon="i-lucide-bell-ring"
+        :title="`${upcomingChecksCount} cheque(s) próximos a vencer`"
+        :description="`Aviso preventivo · próximos ${checkAlertDays} días. No genera movimientos.`"
+        :actions="[{ label: 'Ver próximos', to: '/erp/treasury/checks', color: 'info', variant: 'soft' }]"
+        class="h-full"
+      />
+      <UAlert
+        v-if="thirdPartyChecksToResolve.length > 0"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-calendar-clock"
+        :title="`${thirdPartyChecksToResolve.length} cheque(s) de terceros requieren una decisión`"
+        description="Vencidos o con vencimiento hoy. Siguen en cartera hasta depositarlos, cobrarlos o usarlos para pagar."
+        :actions="[{ label: 'Resolver', to: '/erp/treasury/checks', color: 'warning', variant: 'solid' }]"
+        class="h-full"
+      />
+      <UAlert
+        v-if="ownChecksToVerify.length > 0"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-landmark"
+        :title="`${ownChecksToVerify.length} cheque(s) propio(s) requieren verificar el débito`"
+        description="Vencidos o con vencimiento hoy. Revisá el extracto antes de registrar el débito bancario."
+        :actions="[{ label: 'Revisar', to: '/erp/treasury/checks', color: 'warning', variant: 'solid' }]"
+        class="h-full"
+      />
+    </div>
 
     <!-- STAT CARDS -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 py-4">

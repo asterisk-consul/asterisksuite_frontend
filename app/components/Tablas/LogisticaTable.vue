@@ -70,8 +70,10 @@ const visibilityStorageKey = computed(() => {
   const userId = authStore.user?.id ?? 'anonymous'
   return `${companyId}:${userId}:${props.storageKey ?? route.path}`
 })
-const { columnVisibility, columnVisibilityItems, resetColumnVisibility } = useColumnVisibility(table, {
-  storageKey: visibilityStorageKey
+const tablePreferenceKey = computed(() => props.storageKey ?? route.path)
+const { columnVisibility, columnOrder, columnVisibilityItems, reorderColumns, resetColumnVisibility } = useColumnVisibility(table, {
+  storageKey: visibilityStorageKey,
+  preferenceKey: tablePreferenceKey
 })
 
 const tableColumns = computed<ExtendedColumn<T>[]>(() => {
@@ -186,6 +188,7 @@ async function confirmDelete(): Promise<void> {
       :sort-fields="sortFields ?? []"
       :column-visibility-items="columnVisibilityItems"
       @reset-columns="resetColumnVisibility"
+      @reorder-columns="reorderColumns"
     />
 
     <TableSelectionBar
@@ -206,6 +209,7 @@ async function confirmDelete(): Promise<void> {
       v-model:pagination="pagination"
       v-model:row-selection="rowSelection"
       v-model:column-visibility="columnVisibility"
+      v-model:column-order="columnOrder"
       v-model:column-filters="columnFilters"
       v-model:sorting="sorting"
       sticky

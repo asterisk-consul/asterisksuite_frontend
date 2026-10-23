@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.94.0-alpha",
+  "date": "2026-10-23",
+  "stage": "alpha",
+  "notes": "Las preferencias de columnas se guardan por usuario, empresa y tabla y se sincronizan entre navegadores y equipos.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "tables",
+    "title": "El orden y la visibilidad de columnas de AsteriskTable se sincronizan por usuario y empresa entre dispositivos"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Sincronizar preferencias de columnas entre dispositivos"
+ },
+ {
   "version": "0.93.6-alpha",
   "date": "2026-10-23",
   "stage": "alpha",

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { VueDraggable } from 'vue-draggable-plus'
 import type { SortingState } from '@tanstack/vue-table'
 import { useTableFilters } from '~/components/Tablas/composable/useTableFilters'
 import type { TableFilter } from '~/components/Tablas/types/tablas.types'
@@ -17,6 +18,13 @@ export interface SortField {
   value: string
 }
 
+type ColumnVisibilityItem = {
+  id: string
+  label: string
+  checked: boolean
+  onUpdateChecked: (checked: boolean) => void
+}
+
 const props = defineProps<{
   table: any // ✅ ref del UTable (template ref)
   columns: any[] // ✅ columnas para el popover de filtros
@@ -24,10 +32,13 @@ const props = defineProps<{
   sortFields?: SortField[]
   serverSide?: boolean
   searchPlaceholder?: string
-  columnVisibilityItems?: Array<{ label: string; checked: boolean; onUpdateChecked: (checked: boolean) => void }>
+  columnVisibilityItems?: ColumnVisibilityItem[]
 }>()
 
-const emit = defineEmits<{ resetColumns: [] }>()
+const emit = defineEmits<{
+  resetColumns: []
+  reorderColumns: [columnIds: string[]]
+}>()
 
 // --- Models ---
 const sorting = defineModel<SortingState>('sorting', { default: () => [] })
@@ -111,6 +122,22 @@ const hasActiveFilters = computed(
   () =>
     search.value.trim() || Object.values(filterValues.value).some((v) => v?.trim()) || !!selectedSortField.value || filters.value.length > 0
 )
+
+const orderedColumnItems = computed({
+  get: () => props.columnVisibilityItems ?? [],
+  set: (items: ColumnVisibilityItem[]) => emit('reorderColumns', items.map(item => item.id))
+})
+
+function moveColumn(index: number, direction: -1 | 1) {
+  const items = [...orderedColumnItems.value]
+  const targetIndex = index + direction
+  if (targetIndex < 0 || targetIndex >= items.length) return
+
+  const [movedItem] = items.splice(index, 1)
+  if (!movedItem) return
+  items.splice(targetIndex, 0, movedItem)
+  emit('reorderColumns', items.map(item => item.id))
+}
 </script>
 
 <template>
@@ -152,7 +179,7 @@ const hasActiveFilters = computed(
               <div class="mb-2 flex items-center justify-between gap-2">
                 <div>
                   <p class="text-sm font-medium">Columnas visibles</p>
-                  <p class="text-xs text-muted">Elegí qué información mostrar.</p>
+                  <p class="text-xs text-muted">Elegí cuáles ver y cambiá su orden.</p>
                 </div>
                 <UButton
                   icon="i-lucide-rotate-ccw"
@@ -164,16 +191,55 @@ const hasActiveFilters = computed(
                   @click="emit('resetColumns')"
                 />
               </div>
-              <div class="max-h-72 space-y-1 overflow-y-auto">
-                <label
-                  v-for="item in columnVisibilityItems"
-                  :key="item.label"
-                  class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-elevated"
+              <VueDraggable
+                v-model="orderedColumnItems"
+                handle=".column-order-handle"
+                direction="vertical"
+                :animation="160"
+                :delay="120"
+                delay-on-touch-only
+                :touch-start-threshold="4"
+                ghost-class="opacity-40"
+                class="max-h-72 space-y-1 overflow-y-auto"
+              >
+                <div
+                  v-for="(item, index) in orderedColumnItems"
+                  :key="item.id"
+                  class="flex min-w-0 items-center gap-1 rounded-md px-1 py-1.5 text-sm hover:bg-elevated"
                 >
-                  <UCheckbox :model-value="item.checked" @update:model-value="item.onUpdateChecked(Boolean($event))" />
-                  <span class="truncate">{{ item.label }}</span>
-                </label>
-              </div>
+                  <span
+                    class="column-order-handle flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded text-dimmed hover:bg-muted hover:text-highlighted active:cursor-grabbing"
+                    :title="`Arrastrar ${item.label} para cambiar el orden`"
+                    aria-hidden="true"
+                  >
+                    <UIcon name="i-lucide-grip-vertical" class="size-4" />
+                  </span>
+                  <label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+                    <UCheckbox :model-value="item.checked" @update:model-value="item.onUpdateChecked(Boolean($event))" />
+                    <span class="min-w-0 truncate">{{ item.label }}</span>
+                  </label>
+                  <span class="flex shrink-0 items-center">
+                    <UButton
+                      icon="i-lucide-chevron-up"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      :disabled="index === 0"
+                      :aria-label="`Mover ${item.label} hacia arriba`"
+                      @click="moveColumn(index, -1)"
+                    />
+                    <UButton
+                      icon="i-lucide-chevron-down"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      :disabled="index === orderedColumnItems.length - 1"
+                      :aria-label="`Mover ${item.label} hacia abajo`"
+                      @click="moveColumn(index, 1)"
+                    />
+                  </span>
+                </div>
+              </VueDraggable>
             </div>
           </template>
         </UPopover>
