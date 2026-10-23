@@ -1,5 +1,25 @@
 [
  {
+  "version": "0.96.1-alpha",
+  "date": "2026-10-23",
+  "stage": "alpha",
+  "notes": "Los schedulers de cheques, reservas de stock y autorizaciones fiscales procesan empresas y registros por lotes, cierran sus clientes Prisma temporales y registran métricas de memoria y duración.",
+  "changes": [
+   {
+    "type": "perf",
+    "scope": "backend",
+    "title": "Limitar memoria temporal de los schedulers de cheques, reservas y autorizaciones fiscales mediante procesamiento por lotes y clientes tenant temporales"
+   },
+   {
+    "type": "chore",
+    "scope": "backend",
+    "title": "Registrar duración, empresas procesadas, RSS, heap y estado de pools Prisma al ejecutar schedulers"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Reducir la memoria de tareas programadas y facilitar su diagnóstico"
+ },
+ {
   "version": "0.96.0-alpha",
   "date": "2026-10-23",
   "stage": "alpha",
