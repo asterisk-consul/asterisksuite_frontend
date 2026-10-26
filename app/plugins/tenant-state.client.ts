@@ -29,7 +29,7 @@ export default defineNuxtPlugin(() => {
   watch(
     () => auth.selectedCompany?.id,
     (companyId, previousCompanyId) => {
-      if (!previousCompanyId || companyId === previousCompanyId) return
+      if (companyId === previousCompanyId) return
       for (const store of tenantStores) store.reset()
     },
     { flush: 'sync' }

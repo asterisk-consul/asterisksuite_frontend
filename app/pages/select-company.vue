@@ -7,7 +7,6 @@ definePageMeta({
 })
 
 const auth = useAuthStore()
-const router = useRouter()
 
 const companies = computed(() => auth.companies)
 
@@ -23,6 +22,7 @@ if (auth.companies.length <= 1 || auth.selectedCompany) {
 }
 
 async function selectCompany(company: (typeof auth.companies)[number]) {
+  if (loading.value) return
   loadingCompanyName.value = company.name
   loading.value = true
 
@@ -36,7 +36,9 @@ async function selectCompany(company: (typeof auth.companies)[number]) {
     const portSuffix = port ? `:${port}` : ''
     window.location.href = `${protocol}//${company.subdomain}.${baseDomain}${portSuffix}`
   } else {
-    router.push('/')
+    // La recarga descarta cualquier store/formulario que pudiera conservar
+    // datos de otra empresa antes de empezar a operar con esta selección.
+    window.location.href = '/'
   }
 }
 </script>

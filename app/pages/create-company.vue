@@ -8,7 +8,6 @@ definePageMeta({
 
 const auth = useAuthStore()
 const companyStore = useCompaniesStore()
-const router = useRouter()
 const toast = useToast()
 
 // ─── State ────────────────────────────────────────────────
@@ -34,6 +33,7 @@ const subdomainMessage = ref('')
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const saving = ref(false)
+const enteringCompany = ref(false)
 const created = ref<{ name: string; subdomain: string } | null>(null)
 const errorMsg = ref('')
 
@@ -115,13 +115,31 @@ async function handleSubmit() {
     saving.value = false
   }
 }
+
+function enterCreatedCompany() {
+  if (!created.value || enteringCompany.value) return
+  enteringCompany.value = true
+
+  const config = useRuntimeConfig()
+  const baseDomain = config.public.baseDomain
+  if (baseDomain) {
+    const { protocol, port } = window.location
+    const portSuffix = port ? `:${port}` : ''
+    window.location.href = `${protocol}//${created.value.subdomain}.${baseDomain}${portSuffix}/`
+  } else {
+    window.location.href = '/'
+  }
+}
 </script>
 
 <template>
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- LOADING OVERLAY                                          -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <LoadingOverlay v-if="saving" :company-name="'Creando tu empresa...'" />
+  <LoadingOverlay
+    v-if="saving || enteringCompany"
+    :company-name="enteringCompany ? (created?.name ?? 'tu empresa') : 'Creando tu empresa...'"
+  />
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- SUCCESS STATE                                             -->
@@ -157,7 +175,7 @@ async function handleSubmit() {
           color="primary"
           block
           size="lg"
-          @click="router.push('/')"
+          @click="enterCreatedCompany"
         />
         <UButton
           label="Crear otra empresa"

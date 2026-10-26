@@ -2,87 +2,25 @@
 definePageMeta({
   middleware: ['auth']
 })
-
-const state = reactive<{ [key: string]: boolean }>({
-  email: true,
-  desktop: false,
-  product_updates: true,
-  weekly_digest: false,
-  important_updates: true
-})
-
-const sections = [
-  {
-    title: 'Notification channels',
-    description: 'Where can we notify you?',
-    fields: [
-      {
-        name: 'email',
-        label: 'Email',
-        description: 'Receive a daily email digest.'
-      },
-      {
-        name: 'desktop',
-        label: 'Desktop',
-        description: 'Receive desktop notifications.'
-      }
-    ]
-  },
-  {
-    title: 'Account updates',
-    description: 'Receive updates about Nuxt UI.',
-    fields: [
-      {
-        name: 'weekly_digest',
-        label: 'Weekly digest',
-        description: 'Receive a weekly digest of news.'
-      },
-      {
-        name: 'product_updates',
-        label: 'Product updates',
-        description:
-          'Receive a monthly email with all new features and updates.'
-      },
-      {
-        name: 'important_updates',
-        label: 'Important updates',
-        description:
-          'Receive emails about important updates like security fixes, maintenance, etc.'
-      }
-    ]
-  }
-]
-
-async function onChange() {
-  // Do something with data
-  console.log(state)
-}
 </script>
 
 <template>
-  <div
-    v-for="(section, index) in sections"
-    :key="index"
-    class="w-full lg:max-w-2xl mx-auto"
-  >
+  <div class="mx-auto w-full max-w-2xl space-y-4">
     <UPageCard
-      :title="section.title"
-      :description="section.description"
-      variant="naked"
-      class="mb-4"
-    />
-
-    <UPageCard variant="subtle" :ui="{ container: 'divide-y divide-default' }">
-      <UFormField
-        v-for="field in section.fields"
-        :key="field.name"
-        :name="field.name"
-        :label="field.label"
-        :description="field.description"
-        class="flex items-center justify-between not-last:pb-4 gap-2"
-      >
-        <USwitch v-model="state[field.name]" @update:model-value="onChange" />
-      </UFormField>
+      title="Avisos dentro de Asterisk Suite"
+      description="Las asignaciones dirigidas a vos y las alertas operativas de tu empresa aparecen en la campana de la barra superior."
+      variant="subtle"
+    >
+      <div class="flex items-start gap-3 text-sm text-muted">
+        <UIcon name="i-lucide-bell" class="mt-0.5 size-5 shrink-0 text-primary" />
+        <p>Al abrir la campana se actualizan las asignaciones, vencimientos fiscales y avisos de Tesorería disponibles para tus permisos.</p>
+      </div>
     </UPageCard>
+
+    <UPageCard
+      title="Canales externos"
+      description="Email, notificaciones de escritorio y WhatsApp todavía no están conectados a estos avisos."
+      variant="subtle"
+    />
   </div>
 </template>

@@ -6,6 +6,9 @@ import DrilldownSidebar from '~/components/ui/DrilldownSidebar.vue'
 import AppVersionBanner from '~/components/AppVersionBanner/AppVersionBanner.vue'
 const { mainCollapsed } = useSidebarState()
 const { items: breadcrumbs } = useBreadcrumbs()
+const { isNotificationsSlideoverOpen } = useDashboard()
+const { totalCount, companyAlertCount, refresh: refreshNotifications } = useNotifications()
+const notificationBadgeCount = computed(() => totalCount.value + companyAlertCount.value)
 const open = ref(false)
 
 const pageTitle = computed(() => {
@@ -18,10 +21,17 @@ useHead({ title: pageTitle })
 const versions = useVersion()
 const route = useRoute()
 const toast = useToast()
+const refreshNotificationsOnFocus = () => {
+  if (document.visibilityState === 'visible') void refreshNotifications()
+}
 
 const { init: initVersionCheck, showBanner, dismiss: dismissVersionBanner, currentVersion } = useAppVersion()
 
 const links = navigationTree
+
+function openNotifications() {
+  isNotificationsSlideoverOpen.value = true
+}
 
 const groups = computed(() => [
   {
@@ -32,6 +42,8 @@ const groups = computed(() => [
 ])
 
 onMounted(() => {
+  void refreshNotifications()
+  document.addEventListener('visibilitychange', refreshNotificationsOnFocus)
   initVersionCheck()
 
   const cookie = useCookie('cookie-consent')
@@ -60,6 +72,10 @@ onMounted(() => {
     ]
   })
 })
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', refreshNotificationsOnFocus)
+})
 </script>
 
 <template>
@@ -82,6 +98,23 @@ onMounted(() => {
             <UBreadcrumb :items="breadcrumbs" />
           </template>
           <template #right>
+            <div class="relative">
+              <UButton
+                icon="i-lucide-bell"
+                color="neutral"
+                variant="ghost"
+                aria-label="Abrir notificaciones"
+                @click="openNotifications"
+              />
+              <span
+                v-if="notificationBadgeCount > 0"
+                :aria-label="`Notificaciones: ${notificationBadgeCount}`"
+                title="Cantidad de avisos y alertas"
+                class="absolute -right-1 -top-1 min-w-4 rounded-full bg-error px-1 text-center text-[10px] leading-4 text-white"
+              >
+                {{ notificationBadgeCount > 99 ? '99+' : notificationBadgeCount }}
+              </span>
+            </div>
             <slot name="navbar-actions" />
           </template>
         </UDashboardNavbar>

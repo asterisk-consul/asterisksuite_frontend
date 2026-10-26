@@ -13,6 +13,7 @@ const loading = ref(false)
 const loadingCompanyName = ref('')
 
 async function redirectToSubdomain(company: (typeof auth.companies)[number]) {
+  if (loading.value) return
   loadingCompanyName.value = company.name
   loading.value = true
 

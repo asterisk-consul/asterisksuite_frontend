@@ -142,12 +142,12 @@ export async function apiProxy(
       if (err?.response?.status !== 401) {
         const status = err?.response?.status || 500
         const upstreamData = err?.data || err?.response?._data
-        const statusMessage = upstreamData?.message || err?.response?.statusText || 'Server Error'
-        const msg = Array.isArray(statusMessage) ? statusMessage[0] : statusMessage
+        const upstreamMessage = upstreamData?.message || err?.response?.statusText || 'Server Error'
+        const msg = Array.isArray(upstreamMessage) ? upstreamMessage[0] : upstreamMessage
 
         throw createError({
           statusCode: status,
-          statusMessage: typeof msg === 'string' ? msg : JSON.stringify(msg),
+          message: typeof msg === 'string' ? msg : JSON.stringify(msg),
           data: upstreamData,
         })
       }

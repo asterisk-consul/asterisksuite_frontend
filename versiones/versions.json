@@ -1,5 +1,55 @@
 [
  {
+  "version": "0.97.0-alpha",
+  "date": "2026-10-26",
+  "stage": "alpha",
+  "notes": "La campana reúne asignaciones y alertas operativas con acciones de lectura y eliminación. Los reportes consolidado e inventario pueden enviarse semanalmente en PDF a grupos de WhatsApp configurados por empresa, y el consolidado incorpora vistas de grilla, gráficos, tablas y resumen.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "notifications",
+    "title": "Mostrar asignaciones de documentos de venta y compra, pedidos, mantenimiento y capturas en la campana, con badge, lectura individual o masiva y eliminación"
+   },
+   {
+    "type": "feat",
+    "scope": "notifications",
+    "title": "Reunir alertas fiscales, vencimientos de Tesorería y cuotas o liquidaciones de tarjetas según los permisos del usuario"
+   },
+   {
+    "type": "feat",
+    "scope": "whatsapp",
+    "title": "Configurar reportes semanales de consolidado e inventario en PDF para grupos OpenWA, con selección de empresas, pruebas, historial y ejecución desde un cron externo"
+   },
+   {
+    "type": "feat",
+    "scope": "reports",
+    "title": "Organizar el consolidado en vistas de grilla, gráficos, tablas y resumen, con exportaciones para las empresas seleccionadas"
+   },
+   {
+    "type": "fix",
+    "scope": "tenancy",
+    "title": "Sincronizar la empresa seleccionada con el tenant del servidor y recargar el espacio de trabajo al cambiar de empresa"
+   },
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Acotar las alertas de obligaciones y cuotas corporativas a vencimientos pendientes y mostrar su cantidad en la campana"
+   },
+   {
+    "type": "fix",
+    "scope": "api",
+    "title": "Devolver mensajes de error del proxy en el campo message compatible con H3"
+   },
+   {
+    "type": "style",
+    "scope": "reports",
+    "title": "Mejorar la separación y estructura visual del consolidado y el resumen gerencial"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Centralizar avisos y enviar reportes por WhatsApp"
+ },
+ {
   "version": "0.96.1-alpha",
   "date": "2026-10-23",
   "stage": "alpha",

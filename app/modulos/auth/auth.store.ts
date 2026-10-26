@@ -71,10 +71,9 @@ export const useAuthStore = defineStore('auth', () => {
   if (import.meta.client) {
     watch(companies, () => {
       if (companies.value.length > 0 && !selectedCompany.value) {
-        restoreSelectedCompany()
-        if (!selectedCompany.value) {
-          autoSelectCompanyBySubdomain()
-        }
+        // En hosts propios, el subdominio determina la empresa. En localhost,
+        // donde el host suele ser compartido, se conserva la última selección.
+        if (!autoSelectCompanyBySubdomain()) restoreSelectedCompany()
       }
     })
   }
@@ -87,21 +86,36 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem('selectedCompanyId')
       }
     }
+
+    // La empresa de la interfaz y el tenant que usa el proxy deben coincidir.
+    // Se sincroniza también durante SSR para corregir una cookie vieja al entrar
+    // directamente por el subdominio de otra empresa.
+    const config = useRuntimeConfig()
+    const tenantCookie = useCookie<string | null>('selected_tenant', {
+      ...(company ? { maxAge: 60 * 60 * 24 * 30 } : {}),
+      domain: config.public.baseDomain || undefined,
+    })
+    tenantCookie.value = company?.subdomain ?? null
   }
 
   function restoreSelectedCompany() {
     if (import.meta.client && companies.value.length > 0) {
+      if (selectedCompany.value && !companies.value.some((company) => company.id === selectedCompany.value?.id)) {
+        selectedCompany.value = null
+      }
+
       const savedId = localStorage.getItem('selectedCompanyId')
       if (savedId) {
         const found = companies.value.find((c) => c.id === savedId)
         if (found) {
           selectedCompany.value = found
-          return
         }
       }
       if (!selectedCompany.value && companies.value.length === 1) {
         selectedCompany.value = companies.value[0]
       }
+
+      persistSelectedCompany(selectedCompany.value)
     }
   }
 
@@ -163,10 +177,14 @@ export const useAuthStore = defineStore('auth', () => {
     const me = await authService.me()
     user.value = { id: me.id, name: me.name, email: me.email, role: me.role ?? null }
     companies.value = me.companies ?? []
-    restoreSelectedCompany()
-    if (!selectedCompany.value) {
-      autoSelectCompanyBySubdomain()
-    }
+
+    // Si el host identifica una empresa, debe prevalecer sobre una selección
+    // guardada de otra empresa; en hosts compartidos se restaura la selección.
+    if (!autoSelectCompanyBySubdomain()) restoreSelectedCompany()
+    // En SSR no podemos leer localStorage; no borres la cookie del tenant hasta
+    // que el cliente restaure la empresa guardada o el middleware resuelva el host.
+    if (selectedCompany.value) persistSelectedCompany(selectedCompany.value)
+    else if (import.meta.client) persistSelectedCompany(null)
   }
 
   async function init() {
@@ -182,6 +200,7 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = null
         companies.value = []
         selectedCompany.value = null
+        persistSelectedCompany(null)
       }
     }
 
@@ -213,27 +232,19 @@ export const useAuthStore = defineStore('auth', () => {
     companies.value = []
     selectedCompany.value = null
     persistSelectedCompany(null)
-    if (import.meta.client) {
-      const config = useRuntimeConfig()
-      const domain = config.public.baseDomain || undefined
-      const tenantCookie = useCookie('selected_tenant', { domain })
-      tenantCookie.value = null
-    }
   }
 
   function selectCompany(company: CompanyMembership) {
-    if (selectedCompany.value?.id === company.id) return
+    if (selectedCompany.value?.id === company.id) {
+      // Una selección repetida también repara una cookie desincronizada.
+      persistSelectedCompany(company)
+      return
+    }
 
     // Cambiar primero el contexto. Toda recarga posterior debe salir con el tenant nuevo.
     resetEmployeeCache()
     selectedCompany.value = company
     persistSelectedCompany(company)
-    if (import.meta.client) {
-      const config = useRuntimeConfig()
-      const domain = config.public.baseDomain || undefined
-      const tenantCookie = useCookie('selected_tenant', { maxAge: 60 * 60 * 24 * 30, domain })
-      tenantCookie.value = company.subdomain
-    }
   }
 
   return {

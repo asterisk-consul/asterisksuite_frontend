@@ -235,17 +235,19 @@ onMounted(loadMetadata)
 </script>
 
 <template>
-  <UPage class="mx-auto w-full max-w-[1600px] space-y-6 px-4 pb-10 sm:px-6">
+  <UPage class="mx-auto w-full max-w-[1600px] px-4 pb-10 sm:px-6">
+    <div class="flex flex-col gap-8">
     <AppPageHeader title="Reporte gerencial" description="Analizá una fuente por vez para evitar duplicar OV, facturas y cobros">
       <template #links>
         <UButton label="Actualizar reporte" icon="i-lucide-refresh-cw" :loading="loading" @click="loadReport" />
       </template>
     </AppPageHeader>
 
-    <UPageCard variant="subtle" class="relative space-y-5 overflow-hidden">
+    <UPageCard variant="subtle" class="relative overflow-hidden">
       <div v-if="loading" class="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-primary/15">
         <div class="h-full w-1/3 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-primary" />
       </div>
+      <div class="flex flex-col gap-6">
       <div>
         <p class="font-semibold">1. Elegí la base del reporte</p>
         <p class="text-sm text-muted">La base es excluyente: los resultados nunca suman OV y facturas entre sí.</p>
@@ -299,9 +301,10 @@ onMounted(loadMetadata)
           </UFormField>
         </div>
       </div>
+      </div>
     </UPageCard>
 
-    <div v-if="!report && loading" class="space-y-4" aria-label="Generando reporte">
+    <div v-if="!report && loading" class="flex flex-col gap-6" aria-label="Generando reporte">
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <USkeleton v-for="item in 4" :key="item" class="h-32 rounded-xl" />
       </div>
@@ -313,7 +316,7 @@ onMounted(loadMetadata)
 
     <div
       v-if="report"
-      class="relative space-y-6 transition duration-200"
+      class="relative flex flex-col gap-6 transition duration-200"
       :class="loading ? 'pointer-events-none opacity-55' : 'opacity-100'"
       :aria-busy="loading"
     >
@@ -323,7 +326,7 @@ onMounted(loadMetadata)
           Actualizando reporte
         </div>
       </div>
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <UPageCard variant="subtle"><p class="text-xs font-semibold uppercase text-muted">{{ selectedBasis?.label }}</p><p class="mt-2 text-2xl font-bold">{{ formatCurrency(report.summary.converted_total) }}</p><p class="text-xs text-muted">{{ report.summary.count }} documentos o movimientos</p></UPageCard>
         <UPageCard variant="subtle"><p class="text-xs font-semibold uppercase text-muted">Cobrado</p><p class="mt-2 text-2xl font-bold text-success">{{ formatCurrency(report.summary.converted_paid) }}</p></UPageCard>
         <UPageCard variant="subtle"><p class="text-xs font-semibold uppercase text-muted">Pendiente</p><p class="mt-2 text-2xl font-bold text-warning">{{ formatCurrency(report.summary.converted_pending) }}</p></UPageCard>
@@ -332,17 +335,17 @@ onMounted(loadMetadata)
 
       <UAlert v-if="report.summary.missing_exchange_rate_count" color="warning" icon="i-lucide-triangle-alert" title="Consolidado incompleto" :description="`${report.summary.missing_exchange_rate_count} movimientos no tienen cotización histórica.`" />
 
-      <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
+      <div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
         <UPageCard variant="subtle"><template #header><div><p class="font-semibold">Evolución</p><p class="text-xs text-muted">Total y cobrado según la agrupación seleccionada</p></div></template><div class="h-80"><ClientOnly><VChart :option="chartOption" autoresize /></ClientOnly></div></UPageCard>
         <UPageCard variant="subtle"><template #header><p class="font-semibold">Composición por moneda</p></template><div class="space-y-3"><div v-for="(values, currency) in report.summary.by_currency" :key="currency" class="rounded-xl border border-default p-3"><div class="flex justify-between"><strong>{{ currency }}</strong><span class="text-sm">{{ values.count }} movimientos</span></div><p class="mt-2 text-lg font-semibold">{{ formatCurrency(values.total, currency) }}</p><p class="text-xs text-muted">Cobrado {{ formatCurrency(values.paid, currency) }} · Pendiente {{ formatCurrency(values.pending, currency) }}</p></div></div></UPageCard>
       </div>
 
-      <div v-if="report.commercial_performance" class="space-y-4">
+      <div v-if="report.commercial_performance" class="flex flex-col gap-6">
         <div>
           <p class="text-lg font-semibold">Rendimiento comercial</p>
           <p class="text-sm text-muted">Los rankings usan únicamente {{ selectedBasis?.label.toLowerCase() }} del período y filtros seleccionados.</p>
         </div>
-        <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <UPageCard variant="subtle">
             <template #header>
               <div><p class="font-semibold">Productos más vendidos</p><p class="text-xs text-muted">Ranking por unidades netas, descontando notas de crédito</p></div>
@@ -395,6 +398,7 @@ onMounted(loadMetadata)
           search-placeholder="Buscar documento o cliente..."
         />
       </UPageCard>
+    </div>
     </div>
   </UPage>
 </template>

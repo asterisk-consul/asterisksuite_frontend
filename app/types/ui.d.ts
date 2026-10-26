@@ -46,12 +46,23 @@ declare global {
     amount: number
   }
 
-  interface Notification {
-    id: number
-    unread?: boolean
-    sender: User
-    body: string
-    date: string
+  interface UserNotification {
+    id: string
+    type: string
+    title: string
+    message: string
+    target_path: string | null
+    target_type: string | null
+    target_id: string | null
+    created_at: string
+    read_at: string | null
+    actor: { id: string; name: string } | null
+  }
+
+  interface UserNotificationFeed {
+    items: UserNotification[]
+    unread_count: number
+    total_count: number
   }
 
   type Period = 'daily' | 'weekly' | 'monthly'

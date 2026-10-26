@@ -16,7 +16,7 @@ const groups = computed(() => {
     .map(group => ({
       ...group,
       entries: group.entries.filter(entry => {
-        const allowed = !entry.permission || isOwnerOrAdmin.value || hasPermission(entry.permission)
+        const allowed = (!entry.permission || isOwnerOrAdmin.value || hasPermission(entry.permission)) && (!entry.ownerOrAdminOnly || isOwnerOrAdmin.value)
         const visible = showAdvanced.value || !entry.advanced || Boolean(term)
         const matches = !term || `${group.label} ${entry.label} ${entry.description}`.toLocaleLowerCase('es').includes(term)
         return allowed && visible && matches
