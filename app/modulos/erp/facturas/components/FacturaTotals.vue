@@ -8,8 +8,19 @@ interface TaxSummary {
   taxableBase?: number
 }
 
+interface CommercialAdjustmentSummary {
+  concept: string
+  value_type: 'PERCENTAGE' | 'AMOUNT'
+  basis: 'NET' | 'GROSS'
+  value: number
+  calculated_amount: number
+  net_discount: number
+}
+
 interface Props {
   subtotal: number
+  originalSubtotal?: number
+  commercialAdjustments?: CommercialAdjustmentSummary[]
   taxes: TaxSummary[]
   total: number
   showBreakdown?: boolean
@@ -20,6 +31,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   showBreakdown: true,
+  commercialAdjustments: () => [],
   currencyCode: 'ARS',
   exchangeRate: null,
   convertedTotal: null,
@@ -43,9 +55,26 @@ const isForeignCurrency = computed(() => props.currencyCode !== 'ARS')
   <div class="p-4 space-y-2">
     <!-- Subtotal -->
     <div class="flex justify-between">
-      <span class="text-gray-600 dark:text-gray-400">Subtotal</span>
-      <span class="font-medium">{{ fmt(subtotal) }}</span>
+      <span class="text-gray-600 dark:text-gray-400">{{ commercialAdjustments.length ? 'Subtotal antes de bonificaciones' : 'Subtotal' }}</span>
+      <span class="font-medium">{{ fmt(commercialAdjustments.length ? (originalSubtotal ?? subtotal) : subtotal) }}</span>
     </div>
+
+    <template v-if="commercialAdjustments.length">
+      <div v-for="(adjustment, index) in commercialAdjustments" :key="`${adjustment.concept}-${index}`" class="flex justify-between gap-4 text-sm">
+        <div class="text-gray-500">
+          {{ adjustment.concept }}
+          <span class="text-xs text-gray-400">({{ adjustment.basis === 'NET' ? 'sobre neto' : 'sobre bruto' }})</span>
+        </div>
+        <div class="text-right">
+          <div class="text-gray-600 dark:text-gray-400">− {{ fmt(adjustment.net_discount) }}</div>
+          <div v-if="adjustment.basis === 'GROSS'" class="text-xs text-gray-400">Impacto bruto: − {{ fmt(adjustment.calculated_amount) }}</div>
+        </div>
+      </div>
+      <div class="flex justify-between border-t pt-2">
+        <span class="text-gray-600 dark:text-gray-400">Subtotal neto</span>
+        <span class="font-medium">{{ fmt(subtotal) }}</span>
+      </div>
+    </template>
 
     <!-- Taxes -->
     <template v-if="showBreakdown">

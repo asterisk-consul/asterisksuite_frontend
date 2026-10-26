@@ -59,6 +59,8 @@ const handleSubmit = async (form: FormType) => {
     <BusinessPartyForm
       v-else-if="formData"
       :model-value="formData"
+      :loading="saving"
+      :error="store.error"
       @submit="handleSubmit"
     />
   </div>

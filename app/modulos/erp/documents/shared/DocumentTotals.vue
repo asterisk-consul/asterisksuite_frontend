@@ -51,6 +51,19 @@ const convertedTotal = computed(() =>
 const convertedPaidAmount = computed(() =>
   props.document?.converted_paid_amount != null ? Number(props.document.converted_paid_amount) : null
 )
+const commercialAdjustments = computed(() => Array.isArray(props.document?.commercial_adjustments)
+  ? props.document.commercial_adjustments
+  : [])
+const originalSubtotal = computed(() => Number(props.document?.subtotal ?? 0) + commercialAdjustments.value.reduce(
+  (sum: number, adjustment: any) => sum + Number(adjustment.net_discount ?? 0),
+  0,
+))
+const convertedOriginalSubtotal = computed(() => convertedSubtotal.value != null
+  ? convertedSubtotal.value + commercialAdjustments.value.reduce(
+    (sum: number, adjustment: any) => sum + Number(adjustment.net_discount ?? 0) * Number(props.document?.exchange_rate ?? 1),
+    0,
+  )
+  : null)
 const convertedPending = computed(() =>
   convertedTotal.value != null && convertedPaidAmount.value != null
     ? convertedTotal.value - convertedPaidAmount.value
@@ -80,8 +93,28 @@ const convertedPending = computed(() =>
 
       <!-- Subtotal -->
       <div class="grid grid-cols-[1fr_auto_auto] gap-x-6 py-2">
-        <span class="text-muted">Subtotal</span>
-        <span class="text-right min-w-[120px]">{{ fmt(Number(document.subtotal)) }}</span>
+        <span class="text-muted">{{ commercialAdjustments.length ? 'Subtotal antes de bonificaciones' : 'Subtotal' }}</span>
+        <span class="text-right min-w-[120px]">{{ fmt(commercialAdjustments.length ? originalSubtotal : Number(document.subtotal)) }}</span>
+        <span v-if="convertedOriginalSubtotal != null" class="text-right min-w-[120px] text-muted">{{ fmtBase(commercialAdjustments.length ? convertedOriginalSubtotal : convertedSubtotal!) }}</span>
+        <span v-else class="min-w-[120px]"></span>
+      </div>
+
+      <div v-for="(adjustment, index) in commercialAdjustments" :key="`${adjustment.concept}-${index}`" class="grid grid-cols-[1fr_auto_auto] gap-x-6 py-1 text-sm">
+        <span class="text-muted">{{ adjustment.concept }} <span class="text-xs">(sobre {{ adjustment.basis === 'GROSS' ? 'bruto' : 'neto' }})</span></span>
+        <span class="text-right min-w-[120px]">
+          <span>− {{ fmt(Number(adjustment.net_discount ?? 0)) }}</span>
+          <span v-if="adjustment.basis === 'GROSS'" class="block text-xs text-muted">Bruto: − {{ fmt(Number(adjustment.calculated_amount ?? 0)) }}</span>
+        </span>
+        <span v-if="convertedOriginalSubtotal != null" class="text-right min-w-[120px] text-muted">
+          <span>− {{ fmtBase(Number(adjustment.net_discount ?? 0) * Number(document.exchange_rate ?? 1)) }}</span>
+          <span v-if="adjustment.basis === 'GROSS'" class="block text-xs">Bruto: − {{ fmtBase(Number(adjustment.calculated_amount ?? 0) * Number(document.exchange_rate ?? 1)) }}</span>
+        </span>
+        <span v-else class="min-w-[120px]"></span>
+      </div>
+
+      <div v-if="commercialAdjustments.length" class="grid grid-cols-[1fr_auto_auto] gap-x-6 py-2 border-t">
+        <span class="text-muted">Subtotal neto</span>
+        <span class="text-right min-w-[120px] font-medium">{{ fmt(Number(document.subtotal)) }}</span>
         <span v-if="convertedSubtotal != null" class="text-right min-w-[120px] text-muted">{{ fmtBase(convertedSubtotal) }}</span>
         <span v-else class="min-w-[120px]"></span>
       </div>
@@ -140,7 +173,20 @@ const convertedPending = computed(() =>
     <!-- SIMPLE MODE: single column (base currency or no exchange rate) -->
     <div v-else class="space-y-2 text-sm">
       <div class="flex justify-between">
-        <span class="text-muted">Subtotal</span>
+        <span class="text-muted">{{ commercialAdjustments.length ? 'Subtotal antes de bonificaciones' : 'Subtotal' }}</span>
+        <span class="font-medium">{{ fmt(commercialAdjustments.length ? originalSubtotal : Number(document.subtotal)) }}</span>
+      </div>
+
+      <div v-for="(adjustment, index) in commercialAdjustments" :key="`${adjustment.concept}-${index}`" class="flex justify-between gap-4">
+        <span class="text-muted">{{ adjustment.concept }} <span class="text-xs">(sobre {{ adjustment.basis === 'GROSS' ? 'bruto' : 'neto' }})</span></span>
+        <span class="text-right">
+          <span class="block">− {{ fmt(Number(adjustment.net_discount ?? 0)) }}</span>
+          <span v-if="adjustment.basis === 'GROSS'" class="block text-xs text-muted">Impacto bruto: − {{ fmt(Number(adjustment.calculated_amount ?? 0)) }}</span>
+        </span>
+      </div>
+
+      <div v-if="commercialAdjustments.length" class="flex justify-between border-t pt-2">
+        <span class="text-muted">Subtotal neto</span>
         <span class="font-medium">{{ fmt(Number(document.subtotal)) }}</span>
       </div>
 

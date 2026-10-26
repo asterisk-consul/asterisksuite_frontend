@@ -146,8 +146,9 @@ const detailColumns = (showBalance: boolean): ExtendedColumn<ReportTableRow>[] =
 ]
 const companyColumn: ExtendedColumn<ReportTableRow> = {
   accessorKey: 'company_name', header: 'Empresa',
+  enableHiding: false,
   filterFn: reportTableFilter,
-  meta: { label: 'Empresa', filter: { type: 'text', operators: ['contains', 'equals'] } },
+  meta: { label: 'Empresa', disableColumnVisibility: true, filter: { type: 'text', operators: ['contains', 'equals'] } },
   cell: ({ row }: any) => h('span', { class: `inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${row.original.company_tone}` }, row.original.company_name),
 }
 const withCompanyColumn = (columns: ExtendedColumn<ReportTableRow>[]) => [companyColumn, ...columns.filter(column => !('accessorKey' in column) || column.accessorKey !== 'company_name')]

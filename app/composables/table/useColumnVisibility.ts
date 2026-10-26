@@ -192,6 +192,8 @@ export function useColumnVisibility<TTableApi extends TableApiLike>(
       readyPreferenceKey = tableKey
       loadingIdentity = undefined
 
+      if (normalizeFixedColumnVisibility()) scheduleRemoteSave()
+
       // Migra al servidor las preferencias que existían solo en el navegador anterior.
       if (!saved && hasLocalPreference) scheduleRemoteSave()
     } catch {
@@ -216,9 +218,10 @@ export function useColumnVisibility<TTableApi extends TableApiLike>(
   )
 
   watch(
-    [columnVisibility, columnOrder],
+    [columnVisibility, columnOrder, table],
     () => {
       if (!import.meta.client) return
+      normalizeFixedColumnVisibility()
       persistLocalPreferences()
       if (isHydrating) return
       if (readyPreferenceKey) {
@@ -253,6 +256,24 @@ export function useColumnVisibility<TTableApi extends TableApiLike>(
       enqueueRemoteSave(readyPreferenceKey)
     }
   })
+
+  function normalizeFixedColumnVisibility() {
+    const api = table.value?.tableApi
+    if (!api) return false
+
+    const nextVisibility = { ...columnVisibility.value }
+    let changed = false
+    for (const column of api.getAllColumns()) {
+      const isFixed = !column.getCanHide() || column.columnDef?.meta?.disableColumnVisibility
+      if (isFixed && nextVisibility[column.id] === false) {
+        delete nextVisibility[column.id]
+        changed = true
+      }
+    }
+
+    if (changed) columnVisibility.value = nextVisibility
+    return changed
+  }
 
   const reorderableColumns = computed(() => {
     const api = table.value?.tableApi

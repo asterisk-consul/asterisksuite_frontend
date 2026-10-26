@@ -17,7 +17,9 @@ const { importOpen, allowImport, dataActions } = usePartiesImportExport()
 
 const sorting = ref<SortingState>([])
 
-const parties = computed(() => allParties.value.filter(p => p.type === 'SUPPLIER'))
+const parties = computed(() => allParties.value.filter(p =>
+  p.type === 'SUPPLIER' || p.roles?.some(role => role.role === 'SUPPLIER' && role.active)
+))
 
 onMounted(() => store.fetchAll())
 

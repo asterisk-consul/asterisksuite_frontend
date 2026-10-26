@@ -34,11 +34,13 @@ import { useDocumentTypesForModule } from '~/modulos/erp/documents/documents-typ
 // Document Sequences (Punto de Venta)
 import { useDocumentSequencesService } from '~/modulos/erp/document-sequences/service/document-sequences.service'
 import type { DocumentSequence } from '~/modulos/erp/document-sequences/types/document-sequences.types'
+import { useCommercialAdjustmentConceptsService } from '~/modulos/erp/commercial-adjustment-concepts/commercial-adjustment-concepts.service'
+import type { CommercialAdjustmentConcept } from '~/modulos/erp/commercial-adjustment-concepts/commercial-adjustment-concepts.types'
 
 // Invoice
 import { getDocumentTypeForVatCondition, type VatCondition } from '~/modulos/erp/invoices/utils/vatConditionMap'
 
-import type { Document, FacturaFormValues, FacturaItem } from '../types/factura.types'
+import type { CommercialAdjustment, Document, FacturaFormValues, FacturaItem } from '../types/factura.types'
 
 const BusinessPartyModal = defineAsyncComponent(() => import('~/modulos/logistica/master-data/bussiness-parties/components/BusinnesPartyModal.vue'))
 const ReferenceDocumentPicker = defineAsyncComponent(() => import('./ReferenceDocumentPicker.vue'))
@@ -76,6 +78,9 @@ const stockService = useStockService()
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 const canRegularizeStock = computed(() => isOwnerOrAdmin.value || hasPermission('stock.create'))
+const canManageCommercialAdjustmentConcepts = computed(() => isOwnerOrAdmin.value
+  || hasPermission('commercial_adjustment_concepts.create')
+  || hasPermission('commercial_adjustment_concepts.update'))
 const fiscalService = useFiscalService()
 const {
   items: parties,
@@ -428,6 +433,94 @@ const {
 } = useDocumentTypesForModule(moduleCode.value, partnerCondition)
 
 const items = ref<FacturaItem[]>([])
+const commercialAdjustments = ref<CommercialAdjustment[]>([])
+const commercialAdjustmentConcepts = ref<CommercialAdjustmentConcept[]>([])
+const commercialAdjustmentConceptsLoading = ref(false)
+const commercialAdjustmentConceptsError = ref(false)
+const selectedCommercialAdjustmentConceptId = ref<any>('')
+const commercialAdjustmentConceptsService = useCommercialAdjustmentConceptsService()
+const adjustmentTypeOptions = [
+  { label: 'Porcentaje', value: 'PERCENTAGE' },
+  { label: 'Importe fijo', value: 'AMOUNT' }
+]
+const adjustmentBasisOptions = [
+  { label: 'Neto antes de impuestos', value: 'NET' },
+  { label: 'Total con impuestos', value: 'GROSS' }
+]
+const selectedDocumentCategory = computed(() =>
+  documentsTypes.value.find((documentType) => documentType.id === form.document_type_id)?.category ?? props.category
+)
+const canAddCommercialAdjustments = computed(() =>
+  !props.operationalMode && selectedDocumentCategory.value === 'INVOICE'
+)
+const commercialAdjustmentConceptOptions = computed(() => commercialAdjustmentConcepts.value.map((concept) => {
+  const defaultValue = concept.default_value == null
+    ? 'valor a definir'
+    : concept.value_type === 'PERCENTAGE'
+      ? `${Number(concept.default_value).toLocaleString('es-AR')}%`
+      : `${new Intl.NumberFormat('es-AR').format(Number(concept.default_value))} (moneda del comprobante)`
+  return { label: `${concept.name} · ${defaultValue}`, value: concept.id }
+}))
+const selectedCommercialAdjustmentConcept = computed(() => {
+  const selectedId = typeof selectedCommercialAdjustmentConceptId.value === 'string'
+    ? selectedCommercialAdjustmentConceptId.value
+    : selectedCommercialAdjustmentConceptId.value?.value ?? selectedCommercialAdjustmentConceptId.value?.id
+  return commercialAdjustmentConcepts.value.find((concept) => concept.id === selectedId)
+})
+
+watch(selectedCommercialAdjustmentConceptId, (selected) => {
+  if (typeof selected !== 'string') {
+    selectedCommercialAdjustmentConceptId.value = selected?.value ?? selected?.id ?? ''
+  }
+})
+
+async function loadCommercialAdjustmentConcepts(moduleCode = props.moduleCode) {
+  const module = moduleCode === 'PURCHASES' ? 'PURCHASES' : 'SALES'
+  commercialAdjustmentConceptsLoading.value = true
+  commercialAdjustmentConceptsError.value = false
+  try {
+    commercialAdjustmentConcepts.value = await commercialAdjustmentConceptsService.findAll({ module })
+  } catch {
+    commercialAdjustmentConcepts.value = []
+    commercialAdjustmentConceptsError.value = true
+  } finally {
+    commercialAdjustmentConceptsLoading.value = false
+  }
+}
+
+watch(
+  () => [canAddCommercialAdjustments.value, moduleCode.value] as const,
+  ([enabled, moduleCode]) => {
+    if (enabled) void loadCommercialAdjustmentConcepts(moduleCode)
+  },
+  { immediate: true }
+)
+
+function addCommercialAdjustment() {
+  commercialAdjustments.value.push({ concept: '', value_type: 'PERCENTAGE', basis: 'NET', value: 0 })
+}
+
+function addSelectedCommercialAdjustment() {
+  const concept = selectedCommercialAdjustmentConcept.value
+  if (!concept) return
+  commercialAdjustments.value.push({
+    concept: concept.name,
+    value_type: concept.value_type,
+    basis: concept.basis,
+    value: Number(concept.default_value ?? 0)
+  })
+  selectedCommercialAdjustmentConceptId.value = ''
+}
+
+function removeCommercialAdjustment(index: number) {
+  commercialAdjustments.value.splice(index, 1)
+}
+
+function validCommercialAdjustments() {
+  return commercialAdjustments.value.filter((adjustment) =>
+    adjustment.concept.trim() && Number(adjustment.value) > 0
+  )
+}
 
 // ─── Punto de Venta (Secuencias) ─────────────────────────
 const documentSequencesService = useDocumentSequencesService()
@@ -567,6 +660,7 @@ type DocumentDraft = {
   baseUpdatedAt?: string
   form: typeof form
   items: FacturaItem[]
+  commercialAdjustments: CommercialAdjustment[]
   selectedSequenceId: string
   referenceDocumentId?: string
   advancedWarehouseAssignment: boolean
@@ -601,6 +695,7 @@ const {
     baseUpdatedAt: props.initialValues?.updated_at,
     form: { ...form },
     items: items.value,
+    commercialAdjustments: commercialAdjustments.value,
     selectedSequenceId: selectedSequenceId.value,
     referenceDocumentId: referenceDocumentId.value,
     advancedWarehouseAssignment: advancedWarehouseAssignment.value,
@@ -611,6 +706,7 @@ const {
   restore: (draft) => {
     Object.assign(form, draft.form)
     items.value = draft.items.map(item => ({ ...item }))
+    commercialAdjustments.value = (draft.commercialAdjustments ?? []).map(adjustment => ({ ...adjustment }))
     selectedSequenceId.value = draft.selectedSequenceId || ''
     referenceDocumentId.value = draft.referenceDocumentId
     advancedWarehouseAssignment.value = draft.advancedWarehouseAssignment
@@ -624,6 +720,7 @@ const {
     || draft.form.descrip
     || draft.form.ref
     || draft.items.length
+    || (draft.commercialAdjustments?.length ?? 0) > 0
     || Object.entries(draft.extension ?? {}).some(([key, value]) =>
       value !== '' && value !== null && value !== undefined && key !== 'priority' && key !== 'commission_base'
     )
@@ -670,6 +767,12 @@ async function fetchPreview() {
         date: form.date,
         jurisdictionId: form.fiscal_jurisdiction_id || undefined,
         operationType: props.moduleCode === 'SALES' ? 'SALE' : 'PURCHASE',
+        commercial_adjustments: validCommercialAdjustments().map((adjustment) => ({
+          concept: adjustment.concept.trim(),
+          value_type: adjustment.value_type,
+          basis: adjustment.basis,
+          value: Number(adjustment.value)
+        })),
         items: items.value.map((i) => ({
           productId: i.product_id || undefined,
           quantity: Number(i.quantity),
@@ -715,6 +818,8 @@ function debouncedFetchPreview() {
 
 // Totales del preview
 const subtotal = computed(() => lastPreview.value?.document?.subtotal ?? 0)
+const originalSubtotal = computed(() => lastPreview.value?.document?.originalSubtotal ?? subtotal.value)
+const appliedCommercialAdjustments = computed(() => lastPreview.value?.document?.commercial_adjustments ?? [])
 const automaticTaxesSummary = computed(() => lastPreview.value?.document?.documentTaxes ?? [])
 const automaticIibbTax = computed(() => automaticTaxesSummary.value.find((tax: any) =>
   String(tax.code ?? '').includes('IIBB')
@@ -765,6 +870,15 @@ watch(
     if (items.value.length > 0 && form.document_type_id) {
       debouncedFetchPreview()
     }
+  },
+  { deep: true }
+)
+
+watch(
+  commercialAdjustments,
+  () => {
+    if (isRecalculating) return
+    if (items.value.length > 0 && form.document_type_id) debouncedFetchPreview()
   },
   { deep: true }
 )
@@ -826,6 +940,7 @@ watch(
     form.rate_type = val.rate_type ?? 'OFFICIAL'
     form.warehouse_id = (val as any).warehouse_id ?? ''
     form.fiscal_jurisdiction_id = (val as any).fiscal_jurisdiction_id ?? ''
+    commercialAdjustments.value = (val.commercial_adjustments ?? []).map((adjustment) => ({ ...adjustment }))
     const seqId = (val as any).document_sequence_id
     selectedSequenceId.value = seqId && sequenceOptions.value.some(s => s.value === seqId) ? seqId : ''
 
@@ -846,7 +961,9 @@ watch(
       }))
 
       items.value = (val.document_items ?? []).map((item: any) => {
-        const subtotal = Number(item.quantity ?? 0) * Number(item.unit_price ?? 0)
+        const originalUnitPrice = Number(item.original_unit_price ?? item.unit_price ?? 0)
+        const discountPercentage = Number(item.discount_percentage ?? 0)
+        const subtotal = Number(item.quantity ?? 0) * originalUnitPrice * (1 - discountPercentage / 100)
 
         const lineTaxes = (item.document_item_taxes ?? []).map((tax: any) => ({
           tax_id: tax.tax_id,
@@ -873,8 +990,8 @@ watch(
           warehouse_id: item.warehouse_id ?? null,
           product_name: item.products?.name || item.products?.description || 'Producto',
           quantity: Number(item.quantity ?? 0),
-          unit_price: Number(item.original_unit_price ?? item.unit_price ?? 0),
-          discount_percentage: Number(item.discount_percentage ?? 0),
+          unit_price: originalUnitPrice,
+          discount_percentage: discountPercentage,
           price: subtotal,
           subtotal,
           taxes,
@@ -1203,6 +1320,19 @@ function updateItemWarehouse(index: number, warehouseId: string | null) {
 }
 
 function submit() {
+  const incompleteAdjustment = commercialAdjustments.value.some((adjustment) =>
+    !adjustment.concept.trim() || Number(adjustment.value) <= 0 ||
+    (adjustment.value_type === 'PERCENTAGE' && Number(adjustment.value) > 100)
+  )
+  if (incompleteAdjustment) {
+    toast.add({
+      title: 'Revisá los conceptos agregados',
+      description: 'Completá el nombre y un importe mayor que cero; los porcentajes no pueden superar el 100%.',
+      color: 'warning'
+    })
+    return
+  }
+
   if (props.operationalMode && affectsStock.value) {
     const missingWarehouse = items.value.filter(item => !item.warehouse_id && !form.warehouse_id)
     if (missingWarehouse.length > 0) {
@@ -1247,13 +1377,19 @@ function submit() {
       manual: manualIibbAmount.value != null,
       modification_reason: manualIibbAmount.value != null ? manualIibbReason.value : undefined
     }] : [],
+    commercial_adjustments: commercialAdjustments.value.map((adjustment) => ({
+      concept: adjustment.concept.trim(),
+      value_type: adjustment.value_type,
+      basis: adjustment.basis,
+      value: Number(adjustment.value)
+    })),
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
       variant_id: i.variant_id || undefined,
       warehouse_id: props.operationalMode
         ? (i.warehouse_id || form.warehouse_id || undefined)
         : affectsStock.value
-          ? (moduleCode === 'SALES' ? (i.warehouse_id || undefined) : (advancedWarehouseAssignment.value ? (i.warehouse_id || undefined) : (form.warehouse_id || undefined)))
+          ? (moduleCode.value === 'SALES' ? (i.warehouse_id || undefined) : (advancedWarehouseAssignment.value ? (i.warehouse_id || undefined) : (form.warehouse_id || undefined)))
           : undefined,
       quantity: Number(i.quantity),
       purchase_unit_id: moduleCode.value === 'PURCHASES' ? (i.purchase_unit_id || undefined) : undefined,
@@ -1565,6 +1701,73 @@ defineExpose({ submit, completeDraft })
       />
     </UCard>
 
+    <UCard v-if="canAddCommercialAdjustments">
+      <template #header>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-semibold">Descuentos y bonificaciones</h2>
+            <p class="mt-1 text-sm text-muted">Elegí una plantilla o agregá un concepto puntual. Podés ajustar cada dato antes de guardar.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <USelectMenu
+              v-model="selectedCommercialAdjustmentConceptId"
+              :items="commercialAdjustmentConceptOptions"
+              value-key="value"
+              searchable
+              :loading="commercialAdjustmentConceptsLoading"
+              :disabled="commercialAdjustmentConceptsLoading || !commercialAdjustmentConceptOptions.length"
+              placeholder="Elegir del catálogo..."
+              class="w-full sm:w-64"
+            />
+            <UButton icon="i-lucide-plus" label="Agregar" color="primary" variant="outline" :disabled="!selectedCommercialAdjustmentConcept" @click="addSelectedCommercialAdjustment" />
+            <UButton icon="i-lucide-pencil-line" label="Manual" color="neutral" variant="ghost" @click="addCommercialAdjustment" />
+            <UButton v-if="canManageCommercialAdjustmentConcepts" icon="i-lucide-settings-2" label="Catálogo" color="neutral" variant="ghost" to="/erp/settings/commercial-adjustment-concepts" />
+          </div>
+        </div>
+      </template>
+
+      <div v-if="commercialAdjustments.length" class="flex flex-col gap-3">
+        <div
+          v-for="(adjustment, index) in commercialAdjustments"
+          :key="index"
+          class="grid grid-cols-1 items-end gap-3 rounded-lg border border-default p-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1.5fr)_minmax(130px,0.8fr)_minmax(140px,0.8fr)_minmax(180px,1fr)_auto]"
+        >
+          <UFormField label="Concepto" required>
+            <UInput v-model="adjustment.concept" placeholder="Ej.: Bonificación comercial" class="w-full" />
+          </UFormField>
+          <UFormField label="Tipo de descuento">
+            <USelect v-model="adjustment.value_type" :items="adjustmentTypeOptions" value-key="value" class="w-full" />
+          </UFormField>
+          <UFormField :label="adjustment.value_type === 'PERCENTAGE' ? 'Porcentaje' : 'Importe fijo'" required>
+            <UInput
+              v-model.number="adjustment.value"
+              type="number"
+              min="0.01"
+              :max="adjustment.value_type === 'PERCENTAGE' ? 100 : undefined"
+              step="0.01"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Calcular sobre">
+            <USelect v-model="adjustment.basis" :items="adjustmentBasisOptions" value-key="value" class="w-full" />
+          </UFormField>
+          <UButton
+            icon="i-lucide-trash-2"
+            color="error"
+            variant="ghost"
+            aria-label="Quitar concepto"
+            @click="removeCommercialAdjustment(index)"
+          />
+        </div>
+        <p class="text-xs text-muted">El neto antes de impuestos es la base recomendada. No cargues acá descuentos de pronto pago condicionados: solo conceptos ya otorgados en la factura.</p>
+      </div>
+      <div v-else class="rounded-lg border border-dashed border-default px-4 py-5 text-sm text-muted">
+        No hay descuentos ni bonificaciones. Podés aplicar una plantilla del catálogo o crear un concepto manual. Cada uno recalcula impuestos y el total.
+      </div>
+      <UAlert v-if="commercialAdjustmentConceptsError" class="mt-3" color="warning" variant="subtle" icon="i-lucide-triangle-alert" title="No se pudo cargar el catálogo" description="Podés continuar con un concepto manual. Si necesitás plantillas, verificá tu permiso de lectura o la configuración de la empresa." />
+      <p v-else-if="!commercialAdjustmentConceptsLoading && !commercialAdjustmentConcepts.length" class="mt-3 text-xs text-muted">Todavía no hay plantillas activas para este circuito. Podés agregarlas desde Configuración de documentos.</p>
+    </UCard>
+
     <UModal v-model:open="regularizationOpen" title="Regularizar stock para el remito" description="Registrá un ingreso manual auditable para poder seleccionar el depósito de salida.">
       <template #body>
         <div class="space-y-4">
@@ -1639,6 +1842,8 @@ defineExpose({ submit, completeDraft })
 
         <FacturaTotals
           :subtotal="subtotal"
+          :original-subtotal="originalSubtotal"
+          :commercial-adjustments="appliedCommercialAdjustments"
           :taxes="taxesSummary"
           :total="total"
           :show-breakdown="showTaxBreakdown"

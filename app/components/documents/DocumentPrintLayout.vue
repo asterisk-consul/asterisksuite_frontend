@@ -31,6 +31,8 @@ interface DocumentItem {
 
 interface DocumentTotals {
   subtotal: number
+  net_subtotal?: number
+  adjustments?: { concept: string; basis: 'NET' | 'GROSS'; net_discount: number; calculated_amount: number }[]
   taxes: { name: string; amount: number }[]
   total: number
 }
@@ -612,7 +614,7 @@ watch(qrValue, generateQr, { immediate: true })
               >
                 <tr>
                   <td style="padding: 8px 16px; font-size: 11px; color: #333333; border-bottom: 1px solid #e5e5e5">
-                    Subtotal
+                    {{ totals.adjustments?.length ? 'Subtotal antes de bonificaciones' : 'Subtotal' }}
                   </td>
                   <td
                     style="
@@ -624,6 +626,23 @@ watch(qrValue, generateQr, { immediate: true })
                     "
                   >
                     {{ fmt(totals.subtotal) }}
+                  </td>
+                </tr>
+                <tr v-for="(adjustment, index) in totals.adjustments ?? []" :key="`${adjustment.concept}-${index}`">
+                  <td style="padding: 6px 16px; font-size: 10px; color: #555555; border-bottom: 1px solid #e5e5e5">
+                    {{ adjustment.concept }} <span style="font-size: 9px; color: #888888">(sobre {{ adjustment.basis === 'GROSS' ? 'bruto' : 'neto' }})</span>
+                  </td>
+                  <td style="padding: 6px 16px; font-size: 10px; color: #333333; text-align: right; border-bottom: 1px solid #e5e5e5">
+                    − {{ fmt(adjustment.net_discount) }}
+                    <div v-if="adjustment.basis === 'GROSS'" style="font-size: 9px; color: #888888">Impacto bruto: − {{ fmt(adjustment.calculated_amount) }}</div>
+                  </td>
+                </tr>
+                <tr v-if="totals.adjustments?.length">
+                  <td style="padding: 7px 16px; font-size: 11px; color: #333333; border-bottom: 1px solid #e5e5e5">
+                    Subtotal neto
+                  </td>
+                  <td style="padding: 7px 16px; font-size: 11px; color: #333333; text-align: right; border-bottom: 1px solid #e5e5e5">
+                    {{ fmt(totals.net_subtotal ?? totals.subtotal) }}
                   </td>
                 </tr>
                 <tr v-for="tax in totals.taxes" :key="tax.name">

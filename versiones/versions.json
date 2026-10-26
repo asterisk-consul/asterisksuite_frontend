@@ -1,5 +1,35 @@
 [
  {
+  "version": "0.99.0-alpha",
+  "date": "2026-10-26",
+  "stage": "alpha",
+  "notes": "Las empresas pueden administrar un catálogo reutilizable de conceptos de descuento y bonificación para facturas de venta y compra, con valores sugeridos editables al aplicarlos.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "documents",
+    "title": "Crear catálogo de conceptos comerciales por empresa y permitir aplicarlos como plantillas editables en facturas"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Reutilizar conceptos de descuento en facturas"
+ },
+ {
+  "version": "0.98.1-alpha",
+  "date": "2026-10-26",
+  "stage": "alpha",
+  "notes": "Las tablas consolidadas mantienen visible la empresa de cada registro y el PDF organiza mejor el detalle para evitar columnas comprimidas.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "reports",
+    "title": "Identificar la empresa en cada fila consolidada y mejorar el ajuste de las tablas del PDF"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Hacer más legibles las tablas consolidadas"
+ },
+ {
   "version": "0.98.0-alpha",
   "date": "2026-10-26",
   "stage": "alpha",

@@ -16,7 +16,9 @@ export function useBusinessPartiesByType(type: PartyType, basePath: string) {
   const { items, loading, error, errors } = storeToRefs(store)
 
   // ✅ filtra por tipo
-  const filteredItems = computed(() => items.value.filter((i) => i.type === type))
+  const filteredItems = computed(() => items.value.filter((i) =>
+    i.type === type || i.roles?.some((role) => role.role === type && role.active)
+  ))
 
   const initialForm: Partial<FormType> = { type }
 

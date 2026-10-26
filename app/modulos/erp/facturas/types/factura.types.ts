@@ -62,6 +62,18 @@ export interface DocumentTax {
   taxes?: Tax
 }
 
+export interface CommercialAdjustment {
+  concept: string
+  value_type: 'PERCENTAGE' | 'AMOUNT'
+  basis: 'NET' | 'GROSS'
+  value: number
+  base_amount?: number
+  calculated_amount?: number
+  net_discount?: number
+  tax_reduction?: number
+  total_reduction?: number
+}
+
 export interface Document {
   id: string
 
@@ -144,6 +156,8 @@ export interface Document {
   document_items?: DocumentItem[]
 
   document_taxes?: DocumentTax[]
+
+  commercial_adjustments?: CommercialAdjustment[] | null
 }
 
 export interface FacturaTax {
@@ -244,4 +258,6 @@ export interface FacturaFormValues {
   items: FacturaItem[]
 
   document_taxes: FacturaTax[]
+
+  commercial_adjustments?: CommercialAdjustment[]
 }

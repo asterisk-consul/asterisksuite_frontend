@@ -9,11 +9,13 @@ import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 import { stakeholdersColumns } from './columns'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import { usePartiesImportExport } from '~/modulos/logistica/master-data/bussiness-parties/composable/usePartiesImportExport'
+import { useTableDelete } from '~/composables/table/useTableDelete'
 
 const router = useRouter()
 const store = useBusinessPartiesStore()
 const { items: parties, loading } = storeToRefs(store)
 const { importOpen, allowImport, dataActions } = usePartiesImportExport()
+const { deleteMany } = useTableDelete('business_parties')
 
 const sorting = ref<SortingState>([])
 
@@ -28,6 +30,11 @@ function onSortFieldSelect(columnId: string) {
 }
 
 const columns = stakeholdersColumns({ onEdit: openEdit, onSortFieldSelect })
+
+async function handleBulkDelete(rows: any[]) {
+  await deleteMany(rows.map(row => row.id))
+  await store.fetchAll({ force: true })
+}
 
 const filterFields: FilterField[] = [
   { id: 'name', label: 'Filtrar por Razón Social...', class: 'w-40' },
@@ -89,6 +96,7 @@ const importColumns = [
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"
+      :on-delete="handleBulkDelete"
     />
   </UPage>
 

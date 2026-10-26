@@ -53,6 +53,7 @@ const handleSubmit = async (form: FormType) => {
       v-else-if="formData"
       :model-value="formData"
       :loading="saving"
+      :error="store.error"
       header-title="Editar Socio"
       @submit="handleSubmit"
     />

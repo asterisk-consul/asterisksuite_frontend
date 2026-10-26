@@ -3,6 +3,7 @@ import { useRolesStore } from '~/modulos/access-control/stores/roles.store'
 
 export default defineNuxtRouteMiddleware(async () => {
   const auth = useAuthStore()
+  const hostname = useRequestURL().hostname
 
   await auth.init()
 
@@ -16,8 +17,7 @@ export default defineNuxtRouteMiddleware(async () => {
   }
 
   if (!auth.selectedCompany) {
-    const url = useRequestURL()
-    auth.autoSelectByHostname(url.hostname)
+    auth.autoSelectByHostname(hostname)
   }
 
   if (auth.needsCompanySelection) {

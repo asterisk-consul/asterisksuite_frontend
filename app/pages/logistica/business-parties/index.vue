@@ -5,6 +5,7 @@ import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vu
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import { BusinessPartyColumns } from '~/modulos/logistica/master-data/bussiness-parties/columns'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import DeleteConfirmModal from '~/components/Tablas/DeleteConfirmModal.vue'
 import { useTableDelete } from '~/composables/table/useTableDelete'
 
 const moduleCollapsed = inject('moduleSidebarCollapsed') as Ref<boolean>
@@ -35,15 +36,29 @@ const openEdit = (row: any) => {
 --------------------------------------- */
 
 const { deleteOne, deleteMany } = useTableDelete('business_parties')
+const partyPendingDelete = ref<any | null>(null)
+const deletingParty = ref(false)
 
-async function handleDeleteOne(row: any) {
-  await deleteOne(row.id)
-  await store.fetchAll()
+function requestDeleteOne(row: any) {
+  partyPendingDelete.value = row
+}
+
+async function confirmDeleteOne() {
+  if (!partyPendingDelete.value) return
+
+  deletingParty.value = true
+  try {
+    await deleteOne(partyPendingDelete.value.id)
+    partyPendingDelete.value = null
+    await store.fetchAll({ force: true })
+  } finally {
+    deletingParty.value = false
+  }
 }
 
 async function handleBulkDelete(rows: any[]) {
   await deleteMany(rows.map(r => r.id))
-  await store.fetchAll()
+  await store.fetchAll({ force: true })
 }
 
 function onSortFieldSelect(columnId: string) {
@@ -59,7 +74,7 @@ function onSortFieldSelect(columnId: string) {
 const columns = BusinessPartyColumns({
   onEdit: openEdit,
   onSortFieldSelect,
-  onDelete: handleDeleteOne
+  onDelete: requestDeleteOne
 })
 
 const links: ButtonProps[] = [
@@ -96,6 +111,14 @@ const sortFields: SortField[] = [
       :sort-fields="sortFields"
       v-model:sorting="sorting"
       :on-delete="handleBulkDelete"
+    />
+
+    <DeleteConfirmModal
+      :open="!!partyPendingDelete"
+      :count="1"
+      :loading="deletingParty"
+      @confirm="confirmDeleteOne"
+      @cancel="partyPendingDelete = null"
     />
   </UPage>
 </template>

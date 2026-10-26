@@ -197,6 +197,7 @@ const routeSegmentLabels: Record<string, string> = {
   'dispatch-orders': 'Órdenes de despacho',
   'document-sequences': 'Secuencias de documentos',
   'document-types': 'Tipos de documento',
+  'commercial-adjustment-concepts': 'Conceptos comerciales',
   drivers: 'Choferes',
   employees: 'Empleados',
   fabricacion: 'Fabricación',

@@ -124,6 +124,18 @@ export function mapDocumentToFacturaForm(
 
     items,
 
-    document_taxes: documentTaxes
+    document_taxes: documentTaxes,
+
+    commercial_adjustments: (document.commercial_adjustments ?? []).map((adjustment: any) => ({
+      concept: String(adjustment.concept ?? ''),
+      value_type: adjustment.value_type === 'AMOUNT' ? 'AMOUNT' : 'PERCENTAGE',
+      basis: adjustment.basis === 'GROSS' ? 'GROSS' : 'NET',
+      value: Number(adjustment.value ?? 0),
+      base_amount: Number(adjustment.base_amount ?? 0),
+      calculated_amount: Number(adjustment.calculated_amount ?? 0),
+      net_discount: Number(adjustment.net_discount ?? 0),
+      tax_reduction: Number(adjustment.tax_reduction ?? 0),
+      total_reduction: Number(adjustment.total_reduction ?? 0)
+    }))
   }
 }

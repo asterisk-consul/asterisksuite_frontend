@@ -62,6 +62,7 @@ const handleSubmit = async (formData: FormType) => {
     <BusinessPartyForm
       :model-value="initialForm"
       :loading="saving"
+      :error="store.error"
       @submit="handleSubmit"
     />
   </div>

@@ -63,6 +63,10 @@ const form = reactive<BusinessPartyForm & { createUser?: boolean; user_name?: st
   user_email: '',
   user_password: ''
 })
+const submitting = ref(false)
+watch(() => props.loading, (loading) => {
+  if (!loading) submitting.value = false
+})
 
 // Expose form state to slot content via slot props
 // (provide/inject doesn't work parent→child, only ancestor→descendant)
@@ -71,6 +75,12 @@ const isPerson = computed(() => form.type === 'EMPLOYEE' || form.type === 'PARTN
 
 // Sync name ↔ first_name/last_name for person types
 watch(() => form.type, (newType, oldType) => {
+  if (newType === 'TAX_AUTHORITY') {
+    // Tax authorities (e.g. ARCA) are identified by their name, not a counterparty CUIT.
+    form.document_type = ''
+    form.tax_id = ''
+  }
+
   const becamePerson = newType === 'EMPLOYEE' || newType === 'PARTNER'
   const wasPerson = oldType === 'EMPLOYEE' || oldType === 'PARTNER'
 
@@ -240,7 +250,7 @@ const removeBankAccount = (i: number) => {
 }
 
 const submit = () => {
-  if (props.loading) return
+  if (props.loading || submitting.value) return
   mergePersonName()
   if (!validateDocument()) return
 
@@ -261,6 +271,7 @@ const submit = () => {
   delete submitData.user_email
   delete submitData.user_password
 
+  submitting.value = true
   emit('submit', submitData)
 }
 
@@ -375,24 +386,26 @@ const displayTitle = computed(() => {
             <UInput v-model="form.email" type="email" class="w-full" />
           </UFormField>
 
-          <UFormField label="Tipo Documento" name="document_type">
-            <USelectMenu
-              v-model="form.document_type"
-              :items="documentTypeOptions"
-              value-key="value"
-              class="w-full"
-            />
-          </UFormField>
+          <template v-if="form.type !== 'TAX_AUTHORITY'">
+            <UFormField label="Tipo Documento" name="document_type">
+              <USelectMenu
+                v-model="form.document_type"
+                :items="documentTypeOptions"
+                value-key="value"
+                class="w-full"
+              />
+            </UFormField>
 
-          <UFormField label="Número de Documento" name="tax_id">
-            <UInput
-              v-model="form.tax_id"
-              :placeholder="docPlaceholder"
-              :maxlength="docMaxLength"
-              class="w-full"
-              @input="sanitizeDocumentInput"
-            />
-          </UFormField>
+            <UFormField label="Número de Documento" name="tax_id">
+              <UInput
+                v-model="form.tax_id"
+                :placeholder="docPlaceholder"
+                :maxlength="docMaxLength"
+                class="w-full"
+                @input="sanitizeDocumentInput"
+              />
+            </UFormField>
+          </template>
 
           <UFormField label="Activo" name="active">
             <USwitch v-model="form.active" />
@@ -659,8 +672,8 @@ const displayTitle = computed(() => {
 
     <!-- ACTIONS -->
     <div class="flex justify-end gap-3">
-      <UButton variant="soft" @click="cancel">Cancelar</UButton>
-      <UButton type="submit" color="primary" :disabled="loading">Guardar</UButton>
+      <UButton variant="soft" :disabled="loading || submitting" @click="cancel">Cancelar</UButton>
+      <UButton type="submit" color="primary" :loading="loading" :disabled="loading || submitting">Guardar</UButton>
     </div>
   </UForm>
 </template>

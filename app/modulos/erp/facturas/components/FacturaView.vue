@@ -162,7 +162,11 @@ const printItems = computed(() =>
 )
 
 const printTotals = computed(() => ({
-  subtotal: Number(props.document.subtotal),
+  subtotal: Number(props.document.subtotal) + (props.document.commercial_adjustments ?? []).reduce(
+    (sum: number, adjustment: any) => sum + Number(adjustment.net_discount ?? 0), 0
+  ),
+  net_subtotal: Number(props.document.subtotal),
+  adjustments: props.document.commercial_adjustments ?? [],
   taxes: allTaxes.value.map(t => ({ name: t.name, amount: t.amount })),
   total: Number(props.document.total)
 }))

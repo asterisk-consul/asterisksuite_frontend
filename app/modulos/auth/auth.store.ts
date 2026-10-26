@@ -5,6 +5,13 @@ import { useCurrentUserEmployee } from '~/composables/useCurrentUserEmployee'
 
 export const useAuthStore = defineStore('auth', () => {
   const { $reset: resetEmployeeCache } = useCurrentUserEmployee()
+  const runtimeConfig = useRuntimeConfig()
+  const requestFetch = useRequestFetch()
+  const serverHostname = import.meta.server ? useRequestURL().hostname : null
+  const selectedTenantCookie = useCookie<string | null>('selected_tenant', {
+    maxAge: 60 * 60 * 24 * 30,
+    domain: runtimeConfig.public.baseDomain || undefined,
+  })
   const user = ref<AuthUser | null>(null)
   const companies = ref<CompanyMembership[]>([])
   const selectedCompany = ref<CompanyMembership | null>(null)
@@ -16,21 +23,29 @@ export const useAuthStore = defineStore('auth', () => {
   const hasMultipleCompanies = computed(() => companies.value.length > 1)
   const needsCompanySelection = computed(() => isLogged.value && hasMultipleCompanies.value && !selectedCompany.value)
 
+  function getSubdomainFromHostname(hostname: string | null | undefined): string | null {
+    if (!hostname) return null
+    const baseDomain = runtimeConfig.public.baseDomain?.trim().toLowerCase().replace(/^\.+|\.+$/g, '')
+    const normalizedHostname = hostname.split(':')[0]?.toLowerCase() ?? ''
+    let subdomain: string | null = null
+
+    if (baseDomain && normalizedHostname.endsWith(`.${baseDomain}`)) {
+      subdomain = normalizedHostname.slice(0, -(baseDomain.length + 1))
+    } else if (normalizedHostname.endsWith('.localhost')) {
+      // En desarrollo puede faltar baseDomain. Los hosts usados son
+      // <empresa>.localhost o <empresa>.<dominio>.localhost.
+      subdomain = normalizedHostname.split('.')[0] ?? null
+    }
+
+    // `dev` es el host compartido de desarrollo, no un tenant. El backend
+    // también lo excluye al resolver el host y usa selected_tenant.
+    if (!subdomain || ['www', 'app', 'api', 'dev'].includes(subdomain)) return null
+    return subdomain
+  }
+
   function getCurrentSubdomain(): string | null {
-    if (!import.meta.client) return null
-    const config = useRuntimeConfig()
-    const baseDomain = config.public.baseDomain
-    const hostname = window.location.hostname
-
-    if (baseDomain && hostname.endsWith('.' + baseDomain)) {
-      return hostname.replace('.' + baseDomain, '')
-    }
-
-    if (hostname.endsWith('.localhost')) {
-      return hostname.replace('.localhost', '')
-    }
-
-    return null
+    if (import.meta.client) return getSubdomainFromHostname(window.location.hostname)
+    return getSubdomainFromHostname(serverHostname)
   }
 
   function autoSelectCompanyBySubdomain(): boolean {
@@ -47,16 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function autoSelectByHostname(hostname: string): boolean {
-    const config = useRuntimeConfig()
-    const baseDomain = config.public.baseDomain
-    let subdomain: string | null = null
-
-    if (baseDomain && hostname.endsWith('.' + baseDomain)) {
-      subdomain = hostname.replace('.' + baseDomain, '')
-    } else if (hostname.endsWith('.localhost')) {
-      subdomain = hostname.replace('.localhost', '')
-    }
-
+    const subdomain = getSubdomainFromHostname(hostname)
     if (!subdomain || companies.value.length === 0) return false
 
     const match = companies.value.find((c) => c.subdomain === subdomain)
@@ -90,20 +96,31 @@ export const useAuthStore = defineStore('auth', () => {
     // La empresa de la interfaz y el tenant que usa el proxy deben coincidir.
     // Se sincroniza también durante SSR para corregir una cookie vieja al entrar
     // directamente por el subdominio de otra empresa.
-    const config = useRuntimeConfig()
-    const tenantCookie = useCookie<string | null>('selected_tenant', {
-      ...(company ? { maxAge: 60 * 60 * 24 * 30 } : {}),
-      domain: config.public.baseDomain || undefined,
-    })
-    tenantCookie.value = company?.subdomain ?? null
+    selectedTenantCookie.value = company?.subdomain ?? null
   }
 
   function restoreSelectedCompany() {
-    if (import.meta.client && companies.value.length > 0) {
-      if (selectedCompany.value && !companies.value.some((company) => company.id === selectedCompany.value?.id)) {
-        selectedCompany.value = null
-      }
+    if (companies.value.length === 0) return false
 
+    if (selectedCompany.value && !companies.value.some((company) => company.id === selectedCompany.value?.id)) {
+      selectedCompany.value = null
+    }
+
+    // Resolver primero por host (empresa explícita), también durante SSR.
+    if (autoSelectCompanyBySubdomain()) return true
+
+    // En hosts compartidos como `dev`, localStorage no está disponible durante
+    // SSR. La cookie es el contexto que el proxy ya usa para resolver x-tenant.
+    if (selectedTenantCookie.value) {
+      const tenantCompany = companies.value.find((company) => company.subdomain === selectedTenantCookie.value)
+      if (tenantCompany) {
+        selectedCompany.value = tenantCompany
+        persistSelectedCompany(tenantCompany)
+        return true
+      }
+    }
+
+    if (import.meta.client) {
       const savedId = localStorage.getItem('selectedCompanyId')
       if (savedId) {
         const found = companies.value.find((c) => c.id === savedId)
@@ -111,12 +128,12 @@ export const useAuthStore = defineStore('auth', () => {
           selectedCompany.value = found
         }
       }
-      if (!selectedCompany.value && companies.value.length === 1) {
-        selectedCompany.value = companies.value[0]
-      }
-
-      persistSelectedCompany(selectedCompany.value)
     }
+
+    if (!selectedCompany.value && companies.value.length === 1) selectedCompany.value = companies.value[0] ?? null
+
+    persistSelectedCompany(selectedCompany.value)
+    return Boolean(selectedCompany.value)
   }
 
   async function login(email: string, password: string) {
@@ -127,12 +144,13 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await authService.login(email, password)
       resetEmployeeCache()
       user.value = res.user
+      selectedCompany.value = null
       companies.value = res.companies ?? []
       if (companies.value.length === 1) {
         selectedCompany.value = companies.value[0]
         persistSelectedCompany(selectedCompany.value)
-      } else {
-        autoSelectCompanyBySubdomain()
+      } else if (!autoSelectCompanyBySubdomain()) {
+        restoreSelectedCompany()
       }
     } catch (e: any) {
       error.value =
@@ -156,12 +174,13 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await authService.register(data)
       resetEmployeeCache()
       user.value = res.user
+      selectedCompany.value = null
       companies.value = res.companies ?? []
       if (companies.value.length === 1) {
         selectedCompany.value = companies.value[0]
         persistSelectedCompany(selectedCompany.value)
-      } else {
-        autoSelectCompanyBySubdomain()
+      } else if (!autoSelectCompanyBySubdomain()) {
+        restoreSelectedCompany()
       }
     } catch (e: any) {
       error.value =
@@ -194,7 +213,7 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchMe()
     } catch {
       try {
-        await useRequestFetch()('/api/auth/refresh', { method: 'POST' })
+        await requestFetch('/api/auth/refresh', { method: 'POST' })
         await fetchMe()
       } catch {
         user.value = null

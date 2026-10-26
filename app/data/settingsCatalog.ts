@@ -33,6 +33,7 @@ export const settingsCatalog: SettingsGroup[] = [
       { label: 'Centro de documentos', description: 'Recorrido guiado para ventas, compras y entregas.', icon: 'i-lucide-layout-dashboard', to: '/settings/documents', permission: 'document_types.read' },
       { label: 'Tipos de documento', description: 'Comportamiento, impuestos, stock y cuentas corrientes.', icon: 'i-lucide-file-cog', to: '/erp/settings/document-types', permission: 'document_types.read', advanced: true },
       { label: 'Puntos de venta y series', description: 'Numeración independiente para cada comprobante.', icon: 'i-lucide-hash', to: '/erp/settings/document-sequences', permission: 'document_sequences.read', advanced: true },
+      { label: 'Conceptos comerciales', description: 'Plantillas reutilizables para descuentos y bonificaciones de facturas.', icon: 'i-lucide-tags', to: '/erp/settings/commercial-adjustment-concepts', permission: 'commercial_adjustment_concepts.read', advanced: true },
       { label: 'Circuito de ventas', description: 'Deuda, cobros, facturación y reglas de entrega.', icon: 'i-lucide-git-branch', to: '/settings/sales-flow', permission: 'document_types.read' },
       { label: 'Autorizaciones fiscales', description: 'CAI, CAE, vigencias, rangos y alertas.', icon: 'i-lucide-badge-check', to: '/settings/fiscal-authorizations', permission: 'fiscal-authorizations.read' }
     ]
