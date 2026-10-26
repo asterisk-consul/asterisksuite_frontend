@@ -60,11 +60,11 @@ const selectedCompanyIds = ref<string[]>([])
 const report = ref<ConsolidatedReportResponse | null>(null)
 const loading = ref(false)
 const exporting = ref<'pdf' | 'xlsx' | 'csv' | null>(null)
-const downloadOptions = [[
-  { label: 'PDF', icon: 'i-lucide-file-text', onSelect: () => download('pdf') },
-  { label: 'Excel (.xlsx)', icon: 'i-lucide-file-spreadsheet', onSelect: () => download('xlsx') },
-  { label: 'CSV', icon: 'i-lucide-file-down', onSelect: () => download('csv') },
-]]
+const downloadOptions = computed(() => [[
+  { label: companyDisplayMode.value === 'combined' ? 'PDF · presentación conjunta' : 'PDF · una sección por empresa', icon: 'i-lucide-file-text', onSelect: () => download('pdf') },
+  { label: companyDisplayMode.value === 'combined' ? 'Excel · detalle conjunto' : 'Excel · una hoja por empresa', icon: 'i-lucide-file-spreadsheet', onSelect: () => download('xlsx') },
+  { label: 'CSV · lista conjunta con columna Empresa', icon: 'i-lucide-file-down', onSelect: () => download('csv') },
+]])
 const metrics = [
   { key: 'sales', label: 'Ventas facturadas', icon: 'i-lucide-trending-up' },
   { key: 'purchases', label: 'Compras facturadas', icon: 'i-lucide-shopping-bag' },
@@ -413,11 +413,12 @@ async function download(format: 'pdf' | 'xlsx' | 'csv') {
   if (!canGenerate.value) return
   exporting.value = format
   try {
-    const blob = await service.exportConsolidatedReport({ ...filters, company_ids: selectedCompanyIds.value, view: reportView.value, format })
+    const blob = await service.exportConsolidatedReport({ ...filters, company_ids: selectedCompanyIds.value, view: reportView.value, company_display_mode: companyDisplayMode.value, format })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `reporte-${reportView.value}-${filters.date_from}-${filters.date_to}.${format}`
+    const grouping = format === 'csv' ? 'juntas' : companyDisplayMode.value === 'separate' ? 'por-empresa' : 'juntas'
+    link.download = `reporte-${reportView.value}-${grouping}-${filters.date_from}-${filters.date_to}.${format}`
     document.body.appendChild(link)
     link.click()
     link.remove()

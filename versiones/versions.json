@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.98.0-alpha",
+  "date": "2026-10-26",
+  "stage": "alpha",
+  "notes": "Las descargas del reporte respetan la presentación conjunta o por empresa e incluyen un comparativo con totales separados por moneda.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "reports",
+    "title": "Aplicar Juntas o Por empresa a las descargas PDF y Excel, y agregar un comparativo por empresa y moneda con el total seleccionado"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ordenar las exportaciones por empresa y moneda"
+ },
+ {
   "version": "0.97.0-alpha",
   "date": "2026-10-26",
   "stage": "alpha",
