@@ -1,5 +1,5 @@
 import { h } from 'vue'
-import { NuxtLink } from '#components'
+import { NuxtLink, UButton } from '#components'
 import type { CurrentAccountEntry } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
@@ -58,6 +58,8 @@ export const currentAccountEntryColumns = (actions: {
   onSortFieldSelect?: (columnId: string) => void
   partyType?: string
   baseCurrency?: string
+  canDeleteManualAdjustments?: boolean
+  onDeleteManualAdjustment?: (entry: Row) => void
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({
     locale: 'es-AR',
@@ -200,6 +202,24 @@ export const currentAccountEntryColumns = (actions: {
         label: 'Descripción',
         cell: ({ row }) => row.original.description ?? '—'
       }
-    ])
+    ]),
+    ...(actions.canDeleteManualAdjustments && actions.onDeleteManualAdjustment
+      ? [{
+          id: 'actions',
+          header: '',
+          cell: ({ row }: any) => row.original.type === 'ADJUSTMENT'
+            && row.original.reference_type === 'manual_balance_correction'
+            && !row.original.payment_id
+            ? h(UButton, {
+                icon: 'i-lucide-trash-2',
+                color: 'error',
+                variant: 'ghost',
+                size: 'xs',
+                'aria-label': 'Eliminar ajuste manual',
+                onClick: () => actions.onDeleteManualAdjustment?.(row.original)
+              })
+            : null
+        } as TableColumn<Row>]
+      : [])
   ]
 }

@@ -14,9 +14,11 @@ import {
   mapBusinessPartyToForm,
   mapFormToBusinessPartyDto
 } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
+import { getBusinessPartySaveError } from '~/modulos/logistica/master-data/bussiness-parties/business-party-error'
 
 const route = useRoute()
 const router = useRouter()
+const toast = useToast()
 
 const store = useBusinessPartiesStore()
 const { loading } = storeToRefs(store)
@@ -43,7 +45,12 @@ const handleSubmit = async (form: FormType) => {
 
     await router.push('/logistica/business-parties')
   } catch (error) {
-    console.error(error)
+    toast.add({
+      title: 'No se pudo guardar la parte interesada',
+      description: getBusinessPartySaveError(error, store.error, 'Revisá los datos e intentá nuevamente.'),
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
   } finally {
     saving.value = false
   }

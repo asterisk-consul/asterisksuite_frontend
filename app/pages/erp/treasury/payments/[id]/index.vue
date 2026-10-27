@@ -6,10 +6,14 @@ import PaymentForm from '~/modulos/erp/payments/components/PaymentForm.vue'
 import PaymentApplyAdvanceModal from '~/modulos/erp/payments/components/PaymentApplyAdvanceModal.vue'
 import type { PaymentFormData } from '~/modulos/erp/payments/components/PaymentForm.vue'
 import type { Payment } from '~/modulos/erp/payments/types/payments.types'
+import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const authStore = useAuthStore()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const paymentId = route.params.id as string
 
 const {
@@ -29,12 +33,12 @@ const {
   pendingSalesDocuments,
   pendingPurchaseDocuments,
   availableOwnChecks,
-  availableCustomerChecks,
-  loading
+  availableCustomerChecks
 } = usePayments()
 
 const paymentData = ref<PaymentFormData | null>(null)
 const currentPayment = ref<Payment | null>(null)
+const isInitialLoading = ref(true)
 const savedDate = ref('')
 const editingDate = ref('')
 const initialWithholdings = ref<any[]>([])
@@ -59,6 +63,11 @@ const actionLabels: Record<string, { title: string; button: string; color: strin
 const isDraft = computed(() => currentPayment.value?.status === 'DRAFT')
 const isConfirmed = computed(() => currentPayment.value?.status === 'CONFIRMED')
 const isPaid = computed(() => currentPayment.value?.status === 'PAID')
+const can = (permission: string) => authStore.selectedCompany?.role === 'OWNER' || hasPermission(permission)
+const canConfirmPayment = computed(() => can('payments.confirm'))
+const canMarkAsPaid = computed(() => can('payments.mark_as_paid'))
+const canRejectPayment = computed(() => can('payments.reject'))
+const canReversePayment = computed(() => can('payments.reverse'))
 const isAdvance = computed(() => currentPayment.value?.payment_mode === 'ADVANCE')
 const hasUnsavedDateChange = computed(() => isDraft.value && editingDate.value !== savedDate.value)
 
@@ -73,76 +82,88 @@ const availableBalance = computed(() => {
 const advanceModalOpen = ref(false)
 
 onMounted(async () => {
-  const payment = await fetchOne(paymentId)
+  void fetchMyPermissionsIfNeeded(authStore.selectedCompany?.id, authStore.user?.id).catch(() => undefined)
+  try {
+    const payment = await fetchOne(paymentId)
 
-  if (payment) {
-    currentPayment.value = payment as Payment
-    savedDate.value = payment.date?.split('T')[0] ?? ''
-    editingDate.value = savedDate.value
-    paymentData.value = {
-      type: payment.type as 'PAYMENT' | 'COLLECTION',
-      payment_mode: (payment.payment_mode as 'NORMAL' | 'ADVANCE') ?? 'NORMAL',
-      date: payment.date?.split('T')[0] ?? today(),
-      payment_method: payment.payment_method ?? 'CASH',
-      amount: Number(payment.amount),
-      currency_code: payment.currency_code ?? 'ARS',
-      description: payment.description ?? '',
-      reference: payment.reference ?? '',
-      party_id: payment.party_id ?? '',
-      bank_account_id: payment.bank_account_id ?? '',
-      cash_box_id: payment.cash_box_id ?? '',
-      account_id: payment.account_id ?? '',
-      credit_card_id: (payment as any).credit_card_transactions?.[0]?.credit_card_id ?? '',
-      installments_total: (payment as any).credit_card_transactions?.[0]?.installments_total ?? 1,
-      card_authorization: (payment as any).credit_card_transactions?.[0]?.authorization ?? '',
-      expected_clearing_date: (payment as any).credit_card_transactions?.[0]?.expected_clearing_date?.split('T')[0] ?? '',
-      check_ids: ((payment as any).payment_allocations ?? [])
-        .map((allocation: any) => allocation.check_id ?? allocation.check?.id)
-        .filter(Boolean),
-      documents: (payment as any).documents?.map((d: any) => ({
-        document_id: d.document_id,
-        amount_applied: Number(d.amount_applied),
-        document: d.document,
-      })) ?? [],
-      obligations: (payment as any).obligations?.map((obligation: any) => ({
-        obligation_id: obligation.id,
-        amount_applied: Number(obligation.amount ?? obligation.estimated_amount),
-        obligation,
-      })) ?? [],
-      bank_account: (payment as any).bank_account,
-      cash_box: (payment as any).cash_box,
-      payment_allocations: (payment as any).payment_allocations ?? [],
-    }
+    if (payment) {
+      currentPayment.value = payment as Payment
+      savedDate.value = payment.date?.split('T')[0] ?? ''
+      editingDate.value = savedDate.value
+      paymentData.value = {
+        type: payment.type as 'PAYMENT' | 'COLLECTION',
+        payment_mode: (payment.payment_mode as 'NORMAL' | 'ADVANCE') ?? 'NORMAL',
+        date: payment.date?.split('T')[0] ?? today(),
+        payment_method: payment.payment_method ?? 'CASH',
+        amount: Number(payment.amount),
+        currency_code: payment.currency_code ?? 'ARS',
+        description: payment.description ?? '',
+        reference: payment.reference ?? '',
+        party_id: payment.party_id ?? '',
+        bank_account_id: payment.bank_account_id ?? '',
+        cash_box_id: payment.cash_box_id ?? '',
+        account_id: payment.account_id ?? '',
+        credit_card_id: (payment as any).credit_card_transactions?.[0]?.credit_card_id ?? '',
+        installments_total: (payment as any).credit_card_transactions?.[0]?.installments_total ?? 1,
+        card_authorization: (payment as any).credit_card_transactions?.[0]?.authorization ?? '',
+        expected_clearing_date: (payment as any).credit_card_transactions?.[0]?.expected_clearing_date?.split('T')[0] ?? '',
+        check_ids: ((payment as any).payment_allocations ?? [])
+          .map((allocation: any) => allocation.check_id ?? allocation.check?.id)
+          .filter(Boolean),
+        documents: (payment as any).documents?.map((d: any) => ({
+          document_id: d.document_id,
+          amount_applied: Number(d.amount_applied),
+          document: d.document,
+        })) ?? [],
+        obligations: (payment as any).obligations?.map((obligation: any) => ({
+          obligation_id: obligation.id,
+          amount_applied: Number(obligation.amount ?? obligation.estimated_amount),
+          obligation,
+        })) ?? [],
+        bank_account: (payment as any).bank_account,
+        cash_box: (payment as any).cash_box,
+        payment_allocations: (payment as any).payment_allocations ?? [],
+      }
 
-    // Solo fetchear documentos pendientes si el pago es editable (DRAFT)
-    if (payment.status === 'DRAFT') {
-      await Promise.all([
-        fetchPendingSalesDocuments(),
-        fetchPendingPurchaseDocuments(),
-        fetchAvailableOwnChecks(),
-        fetchAvailableCustomerChecks()
-      ])
-    }
+      // Solo fetchear documentos pendientes si el pago es editable (DRAFT)
+      if (payment.status === 'DRAFT') {
+        await Promise.all([
+          fetchPendingSalesDocuments(),
+          fetchPendingPurchaseDocuments(),
+          fetchAvailableOwnChecks(),
+          fetchAvailableCustomerChecks()
+        ])
+      }
 
-    // Precargar retenciones guardadas
-    const rawWithholdings = (payment as any).withholdings
-    if (rawWithholdings && rawWithholdings.length > 0) {
-      initialWithholdings.value = rawWithholdings.map((w: any) => ({
-        is_manual: !w.tax_rule_id && !w.withholding_concept_id,
-        tax_type: w.tax_type,
-        jurisdiction_id: w.jurisdiction_id ?? null,
-        jurisdiction_name: w.jurisdiction?.name ?? w.jurisdiction_name ?? null,
-        withholding_concept_id: w.withholding_concept_id ?? null,
-        tax_rule_id: w.tax_rule_id ?? null,
-        rule_name: w.rule_name ?? 'Guardada',
-        base_amount: Number(w.base_amount),
-        prorrate_percentage: w.prorrate_percentage ? Number(w.prorrate_percentage) : null,
-        rate: w.rate ? Number(w.rate) : 0,
-        withheld_amount: Number(w.withheld_amount),
-        automatic_amount: w.automatic_amount ? Number(w.automatic_amount) : null,
-        reason: w.reason ?? w.observations ?? 'Carga guardada'
-      }))
+      // Precargar retenciones guardadas
+      const rawWithholdings = (payment as any).withholdings
+      if (rawWithholdings && rawWithholdings.length > 0) {
+        initialWithholdings.value = rawWithholdings.map((w: any) => ({
+          is_manual: !w.tax_rule_id && !w.withholding_concept_id,
+          tax_type: w.tax_type,
+          jurisdiction_id: w.jurisdiction_id ?? null,
+          jurisdiction_name: w.jurisdiction?.name ?? w.jurisdiction_name ?? null,
+          withholding_concept_id: w.withholding_concept_id ?? null,
+          tax_rule_id: w.tax_rule_id ?? null,
+          rule_name: w.rule_name ?? 'Guardada',
+          base_amount: Number(w.base_amount),
+          prorrate_percentage: w.prorrate_percentage ? Number(w.prorrate_percentage) : null,
+          rate: w.rate ? Number(w.rate) : 0,
+          withheld_amount: Number(w.withheld_amount),
+          automatic_amount: w.automatic_amount ? Number(w.automatic_amount) : null,
+          reason: w.reason ?? w.observations ?? 'Carga guardada'
+        }))
+      }
     }
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo completar la carga',
+      description: error?.data?.message || error?.message || 'Revisá tus permisos y volvé a intentar.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  } finally {
+    isInitialLoading.value = false
   }
 })
 
@@ -281,7 +302,7 @@ const handleAdvanceSuccess = async () => {
       :description="isDraft ? (isAdvance ? 'Anticipo a proveedor o cliente' : 'Modificar pago o cobro en borrador') : 'Solo se pueden editar operaciones en borrador. Esta operación ya no admite cambios.'"
     />
 
-    <div v-if="loading" class="flex justify-center py-8">
+    <div v-if="isInitialLoading" class="flex justify-center py-8">
       <ULoader />
     </div>
 
@@ -344,10 +365,10 @@ const handleAdvanceSuccess = async () => {
           <template v-if="isAdvance && availableBalance <= 0 && (isConfirmed || isPaid)">
             <UBadge label="Saldado" color="success" variant="subtle" />
           </template>
-          <UButton v-if="isDraft" label="Confirmar" icon="i-lucide-check-circle" size="sm" color="info" :loading="isProcessing" :disabled="isProcessing || hasUnsavedDateChange" @click="openAction('confirm')" />
-          <UButton v-if="isConfirmed" label="Marcar pagado" icon="i-lucide-check" size="sm" color="success" :loading="isProcessing" :disabled="isProcessing" @click="openAction('pay')" />
-          <UButton v-if="isConfirmed" label="Rechazar" icon="i-lucide-x-circle" size="sm" color="warning" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reject')" />
-          <UButton v-if="isConfirmed || isPaid" label="Anular" icon="i-lucide-undo-2" size="sm" color="error" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reverse')" />
+          <UButton v-if="isDraft && canConfirmPayment" label="Confirmar" icon="i-lucide-check-circle" size="sm" color="info" :loading="isProcessing" :disabled="isProcessing || hasUnsavedDateChange" @click="openAction('confirm')" />
+          <UButton v-if="isConfirmed && canMarkAsPaid" label="Marcar pagado" icon="i-lucide-check" size="sm" color="success" :loading="isProcessing" :disabled="isProcessing" @click="openAction('pay')" />
+          <UButton v-if="isConfirmed && canRejectPayment" label="Rechazar" icon="i-lucide-x-circle" size="sm" color="warning" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reject')" />
+          <UButton v-if="(isConfirmed || isPaid) && canReversePayment" label="Anular" icon="i-lucide-undo-2" size="sm" color="error" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reverse')" />
           <UButton v-if="(isConfirmed || isPaid) && currentPayment?.party_id" label="Cuenta corriente" icon="i-lucide-arrow-right-circle" size="sm" color="primary" variant="outline" @click="router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)" />
         </div>
       </div>

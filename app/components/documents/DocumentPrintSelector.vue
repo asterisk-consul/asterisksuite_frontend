@@ -38,6 +38,31 @@ function formatDate(d: any) {
   return str.slice(0, 10)
 }
 
+function itemDiscountPercentage(item: any) {
+  const percentage = Number(item.discount_percentage ?? 0)
+  if (percentage > 0) return percentage
+
+  const originalUnitPrice = Number(item.original_unit_price)
+  const unitPrice = Number(item.unit_price ?? 0)
+  if (item.original_unit_price == null || originalUnitPrice <= 0 || unitPrice >= originalUnitPrice) return 0
+  return ((originalUnitPrice - unitPrice) / originalUnitPrice) * 100
+}
+
+function itemDiscountAmount(item: any) {
+  const quantity = Number(item.quantity ?? 0)
+  const unitPrice = Number(item.unit_price ?? 0)
+  const originalUnitPrice = Number(item.original_unit_price)
+
+  if (item.original_unit_price != null && Number.isFinite(originalUnitPrice)) {
+    return Math.max(0, originalUnitPrice - unitPrice) * quantity
+  }
+
+  const percentage = itemDiscountPercentage(item)
+  return percentage > 0 && percentage < 100
+    ? (unitPrice / (1 - percentage / 100) - unitPrice) * quantity
+    : 0
+}
+
 const customer = computed(() => ({
   name: props.document?.business_parties?.name ?? '',
   tax_id: props.document?.business_parties?.tax_id ?? '',
@@ -52,20 +77,35 @@ const printItems = computed(() =>
     description: item.products?.name ?? 'Ítem',
     quantity: Number(item.quantity),
     unit_price: Number(item.unit_price),
+    discount_percentage: itemDiscountPercentage(item),
+    discount_amount: itemDiscountAmount(item),
     tax_rate: item.document_item_taxes?.[0]?.tax_rate ?? 0,
     tax_amount: item.document_item_taxes?.[0]?.tax_amount ?? 0,
     total: Number(item.price),
   }))
 )
 
-const printTotals = computed(() => ({
-  subtotal: Number(props.document?.subtotal ?? 0),
-  taxes: (props.document?.document_taxes ?? []).map((t: any) => ({
-    name: t.taxes?.name ?? 'Impuesto',
-    amount: Number(t.tax_amount),
-  })),
-  total: Number(props.document?.total ?? 0),
-}))
+const printTotals = computed(() => {
+  const adjustments = Array.isArray(props.document?.commercial_adjustments)
+    ? props.document.commercial_adjustments
+    : []
+  const subtotal = Number(props.document?.subtotal ?? 0)
+  const total = Number(props.document?.total ?? 0)
+  const paidAmount = Number(props.document?.paid_amount ?? 0)
+
+  return {
+    subtotal: subtotal + adjustments.reduce((sum: number, adjustment: any) => sum + Number(adjustment.net_discount ?? 0), 0),
+    net_subtotal: subtotal,
+    adjustments,
+    taxes: (props.document?.document_taxes ?? []).map((t: any) => ({
+      name: t.taxes?.name ?? 'Impuesto',
+      amount: Number(t.tax_amount ?? 0),
+    })),
+    total,
+    paid_amount: paidAmount,
+    pending_amount: Math.max(0, total - paidAmount),
+  }
+})
 
 const pointOfSale = computed(() => {
   // The sequence selected for this document is the source of truth. The code

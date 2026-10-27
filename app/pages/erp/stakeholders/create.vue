@@ -7,9 +7,11 @@ import BusinessPartyForm from '~/modulos/logistica/master-data/bussiness-parties
 import type { BusinessPartyForm as FormType } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import { mapFormToBusinessPartyDto } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
+import { getBusinessPartySaveError } from '~/modulos/logistica/master-data/bussiness-parties/business-party-error'
 
 const router = useRouter()
 const store = useBusinessPartiesStore()
+const toast = useToast()
 
 const saving = ref(false)
 
@@ -20,7 +22,12 @@ const handleSubmit = async (form: FormType) => {
     await store.create(payload)
     await router.push('/erp/stakeholders')
   } catch (error) {
-    console.error(error)
+    toast.add({
+      title: 'No se pudo guardar la parte interesada',
+      description: getBusinessPartySaveError(error, store.error, 'Revisá los datos e intentá nuevamente.'),
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
   } finally {
     saving.value = false
   }
@@ -34,6 +41,8 @@ const handleSubmit = async (form: FormType) => {
     <BusinessPartyForm
       :model-value="{} as any"
       :loading="saving"
+      :error="store.error"
+      :errors="store.errors"
       @submit="handleSubmit"
     />
   </div>

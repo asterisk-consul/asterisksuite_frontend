@@ -24,6 +24,8 @@ interface DocumentItem {
   description: string
   quantity: number
   unit_price: number
+  discount_percentage?: number
+  discount_amount?: number
   tax_rate?: number
   tax_amount?: number
   total: number
@@ -35,6 +37,8 @@ interface DocumentTotals {
   adjustments?: { concept: string; basis: 'NET' | 'GROSS'; net_discount: number; calculated_amount: number }[]
   taxes: { name: string; amount: number }[]
   total: number
+  paid_amount?: number
+  pending_amount?: number
 }
 
 interface Props {
@@ -59,6 +63,8 @@ const props = withDefaults(defineProps<Props>(), {
   cae_due: '',
   point_of_sale: '0001'
 })
+
+const hasItemDiscounts = computed(() => props.items.some(item => Number(item.discount_percentage ?? 0) > 0))
 
 function fmt(n: any) {
   return new Intl.NumberFormat('es-AR', {
@@ -474,6 +480,12 @@ watch(qrValue, generateQr, { immediate: true })
               P. Unitario
             </th>
             <th
+              v-if="hasItemDiscounts"
+              style="padding: 9px 12px; text-align: right; color: #ffffff !important; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-right: 1px solid #333333;"
+            >
+              Bonificación
+            </th>
+            <th
               style="
                 padding: 9px 12px;
                 text-align: right;
@@ -545,6 +557,16 @@ watch(qrValue, generateQr, { immediate: true })
               {{ fmt(item.unit_price) }}
             </td>
             <td
+              v-if="hasItemDiscounts"
+              style="padding: 9px 12px; color: #222222; text-align: right; border-bottom: 1px solid #eeeeee; border-right: 1px solid #f0f0f0; white-space: nowrap;"
+            >
+              <template v-if="Number(item.discount_percentage ?? 0) > 0">
+                <span>{{ Number(item.discount_percentage).toLocaleString('es-AR', { maximumFractionDigits: 2 }) }}%</span>
+                <span v-if="Number(item.discount_amount ?? 0) > 0" style="display: block; font-size: 9px; color: #666666">− {{ fmt(item.discount_amount) }}</span>
+              </template>
+              <span v-else>—</span>
+            </td>
+            <td
               style="
                 padding: 9px 12px;
                 color: #222222;
@@ -568,7 +590,7 @@ watch(qrValue, generateQr, { immediate: true })
             </td>
           </tr>
           <tr v-if="items.length === 0">
-            <td colspan="6" style="padding: 20px; text-align: center; color: #9ca3af">Sin ítems</td>
+            <td :colspan="6 + Number(hasItemDiscounts)" style="padding: 20px; text-align: center; color: #9ca3af">Sin ítems</td>
           </tr>
         </table>
 
@@ -691,6 +713,14 @@ watch(qrValue, generateQr, { immediate: true })
                   >
                     {{ fmt(totals.total) }}
                   </td>
+                </tr>
+                <tr v-if="Number(totals.paid_amount ?? 0) > 0">
+                  <td style="padding: 7px 16px; font-size: 11px; color: #333333; border-bottom: 1px solid #e5e5e5">Pagado</td>
+                  <td style="padding: 7px 16px; font-size: 11px; color: #217a3c; text-align: right; border-bottom: 1px solid #e5e5e5">{{ fmt(totals.paid_amount) }}</td>
+                </tr>
+                <tr v-if="Number(totals.pending_amount ?? 0) > 0.01">
+                  <td style="padding: 7px 16px; font-size: 11px; color: #333333; border-bottom: 1px solid #e5e5e5">Pendiente</td>
+                  <td style="padding: 7px 16px; font-size: 11px; color: #9a6700; text-align: right; border-bottom: 1px solid #e5e5e5">{{ fmt(totals.pending_amount) }}</td>
                 </tr>
               </table>
             </td>

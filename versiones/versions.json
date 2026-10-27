@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.99.1-alpha",
+  "date": "2026-10-27",
+  "stage": "alpha",
+  "notes": "Los permisos de pagos y obligaciones coinciden con los asignados a los roles, y la ficha de un pago con cheques ya no titila al actualizarse.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Alinear los permisos de pagos con los roles y estabilizar la ficha al marcar pagos con cheques"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir permisos y actualización de pagos"
+ },
+ {
   "version": "0.99.0-alpha",
   "date": "2026-10-26",
   "stage": "alpha",

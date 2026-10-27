@@ -16,6 +16,7 @@ import { useCurrentAccountsService } from '~/modulos/erp/current-accounts/servic
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const { isOwnerOrAdmin } = useCompanyRole()
 
 const { statement, entries: storeEntries, loading, fetchStatement, fetchEntries } = useCurrentAccounts()
 
@@ -35,7 +36,31 @@ useBreadcrumbEntityLabel(
 const showAdjustBalance = ref(false)
 const showDeleteConfirmation = ref(false)
 const deletingOpeningBalance = ref(false)
+const pendingManualAdjustment = ref<any | null>(null)
+const deletingManualAdjustment = ref(false)
+const showDeleteAdjustmentConfirmation = ref(false)
 const currentAccountsService = useCurrentAccountsService()
+
+function requestDeleteManualAdjustment(entry: any) {
+  pendingManualAdjustment.value = entry
+  showDeleteAdjustmentConfirmation.value = true
+}
+
+async function deleteManualAdjustment() {
+  if (!pendingManualAdjustment.value || deletingManualAdjustment.value) return
+  try {
+    deletingManualAdjustment.value = true
+    await currentAccountsService.deleteManualAdjustment(partyId, pendingManualAdjustment.value.id)
+    showDeleteAdjustmentConfirmation.value = false
+    pendingManualAdjustment.value = null
+    await reloadAccount()
+    toast.add({ title: 'Ajuste eliminado', description: 'El movimiento quedó en la papelera y el saldo fue recalculado.', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo eliminar el ajuste', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    deletingManualAdjustment.value = false
+  }
+}
 
 const entries = computed(() => {
   const fromStatement = statement.value?.entries ?? []
@@ -260,6 +285,8 @@ const accountActionItems = computed(() => [
             :entries="entries"
             :loading="loading"
             :party-type="account.party_type"
+            :can-delete-manual-adjustments="isOwnerOrAdmin"
+            :on-delete-manual-adjustment="requestDeleteManualAdjustment"
           />
         </div>
       </template>
@@ -313,6 +340,29 @@ const accountActionItems = computed(() => [
             :disabled="deletingOpeningBalance"
             @click="deleteOpeningBalance"
           />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="showDeleteAdjustmentConfirmation"
+      title="Eliminar ajuste manual"
+      description="El movimiento se conservará en la papelera y se recalculará el saldo de la cuenta."
+      :ui="{ content: 'w-[calc(100vw-2rem)] max-w-lg' }"
+    >
+      <template #body>
+        <div class="rounded-xl border border-warning/30 bg-warning/5 p-4">
+          <p class="font-medium">{{ account?.party?.name }}</p>
+          <p class="mt-1 text-sm text-muted">
+            {{ pendingManualAdjustment?.description || 'Ajuste manual' }} · {{ pendingManualAdjustment?.date ? new Date(pendingManualAdjustment.date).toLocaleDateString('es-AR') : '' }}
+          </p>
+          <p class="mt-2 text-sm">Solo se eliminan ajustes manuales. Facturas y pagos deben anularse desde sus módulos.</p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton label="Cancelar" variant="ghost" :disabled="deletingManualAdjustment" @click="showDeleteAdjustmentConfirmation = false" />
+          <UButton label="Eliminar ajuste" icon="i-lucide-trash-2" color="error" :loading="deletingManualAdjustment" :disabled="deletingManualAdjustment" @click="deleteManualAdjustment" />
         </div>
       </template>
     </UModal>

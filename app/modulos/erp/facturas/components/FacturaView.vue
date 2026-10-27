@@ -34,6 +34,31 @@ function fmt(n: any) {
   }).format(Number(n ?? 0))
 }
 
+function itemDiscountPercentage(item: any) {
+  const percentage = Number(item.discount_percentage ?? 0)
+  if (percentage > 0) return percentage
+
+  const originalUnitPrice = Number(item.original_unit_price)
+  const unitPrice = Number(item.unit_price ?? 0)
+  if (item.original_unit_price == null || originalUnitPrice <= 0 || unitPrice >= originalUnitPrice) return 0
+  return ((originalUnitPrice - unitPrice) / originalUnitPrice) * 100
+}
+
+function itemDiscountAmount(item: any) {
+  const quantity = Number(item.quantity ?? 0)
+  const unitPrice = Number(item.unit_price ?? 0)
+  const originalUnitPrice = Number(item.original_unit_price)
+
+  if (item.original_unit_price != null && Number.isFinite(originalUnitPrice)) {
+    return Math.max(0, originalUnitPrice - unitPrice) * quantity
+  }
+
+  const percentage = itemDiscountPercentage(item)
+  return percentage > 0 && percentage < 100
+    ? (unitPrice / (1 - percentage / 100) - unitPrice) * quantity
+    : 0
+}
+
 // Taxes de nivel LINE agrupadas por tax_id
 const lineTaxesSummary = computed(() => {
   const map = new Map<string, { name: string; code: string; amount: number }>()
@@ -156,20 +181,33 @@ const printItems = computed(() =>
     description: `${item.products?.name || item.products?.description || '—'}${item.product_variants?.name ? ` · ${item.product_variants.name}` : ''}`,
     quantity: Number(item.quantity),
     unit_price: Number(item.unit_price),
+    discount_percentage: itemDiscountPercentage(item),
+    discount_amount: itemDiscountAmount(item),
     tax_rate: item._taxes.length > 0 ? Math.round((item._taxes[0].amount / Number(item.price)) * 100) : undefined,
     total: item._total
   }))
 )
 
-const printTotals = computed(() => ({
-  subtotal: Number(props.document.subtotal) + (props.document.commercial_adjustments ?? []).reduce(
-    (sum: number, adjustment: any) => sum + Number(adjustment.net_discount ?? 0), 0
-  ),
-  net_subtotal: Number(props.document.subtotal),
-  adjustments: props.document.commercial_adjustments ?? [],
-  taxes: allTaxes.value.map(t => ({ name: t.name, amount: t.amount })),
-  total: Number(props.document.total)
-}))
+const printTotals = computed(() => {
+  const adjustments = Array.isArray(props.document.commercial_adjustments)
+    ? props.document.commercial_adjustments
+    : []
+  const subtotal = Number(props.document.subtotal ?? 0)
+  const total = Number(props.document.total ?? 0)
+  const paidAmount = Number(props.document.paid_amount ?? 0)
+
+  return {
+    subtotal: subtotal + adjustments.reduce(
+      (sum: number, adjustment: any) => sum + Number(adjustment.net_discount ?? 0), 0
+    ),
+    net_subtotal: subtotal,
+    adjustments,
+    taxes: allTaxes.value.map(t => ({ name: t.name, amount: t.amount })),
+    total,
+    paid_amount: paidAmount,
+    pending_amount: Math.max(0, total - paidAmount)
+  }
+})
 </script>
 
 <template>

@@ -37,6 +37,12 @@ export const useCurrentAccountsService = () => {
     })
   }
 
+  const deleteManualAdjustment = (partyId: string, entryId: string) => {
+    return $fetch<{ success: boolean; balance: number }>(`${urlBase}/party/${partyId}/entries/${entryId}`, {
+      method: 'DELETE'
+    })
+  }
+
   const findActive = () => {
     return $fetch<CurrentAccount[]>(`${urlBase}/active`, {
       method: 'GET',
@@ -57,6 +63,7 @@ export const useCurrentAccountsService = () => {
     getStatement,
     getBalance,
     deleteOpeningBalance,
+    deleteManualAdjustment,
     findActive,
     findAll
   }

@@ -9,9 +9,11 @@ import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussine
 import { storeToRefs } from 'pinia'
 import { mapBusinessPartyToForm, mapFormToBusinessPartyDto } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
 import PartyProductPrices from '~/modulos/erp/pricing/components/PartyProductPrices.vue'
+import { getBusinessPartySaveError } from '~/modulos/logistica/master-data/bussiness-parties/business-party-error'
 
 const route = useRoute()
 const router = useRouter()
+const toast = useToast()
 
 const store = useBusinessPartiesStore()
 const { loading } = storeToRefs(store)
@@ -38,7 +40,12 @@ const handleSubmit = async (form: FormType) => {
     await store.update(id, payload)
     await router.push('/erp/stakeholders')
   } catch (error) {
-    console.error(error)
+    toast.add({
+      title: 'No se pudo guardar la parte interesada',
+      description: getBusinessPartySaveError(error, store.error, 'Revisá los datos e intentá nuevamente.'),
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
   } finally {
     saving.value = false
   }
@@ -54,6 +61,9 @@ const handleSubmit = async (form: FormType) => {
     <BusinessPartyForm
       v-else-if="formData"
       :model-value="formData"
+      :loading="saving"
+      :error="store.error"
+      :errors="store.errors"
       @submit="handleSubmit"
     />
 

@@ -10,12 +10,14 @@ import { useDataTransferPermissions } from '~/modulos/access-control/composables
 import { paymentColumns } from '~/modulos/erp/payments/columns'
 import type { Payment } from '~/modulos/erp/payments/types/payments.types'
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 
 const { payments, loading, init, confirm: confirmPayment, markAsPaid, reject, reverse, remove } = usePayments()
 const authStore = useAuthStore()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const toast = useToast()
 const { canImport, canExport } = useDataTransferPermissions()
 const allowImport = computed(() => canImport('treasury.payments.import'))
@@ -24,6 +26,8 @@ const showCreator = computed(() => {
   const role = authStore.selectedCompany?.role
   return role === 'OWNER' || role === 'ADMIN'
 })
+const can = (permission: string) => authStore.selectedCompany?.role === 'OWNER' || hasPermission(permission)
+const canCreatePayment = computed(() => can('payments.create'))
 
 const router = useRouter()
 const sorting = ref<SortingState>([])
@@ -97,7 +101,10 @@ const handleAction = async () => {
   }
 }
 
-onMounted(() => init())
+onMounted(() => {
+  void init()
+  void fetchMyPermissionsIfNeeded(authStore.selectedCompany?.id, authStore.user?.id).catch(() => undefined)
+})
 
 const modeFilter = ref<'ALL' | 'NORMAL' | 'ADVANCE'>('ALL')
 const showCancelled = ref(false)
@@ -113,11 +120,11 @@ const columns = computed(() => paymentColumns({
   onDetail: openDetail,
   onSortFieldSelect,
   showCreator: showCreator.value,
-  onConfirm: (row) => openAction('confirm', row),
-  onMarkAsPaid: (row) => openAction('pay', row),
-  onReject: (row) => openAction('reject', row),
-  onReverse: (row) => openAction('reverse', row),
-  onDelete: (row) => openAction('delete', row)
+  onConfirm: can('payments.confirm') ? (row) => openAction('confirm', row) : undefined,
+  onMarkAsPaid: can('payments.mark_as_paid') ? (row) => openAction('pay', row) : undefined,
+  onReject: can('payments.reject') ? (row) => openAction('reject', row) : undefined,
+  onReverse: can('payments.reverse') ? (row) => openAction('reverse', row) : undefined,
+  onDelete: can('payments.delete') ? (row) => openAction('delete', row) : undefined
 }))
 
 const links: ButtonProps[] = [
@@ -194,6 +201,7 @@ const dataActions = computed(() => [
           </UDropdownMenu>
         </UFieldGroup>
         <UButton
+          v-if="canCreatePayment"
           label="Nuevo pago/cobro"
           icon="i-heroicons-plus"
           color="primary"

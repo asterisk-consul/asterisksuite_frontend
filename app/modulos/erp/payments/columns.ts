@@ -293,16 +293,16 @@ export const paymentColumns = (actions: {
           const buttons: Array<{ icon: string; color: string; onClick: () => void }> = []
 
           if (status === 'DRAFT') {
-            buttons.push({ icon: 'i-lucide-check-circle', color: 'info', onClick: () => actions.onConfirm?.(row.original) })
-            buttons.push({ icon: 'i-lucide-trash-2', color: 'error', onClick: () => actions.onDelete?.(row.original) })
+            if (actions.onConfirm) buttons.push({ icon: 'i-lucide-check-circle', color: 'info', onClick: () => actions.onConfirm?.(row.original) })
+            if (actions.onDelete) buttons.push({ icon: 'i-lucide-trash-2', color: 'error', onClick: () => actions.onDelete?.(row.original) })
           } else if (status === 'CONFIRMED') {
-            buttons.push({ icon: 'i-lucide-check', color: 'success', onClick: () => actions.onMarkAsPaid?.(row.original) })
-            buttons.push({ icon: 'i-lucide-x-circle', color: 'warning', onClick: () => actions.onReject?.(row.original) })
-            buttons.push({ icon: 'i-lucide-undo-2', color: 'error', onClick: () => actions.onReverse?.(row.original) })
+            if (actions.onMarkAsPaid) buttons.push({ icon: 'i-lucide-check', color: 'success', onClick: () => actions.onMarkAsPaid?.(row.original) })
+            if (actions.onReject) buttons.push({ icon: 'i-lucide-x-circle', color: 'warning', onClick: () => actions.onReject?.(row.original) })
+            if (actions.onReverse) buttons.push({ icon: 'i-lucide-undo-2', color: 'error', onClick: () => actions.onReverse?.(row.original) })
           } else if (status === 'PAID') {
-            buttons.push({ icon: 'i-lucide-undo-2', color: 'error', onClick: () => actions.onReverse?.(row.original) })
+            if (actions.onReverse) buttons.push({ icon: 'i-lucide-undo-2', color: 'error', onClick: () => actions.onReverse?.(row.original) })
           } else if (status === 'CANCELLED' || status === 'REVERSED') {
-            buttons.push({ icon: 'i-lucide-trash-2', color: 'error', onClick: () => actions.onDelete?.(row.original) })
+            if (actions.onDelete) buttons.push({ icon: 'i-lucide-trash-2', color: 'error', onClick: () => actions.onDelete?.(row.original) })
           }
 
           return h('div', { class: 'flex gap-1' }, buttons.map((btn) =>

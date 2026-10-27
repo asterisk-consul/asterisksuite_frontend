@@ -52,8 +52,9 @@ function resolveDocLink(doc: any): string {
       <!-- Documento padre -->
       <div v-if="document.parent_document" class="flex items-center gap-3 text-sm">
         <UBadge label="Origen" color="info" variant="subtle" size="sm" />
-        <NuxtLink v-if="canOpenDocument(document.parent_document)" :to="resolveDocLink(document.parent_document)" class="underline font-medium">
+        <NuxtLink v-if="canOpenDocument(document.parent_document)" :to="resolveDocLink(document.parent_document)" class="inline-flex items-center gap-1 font-medium text-primary hover:underline" title="Abrir documento de origen">
           {{ document.parent_document.document_types?.description }} #{{ fmtNumber(document.parent_document) }}
+          <UIcon name="i-lucide-arrow-up-right" class="size-3.5" aria-hidden="true" />
         </NuxtLink>
         <span v-else class="inline-flex items-center gap-1 font-medium text-muted" title="No tenés permiso para abrir este tipo de documento">
           <UIcon name="i-lucide-lock" class="size-3.5" />
@@ -74,8 +75,9 @@ function resolveDocLink(doc: any): string {
       <!-- Documentos hijos -->
       <div v-for="child in document.child_documents" :key="child.id" class="flex items-center gap-3 text-sm pl-4 border-l-2 border-success">
         <UBadge label="Generado" color="success" variant="subtle" size="sm" />
-        <NuxtLink v-if="canOpenDocument(child)" :to="resolveDocLink(child)" class="underline font-medium">
+        <NuxtLink v-if="canOpenDocument(child)" :to="resolveDocLink(child)" class="inline-flex items-center gap-1 font-medium text-primary hover:underline" title="Abrir documento generado">
           {{ child.document_types?.description }} #{{ fmtNumber(child) }}
+          <UIcon name="i-lucide-arrow-up-right" class="size-3.5" aria-hidden="true" />
         </NuxtLink>
         <span v-else class="inline-flex items-center gap-1 font-medium text-muted" title="No tenés permiso para abrir este tipo de documento">
           <UIcon name="i-lucide-lock" class="size-3.5" />
