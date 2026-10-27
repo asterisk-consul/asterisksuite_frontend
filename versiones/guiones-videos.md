@@ -97,3 +97,15 @@ Base: `versions.json`, desde `0.92.0-alpha` hasta la última versión registrada
 [Crear un concepto comercial y aplicarlo a una factura de venta o compra; editar el valor sugerido.]
 
 **Locución:** “Creá un catálogo de conceptos de descuento y bonificación para reutilizarlos en tus facturas de venta y compra. Al aplicarlos, podés ajustar los valores sugeridos según cada operación.”
+
+## 0.99.1-alpha — Permisos y estabilidad en pagos
+
+[Mostrar los permisos asignados a un rol y luego abrir el detalle de un pago con cheques.]
+
+**Locución:** “Ajustamos los permisos de pagos y obligaciones para que coincidan con los roles configurados. También mejoramos la actualización del detalle de pagos con cheques, para que la información se mantenga estable mientras trabajás.”
+
+## 0.100.0-alpha — Flujos comerciales y reportes
+
+[Mostrar un concepto comercial en distintos comprobantes; pasar a los resúmenes de ventas y compras, y cerrar con archivos adjuntos de una transferencia.]
+
+**Locución:** “La versión 0.100 amplía los flujos comerciales: configurá descuentos y bonificaciones por tipo de comprobante y conservá esos conceptos al convertir documentos compatibles. Consultá resúmenes de ventas y compras con métricas y gráficos, creá comprobantes desde accesos unificados y adjuntá archivos a las transferencias de Tesorería.”
