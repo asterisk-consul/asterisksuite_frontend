@@ -32,6 +32,21 @@ const filterCategory = ref<string | null>(null)
 const filterFunction = ref<string | null>(null)
 const saving = ref(false)
 
+const categorySearchLabels: Record<string, string> = {
+  INVOICE: 'factura comprobante',
+  CREDIT_NOTE: 'nota de credito comprobante',
+  DEBIT_NOTE: 'nota de debito comprobante',
+  ORDER: 'orden de venta compra pedido comprobante',
+  QUOTE: 'presupuesto cotizacion comprobante',
+  RECEIPT: 'recibo comprobante',
+  REMITO: 'remito despacho comprobante'
+}
+
+const normalizeSearchText = (value: unknown) => String(value ?? '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLocaleLowerCase('es-AR')
+
 const selectedCategory = computed({
   get: () => categoryOptions.find((o) => o.value === filterCategory.value) ?? categoryOptions[0],
   set: (val) => {
@@ -63,6 +78,7 @@ const applyCommonFilters = (types: DocumentsType[]) => {
       if (filterFunction.value === 'accounting') return t.affects_accounting
       if (filterFunction.value === 'tax_book') return t.affects_tax_book
       if (filterFunction.value === 'payment') return t.affects_payment
+      if (filterFunction.value === 'commercial_adjustments') return t.accepts_commercial_adjustments
       if (filterFunction.value === 'cae') return t.requires_cae
       if (filterFunction.value === 'electronic') return t.is_electronic
       if (filterFunction.value === 'none') {
@@ -70,6 +86,7 @@ const applyCommonFilters = (types: DocumentsType[]) => {
           && !t.affects_accounting
           && !t.affects_tax_book
           && !t.affects_payment
+          && !t.accepts_commercial_adjustments
           && !t.requires_cae
           && !t.is_electronic
       }
@@ -77,10 +94,36 @@ const applyCommonFilters = (types: DocumentsType[]) => {
     })
   }
   if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase()
-    list = list.filter((t) => t.code.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))
+    const q = normalizeSearchText(searchQuery.value.trim())
+    list = list.filter((type) => {
+      const activeFunctions = functionOptions
+        .filter((option) => option.value && option.value !== 'none' && isFunctionEnabled(type, option.value))
+        .map((option) => option.label)
+
+      const searchable = [
+        type.code,
+        type.description,
+        type.category,
+        categorySearchLabels[type.category ?? ''],
+        type.direction === 1 ? 'venta ventas' : 'compra compras',
+        ...activeFunctions
+      ].map(normalizeSearchText)
+
+      return searchable.some((value) => value.includes(q))
+    })
   }
   return list
+}
+
+function isFunctionEnabled(type: DocumentsType, functionValue: string) {
+  if (functionValue === 'stock') return type.affects_stock
+  if (functionValue === 'accounting') return type.affects_accounting
+  if (functionValue === 'tax_book') return type.affects_tax_book
+  if (functionValue === 'payment') return type.affects_payment
+  if (functionValue === 'commercial_adjustments') return type.accepts_commercial_adjustments
+  if (functionValue === 'cae') return type.requires_cae
+  if (functionValue === 'electronic') return type.is_electronic
+  return false
 }
 
 const filteredSaleTypes = computed(() => {
@@ -270,6 +313,7 @@ const functionOptions = [
   { label: 'Afecta cuenta corriente', value: 'accounting', icon: 'i-lucide-chart-no-axes-column-increasing' },
   { label: 'Afecta libro de IVA', value: 'tax_book', icon: 'i-lucide-book-open' },
   { label: 'Afecta pagos o cobros', value: 'payment', icon: 'i-lucide-wallet-cards' },
+  { label: 'Acepta conceptos comerciales', value: 'commercial_adjustments', icon: 'i-lucide-tags' },
   { label: 'Requiere CAE', value: 'cae', icon: 'i-lucide-lock-keyhole' },
   { label: 'Es electrónico', value: 'electronic', icon: 'i-lucide-zap' },
   { label: 'Sin funciones activas', value: 'none', icon: 'i-lucide-circle-off' }
@@ -315,7 +359,7 @@ const badgeForTab = (index: number) => {
     <div class="flex flex-wrap items-center gap-3">
       <UInput
         v-model="searchQuery"
-        placeholder="Buscar por código o nombre..."
+        placeholder="Buscar comprobante por código, nombre o función..."
         icon="i-lucide-search"
         class="flex-1 max-w-md"
       />

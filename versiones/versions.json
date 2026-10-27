@@ -1,5 +1,40 @@
 [
  {
+  "version": "0.100.0-alpha",
+  "date": "2026-10-27",
+  "stage": "alpha",
+  "notes": "Se amplía el flujo comercial con conceptos de descuento y bonificación configurables por tipo de comprobante y transferibles entre documentos compatibles. Ventas y compras incorporan resúmenes con métricas por período y gráficos comparativos por tipo de comprobante. También se agregan accesos unificados para crear comprobantes, filtros de estado, mejoras de carga con teclado y una biblioteca de archivos con adjuntos para transferencias de tesorería.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "documents",
+    "title": "Habilitar conceptos comerciales por tipo de comprobante y conservarlos al convertir documentos compatibles"
+   },
+   {
+    "type": "feat",
+    "scope": "reports",
+    "title": "Agregar resúmenes de ventas y compras con métricas por período y series por tipo de comprobante"
+   },
+   {
+    "type": "feat",
+    "scope": "files",
+    "title": "Incorporar biblioteca de archivos y adjuntos para transferencias de tesorería"
+   },
+   {
+    "type": "feat",
+    "scope": "commercial",
+    "title": "Unificar la creación de comprobantes y mejorar formularios, atajos de teclado y filtros de estado"
+   },
+   {
+    "type": "docs",
+    "scope": "workflows",
+    "title": "Actualizar guías de comprobantes, reportes, archivos y transferencias"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ampliar flujos comerciales y mejorar reportes ERP"
+ },
+ {
   "version": "0.99.1-alpha",
   "date": "2026-10-27",
   "stage": "alpha",

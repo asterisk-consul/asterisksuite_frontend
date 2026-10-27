@@ -19,8 +19,6 @@ const router = useRouter()
 
 const toast = useToast()
 
-const { mainCollapsed } = useSidebarState()
-
 const saving = ref(false)
 
 const loading = ref(true)
@@ -109,36 +107,20 @@ async function handleSubmit(payload: any) {
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar :title="`Editar ${pageTitle}`">
-        <template #leading>
-          <UButton
-            icon="i-lucide-panel-left-close"
-            variant="ghost"
-            color="neutral"
-            @click="mainCollapsed = !mainCollapsed"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
-      <UPage>
-        <UPageHeader
+      <UPage class="space-y-6">
+        <AppPageHeader
           :title="isRemito ? 'Preparar remito' : `Editar ${pageTitle}`"
           :description="isRemito ? 'Revisá cantidades y elegí el depósito de salida de cada producto.' : `Modificá los datos de la ${pageTitle}.`"
-          :links="[
-            {
-              label: 'Guardar Cambios',
-
-              icon: 'i-lucide-check',
-
-              loading: saving,
-
-              onClick: () => formRef?.submit()
-            }
-          ]"
-        />
+        >
+          <template #links>
+            <UButton label="Guardar Cambios" icon="i-lucide-check" :loading="saving" @click="formRef?.submit()">
+              <template #trailing>
+                <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
+              </template>
+            </UButton>
+          </template>
+        </AppPageHeader>
 
         <UPageBody class="mx-auto w-full max-w-screen-2xl">
           <FacturaForm
@@ -152,14 +134,16 @@ async function handleSubmit(payload: any) {
             :draft-extension="extensionDraft"
             @submit="handleSubmit"
             @restore-extension="extensionDraft = $event"
-          />
-
-          <OrdenVentaForm
-            v-if="factura && isOrder"
-            ref="ordenVentaRef"
-            v-model="extensionDraft"
-            :loading="saving"
-          />
+          >
+            <template #document-details>
+              <OrdenVentaForm
+                v-if="factura && isOrder"
+                ref="ordenVentaRef"
+                v-model="extensionDraft"
+                :loading="saving"
+              />
+            </template>
+          </FacturaForm>
 
           <div v-else-if="loading" class="p-10 text-center">Cargando...</div>
         </UPageBody>

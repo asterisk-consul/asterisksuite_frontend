@@ -2,21 +2,40 @@
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
+import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
 useDocumentFormPreload('/erp/sales/new?category=QUOTE')
 
 const statusFilter = ref<number | undefined>(undefined)
+const showCancelled = ref(false)
 const documents = computed(() => store.items ?? [])
+const visibleDocuments = computed(() => showCancelled.value
+  ? documents.value
+  : documents.value.filter(document => !isDocumentCancelled('QUOTE', document.status)))
 const loading = computed(() => store.loading)
 
-const refresh = () => store.fetchAll({ status: statusFilter.value, category: 'QUOTE' })
+const refresh = () => store.fetchAll({ status: statusFilter.value, category: 'QUOTE', excludeCancelled: !showCancelled.value })
 
 onMounted(() => refresh())
-watch(statusFilter, () => refresh())
+watch(statusFilter, (status) => {
+  if (status === 6 && !showCancelled.value) {
+    showCancelled.value = true
+    return
+  }
+  void refresh()
+})
+watch(showCancelled, (show) => {
+  if (!show && statusFilter.value === 6) {
+    statusFilter.value = undefined
+    return
+  }
+  void refresh()
+})
 
 const stats = computed(() => {
   const docs = documents.value
@@ -37,7 +56,10 @@ function openDocument(row: any) {
   router.push(`/erp/sales/${row.id}`)
 }
 
-const columns = createSalesColumns({ onOpen: openDocument })
+const columns = createSalesColumns({
+  onOpen: openDocument,
+  statusFilterOptions: statusOptions.filter((option): option is { label: string; value: number } => option.value !== undefined)
+})
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },
@@ -55,9 +77,12 @@ const sortFields = [
 const statusOptions = [
   { label: 'Todos', value: undefined },
   { label: 'Borrador', value: 0 },
-  { label: 'Pendiente', value: 1 },
-  { label: 'Confirmado', value: 2 },
-  { label: 'Anulado', value: 3 }
+  { label: 'Enviado', value: 1 },
+  { label: 'Aprobado', value: 2 },
+  { label: 'Rechazado', value: 3 },
+  { label: 'Vencido', value: 4 },
+  { label: 'Convertido', value: 5 },
+  { label: 'Cancelado', value: 6 }
 ]
 </script>
 
@@ -65,7 +90,7 @@ const statusOptions = [
   <UPage class="space-y-4">
     <AppPageHeader title="Presupuestos">
       <template #links>
-        <UButton icon="i-lucide-file-plus" label="Nuevo presupuesto" :to="`/erp/sales/new?category=QUOTE`" />
+        <CreateDocumentMenu direction="sales" />
       </template>
     </AppPageHeader>
 
@@ -102,8 +127,19 @@ const statusOptions = [
         <UButton v-for="opt in statusOptions" :key="String(opt.value)" :variant="statusFilter === opt.value ? 'solid' : 'ghost'" color="neutral" size="sm" :label="opt.label" @click="statusFilter = opt.value" />
       </div>
 
+      <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
+        <div>
+          <p class="text-sm font-medium">Visibilidad de presupuestos</p>
+          <p class="text-xs text-muted">Podés incluir los presupuestos cancelados en este listado.</p>
+        </div>
+        <label class="flex shrink-0 items-center gap-2 text-sm text-muted">
+          <span>Mostrar cancelados</span>
+          <USwitch v-model="showCancelled" aria-label="Mostrar presupuestos cancelados" />
+        </label>
+      </div>
+
       <LogisticaTable
-        :data="documents"
+        :data="visibleDocuments"
         :columns="columns"
         :loading="loading"
         :filter-fields="filterFields"

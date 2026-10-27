@@ -143,11 +143,20 @@ watch(partySearch, (value) => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleSaveShortcut, true)
   if (partySearchTimer) clearTimeout(partySearchTimer)
   partySearchController?.abort()
   if (productSearchTimer) clearTimeout(productSearchTimer)
   productSearchController?.abort()
 })
+
+function handleSaveShortcut(event: KeyboardEvent) {
+  const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's'
+  if (!isSaveShortcut || event.altKey || event.defaultPrevented || event.isComposing) return
+  event.preventDefault()
+  event.stopPropagation()
+  submit()
+}
 
 // Filtrar productos según módulo (venta/compra)
 const usageFilter = computed(() => {
@@ -450,9 +459,18 @@ const adjustmentBasisOptions = [
 const selectedDocumentCategory = computed(() =>
   documentsTypes.value.find((documentType) => documentType.id === form.document_type_id)?.category ?? props.category
 )
-const canAddCommercialAdjustments = computed(() =>
-  !props.operationalMode && selectedDocumentCategory.value === 'INVOICE'
-)
+const canAddCommercialAdjustments = computed(() => {
+  const documentTypeAccepts = documentsTypes.value
+    .find((documentType) => documentType.id === form.document_type_id)?.accepts_commercial_adjustments === true
+  const isExistingDocumentWithAdjustments = Boolean((props.initialValues as any)?.id && commercialAdjustments.value.length)
+  return documentTypeAccepts || isExistingDocumentWithAdjustments
+})
+const commercialAdjustmentTransferBlocked = computed(() => Boolean(
+  props.parentDocumentId
+  && !(props.initialValues as any)?.id
+  && commercialAdjustments.value.length
+  && documentsTypes.value.find((documentType) => documentType.id === form.document_type_id)?.accepts_commercial_adjustments !== true
+))
 const commercialAdjustmentConceptOptions = computed(() => commercialAdjustmentConcepts.value.map((concept) => {
   const defaultValue = concept.default_value == null
     ? 'valor a definir'
@@ -1105,6 +1123,7 @@ watch(() => form.document_type_id, (newId) => {
 })
 
 onMounted(() => {
+  window.addEventListener('keydown', handleSaveShortcut, true)
   fetchMyPermissionsIfNeeded()
   void partiesStore.fetchAll().catch(() => {
     // El formulario sigue utilizable; el store conserva la última lista disponible.
@@ -1420,7 +1439,7 @@ defineExpose({ submit, completeDraft })
 </script>
 
 <template>
-  <div class="w-full min-w-0 space-y-5">
+  <div class="flex w-full min-w-0 flex-col gap-5">
     <UAlert
       v-if="availableDraft"
       color="warning"
@@ -1652,6 +1671,8 @@ defineExpose({ submit, completeDraft })
       </div>
     </UCard>
 
+    <slot name="document-details" />
+
     <!-- Items Table -->
     <UCard>
       <template #header>
@@ -1700,6 +1721,15 @@ defineExpose({ submit, completeDraft })
         @search-products="searchProducts"
       />
     </UCard>
+
+    <UAlert
+      v-if="commercialAdjustmentTransferBlocked"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-triangle-alert"
+      title="El documento de destino no acepta los conceptos de origen"
+      description="Para transferirlos, activá “Acepta conceptos comerciales” en la configuración de este tipo de documento. No se descartarán al guardar."
+    />
 
     <UCard v-if="canAddCommercialAdjustments">
       <template #header>

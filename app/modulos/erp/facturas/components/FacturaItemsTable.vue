@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, resolveComponent, ref, watch, computed } from 'vue'
+import { h, resolveComponent, ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 import type { FacturaItem } from '../types/factura.types'
 import { useProductVariants } from '~/modulos/logistica/master-data/product-variants/composable/useVariants'
@@ -48,14 +48,56 @@ const emit = defineEmits<{
 }>()
 
 const selectedProduct = ref<any>(null)
+const productPickerRoot = ref<HTMLElement | null>(null)
+const productPickerOpen = ref(false)
 const productSearch = ref('')
+function focusProductPicker() {
+  productPickerOpen.value = true
+  void nextTick(() => {
+    const trigger = productPickerRoot.value?.querySelector<HTMLElement>('button, [role="combobox"]')
+    trigger?.scrollIntoView({ block: 'nearest' })
+    trigger?.focus()
+
+    // USelectMenu monta la búsqueda en un popover teletransportado al body.
+    // Esperamos un tick adicional para que exista antes de enfocarla.
+    void nextTick(() => {
+      const searchInput = document.querySelector<HTMLInputElement>(
+        '[cmdk-input], input[role="combobox"], input[aria-autocomplete="list"]'
+      )
+      searchInput?.focus()
+    })
+  })
+}
+
+function handleProductShortcut(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.isComposing) return
+
+  if (event.key === 'F2' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    event.preventDefault()
+    focusProductPicker()
+    return
+  }
+
+  if (event.key === 'Enter' && event.ctrlKey && !event.altKey && !event.metaKey) {
+    event.preventDefault()
+    event.stopPropagation()
+    handleAdd()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', handleProductShortcut, true))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleProductShortcut, true))
 watch(productSearch, query => emit('search-products', query))
 const visibleProductOptions = computed(() => {
   const query = productSearch.value.trim().toLocaleLowerCase('es-AR')
   const matches = query
     ? props.productOptions.filter(option => option.label.toLocaleLowerCase('es-AR').includes(query))
     : props.productOptions
-  return matches.slice(0, 100)
+  const selected = props.productOptions.find(option => option.value === selectedProduct.value)
+  const options = selected && !matches.some(option => option.value === selected.value)
+    ? [selected, ...matches]
+    : matches
+  return options.slice(0, 100)
 })
 const selectedVariant = ref<string | null>(null)
 const variantOptions = ref<any[]>([])
@@ -162,6 +204,8 @@ function handleAdd() {
 
   selectedProduct.value = null
   selectedVariant.value = null
+  productSearch.value = ''
+  focusProductPicker()
 }
 
 const UInput = resolveComponent('UInput')
@@ -187,10 +231,11 @@ const columns = computed(() => [
   {
     accessorKey: 'quantity',
     header: 'Cantidad',
+    size: 150,
     meta: {
       class: {
         th: 'text-right',
-        td: 'text-right'
+        td: 'text-right min-w-36'
       }
     },
     cell: ({ row }: any) =>
@@ -199,6 +244,9 @@ const columns = computed(() => [
         type: 'number',
         min: 0,
         step: 1,
+        size: 'lg',
+        class: 'ml-auto w-32 text-right font-medium tabular-nums',
+        'aria-label': `Cantidad de ${row.original.product_name || 'producto'}`,
         'onUpdate:modelValue': (val: number) => {
           row.original.quantity = Number(val || 0)
           recalculateItem(row.original)
@@ -269,10 +317,11 @@ const columns = computed(() => [
   ...(props.showAmounts === false ? [] : [{
     accessorKey: 'unit_price',
     header: 'Precio unitario',
+    size: 190,
     meta: {
       class: {
         th: 'text-right',
-        td: 'text-right'
+        td: 'text-right min-w-48'
       }
     },
     cell: ({ row }: any) =>
@@ -281,6 +330,9 @@ const columns = computed(() => [
         type: 'number',
         min: 0,
         step: '0.01',
+        size: 'lg',
+        class: 'ml-auto w-40 text-right font-semibold tabular-nums',
+        'aria-label': `Precio unitario de ${row.original.product_name || 'producto'}`,
         'onUpdate:modelValue': (val: number) => {
           row.original.unit_price = Number(val || 0)
           recalculateItem(row.original)
@@ -347,7 +399,7 @@ const columns = computed(() => [
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="flex flex-col gap-4">
     <div class="rounded-xl border border-default bg-muted/30 p-4">
       <div class="mb-4 flex items-start gap-3">
         <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -359,17 +411,26 @@ const columns = computed(() => [
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.55fr)_auto] lg:items-end">
+      <div
+        class="grid grid-cols-1 gap-3 lg:items-end"
+        :class="hasVariants
+          ? 'lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.55fr)_auto]'
+          : 'lg:grid-cols-[minmax(0,1fr)_auto]'"
+      >
         <UFormField label="Producto" class="min-w-0">
+          <div ref="productPickerRoot">
           <USelectMenu
+            v-model:open="productPickerOpen"
             v-model="selectedProduct"
             :items="visibleProductOptions"
             value-key="value"
+            label-key="label"
             placeholder="Buscar por código o nombre..."
             searchable
             v-model:search-term="productSearch"
             class="w-full min-w-0"
           />
+          </div>
         </UFormField>
 
         <UFormField v-if="hasVariants" label="Variante" required class="min-w-0">
@@ -392,12 +453,21 @@ const columns = computed(() => [
           class="w-full justify-center lg:w-auto"
           :disabled="!selectedProduct || variantLoading || (hasVariants && (!selectedVariant || !!variantLoadError))"
           @click="handleAdd"
-        />
+        >
+          <template #trailing>
+            <KeyboardShortcutHint :keys="['Ctrl', '↵']" />
+          </template>
+        </UButton>
+      </div>
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+        <span class="inline-flex items-center gap-1.5"><KeyboardShortcutHint :keys="['F2']" /> abre el selector</span>
+        <span class="inline-flex items-center gap-1.5"><KeyboardShortcutHint :keys="['Tab']" /> recorre los campos</span>
+        <span class="inline-flex items-center gap-1.5"><KeyboardShortcutHint :keys="['Ctrl', '↵']" /> agrega el producto</span>
       </div>
     </div>
 
     <div class="w-full overflow-x-auto rounded-lg border border-default">
-      <UTable :data="props.items" :columns="columns" class="min-w-[900px]" />
+      <UTable :data="props.items" :columns="columns" class="min-w-[1080px]" />
       <div v-if="props.items.length === 0" class="border-t border-default px-4 py-10 text-center">
         <UIcon name="i-lucide-shopping-basket" class="mx-auto mb-2 size-8 text-muted" />
         <p class="font-medium">Todavía no agregaste productos</p>

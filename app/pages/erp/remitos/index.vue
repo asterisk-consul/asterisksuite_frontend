@@ -2,9 +2,11 @@
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import { useServerTable } from '~/composables/table/useServerTable'
+import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
@@ -12,11 +14,30 @@ const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=REMITO')
 
 const statusFilter = ref<number | undefined>(undefined)
+const showCancelled = ref(false)
 const documents = computed(() => store.items ?? [])
+const visibleDocuments = computed(() => showCancelled.value
+  ? documents.value
+  : documents.value.filter(document => !isDocumentCancelled('REMITO', document.status)))
 const loading = computed(() => store.loading)
-const serverTable = useServerTable((query) => store.fetchPage({ ...query, status: statusFilter.value, category: 'REMITO' }))
+const serverTable = useServerTable((query) => store.fetchPage({ ...query, status: statusFilter.value, category: 'REMITO', excludeCancelled: !showCancelled.value }))
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
-watch(statusFilter, () => { page.value = 1; refresh() })
+watch(statusFilter, (status) => {
+  if (status === 3 && !showCancelled.value) {
+    showCancelled.value = true
+    return
+  }
+  page.value = 1
+  refresh()
+})
+watch(showCancelled, (show) => {
+  if (!show && statusFilter.value === 3) {
+    statusFilter.value = undefined
+    return
+  }
+  page.value = 1
+  refresh()
+})
 
 const stats = computed(() => {
   const docs = documents.value
@@ -40,7 +61,12 @@ function openDocument(row: any) {
 }
 
 const columns = computed(() =>
-  createSalesColumns({ onOpen: openDocument, showAmounts: false, showCreator: isOwnerOrAdmin.value })
+  createSalesColumns({
+    onOpen: openDocument,
+    showAmounts: false,
+    showCreator: isOwnerOrAdmin.value,
+    statusFilterOptions: statusOptions.filter((option): option is { label: string; value: number } => option.value !== undefined)
+  })
 )
 
 const filterFields = [
@@ -68,7 +94,7 @@ const statusOptions = [
   <UPage class="space-y-4">
     <AppPageHeader title="Remitos">
       <template #links>
-        <UButton icon="i-lucide-file-plus" label="Nuevo remito" :to="`/erp/sales/new?category=REMITO`" />
+        <CreateDocumentMenu direction="sales" />
       </template>
     </AppPageHeader>
 
@@ -113,12 +139,23 @@ const statusOptions = [
         />
       </div>
 
+      <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
+        <div>
+          <p class="text-sm font-medium">Visibilidad de remitos</p>
+          <p class="text-xs text-muted">Podés incluir los remitos cancelados en este listado.</p>
+        </div>
+        <label class="flex shrink-0 items-center gap-2 text-sm text-muted">
+          <span>Mostrar cancelados</span>
+          <USwitch v-model="showCancelled" aria-label="Mostrar remitos cancelados" />
+        </label>
+      </div>
+
       <LogisticaTable
         v-model:page="page"
         v-model:search="search"
         v-model:filters="filters"
         v-model:sorting="sorting"
-        :data="documents"
+        :data="visibleDocuments"
         :columns="columns"
         :loading="loading"
         :filter-fields="filterFields"

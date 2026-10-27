@@ -8,7 +8,6 @@ import { buildDocumentDuplicateValues, buildDocumentExtensionDuplicateValues } f
 const PresupuestoForm = defineAsyncComponent(() => import('~/modulos/erp/documents/presupuesto/PresupuestoForm.vue'))
 const OrdenVentaForm = defineAsyncComponent(() => import('~/modulos/erp/documents/orden-venta/OrdenVentaForm.vue'))
 
-const { mainCollapsed } = useSidebarState()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
@@ -94,9 +93,23 @@ const initialValues = computed(() => {
       return {
         product_id: item.product_id,
         quantity: Number(item.quantity) - processedQuantity,
-        unit_price: Number(item.unit_price),
+        unit_price: Number(item.original_unit_price ?? item.unit_price),
+        discount_percentage: Number(item.discount_percentage ?? 0),
       }
     }).filter((item: any) => item.quantity > 0)
+
+    const sourceBase = (orderData.value.document_items ?? []).reduce((sum: number, item: any) =>
+      sum + Number(item.quantity) * Number(item.original_unit_price ?? item.unit_price)
+        * (1 - Number(item.discount_percentage ?? 0) / 100), 0)
+    const targetBase = base.items.reduce((sum: number, item: any) =>
+      sum + Number(item.quantity) * Number(item.unit_price) * (1 - Number(item.discount_percentage ?? 0) / 100), 0)
+    const ratio = sourceBase > 0 ? Math.min(1, targetBase / sourceBase) : 1
+    base.commercial_adjustments = (orderData.value.commercial_adjustments ?? []).map((adjustment: any) => ({
+      concept: adjustment.concept,
+      value_type: adjustment.value_type,
+      basis: adjustment.basis,
+      value: adjustment.value_type === 'AMOUNT' ? Number(adjustment.value) * ratio : Number(adjustment.value),
+    }))
   }
 
   // Si viene party_id por query
@@ -159,33 +172,20 @@ async function handleSubmit(payload: any) {
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar :title="`Nuevo ${pageTitle}`">
-        <template #leading>
-          <UButton
-            icon="i-lucide-panel-left-close"
-            variant="ghost"
-            color="neutral"
-            @click="mainCollapsed = !mainCollapsed"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
-      <UPage>
-        <UPageHeader
+      <UPage class="space-y-6">
+        <AppPageHeader
           :title="`Crear ${pageTitle}`"
           :description="pageDescription"
-          :links="[
-            {
-              label: `Guardar ${pageTitle}`,
-              icon: 'i-lucide-check',
-              loading: saving,
-              onClick: () => formRef?.submit()
-            }
-          ]"
-        />
+        >
+          <template #links>
+            <UButton :label="`Guardar ${pageTitle}`" icon="i-lucide-check" :loading="saving" @click="formRef?.submit()">
+              <template #trailing>
+                <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
+              </template>
+            </UButton>
+          </template>
+        </AppPageHeader>
 
         <UPageBody class="mx-auto w-full max-w-screen-2xl space-y-6">
           <!-- Form principal (genérico) -->
@@ -200,13 +200,12 @@ async function handleSubmit(payload: any) {
             :draft-extension="extensionDraft"
             @submit="handleSubmit"
             @restore-extension="extensionDraft = $event"
-          />
-
-          <!-- Extensión: Presupuesto -->
-          <PresupuestoForm v-if="isQuote" ref="presupuestoRef" v-model="extensionDraft" />
-
-          <!-- Extensión: Orden de Venta -->
-          <OrdenVentaForm v-if="isOrder" ref="ordenVentaRef" v-model="extensionDraft" />
+          >
+            <template #document-details>
+              <PresupuestoForm v-if="isQuote" ref="presupuestoRef" v-model="extensionDraft" />
+              <OrdenVentaForm v-else-if="isOrder" ref="ordenVentaRef" v-model="extensionDraft" />
+            </template>
+          </SalesDocumentForm>
         </UPageBody>
       </UPage>
     </template>

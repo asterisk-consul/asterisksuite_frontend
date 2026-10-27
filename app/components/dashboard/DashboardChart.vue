@@ -119,16 +119,16 @@ const showProducts = computed(() => canSeeProducts.value && productStats.value.l
 const salesDocumentRoutes: Record<string, string> = {
   Presupuestos: '/erp/budgets',
   Órdenes: '/erp/orders',
-  Facturas: '/erp/sales?category=INVOICE',
-  'Notas crédito': '/erp/sales?category=CREDIT_NOTE',
-  'Notas débito': '/erp/sales?category=DEBIT_NOTE',
+  Facturas: '/erp/sales/comprobantes?category=INVOICE',
+  'Notas crédito': '/erp/sales/comprobantes?category=CREDIT_NOTE',
+  'Notas débito': '/erp/sales/comprobantes?category=DEBIT_NOTE',
   Remitos: '/erp/remitos',
 }
 const purchaseDocumentRoutes: Record<string, string> = {
   Órdenes: '/erp/purchases/orders',
-  Facturas: '/erp/purchases?category=INVOICE',
-  'Notas crédito': '/erp/purchases?category=CREDIT_NOTE',
-  'Notas débito': '/erp/purchases?category=DEBIT_NOTE',
+  Facturas: '/erp/purchases/comprobantes?category=INVOICE',
+  'Notas crédito': '/erp/purchases/comprobantes?category=CREDIT_NOTE',
+  'Notas débito': '/erp/purchases/comprobantes?category=DEBIT_NOTE',
   Remitos: '/erp/purchases/remitos',
 }
 

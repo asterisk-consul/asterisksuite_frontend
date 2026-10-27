@@ -26,7 +26,7 @@ export const useDocumentsPurchasesStore = defineStore(
     // ─────────────────────────────────────
     // Fetch all
     // ─────────────────────────────────────
-    const fetchAll = async (params?: { status?: number; documentTypeId?: string; category?: string; direction?: number }) => {
+    const fetchAll = async (params?: { status?: number; documentTypeId?: string; category?: string; direction?: number; excludeCancelled?: boolean }) => {
       loading.value = true
 
       error.value = null

@@ -3,9 +3,11 @@ definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
-import { createSalesColumns } from '~/modulos/erp/sales/columns'
+import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
 import { useServerTable } from '~/composables/table/useServerTable'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
+import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
+import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
 
 const router = useRouter()
 const store = useDocumentsPurchasesStore()
@@ -14,11 +16,30 @@ const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/purchases/orders/new')
 
 const statusFilter = ref<number | undefined>(undefined)
+const showCancelled = ref(false)
 const documents = computed(() => store.items ?? [])
+const visibleDocuments = computed(() => showCancelled.value
+  ? documents.value
+  : documents.value.filter(document => !isDocumentCancelled('ORDER', document.status, -1)))
 const loading = computed(() => store.loading)
-const serverTable = useServerTable((query) => store.fetchPage({ ...query, status: statusFilter.value, category: 'ORDER', direction: -1 }))
+const serverTable = useServerTable((query) => store.fetchPage({ ...query, status: statusFilter.value, category: 'ORDER', direction: -1, excludeCancelled: !showCancelled.value }))
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
-watch(statusFilter, () => { page.value = 1; refresh() })
+watch(statusFilter, (status) => {
+  if (status === 3 && !showCancelled.value) {
+    showCancelled.value = true
+    return
+  }
+  page.value = 1
+  refresh()
+})
+watch(showCancelled, (show) => {
+  if (!show && statusFilter.value === 3) {
+    statusFilter.value = undefined
+    return
+  }
+  page.value = 1
+  refresh()
+})
 
 const stats = computed(() => {
   const docs = documents.value
@@ -44,11 +65,19 @@ function duplicateDocument(row: any) {
   router.push({ path: '/erp/purchases/orders/new', query: { duplicate_id: row.id } })
 }
 
-const columns = computed(() => createSalesColumns({
+const statusFilterOptions = [
+  { label: 'Borrador', value: 0 },
+  { label: 'Pendiente', value: 1 },
+  { label: 'Confirmada', value: 2 },
+  { label: 'Anulada', value: 3 }
+]
+
+const columns = computed(() => createPurchasesColumns({
   onOpen: openDocument,
   onDuplicate: duplicateDocument,
   canDuplicate: () => canDocument('purchases', 'ORDER', 'create'),
-  showCreator: isOwnerOrAdmin.value
+  showCreator: isOwnerOrAdmin.value,
+  statusFilterOptions
 }))
 
 const filterFields = [
@@ -77,7 +106,7 @@ const statusOptions = [
   <UPage class="space-y-4">
     <AppPageHeader title="Órdenes de Compra">
       <template #links>
-        <UButton icon="i-lucide-file-plus" label="Nueva OC" :to="`/erp/purchases/orders/new`" />
+        <CreateDocumentMenu direction="purchases" />
       </template>
     </AppPageHeader>
 
@@ -122,12 +151,23 @@ const statusOptions = [
         />
       </div>
 
+      <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
+        <div>
+          <p class="text-sm font-medium">Visibilidad de órdenes</p>
+          <p class="text-xs text-muted">Podés incluir las órdenes de compra anuladas en este listado.</p>
+        </div>
+        <label class="flex shrink-0 items-center gap-2 text-sm text-muted">
+          <span>Mostrar anuladas</span>
+          <USwitch v-model="showCancelled" aria-label="Mostrar órdenes de compra anuladas" />
+        </label>
+      </div>
+
       <LogisticaTable
         v-model:page="page"
         v-model:search="search"
         v-model:filters="filters"
         v-model:sorting="sorting"
-        :data="documents"
+        :data="visibleDocuments"
         :columns="columns"
         :loading="loading"
         :filter-fields="filterFields"

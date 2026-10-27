@@ -42,6 +42,12 @@ const initialValues = computed(() => {
     rate_type: invoiceData.value.rate_type,
     descrip: invoiceData.value.descrip || '',
     ref: invoiceData.value.ref || '',
+    commercial_adjustments: (invoiceData.value.commercial_adjustments ?? []).map((adjustment: any) => ({
+      concept: adjustment.concept,
+      value_type: adjustment.value_type,
+      basis: adjustment.basis,
+      value: Number(adjustment.value),
+    })),
     items: (invoiceData.value.document_items ?? []).map((item: any) => ({
       product_id: item.product_id,
       variant_id: item.variant_id ?? undefined,
@@ -93,7 +99,11 @@ async function handleSubmit(payload: any) {
           icon="i-lucide-check"
           :loading="saving"
           @click="formRef?.submit()"
-        />
+        >
+          <template #trailing>
+            <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
+          </template>
+        </UButton>
       </template>
     </AppPageHeader>
 

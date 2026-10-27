@@ -60,7 +60,11 @@ async function handleSubmit(payload: any) {
           icon="i-lucide-check"
           :loading="saving"
           @click="formRef?.submit()"
-        />
+        >
+          <template #trailing>
+            <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
+          </template>
+        </UButton>
       </template>
     </AppPageHeader>
 
@@ -73,12 +77,15 @@ async function handleSubmit(payload: any) {
         module-code="PURCHASES"
         category="ORDER"
         @submit="handleSubmit"
-      />
-      <OrdenCompraForm
-        ref="extensionRef"
-        :model-value="extensionData"
-        :loading="saving"
-      />
+      >
+        <template #document-details>
+          <OrdenCompraForm
+            ref="extensionRef"
+            :model-value="extensionData"
+            :loading="saving"
+          />
+        </template>
+      </FacturaForm>
       <div v-if="!factura && loading" class="p-10 text-center">Cargando...</div>
     </div>
   </UPage>

@@ -15,6 +15,7 @@ export const createSalesColumns = (actions: {
   canDuplicate?: (row: Row) => boolean
   showAmounts?: boolean
   showCreator?: boolean
+  statusFilterOptions?: { label: string; value: number }[] | null
 }) => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
   const fmtNumber = (row: Row) => {
@@ -33,7 +34,13 @@ export const createSalesColumns = (actions: {
         key: 'status',
         label: 'Estado',
         sortable: true,
-        meta: { filter: { type: 'number', operators: ['equals'] } },
+        meta: {
+          filter: actions.statusFilterOptions === null
+            ? false
+            : actions.statusFilterOptions
+              ? { type: 'select', operators: ['equals'], options: actions.statusFilterOptions }
+              : { type: 'number', operators: ['equals'] }
+        },
         badge: {
           resolve: (doc) => {
             const orderFlow = getOrderFlowPresentation(doc)

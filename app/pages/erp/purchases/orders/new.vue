@@ -70,7 +70,11 @@ async function handleSubmit(payload: any) {
           icon="i-lucide-check"
           :loading="saving"
           @click="formRef?.submit()"
-        />
+        >
+          <template #trailing>
+            <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
+          </template>
+        </UButton>
       </template>
     </AppPageHeader>
 
@@ -82,8 +86,11 @@ async function handleSubmit(payload: any) {
         category="ORDER"
         :initial-values="initialValues"
         @submit="handleSubmit"
-      />
-      <OrdenCompraForm ref="extensionRef" v-model="extensionDraft" />
+      >
+        <template #document-details>
+          <OrdenCompraForm ref="extensionRef" v-model="extensionDraft" />
+        </template>
+      </SalesDocumentForm>
     </div>
   </UPage>
 </template>

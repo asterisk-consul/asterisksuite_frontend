@@ -75,6 +75,8 @@ export interface DocumentsType {
 
   calculates_taxes?: boolean
 
+  accepts_commercial_adjustments?: boolean
+
   hidden_amount_statuses?: number[] | null
 
   document_sequence_id?: string | null
@@ -142,6 +144,8 @@ export interface CreateDocumentsTypeDto {
   affects_payment?: boolean
 
   calculates_taxes?: boolean
+
+  accepts_commercial_adjustments?: boolean
 
   hidden_amount_statuses?: number[] | null
 

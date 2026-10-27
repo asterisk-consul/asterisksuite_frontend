@@ -186,7 +186,7 @@ onMounted(async () => {
   <UPage class="flex flex-col gap-5 px-4 pb-10">
     <AppPageHeader
       title="Conceptos comerciales"
-      description="Plantillas reutilizables para descuentos y bonificaciones de facturas."
+      description="Plantillas reutilizables para descuentos y bonificaciones en documentos habilitados."
     >
       <template #links>
         <UButton v-if="canManage" label="Nuevo concepto" icon="i-lucide-plus" @click="openCreate" />
@@ -197,8 +197,8 @@ onMounted(async () => {
       color="info"
       variant="subtle"
       icon="i-lucide-info"
-      title="El catálogo propone; la factura confirma"
-      description="Al aplicar una plantilla podés revisar y cambiar sus datos. Cada factura conserva una copia propia; editar o desactivar una plantilla no modifica comprobantes anteriores."
+      title="El catálogo propone; cada documento confirma"
+      description="Al aplicar una plantilla podés revisar y cambiar sus datos. Cada documento conserva una copia propia; al convertirlo a otro tipo habilitado, el ajuste se transfiere sin depender del catálogo."
     />
 
     <UCard>
@@ -336,7 +336,7 @@ onMounted(async () => {
             <UInput v-model.number="form.sort_order" type="number" min="0" step="1" class="w-full" />
           </UFormField>
           <UFormField v-if="editing" label="Estado">
-            <USwitch v-model="form.is_active" label="Activa para nuevas facturas" />
+            <USwitch v-model="form.is_active" label="Activa para nuevos documentos" />
           </UFormField>
         </div>
         <UAlert

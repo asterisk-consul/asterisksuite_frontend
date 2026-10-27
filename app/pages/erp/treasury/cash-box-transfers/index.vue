@@ -9,6 +9,8 @@ import { cashBoxTransferColumns } from '~/modulos/erp/cash-box-transfers/columns
 import type { CreateCashBoxTransferInput, CashBoxTransfer, TransferDestinationOptions, TransferType } from '~/modulos/erp/cash-box-transfers/types/cash-box-transfers.types'
 import { useCashBoxTransfersService } from '~/modulos/erp/cash-box-transfers/service/cash-box-transfers.service'
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
@@ -17,7 +19,10 @@ import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchang
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 const toast = useToast()
+const route = useRoute()
 const authStore = useAuthStore()
+const { isOwner } = useCompanyRole()
+const { hasPermission } = useRoles()
 const transfersService = useCashBoxTransfersService()
 const { transfers, loading, init, create, confirm, cancel, remove } = useCashBoxTransfers()
 const { selectItems: cashBoxItems, findById: findCashBox, init: initCashBoxes } = useCashBoxes()
@@ -33,6 +38,15 @@ const loadingRate = ref(false)
 const loadingDestinations = ref(false)
 const savingTransfer = ref(false)
 const processingTransferAction = ref(false)
+const canReadTransferAttachments = computed(() => isOwner.value || (
+  hasPermission('cash_box_transfers.read')
+  && hasPermission('media.read')
+))
+const canUploadTransferAttachments = computed(() => isOwner.value || (
+  hasPermission('media.read')
+  && hasPermission('media.upload')
+  && hasPermission('cash_box_transfers.create')
+))
 const remoteDestinations = ref<TransferDestinationOptions | null>(null)
 const destinationCompanyId = ref('')
 
@@ -328,9 +342,15 @@ const handleSubmit = async () => {
   try {
     form.converted_amount = computedConvertedAmount.value ?? undefined
     form.exchange_rate = form.exchange_rate ? Number(form.exchange_rate) : undefined
-    await create({ ...form })
+    const created = await create({ ...form })
     modalOpen.value = false
-    toast.add({ title: 'Transferencia creada', color: 'success' })
+    selectedTransfer.value = created
+    detailModalOpen.value = true
+    toast.add({
+      title: 'Transferencia pendiente creada',
+      description: 'Podés agregar los comprobantes desde el detalle.',
+      color: 'success'
+    })
   } catch (e: any) {
     toast.add({ title: e?.data?.message ?? 'Error al crear transferencia', color: 'error' })
   } finally {
@@ -348,6 +368,9 @@ const columns = cashBoxTransferColumns({
 
 onMounted(async () => {
   await Promise.all([init(), initCashBoxes(), initBankAccounts(), initCurrencies()])
+  const transferId = typeof route.query.transferId === 'string' ? route.query.transferId : ''
+  const linkedTransfer = transferId ? transfers.value.find(transfer => transfer.id === transferId) : null
+  if (linkedTransfer) openDetail(linkedTransfer)
 })
 
 const filterFields: FilterField[] = [
@@ -615,6 +638,42 @@ const sortFields: SortField[] = [
             <span class="text-muted">Referencia</span>
             <p class="font-medium">{{ selectedTransfer.reference }}</p>
           </div>
+
+          <template v-if="selectedTransfer.record_side !== 'destination'">
+            <UAlert
+              v-if="!canReadTransferAttachments"
+              icon="i-lucide-lock-keyhole"
+              color="warning"
+              variant="subtle"
+              title="No tenés permiso para ver los comprobantes"
+              description="Para consultar estos comprobantes necesitás Ver transferencias (cash_box_transfers.read) y Ver archivos (media.read)."
+            />
+            <template v-else>
+              <UAlert
+                v-if="!canUploadTransferAttachments"
+                icon="i-lucide-info"
+                color="neutral"
+                variant="subtle"
+                description="Podés consultar los comprobantes. Para adjuntar o quitar archivos necesitás Subir archivos (media.upload), Crear transferencias (cash_box_transfers.create) y acceso al fondo de origen."
+              />
+              <UiAttachmentManager
+                :key="selectedTransfer.id"
+                entity-type="cash_box_transfer"
+                :entity-id="selectedTransfer.id"
+                :allow-upload="canUploadTransferAttachments"
+                :readonly="!canUploadTransferAttachments"
+                :max-files="10"
+                default-expanded
+              />
+            </template>
+          </template>
+          <UAlert
+            v-else
+            icon="i-lucide-shield-check"
+            color="info"
+            variant="subtle"
+            description="Los comprobantes de la transferencia quedan en la empresa de origen y no se comparten con esta empresa."
+          />
 
           <div class="border-t border-default pt-3 text-xs text-muted space-y-1">
             <p>Creado por: <span class="font-medium text-highlighted">{{ selectedTransfer.creator?.name ?? selectedTransfer.creator?.email ?? '—' }}</span></p>

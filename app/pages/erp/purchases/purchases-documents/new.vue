@@ -10,7 +10,6 @@ import { useInternationalOperationsService } from '~/modulos/international-opera
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 import { normalizeMarketRate } from '~/utils/currency'
 
-const { mainCollapsed } = useSidebarState()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
@@ -19,7 +18,6 @@ const { autoResolve } = useExchangeRate()
 
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
-const toggleMainPanel = () => { mainCollapsed.value = !mainCollapsed.value }
 
 const partyId = computed(() => (route.query.party_id as string) || undefined)
 const obligationId = computed(() => (route.query.obligation_id as string) || undefined)
@@ -133,6 +131,18 @@ const initialValues = computed(() => {
         warehouse_id: item.warehouse_id ?? undefined,
       }))
       .filter((item: any) => item.quantity > 0)
+    const sourceBase = (orderData.value.document_items ?? []).reduce((sum: number, item: any) =>
+      sum + Number(item.quantity) * Number(item.original_unit_price ?? item.unit_price)
+        * (1 - Number(item.discount_percentage ?? 0) / 100), 0)
+    const targetBase = base.items.reduce((sum: number, item: any) =>
+      sum + Number(item.quantity) * Number(item.unit_price) * (1 - Number(item.discount_percentage ?? 0) / 100), 0)
+    const ratio = sourceBase > 0 ? Math.min(1, targetBase / sourceBase) : 1
+    base.commercial_adjustments = (orderData.value.commercial_adjustments ?? []).map((adjustment: any) => ({
+      concept: adjustment.concept,
+      value_type: adjustment.value_type,
+      basis: adjustment.basis,
+      value: adjustment.value_type === 'AMOUNT' ? Number(adjustment.value) * ratio : Number(adjustment.value),
+    }))
   }
 
   if (partyId.value && !base.party_id) {
@@ -237,33 +247,20 @@ async function handleSubmit(payload: any) {
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar :title="`Nuevo ${pageTitle}`">
-        <template #leading>
-          <UButton
-            icon="i-lucide-panel-left-close"
-            variant="ghost"
-            color="neutral"
-            @click="toggleMainPanel"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
-      <UPage>
-        <UPageHeader
+      <UPage class="space-y-6">
+        <AppPageHeader
           :title="`Crear ${pageTitle}`"
           description="Completá los datos y agregá los productos"
-          :links="[
-            {
-              label: `Guardar ${pageTitle}`,
-              icon: 'i-lucide-check',
-              loading: saving,
-              onClick: () => formRef?.submit()
-            }
-          ]"
-        />
+        >
+          <template #links>
+            <UButton :label="`Guardar ${pageTitle}`" icon="i-lucide-check" :loading="saving" @click="formRef?.submit()">
+              <template #trailing>
+                <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
+              </template>
+            </UButton>
+          </template>
+        </AppPageHeader>
 
         <UPageBody class="mx-auto w-full max-w-screen-2xl">
           <UAlert

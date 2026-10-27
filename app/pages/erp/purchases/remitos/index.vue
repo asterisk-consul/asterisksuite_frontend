@@ -5,17 +5,38 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
 import { useServerTable } from '~/composables/table/useServerTable'
+import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
+import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
 
 const router = useRouter()
 const store = useDocumentsPurchasesStore()
 const { isOwnerOrAdmin } = useCompanyRole()
 
 const statusFilter = ref<number | undefined>(undefined)
+const showCancelled = ref(false)
 const documents = computed(() => store.items ?? [])
+const visibleDocuments = computed(() => showCancelled.value
+  ? documents.value
+  : documents.value.filter(document => !isDocumentCancelled('REMITO', document.status, -1)))
 const loading = computed(() => store.loading)
-const serverTable = useServerTable((query) => store.fetchPage({ ...query, status: statusFilter.value, category: 'REMITO', direction: -1 }))
+const serverTable = useServerTable((query) => store.fetchPage({ ...query, status: statusFilter.value, category: 'REMITO', direction: -1, excludeCancelled: !showCancelled.value }))
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
-watch(statusFilter, () => { page.value = 1; refresh() })
+watch(statusFilter, (status) => {
+  if (status === 3 && !showCancelled.value) {
+    showCancelled.value = true
+    return
+  }
+  page.value = 1
+  refresh()
+})
+watch(showCancelled, (show) => {
+  if (!show && statusFilter.value === 3) {
+    statusFilter.value = undefined
+    return
+  }
+  page.value = 1
+  refresh()
+})
 
 const stats = computed(() => {
   const docs = documents.value
@@ -36,7 +57,17 @@ function openDocument(row: any) {
   router.push(`/erp/purchases/remitos/${row.id}`)
 }
 
-const columns = computed(() => createPurchasesColumns({ onOpen: openDocument, showCreator: isOwnerOrAdmin.value }))
+const statusFilterOptions = [
+  { label: 'Borrador', value: 0 },
+  { label: 'En tránsito', value: 1 },
+  { label: 'Entregado', value: 2 },
+  { label: 'Anulado', value: 3 }
+]
+const columns = computed(() => createPurchasesColumns({
+  onOpen: openDocument,
+  showCreator: isOwnerOrAdmin.value,
+  statusFilterOptions
+}))
 
 const filterFields = [
   { id: 'number', label: 'Buscar por N°...' },
@@ -51,20 +82,14 @@ const sortFields = [
   { label: 'Total', value: 'total' }
 ]
 
-const statusOptions = [
-  { label: 'Todos', value: undefined },
-  { label: 'Borrador', value: 0 },
-  { label: 'Pendiente', value: 1 },
-  { label: 'Confirmado', value: 2 },
-  { label: 'Anulado', value: 3 }
-]
+const statusOptions = [{ label: 'Todos', value: undefined }, ...statusFilterOptions]
 </script>
 
 <template>
   <UPage class="space-y-4">
     <AppPageHeader title="Remitos de Compra">
       <template #links>
-        <UButton icon="i-lucide-file-plus" label="Nuevo remito" :to="`/erp/purchases/remitos/new`" />
+        <CreateDocumentMenu direction="purchases" />
       </template>
     </AppPageHeader>
 
@@ -109,12 +134,23 @@ const statusOptions = [
         />
       </div>
 
+      <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
+        <div>
+          <p class="text-sm font-medium">Visibilidad de remitos</p>
+          <p class="text-xs text-muted">Podés incluir los remitos de compra anulados en este listado.</p>
+        </div>
+        <label class="flex shrink-0 items-center gap-2 text-sm text-muted">
+          <span>Mostrar anulados</span>
+          <USwitch v-model="showCancelled" aria-label="Mostrar remitos de compra anulados" />
+        </label>
+      </div>
+
       <LogisticaTable
         v-model:page="page"
         v-model:search="search"
         v-model:filters="filters"
         v-model:sorting="sorting"
-        :data="documents"
+        :data="visibleDocuments"
         :columns="columns"
         :loading="loading"
         :filter-fields="filterFields"

@@ -55,7 +55,11 @@ async function handleSubmit(payload: any) {
           icon="i-lucide-check"
           :loading="saving"
           @click="formRef?.submit()"
-        />
+        >
+          <template #trailing>
+            <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
+          </template>
+        </UButton>
       </template>
     </AppPageHeader>
 

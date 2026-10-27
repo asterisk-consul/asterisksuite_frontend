@@ -106,10 +106,14 @@ export function getStatusColor(category: string | null | undefined, status: numb
   return COLOR_MAPS[category ?? '']?.[status] ?? 'neutral'
 }
 
-export function isDocumentCancelled(category: string | null | undefined, status: number): boolean {
-  if (category === 'QUOTE') return status === 6
-  if (category === 'ORDER') return status === 8
-  return status === 3
+export function getCancelledDocumentStatus(category: string | null | undefined, direction = 1): number {
+  if (category === 'QUOTE') return 6
+  if (category === 'ORDER') return direction === -1 ? 3 : 8
+  return 3
+}
+
+export function isDocumentCancelled(category: string | null | undefined, status: number, direction = 1): boolean {
+  return status === getCancelledDocumentStatus(category, direction)
 }
 
 const DESCRIPTION_MAPS: Record<string, Record<number, string>> = {
@@ -188,4 +192,17 @@ export function getCategoryStatuses(
 
   if (!enabled_statuses || enabled_statuses.length === 0) return entries
   return entries.filter(s => enabled_statuses.includes(s.value))
+}
+
+export function getDocumentStatusOptions(
+  category: string | null | undefined,
+  direction = 1,
+  enabled_statuses?: number[] | null
+) {
+  return getCategoryStatuses(category, enabled_statuses).map((status) => {
+    if (category === 'ORDER' && direction === -1 && status.value === 3) {
+      return { ...status, label: 'Anulado', color: 'error' as const }
+    }
+    return status
+  })
 }

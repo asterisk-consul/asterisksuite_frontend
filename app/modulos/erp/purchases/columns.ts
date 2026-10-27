@@ -1,7 +1,7 @@
 import { h } from 'vue'
 import { UTooltip, UButton, UBadge, UProgress, UDropdownMenu } from '#components'
 import { createTableBuilder } from '~/composables/table/createColumns'
-import { CATEGORY_LABELS, getStatusLabel, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
+import { CATEGORY_LABELS, getStatusLabel, getStatusColor, isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
 import type { Document } from '~/modulos/erp/facturas/types/factura.types'
 import { canSettleDocument, getDocumentPaymentSummary } from '~/modulos/erp/documents/utils/document-payment-status'
 
@@ -13,6 +13,7 @@ export const createPurchasesColumns = (actions: {
   onDuplicate?: (row: Row) => void
   canDuplicate?: (row: Row) => boolean
   showCreator?: boolean
+  statusFilterOptions?: { label: string; value: number }[] | null
 }) => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
   const fmtNumber = (row: Row) => `${row.document_types?.code ?? ''}-${String(row.number).padStart(8, '0')}`
@@ -23,12 +24,22 @@ export const createPurchasesColumns = (actions: {
         key: 'status',
         label: 'Estado',
         sortable: true,
-        meta: { filter: { type: 'number', operators: ['equals'] } },
+        meta: {
+          filter: actions.statusFilterOptions === null
+            ? false
+            : actions.statusFilterOptions
+              ? { type: 'select', operators: ['equals'], options: actions.statusFilterOptions }
+              : { type: 'number', operators: ['equals'] }
+        },
         badge: {
-          resolve: (doc) => ({
-            label: getStatusLabel(doc.document_types?.category, doc.status),
-            color: getStatusColor(doc.document_types?.category, doc.status) as any
-          })
+          resolve: (doc) => {
+            const category = doc.document_types?.category
+            const cancelled = isDocumentCancelled(category, doc.status, -1)
+            return {
+              label: cancelled && category === 'ORDER' ? 'Anulado' : getStatusLabel(category, doc.status),
+              color: (cancelled ? 'error' : getStatusColor(category, doc.status)) as any
+            }
+          }
         }
       },
       {

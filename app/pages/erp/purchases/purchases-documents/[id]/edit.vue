@@ -18,8 +18,6 @@ const router = useRouter()
 
 const toast = useToast()
 
-const { mainCollapsed } = useSidebarState()
-
 const saving = ref(false)
 
 const loading = ref(true)
@@ -76,36 +74,20 @@ async function handleSubmit(payload: any) {
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar title="Editar Factura">
-        <template #leading>
-          <UButton
-            icon="i-lucide-panel-left-close"
-            variant="ghost"
-            color="neutral"
-            @click="mainCollapsed = !mainCollapsed"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
-      <UPage>
-        <UPageHeader
+      <UPage class="space-y-6">
+        <AppPageHeader
           title="Editar Factura"
           description="Modificá la factura"
-          :links="[
-            {
-              label: 'Guardar Cambios',
-
-              icon: 'i-lucide-check',
-
-              loading: saving,
-
-              onClick: () => formRef?.submit()
-            }
-          ]"
-        />
+        >
+          <template #links>
+            <UButton label="Guardar Cambios" icon="i-lucide-check" :loading="saving" @click="formRef?.submit()">
+              <template #trailing>
+                <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
+              </template>
+            </UButton>
+          </template>
+        </AppPageHeader>
 
         <UPageBody class="mx-auto w-full max-w-screen-2xl">
           <FacturaForm

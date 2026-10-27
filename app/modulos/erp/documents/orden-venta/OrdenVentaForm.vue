@@ -21,6 +21,7 @@ const form = reactive({
   transport_provider: '',
   confirmed_delivery_date: ''
 })
+const hasDeliveryDetails = computed(() => Object.values(form).some(value => String(value ?? '').trim() !== '' && value !== 'MEDIA'))
 
 watch(
   () => props.modelValue,
@@ -64,11 +65,27 @@ defineExpose({ getFormData })
 </script>
 
 <template>
-  <UCard>
-    <template #header>
-      <h3 class="font-semibold">Información de entrega</h3>
-    </template>
-    <div class="space-y-4">
+  <details :open="hasDeliveryDetails" class="group overflow-hidden rounded-xl border border-default bg-default transition-all group-open:border-primary/40 group-open:shadow-sm">
+    <summary class="flex cursor-pointer list-none items-center justify-between gap-4 border-l-4 border-primary/60 bg-primary/5 px-4 py-3.5 transition-colors hover:bg-primary/10 [&::-webkit-details-marker]:hidden">
+      <div class="flex min-w-0 items-center gap-3">
+        <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <UIcon name="i-lucide-truck" class="size-5" />
+        </span>
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="font-semibold">Información de entrega</h3>
+            <UBadge label="Opcional" color="neutral" variant="subtle" size="xs" />
+          </div>
+          <p class="mt-0.5 text-xs text-muted">Dirección, contacto, transporte y fecha comprometida</p>
+        </div>
+      </div>
+      <span class="flex shrink-0 items-center gap-2 rounded-lg border border-default bg-default/70 px-2.5 py-1.5 text-xs font-medium text-muted transition-colors group-open:border-primary/20 group-open:bg-primary/10 group-open:text-primary">
+        <span class="group-open:hidden">Completar</span>
+        <span class="hidden group-open:inline">Contraer</span>
+        <UIcon name="i-lucide-chevron-down" class="size-4 transition-transform group-open:rotate-180" />
+      </span>
+    </summary>
+    <div class="flex flex-col gap-4 border-t border-default bg-elevated/20 px-4 py-5 sm:px-5">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <UFormField label="Prioridad" name="priority">
           <USelectMenu
@@ -115,5 +132,5 @@ defineExpose({ getFormData })
         />
       </UFormField>
     </div>
-  </UCard>
+  </details>
 </template>

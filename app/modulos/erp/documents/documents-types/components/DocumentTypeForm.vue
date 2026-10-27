@@ -13,6 +13,7 @@ export interface DocumentTypeFormData {
   affects_tax_book: boolean
   affects_payment: boolean
   calculates_taxes?: boolean
+  accepts_commercial_adjustments?: boolean
   active: boolean
   category: string
   letter_type: string
@@ -63,6 +64,7 @@ const defaultForm: DocumentTypeFormData = {
   code: '', description: '', direction: 1,
   affects_stock: false, affects_accounting: true, affects_tax_book: false, affects_payment: false,
   calculates_taxes: true,
+  accepts_commercial_adjustments: undefined,
   active: true, category: '', letter_type: '', afip_code: '',
   requires_cae: false, is_electronic: false, document_sequence_ids: [], tax_ids: [],
   enabled_statuses: null,
@@ -114,6 +116,7 @@ const handleSubmit = () => {
     affects_tax_book: form.affects_tax_book,
     affects_payment: form.affects_payment,
     calculates_taxes: form.calculates_taxes ?? true,
+    accepts_commercial_adjustments: form.accepts_commercial_adjustments ?? form.category === 'INVOICE',
     active: form.active,
     category: form.category,
     letter_type: selectValue(form.letter_type),
@@ -427,6 +430,16 @@ const selectedLetterType = computed({
               <p class="text-xs text-muted">El motor fiscal calcula impuestos para este tipo</p>
             </div>
             <USwitch :model-value="form.calculates_taxes ?? true" @update:model-value="(v: boolean | 'indeterminate') => form.calculates_taxes = v === true" />
+          </div>
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3 col-span-2">
+            <div>
+              <p class="text-sm font-medium">Acepta conceptos comerciales</p>
+              <p class="text-xs text-muted">Permite cargar descuentos o bonificaciones y heredarlos al generar otro documento compatible.</p>
+            </div>
+            <USwitch
+              :model-value="form.accepts_commercial_adjustments ?? form.category === 'INVOICE'"
+              @update:model-value="(value: boolean | 'indeterminate') => form.accepts_commercial_adjustments = value === true"
+            />
           </div>
         </div>
 

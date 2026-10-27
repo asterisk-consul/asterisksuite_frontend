@@ -60,7 +60,7 @@ export const navigationTree: DrilldownNode[] = [
       {
         label: 'Comprobantes',
         icon: 'i-lucide-file-check',
-        to: '/erp/sales',
+        to: '/erp/sales/comprobantes',
         permissions: [
           'sales.invoices.read',
           'sales.credit_notes.read',
@@ -127,7 +127,7 @@ export const navigationTree: DrilldownNode[] = [
       {
         label: 'Comprobantes',
         icon: 'i-lucide-file-check',
-        to: '/erp/purchases',
+        to: '/erp/purchases/comprobantes',
         permissions: [
           'purchases.invoices.read',
           'purchases.credit_notes.read',
@@ -691,6 +691,7 @@ export const navigationTree: DrilldownNode[] = [
       { label: 'Mi perfil', icon: 'i-lucide-user', to: '/settings/profile' },
       { label: 'Empresa', icon: 'i-lucide-building-2', to: '/settings/company', permission: 'companies.read' },
       { label: 'Documentos', icon: 'i-lucide-files', to: '/settings/documents', permission: 'document_types.read' },
+      { label: 'Archivos', icon: 'i-lucide-folder-open', to: '/erp/files', permission: 'media.read' },
       {
         label: 'Fiscal e impuestos',
         icon: 'i-lucide-percent',
