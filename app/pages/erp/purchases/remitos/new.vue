@@ -3,6 +3,7 @@ definePageMeta({ middleware: ['auth'] })
 
 import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
+import { getDocumentSubmitError } from '~/utils/document-submit-error'
 
 const route = useRoute()
 const router = useRouter()
@@ -75,10 +76,9 @@ async function handleSubmit(payload: any) {
     toast.add({ title: 'Remito de Compra creado', color: 'success' })
     router.push(`/erp/purchases/remitos/${created.id}`)
   } catch (e: any) {
-    const backendMsg = e?.data?.data?.message || e?.data?.message || e?.message || 'Error desconocido'
     toast.add({
       title: 'Error al crear remito de compra',
-      description: Array.isArray(backendMsg) ? backendMsg[0] : backendMsg,
+      description: getDocumentSubmitError(e, 'No se pudo crear el remito de compra.'),
       color: 'error'
     })
   } finally {

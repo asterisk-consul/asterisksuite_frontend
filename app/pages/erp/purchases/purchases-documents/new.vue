@@ -9,6 +9,7 @@ import { buildDocumentDuplicateValues } from '~/modulos/erp/documents/utils/docu
 import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 import { normalizeMarketRate } from '~/utils/currency'
+import { getDocumentSubmitError } from '~/utils/document-submit-error'
 
 const route = useRoute()
 const router = useRouter()
@@ -236,7 +237,7 @@ async function handleSubmit(payload: any) {
   } catch (e: any) {
     toast.add({
       title: `Error al crear ${pageTitle.value.toLowerCase()}`,
-      description: e?.data?.message,
+      description: getDocumentSubmitError(e, 'No se pudo crear el comprobante de compra.'),
       color: 'error'
     })
   } finally {

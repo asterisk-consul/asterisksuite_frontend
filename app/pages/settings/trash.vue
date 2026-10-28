@@ -18,7 +18,7 @@ const showDetailModal = ref(false)
 const showHardDeleteModal = ref(false)
 const selectedItem = ref<any>(null)
 const actionLoading = ref(false)
-const auditProtectedTables = new Set(['documents', 'payments'])
+const permanentlyProtectedTables = new Set(['payments'])
 
 const DAY_OPTIONS = [
   { label: 'Últimos 7 días', value: 7 },
@@ -96,7 +96,11 @@ const filteredItems = computed(() => {
   if (!q) return store.items
   return store.items.filter(item =>
     item.id.toLowerCase().includes(q) ||
-    (TABLE_LABELS[item.table] || item.table).toLowerCase().includes(q)
+    (TABLE_LABELS[item.table] || item.table).toLowerCase().includes(q) ||
+    String(item.documentNumber ?? '').includes(q) ||
+    (item.documentTypeName ?? '').toLowerCase().includes(q) ||
+    (item.documentDescription ?? '').toLowerCase().includes(q) ||
+    (item.documentReference ?? '').toLowerCase().includes(q)
   )
 })
 
@@ -152,8 +156,11 @@ function parseSelection() {
   return result
 }
 
-const selectionContainsAuditRecords = computed(() =>
-  parseSelection().some(group => auditProtectedTables.has(group.table))
+const selectionContainsPayments = computed(() =>
+  parseSelection().some(group => permanentlyProtectedTables.has(group.table))
+)
+const selectionContainsDocuments = computed(() =>
+  parseSelection().some(group => group.table === 'documents')
 )
 
 async function restoreSelected() {
@@ -191,10 +198,10 @@ async function restoreOne(item: any) {
 
 function confirmHardDelete() {
   if (selectedIds.value.length === 0) return
-  if (selectionContainsAuditRecords.value) {
+  if (selectionContainsPayments.value) {
     toast.add({
-      title: 'Estos registros conservan su trazabilidad',
-      description: 'Las facturas, pagos y cobros pueden restaurarse, pero no eliminarse definitivamente.',
+      title: 'Los pagos y cobros deben conservarse',
+      description: 'Tienen efectos de tesorería y trazabilidad; podés restaurarlos, pero no eliminarlos definitivamente.',
       color: 'warning'
     })
     return
@@ -267,8 +274,11 @@ onMounted(() => {
     <div v-if="selectedIds.length > 0" class="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
       <div>
         <p class="text-sm font-medium">{{ selectedIds.length }} seleccionado(s)</p>
-        <p v-if="selectionContainsAuditRecords" class="text-xs text-muted">
-          Las facturas, pagos y cobros se pueden restaurar, pero conservan su auditoría permanentemente.
+        <p v-if="selectionContainsDocuments" class="text-xs text-muted">
+          Solo se eliminan presupuestos u órdenes anulados, no fiscales y sin pagos, vínculos ni efectos asociados. El servidor verifica cada comprobante.
+        </p>
+        <p v-if="selectionContainsPayments" class="text-xs text-muted">
+          Los pagos y cobros se pueden restaurar, pero conservan sus efectos de tesorería permanentemente.
         </p>
       </div>
       <div class="flex gap-2 ms-auto">
@@ -288,7 +298,7 @@ onMounted(() => {
           variant="soft"
           size="sm"
           :loading="actionLoading"
-          :title="selectionContainsAuditRecords ? 'Las facturas, pagos y cobros deben conservarse por trazabilidad' : undefined"
+          :title="selectionContainsPayments ? 'Los pagos y cobros deben conservarse por trazabilidad' : undefined"
           @click="confirmHardDelete"
         />
       </div>
@@ -327,7 +337,15 @@ onMounted(() => {
       </template>
 
       <template #id-cell="{ row }">
-        <code class="text-xs text-muted">{{ row.original.id.substring(0, 8) }}...</code>
+        <div class="space-y-0.5">
+          <p v-if="row.original.table === 'documents' && row.original.documentTypeName" class="text-sm font-medium">
+            {{ row.original.documentTypeName }} #{{ row.original.documentNumber }}
+          </p>
+          <p v-if="row.original.table === 'documents' && row.original.documentDescription" class="max-w-sm truncate text-xs text-muted">
+            {{ row.original.documentDescription }}
+          </p>
+          <code class="text-xs text-muted">{{ row.original.id.substring(0, 8) }}...</code>
+        </div>
       </template>
 
       <template #deletedAt-cell="{ row }">
@@ -383,6 +401,16 @@ onMounted(() => {
               <p>{{ selectedItem.deletedByName || '—' }}</p>
             </div>
           </div>
+          <div v-if="selectedItem.table === 'documents'" class="rounded-lg border border-default p-3 text-sm">
+            <p class="font-semibold">
+              {{ selectedItem.documentTypeName || 'Documento' }} #{{ selectedItem.documentNumber }}
+            </p>
+            <p v-if="selectedItem.documentDescription" class="mt-1 text-muted">{{ selectedItem.documentDescription }}</p>
+            <p v-if="selectedItem.documentReference" class="mt-1"><span class="text-muted">Referencia:</span> {{ selectedItem.documentReference }}</p>
+            <p class="mt-2 text-xs text-muted">
+              La eliminación definitiva se habilita solo para comprobantes anulados no fiscales, sin pagos ni relaciones operativas.
+            </p>
+          </div>
         </div>
       </template>
       <template #footer>
@@ -406,6 +434,15 @@ onMounted(() => {
           Vas a eliminar <strong>{{ selectedIds.length }} elemento(s)</strong> permanentemente.
           Esta acción <strong class="text-error">no se puede deshacer</strong>.
         </p>
+        <UAlert
+          v-if="selectionContainsDocuments"
+          class="mt-3"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-shield-alert"
+          title="Validación de seguridad"
+          description="Solo se eliminarán presupuestos u órdenes anulados sin pagos, cadena documental, movimientos, despacho ni efectos fiscales, contables o de stock. Los números de secuencia no se reutilizan."
+        />
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">

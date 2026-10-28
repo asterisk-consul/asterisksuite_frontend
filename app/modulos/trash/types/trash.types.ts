@@ -4,6 +4,13 @@ export interface TrashItem<T = any> {
   deletedAt: string
   deletedBy?: string
   deletedByName?: string
+  documentNumber?: number
+  documentStatus?: number
+  documentReference?: string | null
+  documentDescription?: string | null
+  documentCategory?: string | null
+  documentTypeName?: string | null
+  documentDirection?: number | null
   data?: T
 }
 

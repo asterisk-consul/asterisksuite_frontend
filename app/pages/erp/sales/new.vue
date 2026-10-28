@@ -4,6 +4,7 @@ definePageMeta({ middleware: ['auth'] })
 import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 import { buildDocumentDuplicateValues, buildDocumentExtensionDuplicateValues } from '~/modulos/erp/documents/utils/document-duplicate'
+import { getDocumentSubmitError } from '~/utils/document-submit-error'
 
 const PresupuestoForm = defineAsyncComponent(() => import('~/modulos/erp/documents/presupuesto/PresupuestoForm.vue'))
 const OrdenVentaForm = defineAsyncComponent(() => import('~/modulos/erp/documents/orden-venta/OrdenVentaForm.vue'))
@@ -158,10 +159,9 @@ async function handleSubmit(payload: any) {
     toast.add({ title: `${pageTitle.value} creado`, color: 'success' })
     router.push(`/erp/sales/${created.id}`)
   } catch (e: any) {
-    const backendMsg = e?.data?.data?.message || e?.data?.message || e?.message || 'Error desconocido'
     toast.add({
       title: `Error al crear ${pageTitle.value.toLowerCase()}`,
-      description: Array.isArray(backendMsg) ? backendMsg[0] : backendMsg,
+      description: getDocumentSubmitError(e, 'No se pudo crear el comprobante de venta.'),
       color: 'error'
     })
   } finally {

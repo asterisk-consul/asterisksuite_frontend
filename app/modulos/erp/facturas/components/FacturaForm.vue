@@ -84,11 +84,7 @@ const canManageCommercialAdjustmentConcepts = computed(() => isOwnerOrAdmin.valu
   || hasPermission('commercial_adjustment_concepts.update'))
 const fiscalService = useFiscalService()
 const {
-  items: parties,
-  loading: partiesLoading,
-  refreshing: partiesRefreshing,
-  usingCache: partiesUsingCache,
-  refreshFailed: partiesRefreshFailed
+  items: parties
 } = storeToRefs(partiesStore)
 const { items: products } = storeToRefs(productsStore)
 const { items: documentsTypes } = storeToRefs(documentsTypesStore)
@@ -104,43 +100,79 @@ const partyTypeLabels: Record<string, string> = {
   FINANCIAL: 'Entidad financiera'
 }
 const partySearch = ref('')
+const partySearching = ref(false)
 const remoteParties = ref<BusinessParty[]>([])
+const selectedPartyFallback = ref<BusinessParty | null>(null)
 const partiesService = useBusinessPartiesService()
 let partySearchTimer: ReturnType<typeof setTimeout> | undefined
 let partySearchController: AbortController | undefined
-const partyOptions = computed(() => [...remoteParties.value, ...parties.value]
-  .filter((party, index, rows) => rows.findIndex(item => item.id === party.id) === index)
-  .filter(party => props.moduleCode === 'SALES'
+let partySearchRequestId = 0
+let selectedPartyLoadId = 0
+const partyEditLoading = ref(false)
+const partyOptionLabel = (party: BusinessParty) => props.moduleCode === 'SALES'
+  ? `${party.name}${party.type === 'EMPLOYEE' ? ' · Empleado · Cliente interno' : ''}`
+  : `${party.name} · ${partyTypeLabels[party.type] ?? party.type}${party.tax_id ? ` · ${party.tax_id}` : ''}`
+
+const partyOptions = computed(() => {
+  const query = partySearch.value.trim().toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const source = [
+    ...remoteParties.value,
+    ...parties.value,
+    ...(selectedPartyFallback.value ? [selectedPartyFallback.value] : []),
+  ]
+  const seen = new Set<string>()
+  const uniqueParties = source.filter((party) => {
+    if (seen.has(party.id)) return false
+    seen.add(party.id)
+    return true
+  })
+  const eligibleParties = uniqueParties.filter(party => props.moduleCode === 'SALES'
     ? party.type === 'CUSTOMER' || party.roles?.some(role => role.role === 'CUSTOMER' && role.active)
     : payablePartyTypes.has(party.type))
-  .slice(0, partySearch.value.trim() ? 30 : 100)
-  .map(party => ({
-    label: props.moduleCode === 'SALES'
-      ? `${party.name}${party.type === 'EMPLOYEE' ? ' · Empleado · Cliente interno' : ''}`
-      : `${party.name} · ${partyTypeLabels[party.type] ?? party.type}${party.tax_id ? ` · ${party.tax_id}` : ''}`,
+  const matchingParties = query
+    ? eligibleParties.filter(party => [party.name, party.business_names, party.tax_id, party.email]
+      .some(value => String(value ?? '').toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(query)))
+    : eligibleParties
+  const selectedParty = uniqueParties.find(party => party.id === form.party_id)
+  const visibleParties = matchingParties.slice(0, query ? 30 : 100)
+  // Keep the current value in the menu even when it falls outside the result
+  // limit or its role changed after the document was created.
+  if (selectedParty && !visibleParties.some(party => party.id === selectedParty.id)) {
+    visibleParties.unshift(selectedParty)
+  }
+  return visibleParties.map(party => ({
+    label: partyOptionLabel(party),
     value: party.id
-  })))
+  }))
+})
 
 watch(partySearch, (value) => {
+  const requestId = ++partySearchRequestId
   if (partySearchTimer) clearTimeout(partySearchTimer)
   partySearchController?.abort()
   const query = value.trim()
   if (query.length < 2) {
     remoteParties.value = []
+    partySearching.value = false
     return
   }
+  partySearching.value = true
   partySearchTimer = setTimeout(async () => {
-    partySearchController = new AbortController()
+    const controller = new AbortController()
+    partySearchController = controller
     try {
-      remoteParties.value = await partiesService.search(
+      const results = await partiesService.search(
         query,
         props.moduleCode === 'SALES' ? ['CUSTOMER'] : [...payablePartyTypes],
-        partySearchController.signal
+        controller.signal
       )
+      if (requestId === partySearchRequestId) remoteParties.value = results
     } catch (error: any) {
-      if (error?.name !== 'AbortError') remoteParties.value = []
+      if (requestId === partySearchRequestId && error?.name !== 'AbortError') remoteParties.value = []
+    } finally {
+      if (requestId === partySearchRequestId) partySearching.value = false
     }
-  }, 300)
+  }, 180)
 })
 
 onBeforeUnmount(() => {
@@ -219,6 +251,23 @@ const form = reactive({
   warehouse_id: '' as string,
   fiscal_jurisdiction_id: '' as string,
 })
+
+watch(() => form.party_id, async (partyId) => {
+  const requestId = ++selectedPartyLoadId
+  selectedPartyFallback.value = null
+  if (!partyId || [...remoteParties.value, ...parties.value].some(party => party.id === partyId)) return
+
+  try {
+    const party = await partiesService.findOne(partyId)
+    if (requestId === selectedPartyLoadId && form.party_id === partyId) {
+      selectedPartyFallback.value = party
+    }
+  } catch {
+    // Keep the document's stored party_id; other form fields remain usable if
+    // the party cannot be fetched (for example, an inactive historical record).
+  }
+})
+
 const advancedWarehouseAssignment = ref(false)
 const allWarehouseOptions = computed(() => warehouses.value
   .filter(warehouse => warehouse.active && !warehouse.is_virtual)
@@ -432,7 +481,9 @@ watch(resolvedRate, (rate) => {
   if (rate) form.exchange_rate = rate
 })
 
-const selectedParty = computed(() => parties.value.find((p) => p.id === form.party_id))
+const selectedParty = computed(() => selectedPartyFallback.value?.id === form.party_id
+  ? selectedPartyFallback.value
+  : [...remoteParties.value, ...parties.value].find((p) => p.id === form.party_id))
 const partnerCondition = computed(() => (selectedParty.value?.vat_condition as string) ?? null)
 
 const {
@@ -443,6 +494,13 @@ const {
 } = useDocumentTypesForModule(moduleCode.value, partnerCondition)
 
 const items = ref<FacturaItem[]>([])
+const validationErrors = ref<Record<string, string>>({})
+const validationErrorSummary = computed(() => Object.values(validationErrors.value))
+watch(() => form.document_type_id, () => { delete validationErrors.value.document_type_id })
+watch(() => form.party_id, () => { delete validationErrors.value.party_id })
+watch(() => form.date, () => { delete validationErrors.value.date })
+watch(() => form.descrip, () => { delete validationErrors.value.descrip })
+watch(items, () => { delete validationErrors.value.items }, { deep: true })
 const commercialAdjustments = ref<CommercialAdjustment[]>([])
 const commercialAdjustmentConcepts = ref<CommercialAdjustmentConcept[]>([])
 const commercialAdjustmentConceptsLoading = ref(false)
@@ -549,6 +607,7 @@ const sequencesRefreshFailed = ref(false)
 // Keep only the UUID in the form state. USelectMenu can otherwise return either
 // the whole option or its value depending on its configuration/version.
 const selectedSequenceId = ref<string>('')
+watch(selectedSequenceId, () => { delete validationErrors.value.document_sequence_id })
 const sequencePreview = ref<{ formatted: string, source: 'SEQUENCE' | 'DOCUMENT_TYPE' } | null>(null)
 const sequencePreviewLoading = ref(false)
 const sequencePreviewError = ref<string | null>(null)
@@ -1222,9 +1281,16 @@ watch(() => form.document_type_id, (newId) => {
 onMounted(() => {
   window.addEventListener('keydown', handleSaveShortcut, true)
   fetchMyPermissionsIfNeeded()
-  void partiesStore.fetchAll().catch(() => {
-    // El formulario sigue utilizable; el store conserva la última lista disponible.
-  })
+  const requestId = ++partySearchRequestId
+  partySearching.value = true
+  void partiesService.search('', props.moduleCode === 'SALES' ? ['CUSTOMER'] : [...payablePartyTypes])
+    .then((results) => {
+      if (requestId === partySearchRequestId && !partySearch.value.trim()) remoteParties.value = results
+    })
+    .catch(() => {})
+    .finally(() => {
+      if (requestId === partySearchRequestId) partySearching.value = false
+    })
   productsStore.hydrateCache()
   void productsStore.search('', usageFilter.value).catch((error: any) => {
     // Compatibilidad durante despliegues escalonados: si el frontend nuevo llega
@@ -1444,6 +1510,32 @@ function updateItemWarehouse(index: number, warehouseId: string | null) {
 }
 
 function submit() {
+  const errors: Record<string, string> = {}
+  if (!form.document_type_id) errors.document_type_id = 'Seleccioná el tipo de comprobante.'
+  if (!form.party_id) errors.party_id = moduleCode.value === 'SALES' ? 'Seleccioná un cliente.' : 'Seleccioná un proveedor o entidad.'
+  if (!form.date || Number.isNaN(Date.parse(`${form.date}T12:00:00`))) errors.date = 'Ingresá una fecha válida.'
+  if (form.descrip.length > 500) errors.descrip = 'La referencia admite hasta 500 caracteres.'
+  if (sequenceOptions.value.length > 1 && !selectedSequenceId.value) errors.document_sequence_id = 'Elegí el punto de venta para numerar el comprobante.'
+  if (documentTypeValidation.value) errors.document_type_id = documentTypeValidation.value
+  if (showReferencePicker.value && !referenceDocumentId.value) errors.reference_document_id = 'Seleccioná la factura de referencia.'
+  if (!items.value.length && selectedDocumentCategory.value !== 'OPENING_BALANCE') {
+    errors.items = 'Agregá al menos un producto o concepto.'
+  } else if (items.value.some(item => !Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0)) {
+    errors.items = 'Cada renglón debe tener una cantidad mayor que cero.'
+  } else if (items.value.some(item => !Number.isFinite(Number(item.unit_price)) || Number(item.unit_price) < 0)) {
+    errors.items = 'Revisá los precios: deben ser números iguales o mayores que cero.'
+  }
+
+  validationErrors.value = errors
+  if (Object.keys(errors).length) {
+    toast.add({
+      title: 'Revisá los datos del comprobante',
+      description: Object.values(errors).join(' '),
+      color: 'warning'
+    })
+    return
+  }
+
   const incompleteAdjustment = commercialAdjustments.value.some((adjustment) =>
     !adjustment.concept.trim() || Number(adjustment.value) <= 0 ||
     (adjustment.value_type === 'PERCENTAGE' && Number(adjustment.value) > 100)
@@ -1534,16 +1626,42 @@ function submit() {
     }))
   }
 
-  console.log('[DEBUG] Purchase payload:', JSON.stringify(payload, null, 2))
   emit('submit', payload)
 }
 
-const onEditBussinessParty = () => {
+const onEditBussinessParty = async () => {
   if (!selectedCustomer.value?.value) return
-  const customer = parties.value.find((c) => c.id === selectedCustomer.value?.value)
-  if (!customer) return
-  selectedBusinessParty.value = customer
-  showBusinessPartiesModal.value = true
+  partyEditLoading.value = true
+  try {
+    const partyId = selectedCustomer.value.value
+    selectedBusinessParty.value = await partiesService.findOne(partyId)
+    showBusinessPartiesModal.value = true
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo cargar la ficha',
+      description: error?.data?.message || 'Intentá nuevamente antes de editar el cliente o proveedor.',
+      color: 'error'
+    })
+  } finally {
+    partyEditLoading.value = false
+  }
+}
+
+function handlePartyUpdated(party: BusinessParty) {
+  remoteParties.value = remoteParties.value.map((current) => current.id === party.id ? party : current)
+  selectedBusinessParty.value = party
+}
+
+async function copySelectedPartyName() {
+  const name = selectedParty.value?.name?.trim()
+  if (!name) return
+
+  try {
+    await navigator.clipboard.writeText(name)
+    toast.add({ title: 'Nombre copiado', description: name, color: 'success' })
+  } catch {
+    toast.add({ title: 'No se pudo copiar', description: 'El navegador no permitió acceder al portapapeles.', color: 'warning' })
+  }
 }
 
 defineExpose({ submit, completeDraft })
@@ -1572,6 +1690,14 @@ defineExpose({ submit, completeDraft })
       <span>{{ draftStatus === 'saving' ? 'Guardando borrador…' : `Borrador guardado en este dispositivo${draftSavedLabel ? ` · ${draftSavedLabel}` : ''}` }}</span>
     </div>
     <!-- Header: Party + Document Type + PV + Currency + Date -->
+    <UAlert
+      v-if="validationErrorSummary.length"
+      color="error"
+      variant="subtle"
+      icon="i-lucide-circle-alert"
+      title="No se pudo guardar todavía"
+      :description="validationErrorSummary.join(' ')"
+    />
     <UCard>
       <template #header>
         <div>
@@ -1580,7 +1706,7 @@ defineExpose({ submit, completeDraft })
         </div>
       </template>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
-        <UFormField :label="moduleCode === 'SALES' ? 'Cliente' : 'Proveedor o entidad'" class="min-w-0 md:col-span-2 xl:col-span-12">
+        <UFormField :label="moduleCode === 'SALES' ? 'Cliente' : 'Proveedor o entidad'" :error="validationErrors.party_id" class="min-w-0 md:col-span-2 xl:col-span-12">
           <div class="flex min-w-0 gap-2">
             <USelectMenu
               v-model="selectedCustomer"
@@ -1588,10 +1714,22 @@ defineExpose({ submit, completeDraft })
               :placeholder="moduleCode === 'SALES' ? 'Buscar cliente...' : 'Buscar proveedor, servicio o ente impositivo...'"
               searchable
               v-model:search-term="partySearch"
-              :loading="partiesLoading && partyOptions.length === 0"
+              :loading="partySearching"
               size="lg"
               class="min-w-0 flex-1"
             />
+            <UTooltip text="Copiar nombre completo del cliente/proveedor">
+              <UButton
+                icon="i-lucide-copy"
+                variant="outline"
+                size="lg"
+                square
+                class="shrink-0"
+                aria-label="Copiar nombre completo del cliente o proveedor"
+                :disabled="!selectedParty?.name"
+                @click="copySelectedPartyName"
+              />
+            </UTooltip>
             <UButton icon="i-lucide-plus" variant="outline" size="lg" square class="shrink-0" aria-label="Crear cliente o proveedor" @click="showBusinessPartiesModal = true" />
             <UButton
               icon="i-lucide-pencil"
@@ -1601,20 +1739,14 @@ defineExpose({ submit, completeDraft })
               class="shrink-0"
               aria-label="Editar cliente o proveedor"
               :disabled="!selectedCustomer"
+              :loading="partyEditLoading"
               @click="onEditBussinessParty"
             />
           </div>
-          <p v-if="partiesUsingCache" class="mt-1 flex items-center gap-1 text-xs text-muted">
-            <UIcon :name="partiesRefreshing ? 'i-lucide-refresh-cw' : 'i-lucide-cloud-off'" :class="{ 'animate-spin': partiesRefreshing }" />
-            {{ partiesRefreshing
-              ? 'Mostrando datos guardados mientras se actualizan.'
-              : partiesRefreshFailed
-                ? 'Sin conexión: podés continuar con la última lista disponible.'
-                : 'Lista guardada disponible al instante.' }}
-          </p>
+          <p class="mt-1 text-xs text-muted">Escribí al menos 2 caracteres para buscar en toda la lista por nombre, razón social o CUIT.</p>
         </UFormField>
 
-        <UFormField label="Tipo de documento" class="min-w-0 xl:col-span-6">
+        <UFormField label="Tipo de documento" :error="validationErrors.document_type_id" class="min-w-0 xl:col-span-6">
           <USelectMenu
             v-model="selectedDocumentType"
             :items="documentTypeOptions"
@@ -1624,7 +1756,7 @@ defineExpose({ submit, completeDraft })
           />
         </UFormField>
 
-        <UFormField label="Punto de venta" class="min-w-0 xl:col-span-3">
+        <UFormField label="Punto de venta" :error="validationErrors.document_sequence_id" class="min-w-0 xl:col-span-3">
           <USelectMenu
             v-model="selectedSequenceId"
             :items="sequenceOptions"
@@ -1655,7 +1787,7 @@ defineExpose({ submit, completeDraft })
           </div>
         </UFormField>
 
-        <UFormField :label="dateFieldLabel" class="min-w-0 xl:col-span-3">
+        <UFormField :label="dateFieldLabel" :error="validationErrors.date" class="min-w-0 xl:col-span-3">
           <UInput v-model="form.date" type="date" size="lg" class="w-full min-w-0" />
         </UFormField>
 
@@ -1669,8 +1801,8 @@ defineExpose({ submit, completeDraft })
           />
         </UFormField>
 
-        <UFormField label="Referencia" :class="['min-w-0', operationalMode ? 'md:col-span-2 xl:col-span-12' : 'xl:col-span-9']">
-          <UInput v-model="form.descrip" placeholder="Referencia u observación breve (opcional)" class="w-full min-w-0" />
+        <UFormField label="Referencia" :error="validationErrors.descrip" :class="['min-w-0', operationalMode ? 'md:col-span-2 xl:col-span-12' : 'xl:col-span-9']">
+          <UInput v-model="form.descrip" maxlength="500" placeholder="Referencia u observación (opcional)" class="w-full min-w-0" />
         </UFormField>
       </div>
 
@@ -1783,6 +1915,14 @@ defineExpose({ submit, completeDraft })
     </UCard>
 
     <slot name="document-details" />
+
+    <UAlert
+      v-if="validationErrors.reference_document_id || validationErrors.items"
+      color="error"
+      variant="subtle"
+      icon="i-lucide-circle-alert"
+      :description="[validationErrors.reference_document_id, validationErrors.items].filter(Boolean).join(' ')"
+    />
 
     <!-- Items Table -->
     <UCard>
@@ -2035,5 +2175,5 @@ defineExpose({ submit, completeDraft })
     </div>
   </div>
 
-  <BusinessPartyModal v-model:open="showBusinessPartiesModal" v-model:business-party="selectedBusinessParty" />
+  <BusinessPartyModal v-model:open="showBusinessPartiesModal" v-model:business-party="selectedBusinessParty" @success="handlePartyUpdated" />
 </template>

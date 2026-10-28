@@ -5,6 +5,7 @@ import FacturaForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
 import OrdenCompraForm from '~/modulos/erp/documents/orden-compra/OrdenCompraForm.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { mapDocumentToFacturaForm } from '~/modulos/erp/facturas/mappers/factura.mapper'
+import { getDocumentSubmitError } from '~/utils/document-submit-error'
 
 const store = useDocumentsPurchasesStore()
 const route = useRoute()
@@ -41,7 +42,7 @@ async function handleSubmit(payload: any) {
     toast.add({ title: 'Orden de compra actualizada', color: 'success' })
     router.push(`/erp/purchases/orders/${route.params.id}`)
   } catch (e: any) {
-    toast.add({ title: 'Error al actualizar', description: e?.data?.message, color: 'error' })
+    toast.add({ title: 'Error al actualizar', description: getDocumentSubmitError(e, 'No se pudo actualizar la orden de compra.'), color: 'error' })
   } finally {
     saving.value = false
   }

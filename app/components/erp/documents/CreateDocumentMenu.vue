@@ -36,10 +36,14 @@ const menuItems = computed<DropdownMenuItem[]>(() => categories.value
   .map(item => ({
     label: item.label,
     icon: item.icon,
-    onSelect: () => router.push(getCreatePath(item.category))
+    onSelect: async () => {
+      menuOpen.value = false
+      await router.push(getCreatePath(item.category))
+    }
   })))
 
 function handleCreateShortcut(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.isComposing || menuItems.value.length === 0) return
   const target = event.target
   const isTyping = target instanceof HTMLElement && (
     target.isContentEditable
@@ -47,6 +51,7 @@ function handleCreateShortcut(event: KeyboardEvent) {
   )
   if (event.key.toLowerCase() !== 'n' || !event.altKey || event.ctrlKey || event.metaKey || isTyping || event.repeat) return
   event.preventDefault()
+  event.stopPropagation()
   menuOpen.value = true
 }
 
@@ -63,7 +68,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleCreateShortcut
     >
       <UIcon name="i-lucide-plus" class="size-4" />
       <span>Crear nuevo comprobante</span>
-      <KeyboardShortcutHint :keys="['Alt', 'N']" />
+      <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" />
       <UIcon name="i-lucide-chevron-down" class="size-4" />
     </UButton>
   </UDropdownMenu>

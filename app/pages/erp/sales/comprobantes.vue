@@ -60,13 +60,14 @@ const showCancelled = ref(false)
 const generateResult = ref<{ total_trips: number; results: any[] } | null>(null)
 const showGenerateModal = ref(false)
 
-const serverTable = useServerTable((query) =>
-  documentsSalesStore.fetchPage({
+const serverTable = useServerTable(
+  (query) => documentsSalesStore.fetchPage({
     ...query,
     status: statusFilter.value,
     category: categoryFilter.value,
     excludeCancelled: !showCancelled.value
-  })
+  }),
+  'sales-comprobantes'
 )
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
 

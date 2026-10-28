@@ -1,5 +1,40 @@
 [
  {
+  "version": "0.103.0-alpha",
+  "date": "2026-10-28",
+  "stage": "alpha",
+  "notes": "La papelera permite eliminar definitivamente documentos anulados cuando son seguros y no tienen pagos asociados. Los listados comerciales conservan búsqueda, filtros, orden y página al volver desde un documento; además, las acciones muestran atajos compactos y los formularios mejoran la búsqueda de clientes y proveedores y la validación de errores.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "trash",
+    "title": "Permitir eliminar definitivamente documentos anulados y sin pagos asociados desde la papelera"
+   },
+   {
+    "type": "fix",
+    "scope": "documents",
+    "title": "Conservar búsqueda, filtros, orden y página al volver a los listados de ventas y compras"
+   },
+   {
+    "type": "feat",
+    "scope": "documents",
+    "title": "Mostrar atajos compactos junto a las acciones y ofrecer comprobantes según los permisos disponibles"
+   },
+   {
+    "type": "fix",
+    "scope": "documents",
+    "title": "Mejorar la búsqueda y selección de clientes y proveedores y validar los datos antes de guardar"
+   },
+   {
+    "type": "docs",
+    "scope": "workflows",
+    "title": "Actualizar las guías de ventas, compras, tesorería, permisos y papelera"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar los comprobantes y habilitar la eliminación segura desde la papelera"
+ },
+ {
   "version": "0.102.0-alpha",
   "date": "2026-10-28",
   "stage": "alpha",

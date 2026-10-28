@@ -11,6 +11,8 @@ import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purch
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocumentActions'
+import DocumentActionButton from '~/modulos/erp/documents/shared/DocumentActionButton.vue'
+import { useDocumentDetailShortcuts } from '~/modulos/erp/documents/composables/useDocumentDetailShortcuts'
 import { usePrint } from '~/composables/usePrint'
 
 const documentsPurchasesStore = useDocumentsPurchasesStore()
@@ -84,6 +86,10 @@ const {
     remove: (id) => documentsPurchasesStore.remove(id),
   },
 })
+
+const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
+  confirmModalOpen, cancelModalOpen, deleteModalOpen, statusModalOpen,
+])
 </script>
 
 <template>
@@ -101,7 +107,12 @@ const {
         <UPageHeader :title="factura ? `${factura.document_types?.description} #${factura.number}` : ''">
           <template #headline>
             <div class="flex gap-2 items-center flex-wrap">
-              <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
+              <DocumentActionButton
+                v-for="action in primaryActions"
+                :key="action.label"
+                :action="action"
+                :shortcut-keys="shortcutKeys(action.label)"
+              />
               <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
                 <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
               </UDropdownMenu>

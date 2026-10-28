@@ -5,7 +5,9 @@ import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocumentActions'
+import { useDocumentDetailShortcuts } from '~/modulos/erp/documents/composables/useDocumentDetailShortcuts'
 import DocumentHeader from '~/modulos/erp/documents/shared/DocumentHeader.vue'
+import DocumentActionButton from '~/modulos/erp/documents/shared/DocumentActionButton.vue'
 import DocumentChain from '~/modulos/erp/documents/shared/DocumentChain.vue'
 import DocumentItemsTable from '~/modulos/erp/documents/shared/DocumentItemsTable.vue'
 import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
@@ -228,6 +230,11 @@ const {
   },
 })
 
+const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
+  confirmModalOpen, cancelModalOpen, deleteModalOpen, statusModalOpen,
+  acceptModalOpen, deliverModalOpen, stockAvailabilityOpen,
+])
+
 watch(confirmModalOpen, async (open) => {
   if (open && isSalesOrder.value) {
     await Promise.all([loadStockAvailability(), loadAssignmentContext()])
@@ -237,18 +244,34 @@ watch(confirmModalOpen, async (open) => {
 
 <template>
   <UPage class="space-y-4">
-    <AppPageHeader :title="doc ? `${doc.document_types?.description} #${documentNumber}` : 'Documento'">
-      <template #links>
-        <div class="flex gap-2 items-center flex-wrap">
-          <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />
-          <UBadge v-else-if="invoiceState === 'partial'" label="Factura parcial" color="warning" variant="subtle" />
-          <UButton v-if="isSalesOrder" label="Ver disponibilidad" icon="i-lucide-warehouse" color="neutral" variant="outline" size="sm" :loading="stockAvailabilityLoading" @click="openStockAvailability" />
-          <UButton v-if="canCreateDispatchOrder" label="Crear Orden de Despacho" icon="i-lucide-clipboard-list" color="primary" variant="outline" size="sm" :loading="creatingDispatch" @click="createDispatchOrder" />
-          <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
-          <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
-            <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
-          </UDropdownMenu>
-          <DocumentHelpPopover :category="category || 'INVOICE'" :actions="[...primaryActions, ...secondaryActions.flat()]" />
+    <AppPageHeader
+      :title="doc ? `${doc.document_types?.description} #${documentNumber}` : 'Documento'"
+    >
+      <template #footer>
+        <div class="space-y-3 pt-3 pb-3">
+          <div v-if="doc?.descrip?.trim() || doc?.ref?.trim()" class="flex min-w-0 items-start gap-2 rounded-lg border border-primary/20 border-l-2 border-l-primary bg-primary/5 px-3 py-2">
+            <UIcon name="i-lucide-bookmark" class="mt-0.5 size-4 shrink-0 text-primary" />
+            <div class="min-w-0">
+              <div class="text-xs font-medium uppercase tracking-wide text-muted">Referencia</div>
+              <div class="break-words text-sm font-semibold text-highlighted">{{ doc.descrip?.trim() || doc.ref?.trim() }}</div>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />
+            <UBadge v-else-if="invoiceState === 'partial'" label="Factura parcial" color="warning" variant="subtle" />
+            <UButton v-if="isSalesOrder" label="Ver disponibilidad" icon="i-lucide-warehouse" color="neutral" variant="outline" size="sm" :loading="stockAvailabilityLoading" @click="openStockAvailability" />
+            <UButton v-if="canCreateDispatchOrder" label="Crear Orden de Despacho" icon="i-lucide-clipboard-list" color="primary" variant="outline" size="sm" :loading="creatingDispatch" @click="createDispatchOrder" />
+            <DocumentActionButton
+              v-for="action in primaryActions"
+              :key="action.label"
+              :action="action"
+              :shortcut-keys="shortcutKeys(action.label)"
+            />
+            <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
+              <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
+            </UDropdownMenu>
+            <DocumentHelpPopover :category="category || 'INVOICE'" :actions="[...primaryActions, ...secondaryActions.flat()]" />
+          </div>
         </div>
       </template>
     </AppPageHeader>
@@ -260,6 +283,8 @@ watch(confirmModalOpen, async (open) => {
           :status-label="orderFlowStatus?.label"
           :status-color="orderFlowStatus?.color"
           :status-description="orderFlowStatus?.description"
+          :show-title="false"
+          :show-reference="false"
         />
         <DocumentChain v-if="doc" :document="doc" />
 

@@ -10,6 +10,7 @@ import OrdenVentaForm from '~/modulos/erp/documents/orden-venta/OrdenVentaForm.v
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 
 import { mapDocumentToFacturaForm } from '~/modulos/erp/facturas/mappers/factura.mapper'
+import { getDocumentSubmitError } from '~/utils/document-submit-error'
 
 const documentsSalesStore = useDocumentsSalesStore()
 
@@ -96,7 +97,7 @@ async function handleSubmit(payload: any) {
   } catch (e: any) {
     toast.add({
       title: e?.statusCode === 409 || e?.status === 409 ? 'El documento cambió' : 'Error al actualizar',
-      description: e?.data?.message,
+      description: getDocumentSubmitError(e, 'No se pudo actualizar el comprobante de venta.'),
       color: 'error'
     })
   } finally {

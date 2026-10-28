@@ -133,9 +133,15 @@ export function useDocumentActions(config: DocumentActionsConfig) {
         help: 'Permite modificar los datos del documento. Solo disponible en borrador o pendiente.',
         onClick: () => {
           if (module === 'purchases') {
-            router.push(`/erp/purchases/purchases-documents/${id.value}/edit`)
+            if (category.value === 'ORDER') {
+              return router.push(`/erp/purchases/orders/${id.value}/edit`)
+            } else if (category.value === 'REMITO') {
+              return router.push(`/erp/purchases/remitos/${id.value}/edit`)
+            } else {
+              return router.push(`/erp/purchases/purchases-documents/${id.value}/edit`)
+            }
           } else {
-            router.push(`/erp/sales/${id.value}/edit`)
+            return router.push(`/erp/sales/${id.value}/edit`)
           }
         }
       })

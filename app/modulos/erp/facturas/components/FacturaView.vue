@@ -3,6 +3,7 @@ import DocumentPrintLayout from '~/components/documents/DocumentPrintLayout.vue'
 import ValePrint from '~/components/documents/ValePrint.vue'
 import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
 import DocumentItemsTable from '~/modulos/erp/documents/shared/DocumentItemsTable.vue'
+import DocumentReference from '~/modulos/erp/documents/shared/DocumentReference.vue'
 import {
   getDocumentLineAmounts,
   getLineSubtotalBeforeCommercialAdjustments,
@@ -224,6 +225,7 @@ const printTotals = computed(() => {
             <UBadge :color="statusInfo.color as any">{{ statusInfo.label }}</UBadge>
           </div>
         </template>
+        <DocumentReference :reference="document.ref" />
         <div class="grid grid-cols-2 gap-4">
           <div>
             <div class="text-sm text-gray-500">{{ mode === 'sale' ? 'Cliente' : 'Proveedor' }}</div>
@@ -236,10 +238,6 @@ const printTotals = computed(() => {
           <div v-if="document.descrip">
             <div class="text-sm text-gray-500">Descripción</div>
             <div class="font-medium">{{ document.descrip }}</div>
-          </div>
-          <div v-if="document.ref">
-            <div class="text-sm text-gray-500">Referencia</div>
-            <div class="font-medium">{{ document.ref }}</div>
           </div>
         </div>
       </UCard>

@@ -10,8 +10,10 @@ import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purch
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocumentActions'
+import { useDocumentDetailShortcuts } from '~/modulos/erp/documents/composables/useDocumentDetailShortcuts'
 import { usePrint } from '~/composables/usePrint'
 import OrdenCompraView from '~/modulos/erp/documents/orden-compra/OrdenCompraView.vue'
+import DocumentActionButton from '~/modulos/erp/documents/shared/DocumentActionButton.vue'
 
 const store = useDocumentsPurchasesStore()
 const companiesStore = useCompaniesStore()
@@ -63,6 +65,8 @@ const {
     fetchOne: (id) => store.fetchOne(id),
   },
 })
+
+const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [confirmModalOpen, cancelModalOpen])
 </script>
 
 <template>
@@ -70,7 +74,12 @@ const {
     <AppPageHeader :title="doc ? `Orden de Compra #${String(doc.number).padStart(8, '0')}` : 'Orden de Compra'">
       <template #links>
         <div class="flex gap-2 items-center flex-wrap">
-          <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
+          <DocumentActionButton
+            v-for="action in primaryActions"
+            :key="action.label"
+            :action="action"
+            :shortcut-keys="shortcutKeys(action.label)"
+          />
           <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
             <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
           </UDropdownMenu>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import DocumentAssignment from './DocumentAssignment.vue'
+import DocumentReference from './DocumentReference.vue'
 import { getStatusLabel, getStatusColor, getStatusDescription, type BadgeColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 
@@ -9,6 +10,8 @@ const props = defineProps<{
   statusLabel?: string
   statusColor?: BadgeColor
   statusDescription?: string
+  showTitle?: boolean
+  showReference?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -66,12 +69,13 @@ function resolveDocLink(doc: any): string {
   <div v-else-if="document" class="space-y-4">
     <div class="flex items-start justify-between">
       <div>
-        <h1 class="text-2xl font-bold">{{ document.document_types?.description }} #{{ docNumber }}</h1>
+        <h1 v-if="showTitle !== false" class="text-2xl font-bold">{{ document.document_types?.description }} #{{ docNumber }}</h1>
         <p class="text-sm text-muted">
           {{ fmtDate(document.date) }}
           <template v-if="pointOfSale"> · Punto de venta {{ pointOfSale }}</template>
           <template v-if="document.business_parties"> · {{ document.business_parties.name }}</template>
         </p>
+        <DocumentReference v-if="showReference !== false" :reference="document.ref" />
       </div>
       <UPopover v-if="statusDescription" :ui="{ content: 'w-72' }">
         <UBadge :label="statusLabel" :color="statusColor" variant="subtle" size="lg" class="cursor-help" />

@@ -70,14 +70,15 @@ const statusFilter = ref<number | undefined>(undefined)
 const showFullyPaid = ref(true)
 const showCancelled = ref(false)
 
-const serverTable = useServerTable((query) =>
-  documentsPurchasesStore.fetchPage({
+const serverTable = useServerTable(
+  (query) => documentsPurchasesStore.fetchPage({
     ...query,
     status: statusFilter.value,
     category: categoryFilter.value,
     categories: categoryFilter.value ? undefined : PURCHASE_CATEGORIES.join(','),
     excludeCancelled: !showCancelled.value
-  })
+  }),
+  'purchases-comprobantes'
 )
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
 

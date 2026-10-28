@@ -5,6 +5,7 @@ import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue
 import OrdenCompraForm from '~/modulos/erp/documents/orden-compra/OrdenCompraForm.vue'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 import { buildDocumentDuplicateValues, buildDocumentExtensionDuplicateValues } from '~/modulos/erp/documents/utils/document-duplicate'
+import { getDocumentSubmitError } from '~/utils/document-submit-error'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,10 +47,9 @@ async function handleSubmit(payload: any) {
     toast.add({ title: 'Orden de Compra creada', color: 'success' })
     router.push(`/erp/purchases/orders/${created.id}`)
   } catch (e: any) {
-    const backendMsg = e?.data?.data?.message || e?.data?.message || e?.message || 'Error desconocido'
     toast.add({
       title: 'Error al crear orden de compra',
-      description: Array.isArray(backendMsg) ? backendMsg[0] : backendMsg,
+      description: getDocumentSubmitError(e, 'No se pudo crear la orden de compra.'),
       color: 'error'
     })
   } finally {

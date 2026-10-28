@@ -9,6 +9,7 @@ import FacturaForm from '~/modulos/erp/facturas/components/FacturaForm.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 
 import { mapDocumentToFacturaForm } from '~/modulos/erp/facturas/mappers/factura.mapper'
+import { getDocumentSubmitError } from '~/utils/document-submit-error'
 
 const documentsPurchasesStore = useDocumentsPurchasesStore()
 
@@ -63,7 +64,7 @@ async function handleSubmit(payload: any) {
   } catch (e: any) {
     toast.add({
       title: e?.statusCode === 409 || e?.status === 409 ? 'El documento cambió' : 'Error al actualizar',
-      description: e?.data?.message,
+      description: getDocumentSubmitError(e, 'No se pudo actualizar la factura de compra.'),
       color: 'error'
     })
   } finally {
