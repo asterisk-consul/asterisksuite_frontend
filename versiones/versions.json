@@ -1,5 +1,30 @@
 [
  {
+  "version": "0.101.0-alpha",
+  "date": "2026-10-27",
+  "stage": "alpha",
+  "notes": "La biblioteca de archivos muestra el espacio original usado con un desglose visual por tipo, y se corrige un error que impedía abrir Presupuestos.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "files",
+    "title": "Mostrar el espacio ocupado por adjuntos con un desglose visual por tipo de archivo"
+   },
+   {
+    "type": "fix",
+    "scope": "budgets",
+    "title": "Corregir la inicialización de los filtros que impedía abrir la lista de presupuestos"
+   },
+   {
+    "type": "docs",
+    "scope": "files",
+    "title": "Documentar cómo interpretar el espacio usado y su desglose por tipo"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Visualizar el espacio de archivos y corregir la apertura de presupuestos"
+ },
+ {
   "version": "0.100.0-alpha",
   "date": "2026-10-27",
   "stage": "alpha",

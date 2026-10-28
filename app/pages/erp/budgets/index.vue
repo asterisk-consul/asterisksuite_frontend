@@ -56,6 +56,17 @@ function openDocument(row: any) {
   router.push(`/erp/sales/${row.id}`)
 }
 
+const statusOptions = [
+  { label: 'Todos', value: undefined },
+  { label: 'Borrador', value: 0 },
+  { label: 'Enviado', value: 1 },
+  { label: 'Aprobado', value: 2 },
+  { label: 'Rechazado', value: 3 },
+  { label: 'Vencido', value: 4 },
+  { label: 'Convertido', value: 5 },
+  { label: 'Cancelado', value: 6 }
+]
+
 const columns = createSalesColumns({
   onOpen: openDocument,
   statusFilterOptions: statusOptions.filter((option): option is { label: string; value: number } => option.value !== undefined)
@@ -74,16 +85,6 @@ const sortFields = [
   { label: 'Total', value: 'total' }
 ]
 
-const statusOptions = [
-  { label: 'Todos', value: undefined },
-  { label: 'Borrador', value: 0 },
-  { label: 'Enviado', value: 1 },
-  { label: 'Aprobado', value: 2 },
-  { label: 'Rechazado', value: 3 },
-  { label: 'Vencido', value: 4 },
-  { label: 'Convertido', value: 5 },
-  { label: 'Cancelado', value: 6 }
-]
 </script>
 
 <template>

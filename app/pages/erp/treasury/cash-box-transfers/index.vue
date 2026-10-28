@@ -34,6 +34,7 @@ const sorting = ref<SortingState>([])
 const modalOpen = ref(false)
 const detailModalOpen = ref(false)
 const selectedTransfer = ref<CashBoxTransfer | null>(null)
+const expandAttachmentsOnOpen = ref(false)
 const loadingRate = ref(false)
 const loadingDestinations = ref(false)
 const savingTransfer = ref(false)
@@ -290,6 +291,7 @@ const openCreate = () => {
 }
 
 const openDetail = (row: CashBoxTransfer) => {
+  expandAttachmentsOnOpen.value = false
   selectedTransfer.value = row
   detailModalOpen.value = true
 }
@@ -345,10 +347,11 @@ const handleSubmit = async () => {
     const created = await create({ ...form })
     modalOpen.value = false
     selectedTransfer.value = created
+    expandAttachmentsOnOpen.value = true
     detailModalOpen.value = true
     toast.add({
       title: 'Transferencia pendiente creada',
-      description: 'Podés agregar los comprobantes desde el detalle.',
+      description: 'La sección de comprobantes quedó abierta para adjuntarlos antes de confirmar.',
       color: 'success'
     })
   } catch (e: any) {
@@ -657,13 +660,13 @@ const sortFields: SortField[] = [
                 description="Podés consultar los comprobantes. Para adjuntar o quitar archivos necesitás Subir archivos (media.upload), Crear transferencias (cash_box_transfers.create) y acceso al fondo de origen."
               />
               <UiAttachmentManager
-                :key="selectedTransfer.id"
+                :key="`${selectedTransfer.id}:${expandAttachmentsOnOpen}`"
                 entity-type="cash_box_transfer"
                 :entity-id="selectedTransfer.id"
                 :allow-upload="canUploadTransferAttachments"
                 :readonly="!canUploadTransferAttachments"
                 :max-files="10"
-                default-expanded
+                :default-expanded="expandAttachmentsOnOpen"
               />
             </template>
           </template>
