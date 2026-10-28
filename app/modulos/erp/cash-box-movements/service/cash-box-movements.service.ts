@@ -1,5 +1,6 @@
 import type {
   CashBoxMovement,
+  CashBoxMovementDetails,
   CreateCashBoxMovementInput,
   UpdateCashBoxMovementInput,
   FilterCashBoxMovementInput,
@@ -7,6 +8,7 @@ import type {
 } from '~/modulos/erp/cash-box-movements/types/cash-box-movements.types'
 
 const urlBase = '/api/backend/cash-box-movements'
+const cashBoxesUrlBase = '/api/backend/cash-boxes'
 
 export const useCashBoxMovementsService = () => {
   const findAll = (params?: FilterCashBoxMovementInput) => {
@@ -19,6 +21,9 @@ export const useCashBoxMovementsService = () => {
   const findOne = (id: string) => {
     return $fetch<CashBoxMovement>(`${urlBase}/${id}`)
   }
+
+  const getMovementDetails = (cashBoxId: string, movementId: string) =>
+    $fetch<CashBoxMovementDetails>(`${cashBoxesUrlBase}/${cashBoxId}/movements/${movementId}/details`)
 
   const create = (data: CreateCashBoxMovementInput) => {
     return $fetch<CashBoxMovement>(`${urlBase}/manual`, {
@@ -50,6 +55,7 @@ export const useCashBoxMovementsService = () => {
   return {
     findAll,
     findOne,
+    getMovementDetails,
     create,
     reverse,
     update,

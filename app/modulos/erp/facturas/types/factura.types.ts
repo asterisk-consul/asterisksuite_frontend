@@ -43,6 +43,15 @@ export interface DocumentItem {
   /** Bonificación comercial aplicada sobre el precio unitario de lista. */
   discount_percentage?: number
 
+  /** Importe neto exacto del renglón, opcional para ajustar redondeos del proveedor. */
+  net_subtotal_override?: number | null
+
+  /** Neto visible ingresado manualmente en el formulario de compras. */
+  subtotal_override?: number | null
+
+  /** Importe exacto de bonificación ingresado manualmente en compras. */
+  discount_amount_override?: number | null
+
   price: number
 
   products?: Product | null

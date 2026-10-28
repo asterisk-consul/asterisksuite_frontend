@@ -6,12 +6,12 @@ import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vu
 
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useCashBoxMovements } from '~/modulos/erp/cash-box-movements/composables/useCashBoxMovements'
-import { cashBoxMovementColumns, MOVEMENT_TYPE_CONFIG } from '~/modulos/erp/cash-box-movements/movement-columns'
+import { cashBoxMovementColumns, getCashBoxMovementBadge } from '~/modulos/erp/cash-box-movements/movement-columns'
 import { useChecksService } from '~/modulos/erp/checks/service/checks.service'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 import type { Check } from '~/modulos/erp/checks/types/checks.types'
-import type { CashBoxMovement } from '~/modulos/erp/cash-box-movements/types/cash-box-movements.types'
+import type { CashBoxMovement, CashBoxMovementDetails } from '~/modulos/erp/cash-box-movements/types/cash-box-movements.types'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -34,7 +34,7 @@ const {
   reset: resetStore
 } = useCashBoxes()
 
-const { movements, init: fetchMovements, create: createMovement, reverse: reverseMovement } = useCashBoxMovements()
+const { movements, init: fetchMovements, create: createMovement, reverse: reverseMovement, getMovementDetails } = useCashBoxMovements()
 const checksService = useChecksService()
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
@@ -225,12 +225,60 @@ const canCloseSession = computed(() => {
 
 const columns = cashBoxMovementColumns({
   onSortFieldSelect,
+  onViewDetails: openMovementDetails,
   onReverse: openReverseModal,
   canReverse: movement => canReverseMovement.value
     && movement.reference_type === 'manual_cash_movement'
     && !reversedMovementIds.value.has(movement.id)
     && Boolean(boxHasActiveSession.value)
 })
+
+const movementDetailsOpen = ref(false)
+const movementDetailsLoading = ref(false)
+const selectedMovementDetails = ref<CashBoxMovementDetails | null>(null)
+
+async function openMovementDetails(movement: CashBoxMovement) {
+  movementDetailsOpen.value = true
+  movementDetailsLoading.value = true
+  selectedMovementDetails.value = null
+  try {
+    selectedMovementDetails.value = await getMovementDetails(boxId, movement.id)
+  } catch (error: any) {
+    movementDetailsOpen.value = false
+    toast.add({ title: 'No se pudo cargar el movimiento', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    movementDetailsLoading.value = false
+  }
+}
+
+const movementChecks = computed(() => {
+  const payment = selectedMovementDetails.value?.payment
+  const checksById = new Map<string, { check: any; amountApplied?: number }>()
+  for (const allocation of payment?.payment_allocations ?? []) {
+    checksById.set(allocation.check.id, { check: allocation.check, amountApplied: Number(allocation.amount_applied) })
+  }
+  for (const check of payment?.checks ?? []) {
+    if (!checksById.has(check.id)) checksById.set(check.id, { check })
+  }
+  const linkedCheck = selectedMovementDetails.value?.linked_check
+  if (linkedCheck && !checksById.has(linkedCheck.id)) checksById.set(linkedCheck.id, { check: linkedCheck })
+  return [...checksById.values()]
+})
+
+const selectedMovementBadge = computed(() => selectedMovementDetails.value
+  ? getCashBoxMovementBadge(selectedMovementDetails.value)
+  : null)
+
+const paymentMethodLabel: Record<string, string> = {
+  CASH: 'Efectivo', CHECK: 'Cheque', BANK_TRANSFER: 'Transferencia bancaria', CREDIT_CARD: 'Tarjeta de crédito',
+  DEBIT_CARD: 'Tarjeta de débito', VIRTUAL_WALLET: 'Billetera virtual', PAYROLL_DEDUCTION: 'Descuento por recibo'
+}
+const paymentStatusLabel: Record<string, string> = {
+  DRAFT: 'Borrador', CONFIRMED: 'Confirmado', PAID: 'Pagado', REVERSED: 'Revertido', CANCELLED: 'Cancelado'
+}
+const checkStatusLabel: Record<string, string> = {
+  PENDING: 'Pendiente', CONFIRMED: 'Confirmado', CLEARED: 'Acreditado', BOUNCED: 'Rechazado', CANCELLED: 'Anulado'
+}
 
 const filterFields: FilterField[] = [
   { id: 'type', label: 'Filtrar por tipo...', class: 'w-40' },
@@ -643,6 +691,7 @@ const links = computed(() => [
               :columns="columns"
               :filter-fields="filterFields"
               :sort-fields="sortFields"
+              :on-row-click="openMovementDetails"
               v-model:sorting="sorting"
             />
           </div>
@@ -679,6 +728,7 @@ const links = computed(() => [
               :columns="columns"
               :filter-fields="filterFields"
               :sort-fields="sortFields"
+              :on-row-click="openMovementDetails"
               v-model:sorting="sorting"
             />
           </div>
@@ -965,6 +1015,66 @@ const links = computed(() => [
             />
           </div>
         </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="movementDetailsOpen" title="Detalle del movimiento" :ui="{ content: 'sm:max-w-3xl' }">
+      <template #body>
+        <div v-if="movementDetailsLoading" class="flex min-h-40 items-center justify-center gap-3 text-sm text-muted">
+          <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin" /> Cargando información relacionada…
+        </div>
+        <div v-else-if="selectedMovementDetails" class="space-y-5">
+          <section class="grid gap-3 rounded-xl border border-default bg-elevated/40 p-4 sm:grid-cols-3">
+            <div><p class="text-xs text-muted">Movimiento</p><UBadge v-if="selectedMovementBadge" :color="selectedMovementBadge.color as any" variant="subtle">{{ selectedMovementBadge.label }}</UBadge></div>
+            <div><p class="text-xs text-muted">Fecha</p><p class="font-medium">{{ formatDate(selectedMovementDetails.date) }}</p></div>
+            <div><p class="text-xs text-muted">Importe</p><p class="font-semibold" :class="Number(selectedMovementDetails.balance_after) >= Number(selectedMovementDetails.balance_before) ? 'text-success' : 'text-error'">{{ formatCurrency(Math.abs(Number(selectedMovementDetails.balance_after) - Number(selectedMovementDetails.balance_before)), selectedMovementDetails.currency_code) }}</p></div>
+            <div><p class="text-xs text-muted">Saldo anterior</p><p class="font-medium">{{ formatCurrency(selectedMovementDetails.balance_before, selectedMovementDetails.currency_code) }}</p></div>
+            <div><p class="text-xs text-muted">Saldo después</p><p class="font-medium">{{ formatCurrency(selectedMovementDetails.balance_after, selectedMovementDetails.currency_code) }}</p></div>
+            <div><p class="text-xs text-muted">Sesión</p><p class="font-medium">{{ selectedMovementDetails.session ? formatDate(selectedMovementDetails.session.opened_at) : '—' }}</p></div>
+            <p v-if="selectedMovementDetails.description" class="text-sm text-muted sm:col-span-3">{{ selectedMovementDetails.description }}</p>
+          </section>
+
+          <section v-if="selectedMovementDetails.payment" class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h4 class="font-semibold">{{ selectedMovementDetails.payment.type === 'COLLECTION' ? 'Cobro' : selectedMovementDetails.payment.type === 'PAYMENT' ? 'Pago' : 'Gasto' }} #{{ selectedMovementDetails.payment.number }}</h4>
+              <UBadge color="neutral" variant="subtle">{{ paymentStatusLabel[selectedMovementDetails.payment.status] || selectedMovementDetails.payment.status }}</UBadge>
+            </div>
+            <div class="grid gap-3 rounded-xl border border-default p-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div><p class="text-xs text-muted">Cliente / proveedor</p><p class="font-medium">{{ selectedMovementDetails.payment.party?.name || '—' }}</p><p v-if="selectedMovementDetails.payment.party?.tax_id" class="text-xs text-muted">CUIT {{ selectedMovementDetails.payment.party.tax_id }}</p></div>
+              <div><p class="text-xs text-muted">Medio de pago</p><p class="font-medium">{{ paymentMethodLabel[selectedMovementDetails.payment.payment_method] || selectedMovementDetails.payment.payment_method }}</p></div>
+              <div><p class="text-xs text-muted">Fecha del pago</p><p class="font-medium">{{ formatShortDate(selectedMovementDetails.payment.payment_date || selectedMovementDetails.payment.date) }}</p></div>
+              <div><p class="text-xs text-muted">Importe del pago/cobro</p><p class="font-medium">{{ formatCurrency(selectedMovementDetails.payment.amount, selectedMovementDetails.payment.currency_code) }}</p></div>
+              <div v-if="selectedMovementDetails.payment.reference"><p class="text-xs text-muted">Referencia</p><p class="font-medium break-all">{{ selectedMovementDetails.payment.reference }}</p></div>
+              <div v-if="selectedMovementDetails.payment.exchange_rate"><p class="text-xs text-muted">Cotización aplicada</p><p class="font-medium">{{ selectedMovementDetails.payment.exchange_rate }}</p></div>
+              <p v-if="selectedMovementDetails.payment.description" class="text-sm text-muted sm:col-span-2">{{ selectedMovementDetails.payment.description }}</p>
+            </div>
+
+            <div v-if="selectedMovementDetails.payment.documents.length" class="space-y-2">
+              <h5 class="text-sm font-medium">Comprobantes aplicados</h5>
+              <div v-for="application in selectedMovementDetails.payment.documents" :key="application.id" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-default px-3 py-2 text-sm">
+                <span>{{ application.document.document_types.description }} {{ application.document.number }} · {{ formatShortDate(application.document.date) }}</span>
+                <span class="font-medium">Aplicado {{ formatCurrency(application.amount_applied, application.document.currency_code || selectedMovementDetails.payment.currency_code) }}</span>
+              </div>
+            </div>
+          </section>
+
+          <section v-if="movementChecks.length" class="space-y-2">
+            <h4 class="font-semibold">Cheques asociados</h4>
+            <article v-for="item in movementChecks" :key="item.check.id" class="grid gap-3 rounded-xl border border-info/25 bg-info/5 p-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div><p class="text-xs text-muted">Cheque {{ item.check.is_own ? 'propio' : 'de terceros' }}</p><p class="font-semibold">N.º {{ item.check.check_number }}</p></div>
+              <div><p class="text-xs text-muted">Banco emisor</p><p class="font-medium">{{ item.check.bank_name }}</p></div>
+              <div><p class="text-xs text-muted">Emisor</p><p class="font-medium">{{ item.check.issuer_name }}</p><p v-if="item.check.issuer_id" class="text-xs text-muted">{{ item.check.issuer_id }}</p></div>
+              <div><p class="text-xs text-muted">Estado</p><p class="font-medium">{{ checkStatusLabel[item.check.status] || item.check.status }}</p></div>
+              <div><p class="text-xs text-muted">Importe del cheque</p><p class="font-medium">{{ formatCurrency(item.check.amount, item.check.currency_code) }}</p></div>
+              <div v-if="item.amountApplied != null"><p class="text-xs text-muted">Aplicado al pago</p><p class="font-medium">{{ formatCurrency(item.amountApplied, item.check.currency_code) }}</p></div>
+              <div><p class="text-xs text-muted">Emisión / vencimiento</p><p class="font-medium">{{ formatShortDate(item.check.issue_date) }} / {{ formatShortDate(item.check.due_date) }}</p></div>
+              <div><p class="text-xs text-muted">Depósito / acreditación</p><p class="font-medium">{{ formatShortDate(item.check.deposit_date) }} / {{ formatShortDate(item.check.clearing_date) }}</p></div>
+            </article>
+          </section>
+
+          <p v-if="selectedMovementDetails.employee" class="text-xs text-muted">Responsable: {{ selectedMovementDetails.employee.first_name }} {{ selectedMovementDetails.employee.last_name }}</p>
+        </div>
+        <div v-else class="py-8 text-center text-sm text-muted">No hay información adicional para este movimiento.</div>
       </template>
     </UModal>
 

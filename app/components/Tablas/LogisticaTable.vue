@@ -34,6 +34,7 @@ const props = defineProps<{
   pageSize?: number
   storageKey?: string
   searchPlaceholder?: string
+  onRowClick?: (row: T) => void
   getRowId?: (row: T, index: number) => string
   compact?: boolean
   tableMinWidth?: number
@@ -156,6 +157,13 @@ watch(search, () => {
 
 const deleting = ref(false)
 
+function handleRowSelect(event: Event, row: any) {
+  if (!props.onRowClick) return
+  const target = event.target as HTMLElement | null
+  if (target?.closest('button, a, input, textarea, select, [role="button"], [data-row-action]')) return
+  props.onRowClick(row.original)
+}
+
 async function confirmDelete(): Promise<void> {
   if (!props.onDelete) return
   deleting.value = true
@@ -217,13 +225,17 @@ async function confirmDelete(): Promise<void> {
       :data="props.data"
       :columns="tableColumns"
       :loading="props.loading"
+      @select="handleRowSelect"
       :pagination-options="serverSide
         ? { manualPagination: true, rowCount: totalCount, autoResetPageIndex: false }
         : { getPaginationRowModel: getPaginationRowModel(), autoResetPageIndex: false }"
       :ui="{
         base: 'table-fixed border-separate border-spacing-0',
         thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
-        tbody: '[&>tr]:transition-colors [&>tr:hover]:bg-elevated/70 [&>tr]:last:[&>td]:border-b-0',
+        tbody: [
+          '[&>tr]:transition-colors [&>tr:hover]:bg-elevated/70 [&>tr]:last:[&>td]:border-b-0',
+          props.onRowClick ? '[&>tr]:cursor-pointer [&>tr:hover]:bg-primary/5 [&>tr:hover]:shadow-[inset_3px_0_0_var(--ui-primary)]' : ''
+        ].filter(Boolean).join(' '),
         th: 'first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r py-0.5',
         td: 'border-b border-default'
       }"

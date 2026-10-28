@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { getLineSubtotalBeforeCommercialAdjustments, getItemDiscountAmount, hasLegacyGrossLinePrices } from './document-line-values'
 
 const props = defineProps<{
   document: any
@@ -48,12 +49,34 @@ const convertedTotalTaxes = computed(() =>
 const convertedTotal = computed(() =>
   props.document?.converted_total != null ? Number(props.document.converted_total) : null
 )
+const isPurchaseInvoice = computed(() => props.document?.document_types?.direction === -1
+  && props.document?.document_types?.category === 'INVOICE')
+const supplierTotalDifference = computed(() => Number(props.document?.total ?? 0)
+  - Number(props.document?.subtotal ?? 0)
+  - Number(props.document?.total_taxes ?? 0))
+const convertedSupplierTotalDifference = computed(() => convertedTotal.value != null
+  && convertedSubtotal.value != null
+  && convertedTotalTaxes.value != null
+  ? convertedTotal.value - convertedSubtotal.value - convertedTotalTaxes.value
+  : null)
 const convertedPaidAmount = computed(() =>
   props.document?.converted_paid_amount != null ? Number(props.document.converted_paid_amount) : null
 )
 const commercialAdjustments = computed(() => Array.isArray(props.document?.commercial_adjustments)
   ? props.document.commercial_adjustments
   : [])
+const legacyGrossPrices = computed(() => hasLegacyGrossLinePrices(
+  props.document?.subtotal,
+  props.document?.document_items ?? [],
+))
+const itemDiscountTotal = computed(() => (props.document?.document_items ?? []).reduce((sum: number, item: any) => {
+  const netLineSubtotal = getLineSubtotalBeforeCommercialAdjustments(
+    props.document,
+    item,
+    legacyGrossPrices.value,
+  )
+  return sum + getItemDiscountAmount(item, netLineSubtotal)
+}, 0))
 const originalSubtotal = computed(() => Number(props.document?.subtotal ?? 0) + commercialAdjustments.value.reduce(
   (sum: number, adjustment: any) => sum + Number(adjustment.net_discount ?? 0),
   0,
@@ -92,6 +115,12 @@ const convertedPending = computed(() =>
       </div>
 
       <!-- Subtotal -->
+      <div v-if="itemDiscountTotal > 0" class="grid grid-cols-[1fr_auto_auto] gap-x-6 py-1">
+        <span class="text-muted">Bonificaciones en ítems</span>
+        <span class="text-right min-w-[120px] text-success-600 dark:text-success-400">− {{ fmt(itemDiscountTotal) }}</span>
+        <span v-if="convertedSubtotal != null" class="text-right min-w-[120px] text-muted">− {{ fmtBase(itemDiscountTotal * Number(document.exchange_rate ?? 1)) }}</span>
+        <span v-else class="min-w-[120px]"></span>
+      </div>
       <div class="grid grid-cols-[1fr_auto_auto] gap-x-6 py-2">
         <span class="text-muted">{{ commercialAdjustments.length ? 'Subtotal antes de bonificaciones' : 'Subtotal' }}</span>
         <span class="text-right min-w-[120px]">{{ fmt(commercialAdjustments.length ? originalSubtotal : Number(document.subtotal)) }}</span>
@@ -145,6 +174,15 @@ const convertedPending = computed(() =>
         </div>
       </div>
 
+      <div v-if="isPurchaseInvoice && Math.abs(supplierTotalDifference) >= 0.005" class="grid grid-cols-[1fr_auto_auto] gap-x-6 py-1 text-sm">
+        <span class="text-muted">Diferencia con factura del proveedor</span>
+        <span class="text-right min-w-[120px]">{{ supplierTotalDifference >= 0 ? '+' : '−' }} {{ fmt(Math.abs(supplierTotalDifference)) }}</span>
+        <span v-if="convertedSupplierTotalDifference != null" class="text-right min-w-[120px] text-muted">
+          {{ convertedSupplierTotalDifference >= 0 ? '+' : '−' }} {{ fmtBase(Math.abs(convertedSupplierTotalDifference)) }}
+        </span>
+        <span v-else class="min-w-[120px]"></span>
+      </div>
+
       <!-- Total -->
       <div class="grid grid-cols-[1fr_auto_auto] gap-x-6 py-2 border-t mt-1 text-base font-bold">
         <span>Total</span>
@@ -172,6 +210,10 @@ const convertedPending = computed(() =>
 
     <!-- SIMPLE MODE: single column (base currency or no exchange rate) -->
     <div v-else class="space-y-2 text-sm">
+      <div v-if="itemDiscountTotal > 0" class="flex justify-between">
+        <span class="text-muted">Bonificaciones en ítems</span>
+        <span class="text-success-600 dark:text-success-400">− {{ fmt(itemDiscountTotal) }}</span>
+      </div>
       <div class="flex justify-between">
         <span class="text-muted">{{ commercialAdjustments.length ? 'Subtotal antes de bonificaciones' : 'Subtotal' }}</span>
         <span class="font-medium">{{ fmt(commercialAdjustments.length ? originalSubtotal : Number(document.subtotal)) }}</span>
@@ -205,6 +247,11 @@ const convertedPending = computed(() =>
           <span>{{ dt.taxes?.name }} ({{ dt.tax_rate }}%)</span>
           <span>{{ fmt(Number(dt.tax_amount)) }}</span>
         </div>
+      </div>
+
+      <div v-if="isPurchaseInvoice && Math.abs(supplierTotalDifference) >= 0.005" class="flex justify-between gap-4 text-sm">
+        <span class="text-muted">Diferencia con factura del proveedor</span>
+        <span class="font-medium">{{ supplierTotalDifference >= 0 ? '+' : '−' }} {{ fmt(Math.abs(supplierTotalDifference)) }}</span>
       </div>
 
       <div class="flex justify-between border-t pt-2 text-base font-bold">

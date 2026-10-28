@@ -40,6 +40,9 @@ export function useBankAccounts() {
 
   const fetchMovements = async (id: string) => store.fetchMovements(id)
 
+  const fetchMovementDetails = async (bankAccountId: string, movementId: string) =>
+    service.getMovementDetails(bankAccountId, movementId)
+
   const createMovement = async (id: string, payload: CreateBankMovementInput) =>
     store.createMovement(id, payload)
 
@@ -113,6 +116,7 @@ export function useBankAccounts() {
     update,
     remove,
     fetchMovements,
+    fetchMovementDetails,
     createMovement,
     createTransfer,
     cancelMovement,

@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import { useCashBoxMovementsStore } from '../store/cash-box-movements.store'
+import { useCashBoxMovementsService } from '../service/cash-box-movements.service'
 
 import type {
   CashBoxMovement,
@@ -11,6 +12,7 @@ import type {
 
 export function useCashBoxMovements() {
   const store = useCashBoxMovementsStore()
+  const service = useCashBoxMovementsService()
 
   const init = async (params?: FilterCashBoxMovementInput) => {
     await store.fetchAll(params)
@@ -18,6 +20,8 @@ export function useCashBoxMovements() {
 
   const create = async (payload: CreateCashBoxMovementInput) => store.create(payload)
   const reverse = async (id: string, payload: ReverseCashBoxMovementInput) => store.reverse(id, payload)
+  const getMovementDetails = async (cashBoxId: string, movementId: string) =>
+    service.getMovementDetails(cashBoxId, movementId)
 
   const update = async (id: string, payload: UpdateCashBoxMovementInput) =>
     store.update(id, payload)
@@ -50,6 +54,7 @@ export function useCashBoxMovements() {
     init,
     create,
     reverse,
+    getMovementDetails,
     update,
     remove,
     fetchOne: store.fetchOne

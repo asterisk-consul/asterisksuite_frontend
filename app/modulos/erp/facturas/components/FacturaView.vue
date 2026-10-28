@@ -2,6 +2,14 @@
 import DocumentPrintLayout from '~/components/documents/DocumentPrintLayout.vue'
 import ValePrint from '~/components/documents/ValePrint.vue'
 import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
+import DocumentItemsTable from '~/modulos/erp/documents/shared/DocumentItemsTable.vue'
+import {
+  getDocumentLineAmounts,
+  getLineSubtotalBeforeCommercialAdjustments,
+  getItemDiscountAmount,
+  getItemDiscountPercentage,
+  hasLegacyGrossLinePrices
+} from '~/modulos/erp/documents/shared/document-line-values'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 
@@ -32,31 +40,6 @@ function fmt(n: any) {
     style: 'currency',
     currency: props.document?.currency_code ?? 'ARS'
   }).format(Number(n ?? 0))
-}
-
-function itemDiscountPercentage(item: any) {
-  const percentage = Number(item.discount_percentage ?? 0)
-  if (percentage > 0) return percentage
-
-  const originalUnitPrice = Number(item.original_unit_price)
-  const unitPrice = Number(item.unit_price ?? 0)
-  if (item.original_unit_price == null || originalUnitPrice <= 0 || unitPrice >= originalUnitPrice) return 0
-  return ((originalUnitPrice - unitPrice) / originalUnitPrice) * 100
-}
-
-function itemDiscountAmount(item: any) {
-  const quantity = Number(item.quantity ?? 0)
-  const unitPrice = Number(item.unit_price ?? 0)
-  const originalUnitPrice = Number(item.original_unit_price)
-
-  if (item.original_unit_price != null && Number.isFinite(originalUnitPrice)) {
-    return Math.max(0, originalUnitPrice - unitPrice) * quantity
-  }
-
-  const percentage = itemDiscountPercentage(item)
-  return percentage > 0 && percentage < 100
-    ? (unitPrice / (1 - percentage / 100) - unitPrice) * quantity
-    : 0
 }
 
 // Taxes de nivel LINE agrupadas por tax_id
@@ -105,11 +88,28 @@ function taxesForItem(item: any): { name: string; amount: number }[] {
   }))
 }
 
+const legacyGrossPrices = computed(() => hasLegacyGrossLinePrices(
+  props.document.subtotal,
+  props.document.document_items ?? [],
+))
+
 const enrichedItems = computed(() =>
   (props.document.document_items ?? []).map((item: any) => {
     const taxes = taxesForItem(item)
     const totalTaxes = taxes.reduce((acc, t) => acc + t.amount, 0)
-    return { ...item, _taxes: taxes, _totalTaxes: totalTaxes, _total: Number(item.price ?? 0) + totalTaxes }
+    const amounts = getDocumentLineAmounts(item, legacyGrossPrices.value)
+    const lineSubtotalBeforeCommercialAdjustments = getLineSubtotalBeforeCommercialAdjustments(
+      props.document,
+      item,
+      legacyGrossPrices.value,
+    )
+    return {
+      ...item,
+      _lineSubtotal: lineSubtotalBeforeCommercialAdjustments,
+      _taxes: taxes,
+      _totalTaxes: totalTaxes,
+      _total: amounts.total
+    }
   })
 )
 
@@ -181,8 +181,8 @@ const printItems = computed(() =>
     description: `${item.products?.name || item.products?.description || '—'}${item.product_variants?.name ? ` · ${item.product_variants.name}` : ''}`,
     quantity: Number(item.quantity),
     unit_price: Number(item.unit_price),
-    discount_percentage: itemDiscountPercentage(item),
-    discount_amount: itemDiscountAmount(item),
+    discount_percentage: getItemDiscountPercentage(item),
+    discount_amount: getItemDiscountAmount(item, item._lineSubtotal),
     tax_rate: item._taxes.length > 0 ? Math.round((item._taxes[0].amount / Number(item.price)) * 100) : undefined,
     total: item._total
   }))
@@ -244,41 +244,12 @@ const printTotals = computed(() => {
         </div>
       </UCard>
 
-      <UCard>
-        <template #header>
-          <div class="font-medium">Ítems</div>
-        </template>
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-gray-200 text-left">
-              <th class="pb-2 font-medium text-gray-500">Producto</th>
-              <th class="pb-2 font-medium text-gray-500 text-right">Cant.</th>
-              <th class="pb-2 font-medium text-gray-500 text-right">P. Unitario</th>
-              <th class="pb-2 font-medium text-gray-500 text-right">Subtotal</th>
-              <th class="pb-2 font-medium text-gray-500 text-right">Impuestos</th>
-              <th class="pb-2 font-medium text-gray-500 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in enrichedItems" :key="item.id" class="border-b border-gray-100">
-              <td class="py-3 pr-4">
-                <p>{{ item.products?.name || item.products?.description || '—' }}</p>
-                <p v-if="item.product_variants?.name" class="text-xs font-medium text-primary">
-                  Variante: {{ item.product_variants.name }}<template v-if="item.product_variants.sku"> · {{ item.product_variants.sku }}</template>
-                </p>
-              </td>
-              <td class="py-3 text-right">{{ Number(item.quantity) }}</td>
-              <td class="py-3 text-right">{{ fmt(item.unit_price) }}</td>
-              <td class="py-3 text-right">{{ fmt(item.price) }}</td>
-              <td class="py-3 text-right">
-                <div v-for="tax in item._taxes" :key="tax.name" class="text-xs text-gray-500">{{ fmt(tax.amount) }}</div>
-                <span v-if="!item._taxes.length" class="text-gray-400">—</span>
-              </td>
-              <td class="py-3 text-right font-medium">{{ fmt(item._total) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </UCard>
+      <DocumentItemsTable
+        :items="document.document_items ?? []"
+        :currency="document.currency_code"
+        :document-subtotal="document.subtotal"
+        title="Ítems"
+      />
 
       <DocumentTotals :document="document" />
     </div>

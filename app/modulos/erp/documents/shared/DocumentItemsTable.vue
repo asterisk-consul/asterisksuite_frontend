@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { getDocumentLineAmounts, getItemDiscountAmount, getItemDiscountPercentage, hasLegacyGrossLinePrices } from './document-line-values'
+
 const props = withDefaults(defineProps<{
   items: any[]
+  documentSubtotal?: number | string | null
   currency?: string
   showTracking?: boolean
   showAmounts?: boolean
@@ -24,11 +27,10 @@ function fmt(n: number) {
 }
 
 const hasDiscounts = computed(() => props.items.some(item => {
-  const originalUnitPrice = Number(item.original_unit_price)
-  const unitPrice = Number(item.unit_price ?? 0)
-  return Number(item.discount_percentage ?? 0) > 0
-    || (item.original_unit_price != null && originalUnitPrice > unitPrice)
+  return getItemDiscountPercentage(item) > 0
 }))
+
+const legacyGrossPrices = computed(() => hasLegacyGrossLinePrices(props.documentSubtotal, props.items))
 
 const columns = computed(() => {
   const cols = [
@@ -37,8 +39,10 @@ const columns = computed(() => {
   ]
 
   if (props.showAmounts !== false) {
-    cols.push({ id: 'unit_price', header: hasDiscounts.value ? 'P. Unit. neto' : 'P. Unitario' })
+    cols.push({ id: 'unit_price', header: 'P. Unitario' })
     if (hasDiscounts.value) cols.push({ id: 'discount', header: 'Bonificación' })
+    cols.push({ id: 'subtotal', header: 'Subtotal' })
+    cols.push({ id: 'taxes', header: 'Impuestos' })
     cols.push({ id: 'total', header: 'Total' })
   }
 
@@ -58,31 +62,26 @@ const columns = computed(() => {
   return cols
 })
 
-const subtotal = computed(() => props.items.reduce((sum, item) => sum + Number(item.price ?? 0), 0))
+function lineTaxes(item: any) {
+  return getDocumentLineAmounts(item, legacyGrossPrices.value).taxes
+}
+
+function lineSubtotal(item: any) {
+  return getDocumentLineAmounts(item, legacyGrossPrices.value).subtotal
+}
+
+function lineTotal(item: any) {
+  return lineSubtotal(item) + lineTaxes(item)
+}
+
+const subtotal = computed(() => props.items.reduce((sum, item) => sum + lineSubtotal(item), 0))
 
 function discountPercentage(item: any) {
-  const configuredPercentage = Number(item.discount_percentage ?? 0)
-  if (configuredPercentage > 0) return configuredPercentage
-
-  const originalUnitPrice = Number(item.original_unit_price)
-  const unitPrice = Number(item.unit_price ?? 0)
-  if (item.original_unit_price == null || originalUnitPrice <= 0 || unitPrice >= originalUnitPrice) return 0
-  return ((originalUnitPrice - unitPrice) / originalUnitPrice) * 100
+  return getItemDiscountPercentage(item)
 }
 
 function discountAmount(item: any) {
-  const quantity = Number(item.quantity ?? 0)
-  const unitPrice = Number(item.unit_price ?? 0)
-  const originalUnitPrice = Number(item.original_unit_price)
-
-  if (item.original_unit_price != null && Number.isFinite(originalUnitPrice)) {
-    return Math.max(0, originalUnitPrice - unitPrice) * quantity
-  }
-
-  const percentage = discountPercentage(item)
-  return percentage > 0 && percentage < 100
-    ? (unitPrice / (1 - percentage / 100) - unitPrice) * quantity
-    : 0
+  return getItemDiscountAmount(item, lineSubtotal(item))
 }
 </script>
 
@@ -125,7 +124,12 @@ function discountAmount(item: any) {
       </template>
 
       <template #unit_price-cell="{ row }">
-        {{ fmt(Number(row.original.unit_price)) }}
+        <div class="text-right">
+          <span>{{ fmt(Number(row.original.original_unit_price ?? row.original.unit_price)) }}</span>
+          <span v-if="discountPercentage(row.original) > 0" class="block text-xs text-muted">
+            Neto: {{ fmt(Number(row.original.unit_price)) }}
+          </span>
+        </div>
       </template>
 
       <template #discount-cell="{ row }">
@@ -143,6 +147,19 @@ function discountAmount(item: any) {
         <span v-else class="font-medium text-warning">Sin depósito</span>
       </template>
 
+      <template #subtotal-cell="{ row }">
+        {{ fmt(lineSubtotal(row.original)) }}
+      </template>
+
+      <template #taxes-cell="{ row }">
+        <div v-if="row.original.document_item_taxes?.length" class="text-right text-xs text-muted">
+          <div v-for="tax in row.original.document_item_taxes" :key="tax.id ?? tax.tax_id">
+            {{ tax.taxes?.name ?? tax.taxes?.code ?? 'Impuesto' }}: {{ fmt(Number(tax.tax_amount ?? 0)) }}
+          </div>
+        </div>
+        <span v-else class="text-muted">—</span>
+      </template>
+
       <template #delivered-cell="{ row }">
         <div class="text-sm">
           <span class="font-medium">{{ row.original.quantity_delivered ?? 0 }}</span>
@@ -158,7 +175,7 @@ function discountAmount(item: any) {
       </template>
 
       <template #total-cell="{ row }">
-        <span class="font-medium">{{ fmt(Number(row.original.price)) }}</span>
+        <span class="font-medium">{{ fmt(lineTotal(row.original)) }}</span>
       </template>
 
       <template #actions-cell="{ row }">

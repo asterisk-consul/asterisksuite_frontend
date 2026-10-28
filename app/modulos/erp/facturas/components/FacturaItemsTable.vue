@@ -31,6 +31,8 @@ interface Props {
   warehouseOptionsForItem?: (item: FacturaItem) => { value: string, label: string }[]
   showAmounts?: boolean
   canRegularizeStock?: boolean
+  isPurchaseDocument?: boolean
+  lockPurchaseAdjustments?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -159,9 +161,8 @@ function fmt(n: number) {
 function recalculateItem(item: FacturaItem) {
   const discount = Math.min(100, Math.max(0, Number(item.discount_percentage || 0)))
   item.discount_percentage = discount
-  item.subtotal = Number(
-    (Number(item.quantity || 0) * Number(item.unit_price || 0) * (1 - discount / 100)).toFixed(2)
-  )
+  const calculatedSubtotal = Number(item.quantity || 0) * Number(item.unit_price || 0) * (1 - discount / 100)
+  item.subtotal = Number((item.subtotal_override ?? item.net_subtotal_override ?? calculatedSubtotal).toFixed(2))
 
   item.taxes = (item.taxes ?? []).map((tax) => {
     const subtotal = Number(item.subtotal || 0)
@@ -182,6 +183,49 @@ function recalculateItem(item: FacturaItem) {
   )
 
   item.total = Number((item.subtotal + item.total_taxes).toFixed(2))
+}
+
+function originalLineAmount(item: FacturaItem) {
+  return Number(item.quantity || 0) * Number(item.original_unit_price ?? item.unit_price ?? 0)
+}
+
+function includedTaxFactor(item: FacturaItem) {
+  const includedRates = (item.taxes ?? [])
+    .filter(tax => tax.is_included_in_price)
+    .map(tax => Number(tax.tax_rate ?? 0))
+  return Math.max(0.000001, 1 - includedRates.reduce((sum, rate) => sum + rate / (100 + rate), 0))
+}
+
+function setPurchaseNetAmount(item: FacturaItem, netAmount: number) {
+  const factor = includedTaxFactor(item)
+  const rawLineAmount = netAmount / factor
+  item.subtotal_override = netAmount
+  item.net_subtotal_override = rawLineAmount
+  item.discount_amount_override = Math.max(0, originalLineAmount(item) - rawLineAmount)
+  recalculateItem(item)
+}
+
+function setPurchaseDiscountAmount(item: FacturaItem, value: unknown) {
+  if (value == null || value === '') {
+    item.discount_amount_override = null
+    item.subtotal_override = null
+    item.net_subtotal_override = null
+    recalculateItem(item)
+    return
+  }
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount < 0) {
+    item.discount_amount_override = null
+    item.subtotal_override = null
+    item.net_subtotal_override = null
+  } else {
+    const gross = originalLineAmount(item)
+    item.discount_amount_override = Math.min(gross, amount)
+    const rawLineAmount = Math.max(0, gross - item.discount_amount_override)
+    item.net_subtotal_override = rawLineAmount
+    item.subtotal_override = rawLineAmount * includedTaxFactor(item)
+  }
+  recalculateItem(item)
 }
 
 function handleAdd() {
@@ -248,8 +292,16 @@ const columns = computed(() => [
         class: 'ml-auto w-32 text-right font-medium tabular-nums',
         'aria-label': `Cantidad de ${row.original.product_name || 'producto'}`,
         'onUpdate:modelValue': (val: number) => {
+          const savedDiscountAmount = row.original.discount_amount_override
           row.original.quantity = Number(val || 0)
-          recalculateItem(row.original)
+          if (props.lockPurchaseAdjustments && savedDiscountAmount != null) {
+            setPurchaseDiscountAmount(row.original, savedDiscountAmount)
+          } else {
+            row.original.net_subtotal_override = null
+            row.original.subtotal_override = null
+            row.original.discount_amount_override = null
+            recalculateItem(row.original)
+          }
         }
       })
   },
@@ -334,8 +386,17 @@ const columns = computed(() => [
         class: 'ml-auto w-40 text-right font-semibold tabular-nums',
         'aria-label': `Precio unitario de ${row.original.product_name || 'producto'}`,
         'onUpdate:modelValue': (val: number) => {
+          const savedDiscountAmount = row.original.discount_amount_override
           row.original.unit_price = Number(val || 0)
-          recalculateItem(row.original)
+          row.original.original_unit_price = row.original.unit_price
+          if (props.lockPurchaseAdjustments && savedDiscountAmount != null) {
+            setPurchaseDiscountAmount(row.original, savedDiscountAmount)
+          } else {
+            row.original.net_subtotal_override = null
+            row.original.subtotal_override = null
+            row.original.discount_amount_override = null
+            recalculateItem(row.original)
+          }
         }
       })
   },
@@ -355,23 +416,99 @@ const columns = computed(() => [
       max: 100,
       step: '0.01',
       class: 'w-24',
+      disabled: props.lockPurchaseAdjustments,
       'aria-label': 'Bonificación porcentual',
       'onUpdate:modelValue': (val: number) => {
         row.original.discount_percentage = Number(val || 0)
+        row.original.net_subtotal_override = null
+        row.original.subtotal_override = null
+        row.original.discount_amount_override = null
         recalculateItem(row.original)
       }
     })
   },
-  {
-    accessorKey: 'subtotal',
-    header: 'Subtotal',
+  ...(props.isPurchaseDocument ? [{
+    accessorKey: 'discount_amount_override',
+    header: 'Bonificación',
     meta: {
       class: {
         th: 'text-right',
         td: 'text-right'
       }
     },
-    cell: ({ row }: any) => fmt(Number(row.original.subtotal || 0))
+    cell: ({ row }: any) => props.lockPurchaseAdjustments
+      ? h('div', { class: 'min-w-36 text-right' }, [
+          h('p', { class: 'font-medium tabular-nums' }, fmt(Number(row.original.discount_amount_override ?? (originalLineAmount(row.original) * Number(row.original.discount_percentage ?? 0) / 100)))),
+          h('p', { class: 'mt-1 text-xs text-muted' }, 'Conservada · bloqueada por conceptos')
+        ])
+      : h('div', { class: 'min-w-36' }, [
+      h(UInput, {
+        modelValue: row.original.discount_amount_override ?? (originalLineAmount(row.original) * Number(row.original.discount_percentage ?? 0) / 100),
+        type: 'number',
+        min: 0,
+        max: originalLineAmount(row.original),
+        step: '0.01',
+        size: 'lg',
+        class: 'w-36 text-right font-medium tabular-nums',
+        'aria-label': `Importe de bonificación de ${row.original.product_name || 'producto'}`,
+        'onUpdate:modelValue': (value: number) => setPurchaseDiscountAmount(row.original, value)
+      }),
+      h('p', { class: 'mt-1 text-xs text-muted' }, row.original.discount_amount_override != null ? 'Importe ingresado' : 'Calculada por porcentaje')
+    ])
+  }] : []),
+  {
+    accessorKey: 'subtotal',
+    header: props.isPurchaseDocument ? 'Subtotal neto' : 'Subtotal',
+    meta: {
+      class: {
+        th: 'text-right',
+        td: 'text-right'
+      }
+    },
+    cell: ({ row }: any) => props.isPurchaseDocument && !props.lockPurchaseAdjustments
+      ? h('div', { class: 'min-w-36' }, [
+          h(UInput, {
+            modelValue: row.original.subtotal_override ?? row.original.subtotal ?? 0,
+            type: 'number',
+            min: 0,
+            step: '0.01',
+            size: 'lg',
+            class: 'w-36 text-right font-semibold tabular-nums',
+            'aria-label': `Subtotal neto de ${row.original.product_name || 'producto'}`,
+            'onUpdate:modelValue': (value: number | string) => {
+              if (value == null || value === '') {
+                row.original.subtotal_override = null
+                row.original.net_subtotal_override = null
+                row.original.discount_amount_override = null
+                recalculateItem(row.original)
+                return
+              }
+              const amount = Number(value)
+              if (Number.isFinite(amount) && amount >= 0) setPurchaseNetAmount(row.original, amount)
+            }
+          }),
+          h('p', { class: 'mt-1 text-xs text-muted' }, row.original.subtotal_override != null ? 'Importe ingresado' : 'Calculado')
+        ])
+      : props.isPurchaseDocument && props.lockPurchaseAdjustments
+        ? h('div', { class: 'min-w-36 text-right' }, [
+            h('p', { class: 'font-medium tabular-nums' }, fmt(Number(row.original.subtotal || 0))),
+            h('p', { class: 'mt-1 text-xs text-muted' }, 'Neto luego de conceptos')
+          ])
+        : fmt(Number(row.original.subtotal || 0))
+  },
+  {
+    accessorKey: 'total_taxes',
+    header: 'Impuestos',
+    meta: {
+      class: {
+        th: 'text-right',
+        td: 'text-right min-w-36'
+      }
+    },
+    cell: ({ row }: any) => h('div', { class: 'text-right' }, [
+      h('p', { class: 'font-medium tabular-nums' }, fmt(Number(row.original.total_taxes || 0))),
+      ...(row.original.taxes ?? []).map((tax: any) => h('p', { class: 'text-xs text-muted' }, `${tax.name || tax.code || 'Impuesto'} ${Number(tax.tax_rate || 0)}%`))
+    ])
   },
   {
     accessorKey: 'total',

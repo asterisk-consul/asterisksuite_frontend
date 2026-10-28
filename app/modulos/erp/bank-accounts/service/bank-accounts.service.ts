@@ -1,6 +1,7 @@
 ﻿import type {
   BankAccount,
   BankAccountMovement,
+  BankAccountMovementDetails,
   BankAccountUserRole,
   CreateBankAccountInput,
   CreateBankMovementInput,
@@ -50,6 +51,9 @@ export const useBankAccountsService = () => {
     return $fetch<BankAccountMovement[]>(`${urlBase}/${id}/movements`)
   }
 
+  const getMovementDetails = (id: string, movementId: string) =>
+    $fetch<BankAccountMovementDetails>(`${urlBase}/${id}/movements/${movementId}/details`)
+
   const createMovement = (id: string, data: CreateBankMovementInput) => {
     return $fetch<BankAccountMovement>(`${urlBase}/${id}/movements`, {
       method: 'POST',
@@ -97,6 +101,7 @@ export const useBankAccountsService = () => {
     update,
     remove,
     getMovements,
+    getMovementDetails,
     createMovement,
     createTransfer,
     cancelMovement,

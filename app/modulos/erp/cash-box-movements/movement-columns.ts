@@ -26,17 +26,44 @@ export const MOVEMENT_TYPE_OPTIONS = Object.entries(MOVEMENT_TYPE_CONFIG).map(([
   value
 }))
 
+export const getCashBoxMovementBadge = (row: Row) => {
+  const config = MOVEMENT_TYPE_CONFIG[row.type]
+  return {
+    label: row.reference_type === 'manual_cash_movement_reversal'
+      ? 'Reversión de movimiento'
+      : config?.label ?? row.type,
+    color: config?.color ?? 'neutral'
+  }
+}
+
 export const cashBoxMovementColumns = (actions: {
   onSortFieldSelect?: (columnId: string) => void
   onReverse?: (row: Row) => void
+  onViewDetails?: (row: Row) => void
   canReverse?: (row: Row) => boolean
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({
     locale: 'es-AR',
     onSortFieldSelect: actions?.onSortFieldSelect
   })
+  const detailsColumn: TableColumn<Row> = {
+    id: 'details',
+    header: '',
+    enableSorting: false,
+    enableHiding: false,
+    meta: { label: 'Detalle', disableColumnVisibility: true },
+    cell: ({ row }) => h(UButton, {
+      icon: 'i-lucide-eye',
+      size: 'xs',
+      variant: 'ghost',
+      color: 'neutral',
+      'aria-label': 'Ver detalle del movimiento',
+      onClick: () => actions.onViewDetails?.(row.original)
+    })
+  }
 
   return [
+    detailsColumn,
     ...build([
       {
         key: 'date',
@@ -49,13 +76,7 @@ export const cashBoxMovementColumns = (actions: {
         label: 'Tipo',
         sortable: true,
         badge: {
-          resolve: (row) => {
-            const config = MOVEMENT_TYPE_CONFIG[row.type]
-            return {
-              label: config?.label ?? row.type,
-              color: (config?.color as any) ?? 'neutral'
-            }
-          }
+          resolve: getCashBoxMovementBadge
         },
         meta: {
           filter: {
@@ -109,13 +130,13 @@ export const cashBoxMovementColumns = (actions: {
         label: '',
         cell: ({ row }) => actions.canReverse?.(row.original)
           ? h(UButton, {
-              icon: 'i-lucide-undo-2',
-              label: 'Anular',
-              size: 'xs',
-              variant: 'ghost',
-              color: 'error',
-              onClick: () => actions.onReverse?.(row.original)
-            })
+            icon: 'i-lucide-undo-2',
+            label: 'Anular',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'error',
+            onClick: () => actions.onReverse?.(row.original)
+          })
           : null
       }
     ])

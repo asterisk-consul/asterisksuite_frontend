@@ -54,6 +54,23 @@ export const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; color: string
   RETENTION: { label: 'Retención bancaria', color: 'warning', side: 'out' },
 }
 
+export const getMovementTypeBadge = (row: Row) => {
+  if (isPaymentReversal(row)) {
+    return {
+      label: 'Reversión de pago',
+      color: getMovementSignedAmount(row) >= 0 ? 'success' : 'error'
+    }
+  }
+  if (isInvestmentMovement(row)) {
+    return {
+      label: investmentMovementLabel(row),
+      color: getMovementSignedAmount(row) < 0 ? 'info' : 'success'
+    }
+  }
+  const config = MOVEMENT_TYPE_CONFIG[row.type]
+  return { label: config?.label ?? row.type, color: config?.color ?? 'neutral' }
+}
+
 export const MOVEMENT_TYPE_OPTIONS = Object.entries(MOVEMENT_TYPE_CONFIG).map(([value, config]) => ({
   label: config.label,
   value
@@ -80,25 +97,7 @@ export const bankMovementColumns = (actions: {
         label: 'Tipo',
         sortable: true,
         badge: {
-          resolve: (row) => {
-            if (isPaymentReversal(row)) {
-              return {
-                label: 'Reversión de pago',
-                color: getMovementSignedAmount(row) >= 0 ? 'success' : 'error'
-              }
-            }
-            if (isInvestmentMovement(row)) {
-              return {
-                label: investmentMovementLabel(row),
-                color: getMovementSignedAmount(row) < 0 ? 'info' : 'success'
-              }
-            }
-            const config = MOVEMENT_TYPE_CONFIG[row.type]
-            return {
-              label: config?.label ?? row.type,
-              color: (config?.color as any) ?? 'neutral'
-            }
-          }
+          resolve: getMovementTypeBadge
         },
         meta: {
           filter: {

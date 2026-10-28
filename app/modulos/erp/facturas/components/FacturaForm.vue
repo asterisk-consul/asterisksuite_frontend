@@ -36,6 +36,7 @@ import { useDocumentSequencesService } from '~/modulos/erp/document-sequences/se
 import type { DocumentSequence } from '~/modulos/erp/document-sequences/types/document-sequences.types'
 import { useCommercialAdjustmentConceptsService } from '~/modulos/erp/commercial-adjustment-concepts/commercial-adjustment-concepts.service'
 import type { CommercialAdjustmentConcept } from '~/modulos/erp/commercial-adjustment-concepts/commercial-adjustment-concepts.types'
+import { getDocumentLineAmounts, hasLegacyGrossLinePrices } from '~/modulos/erp/documents/shared/document-line-values'
 
 // Invoice
 import { getDocumentTypeForVatCondition, type VatCondition } from '~/modulos/erp/invoices/utils/vatConditionMap'
@@ -794,7 +795,9 @@ async function fetchPreview() {
         items: items.value.map((i) => ({
           productId: i.product_id || undefined,
           quantity: Number(i.quantity),
-          unitPrice: Number(i.unit_price) * (1 - Math.min(100, Math.max(0, Number(i.discount_percentage || 0))) / 100)
+          unitPrice: moduleCode.value === 'PURCHASES' && i.net_subtotal_override != null && Number(i.quantity) > 0
+            ? Number(i.net_subtotal_override) / Number(i.quantity)
+            : Number(i.unit_price) * (1 - Math.min(100, Math.max(0, Number(i.discount_percentage || 0))) / 100)
         }))
       }
     })
@@ -852,6 +855,27 @@ const iibbDelta = computed(() => manualIibbAmount.value == null || !automaticIib
   : Number(manualIibbAmount.value) - Number(automaticIibbTax.value.amount))
 const totalTaxes = computed(() => (lastPreview.value?.document?.totalTaxes ?? 0) + iibbDelta.value)
 const total = computed(() => (lastPreview.value?.document?.total ?? 0) + iibbDelta.value)
+const supplierTotalOverride = ref<number | null>(null)
+const canOverrideSupplierTotal = computed(() => moduleCode.value === 'PURCHASES'
+  && selectedDocumentCategory.value === 'INVOICE'
+  && !props.operationalMode)
+const displayedTotal = computed(() => canOverrideSupplierTotal.value && supplierTotalOverride.value != null
+  ? Number(supplierTotalOverride.value.toFixed(2))
+  : Number(total.value.toFixed(2)))
+const supplierTotalDifference = computed(() => supplierTotalOverride.value == null
+  ? 0
+  : Number((supplierTotalOverride.value - total.value).toFixed(2)))
+
+function updateSupplierTotal(value: unknown) {
+  if (value == null || value === '') {
+    supplierTotalOverride.value = null
+    return
+  }
+  const amount = Number(value)
+  if (Number.isFinite(amount) && amount >= 0) {
+    supplierTotalOverride.value = Math.round((amount + Number.EPSILON) * 100) / 100
+  }
+}
 const showTaxBreakdown = computed(() => lastPreview.value?.document?.settings?.showTaxBreakdown ?? true)
 const activeIibbJurisdictionIds = computed(() => {
   const documentDate = new Date(`${form.date}T12:00:00`)
@@ -912,6 +936,9 @@ watch(
       const agreedPrice = await resolvePartyPrice(item.product_id, newCurrency)
       if (agreedPrice !== null) {
         item.unit_price = agreedPrice
+        item.net_subtotal_override = null
+        item.subtotal_override = null
+        item.discount_amount_override = null
         return
       }
 
@@ -926,9 +953,15 @@ watch(
 
       if (priceRecord) {
         item.unit_price = Number(priceRecord.price ?? 0)
+        item.net_subtotal_override = null
+        item.subtotal_override = null
+        item.discount_amount_override = null
       } else {
         // No hay precio para esa currency → precio 0
         item.unit_price = 0
+        item.net_subtotal_override = null
+        item.subtotal_override = null
+        item.discount_amount_override = null
         toast.add({
           title: 'Precio no disponible',
           description: `El producto "${item.product_name}" no tiene precio en ${newCurrency}. Ingresá el precio manualmente.`,
@@ -956,6 +989,15 @@ watch(
     form.currency_code = val.currency_code ?? 'ARS'
     form.exchange_rate = val.exchange_rate ? Number(val.exchange_rate) : null
     form.rate_type = val.rate_type ?? 'OFFICIAL'
+    const existingTotalDifference = Number(val.total ?? 0)
+      - Number(val.subtotal ?? 0)
+      - Number(val.total_taxes ?? 0)
+    supplierTotalOverride.value = moduleCode.value === 'PURCHASES'
+      && val.id != null
+      && val.total != null
+      && Math.abs(existingTotalDifference) >= 0.005
+      ? Number(val.total)
+      : null
     form.warehouse_id = (val as any).warehouse_id ?? ''
     form.fiscal_jurisdiction_id = (val as any).fiscal_jurisdiction_id ?? ''
     commercialAdjustments.value = (val.commercial_adjustments ?? []).map((adjustment) => ({ ...adjustment }))
@@ -965,8 +1007,58 @@ watch(
     // Mapear items del documento
     // Si vienen del mapper (items), usarlos directamente
     // Si vienen raw del backend (document_items), mapearlos
+    const sourceItems = val.items?.length ? val.items : (val.document_items ?? [])
+    const legacyGrossPrices = hasLegacyGrossLinePrices(val.subtotal, sourceItems)
+    const savedCommercialAdjustments = Array.isArray(val.commercial_adjustments) ? val.commercial_adjustments : []
+    const savedNetDiscounts = savedCommercialAdjustments.reduce(
+      (sum: number, adjustment: any) => sum + Number(adjustment.net_discount ?? 0),
+      0,
+    )
+    const subtotalAfterCommercialAdjustments = Number(val.subtotal ?? 0)
+    const subtotalBeforeCommercialAdjustments = subtotalAfterCommercialAdjustments + savedNetDiscounts
+    const commercialAdjustmentFactor = subtotalBeforeCommercialAdjustments > 0
+      ? subtotalAfterCommercialAdjustments / subtotalBeforeCommercialAdjustments
+      : 1
+    const mapNetSubtotalOverride = (item: any) => {
+      if (moduleCode.value !== 'PURCHASES') return item
+      const originalUnitPrice = Number(item.original_unit_price ?? item.unit_price ?? 0)
+      const quantity = Number(item.quantity ?? 0)
+      const discountPercentage = Number(item.discount_percentage ?? 0)
+      const calculatedSubtotal = quantity * originalUnitPrice * (1 - discountPercentage / 100)
+      const netLineSubtotal = getDocumentLineAmounts(item, legacyGrossPrices).subtotal
+        / Math.max(0.000001, commercialAdjustmentFactor)
+      const itemTaxes = item.document_item_taxes ?? item.taxes ?? []
+      const includedTaxFactor = Math.max(0.000001, 1 - itemTaxes
+        .filter((tax: any) => tax.is_included_in_price)
+        .reduce((sum: number, tax: any) => {
+          const rate = Number(tax.tax_rate ?? tax.rate ?? 0)
+          return sum + rate / (100 + rate)
+        }, 0))
+      const rawLineAmount = netLineSubtotal / includedTaxFactor
+      const shouldOverride = Math.abs(rawLineAmount - calculatedSubtotal) > 0.02
+      const netSubtotalOverride = shouldOverride ? rawLineAmount : null
+      const subtotalOverride = shouldOverride ? netLineSubtotal : null
+      const discountAmountOverride = shouldOverride
+        ? Math.max(0, originalUnitPrice * quantity - rawLineAmount)
+        : null
+      const lineTaxes = Number(item.total_taxes ?? (item.taxes ?? []).reduce(
+        (sum: number, tax: any) => sum + Number(tax.tax_amount ?? 0),
+        0,
+      ))
+      return {
+        ...item,
+        unit_price: originalUnitPrice,
+        net_subtotal_override: netSubtotalOverride,
+        subtotal_override: subtotalOverride,
+        discount_amount_override: discountAmountOverride,
+        price: netLineSubtotal,
+        subtotal: subtotalOverride ?? calculatedSubtotal,
+        total: (subtotalOverride ?? calculatedSubtotal) + lineTaxes
+      }
+    }
+
     if (val.items?.length) {
-      items.value = val.items
+      items.value = val.items.map(mapNetSubtotalOverride)
     } else {
       const documentTaxes = (val.document_taxes ?? []).map((tax: any) => ({
         tax_id: tax.tax_id,
@@ -978,10 +1070,11 @@ watch(
         is_included_in_price: false
       }))
 
-      items.value = (val.document_items ?? []).map((item: any) => {
+      items.value = sourceItems.map((item: any) => {
         const originalUnitPrice = Number(item.original_unit_price ?? item.unit_price ?? 0)
         const discountPercentage = Number(item.discount_percentage ?? 0)
-        const subtotal = Number(item.quantity ?? 0) * originalUnitPrice * (1 - discountPercentage / 100)
+        const mappedItem = mapNetSubtotalOverride(item)
+        const subtotal = Number(mappedItem.subtotal_override ?? Number(item.quantity ?? 0) * originalUnitPrice * (1 - discountPercentage / 100))
 
         const lineTaxes = (item.document_item_taxes ?? []).map((tax: any) => ({
           tax_id: tax.tax_id,
@@ -1002,6 +1095,7 @@ watch(
         const totalTaxes = taxes.reduce((acc: number, tax: any) => acc + Number(tax.tax_amount || 0), 0)
 
         return {
+          ...mappedItem,
           product_id: item.product_id,
           variant_id: item.variant_id ?? null,
           variant_name: item.product_variants?.name ?? null,
@@ -1010,6 +1104,9 @@ watch(
           quantity: Number(item.quantity ?? 0),
           unit_price: originalUnitPrice,
           discount_percentage: discountPercentage,
+          net_subtotal_override: mappedItem.net_subtotal_override ?? null,
+          subtotal_override: mappedItem.subtotal_override ?? null,
+          discount_amount_override: mappedItem.discount_amount_override ?? null,
           price: subtotal,
           subtotal,
           taxes,
@@ -1277,7 +1374,12 @@ watch(
 
     await Promise.all(items.value.map(async (item) => {
       const price = await resolvePartyPrice(item.product_id)
-      if (price !== null) item.unit_price = price
+      if (price !== null) {
+        item.unit_price = price
+        item.net_subtotal_override = null
+        item.subtotal_override = null
+        item.discount_amount_override = null
+      }
     }))
     await fetchPreview()
   },
@@ -1317,6 +1419,9 @@ async function addItem(prod: any) {
     stock_quantity: props.moduleCode === 'PURCHASES' ? quantity * Number(prod.purchase_to_stock_factor ?? 1) : quantity,
     unit_price: unitPrice,
     discount_percentage: 0,
+    net_subtotal_override: null,
+    subtotal_override: null,
+    discount_amount_override: null,
     price: quantity * unitPrice,
     subtotal: quantity * unitPrice,
     taxes: [],
@@ -1402,6 +1507,9 @@ function submit() {
       basis: adjustment.basis,
       value: Number(adjustment.value)
     })),
+    ...(canOverrideSupplierTotal.value && supplierTotalOverride.value != null
+      ? { supplier_total: Number(supplierTotalOverride.value) }
+      : {}),
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
       variant_id: i.variant_id || undefined,
@@ -1415,6 +1523,9 @@ function submit() {
       unit_conversion_factor: moduleCode.value === 'PURCHASES' ? Number(i.unit_conversion_factor || 1) : undefined,
       unit_price: Number(i.unit_price),
       discount_percentage: Math.min(100, Math.max(0, Number(i.discount_percentage || 0))),
+      ...(moduleCode.value === 'PURCHASES' && i.net_subtotal_override != null
+        ? { net_subtotal_override: Number(i.net_subtotal_override) }
+        : {}),
       taxes: previewPayload?.items?.[idx]?.taxes?.map((t: any) => ({
         tax_id: t.tax_id,
         tax_rate: t.rate,
@@ -1704,6 +1815,15 @@ defineExpose({ submit, completeDraft })
           description="Elegí el depósito de cada producto antes de guardar el remito."
         />
       </div>
+      <UAlert
+        v-if="moduleCode === 'PURCHASES' && commercialAdjustments.length"
+        class="mb-4"
+        color="info"
+        variant="subtle"
+        icon="i-lucide-info"
+        title="Bonificación por renglón calculada automáticamente"
+        description="Las bonificaciones y los netos manuales por producto se conservan y se aplican antes de estos conceptos. Mientras haya conceptos, quedan bloqueados para evitar cambios accidentales. Quitalos para volver a editarlos."
+      />
       <FacturaItemsTable
         :items="items"
         :product-options="productOptions"
@@ -1713,6 +1833,8 @@ defineExpose({ submit, completeDraft })
         :show-warehouse-column="moduleCode === 'SALES' ? operationalMode && affectsStock : affectsStock && advancedWarehouseAssignment"
         :default-warehouse-id="form.warehouse_id"
         :show-amounts="!operationalMode"
+        :is-purchase-document="moduleCode === 'PURCHASES' && !operationalMode"
+        :lock-purchase-adjustments="moduleCode === 'PURCHASES' && commercialAdjustments.length > 0"
         :can-regularize-stock="canRegularizeStock"
         @remove="removeItem"
         @add="addItem"
@@ -1831,6 +1953,34 @@ defineExpose({ submit, completeDraft })
     <!-- Totals -->
     <div v-if="!operationalMode" class="flex min-w-0 justify-end">
       <UCard class="w-full border-t-2 border-primary lg:max-w-xl">
+        <div v-if="canOverrideSupplierTotal" class="mb-4 rounded-lg border border-default bg-muted/20 p-3">
+          <UFormField label="Total de la factura del proveedor" description="Los impuestos siguen calculándose automáticamente. La diferencia se guarda separada del cálculo fiscal.">
+            <div class="flex flex-wrap items-center gap-2">
+              <UInput
+                :model-value="supplierTotalOverride ?? Number(total.toFixed(2))"
+                type="number"
+                min="0"
+                step="0.01"
+                class="w-full sm:max-w-xs"
+                @update:model-value="updateSupplierTotal"
+              />
+              <UButton
+                v-if="supplierTotalOverride != null"
+                label="Usar total calculado"
+                size="sm"
+                color="neutral"
+                variant="ghost"
+                @click="supplierTotalOverride = null"
+              />
+            </div>
+          </UFormField>
+          <div v-if="supplierTotalOverride != null && Math.abs(supplierTotalDifference) >= 0.005" class="mt-2 flex justify-between gap-3 text-sm">
+            <span class="text-muted">Diferencia contra subtotal e impuestos</span>
+            <span :class="supplierTotalDifference >= 0 ? 'font-medium text-warning' : 'font-medium text-error'">
+              {{ supplierTotalDifference >= 0 ? '+' : '−' }} {{ Math.abs(supplierTotalDifference).toLocaleString('es-AR', { style: 'currency', currency: form.currency_code }) }}
+            </span>
+          </div>
+        </div>
         <details v-if="automaticIibbTax" class="group mb-4 rounded-lg border border-default bg-muted/20 p-3">
           <summary class="flex cursor-pointer list-none items-center justify-between gap-3">
             <div>
@@ -1875,11 +2025,11 @@ defineExpose({ submit, completeDraft })
           :original-subtotal="originalSubtotal"
           :commercial-adjustments="appliedCommercialAdjustments"
           :taxes="taxesSummary"
-          :total="total"
+          :total="displayedTotal"
           :show-breakdown="showTaxBreakdown"
           :currency-code="form.currency_code"
           :exchange-rate="form.exchange_rate"
-          :converted-total="form.exchange_rate ? convertAmount(total) : null"
+          :converted-total="form.exchange_rate ? convertAmount(displayedTotal) : null"
         />
       </UCard>
     </div>

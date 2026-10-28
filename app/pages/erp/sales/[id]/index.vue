@@ -276,6 +276,7 @@ watch(confirmModalOpen, async (open) => {
           v-if="doc"
           :items="doc.document_items ?? []"
           :currency="doc.currency_code"
+          :document-subtotal="doc.subtotal"
           :show-tracking="category === 'ORDER'"
           :show-amounts="category !== 'REMITO' && amountsVisible"
           :show-warehouse="category === 'REMITO'"

@@ -67,6 +67,69 @@ export interface BankAccountMovement {
   updated_at?: string
 }
 
+export interface BankAccountMovementDetails extends BankAccountMovement {
+  linked_check?: BankMovementCheckDetails | null
+  charge?: {
+    id: string
+    concept_name_snapshot?: string | null
+    nature: 'DEBIT' | 'CREDIT'
+    base_amount: number
+    tax_amount: number
+    total_amount: number
+    jurisdiction?: string | null
+    tax_code?: string | null
+    certificate_number?: string | null
+    period?: string | null
+    reference?: string | null
+  } | null
+  payment?: {
+    id: string
+    number: number
+    type: 'PAYMENT' | 'COLLECTION' | 'EXPENSE'
+    payment_method: string
+    amount: number
+    currency_code: string
+    exchange_rate?: number | null
+    status: string
+    date: string
+    payment_date?: string | null
+    description?: string | null
+    reference?: string | null
+    party?: { id: string; name: string; tax_id?: string | null } | null
+    documents: Array<{
+      id: string
+      amount_applied: number
+      document: {
+        id: string
+        number: number
+        date: string
+        total: number
+        currency_code?: string | null
+        document_types: { code: string; description: string }
+      }
+    }>
+    checks: BankMovementCheckDetails[]
+    payment_allocations: Array<{ amount_applied: number; check: BankMovementCheckDetails }>
+  } | null
+}
+
+export interface BankMovementCheckDetails {
+  id: string
+  check_number: string
+  bank_name: string
+  issuer_name: string
+  issuer_id?: string | null
+  amount: number
+  available_amount?: number | null
+  currency_code: string
+  issue_date: string
+  due_date: string
+  status: string
+  is_own: boolean
+  deposit_date?: string | null
+  clearing_date?: string | null
+}
+
 export interface CreateBankMovementInput {
   nature: 'DEBIT' | 'CREDIT'
   bank_concept_id: string
