@@ -104,7 +104,10 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
 
     <template #body>
       <UPage>
-        <UPageHeader :title="factura ? `${factura.document_types?.description} #${factura.number}` : ''">
+        <UPageHeader
+          :title="factura ? `${factura.document_types?.description} #${factura.number}` : ''"
+          :description="factura?.descrip?.trim() ? `Referencia: ${factura.descrip.trim()}` : factura?.ref?.trim() ? `Referencia: ${factura.ref.trim()}` : undefined"
+        >
           <template #headline>
             <div class="flex gap-2 items-center flex-wrap">
               <DocumentActionButton

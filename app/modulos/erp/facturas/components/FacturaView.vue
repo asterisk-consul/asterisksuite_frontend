@@ -235,10 +235,6 @@ const printTotals = computed(() => {
             <div class="text-sm text-gray-500">Fecha</div>
             <div class="font-medium">{{ document.date?.slice(0, 10) }}</div>
           </div>
-          <div v-if="document.descrip">
-            <div class="text-sm text-gray-500">Descripción</div>
-            <div class="font-medium">{{ document.descrip }}</div>
-          </div>
         </div>
       </UCard>
 

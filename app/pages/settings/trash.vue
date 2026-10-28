@@ -275,7 +275,7 @@ onMounted(() => {
       <div>
         <p class="text-sm font-medium">{{ selectedIds.length }} seleccionado(s)</p>
         <p v-if="selectionContainsDocuments" class="text-xs text-muted">
-          Solo se eliminan presupuestos u órdenes anulados, no fiscales y sin pagos, vínculos ni efectos asociados. El servidor verifica cada comprobante.
+          Se eliminan solo comprobantes anulados seguros y saldos iniciales ya retirados de la cuenta corriente. El servidor verifica cada comprobante y sus movimientos asociados.
         </p>
         <p v-if="selectionContainsPayments" class="text-xs text-muted">
           Los pagos y cobros se pueden restaurar, pero conservan sus efectos de tesorería permanentemente.
@@ -441,7 +441,7 @@ onMounted(() => {
           variant="soft"
           icon="i-lucide-shield-alert"
           title="Validación de seguridad"
-          description="Solo se eliminarán presupuestos u órdenes anulados sin pagos, cadena documental, movimientos, despacho ni efectos fiscales, contables o de stock. Los números de secuencia no se reutilizan."
+          description="Solo se eliminarán comprobantes anulados sin pagos, asientos de cuenta corriente —incluso revertidos—, cadena documental, movimientos ni efectos fiscales o de stock. Un saldo inicial debe haberse retirado primero desde su cuenta corriente. Los números de secuencia no se reutilizan."
         />
       </template>
       <template #footer>

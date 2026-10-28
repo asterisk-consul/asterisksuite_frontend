@@ -75,7 +75,10 @@ function resolveDocLink(doc: any): string {
           <template v-if="pointOfSale"> · Punto de venta {{ pointOfSale }}</template>
           <template v-if="document.business_parties"> · {{ document.business_parties.name }}</template>
         </p>
-        <DocumentReference v-if="showReference !== false" :reference="document.ref" />
+        <DocumentReference
+          v-if="showReference !== false"
+          :reference="document.descrip?.trim() || document.ref"
+        />
       </div>
       <UPopover v-if="statusDescription" :ui="{ content: 'w-72' }">
         <UBadge :label="statusLabel" :color="statusColor" variant="subtle" size="lg" class="cursor-help" />

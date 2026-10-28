@@ -8,7 +8,7 @@
    {
     "type": "feat",
     "scope": "trash",
-    "title": "Permitir eliminar definitivamente documentos anulados y sin pagos asociados desde la papelera"
+    "title": "Permitir eliminar facturas anuladas sin trazabilidad fiscal ni asientos, además de saldos iniciales retirados"
    },
    {
     "type": "fix",
