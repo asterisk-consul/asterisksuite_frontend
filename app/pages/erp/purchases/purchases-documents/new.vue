@@ -162,6 +162,13 @@ async function handleSubmit(payload: any) {
   if (saving.value) return
   try {
     saving.value = true
+    if (internationalOperationId.value) {
+      const containers = await internationalOperationsService.findAllContainers(internationalOperationId.value)
+      if (!internationalContainerId.value || !containers.some(container => container.id === internationalContainerId.value)) {
+        toast.add({ title: 'Primero creá y seleccioná un contenedor', description: 'Volvé a la operación internacional para elegir el contenedor del comprobante.', color: 'error' })
+        return
+      }
+    }
     let associationExchangeRate: number | undefined
     const documentCurrency = payload.currency_code || 'ARS'
     const operationCurrency = internationalOperationCurrency.value

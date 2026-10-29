@@ -60,6 +60,18 @@ export type InternationalExpenseType =
 
 export type QuoteStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED'
 
+export interface QuoteAssignmentInput {
+  container_id: string
+  expense_type: InternationalExpenseType
+  custom_expense_description?: string
+  exchange_rate?: number | null
+}
+
+export interface ConvertQuoteInput extends QuoteAssignmentInput {
+  document_type_id: string
+  confirm?: boolean
+}
+
 export interface InternationalOperation {
   id: string
   number: string
@@ -250,6 +262,13 @@ export interface OperationQuoteRelation {
   operation_id: string
   document_id: string
   status: QuoteStatus
+  container_id?: string | null
+  container?: { id: string; container_number: string } | null
+  expense_type?: InternationalExpenseType
+  custom_expense_description?: string | null
+  exchange_rate?: number | null
+  converted_document_id?: string | null
+  converted_document?: { id: string; number: number; status: number; deleted_at?: string | null; document_types?: { code: string; category: string } } | null
   notes?: string
   document?: {
     id: string

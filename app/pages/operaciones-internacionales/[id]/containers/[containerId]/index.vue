@@ -4,6 +4,9 @@ import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
+import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
+import { createTableBuilder } from '~/composables/table/createColumns'
+import { summarizeTransitMerchandise, type TransitMerchandiseRow } from '~/modulos/international-operations/utils/transit-merchandise'
 import type { ContainerEvent, ContainerEventType, ContainerStatus, ContainerType, CreateEventInput } from '~/modulos/international-operations/types/international-operations.types'
 
 definePageMeta({ layout: 'default', middleware: ['auth'] })
@@ -40,25 +43,14 @@ const merchandiseDocs = computed(() => {
   return docs.filter((d: any) => !d.expense_type || d.expense_type === 'MERCHANDISE')
 })
 
-const productRows = computed(() => {
-  const rows: { docLabel: string; docId: string; productName: string; sku?: string; quantity: number; price?: number }[] = []
-  for (const rel of merchandiseDocs.value.filter((entry: any) => entry.document?.document_types?.category === 'INVOICE')) {
-    const doc = rel.document
-    if (!doc) continue
-    const docLabel = `${doc.document_types?.description ?? doc.document_types?.code ?? 'Documento'}${doc.number ? ` #${doc.number}` : ''}`
-    for (const item of doc.document_items ?? []) {
-      rows.push({
-        docLabel,
-        docId: doc.id,
-        productName: item.products?.name ?? item.product_id ?? '—',
-        sku: item.products?.sku,
-        quantity: Number(item.quantity ?? 0),
-        price: item.price != null ? Number(item.price) : undefined
-      })
-    }
-  }
-  return rows
-})
+const productRows = computed(() => summarizeTransitMerchandise(merchandiseDocs.value))
+const productColumns = createTableBuilder<TransitMerchandiseRow>()([
+  { key: 'docLabel', label: 'Documento', sortable: true, meta: { filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { key: 'productName', label: 'Producto', sortable: true, meta: { filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { key: 'sku', label: 'SKU', sortable: true, meta: { filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { key: 'quantity', label: 'Cantidad en unidad de stock', sortable: true, meta: { filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } } },
+  { key: 'price', label: 'Importe del renglón', sortable: true, meta: { filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } }, cell: ({ row }) => row.original.price == null ? '—' : formatCurrency(row.original.price, row.original.currencyCode) },
+])
 
 const totalUnits = computed(() => productRows.value.reduce((sum, r) => sum + r.quantity, 0))
 
@@ -72,16 +64,18 @@ const handleSyncTransitStock = async () => {
   syncingTransit.value = true
   try {
     const result = await syncContainerTransitStock(containerId)
-    const noInvoices = result.invoices_found === 0
+    const found = result.documents_found ?? result.invoices_found
+    const registered = result.documents_registered ?? result.invoices_registered
+    const noInvoices = found === 0
     toast.add({
       title: noInvoices
-        ? 'No hay facturas para ingresar'
-        : result.invoices_registered ? 'Stock en tránsito actualizado' : 'Stock en tránsito al día',
+        ? 'No hay OC o facturas para ingresar'
+        : registered ? 'Stock en tránsito actualizado' : 'Stock en tránsito al día',
       description: noInvoices
-        ? 'Asociá al contenedor una factura de compra confirmada como mercadería.'
-        : result.invoices_registered
-        ? `Se registraron ${result.invoices_registered} factura(s) en el depósito de tránsito.`
-        : `Se revisaron ${result.invoices_found} factura(s) y no había movimientos pendientes.`,
+        ? 'Asociá al contenedor una OC o factura de compra confirmada como mercadería.'
+        : registered
+        ? `Se actualizaron las cantidades en tránsito desde ${registered} comprobante(s), sin duplicar OC y factura vinculadas.`
+        : `Se revisaron ${found} OC/factura(s) y no había movimientos pendientes.`,
       color: noInvoices ? 'warning' : 'success'
     })
   } catch (err: any) {
@@ -328,31 +322,10 @@ const handleRemoveEvent = async (eventId: string) => {
             <UBadge :label="`${productRows.length} ítems · ${totalUnits} uds`" color="neutral" variant="subtle" size="sm" />
           </div>
         </template>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-muted border-b border-default">
-                <th class="py-2 pr-4 font-medium">Documento</th>
-                <th class="py-2 pr-4 font-medium">Producto</th>
-                <th class="py-2 pr-4 font-medium">SKU</th>
-                <th class="py-2 pr-4 font-medium text-right">Cantidad</th>
-                <th class="py-2 font-medium text-right">Precio</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(row, idx) in productRows" :key="`${row.docId}-${idx}`" class="border-b border-default last:border-0">
-                <td class="py-2 pr-4 text-muted">{{ row.docLabel }}</td>
-                <td class="py-2 pr-4 font-medium">{{ row.productName }}</td>
-                <td class="py-2 pr-4 font-mono text-xs">{{ row.sku ?? '—' }}</td>
-                <td class="py-2 pr-4 text-right">{{ row.quantity }}</td>
-                <td class="py-2 text-right">{{ row.price != null ? row.price : '—' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <AsteriskTable :data="productRows" :columns="productColumns" :filter-fields="[{ id: 'productName', label: 'Buscar producto…' }, { id: 'docLabel', label: 'Buscar documento…' }]" :sort-fields="[{ label: 'Producto', value: 'productName' }, { label: 'Cantidad', value: 'quantity' }]" storage-key="international-container-merchandise" />
         <p v-if="container.transit_warehouse_id" class="mt-3 text-xs text-muted flex items-center gap-1.5">
           <UIcon name="i-lucide-info" class="size-3.5" />
-          Al confirmar los documentos de mercadería, el stock ingresa al almacén de tránsito de este contenedor.
+          Las OC y facturas de mercadería confirmadas ingresan al depósito de tránsito desde el embarque. Una OC y su factura vinculada se cuentan una sola vez.
         </p>
       </UPageCard>
 

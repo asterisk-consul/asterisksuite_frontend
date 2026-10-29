@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onBeforeUnmount } from 'vue'
+import QuoteAssignmentFields from './QuoteAssignmentFields.vue'
+import type { QuoteAssignmentInput } from '~/modulos/international-operations/types/international-operations.types'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 
@@ -7,6 +9,8 @@ interface Props {
   open: boolean
   operationId: string
   excludeDocumentIds?: string[]
+  containers?: Array<{ id: string; container_number: string }>
+  operationCurrencyCode?: string
 }
 
 interface Emits {
@@ -20,6 +24,12 @@ const operationsService = useInternationalOperationsService()
 const toast = useToast()
 
 const loading = ref(false)
+const assignment = ref<QuoteAssignmentInput>({ container_id: '', expense_type: 'MERCHANDISE' })
+const searchTerm = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+let requestId = 0
+watch(searchTerm, () => { clearTimeout(searchTimer); searchTimer = setTimeout(fetchDocuments, 250) })
+onBeforeUnmount(() => { clearTimeout(searchTimer); requestId++ })
 const selectedDocument = ref<{ label: string; value: string } | undefined>(undefined)
 const selectedDocumentId = computed(() => selectedDocument.value?.value ?? null)
 
@@ -35,13 +45,15 @@ const documents = ref<Array<{
 }>>([])
 
 const fetchDocuments = async () => {
+  const request = ++requestId
   loading.value = true
   try {
-    const fetched: any[] = await (DocumentsPurchasesService.getAll as any)({
+    const page = await DocumentsPurchasesService.getPage({ page: 1, pageSize: 50, search: searchTerm.value, excludeCancelled: true,
       category: 'QUOTE',
       direction: -1
     })
-    documents.value = (fetched ?? []).map((d: any) => ({
+    if (request !== requestId || !props.open) return
+    documents.value = (page.items ?? []).filter((d: any) => d.document_types?.category === 'QUOTE' && Number(d.document_types?.direction) === -1).map((d: any) => ({
       id: d.id,
       number: d.number,
       date: d.date,
@@ -54,7 +66,7 @@ const fetchDocuments = async () => {
   } catch (err) {
     console.error('Error fetching quotes:', err)
   } finally {
-    loading.value = false
+    if (request === requestId) loading.value = false
   }
 }
 
@@ -65,16 +77,18 @@ const documentOptions = computed(() => documents.value.map(d => ({
 
 watch(() => props.open, (open) => {
   if (open) {
+    assignment.value = { container_id: props.containers?.length === 1 ? props.containers[0]!.id : '', expense_type: 'MERCHANDISE' }
+    searchTerm.value = ''
     selectedDocument.value = undefined
     fetchDocuments()
   }
 })
 
 const handleAssociate = async () => {
-  if (!selectedDocumentId.value) return
+  if (loading.value || !canAssociate.value) return
   try {
     loading.value = true
-    await operationsService.associateQuote(props.operationId, selectedDocumentId.value)
+    await operationsService.associateQuote(props.operationId, selectedDocumentId.value!, assignment.value)
     emit('associated')
     emit('update:open', false)
   } catch (err) {
@@ -89,11 +103,13 @@ const handleAssociate = async () => {
     loading.value = false
   }
 }
+const selectedCurrency = computed(() => documents.value.find(document => document.id === selectedDocumentId.value)?.currency_code)
+const canAssociate = computed(() => selectedDocumentId.value && assignment.value.container_id && (assignment.value.expense_type !== 'OTHER' || assignment.value.custom_expense_description?.trim()) && (selectedCurrency.value === props.operationCurrencyCode || Number(assignment.value.exchange_rate) > 0))
 </script>
 
 <template>
   <UModal
-    v-model:open="props.open"
+    :open="props.open"
     title="Asociar Presupuesto"
     description="Buscá un presupuesto de compra existente (categoría Presupuesto)"
     @update:open="emit('update:open', $event)"
@@ -103,6 +119,8 @@ const handleAssociate = async () => {
         <UFormField label="Presupuesto de compra" name="document_id" required>
           <USelectMenu
             v-model="selectedDocument"
+            v-model:search-term="searchTerm"
+            ignore-filter
             :items="documentOptions"
             placeholder="Buscar y seleccionar presupuesto..."
             searchable
@@ -111,6 +129,8 @@ const handleAssociate = async () => {
             :disabled="loading"
           />
         </UFormField>
+
+        <QuoteAssignmentFields v-model="assignment" :containers="props.containers ?? []" :document-currency-code="selectedCurrency" :operation-currency-code="props.operationCurrencyCode ?? 'USD'" :disabled="loading" />
 
         <UAlert
           color="info"
@@ -129,7 +149,7 @@ const handleAssociate = async () => {
 
     <template #footer>
       <UButton variant="ghost" @click="emit('update:open', false)" :disabled="loading">Cancelar</UButton>
-      <UButton @click="handleAssociate" :disabled="loading || !selectedDocumentId">Asociar</UButton>
+      <UButton @click="handleAssociate" :disabled="loading || !canAssociate">Asociar</UButton>
     </template>
   </UModal>
 </template>

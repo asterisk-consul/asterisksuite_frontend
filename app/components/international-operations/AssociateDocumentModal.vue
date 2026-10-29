@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onBeforeUnmount } from 'vue'
 import type { InternationalExpenseType } from '~/modulos/international-operations/types/international-operations.types'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
 import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
@@ -29,6 +29,13 @@ const service = useInternationalOperationsService()
 const { autoResolve, isAutoResolved, loading: rateLoading } = useExchangeRate()
 
 const loading = ref(false)
+const submitting = ref(false)
+const toast = useToast()
+const documentSearch = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+let searchRequest = 0
+watch(documentSearch, () => { clearTimeout(searchTimer); searchTimer = setTimeout(fetchDocuments, 250) })
+onBeforeUnmount(() => { clearTimeout(searchTimer); searchRequest++ })
 
 // Dirección del documento: filtra la búsqueda (venta o compra)
 const documentDirection = ref<'SALES' | 'PURCHASE' | undefined>(undefined)
@@ -66,20 +73,22 @@ const selectedExpenseTypeValue = computed(() => selectedExpenseType.value?.value
 const selectedContainerId = computed(() => selectedContainer.value?.value ?? null)
 
 const fetchDocuments = async () => {
+  const request = ++searchRequest
+  documents.value = []
   if (!documentDirection.value) {
     documents.value = []
+    loading.value = false
     return
   }
   loading.value = true
   try {
-    let fetched: any[] = []
-    if (documentDirection.value === 'SALES') {
-      const salesDocs = await (DocumentsSalesService.getAll as any)({ limit: 200 })
-      fetched = salesDocs ?? []
-    } else {
-      const purchaseDocs = await (DocumentsPurchasesService.getAll as any)({ limit: 200 })
-      fetched = purchaseDocs ?? []
-    }
+    const direction = documentDirection.value === 'SALES' ? 1 : -1
+    const params = { page: 1, pageSize: 50, categories: 'ORDER,INVOICE', direction, excludeCancelled: true, search: documentSearch.value }
+    const result = documentDirection.value === 'SALES'
+      ? await DocumentsSalesService.getPage(params)
+      : await DocumentsPurchasesService.getPage(params)
+    if (request !== searchRequest || !props.open) return
+    const fetched = (result.items ?? []).filter((d: any) => ['ORDER', 'INVOICE'].includes(d.document_types?.category) && Number(d.document_types?.direction) === direction)
 
     const allDocs = fetched.map((d: any) => ({
       id: d.id,
@@ -95,8 +104,9 @@ const fetchDocuments = async () => {
     documents.value = allDocs.filter(d => !props.excludeDocumentIds?.includes(d.id))
   } catch (err) {
     console.error('Error fetching documents:', err)
+    if (request === searchRequest) toast.add({ title: 'No se pudieron cargar los documentos', color: 'error' })
   } finally {
-    loading.value = false
+    if (request === searchRequest) loading.value = false
   }
 }
 
@@ -199,18 +209,24 @@ const containerOptions = computed(() => (props.containers ?? []).map(c => ({
 
 watch(() => props.open, (open) => {
   if (open) {
+    loading.value = false
+    documentSearch.value = ''
     documentDirection.value = undefined
     selectedDocument.value = undefined
     selectedExpenseType.value = undefined
     customExpenseDescription.value = ''
     customExchangeRate.value = null
-    selectedContainer.value = undefined
+    selectedContainer.value = props.containers?.length === 1 ? containerOptions.value[0] : undefined
+  } else {
+    searchRequest++
+    clearTimeout(searchTimer)
   }
 })
 
 const handleAssociate = async () => {
-  if (!selectedDocumentId.value) return
+  if (loading.value || !selectedDocumentId.value || !selectedContainerId.value || !selectedExpenseType.value) return
   try {
+    submitting.value = true
     loading.value = true
     // La cotización solo es obligatoria si hay diferencia de moneda
     if (currencyMismatch.value && (!customExchangeRate.value || customExchangeRate.value <= 0)) {
@@ -230,7 +246,9 @@ const handleAssociate = async () => {
     emit('update:open', false)
   } catch (err) {
     console.error('Error associating document:', err)
+    toast.add({ title: 'No se pudo asociar el documento', description: (err as any)?.data?.message, color: 'error' })
   } finally {
+    submitting.value = false
     loading.value = false
   }
 }
@@ -238,12 +256,13 @@ const handleAssociate = async () => {
 
 <template>
   <UModal
-    v-model:open="props.open"
+    :open="props.open"
     title="Asociar Documento"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
       <div class="space-y-4">
+        <UAlert v-if="!props.containers?.length" color="warning" title="Primero creá un contenedor en esta operación" variant="subtle" />
         <UFormField label="Tipo de documento" name="document_direction" required>
           <USelectMenu
             v-model="selectedDirection"
@@ -257,12 +276,15 @@ const handleAssociate = async () => {
         <UFormField label="Documento" name="document_id" required>
           <USelectMenu
             v-model="selectedDocument"
+            v-model:search-term="documentSearch"
+            ignore-filter
             :items="documentOptions"
             :placeholder="documentDirection ? 'Buscar y seleccionar documento...' : 'Primero seleccioná el tipo de documento'"
             searchable
             clear
             class="w-full"
-            :disabled="loading || !documentDirection"
+            :disabled="submitting || !documentDirection"
+            :loading="loading"
           />
         </UFormField>
 
@@ -343,11 +365,11 @@ const handleAssociate = async () => {
           </div>
         </div>
 
-        <UFormField v-if="props.containers?.length" label="Contenedor (opcional)" name="container_id">
+        <UFormField label="Contenedor" name="container_id" required>
           <USelectMenu
             v-model="selectedContainer"
             :items="containerOptions"
-            placeholder="Sin contenedor específico"
+            placeholder="Seleccionar contenedor"
             clear
             class="w-full"
             :disabled="loading"
@@ -362,7 +384,7 @@ const handleAssociate = async () => {
 
     <template #footer>
       <UButton variant="ghost" @click="emit('update:open', false)" :disabled="loading">Cancelar</UButton>
-      <UButton @click="handleAssociate" :disabled="loading || !selectedDocumentId || (showCustomField && !customExpenseDescription)">Asociar</UButton>
+      <UButton @click="handleAssociate" :disabled="loading || !selectedDocumentId || !selectedContainerId || !selectedExpenseType || (showCustomField && !customExpenseDescription.trim())">Asociar</UButton>
     </template>
   </UModal>
 </template>

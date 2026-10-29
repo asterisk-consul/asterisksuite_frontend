@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import AssociateDocumentModal from '~/components/international-operations/AssociateDocumentModal.vue'
 import AssociateQuoteModal from '~/components/international-operations/AssociateQuoteModal.vue'
 import CreateQuoteModal from '~/components/international-operations/CreateQuoteModal.vue'
+import ConvertQuoteModal from '~/components/international-operations/ConvertQuoteModal.vue'
+import { summarizeTransitMerchandise } from '~/modulos/international-operations/utils/transit-merchandise'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
 import type {
   OperationStatus,
   InternationalExpenseType,
   ContainerStatus,
-  ContainerType
+  ContainerType,
+  OperationQuoteRelation
 } from '~/modulos/international-operations/types/international-operations.types'
 
 definePageMeta({ layout: 'default', middleware: ['auth'] })
@@ -54,6 +57,82 @@ useBreadcrumbEntityLabel(
 const showDocumentModal = ref(false)
 const showQuoteModal = ref(false)
 const showCreateQuoteModal = ref(false)
+const showConvertQuoteModal = ref(false)
+const convertingQuote = ref<OperationQuoteRelation | null>(null)
+const refreshingQuoteDocuments = ref(false)
+const hasContainers = computed(() => !!operation.value?.containers?.length)
+const expenseTypeIcons: Record<InternationalExpenseType, string> = {
+  MERCHANDISE: 'i-lucide-box',
+  INTERNATIONAL_FREIGHT: 'i-lucide-ship',
+  INSURANCE: 'i-lucide-shield-check',
+  CUSTOMS_BROKER: 'i-lucide-file-check-2',
+  COMMERCIAL_AGENT: 'i-lucide-handshake',
+  PORT_EXPENSE: 'i-lucide-anchor',
+  STORAGE: 'i-lucide-warehouse',
+  LOCAL_TRANSPORT: 'i-lucide-truck',
+  CUSTOMS_DUTIES: 'i-lucide-landmark',
+  NACIONALIZACION: 'i-lucide-stamp',
+  OTHER: 'i-lucide-ellipsis'
+}
+const quoteGroups = computed(() => {
+  const groups = new Map<string, { key: string; category: InternationalExpenseType; label: string; quotes: OperationQuoteRelation[] }>()
+  for (const quote of operation.value?.operation_quotes ?? []) {
+    const category = quote.expense_type ?? 'MERCHANDISE'
+    const key = [quote.container_id ?? '', category, quote.custom_expense_description ?? ''].join(':')
+    const container = quote.container?.container_number ?? operation.value?.containers?.find(item => item.id === quote.container_id)?.container_number ?? 'Sin contenedor asignado'
+    const detail = category === 'OTHER' && quote.custom_expense_description ? ` · ${quote.custom_expense_description}` : ''
+    const group = groups.get(key) ?? { key, category, label: `${container}${detail}`, quotes: [] }
+    group.quotes.push(quote)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+})
+const quoteCategoryTabs = computed(() => {
+  const counts = new Map<InternationalExpenseType, number>()
+  for (const group of quoteGroups.value) {
+    counts.set(group.category, (counts.get(group.category) ?? 0) + group.quotes.length)
+  }
+  const totalQuotes = [...counts.values()].reduce((total, count) => total + count, 0)
+  return [
+    { value: 'ALL', label: 'Todos', icon: 'i-lucide-files', badge: totalQuotes },
+    ...[...counts.entries()].map(([value, count]) => ({
+      value,
+      label: expenseTypeLabel(value),
+      icon: expenseTypeIcons[value],
+      badge: count
+    }))
+  ]
+})
+const activeQuoteCategory = ref<string>('ALL')
+const activeQuoteGroups = computed(() => activeQuoteCategory.value === 'ALL'
+  ? quoteGroups.value
+  : quoteGroups.value.filter(group => group.category === activeQuoteCategory.value))
+watch(quoteCategoryTabs, (tabs) => {
+  if (!tabs.some(tab => tab.value === activeQuoteCategory.value)) activeQuoteCategory.value = 'ALL'
+}, { immediate: true })
+const documentCategoryTabs = computed(() => {
+  const groups = summary.value?.expenseGroups ?? []
+  const totalDocuments = groups.reduce((total, group) => total + group.documentCount, 0)
+  return [
+    { value: 'ALL', label: 'Todos', icon: 'i-lucide-files', badge: totalDocuments },
+    ...groups.map(group => ({
+      value: group.type,
+      label: group.label,
+      icon: expenseTypeIcons[group.type as InternationalExpenseType] ?? 'i-lucide-file-text',
+      badge: group.documentCount
+    }))
+  ]
+})
+const activeDocumentCategory = ref('ALL')
+const visibleDocumentGroups = computed(() => {
+  const groups = summary.value?.expenseGroups ?? []
+  return activeDocumentCategory.value === 'ALL'
+    ? groups
+    : groups.filter(group => group.type === activeDocumentCategory.value)
+})
+watch(documentCategoryTabs, (tabs) => {
+  if (!tabs.some(tab => tab.value === activeDocumentCategory.value)) activeDocumentCategory.value = 'ALL'
+}, { immediate: true })
 const showCreateInvoiceModal = ref(false)
 const invoiceContainerId = ref('')
 const invoiceExpenseType = ref<InternationalExpenseType>('MERCHANDISE')
@@ -84,7 +163,7 @@ const selectedInvoiceContainer = computed(() =>
 
 const canContinueInvoiceCreation = computed(() => {
   if (!invoiceExpenseType.value) return false
-  if (invoiceExpenseType.value === 'MERCHANDISE' && !invoiceContainerId.value) return false
+  if (!invoiceContainerId.value) return false
   if (invoiceExpenseType.value === 'OTHER' && !invoiceCustomExpenseDescription.value.trim()) return false
   return true
 })
@@ -274,8 +353,25 @@ const handleDisassociateDocument = async (documentId: string) => {
 }
 
 const handleAcceptQuote = async (quote: any) => {
-  if (confirm('¿Aceptar este presupuesto como ganador? Los demás presupuestos pendientes pasarán a rechazados.')) {
-    await updateQuoteStatus(id, quote.id, 'ACCEPTED')
+  convertingQuote.value = quote
+  showConvertQuoteModal.value = true
+}
+
+const handleQuoteConverted = async () => {
+  refreshingQuoteDocuments.value = true
+  try {
+    const results = await Promise.allSettled([fetchOne(id), fetchSummary(id)])
+    const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+    if (failed) {
+      toast.add({
+        title: 'El comprobante se creó, pero no se pudo actualizar la operación',
+        description: 'Volvé a cargar la operación para ver el documento generado.',
+        color: 'warning'
+      })
+    }
+  } finally {
+    refreshingQuoteDocuments.value = false
+    showConvertQuoteModal.value = false
   }
 }
 
@@ -360,25 +456,21 @@ const containerDocuments = (containerId: string) =>
 
 const containerMerchandiseItems = (containerId: string) => {
   const grouped = new Map<string, { id: string; name: string; sku?: string; quantity: number; documents: number }>()
-  for (const rel of containerDocuments(containerId)) {
-    if (rel.expense_type !== 'MERCHANDISE') continue
-    for (const item of rel.document?.document_items ?? []) {
-      const product = item.products
-      const key = product?.id ?? item.product_id ?? item.id
+  for (const item of summarizeTransitMerchandise(containerDocuments(containerId))) {
+      const key = item.productId
       const current = grouped.get(key)
       if (current) {
-        current.quantity += Number(item.quantity ?? 0)
-        current.documents += 1
+        current.quantity += item.quantity
+        current.documents += item.documents
       } else {
         grouped.set(key, {
           id: key,
-          name: product?.name ?? 'Producto sin nombre',
-          sku: product?.sku,
-          quantity: Number(item.quantity ?? 0),
-          documents: 1
+          name: item.productName,
+          sku: item.sku,
+          quantity: item.quantity,
+          documents: item.documents
         })
       }
-    }
   }
   return Array.from(grouped.values())
 }
@@ -1159,7 +1251,7 @@ const scrollTo = (sectionId: string) => {
                       <p class="text-xs text-muted">
                         <span v-if="item.sku">SKU: {{ item.sku }}</span>
                         <span v-if="item.sku && item.documents > 1"> · </span>
-                        <span v-if="item.documents > 1">{{ item.documents }} líneas asociadas</span>
+                        <span v-if="item.documents > 1">{{ item.documents }} comprobantes · sin duplicar OC/factura</span>
                       </p>
                     </div>
                     <div class="text-right shrink-0">
@@ -1187,20 +1279,25 @@ const scrollTo = (sectionId: string) => {
       </div>
 
       <!-- ═══════════════ PRESUPUESTOS ═══════════════ -->
-      <div id="presupuestos" :style="{ scrollMarginTop: sectionScrollMt + 'px' }" class="mt-8">
-        <div class="flex items-center justify-between gap-2 flex-wrap mb-3">
-          <h2 class="font-semibold text-base flex items-center gap-2">
-            <UIcon name="i-lucide-file-chart-column" class="size-4 text-muted" />
-            Presupuestos
-            <UBadge :label="`${operation.operation_quotes?.length ?? 0}`" color="neutral" variant="outline" size="xs" />
-            <span class="text-xs text-muted font-normal hidden sm:inline">
-              — compará cotizaciones y elegí el ganador · no impactan en totales
-            </span>
-          </h2>
+      <section id="presupuestos" :style="{ scrollMarginTop: sectionScrollMt + 'px' }" class="mt-8 overflow-hidden rounded-2xl border border-default bg-muted/5 shadow-sm">
+        <header class="flex items-center justify-between gap-4 flex-wrap border-b border-default bg-muted/20 px-4 py-4 sm:px-5">
+          <div class="flex items-center gap-3">
+            <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <UIcon name="i-lucide-file-chart-column" class="size-5" />
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="font-semibold text-base">Presupuestos</h2>
+                <UBadge :label="`${operation.operation_quotes?.length ?? 0}`" color="neutral" variant="outline" size="xs" />
+              </div>
+              <p class="mt-0.5 text-xs text-muted">Compará propuestas por categoría y contenedor. No se suman a los totales.</p>
+            </div>
+          </div>
           <div class="flex gap-2">
             <UButton
               label="Crear"
               icon="i-lucide-file-plus"
+              :disabled="!hasContainers"
               size="xs"
               variant="outline"
               @click="
@@ -1212,6 +1309,7 @@ const scrollTo = (sectionId: string) => {
             <UButton
               label="Asociar"
               icon="i-lucide-plus"
+              :disabled="!hasContainers"
               size="xs"
               variant="outline"
               @click="
@@ -1221,13 +1319,36 @@ const scrollTo = (sectionId: string) => {
               "
             />
           </div>
-        </div>
+        </header>
 
-        <div v-if="operation.operation_quotes?.length" class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div class="flex flex-col gap-4 p-4 sm:p-5">
+        <UAlert v-if="!hasContainers" title="Primero creá un contenedor" description="Los presupuestos y comprobantes deben asociarse a un contenedor y una categoría de esta operación." color="info" variant="subtle">
+          <template #actions><UButton label="Crear contenedor" icon="i-lucide-container" :to="`/operaciones-internacionales/${id}/containers/create`" /></template>
+        </UAlert>
+        <div v-if="operation.operation_quotes?.length" class="flex flex-col gap-4">
+          <div class="overflow-x-auto overflow-y-hidden rounded-lg border border-default bg-default px-3 pt-1 pb-1">
+            <UTabs
+              v-model="activeQuoteCategory"
+              :items="quoteCategoryTabs"
+              :content="false"
+              variant="link"
+              color="primary"
+              :ui="{ trigger: 'cursor-pointer transition-colors hover:bg-muted/20 hover:text-primary rounded-t-md' }"
+              class="min-w-max"
+            />
+          </div>
+          <div class="flex flex-col gap-5">
+            <section v-for="group in activeQuoteGroups" :key="group.key" class="flex flex-col gap-3">
+              <h3 class="flex items-center gap-2 rounded-lg border border-default bg-muted/20 px-3 py-2 text-sm font-semibold">
+                <UIcon name="i-lucide-container" class="size-4 text-muted" />
+                {{ group.label }}
+                <UBadge :label="`${group.quotes.length} propuesta(s)`" color="neutral" variant="outline" size="xs" />
+              </h3>
+              <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <div
-            v-for="quote in operation.operation_quotes"
+            v-for="quote in group.quotes"
             :key="quote.id"
-            class="rounded-xl border p-4 transition-colors"
+            class="rounded-xl border bg-default p-4 shadow-sm transition-colors"
             :class="quote.status === 'ACCEPTED' ? 'border-success/50 bg-success/5' : 'border-default'"
           >
             <div class="flex items-start justify-between gap-3 flex-wrap">
@@ -1264,15 +1385,16 @@ const scrollTo = (sectionId: string) => {
               <span v-for="(item, idx) in quote.document.document_items" :key="idx" class="text-xs text-muted">
                 {{ item.quantity }} × {{ item.products?.name ?? 'Producto' }}
                 <span class="font-medium text-default">
-                  {{ formatCurrency(item.quantity * item.price, quote.document?.currency_code) }}
+                  {{ formatCurrency(Number(item.price), quote.document?.currency_code) }}
                 </span>
               </span>
             </div>
 
             <div class="flex items-center justify-end gap-1 mt-2.5 pt-2.5 border-t border-default">
               <UButton
-                v-if="quote.status === 'PENDING'"
-                label="Aceptar (ganador)"
+                v-if="!quote.converted_document_id && quote.status !== 'REJECTED'"
+                label="Elegir y transformar"
+                :disabled="!hasContainers"
                 icon="i-lucide-check"
                 color="success"
                 variant="soft"
@@ -1280,7 +1402,7 @@ const scrollTo = (sectionId: string) => {
                 @click="handleAcceptQuote(quote)"
               />
               <UButton
-                v-if="quote.status === 'PENDING'"
+                v-if="quote.status === 'PENDING' && !quote.converted_document_id"
                 label="Rechazar"
                 icon="i-lucide-x"
                 color="error"
@@ -1289,15 +1411,19 @@ const scrollTo = (sectionId: string) => {
                 @click="handleRejectQuote(quote)"
               />
               <UButton
-                v-if="quote.status !== 'PENDING'"
+                v-if="quote.status !== 'PENDING' && !quote.converted_document_id"
                 label="Marcar pendiente"
                 icon="i-lucide-rotate-ccw"
                 variant="ghost"
                 size="xs"
                 @click="handleResetQuote(quote)"
               />
-              <UButton icon="i-lucide-unlink" variant="ghost" size="xs" @click="handleDisassociateQuote(quote)" />
+              <UButton v-if="quote.converted_document" :label="`${quote.converted_document.document_types?.code ?? 'Comprobante'} #${quote.converted_document.number} · ${quote.converted_document.status === 0 ? 'Borrador' : quote.converted_document.status === 2 ? 'Confirmado' : 'Ver estado'}`" icon="i-lucide-external-link" variant="soft" size="xs" :to="`/erp/purchases/purchases-documents/${quote.converted_document.id}`" />
+              <UButton v-if="!quote.converted_document_id" icon="i-lucide-unlink" variant="ghost" size="xs" @click="handleDisassociateQuote(quote)" />
             </div>
+          </div>
+              </div>
+            </section>
           </div>
         </div>
         <div v-else class="rounded-xl border border-dashed border-default text-center py-10">
@@ -1309,6 +1435,7 @@ const scrollTo = (sectionId: string) => {
           <div class="flex justify-center gap-2">
             <UButton
               label="Crear presupuesto"
+              :disabled="!hasContainers"
               variant="soft"
               size="xs"
               icon="i-lucide-file-plus"
@@ -1320,6 +1447,7 @@ const scrollTo = (sectionId: string) => {
             />
             <UButton
               label="Asociar existente"
+              :disabled="!hasContainers"
               variant="outline"
               size="xs"
               icon="i-lucide-plus"
@@ -1331,16 +1459,24 @@ const scrollTo = (sectionId: string) => {
             />
           </div>
         </div>
-      </div>
+        </div>
+      </section>
 
       <!-- ═══════════════ DOCUMENTOS ═══════════════ -->
-      <div id="documentos" :style="{ scrollMarginTop: sectionScrollMt + 'px' }" class="mt-8">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="font-semibold text-base flex items-center gap-2">
-            <UIcon name="i-lucide-file-text" class="size-4 text-muted" />
-            Documentos
-            <UBadge :label="`${summary?.stats.documentCount ?? 0}`" color="neutral" variant="outline" size="xs" />
-          </h2>
+      <section id="documentos" :style="{ scrollMarginTop: sectionScrollMt + 'px' }" class="mt-8 overflow-hidden rounded-2xl border border-default bg-muted/5 shadow-sm">
+        <header class="flex items-center justify-between gap-4 flex-wrap border-b border-default bg-muted/20 px-4 py-4 sm:px-5">
+          <div class="flex items-center gap-3">
+            <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <UIcon name="i-lucide-files" class="size-5" />
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="font-semibold text-base">Documentos</h2>
+                <UBadge :label="`${summary?.stats.documentCount ?? 0}`" color="neutral" variant="outline" size="xs" />
+              </div>
+              <p class="mt-0.5 text-xs text-muted">Órdenes, facturas y pagos asociados a la operación.</p>
+            </div>
+          </div>
           <div class="flex gap-2 flex-wrap justify-end">
             <UButton
               label="Nueva factura de compra"
@@ -1351,6 +1487,7 @@ const scrollTo = (sectionId: string) => {
             />
             <UButton
               label="Asociar documento"
+              :disabled="!hasContainers"
               icon="i-lucide-plus"
               size="xs"
               variant="outline"
@@ -1361,17 +1498,43 @@ const scrollTo = (sectionId: string) => {
               "
             />
           </div>
+        </header>
+
+        <div class="flex flex-col gap-4 p-4 sm:p-5">
+        <div
+          v-if="refreshingQuoteDocuments"
+          role="status"
+          aria-live="polite"
+          class="mb-3 flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3"
+        >
+          <UIcon name="i-lucide-loader-circle" class="size-5 shrink-0 animate-spin text-primary" />
+          <div>
+            <p class="text-sm font-medium">Actualizando documentos de la operación…</p>
+            <p class="text-xs text-muted">El comprobante ya se generó desde el presupuesto; estamos actualizando el listado para mostrarlo acá.</p>
+          </div>
         </div>
 
-        <div v-if="summary?.expenseGroups?.length" class="space-y-4">
+        <div v-if="summary?.expenseGroups?.length" class="flex flex-col gap-4">
+          <div class="overflow-x-auto overflow-y-hidden rounded-lg border border-default bg-default px-3 pt-1 pb-1">
+            <UTabs
+              v-model="activeDocumentCategory"
+              :items="documentCategoryTabs"
+              :content="false"
+              variant="link"
+              color="primary"
+              :ui="{ trigger: 'cursor-pointer transition-colors hover:bg-muted/20 hover:text-primary rounded-t-md' }"
+              class="min-w-max"
+            />
+          </div>
+          <div class="space-y-4">
           <div
-            v-for="group in summary.expenseGroups"
+            v-for="group in visibleDocumentGroups"
             :key="group.type"
-            class="rounded-xl border border-default overflow-hidden"
+            class="overflow-hidden rounded-xl border border-default bg-default shadow-sm"
           >
             <!-- Header de grupo -->
             <div
-              class="bg-muted/30 px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap border-b border-default"
+              class="flex items-center justify-between gap-3 flex-wrap border-b border-default bg-muted/30 px-4 py-3"
             >
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-sm">{{ group.label }}</span>
@@ -1539,11 +1702,13 @@ const scrollTo = (sectionId: string) => {
             </div>
           </div>
         </div>
-        <div v-else class="rounded-xl border border-dashed border-default text-center py-10">
+        </div>
+        <div v-else-if="!refreshingQuoteDocuments" class="rounded-xl border border-dashed border-default text-center py-10">
           <UIcon name="i-lucide-file-text" class="size-8 text-muted mx-auto mb-2" />
           <p class="text-muted text-sm">No hay documentos asociados.</p>
           <UButton
             label="Asociar documento"
+            :disabled="!hasContainers"
             variant="soft"
             size="xs"
             class="mt-3"
@@ -1556,6 +1721,7 @@ const scrollTo = (sectionId: string) => {
           />
         </div>
       </div>
+      </section>
 
       <!-- MODALS -->
       <UModal
@@ -1668,7 +1834,7 @@ const scrollTo = (sectionId: string) => {
             </UFormField>
 
             <UAlert
-              v-if="invoiceExpenseType === 'MERCHANDISE' && !invoiceContainerOptions.length"
+              v-if="!invoiceContainerOptions.length"
               color="warning"
               variant="subtle"
               icon="i-lucide-container"
@@ -1678,11 +1844,9 @@ const scrollTo = (sectionId: string) => {
 
             <template v-else-if="invoiceContainerOptions.length">
               <UFormField
-                :label="invoiceExpenseType === 'MERCHANDISE' ? 'Contenedor' : 'Contenedor específico'"
-                :required="invoiceExpenseType === 'MERCHANDISE'"
-                :help="invoiceExpenseType === 'MERCHANDISE'
-                  ? 'La mercadería y sus productos quedarán vinculados a este contenedor.'
-                  : 'Es opcional. Dejalo vacío cuando el gasto corresponda a toda la operación.'"
+                label="Contenedor"
+                required
+                help="El documento conservará este contenedor y la categoría elegida."
               >
                 <USelectMenu
                   v-model="invoiceContainerId"
@@ -1690,7 +1854,7 @@ const scrollTo = (sectionId: string) => {
                   value-key="value"
                   searchable
                   clear
-                  :placeholder="invoiceExpenseType === 'MERCHANDISE' ? 'Seleccionar contenedor' : 'Gasto general de la operación'"
+                  placeholder="Seleccionar contenedor"
                   class="w-full"
                 />
               </UFormField>
@@ -1724,7 +1888,7 @@ const scrollTo = (sectionId: string) => {
         <template #footer>
           <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-between">
             <UButton
-              v-if="invoiceExpenseType === 'MERCHANDISE' && !invoiceContainerOptions.length"
+              v-if="!invoiceContainerOptions.length"
               label="Crear contenedor"
               icon="i-lucide-container"
               :to="`/operaciones-internacionales/${id}/containers/create`"
@@ -1734,7 +1898,7 @@ const scrollTo = (sectionId: string) => {
             <div class="flex justify-end gap-2">
               <UButton label="Cancelar" color="neutral" variant="ghost" @click="showCreateInvoiceModal = false" />
               <UButton
-                v-if="invoiceExpenseType !== 'MERCHANDISE' || invoiceContainerOptions.length"
+                v-if="invoiceContainerOptions.length"
                 label="Continuar con la factura"
                 icon="i-lucide-arrow-right"
                 :disabled="!canContinueInvoiceCreation"
@@ -1763,6 +1927,8 @@ const scrollTo = (sectionId: string) => {
         v-model:open="showQuoteModal"
         :operation-id="id"
         :exclude-document-ids="quoteAssociatedIds"
+        :containers="operation.containers"
+        :operation-currency-code="operation.currency_code ?? 'USD'"
         @associated="() => fetchOne(id)"
       />
 
@@ -1770,8 +1936,10 @@ const scrollTo = (sectionId: string) => {
         v-model:open="showCreateQuoteModal"
         :operation-id="id"
         :operation-currency-code="operation.currency_code ?? 'USD'"
+        :containers="operation.containers"
         @created="() => fetchOne(id)"
       />
+      <ConvertQuoteModal v-model:open="showConvertQuoteModal" :quote="convertingQuote" :operation-id="id" :operation-currency-code="operation.currency_code ?? 'USD'" :containers="operation.containers ?? []" :refreshing="refreshingQuoteDocuments" @converted="handleQuoteConverted" />
     </template>
   </UPage>
 </template>

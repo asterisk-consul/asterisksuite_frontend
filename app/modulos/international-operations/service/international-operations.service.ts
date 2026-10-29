@@ -11,7 +11,9 @@ import type {
   CreateEventInput,
   IntlOpsSettings,
   UpdateIntlOpsSettingsInput,
-  DeliverContainerResult
+  DeliverContainerResult,
+  QuoteAssignmentInput,
+  ConvertQuoteInput
 } from '~/modulos/international-operations/types/international-operations.types'
 
 const baseUrl = '/api/backend/international-operations'
@@ -88,10 +90,10 @@ export const useInternationalOperationsService = () => {
       method: 'DELETE'
     })
 
-  const associatePurchaseOrder = (operationId: string, documentId: string) =>
+  const associatePurchaseOrder = (operationId: string, documentId: string, assignment: QuoteAssignmentInput) =>
     $fetch<void>(`${baseUrl}/${operationId}/purchase-orders`, {
       method: 'POST',
-      body: { document_id: documentId }
+      body: { document_id: documentId, ...assignment, exchange_rate: assignment.exchange_rate ?? undefined }
     })
 
   const disassociatePurchaseOrder = (operationId: string, documentId: string) =>
@@ -121,7 +123,7 @@ export const useInternationalOperationsService = () => {
     $fetch<void>(`${baseUrl}/containers/${containerId}`, { method: 'DELETE' })
 
   const syncContainerTransitStock = (containerId: string) =>
-    $fetch<{ container_id: string; invoices_found: number; invoices_registered: number }>(
+    $fetch<{ container_id: string; documents_found: number; documents_registered: number; invoices_found: number; invoices_registered: number }>(
       `${baseUrl}/containers/${containerId}/sync-transit-stock`,
       { method: 'POST' }
     )
@@ -138,8 +140,11 @@ export const useInternationalOperationsService = () => {
   const removeEvent = (eventId: string) =>
     $fetch<void>(`${baseUrl}/events/${eventId}`, { method: 'DELETE' })
 
-  const associateQuote = (operationId: string, documentId: string) =>
-    $fetch(`${baseUrl}/${operationId}/quotes`, { method: 'POST', body: { document_id: documentId } })
+  const associateQuote = (operationId: string, documentId: string, assignment: QuoteAssignmentInput) =>
+    $fetch(`${baseUrl}/${operationId}/quotes`, { method: 'POST', body: { document_id: documentId, ...assignment, exchange_rate: assignment.exchange_rate ?? undefined } })
+
+  const convertQuote = (operationId: string, quoteId: string, payload: ConvertQuoteInput) =>
+    $fetch<{ document: { id: string; number: number; status: number }; existing: boolean }>(`${baseUrl}/${operationId}/quotes/${quoteId}/convert`, { method: 'POST', body: { ...payload, exchange_rate: payload.exchange_rate ?? undefined } })
 
   const updateQuoteStatus = (operationId: string, quoteId: string, status: string) =>
     $fetch(`${baseUrl}/${operationId}/quotes/${quoteId}/status`, { method: 'PATCH', body: { status } })
@@ -177,6 +182,7 @@ export const useInternationalOperationsService = () => {
     associatePurchaseOrder,
     disassociatePurchaseOrder,
     associateQuote,
+    convertQuote,
     updateQuoteStatus,
     disassociateQuote,
     createContainer,

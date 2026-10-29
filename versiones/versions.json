@@ -1,5 +1,98 @@
 [
  {
+  "version": "0.106.7-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Las pestañas de Presupuestos y Documentos conservan visible el indicador inferior de selección, sin recuperar el desbordamiento vertical.",
+  "changes": [
+   { "type": "fix", "scope": "international-operations", "title": "Mantener visible la línea de selección activa en las pestañas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mostrar el indicador activo de las pestañas"
+ },
+ {
+  "version": "0.106.6-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Presupuestos incorpora una pestaña Todos con el total de propuestas. Los contenedores de pestañas de Presupuestos y Documentos evitan el desbordamiento vertical y solo desplazan horizontalmente cuando hace falta.",
+  "changes": [
+   { "type": "style", "scope": "international-operations", "title": "Añadir Todos a las pestañas de presupuestos y corregir su desplazamiento" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Añadir Todos en presupuestos y ajustar el desplazamiento de pestañas"
+ },
+ {
+  "version": "0.106.5-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "La sección Documentos de las operaciones internacionales ofrece una pestaña Todos y pestañas por categoría con contadores, conservando los totales, importes originales y pagos asociados.",
+  "changes": [
+   { "type": "style", "scope": "international-operations", "title": "Filtrar los documentos de una operación internacional mediante pestañas por categoría" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Organizar los documentos internacionales por categoría"
+ },
+ {
+  "version": "0.106.4-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Las secciones Presupuestos y Documentos de las operaciones internacionales ahora tienen encabezados, fondos y bordes propios para que sea más claro dónde empieza y termina cada bloque.",
+  "changes": [
+   { "type": "style", "scope": "international-operations", "title": "Separar visualmente las secciones de presupuestos y documentos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Delimitar las secciones de presupuestos y documentos"
+ },
+ {
+  "version": "0.106.3-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Las pestañas de presupuestos internacionales muestran iconos por categoría, contador de propuestas, cursor y respuesta al pasar el mouse, con el indicador activo del estilo link de Nuxt UI.",
+  "changes": [
+   { "type": "style", "scope": "international-operations", "title": "Aclarar visualmente que las pestañas de categoría de presupuestos son interactivas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la apariencia interactiva de las pestañas de presupuestos"
+ },
+ {
+  "version": "0.106.2-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Los presupuestos de operaciones internacionales se visualizan en pestañas dinámicas por categoría y la transformación elegida informa mientras genera el comprobante y actualiza la lista de documentos.",
+  "changes": [
+   { "type": "style", "scope": "international-operations", "title": "Organizar los presupuestos en pestañas dinámicas por categoría" },
+   { "type": "fix", "scope": "international-operations", "title": "Mostrar el progreso al transformar presupuestos y actualizar los documentos de la operación" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la vista y la transformación de presupuestos internacionales"
+ },
+ {
+  "version": "0.106.1-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Las órdenes de compra internacionales de mercadería confirmadas también ingresan stock en tránsito desde el embarque. Al facturarlas se conserva la asociación al contenedor y se evitan ingresos duplicados de las mismas unidades.",
+  "changes": [
+   { "type": "fix", "scope": "international-operations", "title": "Ingresar mercadería en tránsito desde OC confirmadas además de facturas" },
+   { "type": "fix", "scope": "inventory", "title": "Evitar duplicar cantidades de una OC y su factura vinculada al sincronizar el contenedor" },
+   { "type": "fix", "scope": "purchases", "title": "Heredar el contenedor al facturar una OC internacional y proteger comprobantes que respaldan stock" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Incluir OC de mercadería en el stock en tránsito"
+ },
+ {
+  "version": "0.106.0-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Las operaciones internacionales comparan presupuestos por contenedor y categoría y transforman el elegido en orden o factura de compra, en borrador por defecto o confirmado por elección. Asociar presupuestos y documentos requiere un contenedor, y los selectores comerciales ofrecen solo órdenes y facturas de la dirección elegida.",
+  "changes": [
+   { "type": "feat", "scope": "international-operations", "title": "Comparar presupuestos por contenedor y categoría y transformar la propuesta elegida en OC o factura de compra" },
+   { "type": "feat", "scope": "international-operations", "title": "Elegir entre generar el comprobante en borrador o confirmarlo al transformar" },
+   { "type": "fix", "scope": "international-operations", "title": "Exigir contenedor y filtrar las asociaciones a órdenes y facturas de compra o venta" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Comparar y transformar presupuestos por contenedor y categoría"
+ },
+ {
   "version": "0.105.4-alpha",
   "date": "2026-10-29",
   "stage": "alpha",

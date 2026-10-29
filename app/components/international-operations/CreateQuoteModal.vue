@@ -8,11 +8,14 @@ import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencie
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
+import QuoteAssignmentFields from './QuoteAssignmentFields.vue'
+import type { QuoteAssignmentInput } from '~/modulos/international-operations/types/international-operations.types'
 
 interface Props {
   open: boolean
   operationId: string
   operationCurrencyCode?: string
+  containers?: Array<{ id: string; container_number: string }>
 }
 
 interface Emits {
@@ -32,6 +35,7 @@ const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies
 const { items: allProductOptions } = useProducts('PURCHASE')
 
 const loading = ref(false)
+const assignment = ref<QuoteAssignmentInput>({ container_id: '', expense_type: 'MERCHANDISE' })
 const remoteParties = ref<BusinessParty[]>([])
 const selectedPartyFallback = ref<BusinessParty | null>(null)
 const partySearch = ref('')
@@ -132,7 +136,7 @@ const searchProducts = (query: string, immediate = false) => {
 }
 
 const quoteTypes = computed(() =>
-  docTypes.items.value.filter(dt => dt.direction === -1 && dt.category === 'QUOTE')
+  docTypes.items.value.filter(dt => dt.direction === -1 && dt.category === 'QUOTE' && dt.active !== false)
 )
 const quoteTypeItems = computed(() =>
   quoteTypes.value.map(dt => ({ label: `${dt.code} - ${dt.description}`, value: dt.id }))
@@ -201,6 +205,7 @@ onBeforeUnmount(() => {
 
 watch(() => props.open, (open) => {
   if (open) {
+    assignment.value = { container_id: props.containers?.length === 1 ? props.containers[0]!.id : '', expense_type: 'MERCHANDISE' }
     form.currency_code = props.operationCurrencyCode ?? 'USD'
     partySearch.value = ''
     productSearch.value = ''
@@ -213,7 +218,9 @@ watch(() => props.open, (open) => {
 })
 
 const isValid = computed(() =>
-  form.document_type_id && form.party_id && items.value.every(i => i.product_id && i.quantity > 0)
+  form.document_type_id && form.party_id && items.value.length > 0 && items.value.every(i => i.product_id && i.quantity > 0 && i.unit_price >= 0)
+  && assignment.value.container_id && (assignment.value.expense_type !== 'OTHER' || assignment.value.custom_expense_description?.trim())
+  && (form.currency_code === props.operationCurrencyCode || Number(assignment.value.exchange_rate) > 0)
 )
 
 const handleSubmit = async () => {
@@ -221,6 +228,8 @@ const handleSubmit = async () => {
   let createdDocumentId: string | null = null
   try {
     loading.value = true
+    const containers = await operationsService.findAllContainers(props.operationId)
+    if (!containers.some(container => container.id === assignment.value.container_id)) throw new Error('Primero creá un contenedor y seleccioná uno vigente de esta operación')
     const created: any = await DocumentsPurchasesService.create({
       document_type_id: form.document_type_id,
       party_id: form.party_id,
@@ -235,7 +244,7 @@ const handleSubmit = async () => {
       }))
     })
     createdDocumentId = created.id
-    await operationsService.associateQuote(props.operationId, created.id)
+    await operationsService.associateQuote(props.operationId, created.id, assignment.value)
     toast.add({ title: 'Presupuesto creado y asociado', color: 'success' })
     emit('created', created.id)
     emit('update:open', false)
@@ -265,7 +274,7 @@ const handleSubmit = async () => {
 
 <template>
   <UModal
-    v-model:open="props.open"
+    :open="props.open"
     title="Crear presupuesto"
     description="Registrá la propuesta del proveedor y comparala dentro de esta operación."
     :ui="{ content: 'w-[calc(100vw-2rem)] sm:max-w-5xl max-h-[92vh]', body: 'overflow-y-auto' }"
@@ -273,6 +282,7 @@ const handleSubmit = async () => {
   >
     <template #body>
       <div class="space-y-5">
+        <QuoteAssignmentFields v-model="assignment" :containers="props.containers ?? []" :document-currency-code="form.currency_code" :operation-currency-code="props.operationCurrencyCode ?? 'USD'" :disabled="loading" />
         <section class="rounded-xl border border-default bg-muted/20 p-4 sm:p-5">
           <div class="mb-4 flex items-start gap-3">
             <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">

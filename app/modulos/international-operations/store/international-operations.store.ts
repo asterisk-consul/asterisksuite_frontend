@@ -212,11 +212,11 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
-  const associatePurchaseOrder = async (operationId: string, documentId: string) => {
+  const associatePurchaseOrder = async (operationId: string, documentId: string, assignment: Parameters<typeof service.associatePurchaseOrder>[2]) => {
     try {
       loading.value = true
       error.value = null
-      await service.associatePurchaseOrder(operationId, documentId)
+      await service.associatePurchaseOrder(operationId, documentId, assignment)
       if (current.value?.id === operationId) {
         await fetchOne(operationId)
       }
@@ -371,11 +371,11 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
-  const associateQuote = async (operationId: string, documentId: string) => {
+  const associateQuote = async (operationId: string, documentId: string, assignment: Parameters<typeof service.associateQuote>[2]) => {
     try {
       loading.value = true
       error.value = null
-      const created = await service.associateQuote(operationId, documentId)
+      const created = await service.associateQuote(operationId, documentId, assignment)
       if (current.value?.id === operationId) {
         await fetchOne(operationId)
       }

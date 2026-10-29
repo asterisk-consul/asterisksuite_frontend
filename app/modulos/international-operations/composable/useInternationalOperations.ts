@@ -42,10 +42,10 @@ export function useInternationalOperations() {
   const disassociateDocument = async (opId: string, docId: string) => store.disassociateDocument(opId, docId)
   const associatePayment = async (opId: string, payId: string) => store.associatePayment(opId, payId)
   const disassociatePayment = async (opId: string, payId: string) => store.disassociatePayment(opId, payId)
-  const associatePurchaseOrder = async (opId: string, docId: string) => store.associatePurchaseOrder(opId, docId)
+  const associatePurchaseOrder = async (opId: string, docId: string, assignment: Parameters<typeof store.associatePurchaseOrder>[2]) => store.associatePurchaseOrder(opId, docId, assignment)
   const disassociatePurchaseOrder = async (opId: string, docId: string) => store.disassociatePurchaseOrder(opId, docId)
 
-  const associateQuote = async (opId: string, docId: string) => store.associateQuote(opId, docId)
+  const associateQuote = async (opId: string, docId: string, assignment: Parameters<typeof store.associateQuote>[2]) => store.associateQuote(opId, docId, assignment)
   const updateQuoteStatus = async (opId: string, quoteId: string, status: string) => store.updateQuoteStatus(opId, quoteId, status)
   const disassociateQuote = async (opId: string, quoteId: string) => store.disassociateQuote(opId, quoteId)
 
