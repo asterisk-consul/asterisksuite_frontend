@@ -3,13 +3,15 @@ import { NuxtLink, UButton } from '#components'
 import type { CurrentAccountEntry } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
-import { resolveEntrySide } from './utils'
+import { resolveEntrySide, resolveHrValeLabel } from './utils'
 import DocumentChainPopover from '~/components/current-account/DocumentChainPopover.vue'
 
 type Row = CurrentAccountEntry
 
 export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; side?: 'debit' | 'credit' }> = {
   PAYMENT: { label: 'Pago', color: 'error', side: 'debit' },
+  VALE_DEBIT: { label: 'Vale · egreso', color: 'error', side: 'debit' },
+  VALE_CREDIT: { label: 'Vale · ingreso', color: 'success', side: 'credit' },
   WITHHOLDING: { label: 'Retención practicada', color: 'warning', side: 'debit' },
   COLLECTION: { label: 'Cobro', color: 'success', side: 'credit' },
   ADVANCE: { label: 'Anticipo', color: 'info', side: 'credit' },
@@ -67,6 +69,11 @@ export const currentAccountEntryColumns = (actions: {
   })
 
   const baseCurrency = actions?.baseCurrency ?? 'ARS'
+  const valeFilterLabels: Record<string, string> = actions?.partyType === 'PARTNER'
+    ? { VALE_DEBIT: 'Retiros, reembolsos y préstamos', VALE_CREDIT: 'Aportes y vales de socio' }
+    : actions?.partyType === 'EMPLOYEE'
+      ? { VALE_DEBIT: 'Vales de empleado · Débito', VALE_CREDIT: 'Vales de empleado · Crédito' }
+      : {}
 
   return [
     ...build([
@@ -83,7 +90,7 @@ export const currentAccountEntryColumns = (actions: {
         badge: {
           resolve: (row) => {
             const config = ENTRY_TYPE_CONFIG[row.type]
-            let label = config?.label ?? row.type
+            let label = resolveHrValeLabel(row, actions?.partyType) ?? config?.label ?? row.type
 
             if (row.reference_type === 'order_invoice_replacement') {
               label = 'Reemplazo OV → factura'
@@ -91,6 +98,10 @@ export const currentAccountEntryColumns = (actions: {
 
             if (row.type === 'INVOICE' && (actions?.partyType === 'EMPLOYEE' || actions?.partyType === 'PARTNER')) {
               label = 'Recibo de sueldo'
+            }
+
+            if (row.type === 'ADJUSTMENT' && row.description?.startsWith('Anulación Vale #')) {
+              label = 'Anulación de vale'
             }
 
             return {
@@ -104,7 +115,7 @@ export const currentAccountEntryColumns = (actions: {
             type: 'select',
             operators: ['equals'],
             options: Object.entries(ENTRY_TYPE_CONFIG).map(([value, config]) => ({
-              label: config.label,
+              label: valeFilterLabels[value] ?? config.label,
               value
             }))
           }
@@ -116,7 +127,12 @@ export const currentAccountEntryColumns = (actions: {
         cell: ({ row }) => {
           const entry = row.original
           const link = resolveReferenceLink(entry, actions?.partyType)
-          if (!link) return '—'
+          if (!link) {
+            if (entry.reference_type === 'hr_vale') {
+              return entry.description?.match(/Vale #\d+/)?.[0] ?? 'Vale'
+            }
+            return '—'
+          }
           const text = entry.description || link.label
           const hasChain = entry.document_chain && entry.document_chain.length > 1
           return h('div', { class: 'inline-flex items-center gap-1' }, [

@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { storeToRefs } from 'pinia'
+import { ref, onMounted } from 'vue'
 import { useIntlOpsSettingsStore } from '~/modulos/international-operations/store/intl-ops-settings.store'
-import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
-import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
+import LocationSelect from '~/components/international-operations/LocationSelect.vue'
+import type { Location } from '~/modulos/logistica/master-data/locations/types/locations.types'
 import type {
   CreateContainerInput,
   ContainerType
@@ -28,14 +27,10 @@ const emit = defineEmits<{
   submit: [payload: CreateContainerInput]
 }>()
 
-const locationsStore = useLocationsStore()
-const { items: locations } = storeToRefs(locationsStore)
-const { items: locationItems } = useLocations(locations)
 const settingsStore = useIntlOpsSettingsStore()
 const settingsReady = ref(false)
 
 onMounted(async () => {
-  locationsStore.fetchAll()
   try {
     await settingsStore.fetchSettings()
   } catch {
@@ -100,31 +95,17 @@ const containerTypeDescriptions = [
   }
 ]
 
-const selectedOriginPort = computed({
-  get: () => locationItems.value.find((l) => l.value === form.value.origin_port_id) ?? null,
-  set: (item: any) => {
-    if (item) {
-      form.value.origin_port_id = item.value
-      form.value.origin_port = item.label
-    } else {
-      form.value.origin_port_id = undefined
-      form.value.origin_port = ''
-    }
-  }
-})
+const portLabel = (location: Location | null) => location
+  ? (location.address ? `${location.address} - ${location.city ?? ''}` : location.city ?? '')
+  : ''
 
-const selectedDestinationPort = computed({
-  get: () => locationItems.value.find((l) => l.value === form.value.destination_port_id) ?? null,
-  set: (item: any) => {
-    if (item) {
-      form.value.destination_port_id = item.value
-      form.value.destination_port = item.label
-    } else {
-      form.value.destination_port_id = undefined
-      form.value.destination_port = ''
-    }
-  }
-})
+const handleOriginPortSelect = (location: Location | null) => {
+  form.value.origin_port = portLabel(location)
+}
+
+const handleDestinationPortSelect = (location: Location | null) => {
+  form.value.destination_port = portLabel(location)
+}
 
 const onSubmit = () => {
   emit('submit', { ...form.value })
@@ -224,13 +205,10 @@ const onSubmit = () => {
           label="Puerto de origen"
           name="origin_port_id"
         >
-          <USelectMenu
-            v-model="selectedOriginPort"
-            :items="locationItems"
+          <LocationSelect
+            v-model="form.origin_port_id"
             placeholder="Seleccionar puerto de origen"
-            searchable
-            clear
-            class="w-full"
+            @select="handleOriginPortSelect"
           />
         </UFormField>
         <UFormField
@@ -238,13 +216,10 @@ const onSubmit = () => {
           label="Puerto de destino"
           name="destination_port_id"
         >
-          <USelectMenu
-            v-model="selectedDestinationPort"
-            :items="locationItems"
+          <LocationSelect
+            v-model="form.destination_port_id"
             placeholder="Seleccionar puerto de destino"
-            searchable
-            clear
-            class="w-full"
+            @select="handleDestinationPortSelect"
           />
         </UFormField>
       </div>

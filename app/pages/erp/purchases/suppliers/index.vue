@@ -89,6 +89,7 @@ const importColumns = [
       :loading="loading"
       :data="parties"
       :columns="columns"
+      :on-row-click="openEdit"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"

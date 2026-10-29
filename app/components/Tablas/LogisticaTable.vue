@@ -160,7 +160,9 @@ const deleting = ref(false)
 function handleRowSelect(event: Event, row: any) {
   if (!props.onRowClick) return
   const target = event.target as HTMLElement | null
-  if (target?.closest('button, a, input, textarea, select, [role="button"], [data-row-action]')) return
+  const currentRow = event.currentTarget as HTMLElement | null
+  const interactiveElement = target?.closest('button, a, input, textarea, select, [role="button"], [data-row-action]')
+  if (interactiveElement && interactiveElement !== currentRow) return
   props.onRowClick(row.original)
 }
 
@@ -225,7 +227,7 @@ async function confirmDelete(): Promise<void> {
       :data="props.data"
       :columns="tableColumns"
       :loading="props.loading"
-      @select="handleRowSelect"
+      :on-select="props.onRowClick ? handleRowSelect : undefined"
       :pagination-options="serverSide
         ? { manualPagination: true, rowCount: totalCount, autoResetPageIndex: false }
         : { getPaginationRowModel: getPaginationRowModel(), autoResetPageIndex: false }"

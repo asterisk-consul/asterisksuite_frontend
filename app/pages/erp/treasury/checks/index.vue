@@ -497,6 +497,7 @@ const sortFields: SortField[] = [
       :loading="loading"
       :data="checks"
       :columns="columns"
+      :on-row-click="goToEdit"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"

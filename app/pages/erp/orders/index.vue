@@ -187,6 +187,7 @@ const statusButtons = [{ label: 'Todos', value: undefined }, ...statusOptions]
         server-side
         :page-size="pageSize"
         :total-rows="store.pagination.total"
+        :on-row-click="openDocument"
       />
     </div>
   </UPage>

@@ -10,8 +10,9 @@ export function useRrhhTotals(getter: () => any[], options?: { status?: string }
     if (items.length > 0) {
       console.log('[useRrhhTotals] primer item:', { type: items[0].type, amount: items[0].amount })
     }
-    if (!options?.status) return items
-    return items.filter((v) => v.status === options.status)
+    const activeItems = items.filter((v) => v.status !== 'CANCELLED')
+    if (!options?.status) return activeItems
+    return activeItems.filter((v) => v.status === options.status)
   })
 
   const totalDebit = computed(() => {

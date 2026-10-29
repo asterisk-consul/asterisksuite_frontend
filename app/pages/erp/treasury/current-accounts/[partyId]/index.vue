@@ -23,7 +23,7 @@ const { statement, entries: storeEntries, loading, fetchStatement, fetchEntries 
 const partyId = route.params.partyId as string
 
 const account = ref<CurrentAccount | null>(null)
-const activeAccountTab = ref('detail')
+const activeAccountTab = usePersistedViewTab('current-account-record', 'detail')
 const accountTabs = [
   { label: 'Detalle de la cuenta', value: 'detail', slot: 'detail', icon: 'i-lucide-list' },
   { label: 'Análisis de la cuenta', value: 'analysis', slot: 'analysis', icon: 'i-lucide-chart-no-axes-combined' }
@@ -263,6 +263,7 @@ const accountActionItems = computed(() => [
       :total-credit="totalCredit"
       :party-type="account?.party_type"
       :party-type-label="partyTypeLabel"
+      :currency-code="account?.currency_code ?? 'ARS'"
       :account-count="entries.length"
     />
 
@@ -302,6 +303,7 @@ const accountActionItems = computed(() => [
             :entries="entries"
             :balance="balance"
             :party-type="account?.party_type"
+            :currency-code="account?.currency_code ?? 'ARS'"
           />
         </div>
       </template>

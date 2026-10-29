@@ -2,17 +2,18 @@
 import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 import { currentAccountEntryColumns, ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
-import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 
 const props = defineProps<{
   entries: any[]
   loading?: boolean
   partyType?: string
+  initialSorting?: SortingState
   canDeleteManualAdjustments?: boolean
   onDeleteManualAdjustment?: (entry: any) => void
 }>()
 
-const sorting = ref<SortingState>([])
+const sorting = ref<SortingState>(props.initialSorting?.map(item => ({ ...item })) ?? [])
 
 function onSortFieldSelect(columnId: string) {
   const current = sorting.value[0]
@@ -58,7 +59,7 @@ const sortFields: SortField[] = [
     </template>
 
     <div class="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
-      <LogisticaTable
+      <AsteriskTable
         :loading="loading"
         :data="entries"
         :columns="columns"

@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
-import { resolveEntrySide } from '~/modulos/erp/current-accounts/utils'
+import { resolveEntrySide, resolveHrValeLabel } from '~/modulos/erp/current-accounts/utils'
 import { balanceChartColor, balanceChartAreaColor, entryChartColor } from '~/modulos/erp/current-accounts/balance-utils'
 
 const props = defineProps<{
   entries: any[]
   balance: number
   partyType?: string
+  currencyCode?: string
+  useLedgerBalance?: boolean
 }>()
 
 const formatCurrency = (amount: number) => {
   const num = Number(amount) || 0
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency: 'ARS',
+    currency: props.currencyCode || 'ARS',
     maximumFractionDigits: 2
   }).format(num)
 }
@@ -49,6 +51,12 @@ const balanceChartData = computed(() => {
   const values: number[] = [0]
   let runningBalance = 0
   for (const e of sorted) {
+    if (props.useLedgerBalance && e.balance_after != null) {
+      runningBalance = Number(e.balance_after) || 0
+      dates.push(e.date?.split('T')[0] ?? '')
+      values.push(runningBalance)
+      continue
+    }
     const amount = Number(e.converted_amount ?? e.amount) || 0
     const replacement = e.type === 'INVOICE' && e.reference_id
       ? replacementByDocument.value.get(e.reference_id) ?? 0
@@ -96,7 +104,7 @@ const entryTypeSummary = computed(() => {
   for (const e of props.entries) {
     if (['ORDER_INVOICE_REPLACEMENT', 'ORDER_INVOICE_REPLACEMENT_REVERSAL'].includes(e.type)) continue
     const config = ENTRY_TYPE_CONFIG[e.type]
-    const label = config?.label ?? e.type
+    const label = resolveHrValeLabel(e, props.partyType, false) ?? config?.label ?? e.type
     const existing = map.get(label) || { count: 0, total: 0, type: e.type }
     existing.count++
     existing.total += Number(e.converted_amount ?? e.amount) || 0

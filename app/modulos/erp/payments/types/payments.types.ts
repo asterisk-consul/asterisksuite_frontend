@@ -52,6 +52,9 @@ export interface PaymentObligationSummary {
 
 export interface Payment {
   id: string
+  source_kind?: 'PARTNER_VALE'
+  source_id?: string
+  source_description?: string | null
   number: number
   type: PaymentType
   date: string

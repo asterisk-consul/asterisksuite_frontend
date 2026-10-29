@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
+import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 
 interface Props {
   open: boolean
@@ -15,6 +16,8 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+const operationsService = useInternationalOperationsService()
+const toast = useToast()
 
 const loading = ref(false)
 const selectedDocument = ref<{ label: string; value: string } | undefined>(undefined)
@@ -71,14 +74,17 @@ const handleAssociate = async () => {
   if (!selectedDocumentId.value) return
   try {
     loading.value = true
-    await $fetch(`/api/backend/${props.operationId}/quotes`, {
-      method: 'POST',
-      body: { document_id: selectedDocumentId.value }
-    })
+    await operationsService.associateQuote(props.operationId, selectedDocumentId.value)
     emit('associated')
     emit('update:open', false)
   } catch (err) {
     console.error('Error associating quote:', err)
+    toast.add({
+      title: 'No se pudo asociar el presupuesto',
+      description: (err as any)?.data?.message || (err as any)?.message || 'Revisá el presupuesto y tus permisos e intentá de nuevo.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
   } finally {
     loading.value = false
   }

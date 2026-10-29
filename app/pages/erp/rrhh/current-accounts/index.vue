@@ -3,7 +3,7 @@ definePageMeta({ middleware: ['auth'] })
 
 import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
 import type { HrAccount } from '~/modulos/erp/hr/types/hr.types'
-import { isReceivable, balanceColorClass } from '~/modulos/erp/current-accounts/balance-utils'
+import { balanceColorClass } from '~/modulos/erp/current-accounts/balance-utils'
 
 const hrStore = useHrStore()
 const { accounts: allAccounts, loading } = storeToRefs(hrStore)
@@ -51,43 +51,8 @@ const filteredActive = computed(() => {
   return list
 })
 
-const receivableAccounts = computed(() => filteredActive.value.filter((a) => isReceivable(Number(a.balance), a.party_type)))
-const payableAccounts = computed(() => filteredActive.value.filter((a) => !isReceivable(Number(a.balance), a.party_type) && Number(a.balance) !== 0))
-interface CurrencyTotals {
-  receivable: number
-  payable: number
-  net: number
-  receivableCount: number
-  payableCount: number
-}
-
-const totalsByCurrency = computed(() => {
-  const map: Record<string, CurrencyTotals> = {}
-  for (const a of filteredActive.value) {
-    const code = a.currency_code || 'ARS'
-    if (!map[code]) map[code] = { receivable: 0, payable: 0, net: 0, receivableCount: 0, payableCount: 0 }
-    const num = Number(a.balance) || 0
-    if (isReceivable(num, a.party_type)) {
-      map[code].receivable += Math.abs(num)
-      map[code].receivableCount++
-    } else if (num !== 0) {
-      map[code].payable += Math.abs(num)
-      map[code].payableCount++
-    }
-    map[code].net += isReceivable(num, a.party_type) ? Math.abs(num) : -Math.abs(num)
-  }
-  return map
-})
-
-const summaryCurrencies = computed(() => Object.keys(totalsByCurrency.value))
-
-const totalReceivable = computed(() =>
-  Object.values(totalsByCurrency.value).reduce((s, t) => s + t.receivable, 0)
-)
-const totalPayable = computed(() =>
-  Object.values(totalsByCurrency.value).reduce((s, t) => s + t.payable, 0)
-)
-const netBalance = computed(() => totalReceivable.value - totalPayable.value)
+const partnerAccounts = computed(() => filteredActive.value.filter((account) => account.party_type === 'PARTNER'))
+const employeeAccounts = computed(() => filteredActive.value.filter((account) => account.party_type === 'EMPLOYEE'))
 
 // =========================
 // TAB: HISTORIAL
@@ -147,58 +112,6 @@ const goToAccount = (account: HrAccount) => {
       <!-- ======================== TAB: ACTIVAS ======================== -->
       <template #activas>
         <div class="space-y-6 pt-4">
-          <!-- SUMMARY -->
-          <div class="space-y-3">
-            <template v-for="currency in summaryCurrencies" :key="currency">
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <UPageCard variant="subtle">
-                  <div class="flex items-center gap-4">
-                    <div class="size-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
-                      <UIcon name="i-lucide-arrow-down-left" class="size-5 text-success" />
-                    </div>
-                    <div>
-                      <p class="text-xs text-muted font-medium uppercase">A cobrar</p>
-                      <p class="text-lg font-bold text-success">{{ formatCurrency(totalsByCurrency[currency].receivable, currency) }}</p>
-                      <p class="text-xs text-muted">{{ totalsByCurrency[currency].receivableCount }} cuentas</p>
-                    </div>
-                  </div>
-                </UPageCard>
-                <UPageCard variant="subtle">
-                  <div class="flex items-center gap-4">
-                    <div class="size-10 rounded-lg bg-error/10 flex items-center justify-center shrink-0">
-                      <UIcon name="i-lucide-arrow-up-right" class="size-5 text-error" />
-                    </div>
-                    <div>
-                      <p class="text-xs text-muted font-medium uppercase">A pagar</p>
-                      <p class="text-lg font-bold text-error">{{ formatCurrency(totalsByCurrency[currency].payable, currency) }}</p>
-                      <p class="text-xs text-muted">{{ totalsByCurrency[currency].payableCount }} cuentas</p>
-                    </div>
-                  </div>
-                </UPageCard>
-                <UPageCard variant="subtle">
-                  <div class="flex items-center gap-4">
-                    <div
-                      class="size-10 rounded-lg flex items-center justify-center shrink-0"
-                      :class="totalsByCurrency[currency].net >= 0 ? 'bg-primary/10' : 'bg-warning/10'"
-                    >
-                      <UIcon
-                        name="i-lucide-scale"
-                        class="size-5"
-                        :class="totalsByCurrency[currency].net >= 0 ? 'text-primary' : 'text-warning'"
-                      />
-                    </div>
-                    <div>
-                      <p class="text-xs text-muted font-medium uppercase">Saldo neto · {{ currency }}</p>
-                      <p class="text-lg font-bold" :class="totalsByCurrency[currency].net >= 0 ? 'text-primary' : 'text-warning'">
-                        {{ formatCurrency(totalsByCurrency[currency].net, currency) }}
-                      </p>
-                    </div>
-                  </div>
-                </UPageCard>
-              </div>
-            </template>
-          </div>
-
           <!-- SEARCH + FILTERS -->
           <div class="flex items-center gap-3">
             <UInput
@@ -212,45 +125,36 @@ const goToAccount = (account: HrAccount) => {
 
           <!-- TWO COLUMNS -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- A COBRAR -->
+            <!-- SOCIOS -->
             <UPageCard variant="subtle">
               <template #header>
                 <div class="flex items-center justify-between">
                   <h3 class="text-sm font-semibold flex items-center gap-2">
-                    <UIcon name="i-lucide-arrow-down-left" class="size-4 text-success" />
-                    A cobrar
+                    <UIcon name="i-lucide-users-round" class="size-4 text-warning" />
+                    Socios
                     <UBadge
-                      v-if="receivableAccounts.length > 0"
-                      :label="`${receivableAccounts.length}`"
-                      color="success"
+                      v-if="partnerAccounts.length > 0"
+                      :label="`${partnerAccounts.length}`"
+                      color="warning"
                       variant="soft"
                       size="xs"
                     />
                   </h3>
-                  <div class="flex flex-wrap gap-2">
-                    <span
-                      v-for="currency in summaryCurrencies"
-                      :key="'recv-' + currency"
-                      class="text-sm font-bold text-success"
-                    >
-                      {{ formatCurrency(totalsByCurrency[currency].receivable, currency) }}
-                    </span>
-                  </div>
                 </div>
               </template>
-              <div v-if="receivableAccounts.length === 0" class="text-center py-8 text-muted text-sm">
-                No hay saldos positivos
+              <div v-if="partnerAccounts.length === 0" class="text-center py-8 text-muted text-sm">
+                No hay cuentas de socios con saldo
               </div>
-              <div v-else class="divide-y divide-default">
+              <div v-else class="min-h-[19rem] max-h-[22rem] overflow-y-auto overscroll-contain divide-y divide-default pr-2">
                 <button
-                  v-for="account in receivableAccounts"
+                  v-for="account in partnerAccounts"
                   :key="`${account.party_id}-${account.currency_code}`"
                   class="flex items-center justify-between w-full py-3 px-1 first:pt-0 last:pb-0 hover:bg-muted/30 transition-colors -mx-1 rounded text-left"
                   @click="goToAccount(account)"
                 >
                   <div class="flex items-center gap-3 min-w-0">
-                    <div class="size-8 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
-                      <UIcon name="i-lucide-user" class="size-4 text-success" />
+                    <div class="size-8 rounded-lg bg-warning/10 flex items-center justify-center shrink-0">
+                      <UIcon name="i-lucide-user-round" class="size-4 text-warning" />
                     </div>
                     <div class="min-w-0">
                       <p class="text-sm font-medium truncate">{{ account.party?.name ?? 'Sin nombre' }}</p>
@@ -265,52 +169,43 @@ const goToAccount = (account: HrAccount) => {
                       </p>
                     </div>
                   </div>
-                  <span class="text-sm font-bold text-success shrink-0 ml-3">
-                    {{ formatCurrency(Number(account.balance), account.currency_code) }}
+                  <span class="text-sm font-bold shrink-0 ml-3" :class="balanceColor(Number(account.balance), account.party_type)">
+                    {{ formatCurrency(account.balance, account.currency_code) }}
                   </span>
                 </button>
               </div>
             </UPageCard>
 
-            <!-- A PAGAR -->
+            <!-- EMPLEADOS -->
             <UPageCard variant="subtle">
               <template #header>
                 <div class="flex items-center justify-between">
                   <h3 class="text-sm font-semibold flex items-center gap-2 py-4">
-                    <UIcon name="i-lucide-arrow-up-right" class="size-4 text-error" />
-                    A pagar
+                    <UIcon name="i-lucide-users-round" class="size-4 text-info" />
+                    Empleados
                     <UBadge
-                      v-if="payableAccounts.length > 0"
-                      :label="`${payableAccounts.length}`"
-                      color="error"
+                      v-if="employeeAccounts.length > 0"
+                      :label="`${employeeAccounts.length}`"
+                      color="info"
                       variant="soft"
                       size="xs"
                     />
                   </h3>
-                  <div class="flex flex-wrap gap-2">
-                    <span
-                      v-for="currency in summaryCurrencies"
-                      :key="'pay-' + currency"
-                      class="text-sm font-bold text-error"
-                    >
-                      {{ formatCurrency(totalsByCurrency[currency].payable, currency) }}
-                    </span>
-                  </div>
                 </div>
               </template>
-              <div v-if="payableAccounts.length === 0" class="text-center py-8 text-muted text-sm">
-                No hay saldos negativos
+              <div v-if="employeeAccounts.length === 0" class="text-center py-8 text-muted text-sm">
+                No hay cuentas de empleados con saldo
               </div>
-              <div v-else class="divide-y divide-default">
+              <div v-else class="min-h-[19rem] max-h-[22rem] overflow-y-auto overscroll-contain divide-y divide-default pr-2">
                 <button
-                  v-for="account in payableAccounts"
+                  v-for="account in employeeAccounts"
                   :key="`${account.party_id}-${account.currency_code}`"
                   class="flex items-center justify-between w-full py-3 px-1 first:pt-0 last:pb-0 hover:bg-muted/30 transition-colors -mx-1 rounded text-left"
                   @click="goToAccount(account)"
                 >
                   <div class="flex items-center gap-3 min-w-0">
-                    <div class="size-8 rounded-lg bg-error/10 flex items-center justify-center shrink-0">
-                      <UIcon name="i-lucide-user" class="size-4 text-error" />
+                    <div class="size-8 rounded-lg bg-info/10 flex items-center justify-center shrink-0">
+                      <UIcon name="i-lucide-user-round" class="size-4 text-info" />
                     </div>
                     <div class="min-w-0">
                       <p class="text-sm font-medium truncate">{{ account.party?.name ?? 'Sin nombre' }}</p>
@@ -325,8 +220,8 @@ const goToAccount = (account: HrAccount) => {
                       </p>
                     </div>
                   </div>
-                  <span class="text-sm font-bold text-error shrink-0 ml-3">
-                    {{ formatCurrency(Math.abs(Number(account.balance)), account.currency_code) }}
+                  <span class="text-sm font-bold shrink-0 ml-3" :class="balanceColor(Number(account.balance), account.party_type)">
+                    {{ formatCurrency(account.balance, account.currency_code) }}
                   </span>
                 </button>
               </div>
@@ -379,12 +274,12 @@ const goToAccount = (account: HrAccount) => {
                     <div class="flex items-center gap-3">
                       <div
                         class="size-8 rounded-lg flex items-center justify-center shrink-0"
-                        :class="isReceivable(Number(account.balance), account.party_type) ? 'bg-success/10' : 'bg-error/10'"
+                        :class="account.party_type === 'EMPLOYEE' ? 'bg-info/10' : 'bg-warning/10'"
                       >
                         <UIcon
                           name="i-lucide-user"
                           class="size-4"
-                          :class="isReceivable(Number(account.balance), account.party_type) ? 'text-success' : 'text-error'"
+                          :class="account.party_type === 'EMPLOYEE' ? 'text-info' : 'text-warning'"
                         />
                       </div>
                       <div>

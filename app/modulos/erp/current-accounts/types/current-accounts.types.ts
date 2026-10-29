@@ -1,5 +1,7 @@
 export type AccountEntryType =
   | 'PAYMENT'
+  | 'VALE_DEBIT'
+  | 'VALE_CREDIT'
   | 'COLLECTION'
   | 'ADVANCE'
   | 'LOAN'
@@ -70,6 +72,8 @@ export interface CurrentAccountEntry {
   user_name?: string | null
   date: string
   document_chain?: DocumentChainNode[] | null
+  vale_type?: string | null
+  vale_status?: string | null
 
   created_at?: string
   updated_at?: string

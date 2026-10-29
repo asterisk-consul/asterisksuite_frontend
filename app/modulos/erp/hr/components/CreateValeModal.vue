@@ -24,6 +24,10 @@ const treasuryTargetId = ref('')
 const cashBoxes = ref<any[]>([])
 const bankAccounts = ref<any[]>([])
 const pendingCreatedValeId = ref<string | null>(null)
+const partnerFunds = ref<{ contributions: number; withdrawals: number; balance: number; available: number; remuneration_pending: number } | null>(null)
+const loadingFunds = ref(false)
+const fundsError = ref(false)
+let fundsRequest = 0
 
 const createForm = ref({
   party_id: '',
@@ -50,10 +54,11 @@ const valeTypeOptions: Record<string, { label: string; value: string; icon: stri
     { label: 'Extras', value: 'EXTRAS', icon: 'i-lucide-gift', description: 'Bonuses y horas extras' }
   ],
   PARTNER: [
-    { label: 'Retiro', value: 'RETIRO', icon: 'i-lucide-arrow-up-right', description: 'El socio retira dinero' },
-    { label: 'Aporte', value: 'APORTE', icon: 'i-lucide-arrow-down-left', description: 'Aporte de capital del socio' },
+    { label: 'Retirar aportes', value: 'RETIRO', icon: 'i-lucide-arrow-up-right', description: 'Recuperar fondos aportados, hasta el saldo disponible' },
+    { label: 'Aportar fondos', value: 'APORTE', icon: 'i-lucide-arrow-down-left', description: 'Ingresar dinero y aumentar los aportes disponibles' },
+    { label: 'Remuneración por trabajo', value: 'SUELDO', icon: 'i-lucide-banknote', description: 'Reconocer un importe por su trabajo y pagarlo desde Tesorería' },
     { label: 'Reembolso', value: 'REEMBOLSO', icon: 'i-lucide-receipt', description: 'Reembolso de gastos' },
-    { label: 'Préstamo', value: 'PRESTAMO', icon: 'i-lucide-hand-coins', description: 'Préstamo de la empresa' }
+    { label: 'Préstamo al socio', value: 'PRESTAMO', icon: 'i-lucide-hand-coins', description: 'Dinero que el socio deberá devolver; no consume aportes' }
   ]
 }
 
@@ -80,7 +85,7 @@ const alertTitle = computed(() =>
 
 const alertDescription = computed(() =>
   confirmAutomatically.value
-    ? (isPartner.value
+    ? (requiresDirectTreasury.value
         ? 'Al confirmar se registrarán juntos el vale, la cuenta del socio y el ingreso o egreso en Tesorería.'
         : 'Una vez confirmado, generará un documento VALE e impactará la cuenta corriente.')
     : 'Podés confirmarlo después desde la lista de vales.'
@@ -162,6 +167,27 @@ async function loadTreasuryTargets() {
 }
 
 const isPartner = computed(() => createForm.value.party_type === 'PARTNER')
+const requiresDirectTreasury = computed(() => isPartner.value && createForm.value.type !== 'SUELDO')
+const isWithdrawal = computed(() => isPartner.value && createForm.value.type === 'RETIRO')
+const withdrawalBlocked = computed(() => isWithdrawal.value && (loadingFunds.value || fundsError.value || !partnerFunds.value || Number(createForm.value.amount) > partnerFunds.value.available))
+const formatFunds = (amount: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: createForm.value.currency_code }).format(amount)
+
+watch([open, () => createForm.value.party_id, () => createForm.value.party_type, () => createForm.value.currency_code], async () => {
+  const request = ++fundsRequest
+  partnerFunds.value = null
+  fundsError.value = false
+  loadingFunds.value = false
+  if (!open.value || !isPartner.value || !createForm.value.party_id) return
+  loadingFunds.value = true
+  try {
+    const funds = await $fetch<NonNullable<typeof partnerFunds.value>>(`/api/backend/hr/partners/${createForm.value.party_id}/funds`, { query: { currency_code: createForm.value.currency_code } })
+    if (request === fundsRequest) partnerFunds.value = funds
+  } catch {
+    if (request === fundsRequest) fundsError.value = true
+  } finally {
+    if (request === fundsRequest) loadingFunds.value = false
+  }
+})
 const treasuryTargetOptions = computed(() => {
   const currency = createForm.value.currency_code
   if (treasuryTargetType.value === 'CASH_BOX') {
@@ -198,7 +224,7 @@ function resetForm() {
 }
 
 async function handleCreate() {
-  if (saving.value) return
+  if (saving.value || withdrawalBlocked.value) return
   try {
     saving.value = true
     const vale = pendingCreatedValeId.value
@@ -210,7 +236,7 @@ async function handleCreate() {
         })
     pendingCreatedValeId.value = vale.id
     if (confirmAutomatically.value) {
-      await hrStore.confirmVale(vale.id, isPartner.value ? {
+      await hrStore.confirmVale(vale.id, requiresDirectTreasury.value ? {
         treasury_target_type: treasuryTargetType.value,
         treasury_target_id: treasuryTargetId.value
       } : undefined)
@@ -365,6 +391,22 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           </UFormField>
         </div>
 
+        <div v-if="isPartner && createForm.party_id" class="rounded-xl border border-default p-4 flex flex-col gap-2">
+          <p class="font-medium">Aportes disponibles · {{ createForm.currency_code }}</p>
+          <p v-if="loadingFunds" class="text-sm text-muted">Consultando aportes…</p>
+          <p v-else-if="fundsError" class="text-sm text-error">No se pudo consultar el disponible. Volvé a seleccionar el socio para reintentar.</p>
+          <template v-else-if="partnerFunds">
+            <div class="flex justify-between text-sm"><span>Aportes confirmados</span><span>{{ formatFunds(partnerFunds.contributions) }}</span></div>
+            <div class="flex justify-between text-sm"><span>Retiros confirmados</span><span>{{ formatFunds(partnerFunds.withdrawals) }}</span></div>
+            <div class="flex justify-between font-semibold"><span>Disponible para retirar</span><span>{{ formatFunds(partnerFunds.available) }}</span></div>
+            <div class="flex justify-between text-sm"><span>Remuneraciones pendientes de pago</span><span>{{ formatFunds(partnerFunds.remuneration_pending) }}</span></div>
+            <div v-if="isWithdrawal" class="flex justify-between text-sm" :class="withdrawalBlocked ? 'text-error' : 'text-muted'"><span>Saldo después del retiro</span><span>{{ formatFunds(partnerFunds.balance - Number(createForm.amount || 0)) }}</span></div>
+            <p v-if="isWithdrawal && withdrawalBlocked" class="text-sm text-error">El retiro supera los aportes disponibles. Reducí el importe o registrá un préstamo si corresponde.</p>
+            <p v-if="partnerFunds.balance < 0" class="text-sm text-warning">Los retiros históricos superan los aportes registrados. Revisá los movimientos antes de registrar nuevos retiros.</p>
+          </template>
+          <p class="text-xs text-muted">El disponible se calcula con vales de aporte y retiro confirmados en esta moneda. Las remuneraciones, reembolsos y préstamos no aumentan los aportes disponibles.</p>
+        </div>
+
         <!-- Tipo de cambio -->
         <div class="space-y-2">
           <div class="grid grid-cols-1 md:grid-cols-[minmax(260px,0.65fr)_minmax(0,1.35fr)] gap-4">
@@ -409,7 +451,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
         </div>
         </UPageCard>
 
-        <UPageCard v-if="isPartner" variant="subtle" class="space-y-4 ring-1" :class="isOutflow ? 'ring-error/20' : 'ring-success/20'">
+        <UPageCard v-if="requiresDirectTreasury" variant="subtle" class="space-y-4 ring-1" :class="isOutflow ? 'ring-error/20' : 'ring-success/20'">
           <div class="flex items-start justify-between gap-4">
             <div>
               <p class="font-medium">3. Movimiento financiero</p>
@@ -457,7 +499,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
         <!-- Fecha -->
         <UPageCard variant="subtle" class="space-y-4">
           <div>
-            <p class="font-medium">{{ isPartner ? '4' : '3' }}. Información adicional</p>
+            <p class="font-medium">{{ requiresDirectTreasury ? '4' : '3' }}. Información adicional</p>
             <p class="text-sm text-muted">Completá la fecha y una referencia que permita identificar el movimiento.</p>
           </div>
         <UFormField label="Fecha" required>
@@ -475,7 +517,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
     <template #footer>
       <div class="flex w-full items-center justify-between gap-3">
         <p class="hidden sm:block text-xs text-muted">
-          {{ isPartner && confirmAutomatically ? `${isOutflow ? 'Se debitará' : 'Se acreditará'} en ${treasuryTargetType === 'CASH_BOX' ? 'caja' : 'banco'}.` : 'Revisá los datos antes de guardar.' }}
+          {{ requiresDirectTreasury && confirmAutomatically ? `${isOutflow ? 'Se debitará' : 'Se acreditará'} en ${treasuryTargetType === 'CASH_BOX' ? 'caja' : 'banco'}.` : isPartner && createForm.type === 'SUELDO' ? 'La remuneración queda pendiente de pago en Tesorería.' : 'Revisá los datos antes de guardar.' }}
         </p>
         <div class="flex justify-end gap-2">
         <UButton label="Cancelar" variant="ghost" :disabled="saving" @click="open = false" />
@@ -484,15 +526,16 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           label="Crear borrador"
           variant="outline"
           :loading="saving"
-          :disabled="saving || !createForm.party_id || createForm.amount <= 0 || !createForm.exchange_rate"
+          :disabled="saving || withdrawalBlocked || !createForm.party_id || createForm.amount <= 0 || !createForm.exchange_rate"
           @click="handleCreate"
         />
         <UButton
+          v-if="confirmAutomatically"
           label="Crear y confirmar"
           color="success"
           icon="i-lucide-check"
           :loading="saving"
-          :disabled="saving || !createForm.party_id || createForm.amount <= 0 || !createForm.exchange_rate || (isPartner && !treasuryTargetId)"
+          :disabled="saving || withdrawalBlocked || !createForm.party_id || createForm.amount <= 0 || !createForm.exchange_rate || (requiresDirectTreasury && !treasuryTargetId)"
           @click="handleCreate"
         />
         </div>

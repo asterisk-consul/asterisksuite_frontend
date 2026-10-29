@@ -293,7 +293,7 @@ const sortFields: SortField[] = [
 ]
 
 // Movements tabs
-const movementsTab = ref('today')
+const movementsTab = usePersistedViewTab('cash-box-movements', 'today')
 const showCancelledMovements = ref(false)
 const movementsTabs = [
   { label: 'Hoy', icon: 'i-lucide-calendar-check', value: 'today', slot: 'today' },

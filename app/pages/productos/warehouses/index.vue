@@ -221,7 +221,7 @@ const links = ref([
       class="mb-4 w-full"
     />
 
-    <LogisticaTable :loading="loading" :data="warehouses" :columns="columns" :on-delete="handleBulkDelete" />
+    <LogisticaTable :loading="loading" :data="warehouses" :columns="columns" :on-row-click="openEdit" :on-delete="handleBulkDelete" />
   </UPage>
 
   <ModalForm

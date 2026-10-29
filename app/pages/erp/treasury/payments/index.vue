@@ -37,6 +37,8 @@ const importOpen = ref(false)
 const actionModalOpen = ref(false)
 const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse' | 'delete'>('confirm')
 const actionPayment = ref<Payment | null>(null)
+const partnerValeDetailOpen = ref(false)
+const partnerValeDetail = ref<Payment | null>(null)
 const checkAction = ref<'RETURN_TO_PORTFOLIO' | 'CANCEL'>('RETURN_TO_PORTFOLIO')
 
 const actionLabels: Record<string, { title: string; button: string; color: string; description: string }> = {
@@ -53,6 +55,11 @@ function onSortFieldSelect(columnId: string) {
 }
 
 const openDetail = (row: Payment) => {
+  if (row.source_kind === 'PARTNER_VALE') {
+    partnerValeDetail.value = row
+    partnerValeDetailOpen.value = true
+    return
+  }
   router.push(`/erp/treasury/payments/${row.id}`)
 }
 
@@ -245,11 +252,59 @@ const dataActions = computed(() => [
       :loading="loading"
       :data="filteredPayments"
       :columns="columns"
+      :on-row-click="openDetail"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       storage-key="treasury-payments"
       v-model:sorting="sorting"
     />
+
+    <UModal v-model:open="partnerValeDetailOpen" title="Movimiento de vale de socio">
+      <template #body>
+        <div v-if="partnerValeDetail" class="space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-default bg-muted/20 p-4">
+            <div>
+              <p class="text-xs uppercase tracking-wide text-muted">Vale de socio</p>
+              <p class="mt-1 text-lg font-semibold">N° {{ partnerValeDetail.number }} · {{ partnerValeDetail.party?.name }}</p>
+            </div>
+            <UBadge
+              :label="partnerValeDetail.status === 'CANCELLED' ? 'Anulado' : partnerValeDetail.type === 'PAYMENT' ? 'Pago' : 'Cobro'"
+              :color="partnerValeDetail.status === 'CANCELLED' ? 'error' : partnerValeDetail.type === 'PAYMENT' ? 'error' : 'success'"
+              variant="subtle"
+            />
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p class="text-sm text-muted">Fecha</p>
+              <p class="font-medium">{{ new Date(partnerValeDetail.date).toLocaleDateString('es-AR') }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-muted">Medio</p>
+              <p class="font-medium">{{ partnerValeDetail.payment_method === 'CASH' ? 'Caja' : 'Cuenta bancaria' }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-muted">Cuenta de origen</p>
+              <p class="font-medium">{{ partnerValeDetail.cash_box?.name ?? partnerValeDetail.bank_account?.name ?? '—' }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-muted">Importe</p>
+              <p class="font-semibold">{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: partnerValeDetail.currency_code || 'ARS', maximumFractionDigits: 2 }).format(Number(partnerValeDetail.amount) || 0) }}</p>
+            </div>
+          </div>
+          <UAlert
+            v-if="partnerValeDetail.status === 'CANCELLED'"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-undo-2"
+            title="Vale anulado"
+            description="El movimiento original se conserva para trazabilidad y su efecto en Tesorería fue revertido."
+          />
+          <p v-if="partnerValeDetail.description" class="rounded-lg border border-default p-3 text-sm text-muted">
+            {{ partnerValeDetail.description }}
+          </p>
+        </div>
+      </template>
+    </UModal>
 
     <!-- GENERIC ACTION MODAL -->
     <UModal v-model:open="actionModalOpen" :title="actionLabels[actionType]?.title">

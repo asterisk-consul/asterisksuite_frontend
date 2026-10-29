@@ -1,4 +1,5 @@
 import type { TableFilter } from '~/components/Tablas/types/tablas.types'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 
 type SortingState = { id: string; desc: boolean }[]
 type ServerTableState = {
@@ -16,21 +17,27 @@ export function useServerTable(load: (query: {
   sort?: string
   order?: 'asc' | 'desc'
 }) => Promise<unknown>, stateKey?: string) {
-  const savedState = stateKey
-    ? useState<ServerTableState>('server-table:' + stateKey, () => ({
-        page: 1,
-        pageSize: 25,
-        search: '',
-        sorting: [],
-        filters: []
-      }))
-    : undefined
-  const page = ref(savedState?.value.page ?? 1)
-  const pageSize = ref(savedState?.value.pageSize ?? 25)
-  const search = ref(savedState?.value.search ?? '')
+  const route = useRoute()
+  const auth = useAuthStore()
+  const tableStateKey = [
+    'server-table',
+    auth.selectedCompany?.id ?? 'no-company',
+    auth.user?.id ?? 'anonymous',
+    stateKey ?? route.path
+  ].join(':')
+  const savedState = useState<ServerTableState>(tableStateKey, () => ({
+    page: 1,
+    pageSize: 25,
+    search: '',
+    sorting: [],
+    filters: []
+  }))
+  const page = ref(savedState.value.page ?? 1)
+  const pageSize = ref(savedState.value.pageSize ?? 25)
+  const search = ref(savedState.value.search ?? '')
   const debouncedSearch = ref(search.value.trim())
-  const sorting = ref<SortingState>(savedState?.value.sorting ?? [])
-  const filters = ref<TableFilter[]>(savedState?.value.filters ?? [])
+  const sorting = ref<SortingState>(savedState.value.sorting ?? [])
+  const filters = ref<TableFilter[]>(savedState.value.filters ?? [])
   const debouncedFilters = ref<TableFilter[]>(filters.value.map(filter => ({ ...filter })))
   let searchTimer: ReturnType<typeof setTimeout> | undefined
   let filterTimer: ReturnType<typeof setTimeout> | undefined
@@ -57,7 +64,6 @@ export function useServerTable(load: (query: {
   }, { deep: true })
 
   watch([page, pageSize, search, sorting, filters], () => {
-    if (!savedState) return
     savedState.value = {
       page: page.value,
       pageSize: pageSize.value,

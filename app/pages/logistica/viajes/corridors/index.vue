@@ -72,7 +72,6 @@ const columns = corridorsColumns({
   onEdit: openDetail,
   onSortFieldSelect,
   onDelete: handleDeleteOne
-  // onRowClick: openDetail
 })
 
 /* ---------------------------------------
@@ -142,6 +141,7 @@ const sortFields: SortField[] = [
       :loading="loading"
       :data="items"
       :columns="columns"
+      :on-row-click="openDetail"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"

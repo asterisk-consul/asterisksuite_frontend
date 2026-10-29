@@ -420,6 +420,7 @@ const sortFields = [
         server-side
         :page-size="pageSize"
         :total-rows="documentsPurchasesStore.pagination.total"
+        :on-row-click="openDocument"
         :on-delete="deleteDrafts"
         selectable
         :can-select-row="(row) => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3)"

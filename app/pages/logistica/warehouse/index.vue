@@ -219,7 +219,7 @@ const links = ref<ButtonProps[]>([
       />
     </div>
 
-    <LogisticaTable :loading="loading" :data="warehouses" :columns="columns" />
+    <LogisticaTable :loading="loading" :data="warehouses" :columns="columns" :on-row-click="openEdit" />
   </UPage>
 
   <ModalForm

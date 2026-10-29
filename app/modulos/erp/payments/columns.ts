@@ -41,6 +41,13 @@ const formatPaymentAmount = (amount: number | string | null | undefined, currenc
 }
 
 function getDocumentReferences(row: Row) {
+  if (row.source_kind === 'PARTNER_VALE') {
+    return [{
+      label: `Vale de socio · N° ${row.number}`,
+      detail: row.description ?? row.source_description ?? undefined
+    }]
+  }
+
   const documents = (row.documents ?? []).map((allocation) => {
     const document = allocation.document
     const kind = document?.document_types?.description ?? document?.document_types?.code ?? 'Comprobante'
@@ -289,6 +296,7 @@ export const paymentColumns = (actions: {
         id: 'actions',
         label: '',
         cell: ({ row }) => {
+          if (row.original.source_kind === 'PARTNER_VALE') return null
           const status = row.original.status
           const buttons: Array<{ icon: string; color: string; onClick: () => void }> = []
 

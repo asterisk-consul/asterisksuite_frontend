@@ -81,6 +81,7 @@ onMounted(async () => {
       :loading="loading"
       :data="orders"
       :columns="columns"
+      :on-row-click="goToDetail"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"

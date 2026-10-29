@@ -172,6 +172,10 @@ export const usePaymentsService = () => {
     })
   }
 
+  const updateFinalizedFinancialDetails = (id: string, data: { account_id: string | null; party_id?: string | null; withholdings: NonNullable<CreatePaymentInput['withholdings']> }) => {
+    return $fetch<Payment>(`${urlBase}/${id}/financial-details`, { method: 'PATCH', body: data })
+  }
+
   const remove = (id: string) => {
     return $fetch<void>(`${urlBase}/${id}`, {
       method: 'DELETE'
@@ -234,6 +238,7 @@ export const usePaymentsService = () => {
     createLightCheck,
     create,
     update,
+    updateFinalizedFinancialDetails,
     remove,
     reverse,
     confirm,

@@ -20,6 +20,7 @@ const {
   current,
   fetchOne,
   update,
+  updateFinalizedFinancialDetails,
   confirm: confirmPayment,
   markAsPaid,
   reject,
@@ -68,6 +69,13 @@ const canConfirmPayment = computed(() => can('payments.confirm'))
 const canMarkAsPaid = computed(() => can('payments.mark_as_paid'))
 const canRejectPayment = computed(() => can('payments.reject'))
 const canReversePayment = computed(() => can('payments.reverse'))
+const canEditFinalizedFinancialDetails = computed(() =>
+  (isConfirmed.value || isPaid.value)
+  && (['OWNER', 'ADMIN'].includes(String(authStore.selectedCompany?.role)) || hasPermission('payments.update'))
+  && ['CASH', 'BANK_TRANSFER'].includes(String(currentPayment.value?.payment_method))
+  && currentPayment.value?.payment_mode !== 'ADVANCE'
+  && (currentPayment.value?.type === 'EXPENSE' || Boolean(currentPayment.value?.party_id && currentPayment.value?.documents?.length))
+)
 const isAdvance = computed(() => currentPayment.value?.payment_mode === 'ADVANCE')
 const hasUnsavedDateChange = computed(() => isDraft.value && editingDate.value !== savedDate.value)
 
@@ -91,7 +99,7 @@ onMounted(async () => {
       savedDate.value = payment.date?.split('T')[0] ?? ''
       editingDate.value = savedDate.value
       paymentData.value = {
-        type: payment.type as 'PAYMENT' | 'COLLECTION',
+        type: payment.type as 'PAYMENT' | 'COLLECTION' | 'EXPENSE',
         payment_mode: (payment.payment_mode as 'NORMAL' | 'ADVANCE') ?? 'NORMAL',
         date: payment.date?.split('T')[0] ?? today(),
         payment_method: payment.payment_method ?? 'CASH',
@@ -122,6 +130,7 @@ onMounted(async () => {
         })) ?? [],
         bank_account: (payment as any).bank_account,
         cash_box: (payment as any).cash_box,
+        account: (payment as any).account,
         payment_allocations: (payment as any).payment_allocations ?? [],
       }
 
@@ -151,7 +160,8 @@ onMounted(async () => {
           rate: w.rate ? Number(w.rate) : 0,
           withheld_amount: Number(w.withheld_amount),
           automatic_amount: w.automatic_amount ? Number(w.automatic_amount) : null,
-          reason: w.reason ?? w.observations ?? 'Carga guardada'
+          reason: w.reason ?? w.observations ?? 'Carga guardada',
+          is_locked: Boolean(w.certificate_number || w.remittance_id)
         }))
       }
     }
@@ -206,6 +216,47 @@ const handleSubmit = async (formData: PaymentFormData) => {
       color: 'error',
       icon: 'i-lucide-alert-circle'
     })
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const handleFinalizedDetailsSave = async (payload: { account_id: string | null; party_id?: string | null; withholdings: any[] }) => {
+  if (isSaving.value || !canEditFinalizedFinancialDetails.value) return
+  isSaving.value = true
+  try {
+    const updated = await updateFinalizedFinancialDetails(paymentId, payload)
+    currentPayment.value = updated as Payment
+    if (paymentData.value) paymentData.value = {
+      ...paymentData.value,
+      amount: Number(updated.amount),
+      converted_amount: updated.converted_amount == null ? null : Number(updated.converted_amount),
+      account_id: updated.account_id ?? '',
+      account: (updated as any).account,
+      party_id: updated.party_id ?? '',
+    }
+    const rows = (updated as any).withholdings ?? []
+    initialWithholdings.value = rows.map((w: any) => ({
+      is_manual: !w.tax_rule_id && !w.withholding_concept_id,
+      tax_type: w.tax_type,
+      jurisdiction_id: w.jurisdiction_id ?? null,
+      jurisdiction_name: w.jurisdiction?.name ?? null,
+      withholding_concept_id: w.withholding_concept_id ?? null,
+      tax_rule_id: w.tax_rule_id ?? null,
+      rule_name: w.rule_name ?? 'Guardada',
+      base_amount: Number(w.base_amount),
+      prorrate_percentage: w.prorrate_percentage == null ? null : Number(w.prorrate_percentage),
+      rate: w.rate == null ? 0 : Number(w.rate),
+      withheld_amount: Number(w.withheld_amount),
+      automatic_amount: w.automatic_amount == null ? null : Number(w.automatic_amount),
+      reason: w.observations ?? 'Carga guardada',
+      certificate_number: w.certificate_number ?? undefined,
+      certificate_date: w.certificate_date?.split('T')[0] ?? undefined,
+      is_locked: Boolean(w.certificate_number || w.remittance_id),
+    }))
+    toast.add({ title: 'Cambios financieros guardados', description: 'Se actualizó el importe del pago y se recalcularon los saldos de caja/banco y cuenta corriente. El bruto aplicado a las facturas se conservó.', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudieron guardar los cambios', description: error?.data?.message || error?.message || 'Revisá las retenciones y la cuenta seleccionada.', color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
     isSaving.value = false
   }
@@ -388,7 +439,7 @@ const handleAdvanceSuccess = async () => {
         variant="subtle"
         icon="i-lucide-lock-keyhole"
         title="Operación de solo lectura"
-        description="La fecha y los demás datos se bloquean al confirmar el pago o cobro para preservar sus movimientos de tesorería y cuenta corriente."
+        description="La fecha, el medio y las facturas aplicadas se bloquean al confirmar. Con permiso, podés ajustar retenciones y cuenta contable; el importe del pago y el saldo de caja o banco se recalculan sobre el movimiento original."
       />
 
       <!-- FORM (readonly when not DRAFT) -->
@@ -401,11 +452,14 @@ const handleAdvanceSuccess = async () => {
           :available-own-checks="availableOwnChecks"
           :available-customer-checks="availableCustomerChecks"
           :initial-withholdings="initialWithholdings"
+          :allow-finalized-financial-edit="canEditFinalizedFinancialDetails"
+          :saving-financial-details="isSaving"
           :local-draft-enabled="false"
           :loading="isSaving"
           submit-label="Guardar borrador"
           @update:model-value="handleFormModelUpdate"
           @submit="handleSubmit"
+          @save-finalized-details="handleFinalizedDetailsSave"
           @cancel="router.push('/erp/treasury/payments')"
         />
         <UiAttachmentManager

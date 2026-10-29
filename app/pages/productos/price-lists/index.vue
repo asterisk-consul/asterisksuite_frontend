@@ -161,6 +161,7 @@ const links = ref([
       :loading="loading"
       :data="filteredLists"
       :columns="columns"
+      :on-row-click="openEdit"
     />
   </UPage>
 

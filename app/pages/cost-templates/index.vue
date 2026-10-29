@@ -60,6 +60,8 @@ const templateColumns = costTemplateColumns({
   }
 })
 
+const openTemplate = (row: CostTemplate) => router.push(`/cost-templates/${row.id}/edit`)
+
 // =========================
 // COMPONENT MODAL (create/edit)
 // =========================
@@ -133,6 +135,7 @@ const links = computed(() => {
           :loading="loading"
           :data="templates"
           :columns="templateColumns"
+          :on-row-click="openTemplate"
           v-model:sorting="templateSorting"
         />
       </template>
@@ -143,6 +146,7 @@ const links = computed(() => {
           :loading="loading"
           :data="components"
           :columns="componentColumns"
+          :on-row-click="openEditComponent"
           v-model:sorting="componentSorting"
         />
       </template>

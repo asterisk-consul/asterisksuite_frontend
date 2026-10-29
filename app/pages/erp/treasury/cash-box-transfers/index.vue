@@ -400,6 +400,7 @@ const sortFields: SortField[] = [
     <LogisticaTable
       :data="transfers"
       :columns="columns"
+      :on-row-click="openDetail"
       :loading="loading"
       :filter-fields="filterFields"
       :sort-fields="sortFields"

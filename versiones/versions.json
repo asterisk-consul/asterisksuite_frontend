@@ -1,5 +1,384 @@
 [
  {
+  "version": "0.105.4-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Las cuentas de socios muestran en rojo los saldos negativos y explican cuándo los retiros superan los aportes registrados. El resumen distingue reducciones e incrementos de saldo y mantiene separados aportes disponibles y remuneraciones pendientes.",
+  "changes": [
+   { "type": "fix", "scope": "hr", "title": "Corregir colores y significado de los saldos de socios" },
+   { "type": "fix", "scope": "hr", "title": "Explicar retiros históricos sin aportes suficientes y separar las tarjetas del resumen" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Aclarar el saldo y los retiros de socios"
+ },
+ {
+  "version": "0.105.3-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Las cuentas de RRHH identifican los movimientos como Vale empleado, Retiro, Aporte o Vale socio según su concepto. Los vales confirmados pendientes se identifican como A pagar.",
+  "changes": [
+   { "type": "fix", "scope": "hr", "title": "Identificar los vales por persona y concepto en el historial, gráficos y exportación" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Aclarar las etiquetas de vales de empleados y socios"
+ },
+ {
+  "version": "0.105.2-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "El historial de cuentas corrientes de RRHH abre con los movimientos más recientes arriba. Los movimientos de la misma fecha se ordenan por su momento de registro.",
+  "changes": [
+   { "type": "fix", "scope": "hr", "title": "Mostrar primero los movimientos más recientes en el historial de cuentas RRHH" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ordenar el historial de RRHH del más reciente al más antiguo"
+ },
+ {
+  "version": "0.105.1-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "El resumen de RRHH mejora la separación entre tarjetas y secciones. Los vales recientes se muestran en filas compactas, con cinco visibles y desplazamiento para consultar hasta veinte movimientos.",
+  "changes": [
+   { "type": "fix", "scope": "hr", "title": "Corregir el espaciado entre tarjetas y secciones del resumen de RRHH" },
+   { "type": "style", "scope": "hr", "title": "Compactar los vales recientes y añadir desplazamiento interno" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la lectura del resumen de RRHH"
+ },
+ {
+  "version": "0.105.0-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Los retiros de socios quedan limitados a sus aportes disponibles por moneda. El formulario distingue aportes, retiros, préstamos y remuneraciones por trabajo, que se pagan desde Tesorería.",
+  "changes": [
+   { "type": "feat", "scope": "hr", "title": "Mostrar aportes disponibles y bloquear retiros que superen el saldo del socio" },
+   { "type": "feat", "scope": "hr", "title": "Distinguir remuneraciones de socios y pagarlas desde Tesorería" },
+   { "type": "fix", "scope": "hr", "title": "Proteger aportes usados y compensar correctamente la anulación de vales" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Distinguir aportes y remuneraciones de socios"
+ },
+ {
+  "version": "0.104.0-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Los vales confirmados de empleados aparecen como pendientes en Tesorería y se pueden pagar desde RRHH. Los pagos actualizan la cuenta RRHH por el importe aplicado y admiten pagos parciales y reversión.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "hr",
+    "title": "Pagar vales de empleados desde RRHH y Tesorería"
+   },
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Compensar en la cuenta RRHH los pagos aplicados a vales"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Habilitar el pago trazable de vales de empleados"
+ },
+ {
+  "version": "0.103.15-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Los gráficos de cuentas corrientes de RRHH siguen el saldo firmado del libro y la moneda de la cuenta. Los resúmenes y gráficos de Tesorería también muestran la moneda de su cuenta.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Alinear la evolución gráfica de RRHH con el saldo real del libro"
+   },
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Formatear resúmenes y gráficos de cuentas en su moneda correspondiente"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Alinear los saldos de gráficos por moneda"
+ },
+ {
+  "version": "0.103.14-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "El detalle de la cuenta corriente de socios muestra el estado del vale y la caja o banco de origen del pago. La tabla y los gráficos representan importes en la moneda de la cuenta.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Mostrar estado y origen de pago de los vales en cuentas corrientes de RRHH"
+   },
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Representar tabla y gráficos en la moneda de la cuenta de RRHH"
+   },
+   {
+    "type": "docs",
+    "scope": "workflows",
+    "title": "Documentar el estado y origen de pago en el historial de RRHH"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Aclarar pagos y moneda en cuentas corrientes de RRHH"
+ },
+ {
+  "version": "0.103.13-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "El inicio de RRHH presenta accesos rápidos a empleados, socios, vales y cuentas corrientes; el resumen de vales recientes incluye contraparte, tipo, estado, fecha e importe con moneda.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Mejorar el resumen de RRHH y el detalle de vales recientes"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar el resumen de RRHH"
+ },
+ {
+  "version": "0.103.12-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "El detalle de cuentas corrientes de RRHH separa el historial de movimientos y los gráficos en pestañas, siguiendo el patrón de Tesorería.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Separar historial y análisis gráfico en pestañas en cuentas corrientes de RRHH"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Separar historial y gráficos de cuentas RRHH"
+ },
+ {
+  "version": "0.103.11-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "La vista activa de cuentas corrientes de RRHH organiza los saldos por tipo de persona (Socios y Empleados) y conserva el signo del saldo en cada fila.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Agrupar las cuentas corrientes de RRHH por socios y empleados"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agrupar saldos de RRHH por tipo de persona"
+ },
+ {
+  "version": "0.103.10-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Los paneles de cuentas corrientes de RRHH mantienen una altura equilibrada, muestran al menos cinco saldos y permiten recorrer el resto con scroll interno.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Mostrar al menos cinco cuentas por panel y desplazar internamente el resto"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la visualización de saldos de RRHH"
+ },
+ {
+  "version": "0.103.9-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Las cuentas corrientes de RRHH vuelven a listar empleados y socios al filtrar ambos tipos en conjunto. El historial identifica los vales como ingresos o egresos y distingue sus anulaciones.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Corregir el filtro conjunto de empleados y socios en cuentas corrientes de RRHH"
+   },
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Mostrar vales y anulaciones con etiquetas claras en el historial"
+   },
+   {
+    "type": "docs",
+    "scope": "workflows",
+    "title": "Documentar el historial de vales en cuentas corrientes de RRHH"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir cuentas corrientes y mostrar vales en RRHH"
+ },
+ {
+  "version": "0.103.8-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Los vales con pagos activos asociados no se pueden anular. Primero deben anularse o revertirse los pagos vinculados.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "hr",
+    "title": "Bloquear la anulación de vales con pagos activos asociados"
+   },
+   {
+    "type": "docs",
+    "scope": "workflows",
+    "title": "Documentar la regla de anulación de vales con pagos asociados"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Impedir anular vales con pagos activos"
+ },
+ {
+  "version": "0.103.7-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Al volver con la navegación del navegador se recuperan la posición del listado y la pestaña activa en clientes, cuentas corrientes y cajas. Los listados que usan paginación de servidor conservan página, búsqueda, filtros y orden por usuario y empresa.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "navigation",
+    "title": "Restaurar la posición de scroll al volver a una lista"
+   },
+   {
+    "type": "fix",
+    "scope": "navigation",
+    "title": "Recordar la pestaña activa en las tablas de clientes, cuentas corrientes y cajas"
+   },
+   {
+    "type": "fix",
+    "scope": "tables",
+    "title": "Conservar página, búsqueda, filtros y orden en los listados con paginación de servidor"
+   },
+   {
+    "type": "docs",
+    "scope": "workflows",
+    "title": "Documentar la restauración de posición y pestañas al volver a listados"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Restaurar posición y pestaña al volver a tablas"
+ },
+ {
+  "version": "0.103.6-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "La creación y asociación de presupuestos desde Operaciones internacionales usa la ruta correcta. Si el comprobante se crea pero no se puede asociar, la pantalla informa cómo vincularlo sin duplicarlo.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "international-operations",
+    "title": "Corregir la ruta de asociación de presupuestos desde operaciones internacionales"
+   },
+   {
+    "type": "fix",
+    "scope": "international-operations",
+    "title": "Evitar duplicar presupuestos creados si falla su asociación"
+   },
+   {
+    "type": "docs",
+    "scope": "workflows",
+    "title": "Documentar la creación y asociación de presupuestos en operaciones internacionales"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir creación y asociación de presupuestos internacionales"
+ },
+ {
+  "version": "0.103.5-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "En gastos varios confirmados o pagados sin tercero asociado, se puede seleccionar un proveedor o entidad al editar la información financiera para habilitar retenciones y reflejarlas en cuenta corriente.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Permitir asociar proveedor o entidad a un gasto confirmado para cargar retenciones"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Habilitar retenciones en gastos sin tercero asociado"
+ },
+ {
+  "version": "0.103.4-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Los pagos finalizados permiten ajustar retenciones y cuenta contable también en Gastos varios. El importe neto se refleja en el movimiento original de caja o banco y se recalculan los saldos sin agregar un movimiento de ajuste separado.",
+  "changes": [
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Permitir editar cuenta contable y retenciones en Gastos varios confirmados o pagados"
+   },
+   {
+    "type": "fix",
+    "scope": "treasury",
+    "title": "Actualizar el movimiento original y recalcular saldos de caja, banco y cuenta corriente al modificar retenciones"
+   },
+   {
+    "type": "docs",
+    "scope": "workflows",
+    "title": "Documentar ajustes posteriores de pagos, cobros y Gastos varios"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir retenciones y saldos en pagos finalizados"
+ },
+ {
+  "version": "0.103.3-alpha",
+  "date": "2026-10-28",
+  "stage": "alpha",
+  "notes": "Las tablas que tienen una ficha, detalle o edición disponible permiten abrir el registro al hacer clic en la fila. Los botones, enlaces y controles de cada fila mantienen su acción independiente.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "navigation",
+    "title": "Abrir desde la fila los registros disponibles en tablas de logística, tesorería, productos y clientes"
+   },
+   {
+    "type": "docs",
+    "scope": "navigation",
+    "title": "Documentar la apertura de registros desde filas de tablas"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Abrir registros desde cualquier parte de la fila"
+ },
+ {
+  "version": "0.103.2-alpha",
+  "date": "2026-10-28",
+  "stage": "alpha",
+  "notes": "Los pagos y cobros confirmados o pagados permiten ajustar retenciones y cuenta contable con permisos suficientes. El bruto aplicado a las facturas se conserva y los cambios actualizan caja/banco y cuenta corriente con movimientos trazables.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "treasury",
+    "title": "Ajustar retenciones y cuenta contable de pagos y cobros confirmados conservando el importe bruto aplicado"
+   },
+   {
+    "type": "docs",
+    "scope": "workflows",
+    "title": "Documentar ajustes posteriores de retenciones en pagos y cobros"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Permitir ajustar retenciones en pagos y cobros procesados"
+ },
+ {
+  "version": "0.103.1-alpha",
+  "date": "2026-10-28",
+  "stage": "alpha",
+  "notes": "Los listados de ventas y compras permiten abrir cada comprobante haciendo clic en cualquier parte de su fila, sin interferir con sus botones y enlaces.",
+  "changes": [
+   {
+    "type": "feat",
+    "scope": "documents",
+    "title": "Abrir comprobantes de ventas y compras al hacer clic en su fila"
+   }
+  ],
+  "contributors": ["agustin"],
+  "message": "Abrir comprobantes desde cualquier parte de la fila"
+ },
+ {
   "version": "0.103.0-alpha",
   "date": "2026-10-28",
   "stage": "alpha",

@@ -53,6 +53,7 @@ const sortFields: SortField[] = [
       :loading="loading"
       :data="employees"
       :columns="columns"
+      :on-row-click="openEdit"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"

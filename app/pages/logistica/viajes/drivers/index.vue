@@ -279,6 +279,7 @@ const sortFields: SortField[] = [
       :loading="loading"
       :data="drivers"
       :columns="columns"
+      :on-row-click="openEdit"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"

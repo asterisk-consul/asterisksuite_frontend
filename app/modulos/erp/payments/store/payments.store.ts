@@ -103,6 +103,14 @@ export const usePaymentsStore = defineStore('payments', () => {
     return updated
   }
 
+  const updateFinalizedFinancialDetails = async (id: string, payload: { account_id: string | null; party_id?: string | null; withholdings: NonNullable<UpdatePaymentInput['withholdings']> }) => {
+    const updated = await service.updateFinalizedFinancialDetails(id, payload)
+    const index = items.value.findIndex(item => item.id === id)
+    if (index !== -1) items.value[index] = updated
+    if (current.value?.id === id) current.value = updated
+    return updated
+  }
+
   // =========================
   // REVERSE
   // =========================
@@ -306,6 +314,7 @@ export const usePaymentsStore = defineStore('payments', () => {
     createLightCheck,
     create,
     update,
+    updateFinalizedFinancialDetails,
     reverse,
     remove,
     confirm,

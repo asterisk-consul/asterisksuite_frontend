@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { storeToRefs } from 'pinia'
+import { ref, onMounted } from 'vue'
 import { useIntlOpsSettingsStore } from '~/modulos/international-operations/store/intl-ops-settings.store'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
-import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
-import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
+import LocationSelect from '~/components/international-operations/LocationSelect.vue'
+import type { Location } from '~/modulos/logistica/master-data/locations/types/locations.types'
 import type {
   CreateOperationInput,
   OperationType,
@@ -34,15 +33,11 @@ const emit = defineEmits<{
 
 const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
 
-const locationsStore = useLocationsStore()
-const { items: locations } = storeToRefs(locationsStore)
-const { items: locationItems } = useLocations(locations)
 const settingsStore = useIntlOpsSettingsStore()
 const settingsReady = ref(false)
 
 onMounted(async () => {
   initCurrencies()
-  locationsStore.fetchAll()
   try {
     await settingsStore.fetchSettings()
   } catch {
@@ -71,37 +66,15 @@ const form = ref<CreateOperationInput>({
   ...props.initialData
 })
 
-const selectedOriginLocation = computed({
-  get: () => locationItems.value.find((l) => l.value === form.value.origin_location_id) ?? null,
-  set: (item: any) => {
-    if (item) {
-      const loc = locations.value.find((l) => l.id === item.value)
-      form.value.origin_location_id = item.value
-      form.value.origin_country = loc?.country ?? ''
-      form.value.origin_location = loc?.city ?? loc?.address ?? ''
-    } else {
-      form.value.origin_location_id = undefined
-      form.value.origin_country = ''
-      form.value.origin_location = ''
-    }
-  }
-})
+const handleOriginLocationSelect = (location: Location | null) => {
+  form.value.origin_country = location?.country ?? ''
+  form.value.origin_location = location?.city ?? location?.address ?? ''
+}
 
-const selectedDestinationLocation = computed({
-  get: () => locationItems.value.find((l) => l.value === form.value.destination_location_id) ?? null,
-  set: (item: any) => {
-    if (item) {
-      const loc = locations.value.find((l) => l.id === item.value)
-      form.value.destination_location_id = item.value
-      form.value.destination_country = loc?.country ?? ''
-      form.value.destination_location = loc?.city ?? loc?.address ?? ''
-    } else {
-      form.value.destination_location_id = undefined
-      form.value.destination_country = ''
-      form.value.destination_location = ''
-    }
-  }
-})
+const handleDestinationLocationSelect = (location: Location | null) => {
+  form.value.destination_country = location?.country ?? ''
+  form.value.destination_location = location?.city ?? location?.address ?? ''
+}
 
 const operationTypes: { label: string; value: OperationType }[] = [
   { label: 'Importación', value: 'IMPORT' },
@@ -275,13 +248,10 @@ const onSubmit = () => {
     >
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <UFormField label="Ubicación de origen" name="origin_location_id">
-          <USelectMenu
-            v-model="selectedOriginLocation"
-            :items="locationItems"
+          <LocationSelect
+            v-model="form.origin_location_id"
             placeholder="Seleccionar ubicación de origen"
-            searchable
-            clear
-            class="w-full"
+            @select="handleOriginLocationSelect"
           />
         </UFormField>
         <div class="grid grid-cols-2 gap-2">
@@ -301,13 +271,10 @@ const onSubmit = () => {
     >
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <UFormField label="Ubicación de destino" name="destination_location_id">
-          <USelectMenu
-            v-model="selectedDestinationLocation"
-            :items="locationItems"
+          <LocationSelect
+            v-model="form.destination_location_id"
             placeholder="Seleccionar ubicación de destino"
-            searchable
-            clear
-            class="w-full"
+            @select="handleDestinationLocationSelect"
           />
         </UFormField>
         <div class="grid grid-cols-2 gap-2">

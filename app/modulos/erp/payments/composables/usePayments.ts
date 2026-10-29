@@ -36,6 +36,8 @@ export function usePayments() {
 
   const update = async (id: string, payload: UpdatePaymentInput) => store.update(id, payload)
 
+  const updateFinalizedFinancialDetails = (id: string, payload: { account_id: string | null; party_id?: string | null; withholdings: NonNullable<UpdatePaymentInput['withholdings']> }) => store.updateFinalizedFinancialDetails(id, payload)
+
   const remove = async (id: string) => store.remove(id)
 
   const reverse = async (id: string, checkAction?: 'RETURN_TO_PORTFOLIO' | 'CANCEL') => store.reverse(id, checkAction)
@@ -120,6 +122,7 @@ export function usePayments() {
     init,
     create,
     update,
+    updateFinalizedFinancialDetails,
     remove,
     reverse,
     confirm,

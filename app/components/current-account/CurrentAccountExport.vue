@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
 import { useExcelExport } from '~/composables/useExcelExport'
-import { resolveEntrySide } from '~/modulos/erp/current-accounts/utils'
+import { resolveEntrySide, resolveHrValeLabel } from '~/modulos/erp/current-accounts/utils'
 import { balanceChartColor } from '~/modulos/erp/current-accounts/balance-utils'
 
 const props = defineProps<{
@@ -71,7 +71,7 @@ const exportEntries = () => {
     ],
     data: sorted.map(e => ({
       ...e,
-      type_label: ENTRY_TYPE_CONFIG[e.type]?.label ?? e.type,
+      type_label: resolveHrValeLabel(e, props.account?.party_type) ?? ENTRY_TYPE_CONFIG[e.type]?.label ?? e.type,
       original_amount: `${e.currency_code || 'ARS'} ${Number(e.amount).toFixed(2)}`,
       debit: resolveEntrySide(e, props.account?.party_type ?? '') === 'debit' ? e.visible_amount : null,
       credit: resolveEntrySide(e, props.account?.party_type ?? '') === 'credit' ? e.visible_amount : null,

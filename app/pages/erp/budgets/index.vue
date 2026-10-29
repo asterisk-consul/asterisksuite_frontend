@@ -145,6 +145,7 @@ const sortFields = [
         :loading="loading"
         :filter-fields="filterFields"
         :sort-fields="sortFields"
+        :on-row-click="openDocument"
       />
     </div>
   </UPage>

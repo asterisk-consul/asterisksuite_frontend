@@ -403,6 +403,17 @@ function createInvoice(row: TreasuryObligation) {
   } })
 }
 function openPayment(paymentId: string) { void router.push(`/erp/treasury/payments/${paymentId}`) }
+function openObligation(row: TreasuryObligation) {
+  if (row.document_id) {
+    void router.push(`/erp/purchases/purchases-documents/${row.document_id}`)
+    return
+  }
+  if (row.payment_id) {
+    openPayment(row.payment_id)
+    return
+  }
+  if (!['PAID', 'CANCELLED'].includes(row.status)) openEdit(row)
+}
 function closeModal() { modalOpen.value = false }
 function closeCancelModal() { confirmCancelOpen.value = false }
 function askCancel(row: TreasuryObligation) { cancelling.value = row; confirmCancelOpen.value = true }
@@ -468,7 +479,7 @@ onMounted(load)
               <p class="min-w-0 text-sm text-muted">VEP registrados desde Retenciones; no duplican la obligación original.</p>
               <UInput v-model="remittanceSearch" icon="i-lucide-search" placeholder="Buscar VEP, impuesto o período..." class="w-full min-w-0" clearable />
             </div>
-            <AsteriskTable v-if="payableRemittances.length" compact storage-key="treasury-services-vep-pending" :table-min-width="950" :data="payableRemittances" :columns="remittanceColumns" :sort-fields="remittanceSortFields" />
+            <AsteriskTable v-if="payableRemittances.length" compact storage-key="treasury-services-vep-pending" :table-min-width="950" :data="payableRemittances" :columns="remittanceColumns" :sort-fields="remittanceSortFields" :on-row-click="openRemittance" />
             <div v-else class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default bg-elevated/20 px-4 py-6 text-center">
               <UIcon name="i-lucide-receipt-text" class="size-6 text-muted" />
               <p class="text-sm font-medium">No hay VEP pendientes para estos filtros.</p>
@@ -483,7 +494,7 @@ onMounted(load)
               <UInput v-model="obligationSearch" icon="i-lucide-search" placeholder="Buscar por concepto, entidad o período..." class="w-full min-w-0" clearable />
             </div>
             <div v-if="loading" class="py-8 text-center"><ULoader /></div>
-            <AsteriskTable v-else-if="visibleObligationRows.length" compact storage-key="treasury-services-obligations" :table-min-width="940" :data="visibleObligationRows" :columns="obligationColumns" :sort-fields="tableSortFields" />
+            <AsteriskTable v-else-if="visibleObligationRows.length" compact storage-key="treasury-services-obligations" :table-min-width="940" :data="visibleObligationRows" :columns="obligationColumns" :sort-fields="tableSortFields" :on-row-click="openObligation" />
             <div v-else class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default bg-elevated/20 px-4 py-8 text-center">
               <UIcon name="i-lucide-file-search" class="size-6 text-muted" />
               <p class="text-sm font-medium">No hay obligaciones para mostrar con estos filtros.</p>
@@ -512,7 +523,7 @@ onMounted(load)
             <UInput v-model="remittanceSearch" icon="i-lucide-search" placeholder="Buscar VEP, impuesto o período..." class="w-full sm:w-72" clearable />
           </div>
         </template>
-        <AsteriskTable v-if="historicalRemittances.length" compact storage-key="treasury-services-vep-history" :data="historicalRemittances" :columns="remittanceColumns" :sort-fields="remittanceSortFields" />
+        <AsteriskTable v-if="historicalRemittances.length" compact storage-key="treasury-services-vep-history" :data="historicalRemittances" :columns="remittanceColumns" :sort-fields="remittanceSortFields" :on-row-click="openRemittance" />
         <div v-else class="flex flex-col items-center gap-2 py-6 text-center">
           <UIcon name="i-lucide-receipt-text" class="size-6 text-muted" />
           <p class="text-sm text-muted">Todavía no hay VEP pagados para esta búsqueda.</p>

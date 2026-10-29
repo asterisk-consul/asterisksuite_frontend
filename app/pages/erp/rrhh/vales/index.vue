@@ -9,7 +9,7 @@ import {
 } from '~/modulos/erp/hr/types/hr.types'
 import type { HrVale } from '~/modulos/erp/hr/types/hr.types'
 import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
-import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
 import RrhhTotalsCards from '~/components/rrhh/RrhhTotalsCards.vue'
@@ -20,6 +20,7 @@ const hrStore = useHrStore()
 const vales = computed(() => hrStore.vales)
 const loading = computed(() => hrStore.loading)
 const toast = useToast()
+const router = useRouter()
 
 // Rango de fechas (vacío = sin límite)
 const dateFrom = ref('')
@@ -36,6 +37,8 @@ const confirmingVale = ref<HrVale | null>(null)
 const treasuryTargetType = ref<'CASH_BOX' | 'BANK_ACCOUNT'>('CASH_BOX')
 const treasuryTargetId = ref('')
 const treasuryTargets = ref<any[]>([])
+const confirmingFunds = ref<{ available: number; balance: number } | null>(null)
+const confirmingWithdrawalBlocked = computed(() => confirmingVale.value?.type === 'RETIRO' && (!confirmingFunds.value || Number(confirmingVale.value.amount) > confirmingFunds.value.available))
 
 async function loadVales() {
   await hrStore.fetchVales()
@@ -90,10 +93,19 @@ const availableTreasuryTargets = computed(() => treasuryTargets.value
 
 async function handleConfirm(id: string) {
   const vale = vales.value.find(v => v.id === id)
-  if (vale?.party_type === 'PARTNER') {
+  if (vale?.party_type === 'PARTNER' && !['SUELDO', 'ADELANTO', 'EXTRAS', 'COMISION'].includes(vale.type)) {
     confirmingVale.value = vale
     treasuryTargetType.value = 'CASH_BOX'
     treasuryTargetId.value = ''
+    confirmingFunds.value = null
+    if (vale.type === 'RETIRO') {
+      try {
+        confirmingFunds.value = await $fetch(`/api/backend/hr/partners/${vale.party_id}/funds`, { query: { currency_code: vale.currency_code } })
+      } catch (e: any) {
+        toast.add({ title: 'No se pudo consultar el disponible del socio', description: e?.data?.message, color: 'error' })
+        return
+      }
+    }
     treasuryTargets.value = await $fetch<any[]>('/api/backend/cash-boxes')
     showTreasuryModal.value = true
     return
@@ -108,7 +120,7 @@ async function handleConfirm(id: string) {
 }
 
 async function confirmPartnerVale() {
-  if (!confirmingVale.value || !treasuryTargetId.value) return
+  if (!confirmingVale.value || !treasuryTargetId.value || confirmingWithdrawalBlocked.value) return
   try {
     await hrStore.confirmVale(confirmingVale.value.id, {
       treasury_target_type: treasuryTargetType.value,
@@ -145,8 +157,8 @@ async function confirmCancel() {
     cancelConfirmText.value = ''
     await loadVales()
     toast.add({ title: 'Vale anulado', color: 'success' })
-  } catch (e) {
-    toast.add({ title: 'Error al anular vale', color: 'error' })
+  } catch (e: any) {
+    toast.add({ title: 'Error al anular vale', description: e?.data?.message || e?.message, color: 'error' })
   }
 }
 
@@ -174,13 +186,22 @@ function openCreateModal() {
   showCreateModal.value = true
 }
 
+function payVale(vale: HrVale) {
+  const documentId = vale.payment_document?.id
+  if (!documentId) return
+  router.push({
+    path: '/erp/treasury/payments/create',
+    query: { party_id: vale.party_id, document_id: documentId, type: 'PAYMENT' }
+  })
+}
+
 // =========================
 // TABLA
 // =========================
 
 const build = createTableBuilder<HrVale>({ locale: 'es-AR' })
 
-const typeFilterOptions = Object.entries(HR_VALE_TYPE_LABELS).map(([value, label]) => ({ label, value }))
+const typeFilterOptions = Object.entries(HR_VALE_TYPE_LABELS).map(([value, label]) => ({ label: value === 'SUELDO' ? 'Sueldo / remuneración' : label, value }))
 const statusFilterOptions = Object.entries(HR_VALE_STATUS_LABELS).map(([value, label]) => ({ label, value }))
 
 const columns = build([
@@ -194,14 +215,55 @@ const columns = build([
     id: 'person',
     label: 'Persona',
     accessorFn: (vale) => vale.party?.name ?? '-',
-    meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } }
+    meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } },
+    cell: ({ row }) => {
+      const vale = row.original
+      const partyType = vale.party_type === 'PARTNER' ? 'Socio' : 'Empleado'
+      return h('div', { class: 'min-w-36' }, [
+        h('div', { class: 'font-medium' }, vale.party?.name ?? '-'),
+        h('div', { class: 'text-xs text-muted' }, [partyType, vale.party?.tax_id ? ` · CUIT ${vale.party.tax_id}` : ''].join(''))
+      ])
+    }
+  },
+  {
+    key: 'description',
+    label: 'Descripción',
+    accessorFn: (vale) => vale.description ?? '',
+    meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } },
+    cell: ({ row }) => h('div', {
+      class: 'max-w-72 whitespace-normal text-sm text-muted line-clamp-2',
+      title: row.original.description ?? undefined
+    }, row.original.description || 'Sin descripción')
+  },
+  {
+    id: 'treasury_target',
+    label: 'Caja / banco',
+    accessorFn: (vale) => vale.treasury_target?.label ?? '',
+    meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } },
+    cell: ({ row }) => {
+      const vale = row.original
+      const targetLabel = vale.treasury_target?.label
+        ?? (vale.payment_document ? 'Pago en Tesorería' : vale.party_type !== 'PARTNER' ? 'Sin movimiento directo' : vale.status === 'DRAFT' ? 'Al confirmar' : 'Sin movimiento asociado')
+      return h('span', {
+        class: vale.treasury_target ? 'text-sm' : 'text-sm text-muted'
+      }, targetLabel)
+    }
+  },
+  {
+    key: 'created_by_name',
+    label: 'Registrado por',
+    accessorFn: (vale) => vale.created_by_name ?? '',
+    meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } },
+    cell: ({ row }) => h('span', { class: 'text-sm text-muted' }, row.original.created_by_name || '—')
   },
   {
     key: 'type',
     label: 'Tipo',
     badge: {
       resolve: (vale) => ({
-        label: HR_VALE_TYPE_LABELS[vale.type] ?? vale.type,
+        label: vale.party_type === 'PARTNER'
+          ? ({ SUELDO: 'Remuneración por trabajo', APORTE: 'Aporte de fondos', RETIRO: 'Retiro de aportes', PRESTAMO: 'Préstamo al socio' } as Record<string, string>)[vale.type] ?? HR_VALE_TYPE_LABELS[vale.type] ?? vale.type
+          : HR_VALE_TYPE_LABELS[vale.type] ?? vale.type,
         color: HR_VALE_TYPE_COLORS[vale.type] as any
       })
     },
@@ -279,6 +341,16 @@ const columns = build([
               onClick: () => handleConfirm(vale.id)
             })
           : null,
+        ['CONFIRMED', 'PAID'].includes(vale.status) && (vale.payment_document?.pending ?? 0) > 0.01
+          ? h(UButton, {
+              label: 'Pagar',
+              icon: 'i-lucide-wallet-cards',
+              variant: 'soft',
+              color: 'success',
+              size: 'xs',
+              onClick: () => payVale(vale)
+            })
+          : null,
         vale.status !== 'CANCELLED'
           ? h(UButton, {
               icon: 'i-lucide-x',
@@ -332,7 +404,7 @@ const sortFields = [
     </div>
 
     <!-- Tabla -->
-    <LogisticaTable
+    <AsteriskTable
       :data="filteredVales"
       :columns="columns"
       :loading="loading"
@@ -359,6 +431,13 @@ const sortFields = [
             :color="isOutflowVale(confirmingVale) ? 'error' : 'success'"
             variant="subtle"
           />
+          <UAlert
+            v-if="confirmingVale?.type === 'RETIRO' && confirmingFunds"
+            :title="`Aportes disponibles: ${fmtCurrency(confirmingFunds.available, confirmingVale.currency_code)}`"
+            :description="confirmingWithdrawalBlocked ? 'Este retiro supera los aportes disponibles y no se puede confirmar.' : `Saldo después del retiro: ${fmtCurrency(confirmingFunds.balance - Number(confirmingVale.amount), confirmingVale.currency_code)}`"
+            :color="confirmingWithdrawalBlocked ? 'error' : 'info'"
+            variant="subtle"
+          />
           <UFormField label="Medio" required>
             <USelect v-model="treasuryTargetType" :items="[{ label: 'Caja', value: 'CASH_BOX' }, { label: 'Cuenta bancaria', value: 'BANK_ACCOUNT' }]" />
           </UFormField>
@@ -370,7 +449,7 @@ const sortFields = [
       <template #footer>
         <div class="flex justify-end gap-2">
           <UButton label="Cancelar" variant="ghost" @click="closeTreasuryModal" />
-          <UButton label="Confirmar y registrar" color="success" :loading="loading" :disabled="!treasuryTargetId" @click="confirmPartnerVale" />
+          <UButton label="Confirmar y registrar" color="success" :loading="loading" :disabled="!treasuryTargetId || confirmingWithdrawalBlocked" @click="confirmPartnerVale" />
         </div>
       </template>
     </UModal>
@@ -383,8 +462,16 @@ const sortFields = [
         <div class="p-6 space-y-4">
           <div>
             <h2 class="text-lg font-semibold">Anular vale</h2>
-            <p class="text-sm text-muted mt-1">Esta acción no se puede deshacer.</p>
+            <p class="text-sm text-muted mt-1">El vale quedará marcado como anulado y conservará su historial.</p>
           </div>
+
+          <UAlert
+            v-if="cancellingVale?.party_type === 'PARTNER' && ['APORTE', 'RETIRO', 'REEMBOLSO', 'PRESTAMO'].includes(cancellingVale.type) && ['PAID', 'CONFIRMED'].includes(cancellingVale.status)"
+            title="Se revertirá el movimiento del socio"
+            description="Se registrará un movimiento inverso en la misma caja o cuenta bancaria usada al confirmarlo y se ajustarán los saldos del socio. El movimiento original quedará visible en Tesorería para conservar la trazabilidad."
+            color="warning"
+            variant="subtle"
+          />
 
           <p class="text-sm text-muted">
             ¿Estás seguro que querés anular el vale

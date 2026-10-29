@@ -19,7 +19,7 @@ const party = ref<any>(null)
 const documents = ref<any[]>([])
 const payments = ref<any[]>([])
 const statement = ref<any>(null)
-const activeTab = ref('documents')
+const activeTab = usePersistedViewTab('customer-record', 'documents')
 const loadingData = ref(true)
 
 const sorting = ref<SortingState>([])
@@ -178,6 +178,14 @@ const docColumns = buildDocs([
     cell: ({ row }) => fmtMoney(row.original.total)
   }
 ])
+
+function openDocument(row: any) {
+  router.push(`/erp/sales/${row.id}`)
+}
+
+function openPayment(row: any) {
+  router.push(`/erp/treasury/payments/${row.id}`)
+}
 
 const paymentTableColumns = buildDocs([
   {
@@ -367,6 +375,7 @@ const paymentTableColumns = buildDocs([
                 :data="documents"
                 :columns="docColumns"
                 :loading="loadingData"
+                :on-row-click="openDocument"
                 v-model:sorting="sorting"
               />
             </template>
@@ -376,6 +385,7 @@ const paymentTableColumns = buildDocs([
                 :data="payments"
                 :columns="paymentTableColumns"
                 :loading="loadingData"
+                :on-row-click="openPayment"
                 v-model:sorting="sorting"
               />
             </template>

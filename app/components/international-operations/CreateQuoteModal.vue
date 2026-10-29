@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, reactive, watch, computed, onMounted } from 'vue'
+import { ref, reactive, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useDocumentTypes } from '~/modulos/erp/documents/documents-types/composable/useDocumentTypes'
 import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
+import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
+import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 
 interface Props {
   open: boolean
@@ -23,15 +25,111 @@ const emit = defineEmits<Emits>()
 
 const toast = useToast()
 const partiesService = useBusinessPartiesService()
+const operationsService = useInternationalOperationsService()
 const productsStore = useProductsStore()
 const docTypes = useDocumentTypes()
 const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
-const { items: products, loading: productLoading } = storeToRefs(productsStore)
-const { items: productOptions } = useProducts('PURCHASE')
+const { items: allProductOptions } = useProducts('PURCHASE')
 
 const loading = ref(false)
-const partyItems = ref<Array<{ label: string; value: string }>>([])
+const remoteParties = ref<BusinessParty[]>([])
+const selectedPartyFallback = ref<BusinessParty | null>(null)
+const partySearch = ref('')
+const partySearching = ref(false)
+let partySearchTimer: ReturnType<typeof setTimeout> | undefined
+let partySearchController: AbortController | undefined
+let partySearchRequestId = 0
 const selectedProduct = ref<any>(undefined)
+const productSearch = ref('')
+const productSearching = ref(false)
+const remoteProductIds = ref<string[]>([])
+let productSearchTimer: ReturnType<typeof setTimeout> | undefined
+let productSearchController: AbortController | undefined
+let productSearchRequestId = 0
+const productOptions = computed(() => {
+  const visibleIds = new Set(remoteProductIds.value)
+  return allProductOptions.value.filter(product => visibleIds.has(product.value))
+})
+const payablePartyTypes = ['SUPPLIER', 'SERVICE_PROVIDER', 'UTILITY', 'TAX_AUTHORITY', 'FINANCIAL']
+
+const partyOptionLabel = (party: BusinessParty) => {
+  const taxId = party.tax_id ? ` · ${party.tax_id}` : ''
+  return `${party.name}${taxId}`
+}
+const partyOptions = computed(() => {
+  const parties = new Map<string, BusinessParty>()
+  for (const party of remoteParties.value) parties.set(party.id, party)
+  if (selectedPartyFallback.value) parties.set(selectedPartyFallback.value.id, selectedPartyFallback.value)
+  return Array.from(parties.values()).map(party => ({ label: partyOptionLabel(party), value: party.id }))
+})
+
+const searchParties = (query: string, immediate = false) => {
+  const requestId = ++partySearchRequestId
+  if (partySearchTimer) clearTimeout(partySearchTimer)
+  partySearchController?.abort()
+  const term = query.trim()
+  if (term.length > 0 && term.length < 2) {
+    remoteParties.value = []
+    partySearching.value = false
+    return
+  }
+  partySearching.value = true
+  partySearchTimer = setTimeout(async () => {
+    const controller = new AbortController()
+    partySearchController = controller
+    try {
+      const results = await partiesService.search(term, payablePartyTypes, controller.signal)
+      if (requestId === partySearchRequestId) remoteParties.value = results
+    } catch (error: any) {
+      if (requestId === partySearchRequestId && error?.name !== 'AbortError') remoteParties.value = []
+    } finally {
+      if (requestId === partySearchRequestId) partySearching.value = false
+    }
+  }, immediate ? 0 : 180)
+}
+
+const searchProducts = (query: string, immediate = false) => {
+  const requestId = ++productSearchRequestId
+  if (productSearchTimer) clearTimeout(productSearchTimer)
+  productSearchController?.abort()
+  const term = query.trim()
+  if (term.length > 0 && term.length < 2) {
+    remoteProductIds.value = []
+    productSearching.value = false
+    return
+  }
+  productSearching.value = true
+  productSearchTimer = setTimeout(async () => {
+    const controller = new AbortController()
+    productSearchController = controller
+    try {
+      const results = await productsStore.search(term, 'purchase', controller.signal)
+      if (requestId === productSearchRequestId) remoteProductIds.value = results.map(product => product.id)
+    } catch (error: any) {
+      if (requestId !== productSearchRequestId || error?.name === 'AbortError') return
+      if (error?.status === 404 || error?.statusCode === 404) {
+        try {
+          const fallback = await productsStore.fetchAll()
+          if (requestId === productSearchRequestId) {
+            remoteProductIds.value = fallback
+              .filter(product => product.usage_type === 'PURCHASE' || product.usage_type === 'BOTH')
+              .map(product => product.id)
+          }
+          return
+        } catch {
+          // Se conserva el mensaje de búsqueda al fallar también el catálogo clásico.
+        }
+      }
+      toast.add({
+        title: 'No se pudieron buscar productos',
+        description: 'Reintentá cuando mejore la conexión.',
+        color: 'warning'
+      })
+    } finally {
+      if (requestId === productSearchRequestId) productSearching.value = false
+    }
+  }, immediate ? 0 : 300)
+}
 
 const quoteTypes = computed(() =>
   docTypes.items.value.filter(dt => dt.direction === -1 && dt.category === 'QUOTE')
@@ -74,24 +172,40 @@ const removeItem = (idx: number) => {
 }
 
 const selectedParty = computed({
-  get: () => partyItems.value.find(o => o.value === form.party_id),
-  set: (val: any) => { form.party_id = val?.value ?? '' }
+  get: () => partyOptions.value.find(o => o.value === form.party_id),
+  set: (val: any) => {
+    form.party_id = val?.value ?? ''
+    selectedPartyFallback.value = remoteParties.value.find(party => party.id === form.party_id) ?? null
+  }
 })
 
 onMounted(async () => {
   await Promise.all([
     docTypes.init(),
-    initCurrencies(),
-    partiesService.findAll().then((parties: any[]) => {
-      partyItems.value = (parties ?? []).map((p: any) => ({ label: p.name, value: p.id }))
-    }).catch(() => {}),
-    products.value.length > 0 ? Promise.resolve() : productsStore.fetchAll()
+    initCurrencies()
   ])
+  if (props.open) {
+    searchParties('', true)
+    searchProducts('', true)
+  }
+})
+
+watch(partySearch, value => searchParties(value))
+watch(productSearch, value => searchProducts(value))
+onBeforeUnmount(() => {
+  if (partySearchTimer) clearTimeout(partySearchTimer)
+  partySearchController?.abort()
+  if (productSearchTimer) clearTimeout(productSearchTimer)
+  productSearchController?.abort()
 })
 
 watch(() => props.open, (open) => {
   if (open) {
     form.currency_code = props.operationCurrencyCode ?? 'USD'
+    partySearch.value = ''
+    productSearch.value = ''
+    searchParties('', true)
+    searchProducts('', true)
     if (quoteTypeItems.value.length === 1) {
       form.document_type_id = quoteTypeItems.value[0]!.value
     }
@@ -104,6 +218,7 @@ const isValid = computed(() =>
 
 const handleSubmit = async () => {
   if (!isValid.value) return
+  let createdDocumentId: string | null = null
   try {
     loading.value = true
     const created: any = await DocumentsPurchasesService.create({
@@ -119,14 +234,23 @@ const handleSubmit = async () => {
         taxes: []
       }))
     })
-    await $fetch(`/api/backend/${props.operationId}/quotes`, {
-      method: 'POST',
-      body: { document_id: created.id }
-    })
+    createdDocumentId = created.id
+    await operationsService.associateQuote(props.operationId, created.id)
     toast.add({ title: 'Presupuesto creado y asociado', color: 'success' })
     emit('created', created.id)
     emit('update:open', false)
   } catch (e: any) {
+    if (createdDocumentId) {
+      toast.add({
+        title: 'Presupuesto creado, falta asociarlo',
+        description: `Se creó el comprobante ${createdDocumentId}. No lo vuelvas a crear: cerrá esta ventana y usá “Asociar presupuesto” para vincularlo.`,
+        color: 'warning',
+        icon: 'i-lucide-link'
+      })
+      emit('created', createdDocumentId)
+      emit('update:open', false)
+      return
+    }
     toast.add({
       title: 'Error al crear presupuesto',
       description: e?.data?.message,
@@ -164,8 +288,10 @@ const handleSubmit = async () => {
             <UFormField label="Proveedor" required class="min-w-0 md:col-span-2">
               <USelectMenu
                 v-model="selectedParty"
-                :items="partyItems"
-                placeholder="Buscar y seleccionar proveedor..."
+                :items="partyOptions"
+                v-model:search-term="partySearch"
+                placeholder="Buscar proveedor por nombre o CUIT..."
+                :loading="partySearching"
                 searchable
                 class="w-full min-w-0"
                 :disabled="loading"
@@ -218,16 +344,17 @@ const handleSubmit = async () => {
           </div>
 
           <div class="mb-4 rounded-lg bg-muted/30 p-3">
-            <UFormField label="Agregar producto" description="El catálogo completo queda disponible para buscar por código o nombre.">
+            <UFormField label="Agregar producto" description="Buscá por código o nombre; los resultados aparecen mientras escribís.">
               <div class="flex min-w-0 flex-col gap-2 sm:flex-row">
                 <USelectMenu
                   v-model="selectedProduct"
                   :items="productOptions"
+                  v-model:search-term="productSearch"
                   placeholder="Buscar producto por código o nombre..."
                   searchable
                   size="lg"
                   class="min-w-0 flex-1"
-                  :loading="productLoading"
+                  :loading="productSearching"
                   :disabled="loading"
                 />
                 <UButton

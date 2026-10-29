@@ -8,6 +8,14 @@ export const useLocationsService = () => {
   const apiBase = '/api/backend/transport/locations'
   const getAll = () => $fetch<Location[]>(`${apiBase}`)
 
+  const search = (query = '', limit = 30, signal?: AbortSignal) =>
+    $fetch<Location[]>(`${apiBase}/search`, {
+      query: { q: query, limit },
+      signal,
+      timeout: 10_000,
+      retry: 1
+    })
+
   const getOne = (id: string) => $fetch<Location>(`${apiBase}/${id}`)
 
   const create = (payload: CreateLocationInput) =>
@@ -29,6 +37,7 @@ export const useLocationsService = () => {
 
   return {
     getAll,
+    search,
     getOne,
     create,
     update,

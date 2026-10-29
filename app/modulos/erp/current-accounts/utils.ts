@@ -32,6 +32,21 @@ export function resolveEntrySide(
   return resolveSide(entry.type, partyType)
 }
 
+/** El concepto del vale describe la operación; ingreso/egreso describe su efecto monetario. */
+export function resolveHrValeLabel(
+  entry: { type: string; vale_type?: string | null; vale_status?: string | null; description?: string | null },
+  partyType?: string,
+  showPending = true
+): string | undefined {
+  if (!['VALE_DEBIT', 'VALE_CREDIT'].includes(entry.type)) return undefined
+  if (!['EMPLOYEE', 'PARTNER'].includes(partyType ?? '')) return undefined
+  const pending = showPending && entry.vale_status === 'CONFIRMED' ? ' · A pagar' : ''
+  if (partyType === 'EMPLOYEE') return `Vale empleado${pending}`
+  const concept = entry.vale_type ?? entry.description?.match(/^(?:Vale #\d+\s*[-·]\s*)?(RETIRO|APORTE|REEMBOLSO|PRESTAMO)\b/)?.[1]
+  const labels: Record<string, string> = { RETIRO: 'Retiro', APORTE: 'Aporte', REEMBOLSO: 'Reembolso', PRESTAMO: 'Préstamo' }
+  return labels[concept ?? ''] ?? `Vale socio${pending}`
+}
+
 const ENTRY_TYPE_LABELS: Record<string, string> = {
   INVOICE: 'Factura',
   CREDIT_NOTE: 'Nota de crédito',
@@ -39,6 +54,8 @@ const ENTRY_TYPE_LABELS: Record<string, string> = {
   ORDER_INVOICE_REPLACEMENT_REVERSAL: 'Reversión reemplazo OV → factura',
   DEBIT_NOTE: 'Nota de débito',
   PAYMENT: 'Pago',
+  VALE_DEBIT: 'Vale · egreso',
+  VALE_CREDIT: 'Vale · ingreso',
   WITHHOLDING: 'Retención practicada',
   COLLECTION: 'Cobro',
   ADVANCE: 'Anticipo',
@@ -77,7 +94,11 @@ export function getActivityInfo(lastEntryDate: string | null | undefined, lastEn
   if (days > 60) color = 'error'
   else if (days > 15) color = 'warning'
 
-  const typeLabel = lastEntry ? (ENTRY_TYPE_LABELS[lastEntry.type] ?? lastEntry.type) : null
+  const typeLabel = lastEntry
+    ? lastEntry.type === 'ADJUSTMENT' && lastEntry.description?.startsWith('Anulación Vale #')
+      ? 'Anulación de vale'
+      : ENTRY_TYPE_LABELS[lastEntry.type] ?? lastEntry.type
+    : null
   const desc = lastEntry?.description
   const lastMovementLabel = desc
     ? `${typeLabel ?? 'Movimiento'}: ${desc}`

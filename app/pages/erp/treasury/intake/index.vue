@@ -224,6 +224,7 @@ const targetLink = computed(() => {
       :data="records"
       :columns="columns"
       :loading="loading"
+      :on-row-click="openRecord"
     />
   </UPage>
 

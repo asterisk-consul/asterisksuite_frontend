@@ -19,6 +19,12 @@ export interface HrVale {
   paid_at: string | null
   confirmed_at: string | null
   created_at: string
+  created_by_name?: string | null
+  treasury_target?: {
+    type: 'CASH_BOX' | 'BANK_ACCOUNT'
+    label: string
+  } | null
+  payment_document?: { id: string; pending: number } | null
   party?: { id: string; name: string; tax_id: string | null }
   commission_details?: {
     id: string
@@ -56,6 +62,9 @@ export interface HrAccountEntry {
   description: string | null
   reference_type: string | null
   reference_id: string | null
+  vale_status?: HrValeStatus | null
+  vale_type?: HrValeType | null
+  payment_origin?: string | null
   date: string
   created_at: string
 }

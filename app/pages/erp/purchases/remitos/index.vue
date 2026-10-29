@@ -158,6 +158,7 @@ const statusOptions = [{ label: 'Todos', value: undefined }, ...statusFilterOpti
         server-side
         :page-size="pageSize"
         :total-rows="store.pagination.total"
+        :on-row-click="openDocument"
       />
     </div>
   </UPage>

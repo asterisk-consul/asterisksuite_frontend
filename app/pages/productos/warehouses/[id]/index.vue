@@ -21,6 +21,7 @@ import type { WarehouseStockItem } from '~/modulos/logistica/warehouses/stock/st
 definePageMeta({ middleware: ['auth'] })
 
 const route = useRoute()
+const router = useRouter()
 const toast = useToast()
 const warehouseId = computed(() => route.params.id as string)
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
@@ -152,6 +153,10 @@ function openEdit() {
     unitId: warehouse.value.unitId ?? (warehouse.value as any).units?.id ?? null
   }
   editModalOpen.value = true
+}
+
+function openStockProduct(item: WarehouseStockItem) {
+  router.push(`/productos/${item.product_id}/edit`)
 }
 
 async function handleEditSubmit(data: any) {
@@ -628,6 +633,7 @@ const links = ref<ButtonProps[]>([
           v-else
           :data="visibleStock"
           :columns="warehouseStockColumnsWithActions"
+          :on-row-click="openStockProduct"
           :filter-fields="stockFilterFields"
           :sort-fields="stockSortFields"
         />

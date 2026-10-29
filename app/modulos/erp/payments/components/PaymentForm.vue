@@ -60,6 +60,7 @@ export interface PaymentFormData {
   withholdings?: PaymentWithholdingPayload[]
   bank_account?: any
   cash_box?: any
+  account?: any
   payment_allocations?: any[]
   bank_charges?: Array<{
     bank_concept_id: string
@@ -82,6 +83,8 @@ const props = defineProps<{
   initialWithholdings?: WithholdingProposal[]
   loading?: boolean
   readonly?: boolean
+  allowFinalizedFinancialEdit?: boolean
+  savingFinancialDetails?: boolean
   localDraftEnabled?: boolean
   submitLabel?: string
 }>()
@@ -89,6 +92,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [PaymentFormData]
   submit: [PaymentFormData]
+  'save-finalized-details': [{ account_id: string | null; party_id?: string | null; withholdings: PaymentWithholdingPayload[] }]
   cancel: []
 }>()
 
@@ -120,6 +124,9 @@ const retentionLoading = ref(false)
 
 const totalWithheld = computed(() =>
   withholdings.value.reduce((s, w) => s + (Number(w.withheld_amount) || 0), 0)
+)
+const canEditFinalizedRetentions = computed(() =>
+  props.allowFinalizedFinancialEdit && !props.initialWithholdings?.some((item: any) => item.is_locked)
 )
 
 const removeWithholding = (index: number) => {
@@ -540,7 +547,7 @@ onMounted(async () => {
 })
 
 watch(
-  [() => props.modelValue, () => props.pendingPurchaseDocuments, () => props.pendingSalesDocuments],
+  [() => props.modelValue, () => props.pendingPurchaseDocuments, () => props.pendingSalesDocuments, () => props.initialWithholdings],
   ([val], oldValues) => {
     if (!val) {
       Object.assign(form, { ...defaultForm })
@@ -602,9 +609,7 @@ watch(
     }
 
     // Precargar retenciones guardadas (modo edición)
-    if (props.initialWithholdings && props.initialWithholdings.length > 0) {
-      withholdings.value = [...props.initialWithholdings]
-    }
+    withholdings.value = [...(props.initialWithholdings ?? [])]
   },
   { immediate: true }
 )
@@ -722,6 +727,29 @@ const accountOptions = computed(() =>
     label: `${a.code} — ${a.name}`,
     value: a.id
   }))
+)
+const finalizedPartyOptions = computed(() => allParties.value
+  .filter(party => party.active !== false && (
+    ['SUPPLIER', 'SERVICE_PROVIDER', 'UTILITY', 'FINANCIAL', 'TAX_AUTHORITY'].includes(party.type)
+    || party.roles?.some(role => ['SUPPLIER', 'SERVICE_PROVIDER', 'UTILITY', 'FINANCIAL', 'TAX_AUTHORITY'].includes(role.role))
+  ))
+  .map(party => ({ label: party.name, value: party.id, description: party.tax_id || party.type }))
+)
+const finalizedParty = computed({
+  get: () => finalizedPartyOptions.value.find(option => option.value === form.party_id) ?? null,
+  set: (option: any) => { form.party_id = option?.value ?? '' }
+})
+const currentPaymentAccountLabel = computed(() => {
+  if (!form.account_id) return ''
+  return accountOptions.value.find(option => option.value === form.account_id)?.label
+    ?? (props.modelValue?.account?.id === form.account_id ? `${props.modelValue.account.code} — ${props.modelValue.account.name}` : '')
+})
+const finalizedGrossApplied = computed(() =>
+  (props.modelValue?.documents ?? []).length
+    ? (props.modelValue?.documents ?? []).reduce((sum, document) => sum + Number(document.amount_applied || 0), 0)
+    : props.modelValue?.type === 'EXPENSE'
+      ? Number(props.modelValue.amount || 0) + (props.initialWithholdings ?? []).reduce((sum, item: any) => sum + Number(item.withheld_amount || 0), 0)
+      : 0
 )
 
 const selectedAccount = computed({
@@ -1353,6 +1381,41 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
   }).format(amount)
 }
 
+const submitFinalizedDetails = () => {
+  const documents = props.modelValue?.documents ?? []
+  const grossApplied = finalizedGrossApplied.value
+  const valid = withholdings.value.filter(item => Number(item.withheld_amount) > 0)
+  const total = valid.reduce((sum, item) => sum + Number(item.withheld_amount), 0)
+  if (total > grossApplied + 0.01) {
+    toast.add({ title: 'Retenciones superiores al importe bruto', description: 'Reducí las retenciones para que no superen el importe bruto del pago o gasto.', color: 'warning' })
+    return
+  }
+  const withholdingsPayload: PaymentWithholdingPayload[] = valid.map(item => {
+    let allocations: { document_id: string; allocated_amount: number }[] | undefined
+    if (documents.length && grossApplied > 0) {
+      const shares = documents.map(document => Math.round((Number(item.withheld_amount) * Number(document.amount_applied) / grossApplied + Number.EPSILON) * 100) / 100)
+      shares[shares.length - 1] = Math.round((Number(item.withheld_amount) - shares.slice(0, -1).reduce((sum, value) => sum + value, 0) + Number.EPSILON) * 100) / 100
+      allocations = documents.map((document, index) => ({ document_id: document.document_id, allocated_amount: shares[index] })).filter(row => row.allocated_amount > 0)
+    }
+    return {
+      tax_type: item.tax_type,
+      jurisdiction_id: item.jurisdiction_id ?? undefined,
+      withholding_concept_id: item.withholding_concept_id ?? undefined,
+      tax_rule_id: item.tax_rule_id ?? undefined,
+      base_amount: Number(item.base_amount || 0),
+      rate: item.rate == null ? undefined : Number(item.rate),
+      withheld_amount: Number(item.withheld_amount),
+      observations: item.reason,
+      allocations,
+    }
+  })
+  emit('save-finalized-details', {
+    account_id: form.account_id || null,
+    ...(form.type === 'EXPENSE' ? { party_id: form.party_id || null } : {}),
+    withholdings: withholdingsPayload
+  })
+}
+
 defineExpose({ completeDraft: completePaymentDraft })
 </script>
 
@@ -1467,6 +1530,92 @@ defineExpose({ completeDraft: completePaymentDraft })
         <div v-if="form.description">
           <p class="text-xs text-muted font-medium uppercase">Descripción</p>
           <p class="font-medium">{{ form.description }}</p>
+        </div>
+      </div>
+    </UCard>
+
+    <UCard v-if="allowFinalizedFinancialEdit || withholdings.length || form.account_id || form.type === 'EXPENSE'">
+      <template #header>
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="font-medium">Retenciones y cuenta contable</p>
+          <p class="text-xs text-muted">El importe aplicado se conserva; las retenciones se descuentan del pago y actualizan el movimiento original de caja o banco.</p>
+          </div>
+          <UBadge v-if="!allowFinalizedFinancialEdit" label="Solo lectura" variant="subtle" />
+        </div>
+      </template>
+      <div class="space-y-4">
+        <UFormField v-if="form.type === 'EXPENSE' && !form.party_id && allowFinalizedFinancialEdit" label="Proveedor o entidad" name="party_id" hint="Necesario para registrar retenciones y reflejarlas en su cuenta corriente.">
+          <USelectMenu
+            v-model="finalizedParty"
+            :items="finalizedPartyOptions"
+            placeholder="Seleccioná un proveedor o entidad"
+            searchable
+            class="w-full"
+          />
+        </UFormField>
+        <UAlert v-else-if="form.type === 'EXPENSE' && !form.party_id && !allowFinalizedFinancialEdit" color="info" variant="subtle" title="Gasto sin proveedor o entidad" description="Para registrar retenciones debe asociarse a una parte interesada. La cuenta contable se puede editar con el permiso correspondiente." />
+        <UFormField v-else-if="form.type === 'EXPENSE' && form.party_id" label="Proveedor o entidad">
+          <p class="text-sm">{{ allParties.find(party => party.id === form.party_id)?.name ?? props.modelValue?.party?.name ?? 'Tercero asociado' }}</p>
+        </UFormField>
+        <UFormField label="Cuenta contable" name="account_id">
+          <USelectMenu
+            v-if="allowFinalizedFinancialEdit"
+            v-model="selectedAccount"
+            :items="accountOptions"
+            placeholder="Sin asignar"
+            searchable
+            clearable
+            class="w-full"
+          />
+          <p v-else class="text-sm">{{ currentPaymentAccountLabel || 'Sin asignar' }}</p>
+        </UFormField>
+        <div v-if="form.party_id" class="space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p class="text-sm font-medium">Retenciones aplicadas</p>
+              <p class="text-xs text-muted">{{ form.type === 'EXPENSE' ? 'Importe bruto del gasto' : 'Importe bruto aplicado' }}: {{ formatCurrency(finalizedGrossApplied, form.currency_code) }}</p>
+            </div>
+            <div v-if="canEditFinalizedRetentions" class="flex gap-2">
+              <UButton label="Calcular sugeridas" size="xs" variant="outline" icon="i-lucide-calculator" :loading="retentionLoading" :disabled="finalizedGrossApplied <= 0" @click="calculateSuggestedWithholdings(finalizedGrossApplied)" />
+              <UButton label="Agregar manual" size="xs" variant="ghost" icon="i-lucide-plus" @click="addManualWithholding" />
+            </div>
+          </div>
+          <div v-if="withholdings.length" class="space-y-2">
+            <div v-for="(wh, index) in withholdings" :key="index" class="grid grid-cols-1 gap-2 rounded-lg border border-default p-3 sm:grid-cols-12 sm:items-end">
+              <UFormField label="Impuesto" class="sm:col-span-3">
+                <USelectMenu v-if="canEditFinalizedRetentions" v-model="wh.tax_type" :items="['GANANCIAS', 'IIBB', 'SUSS', 'IVA']" class="w-full" />
+                <p v-else class="text-sm">{{ wh.tax_type }}</p>
+              </UFormField>
+              <UFormField label="Base" class="sm:col-span-2">
+                <UInput v-if="canEditFinalizedRetentions" v-model.number="wh.base_amount" type="number" min="0" class="w-full" @update:model-value="recalculateManualWithholding(wh)" />
+                <p v-else>{{ formatCurrency(Number(wh.base_amount), form.currency_code) }}</p>
+              </UFormField>
+              <UFormField label="Alícuota %" class="sm:col-span-2">
+                <UInput v-if="canEditFinalizedRetentions" v-model.number="wh.rate" type="number" min="0" class="w-full" @update:model-value="recalculateManualWithholding(wh)" />
+                <p v-else>{{ wh.rate ?? '—' }}</p>
+              </UFormField>
+              <UFormField label="Importe retenido" class="sm:col-span-3">
+                <UInput v-if="canEditFinalizedRetentions" v-model.number="wh.withheld_amount" type="number" min="0" step="0.01" class="w-full" />
+                <p v-else class="font-medium">{{ formatCurrency(Number(wh.withheld_amount), form.currency_code) }}</p>
+              </UFormField>
+              <div class="sm:col-span-2 flex items-center justify-between gap-2">
+                <UBadge v-if="wh.jurisdiction_name" :label="wh.jurisdiction_name" variant="soft" />
+                <UButton v-if="canEditFinalizedRetentions" icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" aria-label="Quitar retención" @click="removeWithholding(index)" />
+              </div>
+            </div>
+          </div>
+          <p v-else class="text-sm text-muted">Sin retenciones.</p>
+          <div class="flex flex-wrap justify-between gap-2 border-t border-default pt-3 text-sm">
+            <span>Retenciones: <strong>{{ formatCurrency(totalWithheld, form.currency_code) }}</strong></span>
+            <span>Neto caja/banco: <strong>{{ formatCurrency(Math.max(0, finalizedGrossApplied - totalWithheld), form.currency_code) }}</strong></span>
+          </div>
+        </div>
+        <UAlert v-else-if="form.type === 'EXPENSE'" color="warning" variant="subtle" title="Falta asociar un proveedor o entidad" description="Las retenciones deben quedar vinculadas a una parte interesada. Seleccionala arriba para habilitar su carga; la cuenta contable puede editarse sin ese dato." />
+        <UAlert v-if="canEditFinalizedRetentions" color="info" variant="subtle" title="Se actualizará el pago" description="El importe neto y el saldo de caja o banco se recalcularán sobre el movimiento original; el importe aplicado al comprobante se conserva." />
+        <UAlert v-else-if="allowFinalizedFinancialEdit && initialWithholdings?.some((item: any) => item.is_locked)" color="warning" variant="subtle" title="Retenciones protegidas" description="Hay retenciones con certificado o remesa asociada. Podés cambiar la cuenta contable, pero primero debés resolver esa trazabilidad para editar las retenciones." />
+        <div v-if="allowFinalizedFinancialEdit" class="flex justify-end">
+          <UButton label="Guardar cambios financieros" icon="i-lucide-save" :loading="savingFinancialDetails" :disabled="savingFinancialDetails" @click="submitFinalizedDetails" />
         </div>
       </div>
     </UCard>
