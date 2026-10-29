@@ -14,6 +14,7 @@ import {
   getStatusColor,
   isDocumentCancelled
 } from '~/modulos/erp/documents/types/document-statuses'
+import { getOrderFlowPresentation } from '~/modulos/erp/documents/orden-venta/order-flow-status'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 import {
   canSettleDocument,
@@ -54,19 +55,25 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
 const route = useRoute()
 const initialCategory = typeof route.query.category === 'string' ? route.query.category : undefined
 const categoryFilter = ref<string | undefined>(initialCategory)
-const statusFilter = ref<number | undefined>(undefined)
+const statusFilter = ref<number | string | undefined>(undefined)
 const showFullyPaid = ref(true)
 const showCancelled = ref(false)
 const generateResult = ref<{ total_trips: number; results: any[] } | null>(null)
 const showGenerateModal = ref(false)
 
 const serverTable = useServerTable(
-  (query) => documentsSalesStore.fetchPage({
-    ...query,
-    status: statusFilter.value,
-    category: categoryFilter.value,
-    excludeCancelled: !showCancelled.value
-  }),
+  (query) => {
+    const deliveryStatus = typeof statusFilter.value === 'string'
+      ? statusFilter.value.replace('order-flow:', '') as 'PENDING' | 'ELIGIBLE' | 'DRAFT_CREATED'
+      : undefined
+    return documentsSalesStore.fetchPage({
+      ...query,
+      status: typeof statusFilter.value === 'number' ? statusFilter.value : undefined,
+      deliveryStatus,
+      category: categoryFilter.value,
+      excludeCancelled: !showCancelled.value
+    })
+  },
   'sales-comprobantes'
 )
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
@@ -80,7 +87,7 @@ watch(categoryFilter, () => {
 })
 
 watch(statusFilter, (status) => {
-  if (categoryFilter.value && status === getCancelledDocumentStatus(categoryFilter.value) && !showCancelled.value) {
+  if (categoryFilter.value && typeof status === 'number' && status === getCancelledDocumentStatus(categoryFilter.value) && !showCancelled.value) {
     showCancelled.value = true
     return
   }
@@ -129,11 +136,50 @@ const STATUS_TEXT_CLASSES: Record<string, string> = {
 const statusTextClass = (color: string) => STATUS_TEXT_CLASSES[color] ?? 'text-muted'
 
 // ─── Filtros de estado (según categoría) ─────────────────────────────────────
-const statusOptions = computed(() =>
-  categoryFilter.value
-    ? getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
-    : []
-)
+type StatusOption = { label: string; value: number | string }
+
+const statusCategoryLabels: Record<string, string> = {
+  QUOTE: 'Presupuesto',
+  ORDER: 'Orden de venta',
+  REMITO: 'Remito',
+  INVOICE: 'Factura',
+  CREDIT_NOTE: 'Nota de crédito',
+  DEBIT_NOTE: 'Nota de débito'
+}
+
+function getStatusOptionsForCategory(category: string): StatusOption[] {
+  const configured = getCategoryStatuses(category, getEnabledStatusesForCategory(category))
+  if (category !== 'ORDER') return configured
+  const documentStates = configured.filter((option) => option.value !== 2 && option.value !== 3)
+  const beforePreparation = documentStates.filter((option) => typeof option.value === 'number' && option.value < 2)
+  const afterPreparation = documentStates.filter((option) => typeof option.value === 'number' && option.value > 3)
+
+  // Estos estados son operativos y pueden aparecer aunque el tipo de OV tenga
+  // una configuración personalizada de estados documentales.
+  return [
+    ...beforePreparation,
+    { label: 'En preparación', value: 'order-flow:PENDING' },
+    { label: 'Lista para despacho', value: 'order-flow:ELIGIBLE' },
+    { label: 'Remito pendiente', value: 'order-flow:DRAFT_CREATED' },
+    ...afterPreparation
+  ]
+}
+
+const statusOptions = computed<StatusOption[]>(() => {
+  if (categoryFilter.value) return getStatusOptionsForCategory(categoryFilter.value)
+
+  return SALES_CATEGORIES
+    .filter((category) => canDocument('sales', category, 'read'))
+    .flatMap((category) => getStatusOptionsForCategory(category).map((option) => ({
+      label: `${statusCategoryLabels[category] ?? CATEGORY_LABELS[category] ?? category} · ${option.label}`,
+      value: `document-status:${category}:${option.value}`
+    })))
+})
+
+function matchesStatusOption(document: any, option: StatusOption) {
+  if (typeof option.value === 'number') return Number(document.status) === option.value
+  return getOrderFlowPresentation(document)?.label === option.label
+}
 
 const visibleDocuments = computed(() => {
   let rows = documents.value ?? []
@@ -164,12 +210,18 @@ const stats = computed(() => {
     return {
       byCategory: [],
       byStatus: statuses.map((s) => {
-        const matching = docs.filter((d) => d.status === s.value)
+        const matching = docs.filter((d) => matchesStatusOption(d, s))
         return {
           label: s.label,
           count: matching.length,
           total: matching.reduce((a, d) => a + Number(d.total), 0),
-          color: getStatusColor(categoryFilter.value, s.value)
+          color: typeof s.value === 'number'
+            ? getStatusColor(categoryFilter.value, s.value)
+            : s.value.endsWith('PENDING')
+              ? 'warning'
+              : s.value.endsWith('ELIGIBLE')
+                ? 'primary'
+                : 'info'
         }
       })
     }
@@ -255,7 +307,7 @@ const columns = computed(() =>
     onDuplicate: duplicateDocument,
     canDuplicate: (row) => canDocument('sales', row.document_types?.category ?? '', 'create'),
     showCreator: isOwnerOrAdmin.value,
-    statusFilterOptions: categoryFilter.value
+    statusFilterOptions: statusOptions.value.length
       ? statusOptions.value.map(({ label, value }) => ({ label, value }))
       : null
   })

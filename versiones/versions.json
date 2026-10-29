@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.110.0-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Ventas permite filtrar comprobantes por estado y tipo, distingue los estados operativos de las OV y reevalúa el despacho al cambiar el circuito. Las secciones del menú abren su primer destino habilitado.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Filtrar comprobantes por categoría y estado operativo" },
+   { "type": "fix", "scope": "sales-flow", "title": "Recalcular la condición de despacho de órdenes sin remito al guardar el circuito" },
+   { "type": "fix", "scope": "navigation", "title": "Abrir el primer destino habilitado al seleccionar una sección del menú" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Filtrar comprobantes y actualizar el circuito de ventas"
+ },
+ {
   "version": "0.109.0-alpha",
   "date": "2026-10-29",
   "stage": "alpha",

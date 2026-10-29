@@ -15,6 +15,7 @@ interface SalesFlowSettings {
   prompt_order_assignee_on_confirmation: boolean
   require_order_assignee_on_confirmation: boolean
   default_order_assignee_id: string | null
+  recalculated_delivery_orders?: number
 }
 
 const toast = useToast()
@@ -88,7 +89,14 @@ async function save() {
     settings.value = await $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings', {
       method: 'PATCH', body: payload
     })
-    toast.add({ title: 'Circuito de ventas guardado', description: 'Se aplicará a las nuevas órdenes de venta.', color: 'success' })
+    const recalculated = Number(settings.value.recalculated_delivery_orders ?? 0)
+    toast.add({
+      title: 'Circuito de ventas guardado',
+      description: recalculated
+        ? `Se recalculó la condición de entrega en ${recalculated} orden(es) sin remito.`
+        : 'Se verificaron las condiciones de entrega de las órdenes sin remito.',
+      color: 'success'
+    })
   } catch (error: any) {
     toast.add({ title: 'No se pudo guardar', description: error?.data?.message, color: 'error' })
   } finally {
@@ -107,8 +115,8 @@ onMounted(load)
       color="neutral"
       variant="subtle"
       icon="i-lucide-history"
-      title="Las reglas se copian en cada nueva OV"
-      description="Cambiar esta configuración no recalcula documentos, pagos ni cuentas corrientes anteriores."
+      title="Las condiciones de entrega se recalculan al guardar"
+      description="Se reevalúa el pago o la factura exigidos en órdenes que todavía no tienen remito. Los remitos existentes, pagos y cuentas corrientes no se modifican."
     />
 
     <div v-if="loading" class="py-16 text-center text-muted">Cargando configuración…</div>

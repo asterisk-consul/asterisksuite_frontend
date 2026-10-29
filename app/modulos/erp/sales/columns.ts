@@ -15,7 +15,7 @@ export const createSalesColumns = (actions: {
   canDuplicate?: (row: Row) => boolean
   showAmounts?: boolean
   showCreator?: boolean
-  statusFilterOptions?: { label: string; value: number }[] | null
+  statusFilterOptions?: { label: string; value: number | string }[] | null
 }) => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
   const fmtNumber = (row: Row) => {
@@ -43,10 +43,12 @@ export const createSalesColumns = (actions: {
         },
         badge: {
           resolve: (doc) => {
-            const orderFlow = getOrderFlowPresentation(doc)
+            const flow = getOrderFlowPresentation(doc)
+            const category = doc.document_types?.category
+            const status = Number(doc.status)
             return {
-              label: orderFlow?.label ?? getStatusLabel(doc.document_types?.category, doc.status),
-              color: (orderFlow?.color ?? getStatusColor(doc.document_types?.category, doc.status)) as any
+              label: flow?.label ?? getStatusLabel(category, status),
+              color: (flow?.color ?? getStatusColor(category, status)) as any
             }
           }
         }

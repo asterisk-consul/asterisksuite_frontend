@@ -5,6 +5,7 @@ import type { PaginatedResponse, ServerListParams } from '~/types/pagination'
 export type SalesListParams = {
     documentTypeId?: string
     status?: number
+    deliveryStatus?: 'PENDING' | 'ELIGIBLE' | 'DRAFT_CREATED'
     category?: string
     categories?: string
     direction?: number

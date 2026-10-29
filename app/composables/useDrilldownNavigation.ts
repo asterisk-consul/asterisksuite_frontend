@@ -49,6 +49,17 @@ function findBranch(nodes: DrilldownNode[], path: string, fullPath = path): Dril
   return best
 }
 
+function findFirstDestination(nodes: DrilldownNode[]): DrilldownNode | null {
+  for (const node of nodes) {
+    if (node.to) return node
+    if (node.children?.length) {
+      const destination = findFirstDestination(node.children)
+      if (destination) return destination
+    }
+  }
+  return null
+}
+
 // Filtrar nodos recursivamente por permisos y condiciones de visibilidad
 export function filterNavigationTree(
   nodes: DrilldownNode[],
@@ -151,13 +162,13 @@ export const useDrilldownNavigation = () => {
   const select = (node: DrilldownNode) => {
     if (node.children?.length) {
       push(node)
-      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value)
-      const resumen = filteredChildren.find(child => child.to)
-      if (resumen?.to) {
-        navigateTo(resumen.to)
+      const filteredChildren = filterNavigationTree(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value)
+      const destination = findFirstDestination(filteredChildren)
+      if (destination?.to) {
+        void navigateTo(destination.to)
       }
     } else if (node.to) {
-      navigateTo(node.to)
+      void navigateTo(node.to)
     }
   }
 

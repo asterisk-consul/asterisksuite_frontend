@@ -16,14 +16,25 @@ const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=ORDER')
 
-const statusFilter = ref<number | undefined>(undefined)
+const statusFilter = ref<number | string | undefined>(undefined)
 const showCancelled = ref(false)
 const documents = computed(() => store.items ?? [])
 const visibleDocuments = computed(() => showCancelled.value
   ? documents.value
   : documents.value.filter(document => !isDocumentCancelled('ORDER', document.status)))
 const loading = computed(() => store.loading)
-const serverTable = useServerTable((query) => store.fetchPage({ ...query, status: statusFilter.value, category: 'ORDER', excludeCancelled: !showCancelled.value }))
+const serverTable = useServerTable((query) => {
+  const deliveryStatus = typeof statusFilter.value === 'string'
+    ? statusFilter.value.replace('order-flow:', '') as 'PENDING' | 'ELIGIBLE' | 'DRAFT_CREATED'
+    : undefined
+  return store.fetchPage({
+    ...query,
+    status: typeof statusFilter.value === 'number' ? statusFilter.value : undefined,
+    deliveryStatus,
+    category: 'ORDER',
+    excludeCancelled: !showCancelled.value
+  })
+})
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
 watch(statusFilter, (status) => {
   if (status === 8 && !showCancelled.value) {
@@ -79,8 +90,9 @@ function collectDocument(row: any) {
 const statusOptions = [
   { label: 'Borrador', value: 0 },
   { label: 'Aprobada', value: 1 },
-  { label: 'En preparación', value: 2 },
-  { label: 'Lista para despacho', value: 3 },
+  { label: 'En preparación', value: 'order-flow:PENDING' },
+  { label: 'Lista para despacho', value: 'order-flow:ELIGIBLE' },
+  { label: 'Remito pendiente', value: 'order-flow:DRAFT_CREATED' },
   { label: 'Parcialmente entregada', value: 4 },
   { label: 'Entregada', value: 5 },
   { label: 'Facturada', value: 6 },

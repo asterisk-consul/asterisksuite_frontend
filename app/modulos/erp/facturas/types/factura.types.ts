@@ -150,6 +150,7 @@ export interface Document {
     payment_document_basis?: 'ORDER' | 'INVOICE' | 'BOTH' | null
     ordered_total?: number | null
     paid_total?: number | null
+    delivery_status?: string | null
   } | null
 
   orden_venta_doc?: Record<string, any> | null
