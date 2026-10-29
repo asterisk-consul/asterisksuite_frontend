@@ -19,6 +19,8 @@ export const productColumns = (actions: {
   onEdit?: (row: Row) => void
   onDelete?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
+  categoryOptions?: { label: string; value: string }[]
+  tagOptions?: { label: string; value: string }[]
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({
     locale: 'es-AR',
@@ -53,6 +55,28 @@ export const productColumns = (actions: {
         sortable: true,
 
         cell: ({ row }) => row.original.sku ?? '—'
+      },
+
+      {
+        id: 'category_id',
+        label: 'Categorías',
+        accessorFn: (row) => row.product_categories?.map((item) => item.categories?.name).filter(Boolean).join(', ') || '—',
+        meta: {
+          filter: actions.categoryOptions
+            ? { type: 'select', operators: ['equals'], options: actions.categoryOptions }
+            : false
+        }
+      },
+
+      {
+        id: 'tag_id',
+        label: 'Etiquetas',
+        accessorFn: (row) => row.product_tags?.map((item) => item.tags?.name).filter(Boolean).join(', ') || '—',
+        meta: {
+          filter: actions.tagOptions
+            ? { type: 'select', operators: ['equals'], options: actions.tagOptions }
+            : false
+        }
       },
 
       /* ========================

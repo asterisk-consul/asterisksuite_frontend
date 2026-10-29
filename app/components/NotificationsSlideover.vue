@@ -11,11 +11,18 @@ const toast = useToast()
 const busyNotificationId = ref<string | null>(null)
 const fiscalAlerts = ref<any[]>([])
 const treasuryAlerts = ref<any[]>([])
+const stockAlerts = ref<any[]>([])
+const oldAccountAlerts = ref<any[]>([])
 const cardAlerts = ref<any | null>(null)
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 
-const totalItems = computed(() => notifications.value.length + fiscalAlerts.value.length + treasuryAlerts.value.length + (cardAlerts.value?.pending_collections ? 1 : 0) + (cardAlerts.value?.upcoming_installments_count ? 1 : 0))
+const totalItems = computed(() => notifications.value.length + fiscalAlerts.value.length + treasuryAlerts.value.length + stockAlerts.value.length + oldAccountAlerts.value.length + (cardAlerts.value?.pending_collections ? 1 : 0) + (cardAlerts.value?.upcoming_installments_count ? 1 : 0))
+
+function notificationIcon(type: string) {
+  if (type === 'CHECK_OVERDUE') return 'i-lucide-calendar-clock'
+  return 'i-lucide-user-round-check'
+}
 
 function formatNotificationTime(value: string) {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000))
@@ -54,8 +61,27 @@ async function loadTreasuryAlerts() {
   }
 }
 
+async function loadOperationalAlerts() {
+  const requests: Promise<void>[] = []
+  if (hasPermission('stock.read')) {
+    requests.push($fetch<any[]>('/api/backend/dashboard/notifications/stock-replenishment')
+      .then((rows) => { stockAlerts.value = rows })
+      .catch(() => { stockAlerts.value = [] }))
+  } else {
+    stockAlerts.value = []
+  }
+  if (hasPermission('treasury.current_accounts.read')) {
+    requests.push($fetch<any[]>('/api/backend/dashboard/notifications/old-account-balances')
+      .then((rows) => { oldAccountAlerts.value = rows })
+      .catch(() => { oldAccountAlerts.value = [] }))
+  } else {
+    oldAccountAlerts.value = []
+  }
+  await Promise.all(requests)
+}
+
 async function refreshAlerts() {
-  await Promise.all([refresh(), loadFiscalAlerts(), loadTreasuryAlerts(), loadCardAlerts()])
+  await Promise.all([refresh(), loadFiscalAlerts(), loadTreasuryAlerts(), loadCardAlerts(), loadOperationalAlerts()])
   setCompanyAlertCount(companyAlertCountFromCurrentAlerts())
 }
 
@@ -83,6 +109,8 @@ async function markFiscalAlertRead(alert: any) {
 function companyAlertCountFromCurrentAlerts() {
   return fiscalAlerts.value.filter(alert => !alert.is_read).length
     + treasuryAlerts.value.length
+    + stockAlerts.value.length
+    + oldAccountAlerts.value.length
     + (cardAlerts.value?.pending_collections ? 1 : 0)
     + (cardAlerts.value?.upcoming_installments_count ? 1 : 0)
 }
@@ -143,6 +171,21 @@ async function openCorporateCardAlerts() {
   await navigateTo('/erp/treasury/cards')
 }
 
+async function openStockAlerts() {
+  isNotificationsSlideoverOpen.value = false
+  await navigateTo('/stock')
+}
+
+async function openAccountAlerts(alert: any) {
+  isNotificationsSlideoverOpen.value = false
+  await navigateTo({ path: '/erp/treasury/current-accounts', query: { party_type: alert.party_type } })
+}
+
+function formatAlertAmount(amount: number, currencyCode?: string | null) {
+  if (!currencyCode) return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 }).format(amount)
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: currencyCode }).format(amount)
+}
+
 watch(isNotificationsSlideoverOpen, (isOpen) => {
   if (isOpen) void refreshAlerts()
 })
@@ -178,7 +221,7 @@ onMounted(() => {
           <div class="flex w-full min-w-0 items-start gap-3 py-1">
             <UChip color="error" :show="!notification.read_at" inset>
               <div class="size-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <UIcon name="i-lucide-user-round-check" class="size-5 text-primary" />
+                <UIcon :name="notificationIcon(notification.type)" class="size-5 text-primary" />
               </div>
             </UChip>
             <div class="min-w-0 flex-1 text-sm">
@@ -235,7 +278,7 @@ onMounted(() => {
         Los avisos leídos quedan en la lista hasta que los elimines.
       </p>
 
-      <div v-if="notifications.length && (fiscalAlerts.length || treasuryAlerts.length || cardAlerts?.pending_collections || cardAlerts?.upcoming_installments_count)" class="border-t border-default my-3" />
+      <div v-if="notifications.length && (fiscalAlerts.length || treasuryAlerts.length || stockAlerts.length || oldAccountAlerts.length || cardAlerts?.pending_collections || cardAlerts?.upcoming_installments_count)" class="border-t border-default my-3" />
 
       <div
         v-for="alert in fiscalAlerts"
@@ -278,7 +321,57 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="fiscalAlerts.length && (treasuryAlerts.length || cardAlerts?.pending_collections || cardAlerts?.upcoming_installments_count)" class="border-t border-default my-3" />
+      <div v-if="fiscalAlerts.length && (treasuryAlerts.length || stockAlerts.length || oldAccountAlerts.length || cardAlerts?.pending_collections || cardAlerts?.upcoming_installments_count)" class="border-t border-default my-3" />
+
+      <div v-if="stockAlerts.length" class="flex items-center justify-between px-3 py-2">
+        <p class="text-xs font-medium uppercase tracking-wide text-muted">Reposición de stock</p>
+        <UButton label="Ver stock" size="xs" color="neutral" variant="ghost" @click="openStockAlerts" />
+      </div>
+
+      <button
+        v-for="alert in stockAlerts"
+        :key="`stock-${alert.id}`"
+        class="w-full rounded-md px-3 py-2.5 hover:bg-elevated/50 flex items-start gap-3 text-left"
+        @click="openStockAlerts"
+      >
+        <UChip :color="alert.critical ? 'error' : 'warning'" :show="true" inset>
+          <div class="size-10 rounded-full bg-warning/10 flex items-center justify-center">
+            <UIcon name="i-lucide-package-open" class="size-5 text-warning" />
+          </div>
+        </UChip>
+        <div class="min-w-0 flex-1 text-sm">
+          <p class="font-medium text-highlighted">{{ alert.product_name }}<span v-if="alert.product_sku" class="ml-1 text-muted">· {{ alert.product_sku }}</span></p>
+          <p class="text-dimmed">{{ alert.warehouse_name }} · Disponible {{ alert.available }} · Reposición en {{ alert.reorder_point }}</p>
+        </div>
+      </button>
+
+      <div v-if="stockAlerts.length && oldAccountAlerts.length" class="border-t border-default my-3" />
+
+      <div v-if="oldAccountAlerts.length" class="flex items-center justify-between px-3 py-2">
+        <p class="text-xs font-medium uppercase tracking-wide text-muted">Saldos sin movimiento · 30+ días</p>
+        <UButton label="Ver cuentas" size="xs" color="neutral" variant="ghost" @click="openAccountAlerts(oldAccountAlerts[0])" />
+      </div>
+
+      <button
+        v-for="alert in oldAccountAlerts"
+        :key="`account-${alert.id}`"
+        class="w-full rounded-md px-3 py-2.5 hover:bg-elevated/50 flex items-start gap-3 text-left"
+        @click="openAccountAlerts(alert)"
+      >
+        <UChip :color="alert.severity === 'HIGH' ? 'error' : alert.severity === 'MEDIUM' ? 'warning' : 'primary'" :show="true" inset>
+          <div class="size-10 rounded-full bg-warning/10 flex items-center justify-center">
+            <UIcon name="i-lucide-wallet" class="size-5 text-warning" />
+          </div>
+        </UChip>
+        <div class="min-w-0 flex-1 text-sm">
+          <p class="font-medium text-highlighted">{{ alert.party_name }} · {{ alert.party_type === 'CUSTOMER' ? 'Cliente' : 'Proveedor' }}</p>
+          <p class="text-dimmed">Saldo pendiente sin movimientos hace {{ alert.days_without_movement }} días · {{ formatAlertAmount(alert.balance, alert.currency_code) }}</p>
+        </div>
+      </button>
+
+      <div v-if="(stockAlerts.length || oldAccountAlerts.length) && treasuryAlerts.length" class="border-t border-default my-3" />
+
+      <div v-if="!treasuryAlerts.length && (stockAlerts.length || oldAccountAlerts.length) && (cardAlerts?.pending_collections || cardAlerts?.upcoming_installments_count)" class="border-t border-default my-3" />
 
       <div v-if="treasuryAlerts.length" class="flex items-center justify-between px-3 py-2">
         <p class="text-xs font-medium uppercase tracking-wide text-muted">Impuestos y servicios</p>

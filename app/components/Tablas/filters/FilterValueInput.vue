@@ -36,10 +36,13 @@ const emit = defineEmits<{
 
   <!-- SELECT -->
 
-  <USelect
+  <USelectMenu
     v-else-if="meta?.type === 'select'"
-    class="w-48"
+    class="w-full min-w-48"
     :items="meta.options || []"
+    value-key="value"
+    label-key="label"
+    :search-input="{ placeholder: 'Buscar opción...', icon: 'i-lucide-search' }"
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
   />

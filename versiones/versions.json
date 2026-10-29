@@ -1,5 +1,138 @@
 [
  {
+  "version": "0.109.0-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "La campana incorpora alertas de reposición de stock y de saldos pendientes de clientes y proveedores sin movimientos recientes.",
+  "changes": [
+   { "type": "feat", "scope": "notifications", "title": "Avisar sobre reposición de stock y saldos sin movimiento" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Detectar stock y saldos que requieren atención"
+ },
+ {
+  "version": "0.108.2-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "El selector del menú abre con Ctrl + Shift + E para cambiar de empresa sin seleccionar una empresa accidentalmente.",
+  "changes": [
+   { "type": "style", "scope": "navigation", "title": "Agregar atajo para abrir el selector de empresa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Abrir rápido el selector de empresa"
+ },
+ {
+  "version": "0.108.1-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Las tablas permiten abrir Filtros con Ctrl + Shift + F, ver y quitar condiciones activas desde el resumen y limpiar los filtros avanzados sin borrar la búsqueda rápida.",
+  "changes": [
+   { "type": "fix", "scope": "tables", "title": "Simplificar la apertura y gestión de filtros avanzados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Abrir y gestionar filtros más rápido"
+ },
+ {
+  "version": "0.108.0-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "La portada de Fabricación muestra cantidades y operaciones calculadas desde los movimientos reales de salida de producción, junto con actividad reciente y accesos según permisos.",
+  "changes": [
+   { "type": "feat", "scope": "production", "title": "Mostrar un resumen real de fabricación y actividad reciente" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Consultar el resumen de fabricación"
+ },
+ {
+  "version": "0.107.7-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "El listado de productos incorpora un selector visible y buscable para filtrar el catálogo por categorías, incluidas sus rutas jerárquicas.",
+  "changes": [
+   { "type": "style", "scope": "inventory", "title": "Filtrar productos por categoría desde el listado" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Explorar productos por categoría"
+ },
+ {
+  "version": "0.107.6-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Fabricación queda dentro de Stock con sus permisos de producción independientes. Se quitaron accesos repetidos y se agruparon las unidades y plantillas de costo junto al catálogo.",
+  "changes": [
+   { "type": "style", "scope": "inventory", "title": "Organizar Fabricación dentro de Stock y eliminar accesos duplicados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Organizar fabricación y stock en el menú"
+ },
+ {
+  "version": "0.107.5-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "El buscador de Ctrl+K recorre las páginas anidadas, agrupa los resultados por módulo, diferencia nombres repetidos y permite buscar sin tildes.",
+  "changes": [
+   { "type": "fix", "scope": "navigation", "title": "Mejorar el buscador global y mostrar destinos según permisos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Encontrar páginas desde el buscador global"
+ },
+ {
+  "version": "0.107.4-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "La portada de Stock resume productos, depósitos y necesidades de reposición, muestra faltantes prioritarios y reúne accesos al catálogo y a la operación.",
+  "changes": [
+   { "type": "style", "scope": "inventory", "title": "Convertir Stock en un resumen operativo con indicadores y accesos por sección" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Resumir el estado del stock"
+ },
+ {
+  "version": "0.107.3-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "La ayuda sobre los requisitos para importar productos se muestra al abrir Importar / Exportar y ya no ocupa espacio permanente en el listado.",
+  "changes": [
+   { "type": "fix", "scope": "inventory", "title": "Mostrar la ayuda de importación solo cuando se solicita" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mostrar la ayuda de importación bajo demanda"
+ },
+ {
+  "version": "0.107.2-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Los filtros avanzados con opciones desplegables permiten buscar una opción escribiendo su nombre.",
+  "changes": [
+   { "type": "fix", "scope": "inventory", "title": "Permitir buscar categorías y etiquetas en los filtros de productos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Buscar categorías y etiquetas en los filtros"
+ },
+ {
+  "version": "0.107.1-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "El filtro de productos presenta primero la categoría seleccionada y amplía el selector para distinguir categorías con jerarquías similares.",
+  "changes": [
+   { "type": "fix", "scope": "inventory", "title": "Distinguir categorías en el filtro de productos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la lectura de categorías en el filtro"
+ },
+ {
+  "version": "0.107.0-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "El listado de productos permite consultar y filtrar por categorías y etiquetas, con accesos directos a ambos catálogos desde el menú de Stock.",
+  "changes": [
+   { "type": "feat", "scope": "inventory", "title": "Agregar filtros de categoría y etiqueta al listado de productos" },
+   { "type": "feat", "scope": "inventory", "title": "Abrir los catálogos de categorías y etiquetas desde el menú de Stock" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Filtrar productos por categoría y etiqueta"
+ },
+ {
   "version": "0.106.7-alpha",
   "date": "2026-10-29",
   "stage": "alpha",

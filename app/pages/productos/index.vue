@@ -13,6 +13,11 @@ import {
 } from '~/modulos/logistica/master-data/product/utils/product-form.utils'
 import { useExcelExport } from '~/composables/useExcelExport'
 import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
+import { useCategoriesStore } from '~/modulos/almacen/categories/store/categories.store'
+import type { Category } from '~/modulos/almacen/categories/types/categories.types'
+import { useTagsStore } from '~/modulos/almacen/tags/store/tags.store'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 
 import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
@@ -31,11 +36,49 @@ const form = reactive(createDefaultProductForm())
 const sorting = ref<SortingState>([])
 const open = ref(false)
 const importOpen = ref(false)
+const importExportHelpOpen = ref(false)
 const router = useRouter()
 const toast = useToast()
 const { canImport, canExport } = useDataTransferPermissions()
 const allowImport = computed(() => canImport('products.import'))
 const allowExport = computed(() => canExport('products.export'))
+const categoryStore = useCategoriesStore()
+const tagsStore = useTagsStore()
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+
+const canReadCategories = computed(() => isOwnerOrAdmin.value || hasPermission('categories.read'))
+const canReadTags = computed(() => isOwnerOrAdmin.value || hasPermission('tags.read'))
+
+const categoryOptions = computed(() => {
+  if (!canReadCategories.value) return undefined
+  const categoriesById = new Map<string, Category>(categoryStore.items.map((category) => [category.id, category]))
+  const getPath = (category: Category) => {
+    const path: string[] = []
+    const visited = new Set<string>()
+    let current: Category | undefined = category
+    while (current && !visited.has(current.id)) {
+      visited.add(current.id)
+      path.unshift(current.name)
+      current = current.parent_id ? categoriesById.get(current.parent_id) : undefined
+    }
+    return path.join(' › ')
+  }
+  return categoryStore.items
+    .map((category) => ({ label: getPath(category), value: category.id }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'es-AR'))
+})
+
+const tagOptions = computed(() => canReadTags.value
+  ? tagsStore.items.map((tag) => ({ label: tag.name, value: tag.id }))
+  : undefined)
+
+onMounted(() => {
+  const requests: Promise<unknown>[] = []
+  if (canReadCategories.value) requests.push(categoryStore.fetchAll())
+  if (canReadTags.value) requests.push(tagsStore.fetchAll())
+  void Promise.allSettled(requests)
+})
 
 // =========================
 // PRODUCT_COLUMNS — Fuente única de verdad
@@ -119,14 +162,40 @@ async function handleBulkDelete(rows: any[]) {
   await refresh()
 }
 
-const columns = productColumns({
+const columns = computed(() => productColumns({
   onEdit: openEdit,
   onDelete: handleDeleteOne,
-  onSortFieldSelect
-})
+  onSortFieldSelect,
+  categoryOptions: categoryOptions.value,
+  tagOptions: tagOptions.value
+}))
 
 const serverTable = useServerTable((query) => productsStore.fetchPage(query))
 const { page, pageSize, search, sorting: serverSorting, filters, refresh } = serverTable
+const ALL_CATEGORIES_VALUE = '__all_categories__'
+const categoryFilterOptions = computed(() => [
+  { label: 'Todas las categorías', value: ALL_CATEGORIES_VALUE },
+  ...(categoryOptions.value ?? [])
+])
+const selectedCategory = computed<string>({
+  get: () => String(filters.value.find(filter => filter.column === 'category_id')?.value ?? ALL_CATEGORIES_VALUE),
+  set: (value) => {
+    const currentCategoryFilter = filters.value.find(filter => filter.column === 'category_id')
+    const otherFilters = filters.value.filter(filter => filter.column !== 'category_id')
+
+    if (value !== ALL_CATEGORIES_VALUE) {
+      otherFilters.push({
+        id: currentCategoryFilter?.id ?? 'products-category-quick-filter',
+        column: 'category_id',
+        operator: 'equals',
+        value
+      })
+    }
+
+    filters.value = otherFilters
+    page.value = 1
+  }
+})
 watch(serverSorting, value => { sorting.value = value }, { deep: true })
 watch(sorting, value => { serverSorting.value = value }, { deep: true })
 const saveLocation = async () => {
@@ -281,33 +350,68 @@ const sortFields: SortField[] = [
 </script>
 
 <template>
-  <UPage class="space-y-4">
+  <UPage class="flex flex-col gap-4">
     <AppPageHeader title="Productos" description="Listado de Productos">
       <template #links>
         <UFieldGroup v-if="dataActions.length">
-          <UButton color="neutral" variant="subtle" label="Importar / Exportar" icon="i-lucide-database" />
+          <UPopover v-model:open="importExportHelpOpen">
+            <UButton
+              color="neutral"
+              variant="subtle"
+              label="Importar / Exportar"
+              icon="i-lucide-database"
+              trailing-icon="i-lucide-circle-help"
+            />
+            <template #content>
+              <div class="w-[min(92vw,32rem)] p-3">
+                <UAlert
+                  icon="i-lucide-info"
+                  color="info"
+                  variant="soft"
+                  title="Importación de productos"
+                >
+                  <template #description>
+                    <ul class="mt-1 list-inside list-disc space-y-1 text-sm">
+                      <li><strong>SKU</strong>: Es el identificador único. Si modificás el SKU de un producto existente, se creará uno nuevo.</li>
+                      <li><strong>Costo actual</strong>: No se importa — el costo se calcula desde la estructura BOM/Ingeniería.</li>
+                      <li><strong>Nombre</strong>: Es el único campo obligatorio.</li>
+                    </ul>
+                  </template>
+                </UAlert>
+              </div>
+            </template>
+          </UPopover>
           <UDropdownMenu :items="dataActions">
-            <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" />
+            <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" aria-label="Ver acciones de importación y exportación" />
           </UDropdownMenu>
         </UFieldGroup>
         <UButton label="Nuevo Producto" icon="i-heroicons-plus" color="primary" variant="solid" @click="openCreate" />
       </template>
     </AppPageHeader>
 
-    <UAlert
-      icon="i-lucide-info"
-      color="info"
-      variant="soft"
-      title="Importación de productos"
+    <div
+      v-if="canReadCategories && categoryOptions?.length"
+      class="flex flex-col gap-3 rounded-lg border border-default bg-elevated/30 p-3 sm:flex-row sm:items-center sm:justify-between"
     >
-      <template #description>
-        <ul class="list-disc list-inside text-sm mt-1 space-y-1">
-          <li><strong>SKU</strong>: Es el identificador único. Si modificás el SKU de un producto existente, se creará uno nuevo.</li>
-          <li><strong>Costo actual</strong>: No se importa — el costo se calcula desde la estructura BOM/Ingeniería.</li>
-          <li><strong>Nombre</strong>: Es el único campo obligatorio.</li>
-        </ul>
-      </template>
-    </UAlert>
+      <div class="flex items-start gap-2">
+        <UIcon name="i-lucide-tags" class="mt-0.5 size-4 shrink-0 text-primary" />
+        <div>
+          <p class="text-sm font-medium">Explorar por categoría</p>
+          <p class="text-xs text-muted">Filtrá el catálogo sin salir del listado.</p>
+        </div>
+      </div>
+      <UFormField label="Categoría" class="w-full sm:w-80">
+        <USelectMenu
+          v-model="selectedCategory"
+          :items="categoryFilterOptions"
+          value-key="value"
+          searchable
+          placeholder="Buscar categoría..."
+          class="w-full"
+          aria-label="Filtrar productos por categoría"
+        />
+      </UFormField>
+    </div>
 
     <LogisticaTable
       v-model:page="page"

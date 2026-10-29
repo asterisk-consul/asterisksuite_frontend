@@ -567,11 +567,20 @@ export const navigationTree: DrilldownNode[] = [
     to: '/stock',
     permissions: [
       'products.read',
+      'categories.read',
+      'tags.read',
+      'units.read',
+      'warehouses.read',
       'stock.read',
+      'stock.replenishment.read',
       'sales.read',
       'sales.orders.read',
       'sales.quotes.read',
-      'sales.invoices.read'
+      'sales.invoices.read',
+      'production.read',
+      'production.execute',
+      'production.history',
+      'production.manage_bom'
     ],
     children: [
       { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/stock', permission: 'products.read' },
@@ -584,9 +593,13 @@ export const navigationTree: DrilldownNode[] = [
           { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
           { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
           // { label: 'Listas de precio', icon: 'i-lucide-tag', to: '/productos/price-lists' },
-          { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party' }
+          { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party' },
+          { label: 'Plantillas de costo', icon: 'i-lucide-file-text', to: '/cost-templates' }
         ]
       },
+      { label: 'Categorías', icon: 'i-lucide-folder-tree', to: '/productos/settings/categorias', permission: 'categories.read' },
+      { label: 'Etiquetas', icon: 'i-lucide-tags', to: '/productos/settings/tags', permission: 'tags.read' },
+      { label: 'Unidades de medida', icon: 'i-lucide-ruler', to: '/productos/settings/unidades', permission: 'units.read' },
       { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
       {
         label: 'Disponibilidad',
@@ -599,57 +612,40 @@ export const navigationTree: DrilldownNode[] = [
         icon: 'i-lucide-package-plus',
         to: '/stock/reposicion',
         permission: 'stock.replenishment.read'
-      }
-    ]
-  },
-
-  // ─── FABRICACIÓN ───────────────────────────────────────────────
-  {
-    label: 'Fabricación',
-    icon: 'i-lucide-factory',
-    to: '/fabricacion',
-    permissions: ['production.read', 'production.execute', 'production.history', 'production.manage_bom'],
-    children: [
-      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/fabricacion', permission: 'production.read' },
+      },
       {
-        label: 'Fabricar productos',
+        label: 'Fabricación',
         icon: 'i-lucide-factory',
-        to: '/fabricacion/fabricar',
-        permission: 'production.execute'
-      },
-      {
-        label: 'Historial de fabricación',
-        icon: 'i-lucide-history',
-        to: '/fabricacion/historial',
-        permission: 'production.history'
-      },
-      {
-        label: 'BOM (Ingeniería)',
-        icon: 'i-lucide-git-branch',
-        to: '/bom',
-        permission: 'production.manage_bom'
-      },
-      {
-        label: 'Nuevo BOM',
-        icon: 'i-lucide-plus',
-        to: '/bom/create',
-        permission: 'production.manage_bom'
-      },
-      { label: 'Productos y materiales', icon: 'i-lucide-package', to: '/productos', permission: 'products.read' },
-      {
-        label: 'Disponibilidad de stock',
-        icon: 'i-lucide-chart-no-axes-combined',
-        to: '/stock/disponibilidad',
-        permissions: ['stock.read', 'sales.read', 'sales.orders.read', 'sales.quotes.read', 'sales.invoices.read']
-      },
-      { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
-      {
-        label: 'Unidades de medida',
-        icon: 'i-lucide-ruler',
-        to: '/productos/settings/unidades',
-        permission: 'units.read'
-      },
-      { label: 'Plantillas de costo', icon: 'i-lucide-file-text', to: '/cost-templates', permission: 'products.read' }
+        to: '/fabricacion',
+        permissions: ['production.read', 'production.execute', 'production.history', 'production.manage_bom'],
+        children: [
+          { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/fabricacion', permission: 'production.read' },
+          {
+            label: 'Fabricar productos',
+            icon: 'i-lucide-factory',
+            to: '/fabricacion/fabricar',
+            permission: 'production.execute'
+          },
+          {
+            label: 'Historial de fabricación',
+            icon: 'i-lucide-history',
+            to: '/fabricacion/historial',
+            permission: 'production.history'
+          },
+          {
+            label: 'BOM (Ingeniería)',
+            icon: 'i-lucide-git-branch',
+            to: '/bom',
+            permission: 'production.manage_bom'
+          },
+          {
+            label: 'Nuevo BOM',
+            icon: 'i-lucide-plus',
+            to: '/bom/create',
+            permission: 'production.manage_bom'
+          }
+        ]
+      }
     ]
   },
 

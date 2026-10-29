@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useId } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
 import type { SortingState } from '@tanstack/vue-table'
 import { useTableFilters } from '~/components/Tablas/composable/useTableFilters'
@@ -44,6 +45,55 @@ const emit = defineEmits<{
 const sorting = defineModel<SortingState>('sorting', { default: () => [] })
 const search = defineModel<string>('search', { default: '' })
 const serverFilters = defineModel<TableFilter[]>('filters', { default: () => [] })
+const filtersOpen = ref(false)
+const toolbarId = useId()
+const activeFiltersToolbarId = useState<string | null>('table-filters-active-toolbar', () => null)
+const mountedFiltersToolbarIds = useState<string[]>('table-filters-toolbar-ids', () => [])
+
+function activateFiltersToolbar() {
+  activeFiltersToolbarId.value = toolbarId
+}
+
+function isEditingText(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.closest('[data-table-search]')) return false
+  return target.isContentEditable || Boolean(target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"], [role="combobox"]'))
+}
+
+function handleFiltersShortcut(event: KeyboardEvent) {
+  if (
+    event.defaultPrevented
+    || event.isComposing
+    || event.repeat
+    || !event.ctrlKey
+    || !event.shiftKey
+    || event.altKey
+    || event.metaKey
+    || event.key.toLowerCase() !== 'f'
+    || isEditingText(event.target)
+    || activeFiltersToolbarId.value !== toolbarId
+  ) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  filtersOpen.value = !filtersOpen.value
+}
+
+onMounted(() => {
+  if (!mountedFiltersToolbarIds.value.includes(toolbarId)) mountedFiltersToolbarIds.value.push(toolbarId)
+  if (!activeFiltersToolbarId.value || !mountedFiltersToolbarIds.value.includes(activeFiltersToolbarId.value)) {
+    activeFiltersToolbarId.value = toolbarId
+  }
+  window.addEventListener('keydown', handleFiltersShortcut)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleFiltersShortcut)
+  mountedFiltersToolbarIds.value = mountedFiltersToolbarIds.value.filter(id => id !== toolbarId)
+  if (activeFiltersToolbarId.value === toolbarId) {
+    activeFiltersToolbarId.value = mountedFiltersToolbarIds.value[0] ?? null
+  }
+})
 
 // --- Filtros dinámicos (popover) ---
 const tableRef = computed(() => props.table)
@@ -141,7 +191,12 @@ function moveColumn(index: number, direction: -1 | 1) {
 </script>
 
 <template>
-  <div class="min-w-0 max-w-full border-b border-default">
+  <div
+    class="min-w-0 max-w-full border-b border-default"
+    :data-table-toolbar="toolbarId"
+    @focusin="activateFiltersToolbar"
+    @pointerdown="activateFiltersToolbar"
+  >
     <!-- Toolbar -->
     <div class="flex min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-3">
       <!-- Inputs rápidos -->
@@ -149,6 +204,7 @@ function moveColumn(index: number, direction: -1 | 1) {
         <UInput
           v-if="serverSide"
           v-model="search"
+          data-table-search
           :placeholder="searchPlaceholder || 'Buscar por N°, tercero o descripción...'"
           icon="i-lucide-search"
           class="w-72 max-w-full"
@@ -161,6 +217,7 @@ function moveColumn(index: number, direction: -1 | 1) {
           v-for="field in filterFields"
           :key="field.id"
           v-model="filterValues[field.id]"
+          data-table-search
           :placeholder="field.label"
           :icon="field.icon ?? 'i-lucide-search'"
           :class="field.class ?? 'w-44'"
@@ -246,7 +303,15 @@ function moveColumn(index: number, direction: -1 | 1) {
         <!-- Chip filtros -->
 
         <!-- Popover -->
-        <TableFiltersPopover :filters="filters" :columns="columns" @add="addFilter" @update="updateFilter" @remove="removeFilter" />
+        <TableFiltersPopover
+          v-model:open="filtersOpen"
+          :filters="filters"
+          :columns="columns"
+          @add="addFilter"
+          @clear="clearFilters"
+          @update="updateFilter"
+          @remove="removeFilter"
+        />
 
         <!-- Limpiar -->
         <UButton
@@ -255,6 +320,8 @@ function moveColumn(index: number, direction: -1 | 1) {
           color="neutral"
           variant="ghost"
           size="sm"
+          aria-label="Limpiar búsqueda, filtros y ordenamiento"
+          title="Limpiar búsqueda, filtros y ordenamiento"
           @click="clearAll"
         />
 

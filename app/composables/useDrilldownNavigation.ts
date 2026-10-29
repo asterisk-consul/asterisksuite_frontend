@@ -50,7 +50,7 @@ function findBranch(nodes: DrilldownNode[], path: string, fullPath = path): Dril
 }
 
 // Filtrar nodos recursivamente por permisos y condiciones de visibilidad
-function filterByPermissions(
+export function filterNavigationTree(
   nodes: DrilldownNode[],
   hasPermission: (code: string) => boolean,
   isOwnerOrAdmin: boolean,
@@ -67,7 +67,7 @@ function filterByPermissions(
       return false
     }
     if (node.children?.length) {
-      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin, isSalesperson)
+      const filteredChildren = filterNavigationTree(node.children, hasPermission, isOwnerOrAdmin, isSalesperson)
       return filteredChildren.length > 0
     }
     return true
@@ -86,7 +86,7 @@ export const useDrilldownNavigation = () => {
     fetchIfNeeded()
   })
 
-  const filteredTree = computed(() => filterByPermissions(navigationTree, hasPermission, isOwnerOrAdmin.value, isSalesperson.value))
+  const filteredTree = computed(() => filterNavigationTree(navigationTree, hasPermission, isOwnerOrAdmin.value, isSalesperson.value))
 
   // Stack: cada nivel tiene nodos + referencia al nodo padre
   const stackState = useState<StackLevel[]>('drilldown-stack', () => [{ nodes: navigationTree }])
@@ -119,7 +119,7 @@ export const useDrilldownNavigation = () => {
 
   const push = (node: DrilldownNode) => {
     if (node.children?.length) {
-      const filteredChildren = filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value)
+      const filteredChildren = filterNavigationTree(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value)
       stack.value = [...stack.value, { nodes: filteredChildren, parentNode: node }]
     }
   }
@@ -169,7 +169,7 @@ export const useDrilldownNavigation = () => {
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
-          levels.push({ nodes: filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value), parentNode: node })
+          levels.push({ nodes: filterNavigationTree(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value), parentNode: node })
         }
       }
       stackState.value = levels
@@ -185,7 +185,7 @@ export const useDrilldownNavigation = () => {
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
-          levels.push({ nodes: filterByPermissions(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value), parentNode: node })
+          levels.push({ nodes: filterNavigationTree(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value), parentNode: node })
         }
       }
       stackState.value = levels

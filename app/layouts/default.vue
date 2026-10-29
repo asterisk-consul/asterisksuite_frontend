@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { navigationTree } from '~/data/navigationTree'
 import { useVersion } from '~/composables/useVersion'
 import { useAppVersion } from '~/composables/useAppVersion'
+import { filterNavigationTree } from '~/composables/useDrilldownNavigation'
+import { navigationTree } from '~/data/navigationTree'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useCurrentUserEmployee } from '~/composables/useCurrentUserEmployee'
 import DrilldownSidebar from '~/components/ui/DrilldownSidebar.vue'
 import AppVersionBanner from '~/components/AppVersionBanner/AppVersionBanner.vue'
 const { mainCollapsed } = useSidebarState()
@@ -27,19 +31,58 @@ const refreshNotificationsOnFocus = () => {
 
 const { init: initVersionCheck, showBanner, dismiss: dismissVersionBanner, currentVersion } = useAppVersion()
 
-const links = navigationTree
+const { hasPermission } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+const { isSalesperson } = useCurrentUserEmployee()
+const permittedNavigation = computed(() =>
+  filterNavigationTree(navigationTree, hasPermission, isOwnerOrAdmin.value, isSalesperson.value)
+)
 
 function openNotifications() {
   isNotificationsSlideoverOpen.value = true
 }
 
-const groups = computed(() => [
-  {
-    id: 'links',
-    label: 'Ir a',
-    items: links.flatMap(n => n.children ?? [n])
+const groups = computed(() => {
+  const seenDestinations = new Set<string>()
+  const navigationGroups = permittedNavigation.value.map((root, index) => {
+    const items: Array<{ label: string; to: string; icon?: string; suffix?: string }> = []
+
+    const visit = (node: typeof root, ancestors: string[]) => {
+      if (node.to && !seenDestinations.has(node.to)) {
+        seenDestinations.add(node.to)
+        items.push({
+          label: node.label,
+          to: node.to,
+          icon: node.icon,
+          suffix: ancestors.slice(1).join(' / ') || undefined
+        })
+      }
+
+      for (const child of node.children ?? []) {
+        visit(child, [...ancestors, node.label])
+      }
+    }
+
+    visit(root, [root.label])
+    return { id: `navigation-${index}`, label: root.label, items }
+  })
+
+  const labelCounts = new Map<string, number>()
+  for (const group of navigationGroups) {
+    for (const item of group.items) {
+      labelCounts.set(item.label, (labelCounts.get(item.label) ?? 0) + 1)
+    }
   }
-])
+
+  return navigationGroups
+    .map(group => ({
+      ...group,
+      items: group.items.map(item => labelCounts.get(item.label)! > 1
+        ? { ...item, suffix: [group.label, item.suffix].filter(Boolean).join(' / ') }
+        : item)
+    }))
+    .filter(group => group.items.length > 0)
+})
 
 onMounted(() => {
   void refreshNotifications()
@@ -88,7 +131,11 @@ onBeforeUnmount(() => {
   <UDashboardGroup unit="rem">
     <DrilldownSidebar id="default" v-model:open="open" v-model:collapsed="mainCollapsed" resizable with-footer />
 
-    <UDashboardSearch :groups="groups" />
+    <UDashboardSearch
+      :groups="groups"
+      :fuse="{ fuseOptions: { ignoreDiacritics: true, ignoreLocation: true } }"
+      placeholder="Buscar páginas, módulos o configuración..."
+    />
     <NotificationsSlideover />
 
     <UDashboardPanel>

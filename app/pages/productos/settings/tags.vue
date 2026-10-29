@@ -12,7 +12,7 @@ definePageMeta({
 })
 
 useSeoMeta({
-  title: 'Tags'
+  title: 'Etiquetas'
 })
 
 const toast = useToast()
@@ -46,7 +46,7 @@ const toggleTag = async (tag: Tag) => {
     })
 
     toast.add({
-      title: tag.active ? 'Tag desactivado' : 'Tag activado',
+      title: tag.active ? 'Etiqueta desactivada' : 'Etiqueta activada',
 
       color: 'success'
     })
@@ -66,15 +66,15 @@ onMounted(async () => {
 
 <template>
   <UPageCard
-    title="Tags"
-    description="Listado de tags."
+    title="Etiquetas"
+    description="Clasificá los productos con etiquetas reutilizables."
     orientation="horizontal"
     variant="naked"
     class="mb-2 mt-4 w-full lg:max-w-2xl mx-auto"
   >
     <UButton
       icon="i-heroicons-plus"
-      label="Nuevo tag"
+      label="Nueva etiqueta"
       color="neutral"
       class="w-fit lg:ms-auto"
       @click="createTag"

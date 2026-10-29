@@ -31,7 +31,7 @@ const filteredTags = computed(() => {
 
 const getItems = (tag: Tag): DropdownMenuItem[] => [
   {
-    label: 'Editar tag',
+    label: 'Editar etiqueta',
 
     icon: 'i-lucide-pencil',
 
@@ -56,7 +56,7 @@ const getItems = (tag: Tag): DropdownMenuItem[] => [
       <UInput
         v-model="search"
         icon="i-lucide-search"
-        placeholder="Buscar tags..."
+        placeholder="Buscar etiquetas..."
         class="w-full"
       />
     </div>
@@ -95,7 +95,7 @@ const getItems = (tag: Tag): DropdownMenuItem[] => [
     >
       <UIcon name="i-lucide-tags" class="size-10 text-muted mb-3" />
 
-      <h3 class="text-sm font-semibold">No se encontraron tags</h3>
+      <h3 class="text-sm font-semibold">No se encontraron etiquetas</h3>
 
       <p class="text-sm text-muted mt-1">Intenta con otra búsqueda.</p>
     </div>

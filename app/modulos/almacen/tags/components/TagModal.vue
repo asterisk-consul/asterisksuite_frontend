@@ -43,7 +43,7 @@ async function handleSubmit(data: CreateTagInput) {
       await tagsStore.update(props.tag.id, data)
 
       toast.add({
-        title: 'Tag actualizado',
+        title: 'Etiqueta actualizada',
 
         color: 'success'
       })
@@ -54,7 +54,7 @@ async function handleSubmit(data: CreateTagInput) {
       })
 
       toast.add({
-        title: 'Tag creado',
+        title: 'Etiqueta creada',
 
         color: 'success'
       })
@@ -69,7 +69,7 @@ async function handleSubmit(data: CreateTagInput) {
         tagsStore.error ||
         err?.data?.message ||
         err?.message ||
-        (isEdit.value ? 'Error al actualizar tag' : 'Error al crear tag'),
+        (isEdit.value ? 'Error al actualizar etiqueta' : 'Error al crear etiqueta'),
 
       color: 'error'
     })
@@ -80,7 +80,7 @@ async function handleSubmit(data: CreateTagInput) {
 </script>
 
 <template>
-  <UModal v-model:open="isOpen" :title="isEdit ? 'Editar tag' : 'Crear tag'">
+  <UModal v-model:open="isOpen" :title="isEdit ? 'Editar etiqueta' : 'Crear etiqueta'">
     <template #body>
       <div class="p-6">
         <TagForm
