@@ -347,127 +347,133 @@ const handleAdvanceSuccess = async () => {
 </script>
 
 <template>
-  <UPage class="space-y-4">
+  <UPage class="flex w-full min-w-0 flex-col gap-4">
     <AppPageHeader
       :title="isDraft ? (isAdvance ? 'Editar anticipo' : 'Editar pago / cobro') : (isAdvance ? 'Detalle del anticipo' : 'Detalle de pago / cobro')"
       :description="isDraft ? (isAdvance ? 'Anticipo a proveedor o cliente' : 'Modificar pago o cobro en borrador') : 'Solo se pueden editar operaciones en borrador. Esta operación ya no admite cambios.'"
-    />
+    >
+      <template #footer>
+        <div id="payment-form-actions" class="w-full pt-5 pb-3" />
+      </template>
+    </AppPageHeader>
 
     <div v-if="isInitialLoading" class="flex justify-center py-8">
       <ULoader />
     </div>
 
     <template v-else-if="paymentData && currentPayment">
-      <!-- STATUS BAR -->
-      <div class="flex items-center justify-between border border-default rounded-lg p-4">
-        <div class="flex items-center gap-3">
-          <span class="text-sm font-medium">Estado actual:</span>
-          <UBadge
-            :label="statusConfig[currentPayment.status]?.label ?? currentPayment.status"
-            :color="(statusConfig[currentPayment.status]?.color as any) ?? 'neutral'"
-          />
-          <UPopover mode="hover" :open-delay="300" :close-delay="300">
-            <UButton icon="i-lucide-help-circle" color="neutral" variant="ghost" size="xs" class="px-1" />
-            <template #content>
-              <div class="p-3 max-w-xs space-y-2 text-sm">
-                <p class="font-medium">Estados del pago</p>
-                <div class="space-y-1.5 text-xs">
-                  <p class="flex items-start gap-1.5">
-                    <UBadge label="Borrador" color="neutral" size="xs" class="mt-0.5 shrink-0" />
-                    <span>Pago creado, editable. Aún no se aplicaron efectos.</span>
-                  </p>
-                  <p class="flex items-start gap-1.5">
-                    <UBadge label="Confirmado" color="info" size="xs" class="mt-0.5 shrink-0" />
-                    <span>Efectos aplicados: documentos saldados, caja/banco movido, cuenta corriente actualizada.</span>
-                  </p>
-                  <p class="flex items-start gap-1.5">
-                    <UBadge label="Pagado" color="success" size="xs" class="mt-0.5 shrink-0" />
-                    <span>Confirmación de que el dinero fue efectivamente entregado/recibido.</span>
-                  </p>
-                  <p class="flex items-start gap-1.5">
-                    <UBadge label="Rechazado" color="warning" size="xs" class="mt-0.5 shrink-0" />
-                    <span>Se revertirán todos los efectos aplicados.</span>
-                  </p>
-                  <p class="flex items-start gap-1.5">
-                    <UBadge label="Anulado" color="error" size="xs" class="mt-0.5 shrink-0" />
-                    <span>Pago cancelado definitivamente. Todos los efectos revertidos.</span>
-                  </p>
-                </div>
-              </div>
-            </template>
-          </UPopover>
-          <span v-if="currentPayment.confirmed_at" class="text-xs text-muted">
-            Confirmado el {{ new Date(currentPayment.confirmed_at).toLocaleDateString('es-AR') }}
-          </span>
-          <span v-if="currentPayment.payment_date" class="text-xs text-muted">
-            Pagado el {{ new Date(currentPayment.payment_date).toLocaleDateString('es-AR') }}
-          </span>
-        </div>
-        <div class="flex items-center gap-2">
-          <template v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)">
-            <UBadge label="Pendiente de asociar documento" color="warning" variant="subtle" />
+      <div class="flex w-full min-w-0 flex-col gap-4">
+        <!-- STATUS BAR -->
+        <div class="flex flex-col gap-3 rounded-lg border border-default p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm font-medium">Estado actual:</span>
             <UBadge
-              :label="`Disponible: ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: currentPayment?.currency_code || 'ARS' }).format(availableBalance)}`"
-              color="info"
-              variant="subtle"
+              :label="statusConfig[currentPayment.status]?.label ?? currentPayment.status"
+              :color="(statusConfig[currentPayment.status]?.color as any) ?? 'neutral'"
             />
-            <UButton label="Aplicar a factura" icon="i-lucide-link" size="sm" color="info" variant="outline" @click="advanceModalOpen = true" />
-          </template>
-          <template v-if="isAdvance && availableBalance <= 0 && (isConfirmed || isPaid)">
-            <UBadge label="Saldado" color="success" variant="subtle" />
-          </template>
-          <UButton v-if="isDraft && canConfirmPayment" label="Confirmar" icon="i-lucide-check-circle" size="sm" color="info" :loading="isProcessing" :disabled="isProcessing || hasUnsavedDateChange" @click="openAction('confirm')" />
-          <UButton v-if="isConfirmed && canMarkAsPaid" label="Marcar pagado" icon="i-lucide-check" size="sm" color="success" :loading="isProcessing" :disabled="isProcessing" @click="openAction('pay')" />
-          <UButton v-if="isConfirmed && canRejectPayment" label="Rechazar" icon="i-lucide-x-circle" size="sm" color="warning" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reject')" />
-          <UButton v-if="(isConfirmed || isPaid) && canReversePayment" label="Anular" icon="i-lucide-undo-2" size="sm" color="error" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reverse')" />
-          <UButton v-if="(isConfirmed || isPaid) && currentPayment?.party_id" label="Cuenta corriente" icon="i-lucide-arrow-right-circle" size="sm" color="primary" variant="outline" @click="router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)" />
+            <UPopover mode="hover" :open-delay="300" :close-delay="300">
+              <UButton icon="i-lucide-help-circle" color="neutral" variant="ghost" size="xs" class="px-1" />
+              <template #content>
+                <div class="p-3 max-w-xs space-y-2 text-sm">
+                  <p class="font-medium">Estados del pago</p>
+                  <div class="space-y-1.5 text-xs">
+                    <p class="flex items-start gap-1.5">
+                      <UBadge label="Borrador" color="neutral" size="xs" class="mt-0.5 shrink-0" />
+                      <span>Pago creado, editable. Aún no se aplicaron efectos.</span>
+                    </p>
+                    <p class="flex items-start gap-1.5">
+                      <UBadge label="Confirmado" color="info" size="xs" class="mt-0.5 shrink-0" />
+                      <span>Efectos aplicados: documentos saldados, caja/banco movido, cuenta corriente actualizada.</span>
+                    </p>
+                    <p class="flex items-start gap-1.5">
+                      <UBadge label="Pagado" color="success" size="xs" class="mt-0.5 shrink-0" />
+                      <span>Confirmación de que el dinero fue efectivamente entregado/recibido.</span>
+                    </p>
+                    <p class="flex items-start gap-1.5">
+                      <UBadge label="Rechazado" color="warning" size="xs" class="mt-0.5 shrink-0" />
+                      <span>Se revertirán todos los efectos aplicados.</span>
+                    </p>
+                    <p class="flex items-start gap-1.5">
+                      <UBadge label="Anulado" color="error" size="xs" class="mt-0.5 shrink-0" />
+                      <span>Pago cancelado definitivamente. Todos los efectos revertidos.</span>
+                    </p>
+                  </div>
+                </div>
+              </template>
+            </UPopover>
+            <span v-if="currentPayment.confirmed_at" class="text-xs text-muted">
+              Confirmado el {{ new Date(currentPayment.confirmed_at).toLocaleDateString('es-AR') }}
+            </span>
+            <span v-if="currentPayment.payment_date" class="text-xs text-muted">
+              Pagado el {{ new Date(currentPayment.payment_date).toLocaleDateString('es-AR') }}
+            </span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <template v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)">
+              <UBadge label="Pendiente de asociar documento" color="warning" variant="subtle" />
+              <UBadge
+                :label="`Disponible: ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: currentPayment?.currency_code || 'ARS' }).format(availableBalance)}`"
+                color="info"
+                variant="subtle"
+              />
+              <UButton label="Aplicar a factura" icon="i-lucide-link" size="sm" color="info" variant="outline" @click="advanceModalOpen = true" />
+            </template>
+            <template v-if="isAdvance && availableBalance <= 0 && (isConfirmed || isPaid)">
+              <UBadge label="Saldado" color="success" variant="subtle" />
+            </template>
+            <UButton v-if="isDraft && canConfirmPayment" label="Confirmar" icon="i-lucide-check-circle" size="sm" color="info" :loading="isProcessing" :disabled="isProcessing || hasUnsavedDateChange" @click="openAction('confirm')" />
+            <UButton v-if="isConfirmed && canMarkAsPaid" label="Marcar pagado" icon="i-lucide-check" size="sm" color="success" :loading="isProcessing" :disabled="isProcessing" @click="openAction('pay')" />
+            <UButton v-if="isConfirmed && canRejectPayment" label="Rechazar" icon="i-lucide-x-circle" size="sm" color="warning" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reject')" />
+            <UButton v-if="(isConfirmed || isPaid) && canReversePayment" label="Anular" icon="i-lucide-undo-2" size="sm" color="error" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reverse')" />
+            <UButton v-if="(isConfirmed || isPaid) && currentPayment?.party_id" label="Cuenta corriente" icon="i-lucide-arrow-right-circle" size="sm" color="primary" variant="outline" @click="router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)" />
+          </div>
         </div>
-      </div>
 
-      <UAlert
-        v-if="isDraft && hasUnsavedDateChange"
-        color="warning"
-        variant="subtle"
-        icon="i-lucide-save"
-        title="Tenés una fecha sin guardar"
-        description="La fecha todavía no se aplicó al pago o cobro. Hacé clic en “Guardar borrador” al pie del formulario; después vas a poder confirmarlo."
-      />
-
-      <UAlert
-        v-if="!isDraft"
-        color="warning"
-        variant="subtle"
-        icon="i-lucide-lock-keyhole"
-        title="Operación de solo lectura"
-        description="La fecha, el medio y las facturas aplicadas se bloquean al confirmar. Con permiso, podés ajustar retenciones y cuenta contable; el importe del pago y el saldo de caja o banco se recalculan sobre el movimiento original."
-      />
-
-      <!-- FORM (readonly when not DRAFT) -->
-      <div class="max-w-4xl">
-        <PaymentForm
-          :model-value="paymentData"
-          :readonly="!isDraft"
-          :pending-sales-documents="pendingSalesDocuments"
-          :pending-purchase-documents="pendingPurchaseDocuments"
-          :available-own-checks="availableOwnChecks"
-          :available-customer-checks="availableCustomerChecks"
-          :initial-withholdings="initialWithholdings"
-          :allow-finalized-financial-edit="canEditFinalizedFinancialDetails"
-          :saving-financial-details="isSaving"
-          :local-draft-enabled="false"
-          :loading="isSaving"
-          submit-label="Guardar borrador"
-          @update:model-value="handleFormModelUpdate"
-          @submit="handleSubmit"
-          @save-finalized-details="handleFinalizedDetailsSave"
-          @cancel="router.push('/erp/treasury/payments')"
+        <UAlert
+          v-if="isDraft && hasUnsavedDateChange"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-save"
+          title="Tenés una fecha sin guardar"
+          description="La fecha todavía no se aplicó al pago o cobro. Hacé clic en “Guardar borrador” al inicio del formulario; después vas a poder confirmarlo."
         />
-        <UiAttachmentManager
-          class="mt-4"
-          entity-type="payment"
-          :entity-id="paymentId"
-          :readonly="!isDraft"
+
+        <UAlert
+          v-if="!isDraft"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-lock-keyhole"
+          title="Operación de solo lectura"
+          description="La fecha, el medio y las facturas aplicadas se bloquean al confirmar. Con permiso, podés ajustar retenciones y cuenta contable; el importe del pago y el saldo de caja o banco se recalculan sobre el movimiento original."
         />
+
+        <!-- FORM (readonly when not DRAFT) -->
+        <div class="flex w-full min-w-0 flex-col gap-4">
+          <PaymentForm
+            :model-value="paymentData"
+            action-bar-target="#payment-form-actions"
+            :readonly="!isDraft"
+            :pending-sales-documents="pendingSalesDocuments"
+            :pending-purchase-documents="pendingPurchaseDocuments"
+            :available-own-checks="availableOwnChecks"
+            :available-customer-checks="availableCustomerChecks"
+            :initial-withholdings="initialWithholdings"
+            :allow-finalized-financial-edit="canEditFinalizedFinancialDetails"
+            :saving-financial-details="isSaving"
+            :local-draft-enabled="false"
+            :loading="isSaving"
+            submit-label="Guardar borrador"
+            @update:model-value="handleFormModelUpdate"
+            @submit="handleSubmit"
+            @save-finalized-details="handleFinalizedDetailsSave"
+            @cancel="router.push('/erp/treasury/payments')"
+          />
+          <UiAttachmentManager
+            entity-type="payment"
+            :entity-id="paymentId"
+            :readonly="!isDraft"
+          />
+        </div>
       </div>
     </template>
 

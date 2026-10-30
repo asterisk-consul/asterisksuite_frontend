@@ -10,6 +10,7 @@ export function mapFormToPartnerDto(form: BusinessPartyForm): CreatePartnerInput
   const lastName = form.last_name || form.name?.split(' ').slice(1).join(' ') || ''
 
   return {
+    create_user: form.create_user,
     first_name: firstName,
     last_name: lastName,
     document_type: form.document_type || undefined,

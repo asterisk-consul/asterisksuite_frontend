@@ -24,6 +24,7 @@ export interface PendingDocument {
   converted_total?: number | null
   party_id: string | null
   party_name: string | null
+  reference?: string | null
   party_type: string | null
   document_type_code: string | null
   document_type_description: string | null

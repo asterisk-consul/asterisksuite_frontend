@@ -92,7 +92,7 @@ function resolveDocLink(doc: any): string {
       <UBadge v-else :label="statusLabel" :color="statusColor" variant="subtle" size="lg" />
     </div>
 
-    <DocumentAssignment :key="document.id" :document-id="document.id" />
+    <DocumentAssignment :key="document.id" :document-id="document.id" :assigned-to="document.assigned_to" />
 
     <!-- Documento padre -->
     <UAlert v-if="document.parent_document" color="info" variant="soft" icon="i-lucide-link">

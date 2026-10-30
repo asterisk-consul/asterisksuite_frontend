@@ -6,7 +6,10 @@ import { useCompanyRole } from '~/composables/useCompanyRole'
 import { useCreditCardsService } from '~/modulos/erp/credit-cards/credit-cards.service'
 
 const { isNotificationsSlideoverOpen } = useDashboard()
-const { items: notifications, unreadCount, loading, refresh, markRead, markAllRead, remove, setCompanyAlertCount } = useNotifications()
+const {
+  items: notifications, unreadCount, loading, refresh, dismissNotification, markAllRead, remove,
+  setCompanyAlertCount, refreshDismissals, dismissAlert: persistAlertDismissal, isAlertDismissed
+} = useNotifications()
 const toast = useToast()
 const busyNotificationId = ref<string | null>(null)
 const fiscalAlerts = ref<any[]>([])
@@ -17,7 +20,16 @@ const cardAlerts = ref<any | null>(null)
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 
-const totalItems = computed(() => notifications.value.length + fiscalAlerts.value.length + treasuryAlerts.value.length + stockAlerts.value.length + oldAccountAlerts.value.length + (cardAlerts.value?.pending_collections ? 1 : 0) + (cardAlerts.value?.upcoming_installments_count ? 1 : 0))
+const cardSettlementAlertKey = 'CARD_SETTLEMENTS:PENDING'
+const corporateCardAlertKey = 'CORPORATE_CARD:UPCOMING_INSTALLMENTS'
+const showCardSettlementAlert = computed(() => Boolean(cardAlerts.value?.pending_collections) && !isAlertDismissed(cardSettlementAlertKey))
+const showCorporateCardAlert = computed(() => Boolean(cardAlerts.value?.upcoming_installments_count) && !isAlertDismissed(corporateCardAlertKey))
+const totalItems = computed(() => notifications.value.length + fiscalAlerts.value.length + treasuryAlerts.value.length + stockAlerts.value.length + oldAccountAlerts.value.length + Number(showCardSettlementAlert.value) + Number(showCorporateCardAlert.value))
+
+const fiscalAlertKey = (alert: any) => `FISCAL_AUTHORIZATION:${alert.id}`
+const treasuryAlertKey = (alert: any) => `TREASURY_OBLIGATION:${alert.id}`
+const stockAlertKey = (alert: any) => `STOCK_REPLENISHMENT:${alert.id}`
+const accountAlertKey = (alert: any) => `OLD_ACCOUNT_BALANCE:${alert.id}`
 
 function notificationIcon(type: string) {
   if (type === 'CHECK_OVERDUE') return 'i-lucide-calendar-clock'
@@ -34,7 +46,8 @@ function formatNotificationTime(value: string) {
 
 async function loadFiscalAlerts() {
   try {
-    fiscalAlerts.value = await $fetch<any[]>('/api/backend/fiscal-authorizations/alerts/current')
+    const rows = await $fetch<any[]>('/api/backend/fiscal-authorizations/alerts/current')
+    fiscalAlerts.value = rows.filter(alert => !isAlertDismissed(fiscalAlertKey(alert)))
   } catch {
     fiscalAlerts.value = []
   }
@@ -54,7 +67,8 @@ async function loadCardAlerts() {
 
 async function loadTreasuryAlerts() {
   try {
-    treasuryAlerts.value = await $fetch<any[]>('/api/backend/treasury/obligations/notifications')
+    const rows = await $fetch<any[]>('/api/backend/treasury/obligations/notifications')
+    treasuryAlerts.value = rows.filter(alert => !isAlertDismissed(treasuryAlertKey(alert)))
   } catch {
     // Usuarios sin acceso a Tesorería no deben ver estos vencimientos.
     treasuryAlerts.value = []
@@ -65,14 +79,14 @@ async function loadOperationalAlerts() {
   const requests: Promise<void>[] = []
   if (hasPermission('stock.read')) {
     requests.push($fetch<any[]>('/api/backend/dashboard/notifications/stock-replenishment')
-      .then((rows) => { stockAlerts.value = rows })
+      .then((rows) => { stockAlerts.value = rows.filter(alert => !isAlertDismissed(stockAlertKey(alert))) })
       .catch(() => { stockAlerts.value = [] }))
   } else {
     stockAlerts.value = []
   }
   if (hasPermission('treasury.current_accounts.read')) {
     requests.push($fetch<any[]>('/api/backend/dashboard/notifications/old-account-balances')
-      .then((rows) => { oldAccountAlerts.value = rows })
+      .then((rows) => { oldAccountAlerts.value = rows.filter(alert => !isAlertDismissed(accountAlertKey(alert))) })
       .catch(() => { oldAccountAlerts.value = [] }))
   } else {
     oldAccountAlerts.value = []
@@ -81,29 +95,37 @@ async function loadOperationalAlerts() {
 }
 
 async function refreshAlerts() {
+  await refreshDismissals()
   await Promise.all([refresh(), loadFiscalAlerts(), loadTreasuryAlerts(), loadCardAlerts(), loadOperationalAlerts()])
   setCompanyAlertCount(companyAlertCountFromCurrentAlerts())
 }
 
+async function dismissCompanyAlert(key: string) {
+  busyNotificationId.value = key
+  try {
+    await persistAlertDismissal(key)
+    fiscalAlerts.value = fiscalAlerts.value.filter(alert => fiscalAlertKey(alert) !== key)
+    treasuryAlerts.value = treasuryAlerts.value.filter(alert => treasuryAlertKey(alert) !== key)
+    stockAlerts.value = stockAlerts.value.filter(alert => stockAlertKey(alert) !== key)
+    oldAccountAlerts.value = oldAccountAlerts.value.filter(alert => accountAlertKey(alert) !== key)
+    setCompanyAlertCount(companyAlertCountFromCurrentAlerts())
+    return true
+  } catch {
+    toast.add({ title: 'No se pudo ocultar el aviso', color: 'error' })
+    return false
+  } finally {
+    busyNotificationId.value = null
+  }
+}
+
 async function openFiscalAlert(alert: any) {
-  if (!alert.is_read) await markFiscalAlertRead(alert)
+  if (!await dismissCompanyAlert(fiscalAlertKey(alert))) return
   isNotificationsSlideoverOpen.value = false
   await navigateTo('/settings/fiscal-authorizations')
 }
 
-async function markFiscalAlertRead(alert: any) {
-  if (alert.is_read) return
-  const busyId = `fiscal-${alert.id}`
-  busyNotificationId.value = busyId
-  try {
-    await $fetch(`/api/backend/fiscal-authorizations/alerts/${alert.id}/read`, { method: 'PATCH' })
-    alert.is_read = true
-    setCompanyAlertCount(companyAlertCountFromCurrentAlerts())
-  } catch {
-    toast.add({ title: 'No se pudo marcar la alerta como leída', color: 'error' })
-  } finally {
-    busyNotificationId.value = null
-  }
+async function hideFiscalAlert(alert: any) {
+  await dismissCompanyAlert(fiscalAlertKey(alert))
 }
 
 function companyAlertCountFromCurrentAlerts() {
@@ -111,27 +133,30 @@ function companyAlertCountFromCurrentAlerts() {
     + treasuryAlerts.value.length
     + stockAlerts.value.length
     + oldAccountAlerts.value.length
-    + (cardAlerts.value?.pending_collections ? 1 : 0)
-    + (cardAlerts.value?.upcoming_installments_count ? 1 : 0)
+    + Number(showCardSettlementAlert.value)
+    + Number(showCorporateCardAlert.value)
 }
 
 async function openNotification(notification: UserNotification) {
-  if (!notification.read_at) {
-    try {
-      await markRead(notification.id)
-    } catch {}
+  busyNotificationId.value = notification.id
+  try {
+    await dismissNotification(notification.id)
+  } catch {
+    toast.add({ title: 'No se pudo ocultar la notificación', color: 'error' })
+    return
+  } finally {
+    busyNotificationId.value = null
   }
   isNotificationsSlideoverOpen.value = false
   if (notification.target_path) await navigateTo(notification.target_path)
 }
 
-async function markNotificationRead(notification: UserNotification) {
-  if (notification.read_at) return
+async function hideNotification(notification: UserNotification) {
   busyNotificationId.value = notification.id
   try {
-    await markRead(notification.id)
+    await dismissNotification(notification.id)
   } catch {
-    toast.add({ title: 'No se pudo marcar como leída', color: 'error' })
+    toast.add({ title: 'No se pudo ocultar la notificación', color: 'error' })
   } finally {
     busyNotificationId.value = null
   }
@@ -156,29 +181,34 @@ async function handleMarkAllRead() {
   }
 }
 
-async function openTreasuryAlert() {
+async function openTreasuryAlert(alert?: any) {
+  if (alert && !await dismissCompanyAlert(treasuryAlertKey(alert))) return
   isNotificationsSlideoverOpen.value = false
   await navigateTo('/erp/treasury/taxes-services')
 }
 
-async function openCardAlerts() {
+async function openCardAlerts(dismiss = false) {
+  if (dismiss && !await dismissCompanyAlert(cardSettlementAlertKey)) return
   isNotificationsSlideoverOpen.value = false
   await navigateTo('/erp/treasury/card-settlements')
 }
 
-async function openCorporateCardAlerts() {
+async function openCorporateCardAlerts(dismiss = false) {
+  if (dismiss && !await dismissCompanyAlert(corporateCardAlertKey)) return
   isNotificationsSlideoverOpen.value = false
   await navigateTo('/erp/treasury/cards')
 }
 
-async function openStockAlerts() {
+async function openStockAlerts(alert?: any) {
+  if (alert && !await dismissCompanyAlert(stockAlertKey(alert))) return
   isNotificationsSlideoverOpen.value = false
   await navigateTo('/stock')
 }
 
-async function openAccountAlerts(alert: any) {
+async function openAccountAlerts(alert?: any) {
+  if (alert && !await dismissCompanyAlert(accountAlertKey(alert))) return
   isNotificationsSlideoverOpen.value = false
-  await navigateTo({ path: '/erp/treasury/current-accounts', query: { party_type: alert.party_type } })
+  await navigateTo({ path: '/erp/treasury/current-accounts', query: alert ? { party_type: alert.party_type } : {} })
 }
 
 function formatAlertAmount(amount: number, currencyCode?: string | null) {
@@ -202,7 +232,7 @@ onMounted(() => {
         <p class="text-sm text-muted">Asignaciones y avisos de la empresa</p>
         <UButton
           v-if="unreadCount > 0"
-          label="Marcar todas leídas"
+          label="Ocultar avisos personales nuevos hasta mañana"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -236,18 +266,16 @@ onMounted(() => {
             </div>
           </div>
           <div class="mt-2 flex flex-wrap items-center justify-end gap-2">
-            <span v-if="notification.read_at" class="mr-auto text-xs text-muted">Leída</span>
             <UButton
-              v-if="!notification.read_at"
-              label="Marcar leída"
-              icon="i-lucide-check"
-              color="success"
-              variant="soft"
+              label="Ocultar hasta mañana"
+              icon="i-lucide-eye-off"
+              color="neutral"
+              variant="outline"
               size="xs"
               :loading="busyNotificationId === notification.id"
               :disabled="busyNotificationId !== null"
-              :aria-label="`Marcar como leída: ${notification.title}`"
-              @click="markNotificationRead(notification)"
+              :aria-label="`Ocultar hasta mañana: ${notification.title}`"
+              @click="hideNotification(notification)"
             />
             <UButton
               v-if="notification.target_path"
@@ -274,11 +302,11 @@ onMounted(() => {
         </div>
       </div>
 
-      <p v-if="notifications.length" class="px-3 pt-1 text-xs text-muted">
-        Los avisos leídos quedan en la lista hasta que los elimines.
+      <p v-if="totalItems" class="px-3 pt-1 text-xs text-muted">
+        Al abrir u ocultar un aviso, desaparece hasta mañana. Si sigue pendiente, vuelve a aparecer; al resolverlo, deja de mostrarse.
       </p>
 
-      <div v-if="notifications.length && (fiscalAlerts.length || treasuryAlerts.length || stockAlerts.length || oldAccountAlerts.length || cardAlerts?.pending_collections || cardAlerts?.upcoming_installments_count)" class="border-t border-default my-3" />
+      <div v-if="notifications.length && (fiscalAlerts.length || treasuryAlerts.length || stockAlerts.length || oldAccountAlerts.length || showCardSettlementAlert || showCorporateCardAlert)" class="border-t border-default my-3" />
 
       <div
         v-for="alert in fiscalAlerts"
@@ -297,17 +325,15 @@ onMounted(() => {
           </div>
         </div>
         <div class="mt-2 flex flex-wrap items-center justify-end gap-2">
-          <span v-if="alert.is_read" class="mr-auto text-xs text-muted">Leída</span>
           <UButton
-            v-if="!alert.is_read"
-            label="Marcar leída"
-            icon="i-lucide-check"
-            color="success"
-            variant="soft"
+            label="Ocultar hasta mañana"
+            icon="i-lucide-eye-off"
+            color="neutral"
+            variant="outline"
             size="xs"
-            :loading="busyNotificationId === `fiscal-${alert.id}`"
+            :loading="busyNotificationId === fiscalAlertKey(alert)"
             :disabled="busyNotificationId !== null"
-            @click="markFiscalAlertRead(alert)"
+            @click="hideFiscalAlert(alert)"
           />
           <UButton
             label="Abrir"
@@ -321,18 +347,18 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="fiscalAlerts.length && (treasuryAlerts.length || stockAlerts.length || oldAccountAlerts.length || cardAlerts?.pending_collections || cardAlerts?.upcoming_installments_count)" class="border-t border-default my-3" />
+      <div v-if="fiscalAlerts.length && (treasuryAlerts.length || stockAlerts.length || oldAccountAlerts.length || showCardSettlementAlert || showCorporateCardAlert)" class="border-t border-default my-3" />
 
       <div v-if="stockAlerts.length" class="flex items-center justify-between px-3 py-2">
         <p class="text-xs font-medium uppercase tracking-wide text-muted">Reposición de stock</p>
-        <UButton label="Ver stock" size="xs" color="neutral" variant="ghost" @click="openStockAlerts" />
+        <UButton label="Ver stock" size="xs" color="neutral" variant="ghost" @click="openStockAlerts()" />
       </div>
 
       <button
         v-for="alert in stockAlerts"
         :key="`stock-${alert.id}`"
         class="w-full rounded-md px-3 py-2.5 hover:bg-elevated/50 flex items-start gap-3 text-left"
-        @click="openStockAlerts"
+        @click="openStockAlerts(alert)"
       >
         <UChip :color="alert.critical ? 'error' : 'warning'" :show="true" inset>
           <div class="size-10 rounded-full bg-warning/10 flex items-center justify-center">
@@ -349,7 +375,7 @@ onMounted(() => {
 
       <div v-if="oldAccountAlerts.length" class="flex items-center justify-between px-3 py-2">
         <p class="text-xs font-medium uppercase tracking-wide text-muted">Saldos sin movimiento · 30+ días</p>
-        <UButton label="Ver cuentas" size="xs" color="neutral" variant="ghost" @click="openAccountAlerts(oldAccountAlerts[0])" />
+        <UButton label="Ver cuentas" size="xs" color="neutral" variant="ghost" @click="openAccountAlerts()" />
       </div>
 
       <button
@@ -371,18 +397,18 @@ onMounted(() => {
 
       <div v-if="(stockAlerts.length || oldAccountAlerts.length) && treasuryAlerts.length" class="border-t border-default my-3" />
 
-      <div v-if="!treasuryAlerts.length && (stockAlerts.length || oldAccountAlerts.length) && (cardAlerts?.pending_collections || cardAlerts?.upcoming_installments_count)" class="border-t border-default my-3" />
+      <div v-if="!treasuryAlerts.length && (stockAlerts.length || oldAccountAlerts.length) && (showCardSettlementAlert || showCorporateCardAlert)" class="border-t border-default my-3" />
 
       <div v-if="treasuryAlerts.length" class="flex items-center justify-between px-3 py-2">
         <p class="text-xs font-medium uppercase tracking-wide text-muted">Impuestos y servicios</p>
-        <UButton label="Ver todos" size="xs" color="neutral" variant="ghost" @click="openTreasuryAlert" />
+        <UButton label="Ver todos" size="xs" color="neutral" variant="ghost" @click="openTreasuryAlert()" />
       </div>
 
       <button
         v-for="obligation in treasuryAlerts"
         :key="`treasury-${obligation.id}`"
         class="w-full rounded-md px-3 py-2.5 hover:bg-elevated/50 flex items-start gap-3 text-left"
-        @click="openTreasuryAlert"
+        @click="openTreasuryAlert(obligation)"
       >
         <UChip :color="obligation.effective_status === 'OVERDUE' ? 'error' : 'warning'" :show="true" inset>
           <div class="size-10 rounded-full bg-warning/10 flex items-center justify-center">
@@ -395,12 +421,12 @@ onMounted(() => {
         </div>
       </button>
 
-      <div v-if="treasuryAlerts.length && (cardAlerts?.pending_collections || cardAlerts?.upcoming_installments_count)" class="border-t border-default my-3" />
+      <div v-if="treasuryAlerts.length && (showCardSettlementAlert || showCorporateCardAlert)" class="border-t border-default my-3" />
 
       <button
-        v-if="cardAlerts?.pending_collections"
+        v-if="showCardSettlementAlert"
         class="w-full rounded-md px-3 py-2.5 hover:bg-elevated/50 flex items-start gap-3 text-left"
-        @click="openCardAlerts"
+        @click="openCardAlerts(true)"
       >
         <UChip :color="cardAlerts.overdue_collections ? 'error' : 'warning'" :show="true" inset>
           <div class="size-10 rounded-full bg-warning/10 flex items-center justify-center">
@@ -415,12 +441,12 @@ onMounted(() => {
         </div>
       </button>
 
-      <div v-if="cardAlerts?.pending_collections && cardAlerts?.upcoming_installments_count" class="border-t border-default my-3" />
+      <div v-if="showCardSettlementAlert && showCorporateCardAlert" class="border-t border-default my-3" />
 
       <button
-        v-if="cardAlerts?.upcoming_installments_count"
+        v-if="showCorporateCardAlert"
         class="w-full rounded-md px-3 py-2.5 hover:bg-elevated/50 flex items-start gap-3 text-left"
-        @click="openCorporateCardAlerts"
+        @click="openCorporateCardAlerts(true)"
       >
         <UChip color="warning" :show="true" inset>
           <div class="size-10 rounded-full bg-warning/10 flex items-center justify-center">

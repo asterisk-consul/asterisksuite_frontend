@@ -227,13 +227,17 @@ const handleSubmit = async (formData: PaymentFormData) => {
 </script>
 
 <template>
-  <UPage class="space-y-4">
+  <UPage class="flex w-full min-w-0 flex-col gap-4">
     <AppPageHeader
       title="Nuevo pago / cobro"
       description="Crear un nuevo pago o cobro"
-    />
+    >
+      <template #footer>
+        <div id="payment-form-actions" class="w-full pt-5 pb-3" />
+      </template>
+    </AppPageHeader>
 
-    <UCard class="max-w-5xl mb-2">
+    <UCard class="w-full min-w-0">
       <div v-if="!quickCaptureActive" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <p class="font-medium">Adjuntos del pago (opcional)</p>
@@ -303,9 +307,10 @@ const handleSubmit = async (formData: PaymentFormData) => {
       </div>
     </UCard>
 
-    <div class="max-w-5xl">
+    <div class="w-full min-w-0">
       <PaymentForm
         ref="paymentFormRef"
+        action-bar-target="#payment-form-actions"
         :model-value="initialValues"
         :pending-sales-documents="pendingSalesDocuments"
         :pending-purchase-documents="pendingPurchaseDocuments"

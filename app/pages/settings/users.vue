@@ -48,6 +48,7 @@ const newUser = ref({
   name: '',
   email: '',
   password: '',
+  whatsapp_phone: '',
   role: 'USER' as string,
   linkType: 'none' as 'none' | 'existing_employee' | 'existing_partner' | 'new_employee' | 'new_partner',
 })
@@ -60,7 +61,10 @@ const partners = ref<Partner[]>([])
 // Edit user modal
 const showEditModal = ref(false)
 const editing = ref(false)
-const editUser = ref({ name: '', email: '' })
+const loadingEditContact = ref(false)
+const editContactReady = ref(false)
+const editContactOptedIn = ref(false)
+const editUser = ref({ name: '', email: '', whatsapp_phone: '' })
 
 // Password modal
 const showPasswordModal = ref(false)
@@ -146,10 +150,34 @@ const refreshDirectory = async () => {
 }
 
 // ─── Edit User ──────────────────────────────────────
-const openEditModal = (user: CompanyUser) => {
+const openEditModal = async (user: CompanyUser) => {
+  const authStore = useAuthStore()
+  const companyId = authStore.selectedCompany?.id
   selectedUser.value = user
-  editUser.value = { name: user.name || '', email: user.email || '' }
+  editUser.value = { name: user.name || '', email: user.email || '', whatsapp_phone: '' }
+  editContactReady.value = false
+  editContactOptedIn.value = false
   showEditModal.value = true
+  if (!companyId) return
+
+  loadingEditContact.value = true
+  try {
+    const contact = await $fetch<{ phone_e164: string; opted_in: boolean }>(
+      `/api/backend/companies/${companyId}/users/${user.id}/whatsapp`,
+    )
+    if (selectedUser.value?.id !== user.id) return
+    editUser.value.whatsapp_phone = contact.phone_e164 ?? ''
+    editContactOptedIn.value = Boolean(contact.opted_in)
+    editContactReady.value = true
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo cargar el teléfono de WhatsApp',
+      description: error?.data?.message ?? 'Podés editar los datos del usuario; el teléfono quedará sin cambios.',
+      color: 'warning',
+    })
+  } finally {
+    loadingEditContact.value = false
+  }
 }
 
 const saveUser = async () => {
@@ -162,7 +190,12 @@ const saveUser = async () => {
   try {
     await $fetch(`/api/access-control/users/${selectedUser.value.id}`, {
       method: 'PATCH',
-      body: { company_id: companyId, ...editUser.value },
+      body: {
+        company_id: companyId,
+        name: editUser.value.name,
+        email: editUser.value.email,
+        ...(editContactReady.value ? { whatsapp_phone: editUser.value.whatsapp_phone } : {}),
+      },
     })
     toast.add({ title: 'Usuario actualizado', color: 'success' })
     showEditModal.value = false
@@ -341,6 +374,7 @@ const openCreateModal = () => {
     name: '',
     email: '',
     password: '',
+    whatsapp_phone: '',
     role: 'USER',
     linkType: 'none',
   }
@@ -358,6 +392,7 @@ const goToCreateEmployee = () => {
     name: newUser.value.name,
     email: newUser.value.email,
     password: newUser.value.password,
+    whatsapp_phone: newUser.value.whatsapp_phone,
     type: 'new_employee'
   }))
   showCreateModal.value = false
@@ -373,6 +408,7 @@ const goToCreatePartner = () => {
     name: newUser.value.name,
     email: newUser.value.email,
     password: newUser.value.password,
+    whatsapp_phone: newUser.value.whatsapp_phone,
     type: 'new_partner'
   }))
   showCreateModal.value = false
@@ -401,6 +437,7 @@ const createUser = async () => {
       email: newUser.value.email,
       password: newUser.value.password,
       role: newUser.value.role,
+      whatsapp_phone: newUser.value.whatsapp_phone,
     }
 
     if (newUser.value.linkType === 'existing_employee' && selectedEmployeeId.value) {
@@ -601,6 +638,13 @@ onMounted(async () => {
           <UFormField label="Contraseña" name="password">
             <UInput v-model="newUser.password" placeholder="Mínimo 6 caracteres" type="password" />
           </UFormField>
+          <UFormField
+            label="Teléfono de WhatsApp (opcional)"
+            name="whatsapp_phone"
+            description="Formato internacional, por ejemplo +54911XXXXXXXX. El usuario debe aceptar los avisos desde Notificaciones antes de recibir mensajes."
+          >
+            <UInput v-model="newUser.whatsapp_phone" type="tel" autocomplete="tel" placeholder="+54911XXXXXXXX" />
+          </UFormField>
 
           <UFormField label="Rol" name="role">
             <USelect
@@ -707,12 +751,39 @@ onMounted(async () => {
           <UFormField label="Email" name="email">
             <UInput v-model="editUser.email" placeholder="usuario@empresa.com" type="email" />
           </UFormField>
+          <UFormField
+            label="Teléfono de WhatsApp"
+            name="whatsapp_phone"
+            :description="loadingEditContact ? 'Cargando teléfono…' : 'Formato internacional, por ejemplo +54911XXXXXXXX.'"
+          >
+            <UInput
+              v-model="editUser.whatsapp_phone"
+              type="tel"
+              autocomplete="tel"
+              placeholder="+54911XXXXXXXX"
+              :disabled="loadingEditContact || !editContactReady"
+            />
+          </UFormField>
+          <UAlert
+            v-if="editContactReady"
+            :color="editContactOptedIn ? 'success' : 'warning'"
+            variant="subtle"
+            :title="editContactOptedIn ? 'El usuario aceptó recibir avisos' : 'Consentimiento pendiente'"
+            description="Cargar o cambiar el teléfono desde aquí no activa el consentimiento. Si se cambia el número, el usuario deberá volver a aceptarlo."
+          />
+          <UAlert
+            v-else-if="!loadingEditContact"
+            color="warning"
+            variant="subtle"
+            title="Teléfono sin cargar"
+            description="No se modificará el teléfono al guardar los demás datos. Revisá la migración de WhatsApp si necesitás editarlo."
+          />
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
           <UButton label="Cancelar" variant="ghost" @click="showEditModal = false" />
-          <UButton label="Guardar" :loading="editing" @click="saveUser" />
+          <UButton label="Guardar" :loading="editing" :disabled="loadingEditContact" @click="saveUser" />
         </div>
       </template>
     </UModal>

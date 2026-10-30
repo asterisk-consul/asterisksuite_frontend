@@ -46,6 +46,7 @@ export interface CreateEmployeeInput {
     email: string
     password: string
     role?: string
+    whatsapp_phone?: string
   }
   first_name: string
   last_name: string

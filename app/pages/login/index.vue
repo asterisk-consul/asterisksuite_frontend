@@ -11,6 +11,7 @@ definePageMeta({
 })
 
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 const auth = useAuthStore()
 
@@ -29,7 +30,12 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       color: 'success'
     })
 
-    if (auth.companies.length === 0) {
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+    const safeRedirect = redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : ''
+
+    if (safeRedirect) {
+      await navigateTo(safeRedirect)
+    } else if (auth.companies.length === 0) {
       await navigateTo('/create-company')
     } else if (auth.needsCompanySelection) {
       await navigateTo('/select-company')

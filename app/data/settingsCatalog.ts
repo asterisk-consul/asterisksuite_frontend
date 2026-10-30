@@ -77,6 +77,7 @@ export const settingsCatalog: SettingsGroup[] = [
       { label: 'Usuarios', description: 'Altas, accesos y vinculaciones.', icon: 'i-lucide-users', to: '/settings/users', permission: 'roles.read' },
       { label: 'Roles y permisos', description: 'Definir qué puede consultar y operar cada perfil.', icon: 'i-lucide-key-round', to: '/settings/roles', permission: 'roles.read' },
       { label: 'Seguridad', description: 'Contraseña y seguridad de la cuenta.', icon: 'i-lucide-lock-keyhole', to: '/settings/security' },
+      { label: 'Conexiones de IA', description: 'Revisar o revocar las conexiones externas autorizadas para cada empresa.', icon: 'i-lucide-plug-zap', to: '/settings/connected-apps' },
       { label: 'Notificaciones', description: 'Avisos de asignaciones y alertas de la empresa.', icon: 'i-lucide-bell-ring', to: '/settings/notifications' },
       { label: 'Papelera', description: 'Recuperación de registros eliminados.', icon: 'i-lucide-trash-2', to: '/settings/trash', permission: 'trash.read', advanced: true }
     ]
@@ -84,7 +85,7 @@ export const settingsCatalog: SettingsGroup[] = [
   {
     id: 'communications', label: 'Comunicaciones', description: 'Canales externos y avisos automáticos.', icon: 'i-lucide-messages-square', order: 80,
     entries: [
-      { label: 'Reportes por WhatsApp', description: 'Grupos de destino y envío semanal de reportes PDF.', icon: 'i-lucide-message-circle', permission: 'companies.update', ownerOrAdminOnly: true, to: '/settings/whatsapp' }
+      { label: 'WhatsApp', description: 'Reportes semanales y avisos operativos a usuarios.', icon: 'i-lucide-message-circle', permission: 'companies.update', ownerOrAdminOnly: true, to: '/settings/whatsapp' }
     ]
   }
 ]

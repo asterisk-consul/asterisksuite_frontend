@@ -2,7 +2,7 @@
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 
-const props = defineProps<{ documentId: string }>()
+const props = defineProps<{ documentId: string; assignedTo?: string | null }>()
 type User = { id: string; name: string }
 const { hasPermission } = useRoles()
 const { isOwner } = useCompanyRole()
@@ -16,7 +16,7 @@ const loading = ref(false)
 const saving = ref(false)
 const error = ref(false)
 
-watch(() => props.documentId, async (id, _, onCleanup) => {
+watch([() => props.documentId, () => props.assignedTo], async ([id], _, onCleanup) => {
   let stale = false
   onCleanup(() => { stale = true })
   current.value = null

@@ -4,10 +4,13 @@ import type {
   WhatsAppReportCompanyOption,
   WhatsAppReportRun,
   WhatsAppReportSettings,
-  WhatsAppReportTestResult
+  WhatsAppReportTestResult,
+  WhatsAppOperationalNotificationSettings,
+  WhatsAppNotificationRecipient
 } from './whatsapp-reports.types'
 
 const baseUrl = '/api/backend/erp/whatsapp/reports'
+const notificationBaseUrl = '/api/backend/notifications/whatsapp/company'
 
 export const useWhatsAppReportsService = () => ({
   getStatus: () => $fetch<WhatsAppGatewayStatus>(`${baseUrl}/status`),
@@ -21,5 +24,9 @@ export const useWhatsAppReportsService = () => ({
     $fetch<WhatsAppReportTestResult>(`${baseUrl}/test`, {
       method: 'POST',
       body: { destination, format }
-    })
+    }),
+  getOperationalSettings: () => $fetch<WhatsAppOperationalNotificationSettings>(`${notificationBaseUrl}/settings`),
+  getNotificationRecipients: () => $fetch<WhatsAppNotificationRecipient[]>(`${notificationBaseUrl}/recipients`),
+  saveOperationalSettings: (body: WhatsAppOperationalNotificationSettings) =>
+    $fetch<WhatsAppOperationalNotificationSettings>(`${notificationBaseUrl}/settings`, { method: 'PUT', body })
 })

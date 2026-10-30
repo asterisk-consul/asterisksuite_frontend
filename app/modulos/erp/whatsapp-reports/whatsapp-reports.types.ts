@@ -1,5 +1,7 @@
 export interface WhatsAppGatewayStatus {
   gatewayEnabled: boolean
+  reportsEnabled?: boolean
+  notificationDeliveryEnabled?: boolean
   configured: boolean
   apiKeyConfigured: boolean
   sessionConfigured: boolean
@@ -12,6 +14,26 @@ export interface WhatsAppReportSettings {
   consolidated_group_id: string | null
   inventory_enabled: boolean
   inventory_group_id: string | null
+}
+
+export interface WhatsAppOperationalNotificationSettings {
+  enabled: boolean
+  assignments_enabled: boolean
+  customer_balances_enabled: boolean
+  customer_balance_recipient_ids: string[]
+  supplier_balances_enabled: boolean
+  supplier_balance_recipient_ids: string[]
+  checks_enabled: boolean
+  check_recipient_ids: string[]
+  min_interval_seconds: number
+  batch_window_seconds: number
+}
+
+export interface WhatsAppNotificationRecipient {
+  id: string
+  name: string
+  phone_e164: string | null
+  opted_in: boolean
 }
 
 export interface WhatsAppReportCompanyOption {

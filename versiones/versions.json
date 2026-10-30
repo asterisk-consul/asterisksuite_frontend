@@ -1,5 +1,64 @@
 [
  {
+  "version": "0.112.3-alpha",
+  "date": "2026-10-30",
+  "stage": "alpha",
+  "notes": "El atajo Escape llega al formulario aunque un campo intercepte la propagación del teclado; los diálogos, menús y selectores abiertos conservan prioridad para cerrarse.",
+  "changes": [
+   { "type": "fix", "scope": "payments", "title": "Asegurar que Escape cancele pagos y cobros incluso desde campos del formulario" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir el atajo Escape en pagos y cobros"
+ },
+ {
+  "version": "0.112.2-alpha",
+  "date": "2026-10-30",
+  "stage": "alpha",
+  "notes": "El atajo Escape cancela la creación o edición del pago/cobro desde cualquier punto de la pantalla; primero permite cerrar diálogos, menús y selectores abiertos.",
+  "changes": [
+   { "type": "fix", "scope": "payments", "title": "Hacer que Escape invoque Cancelar desde toda la pantalla del formulario y dejar que cierre primero los elementos flotantes abiertos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir el atajo para cancelar pagos y cobros"
+ },
+ {
+  "version": "0.112.1-alpha",
+  "date": "2026-10-30",
+  "stage": "alpha",
+  "notes": "Los formularios de creación y edición de pagos y cobros aprovechan el ancho disponible y mantienen una separación cómoda entre secciones en pantallas chicas y grandes.",
+  "changes": [
+   { "type": "style", "scope": "payments", "title": "Adaptar los formularios de creación y edición de pagos o cobros al ancho disponible con controles responsivos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ampliar los formularios de pago y cobro"
+ },
+ {
+  "version": "0.112.0-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "WhatsApp suma avisos operativos para asignaciones de órdenes de venta, saldos de clientes y proveedores sin movimientos durante 30 días y cheques próximos a vencer o vencidos. Los administradores pueden precargar el teléfono al crear o editar usuarios; el titular debe aceptar los avisos antes de recibirlos.",
+  "changes": [
+   { "type": "feat", "scope": "whatsapp", "title": "Enviar avisos operativos con destinatarios configurables y cola que evita envíos simultáneos" },
+   { "type": "feat", "scope": "users", "title": "Cargar teléfonos de WhatsApp desde el alta y edición de usuarios y mantener el consentimiento en manos del titular" },
+   { "type": "fix", "scope": "hr", "title": "Vincular a la empresa los usuarios creados desde los formularios de empleados y socios" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Recibir avisos operativos agrupados por WhatsApp"
+ },
+ {
+  "version": "0.111.0-alpha",
+  "date": "2026-10-29",
+  "stage": "alpha",
+  "notes": "Se puede conectar un cliente de IA al ERP por MCP con autorización OAuth por empresa y permisos existentes; la IA puede consultar información y preparar borradores de facturas de compra desde comprobantes cargados en Capturas.",
+  "changes": [
+   { "type": "feat", "scope": "mcp", "title": "Conectar clientes de IA al ERP con permisos y empresa seleccionada" },
+   { "type": "feat", "scope": "purchases", "title": "Leer comprobantes de Capturas y crear borradores de facturas de compra con archivos asociados" },
+   { "type": "feat", "scope": "settings", "title": "Consultar y revocar conexiones de IA autorizadas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Conectar asistentes de IA y preparar borradores de compra"
+ },
+ {
   "version": "0.110.0-alpha",
   "date": "2026-10-29",
   "stage": "alpha",

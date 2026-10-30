@@ -13,7 +13,7 @@ const store = useEmployeesStore()
 const saving = ref(false)
 
 // Check for pending user data from settings redirect
-const pendingUser = ref<{ name: string; email: string; password: string } | null>(null)
+const pendingUser = ref<{ name: string; email: string; password: string; whatsapp_phone?: string } | null>(null)
 
 onMounted(() => {
   const stored = localStorage.getItem('pendingUser')
@@ -38,6 +38,7 @@ const initialForm = computed(() => {
     base.user_name = pendingUser.value.name
     base.user_email = pendingUser.value.email
     base.user_password = pendingUser.value.password
+    base.user_whatsapp_phone = pendingUser.value.whatsapp_phone ?? ''
   }
 
   return base

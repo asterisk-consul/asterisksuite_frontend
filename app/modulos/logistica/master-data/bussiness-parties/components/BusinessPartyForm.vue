@@ -31,7 +31,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const form = reactive<BusinessPartyForm & { createUser?: boolean; user_name?: string; user_email?: string; user_password?: string }>({
+const form = reactive<BusinessPartyForm & { createUser?: boolean; user_name?: string; user_email?: string; user_password?: string; user_whatsapp_phone?: string }>({
   id: undefined,
   type: 'CUSTOMER',
   name: '',
@@ -61,7 +61,8 @@ const form = reactive<BusinessPartyForm & { createUser?: boolean; user_name?: st
   createUser: false,
   user_name: '',
   user_email: '',
-  user_password: ''
+  user_password: '',
+  user_whatsapp_phone: ''
 })
 const submitting = ref(false)
 watch(() => props.loading, (loading) => {
@@ -261,7 +262,8 @@ const submit = () => {
     submitData.create_user = {
       name: form.user_name,
       email: form.user_email,
-      password: form.user_password
+      password: form.user_password,
+      whatsapp_phone: form.user_whatsapp_phone
     }
   }
 
@@ -270,6 +272,7 @@ const submit = () => {
   delete submitData.user_name
   delete submitData.user_email
   delete submitData.user_password
+  delete submitData.user_whatsapp_phone
 
   submitting.value = true
   emit('submit', submitData)
@@ -656,6 +659,13 @@ const displayTitle = computed(() => {
             </UFormField>
             <UFormField label="Contraseña" name="user_password">
               <UInput v-model="form.user_password" placeholder="Mínimo 6 caracteres" type="password" class="w-full" />
+            </UFormField>
+            <UFormField
+              label="Teléfono de WhatsApp (opcional)"
+              name="user_whatsapp_phone"
+              description="El usuario debe aceptar los avisos desde Notificaciones antes de recibir mensajes."
+            >
+              <UInput v-model="form.user_whatsapp_phone" type="tel" autocomplete="tel" placeholder="+54911XXXXXXXX" class="w-full" />
             </UFormField>
           </div>
           <div v-else class="text-center py-4 text-muted text-sm">

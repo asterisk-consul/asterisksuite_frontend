@@ -153,6 +153,12 @@ export interface BusinessPartyForm {
   id?: string
   type: BusinessPartyType
   name: string
+  create_user?: {
+    name: string
+    email: string
+    password: string
+    whatsapp_phone?: string
+  }
   first_name?: string
   last_name?: string
   business_names?: string

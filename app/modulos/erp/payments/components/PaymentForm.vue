@@ -87,6 +87,7 @@ const props = defineProps<{
   savingFinancialDetails?: boolean
   localDraftEnabled?: boolean
   submitLabel?: string
+  actionBarTarget?: string
 }>()
 
 const emit = defineEmits<{
@@ -95,8 +96,7 @@ const emit = defineEmits<{
   'save-finalized-details': [{ account_id: string | null; party_id?: string | null; withholdings: PaymentWithholdingPayload[] }]
   cancel: []
 }>()
-
-const { cashBoxes, init: initCashBoxes, openSession, getSessions } = useCashBoxes()
+const { cashBoxes, loading: cashBoxesLoading, init: initCashBoxes, openSession, getSessions } = useCashBoxes()
 const { bankAccounts, selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
 const accountsStore = useAccountsStore()
 const { createLightCheck, fetchAvailableChecks, fetchPendingSalesDocuments, fetchPendingPurchaseDocuments } = usePayments()
@@ -400,6 +400,7 @@ watch(partySearch, (value) => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handlePaymentFormShortcut, true)
   if (partySearchTimer) clearTimeout(partySearchTimer)
   partySearchController?.abort()
 })
@@ -531,9 +532,16 @@ const handleValeCreated = async () => {
 }
 
 onMounted(async () => {
+  // Capture the shortcut so controls that stop keydown propagation cannot swallow Escape.
+  if (props.actionBarTarget) window.addEventListener('keydown', handlePaymentFormShortcut, true)
   initCurrencies()
   accountsStore.fetchAll()
   bankConcepts.init()
+  // Efectivo es el medio inicial en pagos nuevos. Cargar las cajas al montar
+  // evita depender de que el usuario cambie de medio y vuelva a seleccionarlo.
+  void initCashBoxes().catch((error) => {
+    console.error('Error loading cash boxes:', error)
+  })
   await fetchMyPermissionsIfNeeded()
   try { cardOptions.value = await cardService.findAll() } catch {}
   try {
@@ -854,6 +862,7 @@ const filteredDocs = computed(() => {
   return docs.filter(
     (d) =>
       d.number?.toString().includes(q) ||
+      d.reference?.toLowerCase().includes(q) ||
       d.party_name?.toLowerCase().includes(q) ||
       d.document_type_code?.toLowerCase().includes(q) ||
       d.document_type_description?.toLowerCase().includes(q)
@@ -1272,6 +1281,36 @@ const handleCheckCreated = async (checkData: CheckFormData) => {
   }
 }
 
+function handlePaymentFormShortcut(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.isComposing || event.repeat || props.readonly || props.loading) return
+
+  const target = event.target instanceof HTMLElement ? event.target : null
+  const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  if (target?.closest('[role="dialog"], [role="alertdialog"]') || activeElement?.closest('[role="dialog"], [role="alertdialog"]')) return
+
+  const isSaveShortcut = (event.ctrlKey || event.metaKey)
+    && event.key.toLowerCase() === 's'
+    && !event.altKey
+    && !event.shiftKey
+  if (isSaveShortcut) {
+    event.preventDefault()
+    event.stopPropagation()
+    void handleSubmit()
+    return
+  }
+
+  if (event.key !== 'Escape' || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
+
+  const openOverlay = document.querySelector(
+    '[role="alertdialog"][data-state="open"], [role="alertdialog"][aria-modal="true"], [role="dialog"][data-state="open"], [role="dialog"][aria-modal="true"], [role="menu"][data-state="open"], [role="listbox"][data-state="open"], [role="combobox"][aria-expanded="true"], [aria-haspopup="listbox"][aria-expanded="true"]'
+  )
+  if (openOverlay) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  emit('cancel')
+}
+
 const handleSubmit = async () => {
   instrumentValidationAttempted.value = true
   if (!hasInstrumentSelection.value) {
@@ -1625,6 +1664,57 @@ defineExpose({ completeDraft: completePaymentDraft })
   <!-- MODO EDITABLE (borrador)                              -->
   <!-- ═══════════════════════════════════════════════════════ -->
   <form v-else class="space-y-5" @submit.prevent="handleSubmit">
+    <Teleport :to="props.actionBarTarget || 'body'" :disabled="!props.actionBarTarget">
+      <section
+        class="flex flex-col"
+        :class="props.actionBarTarget
+          ? 'gap-2 py-1 sm:flex-row sm:items-center sm:justify-between'
+          : 'gap-3 rounded-xl border border-primary/20 bg-elevated/30 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between'"
+      >
+        <div class="space-y-0.5 text-sm">
+          <p class="text-xs font-medium uppercase text-muted">Total de la operación</p>
+          <p class="text-xl font-bold text-highlighted">
+            {{ formatCurrency(displayedPaymentAmount, form.currency_code) }}
+          </p>
+          <p v-if="checkCreditBalance > 0" class="text-xs text-info">
+            Deuda aplicada: {{ formatCurrency(totalApplied, form.currency_code) }} ·
+            Saldo a favor del {{ checkCreditPartyLabel }}: {{ formatCurrency(checkCreditBalance, form.currency_code) }}
+          </p>
+          <p v-if="totalWithheld > 0" class="text-xs text-muted">
+            Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
+            Efectivo: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+          <UButton
+            label="Cancelar"
+            variant="ghost"
+            :aria-keyshortcuts="props.actionBarTarget ? 'Escape' : undefined"
+            :title="props.actionBarTarget ? 'Cancelar (Esc)' : undefined"
+            :disabled="props.loading"
+            @click="emit('cancel')"
+          >
+            <template v-if="props.actionBarTarget" #trailing>
+              <KeyboardShortcutHint :keys="['Esc']" size="2xs" />
+            </template>
+          </UButton>
+          <UButton
+            :label="props.loading ? 'Guardando…' : (props.submitLabel ?? 'Guardar')"
+            type="button"
+            :aria-keyshortcuts="props.actionBarTarget ? 'Control+S' : undefined"
+            :title="props.actionBarTarget ? `${props.submitLabel ?? 'Guardar'} (Ctrl + S)` : undefined"
+            :loading="props.loading"
+            :disabled="props.loading || (selectedDocs.size > 0 && totalApplied <= 0) || !hasInstrumentSelection"
+            @click="handleSubmit"
+          >
+            <template v-if="props.actionBarTarget" #trailing>
+              <KeyboardShortcutHint :keys="['Ctrl', 'S']" size="2xs" />
+            </template>
+          </UButton>
+        </div>
+      </section>
+    </Teleport>
+
     <UAlert
       v-if="paymentDraft"
       color="warning"
@@ -1823,7 +1913,10 @@ defineExpose({ completeDraft: completePaymentDraft })
         icon="i-lucide-search"
         size="sm"
       />
-      <div v-if="filteredCashBoxes.length === 0" class="text-center py-4 text-muted text-sm">
+      <div v-if="cashBoxesLoading" class="text-center py-4 text-muted text-sm">
+        Cargando cajas disponibles...
+      </div>
+      <div v-else-if="filteredCashBoxes.length === 0" class="text-center py-4 text-muted text-sm">
         {{ isPayment ? `No hay cajas con saldo suficiente en ${form.currency_code}` : `No hay cajas activas en ${form.currency_code}` }}
       </div>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[180px] overflow-y-auto">
@@ -2203,31 +2296,6 @@ defineExpose({ completeDraft: completePaymentDraft })
         <div v-for="(s, i) in withholdingSkipped" :key="i">
           {{ s.tax_type }}: {{ s.reason }}
         </div>
-      </div>
-    </div>
-
-    <div class="sticky bottom-0 z-20 min-h-20 bg-default border-t border-default shadow-[0_-8px_24px_rgba(0,0,0,0.12)] -mx-4 px-4 py-4 sm:px-5 sm:py-5 flex items-center justify-between">
-      <div class="text-sm space-y-0.5">
-        <div class="font-semibold">
-          Total: {{ formatCurrency(displayedPaymentAmount, form.currency_code) }}
-        </div>
-        <div v-if="checkCreditBalance > 0" class="text-info text-xs">
-          Deuda aplicada: {{ formatCurrency(totalApplied, form.currency_code) }} ·
-          Saldo a favor del {{ checkCreditPartyLabel }}: {{ formatCurrency(checkCreditBalance, form.currency_code) }}
-        </div>
-        <div v-if="totalWithheld > 0" class="text-muted text-xs">
-          Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
-          Efectivo: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
-        </div>
-      </div>
-      <div class="flex gap-2">
-        <UButton label="Cancelar" variant="ghost" :disabled="props.loading" @click="emit('cancel')" />
-        <UButton
-          :label="props.loading ? 'Guardando…' : (props.submitLabel ?? 'Guardar')"
-          type="submit"
-          :loading="props.loading"
-          :disabled="props.loading || (selectedDocs.size > 0 && totalApplied <= 0) || !hasInstrumentSelection"
-        />
       </div>
     </div>
 

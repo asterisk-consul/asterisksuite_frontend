@@ -10,6 +10,8 @@ const actionShortcuts: Record<string, string> = {
   Editar: 'm',
   Imprimir: 'i',
   Confirmar: 'c',
+  'Registrar cobro': 'p',
+  Pagar: 'p',
 }
 
 export function useDocumentDetailShortcuts(
@@ -27,10 +29,7 @@ export function useDocumentDetailShortcuts(
     if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
 
     const shortcutKey = event.key.toLowerCase()
-    const label = Object.keys(actionShortcuts).find(actionLabel => actionShortcuts[actionLabel] === shortcutKey)
-    if (!label) return
-
-    const action = actions.value.find(item => item.label === label)
+    const action = actions.value.find(item => item.label && actionShortcuts[item.label] === shortcutKey)
     if (!action?.onClick || action.disabled) return
 
     event.preventDefault()
