@@ -178,6 +178,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       payment_mode: formData.payment_mode as any,
       date: formData.date,
       payment_method: formData.payment_method as any,
+      tenders: formData.payment_method === 'MIXED' ? formData.tenders : undefined,
       credit_card_id:
         formData.payment_method === 'CREDIT_CARD' ? formData.credit_card_id || undefined : undefined,
       installments_total:
@@ -192,8 +193,8 @@ const handleSubmit = async (formData: PaymentFormData) => {
       reference: formData.reference || undefined,
       party_id: formData.party_id || undefined,
       party_type: formData.party_type || undefined,
-      bank_account_id: formData.bank_account_id || undefined,
-      cash_box_id: formData.cash_box_id || undefined,
+      bank_account_id: formData.payment_method === 'MIXED' ? undefined : formData.bank_account_id || undefined,
+      cash_box_id: formData.payment_method === 'MIXED' ? undefined : formData.cash_box_id || undefined,
       account_id: formData.account_id || undefined,
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
       checks: formData.checks?.length ? formData.checks : undefined,

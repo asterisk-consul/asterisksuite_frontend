@@ -28,6 +28,7 @@ const form = reactive({
   range_end: 9999999,
   next_number: 1,
   automatic: true,
+  sales_order_tax_mode: 'STANDARD' as 'STANDARD' | 'NET_ONLY',
   document_type_id: ''
 })
 
@@ -79,6 +80,27 @@ const documentTypeOptions = computed(() => {
     }))
 })
 
+const selectedDocumentType = computed(() =>
+  (documentsTypesStore.items ?? []).find(dt => dt.id === form.document_type_id)
+)
+const canConfigureNetSalesOrder = computed(() =>
+  selectedDocumentType.value?.category === 'ORDER'
+  && Number(selectedDocumentType.value?.direction) === 1
+)
+const netModeNeedsTaxEnabled = computed(() =>
+  canConfigureNetSalesOrder.value
+  && form.sales_order_tax_mode === 'NET_ONLY'
+  && selectedDocumentType.value?.calculates_taxes === false
+)
+const salesOrderTaxModeOptions = [
+  { label: 'Impuestos según productos', value: 'STANDARD' },
+  { label: 'Mostrar la OV en neto', value: 'NET_ONLY' }
+]
+
+watch(() => form.document_type_id, () => {
+  if (!canConfigureNetSalesOrder.value) form.sales_order_tax_mode = 'STANDARD'
+})
+
 const fetchSequences = async () => {
   loading.value = true
   try {
@@ -107,6 +129,7 @@ const openCreate = () => {
     range_end: 9999999,
     next_number: 1,
     automatic: true,
+    sales_order_tax_mode: 'STANDARD',
     document_type_id: ''
   })
   modalOpen.value = true
@@ -125,6 +148,7 @@ const openEdit = (seq: any) => {
     range_end: seq.range_end ?? 9999999,
     next_number: Number(seq.current_number ?? 0) + 1,
     automatic: seq.automatic,
+    sales_order_tax_mode: seq.sales_order_tax_mode ?? 'STANDARD',
     document_type_id: linkedTypeId
   })
   modalOpen.value = true
@@ -269,6 +293,11 @@ function formatSequenceNumber(value: number | string | null | undefined, fallbac
           />
         </div>
 
+        <div v-if="seq.sales_order_tax_mode === 'NET_ONLY'" class="mb-3">
+          <UBadge label="OV en neto" color="warning" variant="subtle" size="xs" />
+          <p class="mt-1 text-xs text-muted">La factura calcula los impuestos según su propia configuración.</p>
+        </div>
+
         <div class="grid grid-cols-3 gap-3 mb-3">
           <div class="text-center p-2 rounded bg-muted/30">
             <p class="text-xs text-muted">Inicio</p>
@@ -353,9 +382,34 @@ function formatSequenceNumber(value: number | string | null | undefined, fallbac
               class="w-full"
             />
           </UFormField>
+          <UFormField
+            v-if="canConfigureNetSalesOrder"
+            label="Impuestos de esta secuencia de OV"
+            name="sales_order_tax_mode"
+            description="Solo afecta las órdenes de venta guardadas con este punto de venta."
+          >
+            <USelect
+              v-model="form.sales_order_tax_mode"
+              :items="salesOrderTaxModeOptions"
+              value-key="value"
+              class="w-full"
+            />
+            <p v-if="form.sales_order_tax_mode === 'NET_ONLY'" class="mt-2 text-sm text-muted">
+              La OV se mostrará en neto. Al crear la factura, los impuestos se calcularán normalmente según el tipo de factura.
+            </p>
+            <UAlert
+              v-if="netModeNeedsTaxEnabled"
+              class="mt-3"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-triangle-alert"
+              title="Habilitá impuestos en el tipo de OV"
+              description="Así las otras secuencias pueden calcularlos. Esta serie seguirá mostrando la OV en neto."
+            />
+          </UFormField>
           <div class="flex justify-end gap-2 pt-4">
             <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
-            <UButton label="Guardar" type="submit" :loading="saving" :disabled="!form.name || !form.point_of_sale || !form.document_type_id || form.next_number < 1" />
+            <UButton label="Guardar" type="submit" :loading="saving" :disabled="!form.name || !form.point_of_sale || !form.document_type_id || form.next_number < 1 || netModeNeedsTaxEnabled" />
           </div>
         </UForm>
       </template>

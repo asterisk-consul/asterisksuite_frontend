@@ -607,7 +607,10 @@ const sequencesRefreshFailed = ref(false)
 // Keep only the UUID in the form state. USelectMenu can otherwise return either
 // the whole option or its value depending on its configuration/version.
 const selectedSequenceId = ref<string>('')
-watch(selectedSequenceId, () => { delete validationErrors.value.document_sequence_id })
+watch(selectedSequenceId, () => {
+  delete validationErrors.value.document_sequence_id
+  if (items.value.length && form.document_type_id) debouncedFetchPreview()
+})
 const sequencePreview = ref<{ formatted: string, source: 'SEQUENCE' | 'DOCUMENT_TYPE' } | null>(null)
 const sequencePreviewLoading = ref(false)
 const sequencePreviewError = ref<string | null>(null)
@@ -638,9 +641,19 @@ const sequenceOptions = computed(() => {
     .map(s => ({
       label: `PV ${s.point_of_sale}${s.prefix ? ` - ${s.prefix}` : ''} (${s.name})`,
       value: s.id,
-      point_of_sale: s.point_of_sale
+      point_of_sale: s.point_of_sale,
+      sales_order_tax_mode: s.sales_order_tax_mode ?? 'STANDARD'
     }))
 })
+
+const selectedDocumentSequence = computed(() =>
+  sequences.value.find(sequence => sequence.id === selectedSequenceId.value)
+)
+const isNetSalesOrderSequence = computed(() =>
+  moduleCode.value === 'SALES'
+  && selectedDocumentCategory.value === 'ORDER'
+  && selectedDocumentSequence.value?.sales_order_tax_mode === 'NET_ONLY'
+)
 
 async function loadDocumentSequences() {
   const companyId = authStore.selectedCompany?.id ?? 'unknown'
@@ -840,6 +853,7 @@ async function fetchPreview() {
         partnerId: form.party_id || undefined,
         partnerVatCondition: selectedParty.value?.vat_condition,
         documentTypeId: form.document_type_id,
+        documentSequenceId: selectedSequenceId.value || undefined,
         documentLetterType: currentDocType?.letter_type,
         currency: form.currency_code,
         date: form.date,
@@ -1785,6 +1799,15 @@ defineExpose({ submit, completeDraft })
               {{ sequencesRefreshFailed ? 'Usando las series guardadas por conexión inestable.' : 'Series disponibles desde la caché local.' }}
             </p>
           </div>
+          <UAlert
+            v-if="isNetSalesOrderSequence"
+            class="mt-2"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-info"
+            title="Orden de venta en neto"
+            description="Esta secuencia no suma IVA a la OV. Si generás una factura, sus impuestos se calculan según la configuración del tipo de factura."
+          />
         </UFormField>
 
         <UFormField :label="dateFieldLabel" :error="validationErrors.date" class="min-w-0 xl:col-span-3">

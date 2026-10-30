@@ -3,11 +3,13 @@ definePageMeta({ middleware: ['auth'] })
 
 import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
 import PaymentForm from '~/modulos/erp/payments/components/PaymentForm.vue'
+import PaymentStatusIndicator from '~/modulos/erp/payments/components/PaymentStatusIndicator.vue'
 import PaymentApplyAdvanceModal from '~/modulos/erp/payments/components/PaymentApplyAdvanceModal.vue'
 import type { PaymentFormData } from '~/modulos/erp/payments/components/PaymentForm.vue'
 import type { Payment } from '~/modulos/erp/payments/types/payments.types'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useDocumentDetailShortcuts } from '~/modulos/erp/documents/composables/useDocumentDetailShortcuts'
 
 const route = useRoute()
 const router = useRouter()
@@ -103,6 +105,12 @@ onMounted(async () => {
         payment_mode: (payment.payment_mode as 'NORMAL' | 'ADVANCE') ?? 'NORMAL',
         date: payment.date?.split('T')[0] ?? today(),
         payment_method: payment.payment_method ?? 'CASH',
+        tenders: ((payment as any).tenders ?? []).map((tender: any) => ({
+          method: tender.method,
+          amount: Number(tender.amount),
+          cash_box_id: tender.cash_box_id ?? tender.cash_box?.id ?? undefined,
+          bank_account_id: tender.bank_account_id ?? tender.bank_account?.id ?? undefined,
+        })),
         amount: Number(payment.amount),
         currency_code: payment.currency_code ?? 'ARS',
         description: payment.description ?? '',
@@ -184,6 +192,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
     const updated = await update(paymentId, {
       date: formData.date,
       payment_method: formData.payment_method as any,
+      tenders: formData.payment_method === 'MIXED' ? formData.tenders : [],
       credit_card_id:
         formData.payment_method === 'CREDIT_CARD' ? formData.credit_card_id || undefined : undefined,
       installments_total:
@@ -198,10 +207,11 @@ const handleSubmit = async (formData: PaymentFormData) => {
       description: formData.description || undefined,
       reference: formData.reference || undefined,
       party_id: formData.party_id || undefined,
-      bank_account_id: formData.bank_account_id || undefined,
-      cash_box_id: formData.cash_box_id || undefined,
+      bank_account_id: formData.payment_method === 'MIXED' ? undefined : formData.bank_account_id || undefined,
+      cash_box_id: formData.payment_method === 'MIXED' ? undefined : formData.cash_box_id || undefined,
       account_id: formData.account_id || null,
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
+      checks: formData.checks ?? [],
       documents: formData.documents ?? [],
       obligations: formData.obligations ?? [],
       withholdings: formData.withholdings ?? [],
@@ -263,10 +273,10 @@ const handleFinalizedDetailsSave = async (payload: { account_id: string | null; 
 }
 
 const openAction = (type: typeof actionType.value) => {
-  if (type === 'confirm' && hasUnsavedDateChange.value) {
+  if (type === 'confirm' && (isSaving.value || hasUnsavedDateChange.value)) {
     toast.add({
-      title: 'Primero guardá la fecha',
-      description: 'Usá “Guardar borrador” antes de confirmar el pago o cobro.',
+      title: 'Primero guardá el borrador',
+      description: 'Esperá a que termine el guardado y guardá los cambios antes de confirmar el pago o cobro.',
       color: 'warning',
       icon: 'i-lucide-save'
     })
@@ -277,6 +287,31 @@ const openAction = (type: typeof actionType.value) => {
   actionModalOpen.value = true
 }
 
+const paymentShortcutActions = computed(() => {
+  const actions: Array<{ label: string; disabled?: boolean; onClick: () => void }> = []
+  if (isDraft.value && canConfirmPayment.value) {
+    actions.push({
+      label: 'Confirmar',
+      disabled: isProcessing.value || isSaving.value || hasUnsavedDateChange.value,
+      onClick: () => openAction('confirm'),
+    })
+  }
+  if (isConfirmed.value && canMarkAsPaid.value) {
+    actions.push({ label: 'Marcar pagado', disabled: isProcessing.value, onClick: () => openAction('pay') })
+  }
+  if (isConfirmed.value && canRejectPayment.value) {
+    actions.push({ label: 'Rechazar', disabled: isProcessing.value, onClick: () => openAction('reject') })
+  }
+  if ((isConfirmed.value || isPaid.value) && canReversePayment.value) {
+    actions.push({ label: 'Anular', disabled: isProcessing.value, onClick: () => openAction('reverse') })
+  }
+  return actions
+})
+
+const { shortcutKeys: paymentShortcutKeys } = useDocumentDetailShortcuts(paymentShortcutActions, [actionModalOpen, advanceModalOpen])
+const shortcutKeyText = (label: string) => paymentShortcutKeys(label)?.join(' + ')
+const shortcutAriaValue = (label: string) => paymentShortcutKeys(label)?.join('+')
+
 const handleFormModelUpdate = (value: PaymentFormData) => {
   editingDate.value = value.date ?? ''
 }
@@ -284,10 +319,10 @@ const handleFormModelUpdate = (value: PaymentFormData) => {
 const handleAction = async () => {
   if (isProcessing.value) return
   if (!currentPayment.value) return
-  if (actionType.value === 'confirm' && hasUnsavedDateChange.value) {
+  if (actionType.value === 'confirm' && (isSaving.value || hasUnsavedDateChange.value)) {
     toast.add({
-      title: 'Primero guardá la fecha',
-      description: 'Usá “Guardar borrador” antes de confirmar el pago o cobro.',
+      title: 'Primero guardá el borrador',
+      description: 'Esperá a que termine el guardado y guardá los cambios antes de confirmar el pago o cobro.',
       color: 'warning',
       icon: 'i-lucide-save'
     })
@@ -331,14 +366,6 @@ const handleAction = async () => {
   }
 }
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  DRAFT: { label: 'Borrador', color: 'neutral' },
-  CONFIRMED: { label: 'Confirmado', color: 'info' },
-  PAID: { label: 'Pagado', color: 'success' },
-  REVERSED: { label: 'Rechazado', color: 'warning' },
-  CANCELLED: { label: 'Anulado', color: 'error' }
-}
-
 const handleAdvanceSuccess = async () => {
   const updated = await fetchOne(paymentId)
   if (updated) currentPayment.value = updated as Payment
@@ -353,7 +380,94 @@ const handleAdvanceSuccess = async () => {
       :description="isDraft ? (isAdvance ? 'Anticipo a proveedor o cliente' : 'Modificar pago o cobro en borrador') : 'Solo se pueden editar operaciones en borrador. Esta operación ya no admite cambios.'"
     >
       <template #footer>
-        <div id="payment-form-actions" class="w-full pt-5 pb-3" />
+        <div v-if="isDraft" id="payment-form-actions" class="w-full pt-5 pb-3" />
+        <div v-else-if="currentPayment" class="flex w-full flex-col gap-3 pt-5 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex flex-wrap items-center gap-2">
+            <UBadge v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)" label="Pendiente de asociar documento" color="warning" variant="subtle" />
+            <UBadge
+              v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)"
+              :label="`Disponible: ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: currentPayment.currency_code || 'ARS' }).format(availableBalance)}`"
+              color="info"
+              variant="subtle"
+            />
+            <UBadge v-if="isAdvance && availableBalance <= 0 && (isConfirmed || isPaid)" label="Saldado" color="success" variant="subtle" />
+            <UButton
+              v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)"
+              label="Aplicar a factura"
+              icon="i-lucide-link"
+              size="sm"
+              color="info"
+              variant="outline"
+              @click="advanceModalOpen = true"
+            />
+            <UButton
+              v-if="(isConfirmed || isPaid) && currentPayment.party_id"
+              label="Cuenta corriente"
+              icon="i-lucide-arrow-right-circle"
+              size="sm"
+              color="primary"
+              variant="outline"
+              @click="router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)"
+            />
+          </div>
+          <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+            <UButton
+              v-if="isConfirmed && canMarkAsPaid"
+              label="Marcar pagado"
+              icon="i-lucide-check"
+              size="sm"
+              color="success"
+              :loading="isProcessing"
+              :disabled="isProcessing"
+              :aria-keyshortcuts="shortcutAriaValue('Marcar pagado')"
+              :title="`Marcar pagado (Alt + ${shortcutKeyText('Marcar pagado')?.split(' + ')[1]})`"
+              @click="openAction('pay')"
+            >
+              <template #trailing>
+                <KeyboardShortcutHint :keys="paymentShortcutKeys('Marcar pagado') ?? []" size="2xs" />
+              </template>
+            </UButton>
+            <UButton
+              v-if="isConfirmed && canRejectPayment"
+              label="Rechazar"
+              icon="i-lucide-x-circle"
+              size="sm"
+              color="warning"
+              variant="soft"
+              :loading="isProcessing"
+              :disabled="isProcessing"
+              :aria-keyshortcuts="shortcutAriaValue('Rechazar')"
+              :title="`Rechazar (Alt + ${shortcutKeyText('Rechazar')?.split(' + ')[1]})`"
+              @click="openAction('reject')"
+            >
+              <template #trailing>
+                <KeyboardShortcutHint :keys="paymentShortcutKeys('Rechazar') ?? []" size="2xs" />
+              </template>
+            </UButton>
+            <UButton
+              v-if="(isConfirmed || isPaid) && canReversePayment"
+              label="Anular"
+              icon="i-lucide-undo-2"
+              size="sm"
+              color="error"
+              variant="outline"
+              :loading="isProcessing"
+              :disabled="isProcessing"
+              :aria-keyshortcuts="shortcutAriaValue('Anular')"
+              :title="`Anular (Alt + ${shortcutKeyText('Anular')?.split(' + ')[1]})`"
+              @click="openAction('reverse')"
+            >
+              <template #trailing>
+                <KeyboardShortcutHint :keys="paymentShortcutKeys('Anular') ?? []" size="2xs" />
+              </template>
+            </UButton>
+            <PaymentStatusIndicator
+              :status="currentPayment.status"
+              :confirmed-at="currentPayment.confirmed_at"
+              :payment-date="currentPayment.payment_date"
+            />
+          </div>
+        </div>
       </template>
     </AppPageHeader>
 
@@ -363,72 +477,6 @@ const handleAdvanceSuccess = async () => {
 
     <template v-else-if="paymentData && currentPayment">
       <div class="flex w-full min-w-0 flex-col gap-4">
-        <!-- STATUS BAR -->
-        <div class="flex flex-col gap-3 rounded-lg border border-default p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-sm font-medium">Estado actual:</span>
-            <UBadge
-              :label="statusConfig[currentPayment.status]?.label ?? currentPayment.status"
-              :color="(statusConfig[currentPayment.status]?.color as any) ?? 'neutral'"
-            />
-            <UPopover mode="hover" :open-delay="300" :close-delay="300">
-              <UButton icon="i-lucide-help-circle" color="neutral" variant="ghost" size="xs" class="px-1" />
-              <template #content>
-                <div class="p-3 max-w-xs space-y-2 text-sm">
-                  <p class="font-medium">Estados del pago</p>
-                  <div class="space-y-1.5 text-xs">
-                    <p class="flex items-start gap-1.5">
-                      <UBadge label="Borrador" color="neutral" size="xs" class="mt-0.5 shrink-0" />
-                      <span>Pago creado, editable. Aún no se aplicaron efectos.</span>
-                    </p>
-                    <p class="flex items-start gap-1.5">
-                      <UBadge label="Confirmado" color="info" size="xs" class="mt-0.5 shrink-0" />
-                      <span>Efectos aplicados: documentos saldados, caja/banco movido, cuenta corriente actualizada.</span>
-                    </p>
-                    <p class="flex items-start gap-1.5">
-                      <UBadge label="Pagado" color="success" size="xs" class="mt-0.5 shrink-0" />
-                      <span>Confirmación de que el dinero fue efectivamente entregado/recibido.</span>
-                    </p>
-                    <p class="flex items-start gap-1.5">
-                      <UBadge label="Rechazado" color="warning" size="xs" class="mt-0.5 shrink-0" />
-                      <span>Se revertirán todos los efectos aplicados.</span>
-                    </p>
-                    <p class="flex items-start gap-1.5">
-                      <UBadge label="Anulado" color="error" size="xs" class="mt-0.5 shrink-0" />
-                      <span>Pago cancelado definitivamente. Todos los efectos revertidos.</span>
-                    </p>
-                  </div>
-                </div>
-              </template>
-            </UPopover>
-            <span v-if="currentPayment.confirmed_at" class="text-xs text-muted">
-              Confirmado el {{ new Date(currentPayment.confirmed_at).toLocaleDateString('es-AR') }}
-            </span>
-            <span v-if="currentPayment.payment_date" class="text-xs text-muted">
-              Pagado el {{ new Date(currentPayment.payment_date).toLocaleDateString('es-AR') }}
-            </span>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <template v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)">
-              <UBadge label="Pendiente de asociar documento" color="warning" variant="subtle" />
-              <UBadge
-                :label="`Disponible: ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: currentPayment?.currency_code || 'ARS' }).format(availableBalance)}`"
-                color="info"
-                variant="subtle"
-              />
-              <UButton label="Aplicar a factura" icon="i-lucide-link" size="sm" color="info" variant="outline" @click="advanceModalOpen = true" />
-            </template>
-            <template v-if="isAdvance && availableBalance <= 0 && (isConfirmed || isPaid)">
-              <UBadge label="Saldado" color="success" variant="subtle" />
-            </template>
-            <UButton v-if="isDraft && canConfirmPayment" label="Confirmar" icon="i-lucide-check-circle" size="sm" color="info" :loading="isProcessing" :disabled="isProcessing || hasUnsavedDateChange" @click="openAction('confirm')" />
-            <UButton v-if="isConfirmed && canMarkAsPaid" label="Marcar pagado" icon="i-lucide-check" size="sm" color="success" :loading="isProcessing" :disabled="isProcessing" @click="openAction('pay')" />
-            <UButton v-if="isConfirmed && canRejectPayment" label="Rechazar" icon="i-lucide-x-circle" size="sm" color="warning" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reject')" />
-            <UButton v-if="(isConfirmed || isPaid) && canReversePayment" label="Anular" icon="i-lucide-undo-2" size="sm" color="error" :loading="isProcessing" :disabled="isProcessing" @click="openAction('reverse')" />
-            <UButton v-if="(isConfirmed || isPaid) && currentPayment?.party_id" label="Cuenta corriente" icon="i-lucide-arrow-right-circle" size="sm" color="primary" variant="outline" @click="router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)" />
-          </div>
-        </div>
-
         <UAlert
           v-if="isDraft && hasUnsavedDateChange"
           color="warning"
@@ -467,7 +515,34 @@ const handleAdvanceSuccess = async () => {
             @submit="handleSubmit"
             @save-finalized-details="handleFinalizedDetailsSave"
             @cancel="router.push('/erp/treasury/payments')"
-          />
+          >
+            <template #action-bar-actions>
+              <UButton
+                v-if="isDraft && canConfirmPayment"
+                label="Confirmar"
+                icon="i-lucide-check-circle"
+                size="sm"
+                color="info"
+                :loading="isProcessing"
+                :disabled="isProcessing || isSaving || hasUnsavedDateChange"
+                :aria-keyshortcuts="shortcutAriaValue('Confirmar')"
+                :title="`Confirmar (Alt + ${shortcutKeyText('Confirmar')?.split(' + ')[1]})`"
+                @click="openAction('confirm')"
+              >
+                <template #trailing>
+                  <KeyboardShortcutHint :keys="paymentShortcutKeys('Confirmar') ?? []" size="2xs" />
+                </template>
+              </UButton>
+            </template>
+            <template #action-bar-status>
+              <PaymentStatusIndicator
+                v-if="isDraft"
+                :status="currentPayment.status"
+                :confirmed-at="currentPayment.confirmed_at"
+                :payment-date="currentPayment.payment_date"
+              />
+            </template>
+          </PaymentForm>
           <UiAttachmentManager
             entity-type="payment"
             :entity-id="paymentId"

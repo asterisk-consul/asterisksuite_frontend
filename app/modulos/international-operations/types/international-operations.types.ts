@@ -216,6 +216,10 @@ export interface OperationDocumentRelation {
     total: number
     paid_amount: number
     currency_code?: string
+    exchange_rate?: number | null
+    rate_type?: string | null
+    converted_total?: number | null
+    exchange_note?: string | null
     party_id?: string
     business_parties?: { id: string; name: string }
     document_types?: { code: string; description: string; category?: string; direction?: 'SALES' | 'PURCHASE' }
@@ -237,6 +241,10 @@ export interface OperationDocumentRelation {
         currency_code: string
         status: string
         payment_method: string
+        exchange_rate?: number | null
+        rate_type?: string | null
+        converted_amount?: number | null
+        exchange_note?: string | null
       }
     }>
   }
@@ -254,6 +262,10 @@ export interface OperationPaymentRelation {  operation_id: string
     currency_code: string
     status: string
     payment_method: string
+    exchange_rate?: number | null
+    rate_type?: string | null
+    converted_amount?: number | null
+    exchange_note?: string | null
   }
 }
 
@@ -333,6 +345,13 @@ export interface OperationSummary {
     pending: { amount: number; baseAmount: number }
     unconverted?: { count: number; amount: number }
   }
+  financialDualCurrency?: Record<'USD' | 'ARS', {
+    total: number
+    paid: number
+    pending: number | null
+    totalMissing: number
+    paidMissing: number
+  }>
   financialByCurrency: Array<{
     currency: string
     total: number

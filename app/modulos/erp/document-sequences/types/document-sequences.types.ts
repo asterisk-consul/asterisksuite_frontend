@@ -3,6 +3,7 @@ export interface DocumentSequence {
   name: string
   point_of_sale: string
   prefix?: string | null
+  sales_order_tax_mode?: 'STANDARD' | 'NET_ONLY'
   range_start?: number | null
   range_end?: number | null
   current_number: number
@@ -21,6 +22,7 @@ export interface CreateDocumentSequenceInput {
   name: string
   point_of_sale: string
   prefix?: string
+  sales_order_tax_mode?: 'STANDARD' | 'NET_ONLY'
   range_start?: number
   range_end?: number
   automatic?: boolean

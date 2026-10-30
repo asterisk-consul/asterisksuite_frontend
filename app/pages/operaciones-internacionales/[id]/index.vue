@@ -61,6 +61,16 @@ const showConvertQuoteModal = ref(false)
 const convertingQuote = ref<OperationQuoteRelation | null>(null)
 const refreshingQuoteDocuments = ref(false)
 const hasContainers = computed(() => !!operation.value?.containers?.length)
+const hasOperationInformation = computed(() => [
+  operation.value?.origin_country,
+  operation.value?.destination_country,
+  operation.value?.estimated_arrival_date,
+  operation.value?.actual_arrival_date,
+  operation.value?.customs_broker_op_number,
+  operation.value?.sim_number,
+  operation.value?.supplier_purchase_order,
+  operation.value?.notes
+].some(value => String(value ?? '').trim().length > 0))
 const expenseTypeIcons: Record<InternationalExpenseType, string> = {
   MERCHANDISE: 'i-lucide-box',
   INTERNATIONAL_FREIGHT: 'i-lucide-ship',
@@ -398,16 +408,25 @@ const quoteAssociatedIds = computed(() => operation.value?.operation_quotes?.map
 const getPaymentStatus = (doc: any): { label: string; color: any } => {
   const paid = getDocumentPaid(doc)
   const total = doc.total ?? 0
+  if (getDocumentUnconvertedPaymentCount(doc) > 0) {
+    return { label: 'Pago sin cotización', color: 'warning' }
+  }
   if (paid >= total && total > 0) return { label: 'Pagado', color: 'success' }
   if (paid > 0) return { label: 'Parcialmente pagado', color: 'warning' }
   return { label: 'Pendiente', color: 'error' }
 }
 
-const getDocumentPaid = (doc: any) =>
-  (doc?.payment_documents ?? []).reduce(
-    (sum: number, relation: any) => sum + Number(relation.amount_applied ?? 0),
-    0
-  )
+const getDocumentPaid = (doc: any) => (doc?.payment_documents ?? []).reduce((sum: number, relation: any) => {
+  if (!['CONFIRMED', 'PAID'].includes(String(relation.payment?.status))) return sum
+  const amount = paymentAppliedInCurrency(relation, doc?.currency_code)
+  return sum + (amount ?? 0)
+}, 0)
+
+const getDocumentUnconvertedPaymentCount = (doc: any) =>
+  (doc?.payment_documents ?? []).filter((relation: any) =>
+    ['CONFIRMED', 'PAID'].includes(String(relation.payment?.status)) &&
+    paymentAppliedInCurrency(relation, doc?.currency_code) == null
+  ).length
 
 const getDocumentPending = (doc: any) =>
   Math.max(0, Number(doc?.total ?? 0) - getDocumentPaid(doc))
@@ -496,6 +515,257 @@ const docCurrencyInfo = (rel: any) => {
   return { total, rate, converted, docCurrency, opCurrency }
 }
 
+const dualCurrencyAmount = (kind: 'total' | 'paid' | 'pending', currency: 'USD' | 'ARS') =>
+  summary.value?.financialDualCurrency?.[currency]?.[kind] ?? null
+
+const dualCurrencyMissingCount = (kind: 'total' | 'paid', currency: 'USD' | 'ARS') => {
+  const values = summary.value?.financialDualCurrency?.[currency]
+  if (!values) return 0
+  return kind === 'total' ? values.totalMissing : values.paidMissing
+}
+
+const dualCurrencyLabel = (kind: 'total' | 'paid' | 'pending', currency: 'USD' | 'ARS') => {
+  const amount = dualCurrencyAmount(kind, currency)
+  if (amount == null) return 'Sin cotización'
+  const missingCount = kind === 'pending' ? 0 : dualCurrencyMissingCount(kind, currency)
+  const formatted = formatCurrency(amount, currency)
+  return missingCount > 0 ? `Parcial · ${formatted}` : formatted
+}
+
+const operationFinancialLabel = (amount: number) => {
+  const formatted = fmtMoney(amount, summary.value?.financial.currency ?? operation.value?.currency_code)
+  return (summary.value?.financial.unconverted?.count ?? 0) > 0 ? `Parcial · ${formatted}` : formatted
+}
+
+const operationBaseCurrency = computed(() =>
+  String(summary.value?.financial.currency ?? operation.value?.currency_code ?? 'USD').toUpperCase()
+)
+
+const rateTypeLabel = (type?: string | null) => {
+  const labels: Record<string, string> = {
+    OFFICIAL: 'Oficial',
+    BLUE: 'Blue',
+    MEP: 'MEP',
+    CCL: 'CCL',
+    WHOLESALE: 'Mayorista',
+    CRYPTO: 'Cripto',
+    CARD: 'Tarjeta'
+  }
+  return type ? labels[type] ?? type : null
+}
+
+const savedDocumentRateLabel = (rel: any) => {
+  const document = rel?.document
+  if (!document) return null
+  const currency = String(document.currency_code ?? '').toUpperCase()
+  const rate = Number(document.exchange_rate ?? 0)
+  const operationCurrency = String(operation.value?.currency_code ?? '').toUpperCase()
+  const documentTotal = Number(document.total ?? 0)
+  const impliedRate = currency === 'USD' && document.converted_total != null && documentTotal > 0
+    ? Number(document.converted_total) / documentTotal
+    : 0
+  const purchaseRate = rate > 0 && rate !== 1 ? rate : impliedRate
+  if (purchaseRate > 0 && purchaseRate !== 1 && currency === 'USD') {
+    const kind = rateTypeLabel(document.rate_type)
+    const marketRate = normalizeMarketRate(purchaseRate, currency, 'ARS')
+    const source = rate > 0 && rate !== 1 ? 'TC compra' : 'TC compra implícita'
+    return `${source}: 1 ${currency} = ${formatCurrency(marketRate ?? purchaseRate, 'ARS')}${kind ? ` · ${kind}` : ''}`
+  }
+  if (rate > 0 && rate !== 1 && currency !== 'ARS' && currency !== 'USD') {
+    return `TC compra guardada: ${rate.toLocaleString('es-AR', { maximumFractionDigits: 6 })}`
+  }
+  const operationRate = Number(rel.exchange_rate ?? 0)
+  if (operationRate > 0 && currency !== operationCurrency && (currency === 'ARS' || operationCurrency === 'ARS')) {
+    return `TC operación: ${formatCurrency(operationRate, 'ARS')} / USD`
+  }
+  return null
+}
+
+const paymentAppliedArs = (allocation: any) => {
+  const payment = allocation?.payment
+  const amount = Number(allocation?.amount_applied ?? 0)
+  const currency = String(payment?.currency_code ?? '').toUpperCase()
+  if (currency === 'ARS') return amount
+  const rate = Number(payment?.exchange_rate ?? 0)
+  if (rate > 0 && rate !== 1) return convertWithMarketRate(amount, currency, 'ARS', rate)
+  const paymentAmount = Number(payment?.amount ?? 0)
+  if (payment?.converted_amount != null && paymentAmount > 0) {
+    return Number(payment.converted_amount) * amount / paymentAmount
+  }
+  return null
+}
+
+const paymentAppliedArsLabel = (allocation: any) => {
+  const amount = paymentAppliedArs(allocation)
+  return amount == null ? null : formatCurrency(amount, 'ARS')
+}
+
+const paymentAppliedInCurrency = (allocation: any, targetCurrency: string) => {
+  const payment = allocation?.payment
+  const amount = Number(allocation?.amount_applied ?? 0)
+  const sourceCurrency = String(payment?.currency_code ?? '').toUpperCase()
+  const target = String(targetCurrency).toUpperCase()
+  if (sourceCurrency === target) return amount
+  if (target === 'ARS') return paymentAppliedArs(allocation)
+  const rate = Number(payment?.exchange_rate ?? 0)
+  if (sourceCurrency === 'ARS' && target === 'USD' && rate > 0 && rate !== 1) {
+    return convertWithMarketRate(amount, 'ARS', 'USD', rate)
+  }
+  return null
+}
+
+const paymentAppliedDocumentLabel = (allocation: any, documentCurrency?: string | null) => {
+  const targetCurrency = String(documentCurrency ?? '').toUpperCase()
+  const paymentCurrency = String(allocation?.payment?.currency_code ?? '').toUpperCase()
+  if (!targetCurrency || targetCurrency === paymentCurrency) return null
+  const amount = paymentAppliedInCurrency(allocation, targetCurrency)
+  return amount == null ? null : formatCurrency(amount, targetCurrency)
+}
+
+const paymentRateLabel = (payment: any) => {
+  const rate = Number(payment?.exchange_rate ?? 0)
+  const currency = String(payment?.currency_code ?? '').toUpperCase()
+  const paymentAmount = Number(payment?.amount ?? 0)
+  const impliedRate = currency === 'USD' && payment?.converted_amount != null && paymentAmount > 0
+    ? Number(payment.converted_amount) / paymentAmount
+    : 0
+  const savedRate = rate > 0 && rate !== 1 ? rate : impliedRate
+  if (!savedRate || savedRate === 1) return null
+  const kind = rateTypeLabel(payment?.rate_type)
+  if (currency === 'USD' || currency === 'ARS') {
+    const marketRate = normalizeMarketRate(savedRate, currency, currency === 'USD' ? 'ARS' : 'USD')
+    const source = rate > 0 && rate !== 1 ? 'TC pago' : 'TC pago implícita'
+    return `${source}: 1 USD = ${formatCurrency(marketRate ?? savedRate, 'ARS')}${kind ? ` · ${kind}` : ''}`
+  }
+  return `TC pago: ${savedRate.toLocaleString('es-AR', { maximumFractionDigits: 6 })}`
+}
+
+type VisibleExchangeRate = { rate: number; date?: string | null; rateType?: string | null }
+
+const latestOperationExchangeRates = computed(() => {
+  const purchaseRates: VisibleExchangeRate[] = []
+  const paymentRates: VisibleExchangeRate[] = []
+  const operationCurrency = String(operation.value?.currency_code ?? '').toUpperCase()
+
+  for (const relation of operation.value?.operation_documents ?? []) {
+    const document = relation.document as any
+    if (!document) continue
+    const currency = String(document.currency_code ?? '').toUpperCase()
+    let rate = Number(document.exchange_rate ?? 0)
+
+    if (currency === 'USD' && (!rate || rate === 1)) {
+      const total = Number(document.total ?? 0)
+      if (document.converted_total != null && total > 0) rate = Number(document.converted_total) / total
+    } else if (currency === 'ARS' && operationCurrency === 'USD') {
+      rate = Number(relation.exchange_rate ?? 0)
+    } else if (currency !== 'USD') {
+      continue
+    }
+
+    const marketRate = rate > 0 && rate !== 1
+      ? currency === 'ARS' ? rate : normalizeMarketRate(rate, 'USD', 'ARS')
+      : null
+    if (marketRate && Number.isFinite(marketRate)) {
+      purchaseRates.push({ rate: marketRate, date: document.date, rateType: document.rate_type })
+    }
+  }
+
+  const seenPayments = new Set<string>()
+  const addPaymentRate = (payment: any) => {
+    if (!payment || (payment.id && seenPayments.has(payment.id))) return
+    if (payment.id) seenPayments.add(payment.id)
+    const currency = String(payment.currency_code ?? '').toUpperCase()
+    let rate = Number(payment.exchange_rate ?? 0)
+    if (currency === 'USD' && (!rate || rate === 1)) {
+      const amount = Number(payment.amount ?? 0)
+      if (payment.converted_amount != null && amount > 0) rate = Number(payment.converted_amount) / amount
+    }
+    if (!rate || rate === 1 || !['USD', 'ARS'].includes(currency)) return
+    const marketRate = normalizeMarketRate(rate, currency, currency === 'USD' ? 'ARS' : 'USD')
+    if (!marketRate || !Number.isFinite(marketRate)) return
+    paymentRates.push({ rate: marketRate, date: payment.date, rateType: payment.rate_type })
+  }
+
+  for (const relation of operation.value?.operation_documents ?? []) {
+    for (const allocation of relation.document?.payment_documents ?? []) addPaymentRate(allocation.payment)
+  }
+  for (const relation of operation.value?.operation_payments ?? []) addPaymentRate(relation.payment)
+
+  const latest = (rates: VisibleExchangeRate[]) => rates.sort((a, b) =>
+    new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime()
+  )[0] ?? null
+
+  return { purchase: latest(purchaseRates), payment: latest(paymentRates) }
+})
+
+type PaymentCurrencyBreakdown = {
+  currency: string
+  original: number
+  usd: number
+  ars: number
+  usdMissing: number
+  arsMissing: number
+}
+
+const operationPaymentCurrencyBreakdown = computed<PaymentCurrencyBreakdown[]>(() => {
+  const payments = new Map<string, { payment: any; amount: number }>()
+  const operationDocumentPaymentIds = new Set<string>()
+
+  for (const relation of operation.value?.operation_documents ?? []) {
+    for (const allocation of relation.document?.payment_documents ?? []) {
+      const payment = allocation.payment
+      if (!payment?.id || !['CONFIRMED', 'PAID'].includes(String(payment.status))) continue
+      const id = String(payment.id)
+      operationDocumentPaymentIds.add(id)
+      const existing = payments.get(id)
+      payments.set(id, {
+        payment,
+        amount: (existing?.amount ?? 0) + Number(allocation.amount_applied ?? 0)
+      })
+    }
+  }
+
+  for (const relation of operation.value?.operation_payments ?? []) {
+    const payment = relation.payment
+    if (!payment?.id || operationDocumentPaymentIds.has(String(payment.id))) continue
+    if (!['CONFIRMED', 'PAID'].includes(String(payment.status))) continue
+    const id = String(payment.id)
+    payments.set(id, { payment, amount: Number(payment.amount ?? 0) })
+  }
+
+  const grouped = new Map<string, PaymentCurrencyBreakdown>()
+  for (const { payment, amount } of payments.values()) {
+    const currency = String(payment.currency_code ?? operationBaseCurrency.value).toUpperCase()
+    const row = grouped.get(currency) ?? {
+      currency,
+      original: 0,
+      usd: 0,
+      ars: 0,
+      usdMissing: 0,
+      arsMissing: 0
+    }
+    row.original += amount
+
+    const allocation = { amount_applied: amount, payment }
+    const usd = paymentAppliedInCurrency(allocation, 'USD')
+    const ars = paymentAppliedInCurrency(allocation, 'ARS')
+    if (usd == null) row.usdMissing += 1
+    else row.usd += usd
+    if (ars == null) row.arsMissing += 1
+    else row.ars += ars
+    grouped.set(currency, row)
+  }
+
+  return [...grouped.values()].sort((a, b) => a.currency.localeCompare(b.currency))
+})
+
+const paymentCurrencyEquivalentLabel = (row: PaymentCurrencyBreakdown, currency: 'USD' | 'ARS') => {
+  const amount = currency === 'USD' ? row.usd : row.ars
+  const missing = currency === 'USD' ? row.usdMissing : row.arsMissing
+  if (missing > 0) return amount > 0 ? `Parcial · ${formatCurrency(amount, currency)}` : 'Sin cotización'
+  return formatCurrency(amount, currency)
+}
+
 const containerExpenseTotal = (
   containerId: string
 ): {
@@ -516,16 +786,20 @@ const containerExpenseTotal = (
   for (const d of docs) {
     const docCurrency = d.document?.currency_code ?? opCurrency
     const docTotal = Number(d.document?.total ?? 0)
-    const docPaid = (d.document?.payment_documents ?? []).reduce(
-      (sum: number, pd: any) => sum + Number(pd.amount_applied ?? 0),
-      0
-    )
     const rate = d.exchange_rate ? Number(d.exchange_rate) : null
     const convertedTotal = convertWithMarketRate(docTotal, docCurrency, opCurrency, rate)
-    const convertedPaid = convertWithMarketRate(docPaid, docCurrency, opCurrency, rate)
     if (convertedTotal != null) {
       total += convertedTotal
-      paid += convertedPaid ?? 0
+      for (const allocation of d.document?.payment_documents ?? []) {
+        if (!['CONFIRMED', 'PAID'].includes(String(allocation.payment?.status))) continue
+        const convertedPaid = paymentAppliedInCurrency(allocation, opCurrency)
+        if (convertedPaid == null) {
+          unconvertedCount += 1
+          unconvertedAmount += Number(allocation.amount_applied ?? 0)
+        } else {
+          paid += convertedPaid
+        }
+      }
     } else {
       unconvertedCount += 1
       unconvertedAmount += docTotal
@@ -816,102 +1090,60 @@ const scrollTo = (sectionId: string) => {
 
       <!-- ═══════════════ RESUMEN ═══════════════ -->
       <div id="resumen" :style="{ scrollMarginTop: sectionScrollMt + 'px' }" class="mt-6 space-y-6">
-        <!-- STATS -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <button
-            class="flex items-center gap-3 rounded-xl border border-default p-4 text-left hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer"
-            @click="scrollTo('contenedores')"
-          >
-            <div class="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <UIcon name="i-lucide-container" class="size-5 text-primary" />
-            </div>
-            <div>
-              <p class="text-xs text-muted font-medium">Contenedores</p>
-              <p class="text-xl font-bold">{{ summary?.stats.containerCount ?? 0 }}</p>
-            </div>
-          </button>
-          <button
-            class="flex items-center gap-3 rounded-xl border border-default p-4 text-left hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer"
-            @click="scrollTo('documentos')"
-          >
-            <div class="size-10 rounded-lg bg-info/10 flex items-center justify-center shrink-0">
-              <UIcon name="i-lucide-receipt-text" class="size-5 text-info" />
-            </div>
-            <div>
-              <p class="text-xs text-muted font-medium">Facturas</p>
-              <p class="text-xl font-bold">{{ summary?.stats.documentCount ?? 0 }}</p>
-            </div>
-          </button>
-          <button
-            class="flex items-center gap-3 rounded-xl border border-default p-4 text-left hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer"
-            @click="scrollTo('documentos')"
-          >
-            <div class="size-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
-              <UIcon name="i-lucide-credit-card" class="size-5 text-success" />
-            </div>
-            <div>
-              <p class="text-xs text-muted font-medium">Pagos</p>
-              <p class="text-xl font-bold">{{ summary?.stats.paymentCount ?? 0 }}</p>
-            </div>
-          </button>
-          <button
-            class="flex items-center gap-3 rounded-xl border border-default p-4 text-left hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer"
-            @click="scrollTo('presupuestos')"
-          >
-            <div class="size-10 rounded-lg bg-warning/10 flex items-center justify-center shrink-0">
-              <UIcon name="i-lucide-file-chart-column" class="size-5 text-warning" />
-            </div>
-            <div>
-              <p class="text-xs text-muted font-medium">Presupuestos</p>
-              <p class="text-xl font-bold">{{ operation.operation_quotes?.length ?? 0 }}</p>
-            </div>
-          </button>
-        </div>
-
-        <!-- FINANCIERO + INFO -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="lg:col-span-2 rounded-xl border border-default p-5">
-            <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-col gap-4">
+          <!-- FINANCIERO -->
+          <div class="rounded-xl border border-default p-5 sm:p-6">
+            <div class="flex items-center justify-between gap-3 mb-3">
               <h2 class="font-semibold flex items-center gap-2">
                 <UIcon name="i-lucide-wallet" class="size-4 text-muted" />
                 Situación Financiera
               </h2>
-              <UBadge
-                v-if="summary"
-                :label="`Total ${fmtMoney(summary.financial.total.amount, summary.financial.currency ?? operation.currency_code)}`"
-                color="primary"
-                variant="subtle"
-                size="sm"
-              />
+              <span class="hidden sm:inline text-[10px] text-muted">
+                TC guardado por comprobante y por pago
+              </span>
             </div>
             <div v-if="summary" class="space-y-3">
-              <!-- Consolidado en moneda de la operación -->
-              <div class="grid grid-cols-3 gap-2">
-                <div class="text-center rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="rounded-xl border border-primary/30 bg-primary/5 p-4 sm:p-5">
                   <p class="text-[10px] text-muted font-medium uppercase tracking-wide">
-                    Total operación ({{ summary.financial.currency ?? operation.currency_code ?? 'USD' }})
+                    Total operación
                   </p>
-                  <p class="text-lg font-bold">
-                    {{
-                      fmtMoney(summary.financial.total.amount, summary.financial.currency ?? operation.currency_code)
-                    }}
+                  <p class="text-xl font-bold sm:text-2xl">
+                    {{ operationFinancialLabel(summary.financial.total.amount) }}
                   </p>
+                  <div class="mt-2 grid gap-2 border-t border-primary/15 pt-1.5 text-xs" :class="operationBaseCurrency === 'USD' || operationBaseCurrency === 'ARS' ? 'grid-cols-1' : 'grid-cols-2'">
+                    <span v-if="operationBaseCurrency !== 'USD'"><span class="text-muted">Equiv. USD</span> · {{ dualCurrencyLabel('total', 'USD') }}</span>
+                    <span v-if="operationBaseCurrency !== 'ARS'"><span class="text-muted">Equiv. ARS</span> · {{ dualCurrencyLabel('total', 'ARS') }}</span>
+                  </div>
                 </div>
-                <div class="text-center rounded-lg border border-success/30 bg-success/5 p-3">
+                <div class="rounded-xl border border-success/30 bg-success/5 p-4 sm:p-5">
                   <p class="text-[10px] text-muted font-medium uppercase tracking-wide">Pagado</p>
-                  <p class="text-lg font-bold text-success-500">
-                    {{ fmtMoney(summary.financial.paid.amount, summary.financial.currency ?? operation.currency_code) }}
+                  <p class="text-xl font-bold text-success-500 sm:text-2xl">
+                    {{ operationFinancialLabel(summary.financial.paid.amount) }}
                   </p>
+                  <div class="mt-2 grid gap-2 border-t border-success/15 pt-1.5 text-xs" :class="operationBaseCurrency === 'USD' || operationBaseCurrency === 'ARS' ? 'grid-cols-1' : 'grid-cols-2'">
+                    <span v-if="operationBaseCurrency !== 'USD'"><span class="text-muted">Equiv. USD</span> · {{ dualCurrencyLabel('paid', 'USD') }}</span>
+                    <span v-if="operationBaseCurrency !== 'ARS'"><span class="text-muted">Equiv. ARS</span> · {{ dualCurrencyLabel('paid', 'ARS') }}</span>
+                  </div>
                 </div>
-                <div class="text-center rounded-lg border border-warning/30 bg-warning/5 p-3">
+                <div class="rounded-xl border border-warning/30 bg-warning/5 p-4 sm:p-5">
                   <p class="text-[10px] text-muted font-medium uppercase tracking-wide">Pendiente</p>
-                  <p class="text-lg font-bold text-warning-500">
-                    {{
-                      fmtMoney(summary.financial.pending.amount, summary.financial.currency ?? operation.currency_code)
-                    }}
+                  <p class="text-xl font-bold text-warning-500 sm:text-2xl">
+                    {{ operationFinancialLabel(summary.financial.pending.amount) }}
                   </p>
+                  <div class="mt-2 grid gap-2 border-t border-warning/15 pt-1.5 text-xs" :class="operationBaseCurrency === 'USD' || operationBaseCurrency === 'ARS' ? 'grid-cols-1' : 'grid-cols-2'">
+                    <span v-if="operationBaseCurrency !== 'USD'"><span class="text-muted">Equiv. USD</span> · {{ dualCurrencyLabel('pending', 'USD') }}</span>
+                    <span v-if="operationBaseCurrency !== 'ARS'"><span class="text-muted">Equiv. ARS</span> · {{ dualCurrencyLabel('pending', 'ARS') }}</span>
+                  </div>
                 </div>
               </div>
+
+              <p
+                v-if="(summary.financialDualCurrency?.USD.totalMissing ?? 0) + (summary.financialDualCurrency?.ARS.totalMissing ?? 0) + (summary.financialDualCurrency?.USD.paidMissing ?? 0) + (summary.financialDualCurrency?.ARS.paidMissing ?? 0) > 0"
+                class="text-[10px] text-warning-500"
+              >
+                Hay equivalentes incompletos porque faltan cotizaciones guardadas. Revisá cada comprobante o pago.
+              </p>
 
               <UAlert
                 v-if="(summary.financial.unconverted?.count ?? 0) > 0"
@@ -919,99 +1151,181 @@ const scrollTo = (sectionId: string) => {
                 variant="soft"
                 icon="i-lucide-alert-triangle"
                 class="text-xs"
-                :title="`${summary.financial.unconverted!.count} documento(s) sin tipo de cambio asignado`"
-                :description="`${fmtMoney(summary.financial.unconverted!.amount, '—')} no se incluyen en el total consolidado. Reasocialos con su tipo de cambio para que cuenten.`"
+                :title="`${summary.financial.unconverted!.count} comprobante(s) o pago(s) sin conversión disponible`"
+                :description="`${fmtMoney(summary.financial.unconverted!.amount, '—')} no se incluyen en el equivalente consolidado. Revisá la cotización guardada en cada movimiento.`"
               />
 
-              <!-- Detalle por moneda -->
-              <div v-if="summary.financialByCurrency?.length" class="space-y-2">
-                <p class="text-[10px] text-muted font-semibold uppercase tracking-wide">Detalle por moneda</p>
-                <div
-                  v-for="fc in summary.financialByCurrency"
-                  :key="fc.currency"
-                  class="flex items-center gap-4 rounded-lg border border-default p-3"
-                >
-                  <span class="font-mono font-bold text-sm w-12 shrink-0">{{ fc.currency }}</span>
-                  <div class="flex-1 grid grid-cols-3 gap-2">
-                    <div class="text-center rounded-lg bg-muted/40 py-1.5">
-                      <p class="text-[10px] text-muted font-medium">Total</p>
-                      <p class="text-sm font-bold">{{ formatCurrency(fc.total, fc.currency) }}</p>
+              <div class="rounded-xl border border-default p-4">
+                <div class="mb-3">
+                  <h3 class="text-sm font-semibold">Detalle por moneda de pagos</h3>
+                  <p class="text-xs text-muted">Suma aplicada según la moneda original y la cotización guardada en cada pago.</p>
+                </div>
+                <div v-if="operationPaymentCurrencyBreakdown.length" class="overflow-x-auto">
+                  <div class="min-w-[620px]">
+                    <div class="grid grid-cols-[minmax(190px,1.4fr)_repeat(3,minmax(135px,1fr))] border-b border-default px-2 py-2 text-xs font-medium text-muted">
+                      <span>Moneda de pago</span>
+                      <span class="text-right">Monto original</span>
+                      <span class="text-right">Equivalente en USD</span>
+                      <span class="text-right">Equivalente en ARS</span>
                     </div>
-                    <div class="text-center rounded-lg bg-success/10 py-1.5">
-                      <p class="text-[10px] text-muted font-medium">Pagado</p>
-                      <p class="text-sm font-bold text-success-500">{{ formatCurrency(fc.paid, fc.currency) }}</p>
-                    </div>
-                    <div class="text-center rounded-lg bg-warning/10 py-1.5">
-                      <p class="text-[10px] text-muted font-medium">Pendiente</p>
-                      <p class="text-sm font-bold text-warning-500">{{ formatCurrency(fc.pending, fc.currency) }}</p>
+                    <div
+                      v-for="row in operationPaymentCurrencyBreakdown"
+                      :key="row.currency"
+                      class="grid grid-cols-[minmax(190px,1.4fr)_repeat(3,minmax(135px,1fr))] items-center border-b border-default/60 px-2 py-2.5 text-sm last:border-b-0"
+                    >
+                      <span class="font-medium">
+                        {{ row.currency === 'ARS' ? 'Pesos argentinos (ARS)' : row.currency === 'USD' ? 'Dólares (USD)' : row.currency }}
+                      </span>
+                      <span class="text-right">{{ formatCurrency(row.original, row.currency) }}</span>
+                      <span class="text-right" :class="row.usdMissing ? 'text-warning-500' : ''">
+                        {{ paymentCurrencyEquivalentLabel(row, 'USD') }}
+                      </span>
+                      <span class="text-right" :class="row.arsMissing ? 'text-warning-500' : ''">
+                        {{ paymentCurrencyEquivalentLabel(row, 'ARS') }}
+                      </span>
                     </div>
                   </div>
                 </div>
+                <p v-else class="rounded-lg bg-muted/20 px-3 py-4 text-center text-sm text-muted">
+                  Todavía no hay pagos confirmados asociados a esta operación.
+                </p>
               </div>
+
             </div>
           </div>
 
-          <div class="rounded-xl border border-default p-5">
-            <h2 class="font-semibold flex items-center gap-2 mb-4">
-              <UIcon name="i-lucide-info" class="size-4 text-muted" />
-              Información
-            </h2>
-            <div class="space-y-3 text-sm">
-              <div class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5">
-                  <UIcon name="i-lucide-map-pin" class="size-3.5" />
-                  Origen
-                </span>
-                <span class="font-medium">{{ operation.origin_country ?? '—' }}</span>
-              </div>
-              <div class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5">
-                  <UIcon name="i-lucide-flag" class="size-3.5" />
-                  Destino
-                </span>
-                <span class="font-medium">{{ operation.destination_country ?? '—' }}</span>
-              </div>
-              <div class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5">
-                  <UIcon name="i-lucide-calendar-check" class="size-3.5" />
-                  ETA
-                </span>
-                <span class="font-medium">{{ formatDate(operation.estimated_arrival_date) }}</span>
-              </div>
-              <div v-if="operation.actual_arrival_date" class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5">
-                  <UIcon name="i-lucide-check" class="size-3.5" />
-                  Llegada real
-                </span>
-                <span class="font-medium">{{ formatDate(operation.actual_arrival_date) }}</span>
-              </div>
-              <div v-if="operation.customs_broker_op_number" class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5">
-                  <UIcon name="i-lucide-file-badge" class="size-3.5" />
-                  N° OP Despachante
-                </span>
-                <span class="font-medium">{{ operation.customs_broker_op_number }}</span>
-              </div>
-              <div v-if="operation.sim_number" class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5">
-                  <UIcon name="i-lucide-file-check" class="size-3.5" />
-                  SIM
-                </span>
-                <span class="font-medium">{{ operation.sim_number }}</span>
-              </div>
-              <div v-if="operation.supplier_purchase_order" class="flex items-center justify-between gap-3">
-                <span class="text-muted flex items-center gap-1.5">
-                  <UIcon name="i-lucide-shopping-cart" class="size-3.5" />
-                  OC Proveedor
-                </span>
-                <span class="font-medium">{{ operation.supplier_purchase_order }}</span>
-              </div>
-              <div v-if="operation.notes" class="pt-3 border-t border-default">
-                <p class="text-muted flex items-center gap-1.5 mb-1">
-                  <UIcon name="i-lucide-sticky-note" class="size-3.5" />
-                  Notas
-                </p>
-                <p class="text-sm whitespace-pre-wrap leading-relaxed">{{ operation.notes }}</p>
+          <!-- INDICADORES SECUNDARIOS + INFORMACIÓN -->
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                class="min-w-0 rounded-xl border border-primary/30 bg-primary/5 p-4 text-left transition-colors hover:border-primary/50 hover:bg-primary/10"
+                @click="scrollTo('documentos')"
+              >
+                <div class="flex items-center gap-2 text-xs font-medium text-muted">
+                  <UIcon name="i-lucide-arrow-left-right" class="size-4 text-primary" />
+                  Tipo de cambio
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-3">
+                  <div class="min-w-0">
+                    <p class="text-[10px] uppercase tracking-wide text-muted">Última compra</p>
+                    <p class="truncate text-sm font-semibold">
+                      {{ latestOperationExchangeRates.purchase ? `1 USD = ${formatCurrency(latestOperationExchangeRates.purchase.rate, 'ARS')}` : 'Sin dato' }}
+                    </p>
+                    <p v-if="latestOperationExchangeRates.purchase" class="truncate text-[10px] text-muted">
+                      {{ formatDate(latestOperationExchangeRates.purchase.date) }}{{ rateTypeLabel(latestOperationExchangeRates.purchase.rateType) ? ` · ${rateTypeLabel(latestOperationExchangeRates.purchase.rateType)}` : '' }}
+                    </p>
+                  </div>
+                  <div class="min-w-0 border-l border-primary/20 pl-3">
+                    <p class="text-[10px] uppercase tracking-wide text-muted">Último pago</p>
+                    <p class="truncate text-sm font-semibold">
+                      {{ latestOperationExchangeRates.payment ? `1 USD = ${formatCurrency(latestOperationExchangeRates.payment.rate, 'ARS')}` : 'Sin dato' }}
+                    </p>
+                    <p v-if="latestOperationExchangeRates.payment" class="truncate text-[10px] text-muted">
+                      {{ formatDate(latestOperationExchangeRates.payment.date) }}{{ rateTypeLabel(latestOperationExchangeRates.payment.rateType) ? ` · ${rateTypeLabel(latestOperationExchangeRates.payment.rateType)}` : '' }}
+                    </p>
+                  </div>
+                </div>
+              </button>
+              <button
+                class="flex items-center gap-3 rounded-xl border border-default p-4 text-left transition-colors hover:border-info/40 hover:bg-info/5"
+                @click="scrollTo('documentos')"
+              >
+                <div class="size-10 shrink-0 rounded-lg bg-info/10 flex items-center justify-center">
+                  <UIcon name="i-lucide-receipt-text" class="size-5 text-info" />
+                </div>
+                <div>
+                  <p class="text-xs font-medium text-muted">Comprobantes</p>
+                  <p class="text-xl font-bold">{{ summary?.stats.documentCount ?? 0 }}</p>
+                </div>
+              </button>
+              <button
+                class="flex items-center gap-3 rounded-xl border border-default p-4 text-left transition-colors hover:border-success/40 hover:bg-success/5"
+                @click="scrollTo('documentos')"
+              >
+                <div class="size-10 shrink-0 rounded-lg bg-success/10 flex items-center justify-center">
+                  <UIcon name="i-lucide-credit-card" class="size-5 text-success" />
+                </div>
+                <div>
+                  <p class="text-xs font-medium text-muted">Pagos</p>
+                  <p class="text-xl font-bold">{{ summary?.stats.paymentCount ?? 0 }}</p>
+                </div>
+              </button>
+              <button
+                class="flex items-center gap-3 rounded-xl border border-default p-4 text-left transition-colors hover:border-warning/40 hover:bg-warning/5"
+                @click="scrollTo('presupuestos')"
+              >
+                <div class="size-10 shrink-0 rounded-lg bg-warning/10 flex items-center justify-center">
+                  <UIcon name="i-lucide-file-chart-column" class="size-5 text-warning" />
+                </div>
+                <div>
+                  <p class="text-xs font-medium text-muted">Presupuestos</p>
+                  <p class="text-xl font-bold">{{ operation.operation_quotes?.length ?? 0 }}</p>
+                </div>
+              </button>
+            </div>
+
+            <div v-if="hasOperationInformation" class="rounded-xl border border-default p-5">
+              <h2 class="font-semibold flex items-center gap-2 mb-4">
+                <UIcon name="i-lucide-info" class="size-4 text-muted" />
+                Información
+              </h2>
+              <div class="space-y-3 text-sm">
+                <div v-if="operation.origin_country?.trim()" class="flex items-center justify-between gap-3">
+                  <span class="text-muted flex items-center gap-1.5">
+                    <UIcon name="i-lucide-map-pin" class="size-3.5" />
+                    Origen
+                  </span>
+                  <span class="font-medium">{{ operation.origin_country ?? '—' }}</span>
+                </div>
+                <div v-if="operation.destination_country?.trim()" class="flex items-center justify-between gap-3">
+                  <span class="text-muted flex items-center gap-1.5">
+                    <UIcon name="i-lucide-flag" class="size-3.5" />
+                    Destino
+                  </span>
+                  <span class="font-medium">{{ operation.destination_country ?? '—' }}</span>
+                </div>
+                <div v-if="operation.estimated_arrival_date" class="flex items-center justify-between gap-3">
+                  <span class="text-muted flex items-center gap-1.5">
+                    <UIcon name="i-lucide-calendar-check" class="size-3.5" />
+                    ETA
+                  </span>
+                  <span class="font-medium">{{ formatDate(operation.estimated_arrival_date) }}</span>
+                </div>
+                <div v-if="operation.actual_arrival_date" class="flex items-center justify-between gap-3">
+                  <span class="text-muted flex items-center gap-1.5">
+                    <UIcon name="i-lucide-check" class="size-3.5" />
+                    Llegada real
+                  </span>
+                  <span class="font-medium">{{ formatDate(operation.actual_arrival_date) }}</span>
+                </div>
+                <div v-if="operation.customs_broker_op_number?.trim()" class="flex items-center justify-between gap-3">
+                  <span class="text-muted flex items-center gap-1.5">
+                    <UIcon name="i-lucide-file-badge" class="size-3.5" />
+                    N° OP Despachante
+                  </span>
+                  <span class="font-medium">{{ operation.customs_broker_op_number }}</span>
+                </div>
+                <div v-if="operation.sim_number?.trim()" class="flex items-center justify-between gap-3">
+                  <span class="text-muted flex items-center gap-1.5">
+                    <UIcon name="i-lucide-file-check" class="size-3.5" />
+                    SIM
+                  </span>
+                  <span class="font-medium">{{ operation.sim_number }}</span>
+                </div>
+                <div v-if="operation.supplier_purchase_order?.trim()" class="flex items-center justify-between gap-3">
+                  <span class="text-muted flex items-center gap-1.5">
+                    <UIcon name="i-lucide-shopping-cart" class="size-3.5" />
+                    OC Proveedor
+                  </span>
+                  <span class="font-medium">{{ operation.supplier_purchase_order }}</span>
+                </div>
+                <div v-if="operation.notes?.trim()" class="pt-3 border-t border-default">
+                  <p class="text-muted flex items-center gap-1.5 mb-1">
+                    <UIcon name="i-lucide-sticky-note" class="size-3.5" />
+                    Notas
+                  </p>
+                  <p class="text-sm whitespace-pre-wrap leading-relaxed">{{ operation.notes }}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -1151,7 +1465,7 @@ const scrollTo = (sectionId: string) => {
                   <span
                     v-if="containerExpenseTotal(container.id)!.unconvertedCount > 0"
                     class="text-xs text-error-500 font-medium"
-                    :title="`${containerExpenseTotal(container.id)!.unconvertedCount} documento(s) sin tipo de cambio`"
+                    :title="`${containerExpenseTotal(container.id)!.unconvertedCount} importe(s) sin cotización compatible`"
                   >
                     · {{ containerExpenseTotal(container.id)!.unconvertedCount }} sin TC
                   </span>
@@ -1621,16 +1935,24 @@ const scrollTo = (sectionId: string) => {
                         {{ formatCurrency(docCurrencyInfo(rel)!.total, docCurrencyInfo(rel)!.docCurrency) }}
                       </p>
                       <p class="text-[10px] text-muted">
-                        TC {{ docCurrencyInfo(rel)!.rate ?? '—' }} · =
+                        TC operación {{ docCurrencyInfo(rel)!.rate ?? '—' }} · =
                         <span v-if="docCurrencyInfo(rel)!.converted != null">
                           {{ fmtMoney(docCurrencyInfo(rel)!.converted, docCurrencyInfo(rel)!.opCurrency) }}
                         </span>
                         <span v-else class="text-warning-500">sin TC</span>
                       </p>
+                      <p v-if="savedDocumentRateLabel(rel)" class="text-[10px] text-muted">
+                        {{ savedDocumentRateLabel(rel) }}
+                      </p>
                     </div>
-                    <span v-else class="font-bold">
-                      {{ formatCurrency(Number(rel.document?.total ?? 0), rel.document?.currency_code) }}
-                    </span>
+                    <div v-else>
+                      <p class="font-bold">
+                        {{ formatCurrency(Number(rel.document?.total ?? 0), rel.document?.currency_code) }}
+                      </p>
+                      <p v-if="savedDocumentRateLabel(rel)" class="text-[10px] text-muted">
+                        {{ savedDocumentRateLabel(rel) }}
+                      </p>
+                    </div>
                     <UPopover v-if="getDocumentPending(rel.document) > 0">
                       <UButton
                         :label="getPaymentStatus(rel.document).label"
@@ -1642,8 +1964,11 @@ const scrollTo = (sectionId: string) => {
                       <template #content>
                         <div class="w-64 p-3 space-y-3 text-left">
                           <div>
-                            <p class="text-sm font-semibold">Documento pendiente</p>
-                            <p class="text-xs text-muted mt-0.5">
+                            <p class="text-sm font-semibold">{{ getPaymentStatus(rel.document).label }}</p>
+                            <p v-if="getDocumentUnconvertedPaymentCount(rel.document) > 0" class="text-xs text-warning-500 mt-0.5">
+                              No se puede calcular el saldo en la moneda del comprobante: falta la cotización propia de uno o más pagos.
+                            </p>
+                            <p v-else class="text-xs text-muted mt-0.5">
                               Restan {{ formatCurrency(getDocumentPending(rel.document), rel.document?.currency_code) }}
                             </p>
                           </div>
@@ -1692,10 +2017,30 @@ const scrollTo = (sectionId: string) => {
                       </span>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                      <span class="text-xs font-medium">
-                        {{ formatCurrency(Number(pd.amount_applied ?? 0), pd.payment?.currency_code) }}
-                      </span>
-                    </div>
+                      <div class="text-right">
+                        <p class="text-xs font-medium">
+                          {{ formatCurrency(Number(pd.amount_applied ?? 0), pd.payment?.currency_code) }}
+                        </p>
+                        <p v-if="paymentAppliedDocumentLabel(pd, rel.document?.currency_code)" class="text-[10px] text-muted">
+                          Equiv. comprobante: {{ paymentAppliedDocumentLabel(pd, rel.document?.currency_code) }}
+                        </p>
+                        <p
+                          v-else-if="pd.payment?.currency_code?.toUpperCase() !== rel.document?.currency_code?.toUpperCase()"
+                          class="text-[10px] text-warning-500"
+                        >
+                          Sin TC para convertir al comprobante
+                        </p>
+                        <p v-if="paymentRateLabel(pd.payment)" class="text-[10px] text-muted" :title="pd.payment?.exchange_note || undefined">
+                          {{ paymentRateLabel(pd.payment) }}
+                        </p>
+                        <p v-if="paymentAppliedArsLabel(pd) && pd.payment?.currency_code !== 'ARS'" class="text-[10px] text-muted">
+                          ≈ {{ paymentAppliedArsLabel(pd) }}
+                        </p>
+                        <p v-else-if="pd.payment?.currency_code !== 'ARS'" class="text-[10px] text-warning-500">
+                          Sin cotización del pago
+                        </p>
+                      </div>
+              </div>
                   </div>
                 </div>
               </div>

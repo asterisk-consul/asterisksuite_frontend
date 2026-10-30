@@ -28,6 +28,12 @@ export interface PaymentFormData {
   payment_mode: 'NORMAL' | 'ADVANCE'
   date: string
   payment_method: string
+  tenders?: Array<{
+    method: 'CASH' | 'BANK_TRANSFER' | 'CHECK'
+    amount: number
+    cash_box_id?: string
+    bank_account_id?: string
+  }>
   amount: number
   withholding_remittance_id?: string
   currency_code: string
@@ -426,6 +432,7 @@ const defaultForm: PaymentFormData = {
   card_authorization: '',
   expected_clearing_date: '',
   check_ids: [],
+  tenders: [],
 }
 
 const form = reactive<PaymentFormData>({ ...defaultForm })
@@ -566,7 +573,22 @@ watch(
     // Los documentos pendientes llegan después del pago. Al cambiar esas listas,
     // solo hay que rehidratar las asociaciones; volver a copiar el modelo inicial
     // podía pisar cambios hechos por el usuario, incluida la fecha.
-    if (val !== oldValues?.[0]) Object.assign(form, val)
+    if (val !== oldValues?.[0]) {
+      Object.assign(form, val)
+      if (val.payment_method === 'MIXED' && val.tenders?.length) {
+        form.tenders = val.tenders.map((tender: any) => ({
+          method: tender.method,
+          amount: Number(tender.amount),
+          cash_box_id: tender.cash_box_id ?? tender.cash_box?.id ?? undefined,
+          bank_account_id: tender.bank_account_id ?? tender.bank_account?.id ?? undefined,
+        }))
+        form.payment_method = form.tenders[0]?.method ?? 'CASH'
+        form.cash_box_id = form.tenders.find(tender => tender.method === 'CASH')?.cash_box_id ?? ''
+        form.bank_account_id = form.tenders.find(tender => tender.method === 'BANK_TRANSFER')?.bank_account_id ?? ''
+      } else {
+        form.tenders = []
+      }
+    }
 
     // Poblar selectedDocs desde comprobantes y obligaciones de Tesorería.
     if (val.documents?.length || val.obligations?.length) {
@@ -722,8 +744,96 @@ const selectedPaymentMode = computed({
 
 const selectedPaymentMethod = computed({
   get: () => paymentMethods.value.find(o => o.value === form.payment_method) ?? paymentMethods.value[0],
-  set: (val: any) => { form.payment_method = val?.value ?? 'CASH' }
+  set: (val: any) => {
+    form.payment_method = val?.value ?? 'CASH'
+    form.tenders = []
+  }
 })
+
+type MixedTenderMethod = 'CASH' | 'BANK_TRANSFER' | 'CHECK'
+const mixedTenderMethods = computed(() => (form.tenders ?? []).map(tender => tender.method))
+const isMixedPayment = computed(() => mixedTenderMethods.value.length > 1)
+const hasTenderMethod = (method: string) => isMixedPayment.value
+  ? mixedTenderMethods.value.includes(method as MixedTenderMethod)
+  : form.payment_method === method
+const additionalTenderMethod = ref<MixedTenderMethod | undefined>()
+const additionalTenderOptions = computed(() => ([
+  { label: 'Efectivo', value: 'CASH' as const },
+  { label: 'Transferencia bancaria', value: 'BANK_TRANSFER' as const },
+  { label: 'Cheque', value: 'CHECK' as const },
+]).filter(option => !mixedTenderMethods.value.includes(option.value)
+  && (isMixedPayment.value || option.value !== form.payment_method)))
+const selectedAdditionalTender = computed({
+  get: () => additionalTenderOptions.value.find(option => option.value === additionalTenderMethod.value),
+  set: (option: any) => { additionalTenderMethod.value = option?.value }
+})
+
+const addMixedTender = async () => {
+  const method = additionalTenderMethod.value
+  if (!method || !additionalTenderOptions.value.some(option => option.value === method)) return
+  if (bankCharges.value.length) {
+    toast.add({ title: 'Quitá primero los gastos bancarios', description: 'Los gastos bancarios detallados todavía no se pueden repartir entre varios medios.', color: 'warning' })
+    return
+  }
+  const currentRows = [...(form.tenders ?? [])]
+  if (!currentRows.length) {
+    if (!['CASH', 'BANK_TRANSFER', 'CHECK'].includes(form.payment_method)) {
+      toast.add({ title: 'Este medio no se puede combinar todavía', description: 'La primera etapa permite combinar efectivo, transferencias y cheques.', color: 'warning' })
+      return
+    }
+    currentRows.push({
+      method: form.payment_method as MixedTenderMethod,
+      amount: form.payment_method === 'CHECK' ? totalChecksAmount.value : Math.max(0, Number((displayedPaymentAmount.value - totalWithheld.value).toFixed(2))),
+      cash_box_id: form.cash_box_id || undefined,
+      bank_account_id: form.bank_account_id || undefined,
+    })
+  }
+  currentRows.push({ method, amount: 0 })
+  form.tenders = currentRows
+  additionalTenderMethod.value = undefined
+  instrumentValidationAttempted.value = false
+  if (method === 'CHECK') await fetchAvailableChecks()
+  if (method === 'CASH') await initCashBoxes()
+  if (method === 'BANK_TRANSFER') await initBankAccounts()
+}
+
+const removeMixedTender = (method: MixedTenderMethod) => {
+  const remaining = (form.tenders ?? []).filter(tender => tender.method !== method)
+  if (method === 'CASH') form.cash_box_id = ''
+  if (method === 'BANK_TRANSFER') {
+    form.bank_account_id = ''
+    bankCharges.value = []
+  }
+  if (method === 'CHECK') {
+    selectedChecks.value = new Map()
+    form.check_ids = []
+  }
+  if (remaining.length <= 1) {
+    const remainingTender = remaining[0]
+    preserveInstrumentOnMethodChange.value = true
+    form.payment_method = remainingTender?.method ?? 'CASH'
+    form.amount = remainingTender?.method === 'CHECK' ? totalChecksAmount.value : Number(remainingTender?.amount ?? form.amount)
+    form.cash_box_id = remainingTender?.method === 'CASH' ? remainingTender.cash_box_id ?? '' : ''
+    form.bank_account_id = remainingTender?.method === 'BANK_TRANSFER' ? remainingTender.bank_account_id ?? '' : ''
+    form.tenders = []
+    nextTick(() => { preserveInstrumentOnMethodChange.value = false })
+  } else {
+    form.tenders = remaining
+  }
+  instrumentValidationAttempted.value = false
+}
+
+const mixedTenderAmount = (method: MixedTenderMethod) => method === 'CHECK'
+  ? totalChecksAmount.value
+  : Number(form.tenders?.find(tender => tender.method === method)?.amount ?? 0)
+const mixedTenderTotal = computed(() => mixedTenderMethods.value.reduce(
+  (sum, method) => sum + mixedTenderAmount(method),
+  0,
+))
+const mixedTenderTarget = computed(() => Math.max(0,
+  Number(((totalApplied.value > 0 ? totalApplied.value : Number(form.amount || 0)) - totalWithheld.value).toFixed(2)),
+))
+const mixedTenderDifference = computed(() => Math.round((mixedTenderTarget.value - mixedTenderTotal.value) * 100) / 100)
 
 const selectedCurrency = computed({
   get: () => currencyOptions.value.find(o => o.value === form.currency_code) ?? currencyOptions.value[0],
@@ -774,7 +884,7 @@ const suggestedWithheld = (wh: any) => {
 
 const isCollection = computed(() => form.type === 'COLLECTION')
 const isPayment = computed(() => form.type === 'PAYMENT' || form.type === 'EXPENSE')
-const isCheck = computed(() => form.payment_method === 'CHECK')
+const isCheck = computed(() => hasTenderMethod('CHECK'))
 const isCreditCard = computed(() => form.payment_method === 'CREDIT_CARD')
 const availableCardOptions = computed(() => cardOptions.value
   .filter(card => card.active && card.type === (isCollection.value ? 'CUSTOMER' : 'COMPANY') && card.currency_code === form.currency_code)
@@ -785,7 +895,22 @@ const availableCardOptions = computed(() => cardOptions.value
 const isCollectingCheck = computed(() => isCollection.value && isCheck.value)
 const isPayingWithCheck = computed(() => isPayment.value && isCheck.value)
 const instrumentValidationAttempted = ref(false)
+const preserveInstrumentOnMethodChange = ref(false)
 const instrumentValidationMessage = computed(() => {
+  if (isMixedPayment.value) {
+    if (hasTenderMethod('CASH') && !form.cash_box_id) return 'Seleccioná la caja para el importe en efectivo.'
+    if (hasTenderMethod('BANK_TRANSFER') && !form.bank_account_id) return 'Seleccioná la cuenta para el importe por transferencia.'
+    if (hasTenderMethod('CHECK') && selectedChecks.value.size === 0) return 'Seleccioná al menos un cheque.'
+    if (mixedTenderMethods.value.some(method => method !== 'CHECK' && mixedTenderAmount(method) <= 0)) {
+      return 'Ingresá un importe mayor a cero para cada medio.'
+    }
+    if (Math.abs(mixedTenderDifference.value) > 0.01) {
+      return mixedTenderDifference.value > 0
+        ? `Faltan asignar ${formatCurrency(mixedTenderDifference.value, form.currency_code)} entre los medios.`
+        : `Los medios superan el importe a pagar por ${formatCurrency(Math.abs(mixedTenderDifference.value), form.currency_code)}.`
+    }
+    return ''
+  }
   if (form.payment_method === 'CASH' && !form.cash_box_id) return 'Seleccioná una caja para continuar.'
   if (form.payment_method === 'BANK_TRANSFER' && !form.bank_account_id) return 'Seleccioná una cuenta bancaria para continuar.'
   if (form.payment_method === 'CHECK' && form.check_ids.length === 0) return 'Seleccioná al menos un cheque para continuar.'
@@ -808,9 +933,11 @@ const readonlyModeLabel = computed(() =>
   form.payment_mode === 'ADVANCE' ? 'A cuenta (anticipo)' : 'Normal'
 )
 
-const readonlyMethodLabel = computed(() =>
-  paymentMethods.value.find(m => m.value === form.payment_method)?.label ?? form.payment_method
+const readonlyMethodLabel = computed(() => isMixedPayment.value
+  ? `Mixto · ${mixedTenderMethods.value.map(method => ({ CASH: 'Efectivo', BANK_TRANSFER: 'Transferencia', CHECK: 'Cheques' }[method])).join(' + ')}`
+  : paymentMethods.value.find(m => m.value === form.payment_method)?.label ?? form.payment_method
 )
+const readonlyTenders = computed(() => props.modelValue?.tenders ?? form.tenders ?? [])
 
 const readonlyCashBoxLabel = computed(() => {
   if (!form.cash_box_id) return null
@@ -917,7 +1044,8 @@ const filteredCashBoxes = computed(() => {
     list = list.filter(cb => {
       const balance = cb.balances?.find(b => b.currency_code === form.currency_code)
       const available = Number(balance?.balance ?? 0)
-      return available > 0 && available >= Number(form.amount || 0)
+      const required = isMixedPayment.value ? mixedTenderAmount('CASH') : Number(form.amount || 0)
+      return available > 0 && available >= required
     })
   }
   const q = cashBoxSearch.value.toLowerCase().trim()
@@ -933,7 +1061,10 @@ const filteredBankAccounts = computed(() => {
     list = list.filter(ba => ba.currency_code === form.currency_code)
   }
   if (isPayment.value) {
-    list = list.filter(ba => Number(ba.balance ?? 0) > 0 && Number(ba.balance ?? 0) >= Number(form.amount || 0))
+    list = list.filter(ba => {
+      const required = isMixedPayment.value ? mixedTenderAmount('BANK_TRANSFER') : Number(form.amount || 0)
+      return Number(ba.balance ?? 0) > 0 && Number(ba.balance ?? 0) >= required
+    })
   }
   const q = bankAccountSearch.value.toLowerCase().trim()
   if (q) {
@@ -966,7 +1097,7 @@ const syncDocumentAllocationsToForm = () => {
 }
 
 watch([() => form.bank_account_id, () => form.type], ([accountId], [previousAccountId]) => {
-  if (accountId && accountId !== previousAccountId && form.payment_method === 'BANK_TRANSFER') {
+  if (accountId && accountId !== previousAccountId && form.payment_method === 'BANK_TRANSFER' && !isMixedPayment.value) {
     loadSuggestedBankCharges()
   }
 })
@@ -985,13 +1116,14 @@ const totalChecksAmount = computed(() => {
 // El cheque se registra siempre por su valor completo. La parte que exceda
 // los documentos queda a favor del proveedor en pagos o del cliente en cobros.
 const checkCreditBalance = computed(() => {
-  if (!isCheck.value || selectedDocs.value.size === 0) return 0
+  if (!isCheck.value || isMixedPayment.value || selectedDocs.value.size === 0) return 0
   return Math.max(0, Math.round((totalChecksAmount.value - totalApplied.value) * 100) / 100)
 })
 
 const checkCreditPartyLabel = computed(() => isCollection.value ? 'cliente' : 'proveedor')
 
 const displayedPaymentAmount = computed(() => {
+  if (isMixedPayment.value) return totalApplied.value > 0 ? totalApplied.value : Number(form.amount || 0)
   if (isCheck.value && totalChecksAmount.value > 0) return totalChecksAmount.value
   if (totalApplied.value > 0) return totalApplied.value
   if (totalChecksAmount.value > 0) return totalChecksAmount.value
@@ -1001,6 +1133,7 @@ const displayedPaymentAmount = computed(() => {
 // Reparte el presupuesto de cheques entre los documentos seleccionados:
 // cada documento recibe lo aplicado (editable) pero sin exceder el saldo disponible
 const redistributeAppliedAmounts = () => {
+  if (isMixedPayment.value) return
   if (!isCheck.value || selectedChecks.value.size === 0 || selectedDocs.value.size === 0) return
   let budget = totalChecksAmount.value
   for (const [, entry] of selectedDocs.value.entries()) {
@@ -1014,6 +1147,12 @@ const redistributeAppliedAmounts = () => {
 
 watch(selectedPaymentMethod, async (val) => {
   instrumentValidationAttempted.value = false
+  if (isMixedPayment.value) {
+    if (hasTenderMethod('CHECK')) await fetchAvailableChecks()
+    if (hasTenderMethod('CASH')) await initCashBoxes()
+    if (hasTenderMethod('BANK_TRANSFER')) await initBankAccounts()
+    return
+  }
   if (val?.value === 'CHECK') {
     await fetchAvailableChecks()
   } else {
@@ -1027,8 +1166,10 @@ watch(selectedPaymentMethod, async (val) => {
     await initBankAccounts()
   }
   if (val?.value !== 'CREDIT_CARD') form.credit_card_id = ''
-  form.cash_box_id = ''
-  form.bank_account_id = ''
+  if (!preserveInstrumentOnMethodChange.value) {
+    form.cash_box_id = ''
+    form.bank_account_id = ''
+  }
 })
 
 watch(() => form.currency_code, () => {
@@ -1100,6 +1241,7 @@ watch(selectedType, async (val) => {
   selectedChecks.value.clear()
   form.check_ids = []
   form.credit_card_id = ''
+  form.tenders = []
 
   if (isCheck.value) {
     await fetchAvailableChecks()
@@ -1123,6 +1265,13 @@ const selectCheck = (check: AvailableCheck) => {
 
 const isCheckSelected = (id: string) => selectedChecks.value.has(id)
 
+const syncTenderInstrument = (method: MixedTenderMethod, id: string) => {
+  const tender = form.tenders?.find(item => item.method === method)
+  if (!tender) return
+  if (method === 'CASH') tender.cash_box_id = id
+  if (method === 'BANK_TRANSFER') tender.bank_account_id = id
+}
+
 const selectCashBox = (id: string) => {
   const box = cashBoxes.value.find(b => b.id === id)
   if (box?.status === 'CLOSED') {
@@ -1135,6 +1284,7 @@ const selectCashBox = (id: string) => {
     return
   }
   form.cash_box_id = id
+  syncTenderInstrument('CASH', id)
   instrumentValidationAttempted.value = false
 }
 
@@ -1158,7 +1308,7 @@ const handleOpenSession = async () => {
     toast.add({ title: 'Sesión abierta', color: 'success' })
     await initCashBoxes()
     openSessionModalOpen.value = false
-    form.cash_box_id = openingBox.value.id
+    selectCashBox(openingBox.value.id)
   } catch (e: any) {
     toast.add({
       title: 'Error al abrir sesión',
@@ -1188,6 +1338,7 @@ const getCurrencySymbol = (code: string): string => {
 
 const selectBankAccount = (id: string) => {
   form.bank_account_id = id
+  syncTenderInstrument('BANK_TRANSFER', id)
   instrumentValidationAttempted.value = false
 }
 
@@ -1323,19 +1474,23 @@ const handleSubmit = async () => {
     return
   }
 
-  const paymentAmount = isPayment.value && isCheck.value && totalChecksAmount.value > 0
-    ? totalChecksAmount.value
-    : totalApplied.value > 0
-      ? totalApplied.value
-      : totalChecksAmount.value > 0
-        ? totalChecksAmount.value
-        : form.amount
+  const paymentAmount = isMixedPayment.value
+    ? displayedPaymentAmount.value
+    : isPayment.value && isCheck.value && totalChecksAmount.value > 0
+      ? totalChecksAmount.value
+      : totalApplied.value > 0
+        ? totalApplied.value
+        : totalChecksAmount.value > 0
+          ? totalChecksAmount.value
+          : form.amount
 
   // Retenciones: usar las cargadas/confirmadas en el formulario
   const validWithholdings = withholdings.value.filter(w => Number(w.withheld_amount) > 0)
   const totalRetentions = validWithholdings.reduce((s, w) => s + Number(w.withheld_amount), 0)
   // Dinero efectivo = aplicado a documentos − retenciones
-  const cashAmount = Math.max(0, Math.round((paymentAmount - totalRetentions) * 100) / 100)
+  const cashAmount = isMixedPayment.value
+    ? mixedTenderTotal.value
+    : Math.max(0, Math.round((paymentAmount - totalRetentions) * 100) / 100)
 
   const documentsData = Array.from(selectedDocs.value.values())
     .filter(d => d.doc.source_type !== 'TREASURY_OBLIGATION')
@@ -1386,12 +1541,23 @@ const handleSubmit = async () => {
 
   const payload = {
     ...form,
+    payment_method: isMixedPayment.value ? 'MIXED' : form.payment_method,
+    tenders: isMixedPayment.value
+      ? form.tenders?.map(tender => ({
+          method: tender.method,
+          amount: tender.method === 'CHECK' ? totalChecksAmount.value : Number(tender.amount),
+          cash_box_id: tender.method === 'CASH' ? form.cash_box_id || undefined : undefined,
+          bank_account_id: tender.method === 'BANK_TRANSFER' ? form.bank_account_id || undefined : undefined,
+        }))
+      : [],
+    cash_box_id: isMixedPayment.value ? '' : form.cash_box_id,
+    bank_account_id: isMixedPayment.value ? '' : form.bank_account_id,
     amount: cashAmount,
     account_id: form.account_id || undefined,
     check_ids: undefined,
     checks: buildCheckAllocations(),
     withholdings: withholdingsPayload.length > 0 ? withholdingsPayload : undefined,
-    bank_charges: form.payment_method === 'BANK_TRANSFER' && bankCharges.value.length > 0
+    bank_charges: !isMixedPayment.value && form.payment_method === 'BANK_TRANSFER' && bankCharges.value.length > 0
       ? bankCharges.value
           .filter(c => c.bank_concept_id)
           .map(c => ({
@@ -1494,11 +1660,27 @@ defineExpose({ completeDraft: completePaymentDraft })
     </UCard>
 
     <!-- Medio de pago utilizado -->
-    <UCard v-if="readonlyCashBoxLabel || readonlyBankLabel || readonlyChecks.length">
+    <UCard v-if="isMixedPayment || readonlyCashBoxLabel || readonlyBankLabel || readonlyChecks.length">
       <template #header>
         <p class="text-sm font-medium">Medio de pago utilizado</p>
       </template>
-      <div v-if="readonlyCashBoxLabel || readonlyBankLabel" class="flex items-center gap-3">
+      <div v-if="isMixedPayment" class="flex flex-col gap-2">
+        <div v-for="tender in readonlyTenders" :key="tender.method" class="flex items-center justify-between gap-4 rounded-lg border border-default p-3">
+          <div class="flex min-w-0 items-center gap-3">
+            <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <UIcon :name="tender.method === 'CASH' ? 'i-lucide-wallet' : tender.method === 'BANK_TRANSFER' ? 'i-lucide-building-2' : 'i-lucide-receipt-text'" class="size-5 text-primary" />
+            </div>
+            <div class="min-w-0">
+              <p class="font-medium">{{ tender.method === 'CASH' ? 'Efectivo' : tender.method === 'BANK_TRANSFER' ? 'Transferencia' : 'Cheques' }}</p>
+              <p class="truncate text-xs text-muted">
+                {{ tender.method === 'CASH' ? readonlyCashBoxLabel || 'Caja' : tender.method === 'BANK_TRANSFER' ? readonlyBankLabel || 'Cuenta bancaria' : 'Cartera de cheques' }}
+              </p>
+            </div>
+          </div>
+          <p class="shrink-0 font-semibold">{{ formatCurrency(Number(tender.amount), form.currency_code) }}</p>
+        </div>
+      </div>
+      <div v-else-if="readonlyCashBoxLabel || readonlyBankLabel" class="flex items-center gap-3">
         <div class="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           <UIcon :name="form.payment_method === 'CASH' ? 'i-lucide-wallet' : 'i-lucide-building-2'" class="size-5 text-primary" />
         </div>
@@ -1680,7 +1862,11 @@ defineExpose({ completeDraft: completePaymentDraft })
             Deuda aplicada: {{ formatCurrency(totalApplied, form.currency_code) }} ·
             Saldo a favor del {{ checkCreditPartyLabel }}: {{ formatCurrency(checkCreditBalance, form.currency_code) }}
           </p>
-          <p v-if="totalWithheld > 0" class="text-xs text-muted">
+          <p v-if="isMixedPayment" class="text-xs text-muted">
+            Medios combinados: {{ formatCurrency(mixedTenderTotal, form.currency_code) }}
+            <span v-if="totalWithheld > 0"> · Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }}</span>
+          </p>
+          <p v-else-if="totalWithheld > 0" class="text-xs text-muted">
             Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
             Efectivo: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
           </p>
@@ -1711,6 +1897,8 @@ defineExpose({ completeDraft: completePaymentDraft })
               <KeyboardShortcutHint :keys="['Ctrl', 'S']" size="2xs" />
             </template>
           </UButton>
+          <slot v-if="props.actionBarTarget" name="action-bar-actions" />
+          <slot v-if="props.actionBarTarget" name="action-bar-status" />
         </div>
       </section>
     </Teleport>
@@ -1878,9 +2066,98 @@ defineExpose({ completeDraft: completePaymentDraft })
         </div>
       </div>
 
-      <UFormField label="Medio de pago o cobro" name="payment_method" required>
-        <USelectMenu v-model="selectedPaymentMethod" :items="paymentMethods" class="w-full" />
-      </UFormField>
+      <div class="flex flex-col gap-3">
+        <UFormField v-if="!isMixedPayment" label="Medio de pago o cobro" name="payment_method" required>
+          <USelectMenu v-model="selectedPaymentMethod" :items="paymentMethods" class="w-full" />
+        </UFormField>
+        <div v-else class="flex flex-col gap-3">
+          <div
+            v-for="tender in form.tenders"
+            :key="tender.method"
+            class="grid min-w-0 gap-3 rounded-lg border border-default bg-default/30 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] sm:items-end"
+          >
+            <div class="min-w-0">
+              <p class="font-medium">
+                {{ tender.method === 'CASH' ? 'Efectivo' : tender.method === 'BANK_TRANSFER' ? 'Transferencia bancaria' : 'Cheques' }}
+              </p>
+              <p class="text-xs text-muted">
+                {{ tender.method === 'CASH' ? 'Se registrará en la caja seleccionada.' : tender.method === 'BANK_TRANSFER' ? 'Se registrará en la cuenta bancaria seleccionada.' : 'Se registrarán por su valor disponible completo.' }}
+              </p>
+            </div>
+            <UFormField label="Importe de este medio">
+              <UInput
+                v-if="tender.method !== 'CHECK'"
+                v-model.number="tender.amount"
+                type="number"
+                min="0"
+                step="0.01"
+                class="w-full"
+              />
+              <UInput
+                v-else
+                :model-value="formatCurrency(totalChecksAmount, form.currency_code)"
+                disabled
+                class="w-full"
+              />
+            </UFormField>
+            <UButton
+              icon="i-lucide-trash-2"
+              label="Quitar"
+              color="error"
+              variant="soft"
+              class="sm:mb-0.5"
+              :disabled="props.loading"
+              @click="removeMixedTender(tender.method)"
+            />
+          </div>
+          <div class="flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 sm:flex-row sm:items-end sm:justify-between">
+            <div class="grid min-w-0 flex-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <UFormField label="Agregar otro medio">
+                <USelectMenu
+                  v-model="selectedAdditionalTender"
+                  :items="additionalTenderOptions"
+                  placeholder="Elegir medio"
+                  class="w-full"
+                />
+              </UFormField>
+              <UButton
+                label="Agregar medio"
+                icon="i-lucide-plus"
+                color="primary"
+                :disabled="!additionalTenderMethod || props.loading"
+                @click="addMixedTender"
+              />
+            </div>
+            <div class="text-sm sm:min-w-52 sm:text-right">
+              <p class="text-muted">Distribuido / objetivo</p>
+              <p class="font-semibold">{{ formatCurrency(mixedTenderTotal, form.currency_code) }} / {{ formatCurrency(mixedTenderTarget, form.currency_code) }}</p>
+              <p :class="Math.abs(mixedTenderDifference) <= 0.01 ? 'text-success' : 'text-warning'" class="text-xs">
+                {{ Math.abs(mixedTenderDifference) <= 0.01 ? 'Importe completo' : mixedTenderDifference > 0 ? `Faltan ${formatCurrency(mixedTenderDifference, form.currency_code)}` : `Sobran ${formatCurrency(Math.abs(mixedTenderDifference), form.currency_code)}` }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div v-if="!isMixedPayment && ['CASH', 'BANK_TRANSFER', 'CHECK'].includes(form.payment_method)" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <UFormField label="Agregar otro medio">
+            <USelectMenu
+              v-model="selectedAdditionalTender"
+              :items="additionalTenderOptions"
+              placeholder="Elegir efectivo, transferencia o cheque"
+              class="w-full"
+            />
+          </UFormField>
+          <UButton
+            label="Agregar medio"
+            icon="i-lucide-plus"
+            variant="outline"
+            :disabled="!additionalTenderMethod || bankCharges.length > 0 || props.loading"
+            @click="addMixedTender"
+          />
+        </div>
+        <p v-if="!isMixedPayment && bankCharges.length > 0" class="text-xs text-muted">
+          Para combinar medios, primero quitá los gastos bancarios detallados.
+        </p>
+      </div>
 
       <UAlert
         v-if="instrumentValidationMessage"
@@ -1900,7 +2177,7 @@ defineExpose({ completeDraft: completePaymentDraft })
       />
 
     <!-- SELECTOR DE CAJA (EFECTIVO) -->
-    <div v-if="selectedPaymentMethod?.value === 'CASH'" class="border border-default rounded-lg p-4 space-y-3">
+    <div v-if="hasTenderMethod('CASH')" class="border border-default rounded-lg p-4 space-y-3">
       <div class="flex items-center justify-between">
         <h4 class="text-sm font-medium">Seleccionar caja</h4>
         <div v-if="form.cash_box_id" class="text-sm font-semibold text-primary">
@@ -2064,7 +2341,7 @@ defineExpose({ completeDraft: completePaymentDraft })
     </div>
 
     <!-- SELECTOR DE CUENTA BANCARIA (TRANSFERENCIA) -->
-    <div v-if="selectedPaymentMethod?.value === 'BANK_TRANSFER'" class="border border-default rounded-lg p-4 space-y-3">
+    <div v-if="hasTenderMethod('BANK_TRANSFER')" class="border border-default rounded-lg p-4 space-y-3">
       <div class="flex items-center justify-between">
         <h4 class="text-sm font-medium">Seleccionar cuenta bancaria</h4>
         <div v-if="form.bank_account_id" class="text-sm font-semibold text-primary">
@@ -2106,7 +2383,7 @@ defineExpose({ completeDraft: completePaymentDraft })
     </div>
 
     <!-- GASTOS Y DESCUENTOS BANCARIOS -->
-    <div v-if="form.payment_method === 'BANK_TRANSFER'" class="rounded-xl border border-default p-4 space-y-4 sm:p-5">
+    <div v-if="form.payment_method === 'BANK_TRANSFER' && !isMixedPayment" class="rounded-xl border border-default p-4 space-y-4 sm:p-5">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 class="font-medium">Gastos y descuentos bancarios</h4>
@@ -2286,8 +2563,14 @@ defineExpose({ completeDraft: completePaymentDraft })
             Aplicado a facturas: {{ formatCurrency(totalApplied > 0 ? totalApplied : totalChecksAmount, form.currency_code) }}
           </span>
           <span class="font-medium">
-            Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
-            Efectivo: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
+            <template v-if="isMixedPayment">
+              Medios combinados: {{ formatCurrency(mixedTenderTotal, form.currency_code) }} ·
+              Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }}
+            </template>
+            <template v-else>
+              Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
+              Efectivo: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
+            </template>
           </span>
         </div>
       </div>

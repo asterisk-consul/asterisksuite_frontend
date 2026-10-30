@@ -8,6 +8,7 @@ export type PaymentMethod =
   | 'CASH'
   | 'CHECK'
   | 'BANK_TRANSFER'
+  | 'MIXED'
   | 'CREDIT_CARD'
   | 'DEBIT_CARD'
   | 'VIRTUAL_WALLET'
@@ -61,6 +62,7 @@ export interface Payment {
   party_id?: string | null
   party_type?: string | null
   payment_method: PaymentMethod
+  tenders?: PaymentTenderInput[]
   amount: number
   currency_code: string
   exchange_rate?: number | null
@@ -140,6 +142,13 @@ export interface CreatePaymentBankChargeInput {
   }
 }
 
+export interface PaymentTenderInput {
+  method: 'CASH' | 'BANK_TRANSFER' | 'CHECK'
+  amount: number
+  cash_box_id?: string
+  bank_account_id?: string
+}
+
 export interface CreatePaymentInput {
   withholding_remittance_id?: string
   type: PaymentType
@@ -148,6 +157,7 @@ export interface CreatePaymentInput {
   party_id?: string
   party_type?: string
   payment_method: PaymentMethod
+  tenders?: PaymentTenderInput[]
   amount: number
   currency_code: string
   exchange_rate?: number

@@ -12,6 +12,9 @@ const actionShortcuts: Record<string, string> = {
   Confirmar: 'c',
   'Registrar cobro': 'p',
   Pagar: 'p',
+  'Marcar pagado': 'p',
+  Rechazar: 'r',
+  Anular: 'a',
 }
 
 export function useDocumentDetailShortcuts(
@@ -27,6 +30,7 @@ export function useDocumentDetailShortcuts(
     if (event.defaultPrevented || event.isComposing || event.repeat || isTypingTarget(event.target)) return
     if (modalStates.some(modal => modal.value)) return
     if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    if (document.querySelector('[role="dialog"][data-state="open"], [role="dialog"][aria-modal="true"], [role="alertdialog"][data-state="open"], [role="alertdialog"][aria-modal="true"], [role="listbox"][data-state="open"]')) return
 
     const shortcutKey = event.key.toLowerCase()
     const action = actions.value.find(item => item.label && actionShortcuts[item.label] === shortcutKey)

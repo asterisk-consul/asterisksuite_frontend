@@ -1,5 +1,39 @@
 [
  {
+  "version": "0.114.0-alpha",
+  "date": "2026-10-30",
+  "stage": "alpha",
+  "notes": "El resumen de operaciones internacionales muestra los importes en la moneda de la operación sin repetirla y agrega un desglose de pagos por moneda original con equivalentes en USD y ARS según la cotización de cada pago. Los campos sin datos de la sección Información quedan ocultos.",
+  "changes": [
+   { "type": "feat", "scope": "international-operations", "title": "Mostrar pagos agrupados por moneda con equivalentes calculados según su propia cotización" },
+   { "type": "style", "scope": "international-operations", "title": "Simplificar el resumen financiero y ocultar datos de operación vacíos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Consultar los importes de la operación por moneda"
+ },
+ {
+  "version": "0.113.1-alpha",
+  "date": "2026-10-30",
+  "stage": "alpha",
+  "notes": "El estado de los pagos y cobros queda en el encabezado junto a sus acciones. Confirmar, marcar pagado, rechazar y anular muestran atajos y se pueden abrir con Alt + C, Alt + P, Alt + R y Alt + A según el estado y los permisos.",
+  "changes": [
+   { "type": "fix", "scope": "payments", "title": "Ordenar las acciones del pago y agregar atajos por estado" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Acceder rápido a las acciones de pago"
+ },
+ {
+  "version": "0.113.0-alpha",
+  "date": "2026-10-30",
+  "stage": "alpha",
+  "notes": "Pagos y cobros pueden combinar efectivo, transferencias bancarias y cheques en una única operación. Se asigna un importe a cada medio y el total debe coincidir con el neto a pagar o cobrar; las tarjetas y los gastos bancarios detallados todavía se registran por separado.",
+  "changes": [
+   { "type": "feat", "scope": "payments", "title": "Combinar efectivo, transferencias y cheques en un pago o cobro" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Combinar medios de pago y cobro"
+ },
+ {
   "version": "0.112.3-alpha",
   "date": "2026-10-30",
   "stage": "alpha",
