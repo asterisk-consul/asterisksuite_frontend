@@ -1,5 +1,19 @@
 [
  {
+  "version": "0.116.0-alpha",
+  "date": "2026-10-30",
+  "stage": "alpha",
+  "notes": "Se incorpora una ayuda contextual para buscar en las guías según la pantalla y abrirlas desde la barra superior. La conversación se reinicia al cambiar de sección. En Impuestos y servicios, los avisos preventivos filtran las obligaciones que requieren atención y desplazan suavemente hasta la tabla.",
+  "changes": [
+   { "type": "feat", "scope": "help", "title": "Consultar fragmentos de la documentación desde un asistente contextual junto a la campana" },
+   { "type": "fix", "scope": "help", "title": "Reiniciar la conversación al navegar para evitar mezclar el contexto de distintas pantallas" },
+   { "type": "feat", "scope": "treasury", "title": "Filtrar desde los avisos de vencimiento las obligaciones que requieren atención y desplazarse hasta la tabla" },
+   { "type": "style", "scope": "treasury", "title": "Separar visualmente los indicadores de los avisos de vencimiento" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Consultar ayuda contextual y revisar obligaciones con vencimientos"
+ },
+ {
   "version": "0.115.0-alpha",
   "date": "2026-10-30",
   "stage": "alpha",

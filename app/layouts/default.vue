@@ -11,6 +11,7 @@ import AppVersionBanner from '~/components/AppVersionBanner/AppVersionBanner.vue
 const { mainCollapsed } = useSidebarState()
 const { items: breadcrumbs } = useBreadcrumbs()
 const { isNotificationsSlideoverOpen } = useDashboard()
+const isHelpAssistantOpen = ref(false)
 const { totalCount, companyAlertCount, refresh: refreshNotifications } = useNotifications()
 const notificationBadgeCount = computed(() => totalCount.value + companyAlertCount.value)
 const open = ref(false)
@@ -137,6 +138,7 @@ onBeforeUnmount(() => {
       placeholder="Buscar páginas, módulos o configuración..."
     />
     <NotificationsSlideover />
+    <HelpAssistantSlideover v-model:open="isHelpAssistantOpen" :page-title="pageTitle" />
 
     <UDashboardPanel>
       <template #header>
@@ -162,6 +164,14 @@ onBeforeUnmount(() => {
                 {{ notificationBadgeCount > 99 ? '99+' : notificationBadgeCount }}
               </span>
             </div>
+            <UButton
+              icon="i-lucide-message-circle-question"
+              color="neutral"
+              variant="ghost"
+              aria-label="Preguntar a la ayuda"
+              title="Preguntar a la ayuda"
+              @click="isHelpAssistantOpen = true"
+            />
             <slot name="navbar-actions" />
           </template>
         </UDashboardNavbar>

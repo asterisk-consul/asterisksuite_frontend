@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, resolveComponent } from 'vue'
+import { h, nextTick, resolveComponent } from 'vue'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
@@ -37,6 +37,7 @@ const activeView = ref<View>(initialView === 'recurring' || initialView === 'rep
 const pendingSection = ref<'obligations' | 'vep'>('obligations')
 const loading = ref(false)
 const saving = ref(false)
+const obligationsTableTarget = ref<HTMLElement | null>(null)
 const rows = ref<TreasuryObligation[]>([])
 const remittances = ref<WithholdingRemittance[]>([])
 const selectedRemittance = ref<WithholdingRemittance | null>(null)
@@ -49,6 +50,7 @@ const obligationSearch = ref('')
 const remittanceSearch = ref('')
 const statusFilter = ref('ALL')
 const categoryFilter = ref('ALL')
+const attentionOnly = ref(false)
 const modalOpen = ref(false)
 const editing = ref<TreasuryObligation | null>(null)
 const recurring = ref(false)
@@ -136,9 +138,12 @@ const upcomingRows = computed(() => filteredRows.value.filter(row => !['PAID', '
 const visibleObligationRows = computed(() => {
   const source = upcomingRows.value
   const term = obligationSearch.value.trim().toLocaleLowerCase('es-AR')
-  if (!term) return source
-  return source.filter(row => [row.description, row.party?.name, row.reference, row.period_key]
-    .some(value => String(value ?? '').toLocaleLowerCase('es-AR').includes(term)))
+  return source.filter(row => {
+    const matchesAttention = !attentionOnly.value || row.should_notify
+    const matchesSearch = !term || [row.description, row.party?.name, row.reference, row.period_key]
+      .some(value => String(value ?? '').toLocaleLowerCase('es-AR').includes(term))
+    return matchesAttention && matchesSearch
+  })
 })
 const reportRows = computed(() => rows.value.filter(row => row.status === 'PAID'))
 const reminderRows = computed(() => rows.value.filter(row => row.should_notify))
@@ -417,6 +422,20 @@ function openObligation(row: TreasuryObligation) {
 function closeModal() { modalOpen.value = false }
 function closeCancelModal() { confirmCancelOpen.value = false }
 function askCancel(row: TreasuryObligation) { cancelling.value = row; confirmCancelOpen.value = true }
+async function toggleAttentionFilter() {
+  if (attentionOnly.value) {
+    attentionOnly.value = false
+    return
+  }
+  activeView.value = 'pending'
+  pendingSection.value = 'obligations'
+  statusFilter.value = 'ALL'
+  categoryFilter.value = 'ALL'
+  obligationSearch.value = ''
+  attentionOnly.value = true
+  await nextTick()
+  obligationsTableTarget.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 async function cancel() {
   if (!cancelling.value) return
   await service.cancel(cancelling.value.id)
@@ -429,7 +448,10 @@ async function toggleTemplate(template: ObligationTemplate) {
 }
 
 watch(activeView, value => router.replace({ query: { view: value } }))
-watch(pendingSection, () => { statusFilter.value = 'ALL' })
+watch(pendingSection, value => {
+  statusFilter.value = 'ALL'
+  if (value === 'vep') attentionOnly.value = false
+})
 watch(() => form.category, () => {
   if (form.party_id && !availableParties.value.some(party => party.id === form.party_id)) form.party_id = ''
 })
@@ -445,6 +467,7 @@ onMounted(load)
       </template>
     </AppPageHeader>
 
+    <div class="flex min-w-0 flex-col gap-6">
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <UPageCard variant="subtle" class="min-w-0"><div class="space-y-2"><p class="text-xs text-muted">Pendiente estimado · incluye VEP</p><div class="flex flex-wrap gap-x-3 gap-y-1"><p v-for="(amount, currency) in pendingByCurrency" :key="currency" class="text-xl font-semibold">{{ fmt(amount, currency) }}</p><p v-if="!Object.keys(pendingByCurrency).length" class="text-xl font-semibold">{{ fmt(0) }}</p></div></div></UPageCard>
       <UPageCard variant="subtle"><div class="space-y-2"><p class="text-xs text-muted">Vencidas</p><p class="text-xl font-semibold text-error">{{ summary.overdue + vepOverdueCount }}</p></div></UPageCard>
@@ -452,9 +475,26 @@ onMounted(load)
       <UPageCard variant="subtle"><div class="space-y-2"><p class="text-xs text-muted">Requieren revisión</p><p class="text-xl font-semibold text-info">{{ summary.requires_review }}</p></div></UPageCard>
     </div>
 
-    <div class="w-full min-w-0 space-y-5">
+    <div class="w-full min-w-0 flex flex-col gap-5">
     <UAlert v-if="totalOverdue" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="`${totalOverdue} obligación(es) o VEP vencido(s)`" description="Revisá el importe y registrá el pago o cancelá el período si no corresponde." />
-    <UAlert v-else-if="reminderRows.length" color="warning" variant="subtle" icon="i-lucide-bell-ring" :title="`${reminderRows.length} vencimiento(s) requieren atención hoy`" description="Los avisos respetan la anticipación configurada en cada obligación." />
+    <button
+      v-else-if="reminderRows.length"
+      type="button"
+      class="group w-full rounded-lg text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/60"
+      :class="attentionOnly ? 'ring-2 ring-warning/50' : 'hover:ring-1 hover:ring-warning/40'"
+      :aria-pressed="attentionOnly"
+      :aria-label="`${reminderRows.length} vencimientos requieren atención. Hacé clic para filtrarlos en la tabla.`"
+      @click="toggleAttentionFilter"
+    >
+      <UAlert
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-bell-ring"
+        :title="`${reminderRows.length} vencimiento(s) requieren atención`"
+        description="Los avisos respetan la anticipación configurada en cada obligación. Hacé clic para verlas en la tabla."
+        class="pointer-events-none transition group-hover:brightness-110"
+      />
+    </button>
     <UTabs v-model="activeView" :items="tabs" :content="false" variant="link" class="w-full" />
 
     <template v-if="activeView === 'pending'">
@@ -493,11 +533,17 @@ onMounted(load)
               <p class="min-w-0 text-sm text-muted">Obligaciones pendientes de pago.</p>
               <UInput v-model="obligationSearch" icon="i-lucide-search" placeholder="Buscar por concepto, entidad o período..." class="w-full min-w-0" clearable />
             </div>
-            <div v-if="loading" class="py-8 text-center"><ULoader /></div>
-            <AsteriskTable v-else-if="visibleObligationRows.length" compact storage-key="treasury-services-obligations" :table-min-width="940" :data="visibleObligationRows" :columns="obligationColumns" :sort-fields="tableSortFields" :on-row-click="openObligation" />
-            <div v-else class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default bg-elevated/20 px-4 py-8 text-center">
-              <UIcon name="i-lucide-file-search" class="size-6 text-muted" />
-              <p class="text-sm font-medium">No hay obligaciones para mostrar con estos filtros.</p>
+            <div v-if="attentionOnly" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
+              <p class="flex items-center gap-2 text-sm text-warning"><UIcon name="i-lucide-filter" class="size-4" />Mostrando {{ visibleObligationRows.length }} obligación(es) que requieren atención</p>
+              <UButton label="Quitar filtro" icon="i-lucide-x" size="xs" color="warning" variant="ghost" @click="attentionOnly = false" />
+            </div>
+            <div ref="obligationsTableTarget" class="scroll-mt-24">
+              <div v-if="loading" class="py-8 text-center"><ULoader /></div>
+              <AsteriskTable v-else-if="visibleObligationRows.length" compact storage-key="treasury-services-obligations" :table-min-width="940" :data="visibleObligationRows" :columns="obligationColumns" :sort-fields="tableSortFields" :on-row-click="openObligation" />
+              <div v-else class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default bg-elevated/20 px-4 py-8 text-center">
+                <UIcon name="i-lucide-file-search" class="size-6 text-muted" />
+                <p class="text-sm font-medium">No hay obligaciones para mostrar con estos filtros.</p>
+              </div>
             </div>
           </div>
       </UPageCard>
@@ -531,6 +577,7 @@ onMounted(load)
       </UPageCard>
       <UPageCard><template #header><h3 class="font-semibold">Historial pagado</h3></template><div class="divide-y divide-default"><div v-for="row in reportRows" :key="row.id" class="flex items-center gap-4 py-3"><div class="min-w-0 flex-1"><p class="truncate font-medium">{{ row.description }}</p><p class="text-xs text-muted">{{ row.party?.name }} · {{ fmtDate(row.paid_at || row.due_date) }}</p></div><strong>{{ fmt(row.amount ?? row.estimated_amount, row.currency_code) }}</strong><UButton v-if="row.payment_id" label="Pago" variant="ghost" size="xs" @click="openPayment(row.payment_id)" /></div><p v-if="!reportRows.length" class="py-8 text-center text-sm text-muted">Todavía no hay obligaciones pagadas.</p></div></UPageCard>
     </template>
+    </div>
     </div>
 
     <UModal v-model:open="remittanceDetailOpen" :title="selectedRemittance ? `VEP ARCA ${selectedRemittance.vep_number}` : 'Detalle del VEP'" :ui="{ content: 'sm:max-w-2xl' }">
