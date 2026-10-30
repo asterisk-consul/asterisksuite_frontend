@@ -7,6 +7,9 @@ import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useChecks } from '~/modulos/erp/checks/composables/useChecks'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import CheckAlertCards from '~/components/erp/CheckAlertCards.vue'
+import type { CheckAlertCard, CheckAlertKind } from '~/modulos/erp/checks/types/check-alerts.types'
+import { addDaysToDateKey, differenceInDateKeys, formatCheckDate, getArgentinaDateKey, getCheckDateKey } from '~/modulos/erp/checks/utils/check-dates'
 
 const { dashboard, fetchDashboard, loading: reportsLoading } = useTreasuryReports()
 const { bankAccounts, init: fetchBankAccounts } = useBankAccounts()
@@ -14,6 +17,7 @@ const { cashBoxes, init: fetchCashBoxes } = useCashBoxes()
 const { checks, init: fetchChecks } = useChecks()
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
+const router = useRouter()
 
 const showBankAccounts = computed(() => isOwnerOrAdmin.value || hasPermission('bank_accounts.read'))
 const showCashBoxes = computed(() => isOwnerOrAdmin.value || hasPermission('cash_boxes.read'))
@@ -71,28 +75,15 @@ const formatCurrency = (amount: number | string | null | undefined, currency = '
 }
 
 const isInsideAlertWindow = (dueDate: string | Date) => {
-  const due = new Date(dueDate)
-  if (Number.isNaN(due.getTime())) return false
-  const today = new Date()
-  const dueDay = Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate())
-  const todayDay = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
-  const limitDay = todayDay + checkAlertDays.value * 86_400_000
-  return dueDay > todayDay && dueDay <= limitDay
+  const due = getCheckDateKey(dueDate)
+  const today = getArgentinaDateKey()
+  return due > today && due <= addDaysToDateKey(today, checkAlertDays.value)
 }
 
-const formatDueDate = (dueDate: string | Date) => new Intl.DateTimeFormat('es-AR', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'UTC'
-}).format(new Date(dueDate)).replace('.', '')
+const formatDueDate = (dueDate: string | Date) => formatCheckDate(dueDate, 'short')
 
 const dueDateDistance = (dueDate: string | Date) => {
-  const due = new Date(dueDate)
-  const today = new Date()
-  const dueUtc = Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate())
-  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
-  const days = Math.round((dueUtc - todayUtc) / 86_400_000)
+  const days = differenceInDateKeys(getArgentinaDateKey(), getCheckDateKey(dueDate))
   if (days === 0) return 'Vence hoy'
   if (days === 1) return 'Vence mañana'
   return `Vence en ${days} días`
@@ -103,30 +94,68 @@ const pendingOwnChecks = computed(() => checks.value.filter(
 ))
 
 const pendingThirdPartyChecks = computed(() => checks.value.filter(
-  (c) => c.status === 'PENDING' && !c.is_own && isInsideAlertWindow(c.due_date)
+  (c) => ['PENDING', 'CONFIRMED'].includes(c.status) && !c.is_own && isInsideAlertWindow(c.due_date)
 ))
 
 const thirdPartyChecksToResolve = computed(() => {
-  const endOfToday = new Date()
-  endOfToday.setHours(23, 59, 59, 999)
+  const today = getArgentinaDateKey()
   return checks.value.filter(c =>
     !c.is_own &&
     ['PENDING', 'CONFIRMED'].includes(c.status) &&
-    new Date(c.due_date).getTime() <= endOfToday.getTime()
+    getCheckDateKey(c.due_date) <= today
   )
 })
 
 const ownChecksToVerify = computed(() => {
-  const endOfToday = new Date()
-  endOfToday.setHours(23, 59, 59, 999)
+  const today = getArgentinaDateKey()
   return checks.value.filter(c =>
     c.is_own &&
     c.status === 'CONFIRMED' &&
-    new Date(c.due_date).getTime() <= endOfToday.getTime()
+    getCheckDateKey(c.due_date) <= today
   )
 })
 
 const upcomingChecksCount = computed(() => pendingOwnChecks.value.length + pendingThirdPartyChecks.value.length)
+
+const checkAlertCards = computed<CheckAlertCard[]>(() => [
+  ...(upcomingChecksCount.value > 0 ? [{
+    id: 'upcoming' as const,
+    title: 'Cheques próximos a vencer',
+    count: upcomingChecksCount.value,
+    description: `Aviso preventivo · próximos ${checkAlertDays.value} días. No genera movimientos.`,
+    actionLabel: 'Ver próximos',
+    icon: 'i-lucide-bell-ring',
+    tone: 'info' as const
+  }] : []),
+  ...(thirdPartyChecksToResolve.value.length > 0 ? [{
+    id: 'third-party' as const,
+    title: 'Cheques de terceros por resolver',
+    count: thirdPartyChecksToResolve.value.length,
+    description: 'Vencen hoy o ya vencieron. Siguen en cartera hasta depositarlos, cobrarlos o aplicarlos a un pago.',
+    actionLabel: 'Resolver',
+    icon: 'i-lucide-calendar-clock',
+    tone: 'warning' as const
+  }] : []),
+  ...(ownChecksToVerify.value.length > 0 ? [{
+    id: 'own' as const,
+    title: 'Débitos de cheques propios por registrar',
+    count: ownChecksToVerify.value.length,
+    description: 'Vencen hoy o ya vencieron. Revisá el movimiento real antes de registrar el débito o pago desde caja.',
+    actionLabel: 'Revisar',
+    icon: 'i-lucide-landmark',
+    tone: 'primary' as const
+  }] : [])
+])
+
+function openCheckAlert(filter: CheckAlertKind) {
+  void router.push({
+    path: '/erp/treasury/checks',
+    query: {
+      alert: filter,
+      ...(filter === 'upcoming' ? { days: String(checkAlertDays.value) } : {})
+    }
+  })
+}
 
 const totalOwnCheckAmount = computed(() => pendingOwnChecks.value.reduce((sum, c) => (Number(c.amount) || 0) + sum, 0))
 
@@ -224,44 +253,14 @@ const quickActions = computed(() => {
 </script>
 
 <template>
-  <UPage class="space-y-6 px-4">
+  <UPage>
+    <div class="flex flex-col gap-6 px-4">
     <AppPageHeader title="Dashboard Tesorería" description="Resumen general de la situación financiera" />
-    <div
-      v-if="showChecks && (upcomingChecksCount > 0 || thirdPartyChecksToResolve.length > 0 || ownChecksToVerify.length > 0)"
-      class="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3"
-      aria-label="Avisos de cheques"
-    >
-      <UAlert
-        v-if="upcomingChecksCount > 0"
-        color="info"
-        variant="subtle"
-        icon="i-lucide-bell-ring"
-        :title="`${upcomingChecksCount} cheque(s) próximos a vencer`"
-        :description="`Aviso preventivo · próximos ${checkAlertDays} días. No genera movimientos.`"
-        :actions="[{ label: 'Ver próximos', to: '/erp/treasury/checks', color: 'info', variant: 'soft' }]"
-        class="h-full"
-      />
-      <UAlert
-        v-if="thirdPartyChecksToResolve.length > 0"
-        color="warning"
-        variant="subtle"
-        icon="i-lucide-calendar-clock"
-        :title="`${thirdPartyChecksToResolve.length} cheque(s) de terceros requieren una decisión`"
-        description="Vencidos o con vencimiento hoy. Siguen en cartera hasta depositarlos, cobrarlos o usarlos para pagar."
-        :actions="[{ label: 'Resolver', to: '/erp/treasury/checks', color: 'warning', variant: 'solid' }]"
-        class="h-full"
-      />
-      <UAlert
-        v-if="ownChecksToVerify.length > 0"
-        color="warning"
-        variant="subtle"
-        icon="i-lucide-landmark"
-        :title="`${ownChecksToVerify.length} cheque(s) propio(s) requieren verificar el débito`"
-        description="Vencidos o con vencimiento hoy. Revisá el extracto antes de registrar el débito bancario."
-        :actions="[{ label: 'Revisar', to: '/erp/treasury/checks', color: 'warning', variant: 'solid' }]"
-        class="h-full"
-      />
-    </div>
+    <CheckAlertCards
+      v-if="showChecks"
+      :alerts="checkAlertCards"
+      @select="openCheckAlert"
+    />
 
     <!-- STAT CARDS -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 py-4">
@@ -549,6 +548,7 @@ const quickActions = computed(() => {
           </div>
         </div>
       </UPageCard>
+    </div>
     </div>
   </UPage>
 </template>

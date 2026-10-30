@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.115.0-alpha",
+  "date": "2026-10-30",
+  "stage": "alpha",
+  "notes": "La campanita muestra avisos de cheques vencidos y próximos a vencer, y los cheques propios se confirman al confirmar el pago asociado. Se agrega la migración para guardar el tratamiento de IVA por secuencia de OV.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Mostrar en la campanita los cheques por resolver, débitos pendientes y próximos vencimientos" },
+   { "type": "fix", "scope": "checks", "title": "Confirmar cheques propios con el pago asociado y señalar los que están pendientes de asociar" },
+   { "type": "fix", "scope": "sales", "title": "Agregar la migración del modo de impuestos NET_ONLY por secuencia de orden de venta" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ver avisos de cheques y configurar el IVA por secuencia de OV"
+ },
+ {
   "version": "0.114.0-alpha",
   "date": "2026-10-30",
   "stage": "alpha",

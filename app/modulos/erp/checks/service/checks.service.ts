@@ -1,5 +1,6 @@
 ﻿import type {
   Check,
+  CheckNotificationAlerts,
   CreateCheckInput,
   UpdateCheckInput
 } from '~/modulos/erp/checks/types/checks.types'
@@ -32,6 +33,13 @@ export const useChecksService = () => {
 
   const findPendingNotification = () => {
     return $fetch<Check[]>(`${urlBase}/pending-notification`)
+  }
+
+  const findNotificationAlerts = (days = 30) => {
+    return $fetch<CheckNotificationAlerts>(`${urlBase}/notification-alerts`, {
+      method: 'GET',
+      query: { days }
+    })
   }
 
   const create = (data: CreateCheckInput) => {
@@ -117,6 +125,7 @@ export const useChecksService = () => {
     findOne,
     findUpcoming,
     findPendingNotification,
+    findNotificationAlerts,
     create,
     update,
     remove,

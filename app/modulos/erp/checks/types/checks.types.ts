@@ -1,5 +1,15 @@
 export type CheckStatus = 'PENDING' | 'CONFIRMED' | 'CLEARED' | 'BOUNCED' | 'CANCELLED' | 'REJECTED'
 
+export interface CheckRelatedPayment {
+  id: string
+  number: number
+  type: string
+  amount: number
+  party_id?: string | null
+  party_type?: string | null
+  party?: { id: string; name: string; type: string } | null
+}
+
 export interface Check {
   id: string
   payment_id?: string | null
@@ -31,15 +41,11 @@ export interface Check {
   updated_at?: string
   deleted_at?: string | null
 
-  payment?: {
-    id: string
-    number: number
-    type: string
-    amount: number
-    party_id?: string | null
-    party_type?: string | null
-    party?: { id: string; name: string; type: string } | null
-  } | null
+  payment?: CheckRelatedPayment | null
+  payment_allocations?: Array<{
+    amount_applied: number
+    payment?: CheckRelatedPayment | null
+  }>
 
   bank_account?: {
     id: string
@@ -47,6 +53,26 @@ export interface Check {
     bank_name: string
     currency_code: string
   } | null
+}
+
+export interface CheckNotificationAlertPreview {
+  id: string
+  check_number: string
+  bank_name: string
+  due_date: string
+  is_own: boolean
+}
+
+export interface CheckNotificationAlertGroup {
+  count: number
+  checks: CheckNotificationAlertPreview[]
+  days?: number
+}
+
+export interface CheckNotificationAlerts {
+  third_party: CheckNotificationAlertGroup
+  own: CheckNotificationAlertGroup
+  upcoming: CheckNotificationAlertGroup
 }
 
 export interface CreateCheckInput {

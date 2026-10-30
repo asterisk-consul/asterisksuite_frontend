@@ -14,6 +14,9 @@ import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { addDaysToDateKey, formatCheckDate, getArgentinaDateKey, getCheckDateKey } from '~/modulos/erp/checks/utils/check-dates'
+import type { CheckAlertCard, CheckAlertKind } from '~/modulos/erp/checks/types/check-alerts.types'
+import CheckAlertCards from '~/components/erp/CheckAlertCards.vue'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -31,7 +34,6 @@ const {
   init,
   remove,
   bounce,
-  confirm,
   reject,
   deposit,
   collectInCashBox,
@@ -113,29 +115,106 @@ const debitSourceOptions = computed(() => [
     : [])
 ])
 
-const todayInArgentina = () => new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'America/Argentina/Buenos_Aires'
-}).format(new Date())
+const todayInArgentina = getArgentinaDateKey
+const upcomingAlertDays = computed(() => {
+  const rawDays = Array.isArray(route.query.days) ? route.query.days[0] : route.query.days
+  const days = Number(rawDays ?? 1)
+  return Number.isFinite(days) ? Math.min(365, Math.max(1, Math.trunc(days))) : 1
+})
 
 const dueThirdPartyChecks = computed(() => {
-  const endOfToday = new Date()
-  endOfToday.setHours(23, 59, 59, 999)
+  const today = todayInArgentina()
   return checks.value.filter(check =>
     !check.is_own &&
     ['PENDING', 'CONFIRMED'].includes(check.status) &&
-    new Date(check.due_date).getTime() <= endOfToday.getTime()
+    getCheckDateKey(check.due_date) <= today
   )
 })
 
 const dueOwnChecks = computed(() => {
-  const endOfToday = new Date()
-  endOfToday.setHours(23, 59, 59, 999)
+  const today = todayInArgentina()
   return checks.value.filter(check =>
     check.is_own &&
     check.status === 'CONFIRMED' &&
-    new Date(check.due_date).getTime() <= endOfToday.getTime()
+    getCheckDateKey(check.due_date) <= today
   )
 })
+
+const upcomingChecks = computed(() => {
+  const today = todayInArgentina()
+  const limit = addDaysToDateKey(today, upcomingAlertDays.value)
+  return checks.value.filter(check =>
+    ['PENDING', 'CONFIRMED'].includes(check.status) &&
+    getCheckDateKey(check.due_date) > today &&
+    getCheckDateKey(check.due_date) <= limit
+  )
+})
+const parseAlertFilter = (value: unknown): CheckAlertKind | null => {
+  const normalized = Array.isArray(value) ? value[0] : value
+  return normalized === 'third-party' || normalized === 'own' || normalized === 'upcoming'
+    ? normalized
+    : null
+}
+const activeAlertFilter = ref<CheckAlertKind | null>(parseAlertFilter(route.query.alert))
+watch(() => route.query.alert, value => {
+  activeAlertFilter.value = parseAlertFilter(value)
+})
+const alertFilteredChecks = computed(() => {
+  if (!activeAlertFilter.value) return checks.value
+  const matchingIds = new Set(
+    (activeAlertFilter.value === 'third-party'
+      ? dueThirdPartyChecks.value
+      : activeAlertFilter.value === 'own'
+        ? dueOwnChecks.value
+        : upcomingChecks.value)
+      .map(check => check.id)
+  )
+  return checks.value.filter(check => matchingIds.has(check.id))
+})
+const alertCards = computed<CheckAlertCard[]>(() => [
+  ...(dueThirdPartyChecks.value.length ? [{
+    id: 'third-party' as const,
+    title: 'Cheques de terceros por resolver',
+    count: dueThirdPartyChecks.value.length,
+    description: 'Vencen hoy o ya vencieron. Depositá, cobrá en caja o aplicalos a un pago.',
+    actionLabel: 'Ver pendientes',
+    icon: 'i-lucide-calendar-clock',
+    tone: 'warning' as const
+  }] : []),
+  ...(dueOwnChecks.value.length ? [{
+    id: 'own' as const,
+    title: 'Débitos de cheques propios por registrar',
+    count: dueOwnChecks.value.length,
+    description: 'El vencimiento llegó. Verificá el movimiento y registrá el débito o pago desde caja.',
+    actionLabel: 'Ver débitos',
+    icon: 'i-lucide-landmark',
+    tone: 'primary' as const
+  }] : []),
+  ...(upcomingChecks.value.length ? [{
+    id: 'upcoming' as const,
+    title: upcomingAlertDays.value === 1 ? 'Cheques que vencen mañana' : 'Cheques próximos a vencer',
+    count: upcomingChecks.value.length,
+    description: `Prepará la gestión antes del vencimiento. Incluye cheques propios y de terceros dentro de los próximos ${upcomingAlertDays.value} día(s).`,
+    actionLabel: 'Ver próximos vencimientos',
+    icon: 'i-lucide-calendar-days',
+    tone: 'info' as const
+  }] : [])
+])
+
+function toggleAlertFilter(filter: CheckAlertKind) {
+  const nextFilter = activeAlertFilter.value === filter ? null : filter
+  activeAlertFilter.value = nextFilter
+  const query = { ...route.query }
+  if (nextFilter) query.alert = nextFilter
+  else delete query.alert
+  if (nextFilter === 'upcoming') query.days = String(upcomingAlertDays.value)
+  else delete query.days
+  void router.replace({ query })
+}
+
+function clearAlertFilter() {
+  if (activeAlertFilter.value) toggleAlertFilter(activeAlertFilter.value)
+}
 
 const availableCashBoxes = computed(() => {
   if (!resolvingCheck.value) return []
@@ -390,7 +469,10 @@ const processOwnCheck = async () => {
 
 onMounted(() => init())
 
-const columns = checkColumns({
+const columns = computed(() => checkColumns({
+  canViewPayments: isOwnerOrAdmin.value || hasPermission('payments.read'),
+  canDeposit: isOwnerOrAdmin.value || hasPermission('checks.deposit'),
+  canReject: isOwnerOrAdmin.value || hasPermission('checks.reject'),
   onDetail: goToEdit,
   onEdit: goToEdit,
   onDelete: confirmDelete,
@@ -400,6 +482,7 @@ const columns = checkColumns({
   onRevert: openRevertModal,
   onSortFieldSelect,
   onStatusChange: async (row, newStatus) => {
+    if (newStatus === 'CONFIRMED') return
     if (newStatus === 'CLEARED') {
       openDepositModal(row)
       return
@@ -407,14 +490,7 @@ const columns = checkColumns({
     const prev = row.status
     try {
       row.status = newStatus as Check['status']
-      if (newStatus === 'CONFIRMED') {
-        await confirm(row.id)
-        toast.add({
-          title: 'Cheque confirmado',
-          description: 'Al vencer se notificará. Registrá el débito cuando figure en el banco.',
-          color: 'success'
-        })
-      } else if (newStatus === 'BOUNCED') {
+      if (newStatus === 'BOUNCED') {
         await bounce(row.id)
       } else if (newStatus === 'CANCELLED') {
         await reject(row.id)
@@ -429,7 +505,7 @@ const columns = checkColumns({
       })
     }
   }
-})
+}))
 
 const links: ButtonProps[] = [
   {
@@ -444,7 +520,8 @@ const links: ButtonProps[] = [
 const filterFields: FilterField[] = [
   { id: 'check_number', label: 'Buscar por cheque o banco...', class: 'w-56' },
   { id: 'issuer_name', label: 'Filtrar por emisor...', class: 'w-40' },
-  { id: 'party_name', label: 'Filtrar por cliente/proveedor...', class: 'w-48' }
+  { id: 'party_name', label: 'Filtrar por cliente/proveedor...', class: 'w-48' },
+  { id: 'related_payments', label: 'Filtrar por pago/cobro...', class: 'w-44' }
 ]
 
 const sortFields: SortField[] = [
@@ -459,49 +536,44 @@ const sortFields: SortField[] = [
 </script>
 
 <template>
-  <UPage class="space-y-4">
-    <UCard v-if="intakeId">
-      <template #header>
-        <div>
-          <p class="font-medium">Comprobante recibido para depositar</p>
-          <p class="text-sm text-muted">Revisá el archivo y elegí en la tabla el cheque correspondiente para depositarlo.</p>
-        </div>
-      </template>
-      <UiAttachmentManager entity-type="intake" :entity-id="intakeId" readonly :allow-upload="false" />
-    </UCard>
-    <AppPageHeader
-      title="Cheques"
-      description="Gestión de cheques propios y de terceros"
-      :links="links"
-    />
+  <UPage>
+    <div class="flex flex-col gap-5">
+      <UCard v-if="intakeId">
+        <template #header>
+          <div>
+            <p class="font-medium">Comprobante recibido para depositar</p>
+            <p class="text-sm text-muted">Revisá el archivo y elegí en la tabla el cheque correspondiente para depositarlo.</p>
+          </div>
+        </template>
+        <UiAttachmentManager entity-type="intake" :entity-id="intakeId" readonly :allow-upload="false" />
+      </UCard>
+      <AppPageHeader
+        title="Cheques"
+        description="Gestión de cheques propios y de terceros"
+        :links="links"
+      />
 
-    <UAlert
-      v-if="dueThirdPartyChecks.length > 0"
-      color="warning"
-      variant="subtle"
-      icon="i-lucide-calendar-clock"
-      :title="`${dueThirdPartyChecks.length} cheque(s) de terceros requieren una decisión`"
-      description="Llegaron a su vencimiento y continúan en cartera. Podés depositarlos, cobrarlos por caja, entregarlos a un proveedor o mantenerlos pendientes."
-    />
+      <CheckAlertCards :alerts="alertCards" :active-filter="activeAlertFilter" @select="toggleAlertFilter" />
 
-    <UAlert
-      v-if="dueOwnChecks.length > 0"
-      color="warning"
-      variant="subtle"
-      icon="i-lucide-landmark"
-      :title="`${dueOwnChecks.length} cheque(s) propio(s) requieren verificar el débito`"
-      description="Llegaron a su vencimiento. Registrá el débito únicamente cuando figure en el banco, usando la fecha efectiva del movimiento."
-    />
+      <div v-if="activeAlertFilter" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-default bg-elevated/40 px-3 py-2">
+        <span class="flex items-center gap-2 text-sm text-muted">
+          <UIcon name="i-lucide-filter" class="size-4" />
+          Mostrando {{ activeAlertFilter === 'third-party' ? 'cheques de terceros por resolver' : activeAlertFilter === 'own' ? 'débitos propios por registrar' : upcomingAlertDays === 1 ? 'cheques que vencen mañana' : `cheques próximos a vencer en ${upcomingAlertDays} días` }}
+          <span class="font-medium text-highlighted">({{ alertFilteredChecks.length }})</span>
+        </span>
+        <UButton label="Ver todos" icon="i-lucide-x" size="xs" variant="ghost" @click="clearAlertFilter" />
+      </div>
 
-    <LogisticaTable
-      :loading="loading"
-      :data="checks"
-      :columns="columns"
-      :on-row-click="goToEdit"
-      :filter-fields="filterFields"
-      :sort-fields="sortFields"
-      v-model:sorting="sorting"
-    />
+      <LogisticaTable
+        :loading="loading"
+        :data="alertFilteredChecks"
+        :columns="columns"
+        :on-row-click="goToEdit"
+        :filter-fields="filterFields"
+        :sort-fields="sortFields"
+        v-model:sorting="sorting"
+      />
+    </div>
 
     <!-- DELETE MODAL -->
     <UModal v-model:open="deleteModalOpen" title="Eliminar cheque">
@@ -603,7 +675,7 @@ const sortFields: SortField[] = [
               <div>
                 <p class="font-semibold">Cheque #{{ resolvingCheck.check_number }}</p>
                 <p class="text-sm text-muted">{{ resolvingCheck.bank_name }} · {{ resolvingCheck.issuer_name }}</p>
-                <p class="mt-1 text-xs text-muted">Vence: {{ new Date(resolvingCheck.due_date).toLocaleDateString('es-AR') }}</p>
+                <p class="mt-1 text-xs text-muted">Vence: {{ formatCheckDate(resolvingCheck.due_date) }}</p>
               </div>
               <p class="font-semibold">{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: resolvingCheck.currency_code }).format(Number(resolvingCheck.available_amount ?? resolvingCheck.amount)) }}</p>
             </div>
@@ -653,7 +725,7 @@ const sortFields: SortField[] = [
         <div v-if="debitingCheck" class="space-y-4">
           <div class="rounded-xl border border-default bg-elevated/40 p-4">
             <p class="font-semibold">Cheque #{{ debitingCheck.check_number }}</p>
-            <p class="text-sm text-muted">{{ debitingCheck.bank_name }} · vence {{ new Date(debitingCheck.due_date).toLocaleDateString('es-AR') }}</p>
+            <p class="text-sm text-muted">{{ debitingCheck.bank_name }} · vence {{ formatCheckDate(debitingCheck.due_date) }}</p>
             <p class="mt-2 text-lg font-semibold">
               {{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: debitingCheck.currency_code }).format(Number(debitingCheck.amount)) }}
             </p>

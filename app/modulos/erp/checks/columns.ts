@@ -1,9 +1,10 @@
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { UButton } from '#components'
+import { UBadge, UButton } from '#components'
 import type { Check } from '~/modulos/erp/checks/types/checks.types'
 import { createTableBuilder } from '@/composables/table/createColumns'
 import StatusToggle from '@/components/ui/PopoverTableActive.vue'
+import { getArgentinaDateKey, getCheckDateKey } from './utils/check-dates'
 
 type Row = Check
 const statusConfig: Record<string, { label: string }> = {
@@ -12,19 +13,33 @@ const statusConfig: Record<string, { label: string }> = {
   REJECTED: { label: 'Rechazado' }, CANCELLED: { label: 'Cancelado' }
 }
 
-function getAvailableStatuses(row: Check) {
+function getAvailableStatuses(row: Check, permissions: { canDeposit?: boolean; canReject?: boolean }) {
   const clearedLabel = row.is_own ? 'Debitado' : row.bank_account_id || row.deposit_date ? 'Depositado' : 'Cobrado / aplicado'
   const all = [
     { value: 'PENDING', label: 'Pendiente', color: 'warning' as const },
-    { value: 'CONFIRMED', label: 'Confirmar', color: 'info' as const },
+    { value: 'CONFIRMED', label: 'Confirmado', color: 'info' as const },
     { value: 'CLEARED', label: row.status === 'CLEARED' ? clearedLabel : 'Depositar', badgeLabel: clearedLabel, color: 'success' as const },
     { value: 'BOUNCED', label: 'Rechazar (bounce)', color: 'error' as const },
     { value: 'CANCELLED', label: 'Cancelar', color: 'neutral' as const }
   ]
   if (['CLEARED', 'CANCELLED', 'BOUNCED'].includes(row.status))
     return all.map(option => ({ ...option, disabled: option.value !== row.status }))
-  const allowed = row.is_own ? ['PENDING', 'CONFIRMED', 'CANCELLED'] : ['PENDING', 'CONFIRMED', 'CLEARED', 'BOUNCED']
-  return all.map(option => ({ ...option, disabled: !allowed.includes(option.value) || option.value === row.status }))
+  // Un cheque propio se confirma al confirmar el pago al que está asociado.
+  // Los cheques de terceros se resuelven desde Pendiente, sin confirmación manual.
+  const allowed = row.is_own
+    ? row.status === 'CONFIRMED' ? ['CONFIRMED', 'CANCELLED'] : ['PENDING', 'CANCELLED']
+    : row.status === 'CONFIRMED' ? ['CONFIRMED', 'CLEARED', 'BOUNCED'] : ['PENDING', 'CLEARED', 'BOUNCED']
+  return all.map(option => {
+    const hasPermission = option.value === 'CLEARED'
+      ? permissions.canDeposit
+      : ['CANCELLED', 'BOUNCED'].includes(option.value)
+        ? permissions.canReject
+        : true
+    return {
+      ...option,
+      disabled: !allowed.includes(option.value) || option.value === row.status || !hasPermission
+    }
+  })
 }
 
 export const checkColumns = (actions: {
@@ -32,6 +47,9 @@ export const checkColumns = (actions: {
   onDeposit?: (row: Row) => void; onResolve?: (row: Row) => void; onProcess?: (row: Row) => void
   onRevert?: (row: Row) => void; onSortFieldSelect?: (columnId: string) => void
   onStatusChange?: (row: Row, newStatus: string) => void
+  canViewPayments?: boolean
+  canDeposit?: boolean
+  canReject?: boolean
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({ locale: 'es-AR', onSortFieldSelect: actions.onSortFieldSelect })
   return build([
@@ -49,10 +67,12 @@ export const checkColumns = (actions: {
       key: 'status', label: 'Estado', sortable: true,
       cell: ({ row }) => {
         const isOverdue = ['PENDING', 'CONFIRMED'].includes(row.original.status)
-          && new Date(row.original.due_date).getTime() < new Date().setHours(0, 0, 0, 0)
+          && getCheckDateKey(row.original.due_date) < getArgentinaDateKey()
+        const options = getAvailableStatuses(row.original, actions)
         return h('div', { class: 'flex min-w-40 flex-col items-start gap-1' }, [
           h(StatusToggle, {
-            modelValue: row.original.status, options: getAvailableStatuses(row.original),
+            modelValue: row.original.status, options,
+            disabled: !options.some(option => !option.disabled && option.value !== row.original.status),
             title: 'Cambiar estado', badgeClass: 'px-2.5 py-1 text-sm font-semibold',
             'onUpdate:modelValue': (value: string) => actions.onStatusChange?.(row.original, value)
           }),
@@ -69,12 +89,23 @@ export const checkColumns = (actions: {
     {
       id: 'actions', label: 'Acciones', meta: { class: { th: 'min-w-56', td: 'min-w-56' } },
       cell: ({ row }) => h('div', { class: 'flex min-w-max flex-wrap gap-1' }, [
-        ...(row.original.is_own && row.original.status === 'CONFIRMED' && new Date(row.original.due_date).getTime() <= Date.now()
-          ? [h(UButton, { icon: 'i-lucide-landmark', size: 'xs', variant: 'soft', color: 'warning', label: 'Procesar débito', onClick: () => actions.onProcess?.(row.original) })] : []),
+        ...(row.original.is_own && row.original.status === 'PENDING'
+          ? [h('span', {
+              class: 'px-2 py-1 text-xs text-muted',
+              title: 'Los cheques propios se confirman cuando se confirma el pago asociado'
+            }, row.original.payment || row.original.payment_allocations?.some(allocation => allocation.payment)
+              ? 'Confirmar el pago asociado'
+              : 'Asociar a un pago para confirmar')]
+          : []),
+        ...(row.original.is_own && row.original.status === 'CONFIRMED' && getCheckDateKey(row.original.due_date) <= getArgentinaDateKey()
+          ? actions.canDeposit
+            ? [h(UButton, { icon: 'i-lucide-landmark', size: 'xs', variant: 'soft', color: 'warning', label: 'Procesar débito', onClick: () => actions.onProcess?.(row.original) })]
+            : [h('span', { class: 'px-2 py-1 text-xs text-muted', title: 'Requiere el permiso checks.deposit' }, 'Sin permiso para registrar débito')]
+          : []),
         ...(!row.original.is_own && ['PENDING', 'CONFIRMED'].includes(row.original.status)
           ? [h(UButton, { icon: 'i-lucide-list-checks', size: 'xs', variant: 'soft', color: 'primary', label: 'Resolver', onClick: () => actions.onResolve?.(row.original) }),
               h(UButton, { icon: 'i-lucide-building-2', size: 'xs', variant: 'ghost', color: 'success', label: 'Depositar', onClick: () => actions.onDeposit?.(row.original) })] : []),
-        ...(row.original.status === 'CLEARED' && row.original.bank_account_id
+        ...(actions.canDeposit && row.original.status === 'CLEARED' && row.original.bank_account_id
           ? [h(UButton, { icon: 'i-lucide-undo-2', size: 'xs', variant: 'ghost', color: 'warning', label: 'Revertir', onClick: () => actions.onRevert?.(row.original) })] : []),
         ...(row.original.status !== 'CLEARED'
           ? [h(UButton, { icon: 'i-lucide-pencil', size: 'xs', variant: 'ghost', color: 'neutral', label: 'Editar', onClick: () => actions.onEdit?.(row.original) }),
@@ -102,6 +133,46 @@ export const checkColumns = (actions: {
           h('span', { class: 'text-xs text-muted' }, party.type === 'CUSTOMER' ? 'Cliente' : 'Proveedor')
         ]) : '—'
       }
+    },
+    {
+      id: 'related_payments',
+      label: 'Pago / Cobro',
+      accessorFn: row => {
+        const relatedPayments = new Map<string, NonNullable<Check['payment']>>()
+        if (row.payment) relatedPayments.set(row.payment.id, row.payment)
+        for (const allocation of row.payment_allocations ?? []) {
+          if (allocation.payment) relatedPayments.set(allocation.payment.id, allocation.payment)
+        }
+        return [...relatedPayments.values()]
+          .map(payment => `${payment.type === 'COLLECTION' ? 'Cobro' : 'Pago'} #${payment.number}`)
+          .join(' ')
+      },
+      cell: ({ row }) => {
+        const relatedPayments = new Map<string, NonNullable<Check['payment']>>()
+        if (row.original.payment) relatedPayments.set(row.original.payment.id, row.original.payment)
+        for (const allocation of row.original.payment_allocations ?? []) {
+          if (allocation.payment) relatedPayments.set(allocation.payment.id, allocation.payment)
+        }
+        const payments = [...relatedPayments.values()]
+        if (!payments.length) return h(UBadge, { label: 'Pendiente de asociar', color: 'warning', variant: 'subtle', size: 'sm' })
+
+        return h('div', { class: 'flex min-w-32 flex-col items-start gap-1' }, payments.map(payment => {
+          const label = `${payment.type === 'COLLECTION' ? 'Cobro' : 'Pago'} #${payment.number}`
+          return actions.canViewPayments
+            ? h(UButton, {
+                label,
+                to: `/erp/treasury/payments/${payment.id}`,
+                icon: 'i-lucide-arrow-up-right',
+                size: 'xs',
+                variant: 'link',
+                color: payment.type === 'COLLECTION' ? 'success' : 'primary',
+                class: 'h-auto min-h-0 px-0 py-0 font-medium',
+                onClick: (event: Event) => event.stopPropagation()
+              })
+            : h('span', { class: 'text-xs font-medium' }, label)
+        }))
+      },
+      meta: { class: { th: 'min-w-36', td: 'min-w-36' } }
     },
     { key: 'issuer_name', label: 'Emisor', sortable: true },
     {

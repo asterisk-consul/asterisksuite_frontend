@@ -43,7 +43,7 @@ function selectOption(option: Option) {
 </script>
 
 <template>
-  <UPopover v-model:open="open" mode="click">
+  <UPopover v-if="!disabled" v-model:open="open" mode="click">
     <UBadge :class="['cursor-pointer', badgeClass]" variant="subtle" :color="current?.color">
       {{ current?.badgeLabel ?? current?.label }}
     </UBadge>
@@ -65,4 +65,7 @@ function selectOption(option: Option) {
       </div>
     </template>
   </UPopover>
+  <UBadge v-else :class="['cursor-default', badgeClass]" variant="subtle" :color="current?.color">
+    {{ current?.badgeLabel ?? current?.label }}
+  </UBadge>
 </template>
