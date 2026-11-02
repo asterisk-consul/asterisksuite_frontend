@@ -4,10 +4,9 @@ import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 import type { Partner } from '~/modulos/erp/partners/types/partners.types'
+import type { BadgeColor } from '~/types/colors.types'
 
 type Row = Partner
-
-type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
 export const partnerColumns = (actions: {
   onEdit?: (row: Row) => void

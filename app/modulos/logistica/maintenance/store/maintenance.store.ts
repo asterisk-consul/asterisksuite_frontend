@@ -60,10 +60,9 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
   const ordersByStatus = computed(() => {
     const grouped: Record<string, MaintenanceOrder[]> = {}
     for (const order of orders.value) {
-      if (!grouped[order.status]) {
-        grouped[order.status] = []
-      }
-      grouped[order.status].push(order)
+      const group = grouped[order.status] ?? []
+      group.push(order)
+      grouped[order.status] = group
     }
     return grouped
   })
@@ -73,10 +72,9 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
   const tiresByStatus = computed(() => {
     const grouped: Record<string, Tire[]> = {}
     for (const tire of tires.value) {
-      if (!grouped[tire.status]) {
-        grouped[tire.status] = []
-      }
-      grouped[tire.status].push(tire)
+      const group = grouped[tire.status] ?? []
+      group.push(tire)
+      grouped[tire.status] = group
     }
     return grouped
   })

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import { UBadge } from '#components'
 import { usePriceListsStore } from '~/modulos/erp/pricing/stores/price-lists.store'
 import { useUnitsStore } from '~/modulos/almacen/units/store/units.store'
-import type { TableColumn } from '@nuxt/ui'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -30,7 +31,7 @@ const filteredLists = computed(() => {
   return priceLists.value.filter((l) => l.type === filterType.value)
 })
 
-const columns: TableColumn<any>[] = [
+const columns: ExtendedColumn<any>[] = [
   {
     accessorKey: 'name',
     header: 'Nombre',
@@ -170,9 +171,9 @@ const links = ref([
     :title="modalMode === 'create' ? 'Nueva Lista de Precio' : 'Editar Lista de Precio'"
     :initial-values="editingRow"
     :fields="[
-      { name: 'name', label: 'Nombre', type: 'text', placeholder: 'Lista Minorista', required: true },
-      { name: 'type', label: 'Tipo', type: 'select', options: [{ label: 'Venta', value: 'SALE' }, { label: 'Compra', value: 'PURCHASE' }], required: true },
-      { name: 'currency_id', label: 'Moneda', type: 'select', options: currencies.map((c: any) => ({ label: `${c.code} - ${c.name}`, value: c.id })), required: true },
+      { name: 'name', label: 'Nombre', type: 'text', placeholder: 'Lista Minorista' },
+      { name: 'type', label: 'Tipo', type: 'select', options: [{ label: 'Venta', value: 'SALE' }, { label: 'Compra', value: 'PURCHASE' }] },
+      { name: 'currency_id', label: 'Moneda', type: 'select', options: currencies.map((c: any) => ({ label: `${c.code} - ${c.name}`, value: c.id })) },
       { name: 'description', label: 'Descripción', type: 'text', placeholder: 'Descripción opcional' }
     ]"
     @submit="handleSubmit"

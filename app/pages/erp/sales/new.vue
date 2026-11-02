@@ -5,6 +5,7 @@ import SalesDocumentForm from '~/modulos/erp/facturas/components/FacturaForm.vue
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 import { buildDocumentDuplicateValues, buildDocumentExtensionDuplicateValues } from '~/modulos/erp/documents/utils/document-duplicate'
 import { getDocumentSubmitError } from '~/utils/document-submit-error'
+import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
 
 const PresupuestoForm = defineAsyncComponent(() => import('~/modulos/erp/documents/presupuesto/PresupuestoForm.vue'))
 const OrdenVentaForm = defineAsyncComponent(() => import('~/modulos/erp/documents/orden-venta/OrdenVentaForm.vue'))
@@ -12,6 +13,7 @@ const OrdenVentaForm = defineAsyncComponent(() => import('~/modulos/erp/document
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const intakeService = useIntakeRecordsService()
 
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
@@ -152,9 +154,7 @@ async function handleSubmit(payload: any) {
     const created = await DocumentsSalesService.create(normalizedPayload)
     formRef.value?.completeDraft()
     if (intakeId.value) {
-      await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
-        method: 'POST', body: { target_type: 'SALES_DOCUMENT', target_id: created.id }
-      })
+      await intakeService.complete(intakeId.value, 'SALES_DOCUMENT', created.id)
     }
     toast.add({ title: `${pageTitle.value} creado`, color: 'success' })
     router.push(`/erp/sales/${created.id}`)

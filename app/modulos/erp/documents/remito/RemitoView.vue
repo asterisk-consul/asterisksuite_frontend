@@ -6,12 +6,16 @@ const props = defineProps<{
 
 const warehouseLabel = computed(() => props.mode === 'purchase' ? 'Depósito de ingreso' : 'Depósito de salida')
 
-const sourceWarehouses = computed(() => {
+type Warehouse = { id: string; name: string }
+const sourceWarehouses = computed<Warehouse[]>(() => {
   const values = (props.document?.document_items ?? [])
-    .map((item: any) => item.warehouse)
-    .filter(Boolean)
-  if (props.document?.warehouse) values.unshift(props.document.warehouse)
-  return [...new Map(values.map((warehouse: any) => [warehouse.id, warehouse])).values()]
+    .map((item: any) => item.warehouse as Warehouse | null | undefined)
+    .filter((warehouse: Warehouse | null | undefined): warehouse is Warehouse => !!warehouse)
+  const documentWarehouse = props.document?.warehouse as Warehouse | undefined
+  if (documentWarehouse) values.unshift(documentWarehouse)
+  const unique = new Map<string, Warehouse>()
+  for (const warehouse of values) unique.set(warehouse.id, warehouse)
+  return [...unique.values()]
 })
 
 function fmtDate(d?: string) {

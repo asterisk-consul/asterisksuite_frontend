@@ -180,7 +180,7 @@ const canContinueInvoiceCreation = computed(() => {
 
 function openCreateInvoiceModal() {
   const containers = operation.value?.containers ?? []
-  invoiceContainerId.value = containers.length === 1 ? containers[0].id : ''
+  invoiceContainerId.value = containers.length === 1 ? containers[0]?.id ?? '' : ''
   invoiceExpenseType.value = 'MERCHANDISE'
   invoiceCustomExpenseDescription.value = ''
   showCreateInvoiceModal.value = true
@@ -1502,7 +1502,7 @@ const scrollTo = (sectionId: string) => {
                         <p class="text-[10px] text-muted">
                           TC {{ docCurrencyInfo(rel)!.rate ?? '—' }} · =
                           <span v-if="docCurrencyInfo(rel)!.converted != null">
-                            {{ fmtMoney(docCurrencyInfo(rel)!.converted, docCurrencyInfo(rel)!.opCurrency) }}
+                            {{ fmtMoney(Number(docCurrencyInfo(rel)!.converted), docCurrencyInfo(rel)!.opCurrency ?? 'ARS') }}
                           </span>
                           <span v-else class="text-warning-500">sin TC</span>
                         </p>
@@ -1529,7 +1529,7 @@ const scrollTo = (sectionId: string) => {
                               </p>
                             </div>
                             <div class="grid gap-1">
-                              <UButton label="Editar documento" icon="i-lucide-pencil" variant="ghost" block @click="editAssociatedDocument(rel.document)" />
+                              <UButton label="Editar documento" icon="i-lucide-pencil" variant="ghost" block @click="() => { void (editAssociatedDocument(rel.document)) }" />
                               <UButton label="Registrar pago" icon="i-lucide-hand-coins" block @click="payAssociatedDocument(rel.document)" />
                             </div>
                           </div>
@@ -1937,7 +1937,7 @@ const scrollTo = (sectionId: string) => {
                       <p class="text-[10px] text-muted">
                         TC operación {{ docCurrencyInfo(rel)!.rate ?? '—' }} · =
                         <span v-if="docCurrencyInfo(rel)!.converted != null">
-                          {{ fmtMoney(docCurrencyInfo(rel)!.converted, docCurrencyInfo(rel)!.opCurrency) }}
+                          {{ fmtMoney(Number(docCurrencyInfo(rel)!.converted), docCurrencyInfo(rel)!.opCurrency ?? 'ARS') }}
                         </span>
                         <span v-else class="text-warning-500">sin TC</span>
                       </p>
@@ -1973,7 +1973,7 @@ const scrollTo = (sectionId: string) => {
                             </p>
                           </div>
                           <div class="grid gap-1">
-                            <UButton label="Editar documento" icon="i-lucide-pencil" variant="ghost" block @click="editAssociatedDocument(rel.document)" />
+                            <UButton label="Editar documento" icon="i-lucide-pencil" variant="ghost" block @click="() => { void (editAssociatedDocument(rel.document)) }" />
                             <UButton label="Registrar pago" icon="i-lucide-hand-coins" block @click="payAssociatedDocument(rel.document)" />
                           </div>
                         </div>
@@ -2132,7 +2132,7 @@ const scrollTo = (sectionId: string) => {
               color="neutral"
               variant="ghost"
               :disabled="statusChangeSaving"
-              @click="showStatusChangeModal = false"
+              @click="() => { showStatusChangeModal = false }"
             />
             <UButton
               label="Confirmar cambio"
@@ -2237,11 +2237,11 @@ const scrollTo = (sectionId: string) => {
               label="Crear contenedor"
               icon="i-lucide-container"
               :to="`/operaciones-internacionales/${id}/containers/create`"
-              @click="showCreateInvoiceModal = false"
+              @click="() => { showCreateInvoiceModal = false }"
             />
             <span v-else />
             <div class="flex justify-end gap-2">
-              <UButton label="Cancelar" color="neutral" variant="ghost" @click="showCreateInvoiceModal = false" />
+              <UButton label="Cancelar" color="neutral" variant="ghost" @click="() => { showCreateInvoiceModal = false }" />
               <UButton
                 v-if="invoiceContainerOptions.length"
                 label="Continuar con la factura"

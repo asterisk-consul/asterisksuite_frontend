@@ -23,7 +23,7 @@ const handleSubmit = (form: PaymentFormData) => {
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="payment?.check_ids?.length ? 'Editar pago / cobro' : 'Nuevo pago / cobro'" :ui="{ width: 'max-w-4xl' }">
+  <UModal v-model:open="open" :title="payment?.check_ids?.length ? 'Editar pago / cobro' : 'Nuevo pago / cobro'" :ui="{ content: 'max-w-4xl' }">
     <template #body>
       <PaymentForm
         :model-value="payment"

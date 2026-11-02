@@ -74,7 +74,9 @@ export const checkColumns = (actions: {
             modelValue: row.original.status, options,
             disabled: !options.some(option => !option.disabled && option.value !== row.original.status),
             title: 'Cambiar estado', badgeClass: 'px-2.5 py-1 text-sm font-semibold',
-            'onUpdate:modelValue': (value: string) => actions.onStatusChange?.(row.original, value)
+            'onUpdate:modelValue': (value: unknown) => {
+              if (typeof value === 'string') actions.onStatusChange?.(row.original, value)
+            }
           }),
           ...(isOverdue ? [h('span', { class: 'inline-flex items-center gap-1 text-xs font-medium text-error' }, [
             h('span', { class: 'i-lucide-circle-alert size-3.5' }), 'Vencido'

@@ -93,6 +93,7 @@ const costingFeatures = [
 ]
 
 function moduleColor(c: string) {
+  const fallback = { bg: 'bg-orange-500/10', text: 'text-orange-400' }
   const map: Record<string, { bg: string; text: string }> = {
     orange: { bg: 'bg-orange-500/10', text: 'text-orange-400' },
     cyan: { bg: 'bg-cyan-500/10', text: 'text-cyan-400' },
@@ -101,7 +102,7 @@ function moduleColor(c: string) {
     blue: { bg: 'bg-blue-500/10', text: 'text-blue-400' },
     amber: { bg: 'bg-amber-500/10', text: 'text-amber-400' }
   }
-  return map[c] || map.orange
+  return map[c] ?? fallback
 }
 </script>
 

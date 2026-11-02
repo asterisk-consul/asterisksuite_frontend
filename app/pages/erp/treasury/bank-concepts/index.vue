@@ -3,6 +3,7 @@ definePageMeta({ middleware: ['auth'] })
 
 import { useCompanyRole } from '~/composables/useCompanyRole'
 import { useBankConcepts } from '~/modulos/erp/bank-concepts/composable/useBankConcepts'
+import type { BadgeColor } from '~/composables/table/createColumns'
 
 const { isOwnerOrAdmin } = useCompanyRole()
 const bankConcepts = useBankConcepts()
@@ -138,10 +139,10 @@ const natureOptions = [
 
 const conceptTypeLabel = (type: string) => conceptTypeOptions.find(option => option.value === type)?.label ?? type
 
-const conceptTypeBadge = (type: string) => ({
+const conceptTypeBadge = (type: string): BadgeColor => ({
   COMMISSION: 'warning', TAX: 'error', EXPENSE: 'neutral',
   INTEREST: 'info', ADJUSTMENT: 'secondary', OTHER: 'primary'
-}[type] || 'neutral')
+} as Record<string, BadgeColor>)[type] || 'neutral'
 
 const conceptTypeIcon = (type: string) => ({
   COMMISSION: 'i-lucide-percent', TAX: 'i-lucide-receipt', EXPENSE: 'i-lucide-trending-down',
@@ -318,7 +319,7 @@ const conceptTypeIcon = (type: string) => ({
           </section>
 
           <div class="flex justify-end gap-2 border-t border-default pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { modalOpen = false }" />
             <UButton :label="editingConcept ? 'Guardar cambios' : 'Crear concepto'" type="submit" icon="i-lucide-save" :loading="saving" />
           </div>
         </UForm>
@@ -330,7 +331,7 @@ const conceptTypeIcon = (type: string) => ({
       <template #body>
         <p>¿Eliminar el concepto <strong>{{ deletingConcept?.name }}</strong>?</p>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
           <UButton label="Eliminar" color="error" @click="handleDelete" />
         </div>
       </template>

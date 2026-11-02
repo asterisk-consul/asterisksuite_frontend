@@ -1,9 +1,15 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 import { useMaintenanceStore } from '~/modulos/logistica/maintenance/store/maintenance.store'
+import { useProductsService } from '~/modulos/logistica/master-data/product/service/product.service'
+import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
+import { useDepositosService } from '~/modulos/logistica/warehouses/warehouse/depositos.service'
 
 const router = useRouter()
 const store = useMaintenanceStore()
+const productsService = useProductsService()
+const partiesService = useBusinessPartiesService()
+const depositosService = useDepositosService()
 const toast = useToast()
 
 const saving = ref(false)
@@ -73,7 +79,7 @@ watch(selectedWarehouse, (val) => {
 async function fetchProducts() {
   loadingProducts.value = true
   try {
-    const data = await $fetch<any[]>('/api/backend/master-data/products')
+    const data = await productsService.findAll()
     products.value = data
   } catch { /* silently fail */ } finally {
     loadingProducts.value = false
@@ -83,9 +89,7 @@ async function fetchProducts() {
 async function fetchSuppliers() {
   loadingSuppliers.value = true
   try {
-    const data = await $fetch<any[]>('/api/backend/master-data/business-parties', {
-      params: { type: 'SUPPLIER' },
-    })
+    const data = await partiesService.findAll({ type: 'SUPPLIER' })
     suppliers.value = data
   } catch { /* silently fail */ } finally {
     loadingSuppliers.value = false
@@ -95,7 +99,7 @@ async function fetchSuppliers() {
 async function fetchWarehouses() {
   loadingWarehouses.value = true
   try {
-    const data = await $fetch<any[]>('/api/backend/warehouse/warehouses')
+    const data = await depositosService.getAll()
     warehouses.value = data.filter((w: any) => w.active !== false)
   } catch { /* silently fail */ } finally {
     loadingWarehouses.value = false
@@ -128,7 +132,7 @@ async function handleSubmit() {
     toast.add({ title: 'Cubierta creada', color: 'success' })
     router.push(`/logistica/mantenimiento/cubiertas/${created.id}`)
   } catch (err: any) {
-    toast.add({ title: 'Error al crear cubierta', color: 'error', description: store.error })
+    toast.add({ title: 'Error al crear cubierta', color: 'error', description: store.error ?? undefined })
   } finally {
     saving.value = false
   }

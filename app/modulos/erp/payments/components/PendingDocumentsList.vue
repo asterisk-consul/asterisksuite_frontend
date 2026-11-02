@@ -96,8 +96,8 @@ function toggle(doc: PendingDocument) {
   emit('toggle', doc)
 }
 
-function updateAmount(docId: string, value: string) {
-  emit('updateAmount', docId, Number(value))
+function updateAmount(docId: string, value: number | string | null) {
+  emit('updateAmount', docId, Number(value ?? 0))
 }
 
 function getMaxAmount(doc: PendingDocument): number {
@@ -154,7 +154,7 @@ function documentTypeBadgeClass(doc: PendingDocument) {
         :variant="activeTab === tab.value ? 'solid' : 'outline'"
         role="tab"
         :aria-selected="activeTab === tab.value"
-        @click="activeTab = tab.value"
+        @click="() => { activeTab = tab.value }"
       >
         {{ tab.label }}
         <UBadge :label="String(tab.count)" size="xs" :color="activeTab === tab.value ? 'neutral' : 'neutral'" variant="soft" />
@@ -226,7 +226,7 @@ function documentTypeBadgeClass(doc: PendingDocument) {
               size="sm"
               :aria-label="`Importe a aplicar al documento ${doc.number}`"
               title="Importe de este pago o cobro que se imputará al comprobante"
-              @update:model-value="(value: string) => updateAmount(doc.id, value)"
+              @update:model-value="(value: number | null) => updateAmount(doc.id, value)"
             />
           </div>
         </div>

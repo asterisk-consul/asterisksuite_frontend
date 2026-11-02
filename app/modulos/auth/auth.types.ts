@@ -14,6 +14,7 @@ export interface AuthUser {
   email: string
   role: string | null
   active?: boolean
+  avatar?: string | null
 }
 
 export interface ApiLoginResponse {

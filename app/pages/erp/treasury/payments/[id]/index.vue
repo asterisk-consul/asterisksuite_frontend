@@ -76,7 +76,7 @@ const canEditFinalizedFinancialDetails = computed(() =>
   && (['OWNER', 'ADMIN'].includes(String(authStore.selectedCompany?.role)) || hasPermission('payments.update'))
   && ['CASH', 'BANK_TRANSFER'].includes(String(currentPayment.value?.payment_method))
   && currentPayment.value?.payment_mode !== 'ADVANCE'
-  && (currentPayment.value?.type === 'EXPENSE' || Boolean(currentPayment.value?.party_id && currentPayment.value?.documents?.length))
+  && (currentPayment.value?.type === 'PAYMENT' && !currentPayment.value?.party_id || Boolean(currentPayment.value?.party_id && currentPayment.value?.documents?.length))
 )
 const isAdvance = computed(() => currentPayment.value?.payment_mode === 'ADVANCE')
 const hasUnsavedDateChange = computed(() => isDraft.value && editingDate.value !== savedDate.value)
@@ -209,7 +209,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       party_id: formData.party_id || undefined,
       bank_account_id: formData.payment_method === 'MIXED' ? undefined : formData.bank_account_id || undefined,
       cash_box_id: formData.payment_method === 'MIXED' ? undefined : formData.cash_box_id || undefined,
-      account_id: formData.account_id || null,
+      account_id: formData.account_id || undefined,
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
       checks: formData.checks ?? [],
       documents: formData.documents ?? [],
@@ -379,6 +379,15 @@ const handleAdvanceSuccess = async () => {
       :title="isDraft ? (isAdvance ? 'Editar anticipo' : 'Editar pago / cobro') : (isAdvance ? 'Detalle del anticipo' : 'Detalle de pago / cobro')"
       :description="isDraft ? (isAdvance ? 'Anticipo a proveedor o cliente' : 'Modificar pago o cobro en borrador') : 'Solo se pueden editar operaciones en borrador. Esta operación ya no admite cambios.'"
     >
+      <template #links>
+        <PaymentStatusIndicator
+          v-if="currentPayment"
+          :status="currentPayment.status"
+          :confirmed-at="currentPayment.confirmed_at"
+          :payment-date="currentPayment.payment_date"
+          stacked
+        />
+      </template>
       <template #footer>
         <div v-if="isDraft" id="payment-form-actions" class="w-full pt-5 pb-3" />
         <div v-else-if="currentPayment" class="flex w-full flex-col gap-3 pt-5 pb-3 sm:flex-row sm:items-center sm:justify-between">
@@ -398,7 +407,7 @@ const handleAdvanceSuccess = async () => {
               size="sm"
               color="info"
               variant="outline"
-              @click="advanceModalOpen = true"
+              @click="() => { advanceModalOpen = true }"
             />
             <UButton
               v-if="(isConfirmed || isPaid) && currentPayment.party_id"
@@ -407,7 +416,7 @@ const handleAdvanceSuccess = async () => {
               size="sm"
               color="primary"
               variant="outline"
-              @click="router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)"
+              @click="() => { void (router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)) }"
             />
           </div>
           <div class="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -461,11 +470,6 @@ const handleAdvanceSuccess = async () => {
                 <KeyboardShortcutHint :keys="paymentShortcutKeys('Anular') ?? []" size="2xs" />
               </template>
             </UButton>
-            <PaymentStatusIndicator
-              :status="currentPayment.status"
-              :confirmed-at="currentPayment.confirmed_at"
-              :payment-date="currentPayment.payment_date"
-            />
           </div>
         </div>
       </template>
@@ -534,14 +538,6 @@ const handleAdvanceSuccess = async () => {
                 </template>
               </UButton>
             </template>
-            <template #action-bar-status>
-              <PaymentStatusIndicator
-                v-if="isDraft"
-                :status="currentPayment.status"
-                :confirmed-at="currentPayment.confirmed_at"
-                :payment-date="currentPayment.payment_date"
-              />
-            </template>
           </PaymentForm>
           <UiAttachmentManager
             entity-type="payment"
@@ -577,7 +573,7 @@ const handleAdvanceSuccess = async () => {
           />
         </div>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="actionModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { actionModalOpen = false }" />
           <UButton
             :label="actionLabels[actionType]?.button"
             :color="(actionLabels[actionType]?.color as any)"

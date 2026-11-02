@@ -350,7 +350,7 @@ onMounted(async () => {
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancelar" color="neutral" variant="outline" :disabled="saving" @click="modalOpen = false" />
+          <UButton label="Cancelar" color="neutral" variant="outline" :disabled="saving" @click="() => { modalOpen = false }" />
           <UButton :label="editing ? 'Guardar cambios' : 'Crear concepto'" :loading="saving" @click="save" />
         </div>
       </template>

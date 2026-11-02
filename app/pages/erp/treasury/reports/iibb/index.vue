@@ -1,12 +1,16 @@
 ﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
+import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
 
 const today = new Date()
 const dateFrom = ref(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`)
 const dateTo = ref(today.toISOString().slice(0, 10))
-const { data, status, refresh } = await useFetch<any>('/api/backend/fiscal/iibb-register', {
-  query: computed(() => ({ date_from: dateFrom.value, date_to: dateTo.value }))
-})
+const fiscalService = useFiscalService()
+const { data, status, refresh } = await useAsyncData(
+  'treasury-iibb-register',
+  () => fiscalService.getIibbRegister({ date_from: dateFrom.value, date_to: dateTo.value }),
+  { watch: [dateFrom, dateTo] }
+)
 
 const columns = [
   { accessorKey: 'date', header: 'Fecha' },

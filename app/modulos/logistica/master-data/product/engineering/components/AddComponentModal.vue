@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useEngineeringService } from '~/modulos/logistica/master-data/product/engineering/service/engineering.service'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 import { useProductVariants } from '~/modulos/logistica/master-data/product-variants/composable/useVariants'
 import {
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const engineeringService = useEngineeringService()
 const {
   init: initProducts,
   products,
@@ -189,9 +191,7 @@ const handleSave = async () => {
 
   saving.value = true
   try {
-    await $fetch('/api/backend/master-data/engineering/components', {
-      method: 'POST',
-      body: {
+    await engineeringService.createComponent({
         parent_product_id: props.parentId ?? props.productId,
         child_product_id: selectedProductId.value,
         child_variant_id: selectedVariantId.value,
@@ -202,7 +202,6 @@ const handleSave = async () => {
         length_mm: lengthMm.value,
         width_mm: widthMm.value,
         height_mm: heightMm.value
-      }
     })
 
     toast.add({ title: 'Componente agregado', color: 'success' })
@@ -224,7 +223,7 @@ const handleSave = async () => {
   <UModal
     :open="open"
     :title="parentId ? `Agregar hijo a ${parentName}` : 'Agregar componente'"
-    :ui="{ width: 'max-w-5xl' }"
+    :ui="{ content: 'max-w-5xl' }"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
@@ -346,7 +345,7 @@ const handleSave = async () => {
                 <div class="flex gap-2">
                   <USelect v-model="selectedUnitId" :items="unitOptions" placeholder="Seleccionar unidad" class="min-w-0 flex-1" />
                   <UTooltip text="Crear unidad">
-                    <UButton icon="i-lucide-plus" variant="outline" color="neutral" square @click="showUnitModal = true" />
+                    <UButton icon="i-lucide-plus" variant="outline" color="neutral" square @click="() => { showUnitModal = true }" />
                   </UTooltip>
                 </div>
                 <NuxtLink to="/productos/settings/unidades" target="_blank" class="mt-1 inline-flex text-xs text-primary hover:underline">

@@ -43,6 +43,7 @@ export interface PaymentFormData {
   description: string
   reference: string
   party_id: string
+  party?: { id: string; name: string } | null
   party_type?: string
   bank_account_id: string
   cash_box_id: string
@@ -160,7 +161,7 @@ const addManualWithholding = () => {
     prorrate_percentage: null,
     rate: 0,
     withheld_amount: 0,
-    automatic_amount: null,
+    automatic_amount: 0,
     reason: 'Carga manual'
   })
 }
@@ -311,6 +312,7 @@ const allParties = ref<Array<{
   name: string
   tax_id?: string
   type: string
+  active?: boolean
   roles?: Array<{ role: string; active: boolean }>
 }>>([])
 const partySearch = ref('')
@@ -365,7 +367,7 @@ const filteredParties = computed(() => {
 const selectedParty = computed({
   get: () => {
     const party = [...remoteParties.value, ...allParties.value].find(p => p.id === form.party_id)
-    if (!party) return null
+    if (!party) return undefined
     return {
       label: formatPartyLabel(party),
       value: party.id
@@ -840,6 +842,11 @@ const selectedCurrency = computed({
   set: (val: any) => { form.currency_code = val?.value ?? 'ARS' }
 })
 
+const exchangeRateInput = computed<number | undefined>({
+  get: () => form.exchange_rate ?? undefined,
+  set: value => { form.exchange_rate = value ?? null }
+})
+
 const accountOptions = computed(() =>
   accountsStore.activeItems.map(a => ({
     label: `${a.code} — ${a.name}`,
@@ -854,7 +861,7 @@ const finalizedPartyOptions = computed(() => allParties.value
   .map(party => ({ label: party.name, value: party.id, description: party.tax_id || party.type }))
 )
 const finalizedParty = computed({
-  get: () => finalizedPartyOptions.value.find(option => option.value === form.party_id) ?? null,
+  get: () => finalizedPartyOptions.value.find(option => option.value === form.party_id) ?? undefined,
   set: (option: any) => { form.party_id = option?.value ?? '' }
 })
 const currentPaymentAccountLabel = computed(() => {
@@ -871,7 +878,7 @@ const finalizedGrossApplied = computed(() =>
 )
 
 const selectedAccount = computed({
-  get: () => accountOptions.value.find(o => o.value === form.account_id) ?? null,
+  get: () => accountOptions.value.find(o => o.value === form.account_id) ?? undefined,
   set: (val: any) => { form.account_id = val?.value ?? '' }
 })
 
@@ -1523,7 +1530,7 @@ const handleSubmit = async () => {
       const allocated = shares.slice(0, -1).reduce((s, v) => s + v, 0)
       shares[shares.length - 1] = Math.round((Number(w.withheld_amount) - allocated) * 100) / 100
       allocations = documentsData
-        .map((d, i) => ({ document_id: d.document_id, allocated_amount: shares[i] }))
+        .map((d, i) => ({ document_id: d.document_id, allocated_amount: shares[i] ?? 0 }))
         .filter(a => a.allocated_amount !== 0)
     }
     return {
@@ -1600,7 +1607,7 @@ const submitFinalizedDetails = () => {
     if (documents.length && grossApplied > 0) {
       const shares = documents.map(document => Math.round((Number(item.withheld_amount) * Number(document.amount_applied) / grossApplied + Number.EPSILON) * 100) / 100)
       shares[shares.length - 1] = Math.round((Number(item.withheld_amount) - shares.slice(0, -1).reduce((sum, value) => sum + value, 0) + Number.EPSILON) * 100) / 100
-      allocations = documents.map((document, index) => ({ document_id: document.document_id, allocated_amount: shares[index] })).filter(row => row.allocated_amount > 0)
+      allocations = documents.map((document, index) => ({ document_id: document.document_id, allocated_amount: shares[index] ?? 0 })).filter(row => row.allocated_amount > 0)
     }
     return {
       tax_type: item.tax_type,
@@ -1974,7 +1981,7 @@ defineExpose({ completeDraft: completePaymentDraft })
         </UFormField>
         <UFormField label="Cotización" name="exchange_rate">
           <UInput
-            v-model.number="form.exchange_rate"
+            v-model.number="exchangeRateInput"
             type="number"
             step="0.000001"
             min="0"
@@ -2268,7 +2275,7 @@ defineExpose({ completeDraft: completePaymentDraft })
           {{ isCollection ? 'Seleccionar cheques de terceros' : 'Seleccionar cheques (propios y de terceros)' }}
         </h4>
         <div class="flex items-center gap-2">
-          <UButton label="Crear cheque" size="xs" variant="outline" :disabled="props.loading || checkSaving" @click="checkModalOpen = true" />
+          <UButton label="Crear cheque" size="xs" variant="outline" :disabled="props.loading || checkSaving" @click="() => { checkModalOpen = true }" />
           <div v-if="selectedChecks.size > 0" class="text-sm font-semibold text-primary">
             Total: {{ formatCurrency(totalChecksAmount, form.currency_code) }}
           </div>
@@ -2613,7 +2620,7 @@ defineExpose({ completeDraft: completePaymentDraft })
             <UInput v-model.number="openingBalance" type="number" />
           </UFormField>
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" :disabled="openingSaving" @click="openSessionModalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" :disabled="openingSaving" @click="() => { openSessionModalOpen = false }" />
             <UButton label="Abrir sesión" color="success" :loading="openingSaving" :disabled="openingSaving" @click="handleOpenSession" />
           </div>
         </div>

@@ -50,7 +50,7 @@ onMounted(initRoles)
     </UCard>
 
     <div class="flex flex-col gap-3 rounded-xl border border-default bg-default p-4 md:flex-row md:items-end">
-      <UFormField label="Buscar una configuración" description="Escribí qué necesitás configurar." class="flex-1"><UInput v-model="search" icon="i-lucide-search" placeholder="Ej.: remitos, impuestos, usuarios o cajas" size="lg" class="w-full"><template v-if="search" #trailing><UButton icon="i-lucide-x" variant="link" color="neutral" size="xs" @click="search = ''" /></template></UInput></UFormField>
+      <UFormField label="Buscar una configuración" description="Escribí qué necesitás configurar." class="flex-1"><UInput v-model="search" icon="i-lucide-search" placeholder="Ej.: remitos, impuestos, usuarios o cajas" size="lg" class="w-full"><template v-if="search" #trailing><UButton icon="i-lucide-x" variant="link" color="neutral" size="xs" @click="() => { search = '' }" /></template></UInput></UFormField>
       <div class="flex items-center justify-between gap-3 rounded-lg border border-default px-3 py-2.5"><div><p class="text-sm font-medium">Opciones avanzadas</p><p class="text-xs text-muted">Configuración técnica y recuperación.</p></div><USwitch v-model="showAdvanced" /></div>
     </div>
 
@@ -65,6 +65,6 @@ onMounted(initRoles)
       </section>
     </div>
 
-    <div v-else class="rounded-xl border border-dashed border-default py-14 text-center"><UIcon name="i-lucide-search-x" class="mx-auto mb-3 size-10 text-muted" /><p class="font-medium">No encontramos esa configuración</p><p class="text-sm text-muted">Probá con otra palabra o activá las opciones avanzadas.</p><UButton label="Limpiar búsqueda" variant="link" @click="search = ''" /></div>
+    <div v-else class="rounded-xl border border-dashed border-default py-14 text-center"><UIcon name="i-lucide-search-x" class="mx-auto mb-3 size-10 text-muted" /><p class="font-medium">No encontramos esa configuración</p><p class="text-sm text-muted">Probá con otra palabra o activá las opciones avanzadas.</p><UButton label="Limpiar búsqueda" variant="link" @click="() => { search = '' }" /></div>
   </UPage>
 </template>

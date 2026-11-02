@@ -80,7 +80,12 @@ const allNodes = computed<TimelineNode[]>(() => {
 
   for (const doc of props.documents || []) {
     const cat = doc.document_types?.category ?? 'INVOICE'
-    const config = CATEGORY_CONFIG[cat] ?? CATEGORY_CONFIG.INVOICE
+    const config = CATEGORY_CONFIG[cat] ?? {
+      label: 'Factura',
+      icon: 'i-lucide-file-check',
+      color: 'success',
+      borderColor: 'border-success'
+    }
     const num = String(doc.number).padStart(8, '0')
     nodes.push({
       id: doc.id,

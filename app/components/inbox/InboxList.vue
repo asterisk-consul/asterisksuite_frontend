@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { format, isToday } from 'date-fns'
-import type { Mail } from '~/types'
 
 const props = defineProps<{
   mails: Mail[]
 }>()
 
-const mailsRefs = ref<Element[]>([])
+const mailsRefs = ref<Record<string, Element | null>>({})
 
 const selectedMail = defineModel<Mail | null>()
 
@@ -47,7 +46,7 @@ defineShortcuts({
     <div
       v-for="(mail, index) in mails"
       :key="index"
-      :ref="el => { mailsRefs[mail.id] = el as Element }"
+      :ref="(el: Element | null) => { mailsRefs[mail.id] = el }"
     >
       <div
         class="p-4 sm:px-6 text-sm cursor-pointer border-l-2 transition-colors"

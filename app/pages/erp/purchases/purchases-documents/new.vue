@@ -10,11 +10,15 @@ import { useInternationalOperationsService } from '~/modulos/international-opera
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 import { normalizeMarketRate } from '~/utils/currency'
 import { getDocumentSubmitError } from '~/utils/document-submit-error'
+import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
+import { useTreasuryObligationsService } from '~/modulos/erp/treasury-obligations/treasury-obligations.service'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const internationalOperationsService = useInternationalOperationsService()
+const intakeService = useIntakeRecordsService()
+const obligationsService = useTreasuryObligationsService()
 const { autoResolve } = useExchangeRate()
 
 const saving = ref(false)
@@ -43,12 +47,9 @@ async function enableCapture() {
   if (intakeId.value) return
   captureLoading.value = true
   try {
-    const capture = await $fetch<{ id: string }>('/api/intake-records', {
-      method: 'POST',
-      body: {
+    const capture = await intakeService.create({
         title: 'Comprobante de compra pendiente de carga',
         suggested_type: 'PURCHASE_DOCUMENT',
-      },
     })
     intakeId.value = capture.id
     toast.add({ title: 'Captura preparada', description: 'Ahora podés adjuntar una foto o un PDF.', color: 'success' })
@@ -199,20 +200,15 @@ async function handleSubmit(payload: any) {
     const created = await DocumentsPurchasesService.create(fullPayload)
     formRef.value?.completeDraft()
     if (obligationId.value) {
-      await $fetch(`/api/backend/treasury/obligations/${obligationId.value}`, {
-        method: 'PATCH',
-        body: {
+      await obligationsService.update(obligationId.value, {
           document_id: created.id,
           amount: Number(created.total ?? payload.total ?? 0),
           issue_date: payload.date
-        }
       })
-      await $fetch(`/api/backend/treasury/obligations/${obligationId.value}/confirm`, { method: 'POST' })
+      await obligationsService.confirm(obligationId.value)
     }
     if (intakeId.value) {
-      await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
-        method: 'POST', body: { target_type: 'PURCHASE_DOCUMENT', target_id: created.id }
-      })
+      await intakeService.complete(intakeId.value, 'PURCHASE_DOCUMENT', created.id)
     }
     toast.add({ title: `${pageTitle.value} creado`, color: 'success' })
     if (internationalOperationId.value) {

@@ -131,6 +131,15 @@ export interface Document {
 
   total: number
 
+  assigned_to?: string | null
+
+  amounts_visible?: boolean
+  monetary_visibility?: {
+    restricted_by_status?: boolean
+    paid_percentage?: number | null
+    required_percentage?: number | null
+  } | null
+
   paid_amount?: number | null
 
   descrip?: string | null
@@ -151,9 +160,11 @@ export interface Document {
     ordered_total?: number | null
     paid_total?: number | null
     delivery_status?: string | null
+    delivery_note_id?: string | null
   } | null
 
   orden_venta_doc?: Record<string, any> | null
+  orden_compra_doc?: Record<string, any> | null
 
   business_parties?: {
     id: string
@@ -168,6 +179,7 @@ export interface Document {
   document_taxes?: DocumentTax[]
 
   commercial_adjustments?: CommercialAdjustment[] | null
+  fiscal_authorization_code?: string | null
 }
 
 export interface FacturaTax {
@@ -213,7 +225,18 @@ export interface FacturaItem {
 
   unit_price: number
 
+  original_unit_price?: number
+
   discount_percentage?: number
+
+  /** Manual net amount for supplier lines; taxes remain calculated separately. */
+  net_subtotal_override?: number | null
+
+  /** Manual displayed subtotal for supplier lines. */
+  subtotal_override?: number | null
+
+  /** Manual discount amount entered for supplier lines. */
+  discount_amount_override?: number | null
 
   price: number
 

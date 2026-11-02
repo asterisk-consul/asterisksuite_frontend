@@ -1,9 +1,23 @@
 export interface PurchaseSummaryItem {
+  productId: string
   productCode: string
   productName: string
-  totalQuantity: number
-  totalCost: number
-  unitPrice: number
+  productCategory: string
+  totalPurchases: number
+  totalTaxes: number
+  totalExempt: number
+  transactionCount: number
+  invoiceCount: number
+  creditNoteCount: number
+  firstPurchaseDate: string | null
+  lastPurchaseDate: string | null
+  avgPurchaseValue: number
+  /** @deprecated Kept while older report consumers migrate. */
+  totalQuantity?: number
+  /** @deprecated Kept while older report consumers migrate. */
+  totalCost?: number
+  /** @deprecated Kept while older report consumers migrate. */
+  unitPrice?: number
   supplier?: string
 }
 
@@ -16,7 +30,16 @@ export interface PurchaseSummaryBySupplier {
 
 export interface PurchaseSummaryResponse {
   globalTotal: number
-  bySupplier: PurchaseSummaryBySupplier[]
+  globalTaxes: number
+  globalExempt: number
+  globalPurchaseTotal: number
+  globalTransactionCount: number
+  grandTotal: number
+  negTotal: number
+  totalProducts: number
+  products: PurchaseSummaryItem[]
+  /** @deprecated Present only in the legacy report response. */
+  bySupplier?: PurchaseSummaryBySupplier[]
 }
 
 export interface PurchaseMovement {

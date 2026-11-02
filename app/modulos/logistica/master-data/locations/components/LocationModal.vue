@@ -29,7 +29,7 @@ async function handleSubmit(data: any) {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Nueva ubicación" :ui="{ width: 'max-w-lg' }">
+  <UModal v-model:open="open" title="Nueva ubicación" :ui="{ content: 'max-w-lg' }">
     <template #body>
       <LocationForm :loading="loading" @submit="handleSubmit" @cancel="open = false" />
     </template>

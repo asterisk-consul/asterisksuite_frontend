@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
 import { HR_VALE_TYPE_LABELS, HR_VALE_TYPE_COLORS } from '~/modulos/erp/hr/types/hr.types'
+import type { PartnerReport } from '~/modulos/erp/hr/types/hr.types'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -11,7 +12,7 @@ const hrStore = useHrStore()
 
 const partyId = route.params.partyId as string
 
-const report = ref<any>(null)
+const report = ref<PartnerReport | null>(null)
 const loading = ref(true)
 
 useBreadcrumbEntityLabel(
@@ -223,14 +224,14 @@ const compositionData = computed(() => {
       :description="`DNI: ${report?.partner?.document_number ?? '-'} · Participación: ${report?.partner?.share_percentage ?? 0}%`"
     >
       <template #links>
-        <UButton label="Volver" icon="i-lucide-arrow-left" variant="ghost" @click="goBack" />
+        <UButton label="Volver" icon="i-lucide-arrow-left" variant="ghost" @click="() => { void (goBack()) }" />
       </template>
     </AppPageHeader>
 
     <div class="flex justify-end">
       <UFieldGroup>
-        <UButton label="Pesos (ARS)" :variant="selectedCurrency === 'ARS' ? 'solid' : 'outline'" @click="selectedCurrency = 'ARS'" />
-        <UButton label="Dólares (USD)" :variant="selectedCurrency === 'USD' ? 'solid' : 'outline'" @click="selectedCurrency = 'USD'" />
+        <UButton label="Pesos (ARS)" :variant="selectedCurrency === 'ARS' ? 'solid' : 'outline'" @click="() => { selectedCurrency = 'ARS' }" />
+        <UButton label="Dólares (USD)" :variant="selectedCurrency === 'USD' ? 'solid' : 'outline'" @click="() => { selectedCurrency = 'USD' }" />
       </UFieldGroup>
     </div>
 

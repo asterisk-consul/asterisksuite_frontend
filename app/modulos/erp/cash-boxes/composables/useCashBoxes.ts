@@ -85,6 +85,7 @@ export function useCashBoxes() {
     setInitialBalance,
     fetchCurrentSession: store.fetchCurrentSession,
     fetchSessions: store.fetchSessions,
+    getSessions: store.fetchSessions,
     openSession,
     closeSession,
     forceCloseSession,

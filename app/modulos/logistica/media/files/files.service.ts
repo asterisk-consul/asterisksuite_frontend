@@ -6,6 +6,9 @@ import type {
 } from '~/modulos/logistica/media/files/files.types'
 
 export const useFilesService = () => {
+  const findLibrary = (query?: Record<string, unknown>) =>
+    $fetch<any>('/api/media/library', { query })
+
   const findAll = (query?: QueryFileInput) =>
     $fetch<File[]>('/api/files', {
       query
@@ -31,6 +34,7 @@ export const useFilesService = () => {
     })
 
   return {
+    findLibrary,
     findAll,
     findOne,
     create,

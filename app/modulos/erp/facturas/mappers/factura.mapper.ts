@@ -45,7 +45,7 @@ export function mapDocumentToFacturaForm(
 
         product_code: item.products?.code ?? '',
 
-        warehouse_id: item.warehouse_id ?? document.warehouse_id ?? null,
+        warehouse_id: (item as typeof item & { warehouse_id?: string | null }).warehouse_id ?? document.warehouse_id ?? null,
 
         quantity: Number(item.quantity ?? 0),
 
@@ -102,7 +102,7 @@ export function mapDocumentToFacturaForm(
     rate_type: document.rate_type ?? 'OFFICIAL',
 
     date: document.date
-      ? new Date(document.date as string).toISOString().split('T')[0]
+      ? new Date(document.date as string).toISOString().split('T')[0] ?? ''
       : '',
 
     descrip: document.descrip ?? '',

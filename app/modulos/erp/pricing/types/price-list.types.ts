@@ -1,3 +1,5 @@
+import type { ProductListPrice } from './list-price.types'
+
 export interface PriceList {
   id: string
   name: string

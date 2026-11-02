@@ -6,6 +6,7 @@ import { useSortable } from '@vueuse/integrations/useSortable'
 import { useEngineering } from '../composables/useEngineering'
 import { useEngineeringStore } from '../store/engineering.store'
 import type { EngineeringTreeNode } from '../types/engineering.types'
+import type { BadgeColor } from '~/types/colors.types'
 import { computeNodeCalculations, type NodeCalculations, type EngineeringCalcMode } from '../utils/engineering-calculator.util'
 import EngineeringMoveModal from './EngineeringMoveModal.vue'
 import AddComponentModal from './AddComponentModal.vue'
@@ -28,8 +29,6 @@ const toast = useToast()
 // =========================
 // TIPOS Y LABELS
 // =========================
-
-type BadgeColor = 'error' | 'success' | 'neutral' | 'primary' | 'secondary' | 'info' | 'warning'
 
 const PRODUCT_TYPE_COLORS: Record<string, BadgeColor> = {
   RAW_MATERIAL: 'neutral',

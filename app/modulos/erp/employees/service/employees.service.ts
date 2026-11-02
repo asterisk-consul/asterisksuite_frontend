@@ -4,6 +4,7 @@ const baseUrl = '/api/backend/employees'
 
 export const useEmployeesService = () => {
   const findAll = () => $fetch<Employee[]>(baseUrl)
+  const findCurrentUser = () => $fetch<Employee | null>(`${baseUrl}/me`)
 
   const findOne = (id: string) => $fetch<Employee>(`${baseUrl}/${id}`)
 
@@ -35,5 +36,5 @@ export const useEmployeesService = () => {
       method: 'PATCH'
     })
 
-  return { findAll, findOne, create, update, remove, linkUser, unlinkUser }
+  return { findAll, findCurrentUser, findOne, create, update, remove, linkUser, unlinkUser }
 }

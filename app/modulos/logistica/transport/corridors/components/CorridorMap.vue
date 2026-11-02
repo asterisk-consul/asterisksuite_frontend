@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onBeforeUnmount, ref } from 'vue'
 import type { Map } from 'leaflet'
+import { useCorridorRoutingService } from '~/modulos/logistica/transport/corridors/corridor-routing.service'
 
 interface RoutePoint {
   lat: number
@@ -9,6 +10,7 @@ interface RoutePoint {
 }
 
 const TRUCK_AVG_SPEED = 70
+const corridorRoutingService = useCorridorRoutingService()
 
 const props = defineProps<{
   points: RoutePoint[]
@@ -37,13 +39,7 @@ onMounted(async () => {
     attribution: '© OpenStreetMap contributors'
   }).addTo(mapInstance)
 
-  const coords = props.points.map((p) => `${p.lng},${p.lat}`).join(';')
-
-  const res = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
-  )
-
-  const data = await res.json()
+  const data = await corridorRoutingService.findRoute(props.points)
 
   const latlngs = props.points.map((p) => [p.lat, p.lng] as [number, number])
 

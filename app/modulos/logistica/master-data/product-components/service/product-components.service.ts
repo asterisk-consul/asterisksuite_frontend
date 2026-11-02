@@ -2,7 +2,7 @@ import type {
   ProductComponent,
   CreateProductComponentInput,
   UpdateProductComponentInput
-} from '~/modulos/logistica/master-data/products-components/types/product-components.types'
+} from '~/modulos/logistica/master-data/product-components/types/product-components.types'
 
 const urlBase =
   '/api/backend/master-data/product-components'

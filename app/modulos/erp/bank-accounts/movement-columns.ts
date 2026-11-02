@@ -1,6 +1,7 @@
 import type { BankAccountMovement } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
+import type { BadgeColor } from '@/composables/table/createColumns'
 
 type Row = BankAccountMovement
 
@@ -36,7 +37,7 @@ export const getMovementSignedAmount = (row: Row) => {
 const investmentMovementLabel = (row: Row) =>
   getMovementSignedAmount(row) < 0 ? 'Constitución' : 'Rescate / vencimiento'
 
-export const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; color: string; side: 'in' | 'out' }> = {
+export const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; color: BadgeColor; side: 'in' | 'out' }> = {
   OPENING_BALANCE: { label: 'Saldo inicial', color: 'neutral', side: 'in' },
   DEPOSIT: { label: 'Depósito', color: 'success', side: 'in' },
   WITHDRAWAL: { label: 'Retiro', color: 'error', side: 'out' },
@@ -54,7 +55,7 @@ export const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; color: string
   RETENTION: { label: 'Retención bancaria', color: 'warning', side: 'out' },
 }
 
-export const getMovementTypeBadge = (row: Row) => {
+export const getMovementTypeBadge = (row: Row): { label: string; color: BadgeColor } => {
   if (isPaymentReversal(row)) {
     return {
       label: 'Reversión de pago',

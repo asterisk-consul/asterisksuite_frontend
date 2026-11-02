@@ -98,7 +98,7 @@ export const HR_VALE_STATUS_LABELS: Record<HrValeStatus, string> = {
   CANCELLED: 'Anulado',
 }
 
-export const HR_VALE_STATUS_COLORS: Record<HrValeStatus, string> = {
+export const HR_VALE_STATUS_COLORS: Record<HrValeStatus, 'neutral' | 'warning' | 'success' | 'error'> = {
   DRAFT: 'neutral',
   CONFIRMED: 'warning',
   PAID: 'success',

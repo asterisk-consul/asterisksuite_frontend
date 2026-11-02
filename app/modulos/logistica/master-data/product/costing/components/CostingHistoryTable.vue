@@ -4,6 +4,7 @@ import type { TableColumn } from '@nuxt/ui'
 import { useCosting } from '../composables/useCosting'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import type { CostHistoryRow, CostHistoryBreakdown } from '../types/costing.types'
+import { useCurrencyRatesService } from '~/modulos/erp/currency-rates/service/currency-rates.service'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -16,6 +17,7 @@ const props = defineProps<{
 
 const { history, loading, formatCurrency } = useCosting(props.productId, props.currencyId)
 const { currencies, init: initCurrencies } = useCurrencies()
+const currencyRatesService = useCurrencyRatesService()
 
 onMounted(() => {
   initCurrencies()
@@ -39,12 +41,10 @@ const convertCurrency = async (amount: number, fromCode: string, toCode: string)
   if (conversionCache.has(cacheKey)) return conversionCache.get(cacheKey)!
 
   try {
-    const result = await $fetch<{ converted_amount: number }>('/api/backend/pricing/exchange/convert', {
-      method: 'GET',
-      query: { amount, from: fromCode, to: toCode }
-    })
-    conversionCache.set(cacheKey, result.converted_amount)
-    return result.converted_amount
+    const result = await currencyRatesService.convert(fromCode, toCode, amount)
+    const convertedAmount = Number(result.converted_amount ?? result.convertedAmount ?? (Number(result.rate) * amount))
+    conversionCache.set(cacheKey, convertedAmount)
+    return convertedAmount
   } catch {
     return null
   }

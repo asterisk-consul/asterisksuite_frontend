@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePhotosService } from '~/modulos/logistica/media/photos/photos.service'
 interface Photo {
   id: string
   photo_type: string
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>()
 
 const photos = ref<Photo[]>([])
+const photosService = usePhotosService()
 const loading = ref(false)
 const selectedPhoto = ref<Photo | null>(null)
 const previewUrl = ref<string | null>(null)
@@ -44,9 +46,7 @@ async function loadThumbnails(items: Photo[]) {
   clearThumbnailUrls()
   await Promise.all(items.filter(isImage).map(async (photo) => {
     try {
-      const response = await fetch(photo.thumb_url || photo.url, { credentials: 'include' })
-      if (!response.ok) return
-      const blob = await response.blob()
+      const blob = await photosService.getMediaBlob(photo.thumb_url || photo.url)
       if (blob.size) thumbnailUrls.value[photo.id] = URL.createObjectURL(blob)
     } catch {
       // Se conserva el icono del archivo si no puede generarse la miniatura.
@@ -76,11 +76,7 @@ async function openPreview(photo: Photo) {
   previewError.value = ''
   clearPreviewUrl()
   try {
-    const response = await fetch(photo.medium_url || photo.url || `/api/media/files/${photo.file_id}/view`, {
-      credentials: 'include',
-    })
-    if (!response.ok) throw new Error(`No se pudo abrir el archivo (${response.status})`)
-    const blob = await response.blob()
+    const blob = await photosService.getMediaBlob(photo.medium_url || photo.url || `/api/media/files/${photo.file_id}/view`)
     if (!blob.size) throw new Error('El servidor devolvió un archivo vacío')
     if (!Number(photo.file_size)) photo.file_size = blob.size
     if (blob.type && (!photo.mime_type || photo.mime_type === 'application/octet-stream')) {
@@ -97,9 +93,7 @@ async function openPreview(photo: Photo) {
 async function loadPhotos() {
   loading.value = true
   try {
-    photos.value = await $fetch<Photo[]>(
-      `/api/media/photos/${props.entityType}/${props.entityId}`
-    )
+    photos.value = await photosService.findMediaByEntity(props.entityType, props.entityId)
     await loadThumbnails(photos.value)
   } catch (e) {
     console.error(e)
@@ -116,7 +110,7 @@ onBeforeUnmount(() => {
 
 async function handleDelete(photoId: string) {
   try {
-    await $fetch(`/api/media/photos/${photoId}`, { method: 'DELETE' })
+    await photosService.remove(photoId)
     photos.value = photos.value.filter((p) => p.id !== photoId)
     emit('deleted', photoId)
     if (selectedPhoto.value?.id === photoId) {

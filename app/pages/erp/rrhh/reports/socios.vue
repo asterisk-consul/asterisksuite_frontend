@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
+import { HrService } from '~/modulos/erp/hr/services/hr.service'
 
 const router = useRouter()
 const partners = ref<any[]>([])
@@ -10,7 +11,7 @@ const search = ref('')
 
 onMounted(async () => {
   try {
-    partners.value = await $fetch<any[]>('/api/backend/hr/partner-report-options')
+    partners.value = await HrService.getPartnerReportOptions()
   } catch (error: any) {
     loadError.value = error?.data?.message || error?.message || 'No se pudo cargar la lista de socios.'
   } finally {

@@ -145,15 +145,14 @@ La navegación está centralizada en `app/data/navigation.ts`:
 
 - Verifica siempre la validez del token vía `useAuthStore().isTokenExpiring()`
 - El umbral de refresco de token es 20 minutos antes de expirar
-- Usa `setToken()` desde `apiService` para actualizar el estado global del token
+- No administres tokens desde los componentes ni mantengas una copia global en servicios de API; el flujo de sesión pertenece a `useAuthStore`
 - La persistencia basada en cookies significa que los tokens sobreviven a las recargas de página
 
 ### Al Agregar Nuevos Endpoints de API
 
-- Agrega funciones de envoltura (wrapper) en `app/service/apiService.ts`
-- Usa el genérico `fetchData<T>` para GET o `postData<T, B>` para POST
-- El token se inyecta automáticamente si está disponible
-- Tipifica tus respuestas para seguridad de tipos
+- Agrega el servicio junto al módulo que consume el endpoint (por ejemplo, `app/modulos/erp/...`)
+- Usa `$fetch` mediante el proxy `/api/backend/...` para conservar el contexto de autenticación y empresa
+- Tipifica las respuestas y entradas del servicio
 
 ### Al Crear Nuevas Páginas
 

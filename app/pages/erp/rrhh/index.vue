@@ -8,10 +8,14 @@ import {
 } from '~/modulos/erp/hr/types/hr.types'
 import type { HrVale } from '~/modulos/erp/hr/types/hr.types'
 import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
+import { useEmployeesService } from '~/modulos/erp/employees/service/employees.service'
+import { usePartnersService } from '~/modulos/erp/partners/service/partners.service'
 
 definePageMeta({ middleware: ['auth'] })
 
 const hrStore = useHrStore()
+const employeesService = useEmployeesService()
+const partnersService = usePartnersService()
 const { isOwnerOrAdmin } = useCompanyRole()
 
 const showSensitiveData = computed(() => isOwnerOrAdmin.value)
@@ -56,7 +60,7 @@ const valeStatusTotal = computed(() => valeStatusCounts.value.reduce((sum, item)
 const hasActivityChart = computed(() => activePeriodVales.value.length > 0)
 const activityChart = computed(() => {
   const monthLabels = monthKeys.value.map(key => {
-    const [year, month] = key.split('-').map(Number)
+    const [year = Number.NaN, month = Number.NaN] = key.split('-').map(Number)
     const monthOptions: Intl.DateTimeFormatOptions = selectedPeriodMonths.value === 12
       ? { month: 'short', year: '2-digit' }
       : { month: 'short' }
@@ -108,8 +112,8 @@ async function loadDashboard() {
   dashboardError.value = false
   try {
     const [employees, partners, vales] = await Promise.all([
-      $fetch<any[]>('/api/backend/employees'),
-      $fetch<any[]>('/api/backend/partners'),
+      employeesService.findAll(),
+      partnersService.findAll(),
       hrStore.fetchVales(),
     ])
 
@@ -136,12 +140,12 @@ async function loadDashboard() {
 onMounted(() => loadDashboard())
 
 function fmt(n: number | string | null | undefined, currency = 'ARS') {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 2 }).format(n ?? 0)
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(n ?? 0))
 }
 
 function fmtDate(value: string | null | undefined) {
   if (!value) return 'Sin fecha'
-  const date = value.split('T')[0]
+  const date = value.split('T')[0] ?? value
   const [year, month, day] = date.split('-')
   return year && month && day ? `${day}/${month}/${year}` : date
 }
@@ -164,7 +168,7 @@ function valeStatusLabel(vale: HrVale) {
     <AppPageHeader title="RRHH" description="Personas, vales y cuentas corrientes internas">
       <template #links>
         <UButton label="Ver vales" icon="i-lucide-receipt-text" to="/erp/rrhh/vales" variant="soft" color="neutral" />
-        <UButton label="Nuevo vale" icon="i-lucide-plus" color="primary" @click="showCreateValeModal = true" />
+        <UButton label="Nuevo vale" icon="i-lucide-plus" color="primary" @click="() => { showCreateValeModal = true }" />
       </template>
     </AppPageHeader>
 

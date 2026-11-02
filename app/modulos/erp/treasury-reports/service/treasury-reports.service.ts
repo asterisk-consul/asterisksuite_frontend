@@ -27,9 +27,17 @@ export const useTreasuryReportsService = () => {
     })
   }
 
+  const expensesByAccount = (params?: Record<string, any>) =>
+    $fetch<any>(`${urlBase}/expenses-by-account`, { query: params })
+
+  const libroIva = (params?: Record<string, any>) =>
+    $fetch<any[]>(`${urlBase}/libro-iva`, { query: params })
+
   return {
     dashboard,
     movements,
-    bankExpenses
+    bankExpenses,
+    expensesByAccount,
+    libroIva
   }
 }

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { reactive, ref, computed, defineAsyncComponent, onMounted, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 
@@ -24,6 +24,7 @@ import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
+import { TaxesService } from '~/modulos/erp/taxes/services/taxes.service'
 import type { BusinessPartyIibbRegistration, CompanyTaxJurisdiction, TaxRule } from '~/modulos/erp/fiscal/types/fiscal.types'
 
 // Document Types
@@ -40,6 +41,7 @@ import { getDocumentLineAmounts, hasLegacyGrossLinePrices } from '~/modulos/erp/
 
 // Invoice
 import { getDocumentTypeForVatCondition, type VatCondition } from '~/modulos/erp/invoices/utils/vatConditionMap'
+import { usePartyPricesService } from '~/modulos/erp/pricing/services/party-prices.service'
 
 import type { CommercialAdjustment, Document, FacturaFormValues, FacturaItem } from '../types/factura.types'
 
@@ -66,6 +68,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const partyPricesService = usePartyPricesService()
 
 // ─── Stores ──────────────────────────────────────────
 const authStore = useAuthStore()
@@ -361,10 +364,11 @@ const warehouseOptions = computed(() => {
 
 function warehouseOptionsForItem(item: FacturaItem) {
   if (props.moduleCode !== 'SALES' || !item.product_id) return allWarehouseOptions.value
+  const productId = item.product_id
   return allWarehouseOptions.value
     .map(option => ({
       ...option,
-      available: stockByWarehouse.value[option.value]?.[item.product_id] ?? 0
+      available: stockByWarehouse.value[option.value]?.[productId] ?? 0
     }))
     .filter(option => option.available >= Number(item.quantity || 0))
     .map(option => ({ ...option, label: `${option.label} · disponible: ${option.available}` }))
@@ -388,7 +392,7 @@ function singleWarehouseForProduct(productId: string): string | null {
       available: stockByWarehouse.value[option.value]?.[productId] ?? 0
     }))
     .filter(option => option.available > 0)
-  return options.length === 1 ? options[0].value : null
+  return options.length === 1 ? options[0]?.value ?? null : null
 }
 const affectsStock = computed(() => {
   const type = documentsTypes.value.find(item => item.id === form.document_type_id)
@@ -846,9 +850,7 @@ async function fetchPreview() {
   isRecalculating = true
   try {
     const currentDocType = documentsTypes.value.find((d) => d.id === form.document_type_id)
-    const result = await $fetch('/api/backend/tax-engine/calculate-preview', {
-      method: 'POST',
-      body: {
+    const result = await TaxesService.calculatePreview({
         issuerCompanyId: authStore.selectedCompany?.id ?? '',
         partnerId: form.party_id || undefined,
         partnerVatCondition: selectedParty.value?.vat_condition,
@@ -872,7 +874,6 @@ async function fetchPreview() {
             ? Number(i.net_subtotal_override) / Number(i.quantity)
             : Number(i.unit_price) * (1 - Math.min(100, Math.max(0, Number(i.discount_percentage || 0))) / 100)
         }))
-      }
     })
     lastPreview.value = result
 
@@ -1006,7 +1007,9 @@ watch(
     if (!items.value.length) return
 
     await Promise.all(items.value.map(async (item) => {
-      const agreedPrice = await resolvePartyPrice(item.product_id, newCurrency)
+      const productId = item.product_id
+      if (!productId) return
+      const agreedPrice = await resolvePartyPrice(productId, newCurrency)
       if (agreedPrice !== null) {
         item.unit_price = agreedPrice
         item.net_subtotal_override = null
@@ -1056,7 +1059,7 @@ watch(
 
     form.document_type_id = val.document_type_id ?? ''
     form.party_id = val.party_id ?? ''
-    form.date = val.date ? new Date(val.date).toISOString().split('T')[0] : today()
+    form.date = val.date ? new Date(val.date).toISOString().split('T')[0] ?? today() : today()
     form.descrip = val.descrip ?? ''
     form.ref = val.ref ?? ''
     form.currency_code = val.currency_code ?? 'ARS'
@@ -1080,7 +1083,8 @@ watch(
     // Mapear items del documento
     // Si vienen del mapper (items), usarlos directamente
     // Si vienen raw del backend (document_items), mapearlos
-    const sourceItems = val.items?.length ? val.items : (val.document_items ?? [])
+    const rawDocumentItems = 'document_items' in val ? val.document_items ?? [] : []
+    const sourceItems = val.items?.length ? val.items : rawDocumentItems
     const legacyGrossPrices = hasLegacyGrossLinePrices(val.subtotal, sourceItems)
     const savedCommercialAdjustments = Array.isArray(val.commercial_adjustments) ? val.commercial_adjustments : []
     const savedNetDiscounts = savedCommercialAdjustments.reduce(
@@ -1418,13 +1422,11 @@ async function resolvePartyPrice(productId: string, currencyCode = form.currency
   if (!form.party_id || !productId || !currencyCode) return null
 
   try {
-    const result = await $fetch<{ price: number | null }>('/api/backend/pricing/party-prices/resolve', {
-      query: {
-        productId,
-        partyId: form.party_id,
-        currencyCode,
-        operationType: props.moduleCode === 'SALES' ? 'SALE' : 'PURCHASE'
-      }
+    const result = await partyPricesService.resolve({
+      productId,
+      partyId: form.party_id,
+      currencyCode,
+      operationType: props.moduleCode === 'SALES' ? 'SALE' : 'PURCHASE'
     })
     return result.price === null ? null : Number(result.price)
   } catch (error) {
@@ -1432,7 +1434,6 @@ async function resolvePartyPrice(productId: string, currencyCode = form.currency
     return null
   }
 }
-
 watch(
   () => form.party_id,
   async (newParty, oldParty) => {
@@ -1453,7 +1454,9 @@ watch(
     }
 
     await Promise.all(items.value.map(async (item) => {
-      const price = await resolvePartyPrice(item.product_id)
+      const productId = item.product_id
+      if (!productId) return
+      const price = await resolvePartyPrice(productId)
       if (price !== null) {
         item.unit_price = price
         item.net_subtotal_override = null
@@ -1467,6 +1470,7 @@ watch(
 )
 
 async function addItem(prod: any) {
+  if (!prod.product_id) return
   const quantity = 1
 
   // La currency del documento es la fuente de verdad
@@ -1744,7 +1748,7 @@ defineExpose({ submit, completeDraft })
                 @click="copySelectedPartyName"
               />
             </UTooltip>
-            <UButton icon="i-lucide-plus" variant="outline" size="lg" square class="shrink-0" aria-label="Crear cliente o proveedor" @click="showBusinessPartiesModal = true" />
+            <UButton icon="i-lucide-plus" variant="outline" size="lg" square class="shrink-0" aria-label="Crear cliente o proveedor" @click="() => { showBusinessPartiesModal = true }" />
             <UButton
               icon="i-lucide-pencil"
               variant="outline"
@@ -1876,7 +1880,7 @@ defineExpose({ submit, completeDraft })
             min="0"
             placeholder="1.000000"
             class="w-full min-w-0"
-            @update:model-value="(val: number) => { if (val) setManualRate(val) }"
+            @update:model-value="(val: number | null) => { if (val) setManualRate(val) }"
           />
         </UFormField>
         <div v-if="form.exchange_rate && total" class="min-w-0">
@@ -1895,7 +1899,7 @@ defineExpose({ submit, completeDraft })
           </div>
           <USwitch v-model="advancedWarehouseAssignment" label="Depósito por producto" />
         </div>
-        <UFormField v-if="moduleCode !== 'SALES'" :label="moduleCode === 'SALES' ? 'Depósito de salida' : 'Depósito receptor'" required>
+        <UFormField label="Depósito receptor" required>
           <USelect
             v-model="form.warehouse_id"
             :items="warehouseOptions"
@@ -2133,7 +2137,7 @@ defineExpose({ submit, completeDraft })
                 size="sm"
                 color="neutral"
                 variant="ghost"
-                @click="supplierTotalOverride = null"
+                @click="() => { supplierTotalOverride = null }"
               />
             </div>
           </UFormField>

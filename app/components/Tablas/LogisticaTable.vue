@@ -95,8 +95,8 @@ const tableColumns = computed<ExtendedColumn<T>[]>(() => {
         modelValue: someSelected && !allSelected ? 'indeterminate' : allSelected,
         disabled: eligibleRows.length === 0,
         'aria-label': 'Seleccionar filas permitidas',
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-          eligibleRows.forEach((row: any) => row.toggleSelected(!!value))
+        'onUpdate:modelValue': (value: unknown) =>
+          eligibleRows.forEach((row: any) => row.toggleSelected(Boolean(value)))
       })
     },
     cell: ({ row }: any) => {
@@ -105,7 +105,7 @@ const tableColumns = computed<ExtendedColumn<T>[]>(() => {
         modelValue: row.getIsSelected(),
         disabled: !enabled,
         'aria-label': enabled ? 'Seleccionar fila' : 'Esta fila no se puede seleccionar',
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value)
+        'onUpdate:modelValue': (value: unknown) => row.toggleSelected(Boolean(value))
       })
     }
   }

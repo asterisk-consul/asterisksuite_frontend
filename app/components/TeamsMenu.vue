@@ -5,6 +5,7 @@ import { useAuthStore } from '~/modulos/auth/auth.store'
 defineProps<{ collapsed?: boolean }>()
 
 const auth = useAuthStore()
+const router = useRouter()
 
 const selectedCompany = computed(() => auth.selectedCompany)
 const hasMultipleCompanies = computed(() => auth.companies.length > 1)
@@ -61,7 +62,7 @@ async function redirectToSubdomain(company: (typeof auth.companies)[number]) {
 
   const config = useRuntimeConfig()
   const baseDomain = config.public.baseDomain
-  if (baseDomain) {
+  if (baseDomain && company.subdomain) {
     const { protocol, port } = window.location
     const portSuffix = port ? `:${port}` : ''
     window.location.href = `${protocol}//${company.subdomain}.${baseDomain}${portSuffix}${nextPath}`
@@ -74,10 +75,10 @@ async function redirectToSubdomain(company: (typeof auth.companies)[number]) {
 
 function getPathForCompanySwitch(path: string) {
   const cashBoxDetail = /^\/erp\/treasury\/cash-boxes\/([^/]+)(?:\/edit)?\/?$/.exec(path)
-  if (cashBoxDetail && !['create', 'new'].includes(cashBoxDetail[1])) return '/erp/treasury/cash-boxes'
+  if (cashBoxDetail?.[1] && !['create', 'new'].includes(cashBoxDetail[1])) return '/erp/treasury/cash-boxes'
 
   const bankAccountDetail = /^\/erp\/treasury\/bank-accounts\/([^/]+)(?:\/edit)?\/?$/.exec(path)
-  if (bankAccountDetail && !['create', 'new'].includes(bankAccountDetail[1])) return '/erp/treasury/bank-accounts'
+  if (bankAccountDetail?.[1] && !['create', 'new'].includes(bankAccountDetail[1])) return '/erp/treasury/bank-accounts'
 
   return path
 }

@@ -110,7 +110,7 @@ const entryTypeSummary = computed(() => {
     existing.total += Number(e.converted_amount ?? e.amount) || 0
     map.set(label, existing)
   }
-  const invoice = map.get(ENTRY_TYPE_CONFIG.INVOICE.label)
+  const invoice = map.get(ENTRY_TYPE_CONFIG.INVOICE?.label ?? 'Factura')
   if (invoice) invoice.total = Math.max(0, invoice.total - activeReplacementAmount.value)
   return Array.from(map.entries())
     .map(([name, data]) => ({ name, ...data }))

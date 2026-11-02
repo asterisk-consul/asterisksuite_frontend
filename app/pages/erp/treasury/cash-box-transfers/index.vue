@@ -417,7 +417,7 @@ const sortFields: SortField[] = [
               value-key="value"
               placeholder="Elegí de dónde sale y a dónde va"
               class="w-full"
-              @update:model-value="onTransferTypeChange"
+              @update:model-value="value => onTransferTypeChange(value as TransferType)"
             />
           </UFormField>
 
@@ -530,7 +530,7 @@ const sortFields: SortField[] = [
               </div>
               <div v-if="showConvertedAmount" class="mt-3 flex items-center justify-between rounded-lg bg-elevated/60 px-3 py-2 text-sm">
                 <span class="text-muted">Recibe aproximadamente</span>
-                <span class="font-semibold text-highlighted">{{ formatMoney(computedConvertedAmount, destCurrency) }}</span>
+                <span class="font-semibold text-highlighted">{{ formatMoney(computedConvertedAmount ?? 0, destCurrency) }}</span>
               </div>
             </div>
           </template>
@@ -558,7 +558,7 @@ const sortFields: SortField[] = [
         <div class="flex w-full flex-col-reverse justify-between gap-3 sm:flex-row sm:items-center">
           <p class="text-xs text-muted">Registrar no mueve saldos; la transferencia queda pendiente de confirmación.</p>
           <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" color="neutral" variant="outline" :disabled="savingTransfer" @click="modalOpen = false" />
+          <UButton label="Cancelar" color="neutral" variant="outline" :disabled="savingTransfer" @click="() => { modalOpen = false }" />
           <UButton
             label="Registrar pendiente"
             icon="i-lucide-file-plus-2"
@@ -572,7 +572,7 @@ const sortFields: SortField[] = [
     </UModal>
 
     <!-- DETAIL MODAL -->
-    <UModal v-model:open="detailModalOpen" title="Detalle de transferencia" :ui="{ width: 'w-full sm:max-w-lg' }">
+    <UModal v-model:open="detailModalOpen" title="Detalle de transferencia" :ui="{ content: 'w-full sm:max-w-lg' }">
       <template #body>
         <div v-if="selectedTransfer" class="space-y-4">
           <div class="flex items-center justify-between">
@@ -717,7 +717,7 @@ const sortFields: SortField[] = [
             :disabled="processingTransferAction"
             @click="handleCancel(selectedTransfer!)"
           />
-          <UButton label="Cerrar" color="neutral" variant="outline" :disabled="processingTransferAction" @click="detailModalOpen = false" />
+          <UButton label="Cerrar" color="neutral" variant="outline" :disabled="processingTransferAction" @click="() => { detailModalOpen = false }" />
         </div>
       </template>
     </UModal>

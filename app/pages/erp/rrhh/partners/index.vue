@@ -49,7 +49,7 @@ const sortFields: SortField[] = [
   <UPage class="space-y-6 px-4">
     <AppPageHeader title="Socios" description="Gestión de socios y participaciones">
       <template #links>
-        <UButton label="Nuevo socio" icon="i-heroicons-plus" color="primary" @click="openCreate" />
+        <UButton label="Nuevo socio" icon="i-heroicons-plus" color="primary" @click="() => { void (openCreate()) }" />
       </template>
     </AppPageHeader>
 

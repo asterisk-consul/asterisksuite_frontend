@@ -5,6 +5,8 @@ import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 import { useCreditCardsService } from '~/modulos/erp/credit-cards/credit-cards.service'
 import { useChecksService } from '~/modulos/erp/checks/service/checks.service'
+import { useFiscalAuthorizationsService } from '~/modulos/erp/fiscal/service/fiscal-authorizations.service'
+import { useNotificationsService } from '~/modulos/erp/notifications/notifications.service'
 import type { CheckNotificationAlerts } from '~/modulos/erp/checks/types/checks.types'
 
 const { isNotificationsSlideoverOpen } = useDashboard()
@@ -13,6 +15,8 @@ const {
   setCompanyAlertCount, refreshDismissals, dismissAlert: persistAlertDismissal, isAlertDismissed
 } = useNotifications()
 const toast = useToast()
+const fiscalAuthorizationsService = useFiscalAuthorizationsService()
+const notificationsService = useNotificationsService()
 const busyNotificationId = ref<string | null>(null)
 const fiscalAlerts = ref<any[]>([])
 const treasuryAlerts = ref<any[]>([])
@@ -96,7 +100,7 @@ function formatNotificationTime(value: string) {
 
 async function loadFiscalAlerts() {
   try {
-    const rows = await $fetch<any[]>('/api/backend/fiscal-authorizations/alerts/current')
+    const rows = await fiscalAuthorizationsService.findAlerts()
     fiscalAlerts.value = rows.filter(alert => !isAlertDismissed(fiscalAlertKey(alert)))
   } catch {
     fiscalAlerts.value = []
@@ -117,7 +121,7 @@ async function loadCardAlerts() {
 
 async function loadTreasuryAlerts() {
   try {
-    const rows = await $fetch<any[]>('/api/backend/treasury/obligations/notifications')
+    const rows = await notificationsService.getObligationAlerts()
     treasuryAlerts.value = rows.filter(alert => !isAlertDismissed(treasuryAlertKey(alert)))
   } catch {
     // Usuarios sin acceso a Tesorería no deben ver estos vencimientos.
@@ -148,14 +152,14 @@ async function loadCheckAlerts() {
 async function loadOperationalAlerts() {
   const requests: Promise<void>[] = []
   if (hasPermission('stock.read')) {
-    requests.push($fetch<any[]>('/api/backend/dashboard/notifications/stock-replenishment')
+    requests.push(notificationsService.getStockReplenishmentAlerts()
       .then((rows) => { stockAlerts.value = rows.filter(alert => !isAlertDismissed(stockAlertKey(alert))) })
       .catch(() => { stockAlerts.value = [] }))
   } else {
     stockAlerts.value = []
   }
   if (hasPermission('treasury.current_accounts.read')) {
-    requests.push($fetch<any[]>('/api/backend/dashboard/notifications/old-account-balances')
+    requests.push(notificationsService.getOldAccountBalanceAlerts()
       .then((rows) => { oldAccountAlerts.value = rows.filter(alert => !isAlertDismissed(accountAlertKey(alert))) })
       .catch(() => { oldAccountAlerts.value = [] }))
   } else {
@@ -500,7 +504,7 @@ onBeforeUnmount(() => {
                   size="xs"
                   :loading="busyNotificationId === alert.key"
                   :disabled="busyNotificationId !== null"
-                  @click="dismissCompanyAlert(alert.key)"
+                  @click="() => { void dismissCompanyAlert(alert.key) }"
                 />
                 <UButton
                   label="Ver cheques"
@@ -509,7 +513,7 @@ onBeforeUnmount(() => {
                   variant="solid"
                   size="xs"
                   :disabled="busyNotificationId !== null"
-                  @click="openCheckAlert(alert)"
+                  @click="() => { void openCheckAlert(alert) }"
                 />
               </div>
             </div>

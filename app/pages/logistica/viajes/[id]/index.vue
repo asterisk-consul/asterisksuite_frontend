@@ -5,6 +5,7 @@ import { useTripsStore } from '~/modulos/logistica/transport/trips/trips.store'
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
 import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
 import { storeToRefs } from 'pinia'
+import type { BadgeColor } from '~/types/colors.types'
 
 const route = useRoute()
 const router = useRouter()
@@ -44,15 +45,6 @@ const formatDate = (date: string | null | undefined) => {
 }
 
 // Badge de estado
-type BadgeColor =
-  | 'error'
-  | 'neutral'
-  | 'info'
-  | 'success'
-  | 'warning'
-  | 'primary'
-  | 'secondary'
-
 const statusConfig: Record<string, { color: BadgeColor; label: string }> = {
   PLANNED: { color: 'neutral', label: 'Planificado' },
   IN_TRANSIT: { color: 'info', label: 'En tránsito' },
@@ -96,7 +88,7 @@ const links = ref<ButtonProps[]>([
         variant="ghost"
         color="neutral"
         label="Menu"
-        @click="moduleCollapsed = !moduleCollapsed"
+        @click="() => { moduleCollapsed = !moduleCollapsed }"
       />
       <UPageHeader
         :title="`Viaje ${trip.reference_number ?? id}`"
@@ -298,7 +290,7 @@ const links = ref<ButtonProps[]>([
           <UButton
             size="xs"
             variant="outline"
-            @click="router.push(`/logistica/viajes/${id}/edit`)"
+            @click="() => { void (router.push(`/logistica/viajes/${id}/edit`)) }"
           >
             Asignar órdenes
           </UButton>

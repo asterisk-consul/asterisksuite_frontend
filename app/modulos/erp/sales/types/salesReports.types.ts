@@ -1,9 +1,23 @@
 export interface SalesSummaryItem {
+  productId: string
   productCode: string
   productName: string
-  totalQuantity: number
-  totalCost: number
-  unitPrice: number
+  productCategory: string
+  totalSales: number
+  totalTaxes: number
+  totalExempt: number
+  transactionCount: number
+  invoiceCount: number
+  creditNoteCount: number
+  firstSalesDate: string | null
+  lastSalesDate: string | null
+  avgPurchaseValue: number
+  /** @deprecated Kept while older product-summary consumers migrate. */
+  totalQuantity?: number
+  /** @deprecated Kept while older product-summary consumers migrate. */
+  totalCost?: number
+  /** @deprecated Kept while older product-summary consumers migrate. */
+  unitPrice?: number
   supplier?: string
 }
 
@@ -16,7 +30,16 @@ export interface SalesSummaryBySupplier {
 
 export interface SalesSummaryResponse {
   globalTotal: number
-  bySupplier: SalesSummaryBySupplier[]
+  globalTaxes: number
+  globalExempt: number
+  globalSalesTotal: number
+  globalTransactionCount: number
+  grandTotal: number
+  negTotal: number
+  totalProducts: number
+  products: SalesSummaryItem[]
+  /** @deprecated Present only in the legacy report response. */
+  bySupplier?: SalesSummaryBySupplier[]
 }
 
 export interface SalesMovement {
@@ -47,18 +70,4 @@ export interface SummaryFilters {
   startDate?: string
   endDate?: string
   supplierId?: string
-}
-
-export interface PointOfSaleReport {
-  point_of_sale: string
-  count: number
-  total: number
-  byDocumentType: { code: string; count: number }[]
-}
-
-export interface PointOfSaleReportResponse {
-  grandTotal: number
-  totalCount: number
-  totalPV: number
-  data: PointOfSaleReport[]
 }

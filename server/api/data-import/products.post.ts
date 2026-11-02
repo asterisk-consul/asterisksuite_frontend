@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'No se envió archivo' })
   }
 
-  const blob = new Blob([file.data], { type: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const blob = new Blob([Uint8Array.from(file.data).buffer], { type: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const backendFormData = new FormData()
   backendFormData.append('file', blob, file.filename)
 

@@ -47,6 +47,7 @@ export interface AvailableCheck {
   issue_date: string
   due_date: string
   status: string
+  is_own: boolean
   bank_account: {
     id: string
     name: string
@@ -60,6 +61,7 @@ export interface CreateCheckInput {
   bank_name: string
   bank_branch?: string
   account_number?: string
+  bank_account_id?: string
   issuer_name: string
   issuer_id?: string
   amount: number

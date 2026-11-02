@@ -1,13 +1,12 @@
 import { h } from 'vue'
 import { UButton } from '#components'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
+import type { BadgeColor } from '~/types/colors.types'
 import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 
 type Row = any
-
-type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
 const typeConfig: Record<string, { label: string; color: BadgeColor }> = {
   CUSTOMER: { label: 'Cliente', color: 'success' },

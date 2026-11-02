@@ -32,15 +32,6 @@ export interface UpdateRoleDto {
   permissions?: string[]
 }
 
-export interface UpdateRolePermissionsDto {
-  permissions: string[]
-}
-
-export interface UserRoleAssignment {
-  userId: string
-  roleIds: string[]
-}
-
 export interface EffectivePermissions {
   userId: string
   roles: string[]

@@ -66,7 +66,7 @@ const handleOrdersSaved = () => {
         variant="ghost"
         color="neutral"
         label="Menu"
-        @click="moduleCollapsed = !moduleCollapsed"
+        @click="() => { moduleCollapsed = !moduleCollapsed }"
       />
       <UPageHeader title="Editar viaje" />
     </div>
@@ -91,7 +91,7 @@ const handleOrdersSaved = () => {
               variant="link"
               color="neutral"
               class="px-0"
-              @click="router.push('/logistica/viajes/')"
+              @click="() => { void (router.push('/logistica/viajes/')) }"
             >
               volver al listado
             </UButton>

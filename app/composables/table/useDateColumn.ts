@@ -38,8 +38,9 @@ export function useDateColumn(locale = 'es-AR') {
   const format = (raw?: string) => {
     if (!raw) return '—'
 
-    const dateStr = raw.includes('T') ? raw.split('T')[0] : raw
-    const [y, m, d] = dateStr.split('-').map(Number)
+    const separatorIndex = raw.indexOf('T')
+    const dateStr = separatorIndex >= 0 ? raw.slice(0, separatorIndex) : raw
+    const [y = Number.NaN, m = Number.NaN, d = Number.NaN] = dateStr.split('-').map(Number)
     const date = new Date(y, m - 1, d)
 
     return date.toLocaleDateString(locale, {

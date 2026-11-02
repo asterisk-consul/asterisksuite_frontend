@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
+import { useCurrenciesService } from '~/modulos/erp/currencies/service/currencies.service'
 const props = defineProps<{
   productId: string
   supplier?: any
@@ -21,11 +23,13 @@ const isPrimary = ref(false)
 // Load suppliers and currencies
 const suppliers = ref<any[]>([])
 const currencies = ref<any[]>([])
+const partiesService = useBusinessPartiesService()
+const currenciesService = useCurrenciesService()
 
 onMounted(async () => {
   const [suppliersData, currenciesData] = await Promise.all([
-    $fetch<any[]>('/api/backend/master-data/business-parties'),
-    $fetch<any[]>('/api/backend/currencies')
+    partiesService.findAll(),
+    currenciesService.findAll()
   ])
   suppliers.value = suppliersData.filter((s: any) => s.type === 'SUPPLIER')
   currencies.value = currenciesData
@@ -143,7 +147,7 @@ function handleSubmit() {
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton variant="outline" @click="open = false">Cancelar</UButton>
+        <UButton variant="outline" @click="() => { open = false }">Cancelar</UButton>
         <UButton :disabled="!isValid" @click="handleSubmit">
           {{ isEdit ? 'Guardar' : 'Agregar' }}
         </UButton>

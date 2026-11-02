@@ -1,6 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
+import { useStockService } from '~/modulos/logistica/warehouses/stock/stock.service'
+
 type Row = {
   id: string
   product: { id: string; name: string; sku?: string | null; type: string }
@@ -31,6 +33,7 @@ const showUnconfigured = ref(route.query.include_unconfigured === 'true')
 const page = ref(1)
 const meta = ref({ total: 0, page: 1, limit: 25, pages: 0, summary: {} as Record<string, number> })
 const toast = useToast()
+const stockService = useStockService()
 let timer: ReturnType<typeof setTimeout> | undefined
 
 const statusOptions = [
@@ -56,14 +59,12 @@ const format = (value: number) => new Intl.NumberFormat('es-AR', { maximumFracti
 async function load() {
   loading.value = true
   try {
-    const response = await $fetch<{ data: Row[]; meta: typeof meta.value }>('/api/backend/warehouse/replenishment/report', {
-      query: {
+    const response = await stockService.getReplenishmentReport({
         search: search.value || undefined,
         status: status.value && status.value !== 'ALL' ? status.value : undefined,
         include_unconfigured: showUnconfigured.value ? 'true' : undefined,
         page: page.value,
         limit: 25
-      }
     })
     rows.value = response.data
     meta.value = response.meta
@@ -113,7 +114,7 @@ onMounted(load)
           :icon="showUnconfigured ? 'i-lucide-eye-off' : 'i-lucide-eye'"
           :color="showUnconfigured ? 'primary' : 'neutral'"
           :variant="showUnconfigured ? 'soft' : 'outline'"
-          @click="showUnconfigured = !showUnconfigured"
+          @click="() => { showUnconfigured = !showUnconfigured }"
         />
         <UButton label="Actualizar" icon="i-lucide-refresh-cw" color="neutral" variant="outline" :loading="loading" @click="load" />
       </div>

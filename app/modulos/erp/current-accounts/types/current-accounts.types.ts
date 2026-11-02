@@ -30,6 +30,7 @@ export interface CurrentAccount {
   id: string
   party_id: string
   party_type: string
+  currency_code?: string | null
   balance: number
   active: boolean
   last_entry_date?: string | null

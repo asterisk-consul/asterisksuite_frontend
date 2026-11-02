@@ -18,13 +18,14 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const model = defineModel<string[]>({ default: [] })
+const model = defineModel<string[]>({ default: () => [] })
 
 const productTagsStore = useProductTagsStore()
 const productsStore = useProductsStore()
 const tagsStore = useTagsStore()
 
 const isModalOpen = ref(false)
+function openCreateModal() { isModalOpen.value = true }
 
 const currentProductId = computed(() => props.productId ?? productsStore.current?.id)
 
@@ -98,7 +99,7 @@ async function handleChange(newIds: string[]) {
           color="neutral"
           size="sm"
           block
-          @click="isModalOpen = true"
+          @click="openCreateModal"
         />
       </div>
     </template>

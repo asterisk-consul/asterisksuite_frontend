@@ -170,7 +170,7 @@ onMounted(() => {
           size="sm"
           icon="i-lucide-plus"
           label="Crear nuevo template"
-          @click="showCreateModal = true"
+          @click="() => { showCreateModal = true }"
         />
       </div>
     </div>
@@ -224,7 +224,7 @@ onMounted(() => {
 
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton variant="ghost" color="neutral" @click="showCreateModal = false">Cancelar</UButton>
+          <UButton variant="ghost" color="neutral" @click="() => { showCreateModal = false }">Cancelar</UButton>
           <UButton
             :loading="creating"
             :disabled="!newTemplate.name.trim() || selectedComponents.length === 0"

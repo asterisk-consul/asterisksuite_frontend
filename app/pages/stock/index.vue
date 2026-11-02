@@ -3,6 +3,7 @@ import { useProducts } from '~/modulos/logistica/master-data/product/composable/
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useStockService } from '~/modulos/logistica/warehouses/stock/stock.service'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -22,6 +23,7 @@ type ReplenishmentResponse = {
 }
 
 const products = useProducts()
+const stockService = useStockService()
 const warehousesStore = useDepositosStore()
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
@@ -163,9 +165,7 @@ async function loadDashboard() {
     tasks.push({
       source: 'reposición',
       run: async () => {
-        replenishment.value = await $fetch<ReplenishmentResponse>('/api/backend/warehouse/replenishment/report', {
-          query: { status: 'ACTION', page: 1, limit: 5 }
-        })
+        replenishment.value = await stockService.getReplenishmentReport({ status: 'ACTION', page: 1, limit: 5 })
         replenishmentLoaded.value = true
       }
     })

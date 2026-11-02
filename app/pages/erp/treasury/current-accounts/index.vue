@@ -18,8 +18,8 @@ const showSaldoInicialModal = ref(false)
 
 const activeTab = ref('activas')
 const searchQuery = ref('')
-const filterPartyType = ref<{ label: string; value: string } | null>(null)
-const filterBalance = ref<{ label: string; value: string } | null>(null)
+const filterPartyType = ref<{ label: string; value: string } | undefined>()
+const filterBalance = ref<{ label: string; value: string } | undefined>()
 
 const VISIBLE_LIMIT = 10
 const showAllCustomers = ref(false)
@@ -255,7 +255,7 @@ const exportHistory = () => {
           <!-- SEARCH + ACTIONS -->
           <div class="flex items-center gap-3">
             <UInput v-model="searchQuery" placeholder="Buscar cliente o proveedor..." icon="i-lucide-search" class="flex-1" />
-            <UButton label="Nuevo saldo inicial" icon="i-lucide-plus" color="primary" variant="solid" size="sm" @click="showSaldoInicialModal = true" />
+            <UButton label="Nuevo saldo inicial" icon="i-lucide-plus" color="primary" variant="solid" size="sm" @click="() => { showSaldoInicialModal = true }" />
             <UButton v-if="canExport('treasury.reports.export')" label="Exportar Excel" icon="i-lucide-download" variant="outline" size="sm" @click="exportActive" />
           </div>
 
@@ -319,7 +319,7 @@ const exportHistory = () => {
               color="primary"
               size="sm"
               icon="i-lucide-chevron-down"
-              @click="showAllCustomers = true"
+              @click="() => { showAllCustomers = true }"
             />
             <UButton
               v-if="showAllCustomers && customerAccounts.length > VISIBLE_LIMIT"
@@ -328,7 +328,7 @@ const exportHistory = () => {
               color="primary"
               size="sm"
               icon="i-lucide-chevron-up"
-              @click="showAllCustomers = false"
+              @click="() => { showAllCustomers = false }"
             />
           </div>
 
@@ -389,7 +389,7 @@ const exportHistory = () => {
               color="primary"
               size="sm"
               icon="i-lucide-chevron-down"
-              @click="showAllSuppliers = true"
+              @click="() => { showAllSuppliers = true }"
             />
             <UButton
               v-if="showAllSuppliers && supplierAccounts.length > VISIBLE_LIMIT"
@@ -398,7 +398,7 @@ const exportHistory = () => {
               color="primary"
               size="sm"
               icon="i-lucide-chevron-up"
-              @click="showAllSuppliers = false"
+              @click="() => { showAllSuppliers = false }"
             />
           </div>
 

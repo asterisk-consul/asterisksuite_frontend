@@ -202,7 +202,7 @@
         },
         {
           "heading": "Contenido disponible",
-          "text": "Centro de configuración Empresa Usuarios, roles y permisos — modelo de acceso y gestión. Seguridad — cambio de contraseña. Notificaciones — canales y avisos. Auditoría — registro de cambios. Papelera — restaurar o eliminar definitivamente."
+          "text": "Centro de configuración Empresa Planes y módulos por empresa — asignar áreas, estados y excepciones. Usuarios, roles y permisos — modelo de acceso y gestión. Seguridad — cambio de contraseña. Notificaciones — canales y avisos. Auditoría — registro de cambios. Papelera — restaurar o eliminar definitivamente."
         }
       ]
     },
@@ -305,6 +305,81 @@
         {
           "heading": "Problemas frecuentes",
           "text": "| Mensaje / síntoma | Causa | Solución | |---|---|---| | No encuentro el elemento | Filtro de fecha/entidad. | Ampliá el rango o cambiá la entidad. | | No puedo restaurar | Faltan permisos. | Pedí el permiso \"Restaurar elementos\". | | Eliminé algo por error | Se eliminó permanentemente. | No es recuperable; revisá copias de seguridad. |"
+        }
+      ]
+    },
+    {
+      "slug": "administracion/planes-y-modulos",
+      "title": "Planes y módulos por empresa",
+      "description": "Cómo asignar planes, habilitar módulos y aplicar excepciones por empresa.",
+      "sections": [
+        {
+          "heading": "Planes y módulos por empresa",
+          "text": "La administración de planes permite definir qué áreas de Asterisk Suite usa cada empresa. La configuración pertenece a la plataforma y está disponible para usuarios con rol PLATFORMOWNER o PLATFORMADMIN."
+        },
+        {
+          "heading": "Abrir la administración",
+          "text": "Ingresá a Configuración → Planes y módulos (/settings/platform-plans). La pantalla ofrece dos secciones:"
+        },
+        {
+          "heading": "Abrir la administración",
+          "text": "Planes: crear planes y elegir los módulos que incluyen. Empresas: asignar un plan y estado de suscripción, o establecer una excepción para un módulo puntual."
+        },
+        {
+          "heading": "Abrir la administración",
+          "text": "Los cambios se aplican al resolver los módulos efectivos de la empresa. La respuesta se puede consultar desde GET /api/platform-modules/effective con la empresa activa."
+        },
+        {
+          "heading": "Crear y configurar un plan",
+          "text": "Creá el plan con un código único, un nombre y una descripción opcional. Seleccionalo en la pestaña Planes. Activá las áreas que deben estar incluidas y guardá los cambios. En Empresas, asigná ese plan y un estado a cada empresa."
+        },
+        {
+          "heading": "Crear y configurar un plan",
+          "text": "Los módulos esenciales se mantienen habilitados. Las dependencias también se aplican automáticamente: si falta una dependencia, el módulo dependiente queda deshabilitado; si la dependencia está en solo lectura, el módulo dependiente también pasa a solo lectura."
+        },
+        {
+          "heading": "Crear y configurar un plan",
+          "text": "| Código | Área | Dependencias principales | | --- | --- | --- | | CORE | Acceso, empresas y configuración esencial | — | | MASTERDATA | Productos, partes interesadas y catálogos | CORE | | SALES | Ventas | CORE, MASTERDATA | | PURCHASES | Compras | CORE, MASTERDATA | | INVENTORY | Inventario | MASTERDATA | | LOGISTICS | Logística | INVENTORY | | TREASURY | Tesorería | CORE, MASTERDATA | | ACCOUNTING | Contabilidad | SALES, PURCHASES, TREASURY | | HR | Recursos humanos | CORE | | MAINTENANCE | Mantenimiento | CORE | | INTERNATIONALOPERATIONS | Operaciones internacionales | PURCHASES | | MANUFACTURING | Fabricación | INVENTORY | | REPORTS | Reportes | CORE | | WHATSAPP | Avisos y reportes por WhatsApp | CORE | | MCP | Conexiones autorizadas con asistentes mediante MCP | CORE |"
+        },
+        {
+          "heading": "Estados y excepciones",
+          "text": "Una suscripción puede estar TRIAL, ACTIVE, PASTDUE, SUSPENDED o CANCELLED. Una prueba vencida deja los módulos del plan deshabilitados. Una suscripción vencida de pago (PASTDUE) conserva los módulos en solo lectura. Los estados suspendido y cancelado no habilitan módulos del plan."
+        },
+        {
+          "heading": "Estados y excepciones",
+          "text": "En la pestaña Empresas, las excepciones por módulo son:"
+        },
+        {
+          "heading": "Estados y excepciones",
+          "text": "Según el plan: quitar la excepción y volver a la configuración del plan. Habilitado: permitir temporalmente el módulo aunque el plan no lo incluya. Solo lectura: permitir consultas y bloquear escrituras cuando el control del backend está en modo enforce. Deshabilitado: impedir el uso del módulo cuando el control del backend está en modo enforce."
+        },
+        {
+          "heading": "Estados y excepciones",
+          "text": "Los módulos esenciales no admiten excepciones. Las dependencias pueden limitar el resultado de una excepción; por ejemplo, no se habilita un módulo si una dependencia necesaria sigue deshabilitada."
+        },
+        {
+          "heading": "WhatsApp y MCP",
+          "text": "Habilitar WHATSAPP permite que la empresa use las funciones de avisos y reportes por ese canal. También deben estar configurados el proveedor de WhatsApp, los destinatarios y los eventos que se quieren comunicar. El plan no configura números ni credenciales."
+        },
+        {
+          "heading": "WhatsApp y MCP",
+          "text": "Habilitar MCP permite autorizar conexiones de asistentes externos. La autorización sigue requiriendo identidad de usuario, empresa y permisos; el módulo no concede por sí solo acceso a datos. Las herramientas disponibles dependen también de los módulos funcionales y alcances OAuth autorizados."
+        },
+        {
+          "heading": "Empresas existentes y despliegue",
+          "text": "La migración asigna a las empresas existentes el plan histórico LEGACYFULL, que mantiene habilitadas sus áreas previas e incluye WhatsApp y MCP. Las empresas nuevas también reciben ese plan si está presente; luego una persona administradora de plataforma puede asignarles un plan específico. Así, incorporar el control de módulos no recorta el acceso de las empresas actuales."
+        },
+        {
+          "heading": "Empresas existentes y despliegue",
+          "text": "El backend admite MODULEENFORCEMENTMODE=disabled, audit o enforce. El modo predeterminado es audit: registra accesos a módulos no habilitados, pero no los bloquea. En enforce, las rutas asociadas a módulos deshabilitados responden con acceso denegado y las rutas de módulos en solo lectura bloquean escrituras. Conviene revisar las métricas de auditoría y el mapeo de rutas antes de activar ese modo."
+        },
+        {
+          "heading": "Empresas existentes y despliegue",
+          "text": "Si todavía no se aplicó la migración de módulos, el control del backend conserva temporalmente el acceso existente ante la falta de tablas; la interfaz también mantiene la navegación disponible si no puede resolver el plan. Aplicá las migraciones en la base de plataforma antes de asignar planes y validar el comportamiento de una empresa."
+        },
+        {
+          "heading": "Relacionado",
+          "text": "Usuarios, roles y permisos Centro de configuración Notificaciones Conexiones de IA"
         }
       ]
     },
@@ -3463,7 +3538,7 @@
         },
         {
           "heading": "Campos",
-          "text": "Los selectores de origen y destino permiten buscar ubicaciones por dirección, ciudad, provincia, país o código postal. Al crear un presupuesto, el proveedor se puede buscar por nombre o CUIT y los productos por código o nombre; los resultados se cargan mientras escribís."
+          "text": "Los selectores de origen y destino permiten buscar ubicaciones por dirección, ciudad, provincia, país o código postal. Al crear un presupuesto, el proveedor se puede buscar por nombre o CUIT y los productos por código o nombre; los resultados se cargan mientras escribís. Para agregar productos podés usar F2 para abrir el selector, Tab para recorrer los campos y Ctrl + Enter para agregar el producto elegido."
         },
         {
           "heading": "Campos",
@@ -4261,41 +4336,6 @@
       ]
     },
     {
-      "slug": "procesos/stock/combustible",
-      "title": "Combustible",
-      "description": "Registrar cargas de combustible y urea de la flota.",
-      "sections": [
-        {
-          "heading": "Para qué sirve",
-          "text": "Registra las cargas de combustible y urea de los vehículos y permite medir la cisterna. Se accede desde Combustible (/combustible)."
-        },
-        {
-          "heading": "Permisos necesarios",
-          "text": "Acceso al módulo de combustible (según permisos de flota/logística). :::"
-        },
-        {
-          "heading": "Secciones",
-          "text": "Combustibles — cargas de combustible. Urea — cargas de urea (para vehículos con SCR)."
-        },
-        {
-          "heading": "Cómo registrar una carga",
-          "text": "Ir a Combustible y elegir la pestaña Combustibles o Urea."
-        },
-        {
-          "heading": "Cómo registrar una carga",
-          "text": "Artículo, cantidad, precio, vehículo, odómetro y fecha."
-        },
-        {
-          "heading": "Cómo registrar una carga",
-          "text": "También se pueden cargar registros por CSV (Subir CSV)."
-        },
-        {
-          "heading": "Medición de cisterna",
-          "text": "La sección Cisterna permite registrar la medición del nivel para controlar existencias."
-        }
-      ]
-    },
-    {
       "slug": "procesos/stock/disponibilidad",
       "title": "Disponibilidad de stock",
       "description": "Stock físico, reservado, en tránsito y proyectado por producto.",
@@ -4428,7 +4468,7 @@
         },
         {
           "heading": "Páginas de esta sección",
-          "text": "Disponibilidad de stock Reposición Fabricación Picking y pallets Combustible"
+          "text": "Disponibilidad de stock Reposición Fabricación Picking y pallets"
         },
         {
           "heading": "Permisos necesarios",

@@ -2,7 +2,7 @@
 import { h } from 'vue'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useMySalesStore } from '~/modulos/erp/sales/my-sales/my-sales.store'
-import type { TableColumn } from '@nuxt/ui'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -19,7 +19,7 @@ const totalPendiente = computed(() =>
   pending.value.reduce((sum, p) => sum + p.pendiente, 0)
 )
 
-const columns: TableColumn<any>[] = [
+const columns: ExtendedColumn<any>[] = [
   {
     accessorKey: 'client_name',
     header: 'Cliente',

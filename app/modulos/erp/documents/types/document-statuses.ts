@@ -1,3 +1,6 @@
+import type { BadgeColor } from '~/types/colors.types'
+export type { BadgeColor } from '~/types/colors.types'
+
 export const QUOTE_STATUSES: Record<number, string> = {
   0: 'Borrador',
   1: 'Enviado',
@@ -69,8 +72,6 @@ export const INVOICE_STATUS_DESCRIPTIONS: Record<number, string> = {
   2: 'Factura confirmada con CAE válido',
   3: 'Factura anulada',
 }
-
-type BadgeColor = 'primary' | 'neutral' | 'secondary' | 'success' | 'info' | 'warning' | 'error'
 
 export const QUOTE_STATUS_COLORS: Record<number, BadgeColor> = {
   0: 'neutral', 1: 'info', 2: 'success', 3: 'error', 4: 'warning', 5: 'secondary', 6: 'error',

@@ -16,7 +16,7 @@ type EditableValue = string | null | undefined
 
 export const LocationColumns = (actions: {
   onToggleActive?: (row: Row, value: boolean) => void
-  onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void
+  onInlineSave?: (row: Row, field: EditableField, value: EditableValue) => void | Promise<void>
   onEdit?: (row: Row) => void
   onDelete?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void

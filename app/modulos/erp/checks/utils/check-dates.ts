@@ -1,5 +1,13 @@
 const ARGENTINA_TIME_ZONE = 'America/Argentina/Buenos_Aires'
 
+function parseDateKey(value: string): [number, number, number] {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match?.[1] || !match[2] || !match[3]) {
+    throw new RangeError(`Fecha inválida: ${value}`)
+  }
+  return [Number(match[1]), Number(match[2]), Number(match[3])]
+}
+
 export function getArgentinaDateKey(date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: ARGENTINA_TIME_ZONE,
@@ -19,7 +27,7 @@ export function getCheckDateKey(value: string | Date): string {
 }
 
 export function formatCheckDate(value: string | Date, monthStyle: '2-digit' | 'short' = '2-digit'): string {
-  const [year, month, day] = getCheckDateKey(value).split('-').map(Number)
+  const [year, month, day] = parseDateKey(getCheckDateKey(value))
   return new Intl.DateTimeFormat('es-AR', {
     day: '2-digit',
     month: monthStyle,
@@ -29,13 +37,13 @@ export function formatCheckDate(value: string | Date, monthStyle: '2-digit' | 's
 }
 
 export function addDaysToDateKey(value: string, days: number): string {
-  const [year, month, day] = value.split('-').map(Number)
+  const [year, month, day] = parseDateKey(value)
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10)
 }
 
 export function differenceInDateKeys(from: string, to: string): number {
-  const [fromYear, fromMonth, fromDay] = from.split('-').map(Number)
-  const [toYear, toMonth, toDay] = to.split('-').map(Number)
+  const [fromYear, fromMonth, fromDay] = parseDateKey(from)
+  const [toYear, toMonth, toDay] = parseDateKey(to)
   const fromTimestamp = Date.UTC(fromYear, fromMonth - 1, fromDay)
   const toTimestamp = Date.UTC(toYear, toMonth - 1, toDay)
   return Math.round((toTimestamp - fromTimestamp) / 86_400_000)

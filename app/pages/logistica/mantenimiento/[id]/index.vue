@@ -1,13 +1,15 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 import type { ButtonProps } from '@nuxt/ui'
+import type { BadgeColor } from '~/types/colors.types'
 import { storeToRefs } from 'pinia'
 import { useMaintenanceStore } from '~/modulos/logistica/maintenance/store/maintenance.store'
+import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import { useEmployeesStore } from '~/modulos/erp/employees/store/employees.store'
-import type { MaintenanceStatus } from '~/modulos/logistica/maintenance/types/maintenance.types'
+import { MaintenanceStatus } from '~/modulos/logistica/maintenance/types/maintenance.types'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,8 +31,6 @@ const loading = ref(true)
 const activeTab = ref('info')
 
 const order = computed(() => store.currentOrder)
-
-type BadgeColor = 'error' | 'neutral' | 'info' | 'success' | 'warning' | 'primary' | 'secondary'
 
 const statusConfig: Record<string, { color: BadgeColor; label: string }> = {
   PENDING: { color: 'warning', label: 'Pendiente' },
@@ -79,21 +79,21 @@ const tabs = [
 ]
 
 const availableStatuses: { value: MaintenanceStatus; label: string }[] = [
-  { value: 'PENDING', label: 'Pendiente' },
-  { value: 'SCHEDULED', label: 'Programada' },
-  { value: 'IN_PROGRESS', label: 'En Progreso' },
-  { value: 'WAITING_PARTS', label: 'Esperando Repuestos' },
-  { value: 'WAITING_SUPPLIER', label: 'Esperando Proveedor' },
-  { value: 'COMPLETED', label: 'Completada' },
-  { value: 'CANCELLED', label: 'Cancelada' }
+  { value: MaintenanceStatus.PENDING, label: 'Pendiente' },
+  { value: MaintenanceStatus.SCHEDULED, label: 'Programada' },
+  { value: MaintenanceStatus.IN_PROGRESS, label: 'En Progreso' },
+  { value: MaintenanceStatus.WAITING_PARTS, label: 'Esperando Repuestos' },
+  { value: MaintenanceStatus.WAITING_SUPPLIER, label: 'Esperando Proveedor' },
+  { value: MaintenanceStatus.COMPLETED, label: 'Completada' },
+  { value: MaintenanceStatus.CANCELLED, label: 'Cancelada' }
 ]
 
 const showStatusModal = ref(false)
-const selectedStatus = ref<MaintenanceStatus>('PENDING')
+const selectedStatus = ref<MaintenanceStatus>(MaintenanceStatus.PENDING)
 const statusComment = ref('')
 
 function openStatusModal() {
-  selectedStatus.value = order.value?.status ?? 'PENDING'
+  selectedStatus.value = order.value?.status ?? MaintenanceStatus.PENDING
   statusComment.value = ''
   showStatusModal.value = true
 }
@@ -113,6 +113,16 @@ const showPartModal = ref(false)
 const showLaborModal = ref(false)
 const showServiceModal = ref(false)
 const saving = ref(false)
+
+function openTaskModal() { showTaskModal.value = true }
+function closeTaskModal() { showTaskModal.value = false }
+function openPartModal() { showPartModal.value = true }
+function closePartModal() { showPartModal.value = false }
+function openLaborModal() { showLaborModal.value = true }
+function closeLaborModal() { showLaborModal.value = false }
+function openServiceModal() { showServiceModal.value = true }
+function closeServiceModal() { showServiceModal.value = false }
+function closeStatusModal() { showStatusModal.value = false }
 
 const taskForm = reactive({ description: '', estimated_hours: null as number | null, notes: '' })
 
@@ -142,7 +152,7 @@ const serviceForm = reactive({
   document_id: ''
 })
 
-// --- LOOKUPS (via stores, no $fetch directo) ---
+// --- LOOKUPS (stores y servicios de dominio) ---
 const documents = ref<any[]>([])
 
 const selectProducts = computed(() =>
@@ -172,7 +182,7 @@ async function fetchLookups() {
       warehousesStore.fetchAll(),
       partiesStore.fetchAll(),
       employeesStore.fetchAll(),
-      $fetch<any>('/api/backend/documents/purchases?category=INVOICE&status=2')
+      DocumentsPurchasesService.getAll({ category: 'INVOICE', status: 2 })
     ])
     documents.value = docData?.data ?? docData ?? []
   } catch {
@@ -265,7 +275,7 @@ async function submitService() {
   }
   saving.value = true
   try {
-    await store.createService(id, { ...serviceForm })
+    await store.createServiceItem(id, { ...serviceForm })
     toast.add({ title: 'Servicio registrado', color: 'success' })
     showServiceModal.value = false
     Object.assign(serviceForm, { supplier_id: '', description: '', quantity: null, unit_cost: null, document_id: '' })
@@ -282,7 +292,7 @@ const links = computed<ButtonProps[]>(() => {
     {
       label: 'Editar',
       icon: 'i-lucide-pencil',
-      onClick: () => router.push(`/logistica/mantenimiento/${id}/editar`),
+      onClick: async () => { await router.push(`/logistica/mantenimiento/${id}/editar`) },
       color: 'primary',
       variant: 'solid'
     }
@@ -453,7 +463,7 @@ onMounted(async () => {
                 <span class="font-medium text-sm">Tareas</span>
                 <div class="flex items-center gap-2">
                   <UBadge variant="soft" color="neutral">{{ order.tasks?.length ?? 0 }}</UBadge>
-                  <UButton size="xs" icon="i-lucide-plus" label="Agregar" @click="showTaskModal = true" />
+        <UButton size="xs" icon="i-lucide-plus" label="Agregar" @click="openTaskModal" />
                 </div>
               </div>
             </template>
@@ -494,7 +504,7 @@ onMounted(async () => {
                 <span class="font-medium text-sm">Repuestos</span>
                 <div class="flex items-center gap-2">
                   <UBadge variant="soft" color="neutral">{{ order.parts?.length ?? 0 }}</UBadge>
-                  <UButton size="xs" icon="i-lucide-plus" label="Agregar" @click="showPartModal = true" />
+        <UButton size="xs" icon="i-lucide-plus" label="Agregar" @click="openPartModal" />
                 </div>
               </div>
             </template>
@@ -540,7 +550,7 @@ onMounted(async () => {
                 <span class="font-medium text-sm">Mano de Obra</span>
                 <div class="flex items-center gap-2">
                   <UBadge variant="soft" color="neutral">{{ order.labor?.length ?? 0 }}</UBadge>
-                  <UButton size="xs" icon="i-lucide-plus" label="Agregar" @click="showLaborModal = true" />
+        <UButton size="xs" icon="i-lucide-plus" label="Agregar" @click="openLaborModal" />
                 </div>
               </div>
             </template>
@@ -591,7 +601,7 @@ onMounted(async () => {
                 <span class="font-medium text-sm">Servicios Externos</span>
                 <div class="flex items-center gap-2">
                   <UBadge variant="soft" color="neutral">{{ order.services?.length ?? 0 }}</UBadge>
-                  <UButton size="xs" icon="i-lucide-plus" label="Agregar" @click="showServiceModal = true" />
+        <UButton size="xs" icon="i-lucide-plus" label="Agregar" @click="openServiceModal" />
                 </div>
               </div>
             </template>
@@ -685,7 +695,7 @@ onMounted(async () => {
           />
           <UTextarea v-model="statusComment" placeholder="Comentario (opcional)" />
           <div class="flex justify-end gap-2">
-            <UButton variant="outline" label="Cancelar" @click="showStatusModal = false" />
+            <UButton variant="outline" label="Cancelar" @click="closeStatusModal" />
             <UButton label="Confirmar" @click="confirmStatusChange" />
           </div>
         </div>
@@ -707,7 +717,7 @@ onMounted(async () => {
             <UTextarea v-model="taskForm.notes" placeholder="Notas adicionales" :rows="2" class="w-full" />
           </UFormField>
           <div class="flex justify-end gap-2">
-            <UButton variant="outline" label="Cancelar" @click="showTaskModal = false" />
+            <UButton variant="outline" label="Cancelar" @click="closeTaskModal" />
             <UButton label="Crear" :loading="saving" @click="submitTask" />
           </div>
         </div>
@@ -723,6 +733,7 @@ onMounted(async () => {
             <USelectMenu
               v-model="partForm.product_id"
               :items="selectProducts"
+              value-key="value"
               placeholder="Buscar producto..."
               searchable
               clear
@@ -733,6 +744,7 @@ onMounted(async () => {
             <USelectMenu
               v-model="partForm.warehouse_id"
               :items="selectWarehouses"
+              value-key="value"
               placeholder="Seleccionar depósito..."
               class="w-full"
             />
@@ -749,6 +761,7 @@ onMounted(async () => {
             <USelectMenu
               v-model="partForm.document_id"
               :items="selectDocuments"
+              value-key="value"
               placeholder="Sin factura"
               searchable
               clear
@@ -756,7 +769,7 @@ onMounted(async () => {
             />
           </UFormField>
           <div class="flex justify-end gap-2">
-            <UButton variant="outline" label="Cancelar" @click="showPartModal = false" />
+            <UButton variant="outline" label="Cancelar" @click="closePartModal" />
             <UButton label="Agregar" :loading="saving" @click="submitPart" />
           </div>
         </div>
@@ -781,6 +794,7 @@ onMounted(async () => {
             <USelectMenu
               v-model="laborForm.employee_id"
               :items="selectEmployees"
+              value-key="value"
               placeholder="Seleccionar empleado..."
               searchable
               clear
@@ -791,6 +805,7 @@ onMounted(async () => {
             <USelectMenu
               v-model="laborForm.supplier_id"
               :items="selectSuppliers"
+              value-key="value"
               placeholder="Seleccionar proveedor..."
               searchable
               clear
@@ -812,6 +827,7 @@ onMounted(async () => {
             <USelectMenu
               v-model="laborForm.document_id"
               :items="selectDocuments"
+              value-key="value"
               placeholder="Sin factura"
               searchable
               clear
@@ -819,7 +835,7 @@ onMounted(async () => {
             />
           </UFormField>
           <div class="flex justify-end gap-2">
-            <UButton variant="outline" label="Cancelar" @click="showLaborModal = false" />
+            <UButton variant="outline" label="Cancelar" @click="closeLaborModal" />
             <UButton label="Agregar" :loading="saving" @click="submitLabor" />
           </div>
         </div>
@@ -835,6 +851,7 @@ onMounted(async () => {
             <USelectMenu
               v-model="serviceForm.supplier_id"
               :items="selectSuppliers"
+              value-key="value"
               placeholder="Buscar proveedor..."
               searchable
               clear
@@ -861,6 +878,7 @@ onMounted(async () => {
             <USelectMenu
               v-model="serviceForm.document_id"
               :items="selectDocuments"
+              value-key="value"
               placeholder="Sin factura"
               searchable
               clear
@@ -868,7 +886,7 @@ onMounted(async () => {
             />
           </UFormField>
           <div class="flex justify-end gap-2">
-            <UButton variant="outline" label="Cancelar" @click="showServiceModal = false" />
+            <UButton variant="outline" label="Cancelar" @click="closeServiceModal" />
             <UButton label="Agregar" :loading="saving" @click="submitService" />
           </div>
         </div>

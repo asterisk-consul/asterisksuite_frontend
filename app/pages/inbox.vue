@@ -5,6 +5,7 @@ definePageMeta({
 
 import { computed, ref, watch } from 'vue'
 import { breakpointsTailwind } from '@vueuse/core'
+import { useInboxService } from '~/services/inbox.service'
 
 const tabItems = [
   {
@@ -18,9 +19,8 @@ const tabItems = [
 ]
 const selectedTab = ref('all')
 
-const { data: mails } = await useFetch<Mail[]>('/api/mails', {
-  default: () => []
-})
+const inboxService = useInboxService()
+const { data: mails } = await useAsyncData('inbox-mails', () => inboxService.findAll(), { default: () => [] })
 
 // Filter mails based on the selected tab
 const filteredMails = computed(() => {

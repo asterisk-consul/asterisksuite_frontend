@@ -29,10 +29,14 @@ export const useDocumentsTypesService = () => {
       body: data
     })
 
+  const remove = (id: string) =>
+    fetch<void>(`/api/trash/document_types/${id}`, { method: 'DELETE' })
+
   return {
     create,
     findAll,
     findOne,
-    update
+    update,
+    remove
   }
 }

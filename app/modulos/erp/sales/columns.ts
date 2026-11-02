@@ -3,6 +3,7 @@ import { UTooltip, UButton, UBadge, UProgress, UDropdownMenu } from '#components
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { CATEGORY_LABELS, getStatusLabel, getStatusColor } from '~/modulos/erp/documents/types/document-statuses'
 import type { Document } from '~/modulos/erp/facturas/types/factura.types'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import { canSettleDocument, getDocumentPaymentSummary } from '~/modulos/erp/documents/utils/document-payment-status'
 import { getOrderFlowPresentation } from '~/modulos/erp/documents/orden-venta/order-flow-status'
 
@@ -16,7 +17,7 @@ export const createSalesColumns = (actions: {
   showAmounts?: boolean
   showCreator?: boolean
   statusFilterOptions?: { label: string; value: number | string }[] | null
-}) => {
+}): ExtendedColumn<Row>[] => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
   const fmtNumber = (row: Row) => {
     const code = row.document_types?.code ?? ''
@@ -175,7 +176,7 @@ export const createSalesColumns = (actions: {
               label: 'Total',
               sortable: true,
               meta: { filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
-              cell: ({ row }) =>
+              cell: ({ row }: any) =>
                 row.original.amounts_visible === false
                   ? h('span', { class: 'text-xs text-muted' }, 'Restringido')
                   : new Intl.NumberFormat('es-AR', {
@@ -196,7 +197,7 @@ export const createSalesColumns = (actions: {
             {
               id: 'creator',
               label: 'Cargado por',
-              meta: { filter: false },
+              meta: { filter: false as const },
               accessorFn: (row: Row) => row.creator?.name ?? row.creator?.email ?? '-'
             }
           ]
@@ -206,7 +207,7 @@ export const createSalesColumns = (actions: {
       ? [{
           id: 'document_actions',
           header: '',
-          meta: { label: 'Acciones', filter: false, disableColumnVisibility: true },
+          meta: { label: 'Acciones', filter: false as const, disableColumnVisibility: true },
           enableHiding: false,
           cell: ({ row }: any) => {
             const document = row.original as Row

@@ -1,11 +1,13 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { usePartyPricesService } from '~/modulos/erp/pricing/services/party-prices.service'
 
 const props = defineProps<{ partyId: string }>()
 const toast = useToast()
+const partyPricesService = usePartyPricesService()
 const productsStore = useProductsStore()
 const { items: products } = storeToRefs(productsStore)
 const { init: initCurrencies, activeCurrencies } = useCurrencies()
@@ -37,14 +39,13 @@ async function load() {
   loading.value = true
   try {
     [prices.value, history.value] = await Promise.all([
-      $fetch<any[]>(`/api/backend/pricing/party-prices/party/${props.partyId}`),
-      $fetch<any[]>(`/api/backend/pricing/party-prices/party/${props.partyId}/history`)
+      partyPricesService.byParty(props.partyId),
+      partyPricesService.partyHistory(props.partyId)
     ])
   } finally {
     loading.value = false
   }
 }
-
 function edit(price: any) {
   form.product_id = price.product_id
   form.operation_type = price.operation_type
@@ -56,10 +57,7 @@ async function save() {
   if (!form.product_id || !form.currency_id || form.price < 0) return
   saving.value = true
   try {
-    await $fetch('/api/backend/pricing/party-prices', {
-      method: 'POST',
-      body: { ...form, party_id: props.partyId }
-    })
+    await partyPricesService.upsert({ ...form, party_id: props.partyId })
     toast.add({ title: 'Precio guardado', description: 'Quedó vigente para esta parte interesada.', color: 'success' })
     await load()
   } finally {
@@ -68,11 +66,10 @@ async function save() {
 }
 
 async function remove(price: any) {
-  await $fetch(`/api/backend/pricing/party-prices/${price.id}`, { method: 'DELETE' })
+  await partyPricesService.remove(price.id)
   toast.add({ title: 'Precio desactivado', color: 'success' })
   await load()
 }
-
 function money(value: unknown, code = 'ARS') {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: code }).format(Number(value ?? 0))
 }

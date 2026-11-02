@@ -6,7 +6,7 @@ definePageMeta({
 import ProductForm from '~/modulos/logistica/master-data/product/components/ProductForm.vue'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
-import type { ProductVariant } from '~/modulos/logistica/master-data/product/types/product.types'
+import type { ProductVariant } from '~/modulos/logistica/master-data/product-variants/types/product-variants.types'
 import {
   createDefaultProductForm,
   toCreateProductPayload

@@ -125,7 +125,7 @@ const sortFields = [
       </div>
 
       <div class="flex gap-2 flex-wrap">
-        <UButton v-for="opt in statusOptions" :key="String(opt.value)" :variant="statusFilter === opt.value ? 'solid' : 'ghost'" color="neutral" size="sm" :label="opt.label" @click="statusFilter = opt.value" />
+        <UButton v-for="opt in statusOptions" :key="String(opt.value)" :variant="statusFilter === opt.value ? 'solid' : 'ghost'" color="neutral" size="sm" :label="opt.label" @click="() => { statusFilter = opt.value }" />
       </div>
 
       <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">

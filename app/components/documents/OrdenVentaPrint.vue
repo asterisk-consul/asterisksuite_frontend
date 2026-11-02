@@ -4,7 +4,7 @@ const props = defineProps<{
   number: string
   date: string
   company: { name: string; tax_id?: string; address?: string; phone?: string; iva_condition?: string }
-  customer: { name: string; tax_id?: string; address?: string; iva_condition?: string; sale_condition?: string }
+  customer: { name: string; tax_id?: string; address?: string; phone?: string; iva_condition?: string; sale_condition?: string }
   items: { code: string; description: string; quantity: number; unit_price: number; total: number }[]
   totals: { subtotal: number; taxes: { name: string; amount: number }[]; total: number }
   observations?: string

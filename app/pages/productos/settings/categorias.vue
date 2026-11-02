@@ -55,7 +55,7 @@ function openCreateRoot() {
   modalOpen.value = true
 }
 
-function openCreateChild(parentId: string) {
+function openCreateChild(parentId: string | null) {
   mode.value = 'create'
 
   form.value = {

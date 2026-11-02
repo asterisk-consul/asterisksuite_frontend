@@ -251,7 +251,7 @@ const handleSubmit = async () => {
 
       <template #footer>
         <div class="flex justify-end">
-          <UButton :disabled="!templateForm.name" icon="i-lucide-arrow-right" trailing @click="step = 2">
+          <UButton :disabled="!templateForm.name" icon="i-lucide-arrow-right" trailing @click="() => { step = 2 }">
             Siguiente
           </UButton>
         </div>
@@ -327,7 +327,7 @@ const handleSubmit = async () => {
             variant="ghost"
             color="neutral"
             icon="i-lucide-plus"
-            @click="showNewComponentForm = true"
+            @click="() => { showNewComponentForm = true }"
           >
             Crear nuevo componente
           </UButton>
@@ -353,7 +353,7 @@ const handleSubmit = async () => {
             </UFormField>
 
             <div class="flex justify-end gap-2">
-              <UButton size="sm" variant="ghost" color="neutral" @click="showNewComponentForm = false">
+              <UButton size="sm" variant="ghost" color="neutral" @click="() => { showNewComponentForm = false }">
                 Cancelar
               </UButton>
               <UButton
@@ -371,7 +371,7 @@ const handleSubmit = async () => {
 
       <!-- ACCIONES FINALES -->
       <div class="flex items-center justify-between">
-        <UButton variant="ghost" color="neutral" icon="i-lucide-arrow-left" @click="step = 1">Volver</UButton>
+        <UButton variant="ghost" color="neutral" icon="i-lucide-arrow-left" @click="() => { step = 1 }">Volver</UButton>
 
         <UButton :loading="saving" :disabled="!canSubmit" icon="i-lucide-check" @click="handleSubmit">
           Crear template

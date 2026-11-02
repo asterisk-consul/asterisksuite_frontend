@@ -227,7 +227,7 @@ async function hardDeleteSelected() {
 }
 
 async function loadData() {
-  const params: { days?: number; table?: string } = {}
+  const params: { days?: number; table?: TrashTable } = {}
   if (filterDays.value > 0) params.days = filterDays.value
   if (filterTable.value) params.table = filterTable.value
   await store.fetchAll(params)
@@ -415,7 +415,7 @@ onMounted(() => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cerrar" variant="ghost" @click="showDetailModal = false" />
+          <UButton label="Cerrar" variant="ghost" @click="() => { showDetailModal = false }" />
           <UButton
             label="Restaurar"
             icon="i-lucide-undo-2"
@@ -446,7 +446,7 @@ onMounted(() => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showHardDeleteModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { showHardDeleteModal = false }" />
           <UButton
             label="Eliminar permanentemente"
             color="error"

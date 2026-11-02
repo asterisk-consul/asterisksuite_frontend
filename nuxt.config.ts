@@ -134,9 +134,7 @@ export default defineNuxtConfig({
     }
   },
 
-  // 👇 Auto-importar types globalmente
   alias: {
-    '@types': './types',
     '@server/utils': './server/utils'
   },
 
@@ -166,9 +164,5 @@ export default defineNuxtConfig({
         }
       }
     },
-    // ✅ Aumentar límite de body para uploads
-    h3: {
-      maxBodySize: '50mb'
-    }
   }
 })

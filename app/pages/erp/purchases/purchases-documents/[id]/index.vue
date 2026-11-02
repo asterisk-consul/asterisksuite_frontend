@@ -37,8 +37,8 @@ const customTransitions = computed(() => {
   if (!factura.value) return []
   if (factura.value.status === 0) {
     return [
-      { label: 'Pendiente', status: 1, color: 'warning' },
-      { label: 'Confirmado', status: 2, color: 'success' },
+      { label: 'Pendiente', status: 1, color: 'warning' as const },
+      { label: 'Confirmado', status: 2, color: 'success' as const },
     ]
   }
   return []
@@ -70,6 +70,7 @@ const {
   handleCancel,
   handleRemove,
   handleStatus,
+  validTransitions,
 } = useDocumentActions({
   doc: factura as any,
   category,
@@ -97,7 +98,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
     <template #header>
       <UDashboardNavbar :title="factura ? `${factura.document_types?.description} #${factura.number}` : 'Documento'">
         <template #leading>
-          <UButton icon="i-lucide-panel-left-close" variant="ghost" color="neutral" @click="mainCollapsed = !mainCollapsed" />
+          <UButton icon="i-lucide-panel-left-close" variant="ghost" color="neutral" @click="() => { mainCollapsed = !mainCollapsed }" />
         </template>
       </UDashboardNavbar>
     </template>
@@ -149,7 +150,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
         <UButton v-for="t in validTransitions" :key="t.status" :label="t.label" :color="t.color" variant="outline" class="justify-start" :loading="processing" @click="handleStatus(t.status)" />
       </div>
       <div class="flex justify-end pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="statusModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { statusModalOpen = false }" />
       </div>
     </template>
   </UModal>
@@ -167,7 +168,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
         description="Al confirmar, el costo de cada producto se actualizará con el precio unitario de esta compra. Los precios de venta no se modificarán."
       />
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />
         <UButton label="Confirmar" color="success" :loading="processing" @click="handleConfirm" />
       </div>
     </template>
@@ -178,7 +179,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
       <p>¿Estás seguro de que deseas anular la factura <strong>#{{ factura?.number }}</strong>?</p>
       <p class="text-sm text-muted mt-2">Esta acción no se puede deshacer.</p>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="cancelModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { cancelModalOpen = false }" />
         <UButton label="Anular" color="error" :loading="processing" @click="handleCancel" />
       </div>
     </template>
@@ -189,7 +190,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
       <p>La factura anulada <strong>#{{ factura?.number }}</strong> dejará de aparecer en el circuito habitual.</p>
       <p class="text-sm text-muted mt-2">Se conserva su historial y podrá restaurarse desde la papelera.</p>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
         <UButton label="Enviar a papelera" color="error" :loading="processing" @click="handleRemove" />
       </div>
     </template>

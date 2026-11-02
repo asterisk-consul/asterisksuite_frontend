@@ -114,7 +114,7 @@ async function handlePartialInvoice() {
         <div v-if="doc && company" id="printable-document" class="print-only">
           <DocumentPrintSelector :document="doc" :company="company" />
         </div>
-        <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" :show-amounts="amountsVisible" show-tracking />
+        <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code ?? 'ARS'" :show-amounts="amountsVisible" show-tracking />
         <DocumentTotals v-if="doc && amountsVisible" :document="doc" />
         <UAlert
           v-if="doc && !amountsVisible"
@@ -134,7 +134,7 @@ async function handlePartialInvoice() {
         <UButton v-for="t in validTransitions" :key="t.status" :label="t.label" :color="t.color" variant="outline" class="w-full justify-start" :loading="processing" @click="handleStatus(t.status)" />
       </div>
       <div class="flex justify-end pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="statusModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { statusModalOpen = false }" />
       </div>
     </template>
   </UModal>

@@ -1,3 +1,5 @@
+import type { ProductCostSource } from '../../types/product.types'
+
 export interface CostHistoryBreakdown {
   id: string
   product_cost_id: string
@@ -93,7 +95,5 @@ export interface CalculateProductCostDto {
   variant_id?: string
   save_snapshot?: boolean
 }
-
-export type ProductCostSource = 'MANUAL' | 'BOM' | 'ENGINEERING' | 'PURCHASE' | 'RATE'
 
 export type ParetoMode = 'materials' | 'full' | 'assemblies'

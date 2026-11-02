@@ -52,7 +52,7 @@ const submit = async (form: any) => {
         variant="ghost"
         color="neutral"
         label="Menu"
-        @click="moduleCollapsed = !moduleCollapsed"
+        @click="() => { moduleCollapsed = !moduleCollapsed }"
       />
       <UPageHeader title="Editar Unidad" />
     </div>

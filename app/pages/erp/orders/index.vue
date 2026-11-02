@@ -171,7 +171,7 @@ const statusButtons = [{ label: 'Todos', value: undefined }, ...statusOptions]
           color="neutral"
           size="sm"
           :label="opt.label"
-          @click="statusFilter = opt.value"
+          @click="() => { statusFilter = opt.value }"
         />
       </div>
 

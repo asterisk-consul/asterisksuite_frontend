@@ -177,7 +177,7 @@ const printCustomer = computed(() => {
 })
 
 const printItems = computed(() =>
-  enrichedItems.value.map(item => ({
+  enrichedItems.value.map((item: any) => ({
     code: item.products?.code || '',
     description: `${item.products?.name || item.products?.description || '—'}${item.product_variants?.name ? ` · ${item.product_variants.name}` : ''}`,
     quantity: Number(item.quantity),
@@ -203,7 +203,7 @@ const printTotals = computed(() => {
     ),
     net_subtotal: subtotal,
     adjustments,
-    taxes: allTaxes.value.map(t => ({ name: t.name, amount: t.amount })),
+    taxes: allTaxes.value.map((t: { name: string; amount: number }) => ({ name: t.name, amount: t.amount })),
     total,
     paid_amount: paidAmount,
     pending_amount: Math.max(0, total - paidAmount)

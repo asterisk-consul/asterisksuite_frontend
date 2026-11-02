@@ -3,6 +3,7 @@ definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
+import { useDocumentsTypesService } from '~/modulos/erp/documents/documents-types/services/documents-types.service'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import GenerateFromTripsModal from '~/components/sales/GenerateFromTripsModal.vue'
 import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
@@ -24,6 +25,7 @@ import {
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 const documentsSalesStore = useDocumentsSalesStore()
+const documentsTypesService = useDocumentsTypesService()
 const router = useRouter()
 const toast = useToast()
 const { can: canDocument } = useDocumentPermissions()
@@ -38,7 +40,7 @@ const error = computed(() => documentsSalesStore.error)
 const docTypes = ref<any[]>([])
 onMounted(async () => {
   try {
-    docTypes.value = await $fetch<any[]>('/api/backend/documents/documents-types')
+    docTypes.value = await documentsTypesService.findAll()
   } catch {
     /* ignore */
   }
@@ -211,15 +213,16 @@ const stats = computed(() => {
       byCategory: [],
       byStatus: statuses.map((s) => {
         const matching = docs.filter((d) => matchesStatusOption(d, s))
+        const flowValue = String(s.value ?? '')
         return {
           label: s.label,
           count: matching.length,
           total: matching.reduce((a, d) => a + Number(d.total), 0),
           color: typeof s.value === 'number'
             ? getStatusColor(categoryFilter.value, s.value)
-            : s.value.endsWith('PENDING')
+            : flowValue.endsWith('PENDING')
               ? 'warning'
-              : s.value.endsWith('ELIGIBLE')
+              : flowValue.endsWith('ELIGIBLE')
                 ? 'primary'
                 : 'info'
         }
@@ -332,7 +335,7 @@ const sortFields = [
     <AppPageHeader title="Comprobantes de venta" description="Gestión de documentos de venta">
       <template #links>
         <CreateDocumentMenu direction="sales" />
-        <UButton icon="i-lucide-file-plus" label="Generar desde viajes" @click="showGenerateModal = true" />
+        <UButton icon="i-lucide-file-plus" label="Generar desde viajes" @click="() => { showGenerateModal = true }" />
       </template>
     </AppPageHeader>
 

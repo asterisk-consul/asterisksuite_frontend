@@ -143,7 +143,7 @@ const links: ButtonProps[] = [
     icon: 'i-heroicons-plus',
     color: 'primary',
     variant: 'solid',
-    onClick: () => router.push('/erp/treasury/payments/create')
+    onClick: () => { void router.push('/erp/treasury/payments/create') }
   }
 ]
 
@@ -236,7 +236,7 @@ const dataActions = computed(() => [
           variant="solid"
           aria-keyshortcuts="Alt+N"
           title="Nuevo pago/cobro (Alt + N)"
-          @click="goToCreatePayment"
+          @click="() => { void (goToCreatePayment()) }"
         >
           <template #trailing>
             <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" />
@@ -253,21 +253,21 @@ const dataActions = computed(() => [
         size="xs"
         :color="modeFilter === 'ALL' ? 'primary' : 'neutral'"
         :variant="modeFilter === 'ALL' ? 'solid' : 'ghost'"
-        @click="modeFilter = 'ALL'"
+        @click="() => { modeFilter = 'ALL' }"
       />
       <UButton
         label="Normales"
         size="xs"
         :color="modeFilter === 'NORMAL' ? 'primary' : 'neutral'"
         :variant="modeFilter === 'NORMAL' ? 'solid' : 'ghost'"
-        @click="modeFilter = 'NORMAL'"
+        @click="() => { modeFilter = 'NORMAL' }"
       />
       <UButton
         label="Anticipos"
         size="xs"
         :color="modeFilter === 'ADVANCE' ? 'warning' : 'neutral'"
         :variant="modeFilter === 'ADVANCE' ? 'solid' : 'ghost'"
-        @click="modeFilter = 'ADVANCE'"
+        @click="() => { modeFilter = 'ADVANCE' }"
       />
       <div class="ml-auto flex items-center gap-3 rounded-lg border border-default px-3 py-1.5">
         <span class="text-sm text-muted">Mostrar anulados</span>
@@ -350,7 +350,7 @@ const dataActions = computed(() => [
           />
         </div>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="actionModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { actionModalOpen = false }" />
           <UButton
             :label="actionLabels[actionType]?.button"
             :color="(actionLabels[actionType]?.color as any)"
@@ -367,7 +367,7 @@ const dataActions = computed(() => [
       description="Selecciona un archivo Excel con los pagos a importar"
       :columns="importColumns"
       endpoint="/api/backend/payments/import"
-      @success="init"
+      @success="() => init()"
     />
   </UPage>
 </template>

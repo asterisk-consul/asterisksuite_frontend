@@ -2,6 +2,7 @@
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 import { useProductVariants } from '~/modulos/logistica/master-data/product-variants/composable/useVariants'
+import { useWarehouseProductionService, type WarehouseProductionPreview, type WarehouseProductionRequest } from '~/modulos/logistica/warehouses/warehouse/production.service'
 
 definePageMeta({ middleware: ['auth'] })
 useHead({ title: 'Fabricar productos' })
@@ -9,6 +10,7 @@ useHead({ title: 'Fabricar productos' })
 const productsStore = useProductsStore()
 const depositsStore = useDepositosStore()
 const variantsApi = useProductVariants()
+const productionService = useWarehouseProductionService()
 const toast = useToast()
 const productId = ref('')
 const variantId = ref('')
@@ -16,7 +18,7 @@ const loadingVariants = ref(false)
 const quantity = ref(1)
 const materialWarehouseId = ref('')
 const outputWarehouseId = ref('')
-const preview = ref<any>()
+const preview = ref<WarehouseProductionPreview>()
 const previewing = ref(false)
 const producing = ref(false)
 
@@ -32,6 +34,14 @@ const variantOptions = computed(() => variantsApi.items.value
   .filter(variant => variant.product_id === productId.value && variant.active !== false)
   .map(variant => ({ label: `${variant.name ?? 'Variante'}${variant.sku ? ` · ${variant.sku}` : ''}`, value: variant.id })))
 const selectedVariant = computed(() => variantOptions.value.find(option => option.value === variantId.value) ?? null)
+const productionRequest = (): WarehouseProductionRequest => ({
+  productId: productId.value,
+  variantId: variantId.value || undefined,
+  quantity: Number(quantity.value),
+  materialWarehouseId: materialWarehouseId.value,
+  outputWarehouseId: outputWarehouseId.value
+})
+
 const ready = computed(() => Boolean(
   productId.value
   && materialWarehouseId.value
@@ -67,16 +77,7 @@ async function calculate() {
   if (!ready.value) return
   previewing.value = true
   try {
-    preview.value = await $fetch('/api/backend/warehouse/stock/production/preview', {
-      method: 'POST',
-      body: {
-        product_id: productId.value,
-        variant_id: variantId.value || undefined,
-        quantity: Number(quantity.value),
-        material_warehouse_id: materialWarehouseId.value,
-        output_warehouse_id: outputWarehouseId.value
-      }
-    })
+    preview.value = await productionService.preview(productionRequest())
   } catch (error: any) {
     toast.add({ title: 'No se pudo preparar la fabricación', description: error?.data?.message || error?.message, color: 'error' })
   } finally {
@@ -88,16 +89,7 @@ async function produce() {
   if (producing.value || !preview.value?.can_produce) return
   producing.value = true
   try {
-    await $fetch('/api/backend/warehouse/stock/production/execute', {
-      method: 'POST',
-      body: {
-        product_id: productId.value,
-        variant_id: variantId.value || undefined,
-        quantity: Number(quantity.value),
-        material_warehouse_id: materialWarehouseId.value,
-        output_warehouse_id: outputWarehouseId.value
-      }
-    })
+    await productionService.execute(productionRequest())
     toast.add({ title: 'Fabricación registrada', description: `Se fabricaron ${quantity.value} unidades de ${selectedProduct.value?.name}${selectedVariant.value ? ` · ${selectedVariant.value.label}` : ''}.`, color: 'success' })
     quantity.value = 1
     preview.value = undefined

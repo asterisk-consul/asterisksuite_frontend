@@ -5,7 +5,9 @@ import { useCompanyRole } from '~/composables/useCompanyRole'
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 
-const allActions = [
+type QuickAction = { label: string; icon: string; to: string; color: 'error' | 'info' | 'success' | 'primary' | 'secondary' | 'warning' | 'neutral'; permission?: string }
+
+const allActions: QuickAction[] = [
   { label: 'Nuevo presupuesto', icon: 'i-lucide-file-plus', to: '/erp/budgets', color: 'info', permission: 'documents.create' },
   { label: 'Nueva OV', icon: 'i-lucide-shopping-cart', to: '/erp/orders', color: 'warning', permission: 'documents.create' },
   { label: 'Nuevo pago', icon: 'i-lucide-send', to: '/erp/treasury/payments/create', color: 'primary', permission: 'payments.create' },

@@ -11,6 +11,8 @@ import { useTreasuryObligationsService, type ObligationTemplate, type TreasuryOb
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useAccountsStore } from '~/modulos/contabilidad/store/accounts.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
+import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
 
 type View = 'pending' | 'recurring' | 'reports'
 type WithholdingRemittance = {
@@ -23,6 +25,8 @@ type WithholdingRemittance = {
   payments: Array<{ id: string; number: number; status: string; date: string }>
 }
 const service = useTreasuryObligationsService()
+const fiscalService = useFiscalService()
+const businessPartiesService = useBusinessPartiesService()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
@@ -280,8 +284,8 @@ async function load() {
   try {
     const [obligations, recurringRows, summaryData, partyRows, remittanceRows] = await Promise.all([
       service.findAll(), service.templates(), service.summary(),
-      $fetch<any[]>('/api/backend/master-data/business-parties'),
-      $fetch<WithholdingRemittance[]>('/api/backend/fiscal/withholdings/remittances'),
+      businessPartiesService.findAll(),
+      fiscalService.findWithholdingRemittances(),
       productsStore.fetchAll().catch(() => []), accountsStore.fetchAll().catch(() => [])
     ])
     rows.value = obligations
@@ -391,7 +395,7 @@ async function openRemittance(row: WithholdingRemittance) {
   remittanceDetailOpen.value = true
   remittanceDetailLoading.value = true
   try {
-    selectedRemittance.value = await $fetch<WithholdingRemittance>(`/api/backend/fiscal/withholdings/remittances/${row.id}`)
+    selectedRemittance.value = await fiscalService.findWithholdingRemittance(row.id)
   } catch (error: any) {
     toast.add({ title: 'No se pudo cargar el detalle del VEP', description: error?.data?.message || error?.message, color: 'error' })
   } finally {
@@ -535,7 +539,7 @@ onMounted(load)
             </div>
             <div v-if="attentionOnly" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
               <p class="flex items-center gap-2 text-sm text-warning"><UIcon name="i-lucide-filter" class="size-4" />Mostrando {{ visibleObligationRows.length }} obligación(es) que requieren atención</p>
-              <UButton label="Quitar filtro" icon="i-lucide-x" size="xs" color="warning" variant="ghost" @click="attentionOnly = false" />
+              <UButton label="Quitar filtro" icon="i-lucide-x" size="xs" color="warning" variant="ghost" @click="() => { attentionOnly = false }" />
             </div>
             <div ref="obligationsTableTarget" class="scroll-mt-24">
               <div v-if="loading" class="py-8 text-center"><ULoader /></div>
@@ -581,7 +585,7 @@ onMounted(load)
     </div>
 
     <UModal v-model:open="remittanceDetailOpen" :title="selectedRemittance ? `VEP ARCA ${selectedRemittance.vep_number}` : 'Detalle del VEP'" :ui="{ content: 'sm:max-w-2xl' }">
-      <template #body><div v-if="selectedRemittance" class="space-y-4"><div class="grid gap-3 sm:grid-cols-3"><div><p class="text-xs text-muted">Impuesto / período</p><p class="font-medium">{{ selectedRemittance.tax_type }} · {{ selectedRemittance.period_key }}</p></div><div><p class="text-xs text-muted">Jurisdicción</p><p class="font-medium">{{ selectedRemittance.jurisdiction?.name || 'Nacional' }}</p></div><div><p class="text-xs text-muted">Importe VEP</p><p class="font-semibold">{{ fmt(selectedRemittance.vep_amount, selectedRemittance.currency_code) }}</p></div></div><div v-if="remittanceDetailLoading" class="py-6 text-center"><ULoader /></div><div v-else class="max-h-96 overflow-y-auto rounded-lg border border-default"><div v-for="withholding in selectedRemittance.withholdings || []" :key="withholding.id" class="flex justify-between gap-4 border-b border-default px-3 py-2 last:border-0"><div><p class="text-sm font-medium">{{ withholding.business_party?.name || 'Sujeto retenido' }}</p><p class="text-xs text-muted">{{ withholding.tax_type }} · {{ fmtDate(withholding.date) }}<span v-if="withholding.business_party?.tax_id"> · CUIT {{ withholding.business_party.tax_id }}</span></p></div><strong class="text-sm">{{ fmt(withholding.withheld_amount, withholding.currency_code) }}</strong></div><p v-if="!selectedRemittance.withholdings?.length" class="p-4 text-center text-sm text-muted">Este VEP no tiene retenciones asociadas.</p></div><div class="flex justify-end gap-2"><UButton label="Cerrar" variant="ghost" @click="remittanceDetailOpen = false" /><UButton v-if="selectedRemittance.status !== 'PAID'" label="Pagar VEP" icon="i-lucide-hand-coins" color="success" @click="payRemittance(selectedRemittance)" /></div></div></template>
+      <template #body><div v-if="selectedRemittance" class="space-y-4"><div class="grid gap-3 sm:grid-cols-3"><div><p class="text-xs text-muted">Impuesto / período</p><p class="font-medium">{{ selectedRemittance.tax_type }} · {{ selectedRemittance.period_key }}</p></div><div><p class="text-xs text-muted">Jurisdicción</p><p class="font-medium">{{ selectedRemittance.jurisdiction?.name || 'Nacional' }}</p></div><div><p class="text-xs text-muted">Importe VEP</p><p class="font-semibold">{{ fmt(selectedRemittance.vep_amount, selectedRemittance.currency_code) }}</p></div></div><div v-if="remittanceDetailLoading" class="py-6 text-center"><ULoader /></div><div v-else class="max-h-96 overflow-y-auto rounded-lg border border-default"><div v-for="withholding in selectedRemittance.withholdings || []" :key="withholding.id" class="flex justify-between gap-4 border-b border-default px-3 py-2 last:border-0"><div><p class="text-sm font-medium">{{ withholding.business_party?.name || 'Sujeto retenido' }}</p><p class="text-xs text-muted">{{ withholding.tax_type }} · {{ fmtDate(withholding.date) }}<span v-if="withholding.business_party?.tax_id"> · CUIT {{ withholding.business_party.tax_id }}</span></p></div><strong class="text-sm">{{ fmt(withholding.withheld_amount, withholding.currency_code) }}</strong></div><p v-if="!selectedRemittance.withholdings?.length" class="p-4 text-center text-sm text-muted">Este VEP no tiene retenciones asociadas.</p></div><div class="flex justify-end gap-2"><UButton label="Cerrar" variant="ghost" @click="() => { remittanceDetailOpen = false }" /><UButton v-if="selectedRemittance.status !== 'PAID'" label="Pagar VEP" icon="i-lucide-hand-coins" color="success" @click="payRemittance(selectedRemittance)" /></div></div></template>
     </UModal>
 
     <UModal v-model:open="modalOpen" :title="recurring ? 'Nueva recurrencia' : editing ? 'Revisar obligación' : 'Nueva obligación'" :ui="{ content: 'sm:max-w-4xl' }">

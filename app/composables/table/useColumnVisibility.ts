@@ -315,7 +315,7 @@ export function useColumnVisibility<TTableApi extends TableApiLike>(
     // Mantiene en sus posiciones las columnas fijas, como selección y acciones.
     columnOrder.value = allColumns.map((col) => {
       if (!reorderableIds.has(col.id)) return col.id
-      return normalizedIds[nextReorderableIndex++]
+      return normalizedIds[nextReorderableIndex++] ?? col.id
     })
   }
 

@@ -1,4 +1,7 @@
+import { useNotificationsService } from '~/modulos/erp/notifications/notifications.service'
+
 export const useNotifications = () => {
+  const service = useNotificationsService()
   const items = useState<UserNotification[]>('user-notifications:items', () => [])
   const unreadCount = useState('user-notifications:unread-count', () => 0)
   const totalCount = useState('user-notifications:total-count', () => 0)
@@ -10,9 +13,7 @@ export const useNotifications = () => {
     if (loading.value) return
     loading.value = true
     try {
-      const result = await $fetch<UserNotificationFeed>('/api/backend/notifications', {
-        query: { take }
-      })
+      const result = await service.findFeed(take)
       items.value = result.items
       unreadCount.value = result.unread_count
       totalCount.value = result.total_count
@@ -24,7 +25,7 @@ export const useNotifications = () => {
   }
 
   async function dismissNotification(id: string) {
-    await $fetch(`/api/backend/notifications/${id}/dismiss`, { method: 'PATCH' })
+    await service.dismiss(id)
     const notification = items.value.find(item => item.id === id)
     items.value = items.value.filter(item => item.id !== id)
     if (notification && !notification.read_at) unreadCount.value = Math.max(0, unreadCount.value - 1)
@@ -33,7 +34,7 @@ export const useNotifications = () => {
 
   async function refreshDismissals() {
     try {
-      const result = await $fetch<{ alert_keys: string[] }>('/api/backend/notifications/dismissals')
+      const result = await service.findDismissals()
       dismissedAlertKeys.value = result.alert_keys ?? []
     } catch {
       dismissedAlertKeys.value = []
@@ -45,16 +46,13 @@ export const useNotifications = () => {
   }
 
   async function dismissAlert(key: string) {
-    await $fetch('/api/backend/notifications/dismissals', {
-      method: 'POST',
-      body: { alert_key: key }
-    })
+    await service.dismissAlert(key)
     if (!dismissedAlertKeys.value.includes(key)) dismissedAlertKeys.value.push(key)
   }
 
   async function markAllRead() {
     if (!unreadCount.value) return
-    const result = await $fetch<{ updated: number }>('/api/backend/notifications/read-all', { method: 'PATCH' })
+    const result = await service.markAllRead()
     const unreadIds = new Set(items.value.filter(item => !item.read_at).map(item => item.id))
     items.value = items.value.filter(item => !unreadIds.has(item.id))
     unreadCount.value = 0
@@ -62,7 +60,7 @@ export const useNotifications = () => {
   }
 
   async function remove(id: string) {
-    await $fetch(`/api/backend/notifications/${id}`, { method: 'DELETE' })
+    await service.remove(id)
     const notification = items.value.find(item => item.id === id)
     items.value = items.value.filter(item => item.id !== id)
     if (notification && !notification.read_at) {

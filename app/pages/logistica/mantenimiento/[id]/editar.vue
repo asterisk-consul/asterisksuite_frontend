@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 import { useMaintenanceStore } from '~/modulos/logistica/maintenance/store/maintenance.store'
+import { useMaintenanceService } from '~/modulos/logistica/maintenance/service/maintenance.service'
 import {
   MaintenanceAssetType,
   MaintenanceCategory,
@@ -11,6 +12,7 @@ import {
 const route = useRoute()
 const router = useRouter()
 const store = useMaintenanceStore()
+const maintenanceService = useMaintenanceService()
 const toast = useToast()
 
 const id = route.params.id as string
@@ -96,10 +98,10 @@ async function fetchAssets() {
   loadingAssets.value = true
   try {
     if (form.asset_type === MaintenanceAssetType.VEHICLE) {
-      const data = await $fetch<any[]>('/api/backend/vehicles')
+      const data = await maintenanceService.getVehicleDirectory()
       vehicles.value = data
     } else if (form.asset_type === MaintenanceAssetType.TIRE) {
-      const data = await $fetch<any>('/api/backend/maintenance/tires', { params: { limit: 500 } })
+      const data = await maintenanceService.getTires({ limit: 500 })
       tires.value = data.data ?? data
     }
   } catch {
@@ -175,7 +177,7 @@ async function handleSubmit() {
     toast.add({ title: 'Orden actualizada', color: 'success' })
     router.push(`/logistica/mantenimiento/${id}`)
   } catch (err: any) {
-    toast.add({ title: 'Error al actualizar', color: 'error', description: store.error })
+    toast.add({ title: 'Error al actualizar', color: 'error', description: store.error ?? undefined })
   } finally {
     saving.value = false
   }

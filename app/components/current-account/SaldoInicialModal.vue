@@ -55,7 +55,7 @@ const resultingAmount = computed(() => {
 })
 
 const selectedPartyType = computed({
-  get: () => partyTypeOptions.find(o => o.value === form.party_type) ?? null,
+  get: () => partyTypeOptions.find(o => o.value === form.party_type),
   set: (val) => {
     form.party_type = (val?.value as 'CUSTOMER' | 'SUPPLIER') ?? 'CUSTOMER'
     form.party_id = ''
@@ -84,7 +84,7 @@ const filteredParties = computed(() => {
 const selectedParty = computed({
   get: () => {
     const party = allParties.value.find(p => p.id === form.party_id)
-    if (!party) return null
+    if (!party) return undefined
     return { label: party.tax_id ? `${party.name} (${party.tax_id})` : party.name, value: party.id }
   },
   set: (val) => { form.party_id = val?.value ?? '' },
@@ -121,8 +121,8 @@ async function loadLatestExchangeRate() {
   form.exchange_rate = rate ? Number(rate) : null
 }
 
-function markExchangeRateAsManual(value: number | string) {
-  const rate = Number(value)
+function markExchangeRateAsManual(value: number | string | null) {
+  const rate = Number(value ?? 0)
   form.exchange_rate = rate > 0 ? rate : null
   if (rate > 0) setManualRate(rate)
 }

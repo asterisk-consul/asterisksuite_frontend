@@ -1,26 +1,12 @@
 <script setup lang="ts">
+import { useWarehouseProductionService, type WarehouseProductionRecord as ProductionRecord, type WarehouseProductionSummary as ProductionSummary } from '~/modulos/logistica/warehouses/warehouse/production.service'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 
 definePageMeta({ middleware: ['auth'] })
 useHead({ title: 'Fabricación' })
 
-type ProductionSummary = {
-  total_fabrications: number
-  total_quantity: number
-  recent_fabrications: number
-  recent_quantity: number
-  last_fabrication_at: string | null
-}
-
-type ProductionRecord = {
-  id: string
-  product?: { name?: string | null; sku?: string | null } | null
-  warehouse?: { name?: string | null } | null
-  quantity: number
-  created_at: string
-}
-
+const productionService = useWarehouseProductionService()
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 const can = (permissions: string[]) => isOwnerOrAdmin.value || permissions.some(permission => hasPermission(permission))
@@ -96,10 +82,10 @@ async function loadDashboard() {
 
   const [summaryResult, historyResult] = await Promise.allSettled([
     canReadSummary.value
-      ? $fetch<ProductionSummary>('/api/backend/warehouse/stock/production/summary')
+      ? productionService.summary()
       : Promise.resolve(null),
     canReadHistory.value
-      ? $fetch<ProductionRecord[]>('/api/backend/warehouse/stock/production/history', { query: { limit: 5 } })
+      ? productionService.history(5)
       : Promise.resolve([] as ProductionRecord[])
   ])
 

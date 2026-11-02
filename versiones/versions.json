@@ -1,5 +1,61 @@
 [
  {
+  "version": "0.118.0-alpha",
+  "date": "2026-11-02",
+  "stage": "alpha",
+  "notes": "PLATFORM_OWNER puede asignar cuentas existentes como administradores de plataforma y limitar las empresas que gestionan. El alcance es independiente de los usuarios y roles del ERP tenant.",
+  "changes": [
+   { "type": "feat", "scope": "platform-access", "title": "Administrar cuentas PLATFORM_ADMIN y asignarles empresas sin otorgar acceso al ERP" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Asignar administradores de plataforma con alcance por empresa"
+ },
+ {
+  "version": "0.117.2-alpha",
+  "date": "2026-11-02",
+  "stage": "alpha",
+  "notes": "PLATFORM_ADMIN solo puede gestionar las empresas asociadas a su usuario. PLATFORM_OWNER conserva la gestión global de empresas, planes y altas.",
+  "changes": [
+   { "type": "fix", "scope": "platform-access", "title": "Limitar a PLATFORM_ADMIN a las empresas asociadas y reservar la gestión global a PLATFORM_OWNER" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Restringir la gestión de empresas al alcance de cada rol de plataforma"
+ },
+ {
+  "version": "0.117.1-alpha",
+  "date": "2026-11-02",
+  "stage": "alpha",
+  "notes": "Si la base de plataforma todavía no tiene sembrado el catálogo de módulos, el acceso existente al ERP se conserva mientras se completa la configuración.",
+  "changes": [
+   { "type": "fix", "scope": "platform-modules", "title": "Conservar el acceso al ERP cuando falta el catálogo de módulos de plataforma" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Conservar el acceso durante la inicialización del catálogo de módulos"
+ },
+ {
+  "version": "0.117.0-alpha",
+  "date": "2026-10-31",
+  "stage": "alpha",
+  "notes": "El administrador de plataforma puede dar de alta empresas con un titular registrado, un plan y un estado inicial, y luego configurar sus módulos desde la misma pantalla.",
+  "changes": [
+   { "type": "feat", "scope": "platform-companies", "title": "Crear empresas manualmente desde plataforma y asociar titular, plan y estado inicial" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Dar de alta empresas desde la administración de plataforma"
+ },
+ {
+  "version": "0.116.1-alpha",
+  "date": "2026-10-31",
+  "stage": "alpha",
+  "notes": "La administración de planes abre en la gestión de empresas y muestra si cada módulo está habilitado por plan o por excepción. Los cambios fallidos presentan un aviso para poder corregirlos.",
+  "changes": [
+   { "type": "style", "scope": "platform-modules", "title": "Priorizar el control de módulos por empresa al abrir Planes y módulos" },
+   { "type": "fix", "scope": "platform-modules", "title": "Informar errores al guardar excepciones de acceso por módulo" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Administrar módulos directamente desde cada empresa"
+ },
+ {
   "version": "0.116.0-alpha",
   "date": "2026-10-30",
   "stage": "alpha",

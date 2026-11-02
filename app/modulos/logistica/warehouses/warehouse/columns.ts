@@ -6,14 +6,6 @@ import StatusToggle from '@/components/ui/PopoverTableActive.vue'
 import type { Warehouse } from '~/modulos/logistica/warehouses/warehouse/warehouse.types'
 import type { Component } from 'vue'
 type OptionValue = string | boolean
-import '@tanstack/table-core'
-
-declare module '@tanstack/table-core' {
-  interface ColumnMeta<TData, TValue> {
-    filterType?: 'text' | 'date-range'
-  }
-}
-
 type EditableField = 'name' | 'code' | 'locationId'
 type EditableValue = string | null | undefined
 
@@ -41,14 +33,14 @@ export const createWarehouseColumns = (actions: {
         modelValue: table.getIsSomePageRowsSelected()
           ? 'indeterminate'
           : table.getIsAllPageRowsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-          table.toggleAllPageRowsSelected(!!value)
+        'onUpdate:modelValue': (value: unknown) =>
+          table.toggleAllPageRowsSelected(value === true || value === 'indeterminate')
       }),
     cell: ({ row }) =>
       h(UCheckbox, {
         modelValue: row.getIsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-          row.toggleSelected(!!value)
+        'onUpdate:modelValue': (value: unknown) =>
+          row.toggleSelected(value === true || value === 'indeterminate')
       })
   },
   {
@@ -190,7 +182,7 @@ export const createWarehouseColumns = (actions: {
     accessorKey: 'created_at',
     header: 'Creado',
 
-    meta: { filterType: 'date-range' }, // ✅ coincide con tu tabla
+    meta: { filterType: 'date-range' } as any, // coincide con el filtro personalizado de la tabla
 
     // 👇 filtro por rango de fechas
     filterFn: (row, columnId, value) => {

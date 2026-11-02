@@ -1,15 +1,15 @@
 import type { Ref, ComputedRef } from 'vue'
-import { getStatusLabel, getStatusColor, getValidTransitions } from '~/modulos/erp/documents/types/document-statuses'
+import { getStatusLabel, getStatusColor, getValidTransitions, type BadgeColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from './useDocumentPermissions'
 
 type Doc = Record<string, any> | null
 
 type DocumentActionsConfig = {
   doc: Ref<Doc>
-  category: ComputedRef<string | undefined>
+  category: ComputedRef<string | null | undefined>
   router: ReturnType<typeof useRouter>
   store: {
-    confirm: (id: string, options?: { updateProductPrices?: boolean }) => Promise<any>
+    confirm: (id: string, options?: { updateProductPrices?: boolean; assigned_to?: string | null }) => Promise<any>
     cancel: (id: string) => Promise<any>
     changeStatus: (id: string, status: number) => Promise<any>
     fetchOne: (id: string) => Promise<any>
@@ -21,7 +21,7 @@ type DocumentActionsConfig = {
   /** Module prefix for routing: 'sales' or 'purchases' */
   module?: 'sales' | 'purchases'
   /** Override default transitions from getValidTransitions */
-  customTransitions?: Array<{ label: string; status: number; color: string }>
+  customTransitions?: Array<{ label: string; status: number; color: BadgeColor }>
   /** Print function from usePrint() composable */
   printElement?: (elementId: string, options?: { title?: string; copies?: number }) => void
 }
@@ -113,7 +113,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   // Number of print copies: facturas/OV=2 (DUPLICADO+ORIGINAL), remitos=3 (TRIPLICADO+DUPLICADO+ORIGINAL)
   const copyCount = computed(() => {
     const cat = category.value
-    if (['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'ORDER'].includes(cat)) return 2
+    if (cat && ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'ORDER'].includes(cat)) return 2
     if (cat === 'REMITO') return 3
     return 1
   })
@@ -126,12 +126,13 @@ export function useDocumentActions(config: DocumentActionsConfig) {
 
     if ((isDraft.value || isPending.value)
       && doc.value?.amounts_visible !== false
-      && canDocument(module, category.value, 'update')) {
+      && canDocument(module, category.value ?? undefined, 'update')) {
       items.push({
         label: 'Editar',
         icon: 'i-lucide-pencil',
         help: 'Permite modificar los datos del documento. Solo disponible en borrador o pendiente.',
         onClick: () => {
+          if (!id.value) return
           if (module === 'purchases') {
             if (category.value === 'ORDER') {
               return router.push(`/erp/purchases/orders/${id.value}/edit`)
@@ -163,7 +164,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       })
     }
 
-    if (isDraft.value && canDocument(module, category.value, 'confirm')) {
+    if (isDraft.value && category.value && canDocument(module, category.value, 'confirm')) {
       items.push({
         label: 'Confirmar',
         icon: 'i-lucide-check-circle',
@@ -222,7 +223,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     const canCancelCurrent = isDraft.value
       || (category.value === 'ORDER' && Number(doc.value?.status) >= 2 && Number(doc.value?.status) < 7)
       || (category.value === 'INVOICE' && (isPending.value || isConfirmed.value))
-    if (canCancelCurrent && canDocument(module, category.value, 'cancel')) {
+    if (canCancelCurrent && canDocument(module, category.value ?? undefined, 'cancel')) {
       items.push([{ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onClick: () => { cancelModalOpen.value = true } }])
     }
 
@@ -236,7 +237,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       }])
     }
 
-    if (category.value !== 'ORDER' && validTransitions.value.length > 0 && canDocument(module, category.value, 'update')) {
+    if (category.value !== 'ORDER' && validTransitions.value.length > 0 && canDocument(module, category.value ?? undefined, 'update')) {
       items.push([{ label: 'Cambiar estado', icon: 'i-lucide-arrow-right-circle', color: 'primary', onClick: () => { statusModalOpen.value = true } }])
     }
 

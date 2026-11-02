@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
+import { useEmployeesService } from '~/modulos/erp/employees/service/employees.service'
+import { usePartnersService } from '~/modulos/erp/partners/service/partners.service'
+import { useCashBoxesService } from '~/modulos/erp/cash-boxes/service/cash-boxes.service'
+import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
+import { HrService } from '~/modulos/erp/hr/services/hr.service'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -9,6 +14,10 @@ const emit = defineEmits<{
 }>()
 
 const hrStore = useHrStore()
+const employeesService = useEmployeesService()
+const partnersService = usePartnersService()
+const cashBoxesService = useCashBoxesService()
+const bankAccountsService = useBankAccountsService()
 const toast = useToast()
 const {
   autoResolve: resolveExchangeRate,
@@ -125,7 +134,7 @@ async function loadLatestExchangeRate() {
   if (rate) createForm.value.exchange_rate = Number(rate)
 }
 
-function markExchangeRateAsManual(value: number | string) {
+function markExchangeRateAsManual(value: number | string | null) {
   const rate = Number(value)
   if (rate > 0) setManualRate(rate)
 }
@@ -133,8 +142,8 @@ function markExchangeRateAsManual(value: number | string) {
 async function loadPeople() {
   try {
     const [employees, partners] = await Promise.all([
-      $fetch<any[]>('/api/backend/employees'),
-      $fetch<any[]>('/api/backend/partners')
+      employeesService.findAll(),
+      partnersService.findAll()
     ])
     people.value = [
       ...employees.map((e: any) => ({
@@ -156,8 +165,8 @@ async function loadPeople() {
 async function loadTreasuryTargets() {
   try {
     const [boxes, banks] = await Promise.all([
-      $fetch<any[]>('/api/backend/cash-boxes'),
-      $fetch<any[]>('/api/backend/bank-accounts')
+      cashBoxesService.findAll(),
+      bankAccountsService.findAll()
     ])
     cashBoxes.value = boxes
     bankAccounts.value = banks
@@ -180,7 +189,7 @@ watch([open, () => createForm.value.party_id, () => createForm.value.party_type,
   if (!open.value || !isPartner.value || !createForm.value.party_id) return
   loadingFunds.value = true
   try {
-    const funds = await $fetch<NonNullable<typeof partnerFunds.value>>(`/api/backend/hr/partners/${createForm.value.party_id}/funds`, { query: { currency_code: createForm.value.currency_code } })
+    const funds = await HrService.getPartnerFunds(createForm.value.party_id, createForm.value.currency_code)
     if (request === fundsRequest) partnerFunds.value = funds
   } catch {
     if (request === fundsRequest) fundsError.value = true
@@ -231,6 +240,7 @@ async function handleCreate() {
       ? { id: pendingCreatedValeId.value }
       : await hrStore.createVale({
           ...createForm.value,
+          exchange_rate: createForm.value.exchange_rate ?? 1,
           rate_type: 'OFFICIAL',
           converted_amount: convertedAmount.value ?? createForm.value.amount,
         })
@@ -520,7 +530,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           {{ requiresDirectTreasury && confirmAutomatically ? `${isOutflow ? 'Se debitará' : 'Se acreditará'} en ${treasuryTargetType === 'CASH_BOX' ? 'caja' : 'banco'}.` : isPartner && createForm.type === 'SUELDO' ? 'La remuneración queda pendiente de pago en Tesorería.' : 'Revisá los datos antes de guardar.' }}
         </p>
         <div class="flex justify-end gap-2">
-        <UButton label="Cancelar" variant="ghost" :disabled="saving" @click="open = false" />
+        <UButton label="Cancelar" variant="ghost" :disabled="saving" @click="() => { open = false }" />
         <UButton
           v-if="!confirmAutomatically"
           label="Crear borrador"

@@ -8,6 +8,7 @@ import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencie
 import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-documents.services'
 import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
+import ProductPickerField from '~/components/erp/products/ProductPickerField.vue'
 import QuoteAssignmentFields from './QuoteAssignmentFields.vue'
 import type { QuoteAssignmentInput } from '~/modulos/international-operations/types/international-operations.types'
 
@@ -32,7 +33,7 @@ const operationsService = useInternationalOperationsService()
 const productsStore = useProductsStore()
 const docTypes = useDocumentTypes()
 const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
-const { items: allProductOptions } = useProducts('PURCHASE')
+const { items: allProductOptions } = useProducts('purchase')
 
 const loading = ref(false)
 const assignment = ref<QuoteAssignmentInput>({ container_id: '', expense_type: 'MERCHANDISE' })
@@ -170,6 +171,7 @@ const addItem = () => {
     unit_price: Number(product.price ?? 0)
   })
   selectedProduct.value = undefined
+  productSearch.value = ''
 }
 const removeItem = (idx: number) => {
   items.value.splice(idx, 1)
@@ -353,31 +355,21 @@ const handleSubmit = async () => {
             </div>
           </div>
 
-          <div class="mb-4 rounded-lg bg-muted/30 p-3">
-            <UFormField label="Agregar producto" description="Buscá por código o nombre; los resultados aparecen mientras escribís.">
-              <div class="flex min-w-0 flex-col gap-2 sm:flex-row">
-                <USelectMenu
-                  v-model="selectedProduct"
-                  :items="productOptions"
-                  v-model:search-term="productSearch"
-                  placeholder="Buscar producto por código o nombre..."
-                  searchable
-                  size="lg"
-                  class="min-w-0 flex-1"
-                  :loading="productSearching"
-                  :disabled="loading"
-                />
-                <UButton
-                  label="Agregar"
-                  icon="i-lucide-plus"
-                  size="lg"
-                  class="justify-center sm:shrink-0"
-                  :disabled="loading || !selectedProduct"
-                  @click="addItem"
-                />
-              </div>
-            </UFormField>
-          </div>
+          <ProductPickerField
+            v-model="selectedProduct"
+            v-model:search-term="productSearch"
+            :items="productOptions"
+            :loading="productSearching"
+            :disabled="loading"
+            :active="props.open"
+            :add-disabled="!selectedProduct"
+            :filter-locally="false"
+            appearance="inline"
+            field-label="Agregar producto"
+            field-description="Buscá por código o nombre; los resultados aparecen mientras escribís."
+            placeholder="Buscar producto por código o nombre..."
+            @add="addItem"
+          />
 
           <div class="space-y-3">
             <div v-if="items.length === 0" class="rounded-lg border border-dashed border-default px-4 py-8 text-center">

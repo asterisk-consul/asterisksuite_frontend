@@ -194,7 +194,7 @@ const handleComponentSaved = async () => {
         <div class="mt-4 space-y-4">
           <div class="flex items-center justify-between">
             <h2 class="text-sm font-semibold">Árbol de ingeniería</h2>
-            <UButton size="sm" variant="outline" icon="i-heroicons-plus" @click="showAddComponent = true">
+            <UButton size="sm" variant="outline" icon="i-heroicons-plus" @click="() => { showAddComponent = true }">
               Agregar componente
             </UButton>
           </div>

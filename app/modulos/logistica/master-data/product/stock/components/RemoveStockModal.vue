@@ -73,7 +73,7 @@ const hasReserved = computed(() => {
         <UButton
           variant="outline"
           :disabled="loading"
-          @click="open = false"
+          @click="() => { open = false }"
         >
           Cancelar
         </UButton>

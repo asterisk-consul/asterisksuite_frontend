@@ -14,8 +14,8 @@ export function useDocumentsTypes(documentsTypes: Ref<DocumentsType[]>) {
     documentsTypes.value.map((documentType) => ({
       label:
         documentType.code && documentType.code.length > 0
-          ? `${documentType.code} - ${documentType.name}`
-          : documentType.name,
+          ? `${documentType.code} - ${documentType.description}`
+          : documentType.description,
 
       value: documentType.id
     }))

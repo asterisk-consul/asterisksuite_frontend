@@ -147,8 +147,11 @@ export const useAuthStore = defineStore('auth', () => {
       selectedCompany.value = null
       companies.value = res.companies ?? []
       if (companies.value.length === 1) {
-        selectedCompany.value = companies.value[0]
-        persistSelectedCompany(selectedCompany.value)
+        const company = companies.value[0]
+        if (company) {
+          selectedCompany.value = company
+          persistSelectedCompany(company)
+        }
       } else if (!autoSelectCompanyBySubdomain()) {
         restoreSelectedCompany()
       }
@@ -177,8 +180,11 @@ export const useAuthStore = defineStore('auth', () => {
       selectedCompany.value = null
       companies.value = res.companies ?? []
       if (companies.value.length === 1) {
-        selectedCompany.value = companies.value[0]
-        persistSelectedCompany(selectedCompany.value)
+        const company = companies.value[0]
+        if (company) {
+          selectedCompany.value = company
+          persistSelectedCompany(company)
+        }
       } else if (!autoSelectCompanyBySubdomain()) {
         restoreSelectedCompany()
       }

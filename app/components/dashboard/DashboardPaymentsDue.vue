@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCurrencyWhole as formatCurrency } from '~/utils/formatMoneda'
 const props = defineProps<{
   data?: {
     payments: { count: number; total: number }
@@ -7,13 +8,7 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
+
 
 const totalItems = computed(() => {
   if (!props.data) return 0

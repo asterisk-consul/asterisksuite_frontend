@@ -75,7 +75,7 @@ export const bomColumns = (actions: {
           new Intl.NumberFormat('es-AR', {
             style: 'currency',
             currency: 'ARS'
-          }).format(row.original.current_cost ?? 0),
+          }).format(Number(row.original.current_cost ?? 0)),
         meta: {
           filter: {
             type: 'number',

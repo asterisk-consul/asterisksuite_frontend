@@ -3,6 +3,7 @@ definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
+import { useDocumentsTypesService } from '~/modulos/erp/documents/documents-types/services/documents-types.service'
 import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
 import { useServerTable } from '~/composables/table/useServerTable'
 import {
@@ -23,6 +24,7 @@ import {
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 const documentsPurchasesStore = useDocumentsPurchasesStore()
+const documentsTypesService = useDocumentsTypesService()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
@@ -48,7 +50,7 @@ const error = computed(() => documentsPurchasesStore.error)
 const docTypes = ref<any[]>([])
 onMounted(async () => {
   try {
-    docTypes.value = await $fetch<any[]>('/api/backend/documents/documents-types')
+    docTypes.value = await documentsTypesService.findAll()
   } catch {
     /* ignore */
   }

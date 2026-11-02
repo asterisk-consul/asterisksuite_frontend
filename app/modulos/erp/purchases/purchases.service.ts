@@ -4,6 +4,9 @@
   SummaryFilters
 } from '../purchases/types/purchases.types'
 
+const apiFetch = <T>(request: string, options?: any): Promise<T> =>
+  ($fetch as unknown as (request: string, options?: any) => Promise<T>)(request, options)
+
 export const PurchasesService = {
   async getSummary(filters?: SummaryFilters): Promise<PurchaseSummaryResponse> {
     const params = new URLSearchParams()
@@ -11,7 +14,7 @@ export const PurchasesService = {
     if (filters?.endDate) params.set('endDate', filters.endDate)
     if (filters?.supplierId) params.set('supplierId', filters.supplierId)
     const qs = params.toString() ? `?${params.toString()}` : ''
-    return $fetch(`/api/backend/purchases/summary${qs}`)
+    return apiFetch<PurchaseSummaryResponse>(`/api/backend/purchases/summary${qs}`)
   },
 
   async getMovements(
@@ -28,14 +31,14 @@ export const PurchasesService = {
 
     const qs = params.toString() ? `?${params.toString()}` : ''
 
-    return $fetch(`/api/backend/purchases/movements${qs}`)
+    return apiFetch<PurchaseMovement[]>(`/api/backend/purchases/movements${qs}`)
   },
 
   async getProducts() {
-    return $fetch('/api/backend/purchases/products')
+    return apiFetch<any[]>('/api/backend/purchases/products')
   },
 
   async getProductById(id: number | string) {
-    return $fetch(`/api/backend/purchases/products/${id}`)
+    return apiFetch<any>(`/api/backend/purchases/products/${id}`)
   }
 }

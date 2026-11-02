@@ -36,6 +36,26 @@ const form = reactive<BankChargeRuleInput>({
   fixed_amount: 0, percentage: null, minimum_amount: null, maximum_amount: null,
   currency_code: props.currencyCode, valid_from: null, valid_until: null, priority: 0, editable: true, active: true
 })
+const percentageInput = computed<number | undefined>({
+  get: () => form.percentage ?? undefined,
+  set: value => { form.percentage = value ?? null }
+})
+const minimumAmountInput = computed<number | undefined>({
+  get: () => form.minimum_amount ?? undefined,
+  set: value => { form.minimum_amount = value ?? null }
+})
+const maximumAmountInput = computed<number | undefined>({
+  get: () => form.maximum_amount ?? undefined,
+  set: value => { form.maximum_amount = value ?? null }
+})
+const validFromInput = computed<string | undefined>({
+  get: () => form.valid_from ?? undefined,
+  set: value => { form.valid_from = value ?? null }
+})
+const validUntilInput = computed<string | undefined>({
+  get: () => form.valid_until ?? undefined,
+  set: value => { form.valid_until = value ?? null }
+})
 async function load() { loading.value = true; try { rules.value = await service.getChargeRules(props.accountId) } finally { loading.value = false } }
 function openCreate() { editing.value = null; Object.assign(form, { bank_concept_id: '', name: '', trigger: 'BANK_PAYMENT', calculation_type: 'PERCENTAGE', fixed_amount: 0, percentage: null, minimum_amount: null, maximum_amount: null, currency_code: props.currencyCode, valid_from: null, valid_until: null, priority: 0, editable: true, active: true }); modalOpen.value = true }
 function openEdit(rule: BankChargeRule) { editing.value = rule; Object.assign(form, { ...rule, valid_from: rule.valid_from?.slice(0, 10) || null, valid_until: rule.valid_until?.slice(0, 10) || null }); modalOpen.value = true }
@@ -79,14 +99,14 @@ onMounted(async () => { await Promise.all([load(), concepts.init()]) })
         <UFormField label="Concepto bancario" required><USelectMenu v-model="form.bank_concept_id" value-key="value" :items="conceptItems" searchable class="w-full" /></UFormField>
         <UFormField label="Cálculo" required><USelect v-model="form.calculation_type" :items="calculationTypes" class="w-full" /></UFormField>
         <UFormField v-if="form.calculation_type !== 'PERCENTAGE'" label="Importe fijo"><UInput v-model.number="form.fixed_amount" type="number" min="0" class="w-full" /></UFormField>
-        <UFormField v-if="form.calculation_type !== 'FIXED'" label="Porcentaje"><UInput v-model.number="form.percentage" type="number" min="0" step="0.01" class="w-full"><template #trailing>%</template></UInput></UFormField>
-        <UFormField label="Mínimo opcional"><UInput v-model.number="form.minimum_amount" type="number" min="0" class="w-full" /></UFormField>
-        <UFormField label="Tope opcional"><UInput v-model.number="form.maximum_amount" type="number" min="0" class="w-full" /></UFormField>
-        <UFormField label="Vigente desde"><UInput v-model="form.valid_from" type="date" class="w-full" /></UFormField>
-        <UFormField label="Vigente hasta"><UInput v-model="form.valid_until" type="date" class="w-full" /></UFormField>
+        <UFormField v-if="form.calculation_type !== 'FIXED'" label="Porcentaje"><UInput v-model.number="percentageInput" type="number" min="0" step="0.01" class="w-full"><template #trailing>%</template></UInput></UFormField>
+        <UFormField label="Mínimo opcional"><UInput v-model.number="minimumAmountInput" type="number" min="0" class="w-full" /></UFormField>
+        <UFormField label="Tope opcional"><UInput v-model.number="maximumAmountInput" type="number" min="0" class="w-full" /></UFormField>
+        <UFormField label="Vigente desde"><UInput v-model="validFromInput" type="date" class="w-full" /></UFormField>
+        <UFormField label="Vigente hasta"><UInput v-model="validUntilInput" type="date" class="w-full" /></UFormField>
         <div class="sm:col-span-2 flex flex-wrap gap-5"><UCheckbox v-model="form.active" label="Regla activa"/><UCheckbox v-model="form.editable" label="Permitir corregir la sugerencia"/></div>
       </div>
     </template>
-    <template #footer><div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="ghost" @click="modalOpen=false"/><UButton label="Guardar regla" :loading="saving" :disabled="!form.name || !form.bank_concept_id" @click="save"/></div></template>
+    <template #footer><div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="ghost" @click="() => { modalOpen=false }"/><UButton label="Guardar regla" :loading="saving" :disabled="!form.name || !form.bank_concept_id" @click="save"/></div></template>
   </UModal>
 </template>

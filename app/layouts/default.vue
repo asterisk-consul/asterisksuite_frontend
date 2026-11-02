@@ -1,30 +1,28 @@
 <script setup lang="ts">
-import { useVersion } from '~/composables/useVersion'
-import { useAppVersion } from '~/composables/useAppVersion'
-import { filterNavigationTree } from '~/composables/useDrilldownNavigation'
-import { navigationTree } from '~/data/navigationTree'
-import { useRoles } from '~/modulos/access-control/composables/useRoles'
-import { useCompanyRole } from '~/composables/useCompanyRole'
-import { useCurrentUserEmployee } from '~/composables/useCurrentUserEmployee'
-import DrilldownSidebar from '~/components/ui/DrilldownSidebar.vue'
 import AppVersionBanner from '~/components/AppVersionBanner/AppVersionBanner.vue'
+import DrilldownSidebar from '~/components/ui/DrilldownSidebar.vue'
+
+import { useAppVersion } from '~/composables/useAppVersion'
+import { useDrilldownNavigation } from '~/composables/useDrilldownNavigation'
+
 const { mainCollapsed } = useSidebarState()
+const moduleCollapsed = useState('module-sidebar-collapsed', () => false)
+provide('moduleSidebarCollapsed', moduleCollapsed)
 const { items: breadcrumbs } = useBreadcrumbs()
 const { isNotificationsSlideoverOpen } = useDashboard()
 const isHelpAssistantOpen = ref(false)
 const { totalCount, companyAlertCount, refresh: refreshNotifications } = useNotifications()
 const notificationBadgeCount = computed(() => totalCount.value + companyAlertCount.value)
 const open = ref(false)
+const cookieConsent = useCookie('cookie-consent')
 
 const pageTitle = computed(() => {
-  const current = [...breadcrumbs.value].reverse().find(item => 'label' in item && item.label)
-  return current && 'label' in current ? String(current.label) : 'Asterisk Suite'
+  const current = [...breadcrumbs.value].reverse().find(item => item.label)
+  return current?.label || 'Asterisk Suite'
 })
 
 useHead({ title: pageTitle })
 
-const versions = useVersion()
-const route = useRoute()
 const toast = useToast()
 const refreshNotificationsOnFocus = () => {
   if (document.visibilityState === 'visible') void refreshNotifications()
@@ -32,15 +30,14 @@ const refreshNotificationsOnFocus = () => {
 
 const { init: initVersionCheck, showBanner, dismiss: dismissVersionBanner, currentVersion } = useAppVersion()
 
-const { hasPermission } = useRoles()
-const { isOwnerOrAdmin } = useCompanyRole()
-const { isSalesperson } = useCurrentUserEmployee()
-const permittedNavigation = computed(() =>
-  filterNavigationTree(navigationTree, hasPermission, isOwnerOrAdmin.value, isSalesperson.value)
-)
+const { filteredTree: permittedNavigation } = useDrilldownNavigation()
 
 function openNotifications() {
   isNotificationsSlideoverOpen.value = true
+}
+
+function openHelpAssistant() {
+  isHelpAssistantOpen.value = true
 }
 
 const groups = computed(() => {
@@ -90,8 +87,7 @@ onMounted(() => {
   document.addEventListener('visibilitychange', refreshNotificationsOnFocus)
   initVersionCheck()
 
-  const cookie = useCookie('cookie-consent')
-  if (cookie.value === 'accepted') {
+  if (cookieConsent.value === 'accepted') {
     return
   }
 
@@ -105,7 +101,7 @@ onMounted(() => {
         color: 'neutral',
         variant: 'outline',
         onClick: () => {
-          cookie.value = 'accepted'
+          cookieConsent.value = 'accepted'
         }
       },
       {
@@ -170,7 +166,7 @@ onBeforeUnmount(() => {
               variant="ghost"
               aria-label="Preguntar a la ayuda"
               title="Preguntar a la ayuda"
-              @click="isHelpAssistantOpen = true"
+              @click="openHelpAssistant"
             />
             <slot name="navbar-actions" />
           </template>

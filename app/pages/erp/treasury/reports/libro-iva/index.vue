@@ -4,9 +4,11 @@ import DateRangePicker from '~/components/compras/FiltroDateCompras.vue'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 import { useExcelExport } from '~/composables/useExcelExport'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import { useTreasuryReportsService } from '~/modulos/erp/treasury-reports/service/treasury-reports.service'
 
 const { isOwnerOrAdmin } = useCompanyRole()
 const { exportToExcel } = useExcelExport()
+const treasuryReportsService = useTreasuryReportsService()
 
 const formatCurrency = (amount: number | string | null | undefined) => {
   const num = Number(amount) || 0
@@ -41,11 +43,9 @@ const toLocalDateString = (d: Date) => {
 const fetchLibro = async () => {
   loading.value = true
   try {
-    libroData.value = await $fetch<any[]>('/api/backend/treasury/libro-iva', {
-      query: {
-        date_from: toLocalDateString(dateRange.value.start),
-        date_to: toLocalDateString(dateRange.value.end)
-      }
+    libroData.value = await treasuryReportsService.libroIva({
+      date_from: toLocalDateString(dateRange.value.start),
+      date_to: toLocalDateString(dateRange.value.end)
     })
   } catch (e: any) {
     console.error('Error fetching libro IVA:', e)

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
+import { useFiscalAuthorizationsService } from '~/modulos/erp/fiscal/service/fiscal-authorizations.service'
+
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
@@ -15,6 +17,7 @@ import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
 import FiscalCaiAlert from '~/modulos/erp/documents/shared/FiscalCaiAlert.vue'
 
 const route = useRoute()
+const fiscalAuthorizationsService = useFiscalAuthorizationsService()
 const router = useRouter()
 const store = useDocumentsSalesStore()
 const companiesStore = useCompaniesStore()
@@ -55,7 +58,7 @@ onMounted(async () => {
       store.fetchOne(route.params.id as string),
       companyId && companiesStore.fetchOne(companyId),
     ])
-    fiscalPreview.value = await $fetch(`/api/backend/fiscal-authorizations/documents/${route.params.id}/preview`).catch(() => null)
+    fiscalPreview.value = await fiscalAuthorizationsService.getDocumentPreview(String(route.params.id)).catch(() => null)
   } finally {
     loading.value = false
   }
@@ -150,7 +153,7 @@ const {
         Se descontará el stock de los depósitos seleccionados en cada producto.
       </p>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />
         <UButton
           label="Confirmar remito"
           color="success"
@@ -168,7 +171,7 @@ const {
         <UButton v-for="t in validTransitions" :key="t.status" :label="t.label" :color="t.color" variant="outline" class="w-full justify-start" :loading="processing" @click="handleStatus(t.status)" />
       </div>
       <div class="flex justify-end pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="statusModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { statusModalOpen = false }" />
       </div>
     </template>
   </UModal>

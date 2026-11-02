@@ -3,7 +3,7 @@ import type { Product } from '~/modulos/logistica/master-data/product/types/prod
 import type { ProductAttributeValue } from '../../product-attribute-values/types/product-attribute-values.types'
 import type { Currency } from '~/modulos/erp/currencies/types/currencies.types'
 
-export interface ProductVariantPrice {
+interface ProductVariantPrice {
   id: string
 
   variant_id: string
@@ -97,6 +97,8 @@ export interface CreateProductVariantInput {
   thickness_mm?: number
   density_kg_m3?: number
   weight_kg?: number
+  weight_per_m2_kg?: number
+  weight_per_meter_kg?: number
   active?: boolean
 }
 

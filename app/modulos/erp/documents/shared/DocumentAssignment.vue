@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useDocumentAssignmentService } from '~/modulos/erp/documents/shared/document-assignment.service'
 
 const props = defineProps<{ documentId: string; assignedTo?: string | null }>()
 type User = { id: string; name: string }
@@ -8,6 +9,7 @@ const { hasPermission } = useRoles()
 const { isOwner } = useCompanyRole()
 const canAssign = computed(() => isOwner.value || hasPermission('documents.update'))
 const toast = useToast()
+const assignmentService = useDocumentAssignmentService()
 const current = ref<User | null>(null)
 const users = ref<User[]>([])
 const selected = ref<string>()
@@ -24,7 +26,7 @@ watch([() => props.documentId, () => props.assignedTo], async ([id], _, onCleanu
   error.value = false
   loading.value = true
   try {
-    const result = await $fetch<User | null>(`/api/backend/documents/assignment/${id}`)
+    const result = await assignmentService.findOne(id)
     if (!stale) current.value = result
   } catch {
     if (!stale) error.value = true
@@ -36,7 +38,7 @@ watch([() => props.documentId, () => props.assignedTo], async ([id], _, onCleanu
 async function choose() {
   loading.value = true
   try {
-    users.value = await $fetch<User[]>('/api/backend/documents/assignment/users')
+    users.value = await assignmentService.findUsers()
     selected.value = current.value?.id
     open.value = true
   } catch {
@@ -48,9 +50,7 @@ async function save() {
   if (!selected.value || saving.value) return
   saving.value = true
   try {
-    current.value = await $fetch<User>(`/api/backend/documents/assignment/${props.documentId}`, {
-      method: 'PATCH', body: { user_id: selected.value }
-    })
+    current.value = await assignmentService.assign(props.documentId, selected.value)
     error.value = false
     open.value = false
     toast.add({ title: 'Responsable actualizado', color: 'success' })
@@ -73,7 +73,7 @@ async function save() {
         </UFormField>
       </template>
       <template #footer>
-        <UButton variant="ghost" color="neutral" :disabled="saving" @click="open = false">Cancelar</UButton>
+        <UButton variant="ghost" color="neutral" :disabled="saving" @click="() => { open = false }">Cancelar</UButton>
         <UButton :loading="saving" :disabled="!selected || selected === current?.id" @click="save">Asignar</UButton>
       </template>
     </UModal>

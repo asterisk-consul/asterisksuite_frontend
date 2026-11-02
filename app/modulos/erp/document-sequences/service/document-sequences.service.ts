@@ -1,4 +1,4 @@
-﻿import type { DocumentSequence } from './types/document-sequences.types'
+import type { DocumentSequence } from '../types/document-sequences.types'
 
 const urlBase = '/api/backend/document-sequences'
 

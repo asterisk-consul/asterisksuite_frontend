@@ -13,10 +13,15 @@ import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
 import RrhhTotalsCards from '~/components/rrhh/RrhhTotalsCards.vue'
+import { HrService } from '~/modulos/erp/hr/services/hr.service'
+import { useCashBoxesService } from '~/modulos/erp/cash-boxes/service/cash-boxes.service'
+import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
 
 definePageMeta({ middleware: ['auth'] })
 
 const hrStore = useHrStore()
+const cashBoxesService = useCashBoxesService()
+const bankAccountsService = useBankAccountsService()
 const vales = computed(() => hrStore.vales)
 const loading = computed(() => hrStore.loading)
 const toast = useToast()
@@ -100,13 +105,13 @@ async function handleConfirm(id: string) {
     confirmingFunds.value = null
     if (vale.type === 'RETIRO') {
       try {
-        confirmingFunds.value = await $fetch(`/api/backend/hr/partners/${vale.party_id}/funds`, { query: { currency_code: vale.currency_code } })
+        confirmingFunds.value = await HrService.getPartnerFunds(vale.party_id, vale.currency_code)
       } catch (e: any) {
         toast.add({ title: 'No se pudo consultar el disponible del socio', description: e?.data?.message, color: 'error' })
         return
       }
     }
-    treasuryTargets.value = await $fetch<any[]>('/api/backend/cash-boxes')
+    treasuryTargets.value = await cashBoxesService.findAll()
     showTreasuryModal.value = true
     return
   }
@@ -138,8 +143,8 @@ watch(treasuryTargetType, async type => {
   treasuryTargetId.value = ''
   if (!showTreasuryModal.value) return
   treasuryTargets.value = type === 'CASH_BOX'
-    ? await $fetch<any[]>('/api/backend/cash-boxes')
-    : await $fetch<any[]>('/api/backend/bank-accounts')
+    ? await cashBoxesService.findAll()
+    : await bankAccountsService.findAll()
 })
 
 function handleCancel(id: string) {

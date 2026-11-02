@@ -5,6 +5,7 @@ import { UBadge, UTooltip } from '#components'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 
 import type { Trip } from '~/modulos/logistica/transport/trips/types/trips.types'
+import type { BadgeColor } from '~/types/colors.types'
 
 import StatusToggle from '@/components/ui/PopoverTableActive.vue'
 
@@ -15,8 +16,6 @@ import { useIdColumn } from '@/composables/table/useIdColumn'
 type Row = Trip
 
 export type TripStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
-
-type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
 const tripStatusConfig: Record<
   TripStatus,

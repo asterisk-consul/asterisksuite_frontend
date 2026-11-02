@@ -17,13 +17,14 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const model = defineModel<string[]>({ default: [] })
+const model = defineModel<string[]>({ default: () => [] })
 
 const productCategoriesStore = useProductCategoriesStore()
 const productsStore = useProductsStore()
 const categoriesStore = useCategoriesStore()
 
 const isModalOpen = ref(false)
+function openCreateModal() { isModalOpen.value = true }
 
 const categoryForm = ref<{
   id?: string
@@ -120,7 +121,7 @@ async function handleCreateCategory() {
           color="neutral"
           size="sm"
           block
-          @click="isModalOpen = true"
+          @click="openCreateModal"
         />
       </div>
     </template>

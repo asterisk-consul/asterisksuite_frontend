@@ -3,6 +3,7 @@ const props = defineProps<{
   status: string
   confirmedAt?: string | null
   paymentDate?: string | null
+  stacked?: boolean
 }>()
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -17,50 +18,52 @@ const formatDate = (date?: string | null) => date ? new Date(date).toLocaleDateS
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2 border-l border-default pl-3">
-    <span class="text-xs font-medium text-muted">Estado</span>
-    <UBadge
-      :label="statusConfig[props.status]?.label ?? props.status"
-      :color="(statusConfig[props.status]?.color as any) ?? 'neutral'"
-      variant="subtle"
-    />
-    <UPopover mode="hover" :open-delay="300" :close-delay="300">
-      <UButton
-        icon="i-lucide-circle-help"
-        color="neutral"
-        variant="ghost"
-        size="xs"
-        class="px-1"
-        aria-label="Ayuda sobre los estados del pago"
+  <div :class="props.stacked ? 'flex flex-col items-end gap-1' : 'flex flex-wrap items-center gap-2 border-l border-default pl-3'">
+    <span v-if="!props.stacked" class="text-xs font-medium text-muted">Estado</span>
+    <div :class="props.stacked ? 'flex items-center gap-1' : 'contents'">
+      <UBadge
+        :label="statusConfig[props.status]?.label ?? props.status"
+        :color="(statusConfig[props.status]?.color as any) ?? 'neutral'"
+        variant="subtle"
       />
-      <template #content>
-        <div class="max-w-xs space-y-2 p-3 text-sm">
-          <p class="font-medium">Estados del pago</p>
-          <div class="space-y-1.5 text-xs">
-            <p class="flex items-start gap-1.5">
-              <UBadge label="Borrador" color="neutral" size="xs" class="mt-0.5 shrink-0" />
-              <span>Pago creado y editable. Aún no se aplicaron efectos.</span>
-            </p>
-            <p class="flex items-start gap-1.5">
-              <UBadge label="Confirmado" color="info" size="xs" class="mt-0.5 shrink-0" />
-              <span>Se aplicaron los documentos y movimientos de caja o banco.</span>
-            </p>
-            <p class="flex items-start gap-1.5">
-              <UBadge label="Pagado" color="success" size="xs" class="mt-0.5 shrink-0" />
-              <span>Se confirmó la entrega o recepción efectiva del dinero.</span>
-            </p>
-            <p class="flex items-start gap-1.5">
-              <UBadge label="Rechazado" color="warning" size="xs" class="mt-0.5 shrink-0" />
-              <span>Se revirtieron los efectos del pago.</span>
-            </p>
-            <p class="flex items-start gap-1.5">
-              <UBadge label="Anulado" color="error" size="xs" class="mt-0.5 shrink-0" />
-              <span>La operación quedó cancelada y sus efectos fueron revertidos.</span>
-            </p>
+      <UPopover mode="hover" :open-delay="300" :close-delay="300">
+        <UButton
+          icon="i-lucide-circle-help"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          class="px-1"
+          aria-label="Ayuda sobre los estados del pago"
+        />
+        <template #content>
+          <div class="max-w-xs space-y-2 p-3 text-sm">
+            <p class="font-medium">Estados del pago</p>
+            <div class="space-y-1.5 text-xs">
+              <p class="flex items-start gap-1.5">
+                <UBadge label="Borrador" color="neutral" size="xs" class="mt-0.5 shrink-0" />
+                <span>Pago creado y editable. Aún no se aplicaron efectos.</span>
+              </p>
+              <p class="flex items-start gap-1.5">
+                <UBadge label="Confirmado" color="info" size="xs" class="mt-0.5 shrink-0" />
+                <span>Se aplicaron los documentos y movimientos de caja o banco.</span>
+              </p>
+              <p class="flex items-start gap-1.5">
+                <UBadge label="Pagado" color="success" size="xs" class="mt-0.5 shrink-0" />
+                <span>Se confirmó la entrega o recepción efectiva del dinero.</span>
+              </p>
+              <p class="flex items-start gap-1.5">
+                <UBadge label="Rechazado" color="warning" size="xs" class="mt-0.5 shrink-0" />
+                <span>Se revirtieron los efectos del pago.</span>
+              </p>
+              <p class="flex items-start gap-1.5">
+                <UBadge label="Anulado" color="error" size="xs" class="mt-0.5 shrink-0" />
+                <span>La operación quedó cancelada y sus efectos fueron revertidos.</span>
+              </p>
+            </div>
           </div>
-        </div>
-      </template>
-    </UPopover>
+        </template>
+      </UPopover>
+    </div>
     <span v-if="props.confirmedAt" class="text-xs text-muted">
       Confirmado el {{ formatDate(props.confirmedAt) }}
     </span>

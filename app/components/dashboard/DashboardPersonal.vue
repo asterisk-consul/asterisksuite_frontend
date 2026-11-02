@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCurrencyWhole as formatCurrency } from '~/utils/formatMoneda'
 import { formatTimeAgo } from '@vueuse/core'
 import type { DashboardPersonal } from '~/modulos/erp/dashboard/types/dashboard.types'
 
@@ -7,9 +8,7 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(amount)
-}
+
 </script>
 
 <template>

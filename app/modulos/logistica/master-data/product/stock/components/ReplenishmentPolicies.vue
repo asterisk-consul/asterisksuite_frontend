@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
+import { useStockService } from '~/modulos/logistica/warehouses/stock/stock.service'
+import { useProductSuppliersService } from '~/modulos/erp/pricing/services/product-suppliers.service'
 
 type Policy = {
   id: string
@@ -15,6 +17,8 @@ type Policy = {
 
 const props = defineProps<{ productId: string; canConfigure?: boolean }>()
 const depositsStore = useDepositosStore()
+const stockService = useStockService()
+const productSuppliersService = useProductSuppliersService()
 const { warehouses } = storeToRefs(depositsStore)
 const toast = useToast()
 const policies = ref<Policy[]>([])
@@ -37,7 +41,7 @@ const supplierOptions = computed(() => suppliers.value.map(supplier => ({
 async function load() {
   loading.value = true
   try {
-    policies.value = await $fetch<Policy[]>(`/api/backend/warehouse/replenishment/policies/product/${props.productId}`)
+    policies.value = await stockService.findReplenishmentPolicies(props.productId)
   } finally {
     loading.value = false
   }
@@ -71,12 +75,7 @@ async function save() {
   saving.value = true
   try {
     const body = { product_id: props.productId, ...form, preferred_supplier_id: form.preferred_supplier_id || null }
-    await $fetch(editingId.value
-      ? `/api/backend/warehouse/replenishment/policies/${editingId.value}`
-      : '/api/backend/warehouse/replenishment/policies', {
-      method: editingId.value ? 'PATCH' : 'POST',
-      body
-    })
+    await stockService.saveReplenishmentPolicy(editingId.value, body)
     open.value = false
     await load()
     toast.add({ title: editingId.value ? 'Política actualizada' : 'Política creada', color: 'success' })
@@ -89,7 +88,7 @@ async function save() {
 
 async function remove(policy: Policy) {
   try {
-    await $fetch(`/api/backend/warehouse/replenishment/policies/${policy.id}`, { method: 'DELETE' })
+    await stockService.removeReplenishmentPolicy(policy.id)
     await load()
     toast.add({ title: 'Política eliminada', color: 'success' })
   } catch (error: any) {
@@ -101,7 +100,7 @@ onMounted(async () => {
   await Promise.all([
     load(),
     warehouses.value.length ? Promise.resolve() : depositsStore.fetchAll(),
-    $fetch<Array<{ supplier_id: string; business_parties?: { name: string } }>>('/api/pricing/product-suppliers', { query: { product_id: props.productId } }).then(result => { suppliers.value = result })
+    productSuppliersService.getAll(props.productId).then(result => { suppliers.value = result })
   ])
 })
 </script>

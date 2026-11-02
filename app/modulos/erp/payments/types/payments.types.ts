@@ -108,7 +108,6 @@ export interface Payment {
 
   documents?: PaymentDocument[]
   obligations?: PaymentObligationSummary[]
-  obligations?: Array<Record<string, any>>
 }
 
 export interface CreatePaymentDocumentInput {

@@ -1,3 +1,5 @@
+import type { BadgeColor } from '~/types/colors.types'
+
 export interface DocumentTax {
   id: string
   tax_id: string
@@ -79,15 +81,6 @@ export const STATUS_LABELS: Record<number, string> = {
   2: 'Confirmado',
   3: 'Anulado'
 }
-
-type BadgeColor =
-  | 'primary'
-  | 'neutral'
-  | 'secondary'
-  | 'success'
-  | 'info'
-  | 'warning'
-  | 'error'
 
 export const STATUS_COLORS: Record<number, BadgeColor> = {
   0: 'neutral',

@@ -16,6 +16,9 @@ export const useCompaniesService = () => {
 
   const findOne = (id: string) => $fetch<Company>(`${baseUrl}/${id}`)
 
+  const checkSubdomain = (subdomain: string) =>
+    $fetch<{ available: boolean; message?: string }>(`${baseUrl}/check-subdomain`, { query: { subdomain } })
+
   const create = (payload: CreateCompanyInput) =>
     $fetch<Company>(`${baseUrl}`, {
       method: 'POST',
@@ -60,6 +63,7 @@ export const useCompaniesService = () => {
   return {
     findAll,
     findOne,
+    checkSubdomain,
     create,
     update,
     deactivate,

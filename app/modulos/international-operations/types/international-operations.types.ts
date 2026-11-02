@@ -140,7 +140,7 @@ export interface InternationalContainer {
   updated_at?: string
 }
 
-export interface ContainerDocumentRelation {
+interface ContainerDocumentRelation {
   operation_id: string
   document_id: string
   expense_type?: string
@@ -202,7 +202,7 @@ export interface ContainerEvent {
   created_at: string
 }
 
-export interface OperationDocumentRelation {
+interface OperationDocumentRelation {
   operation_id: string
   document_id: string
   expense_type?: InternationalExpenseType
@@ -250,7 +250,8 @@ export interface OperationDocumentRelation {
   }
 }
 
-export interface OperationPaymentRelation {  operation_id: string
+interface OperationPaymentRelation {
+  operation_id: string
   payment_id: string
   container_id?: string
   container?: { id: string; container_number: string }
@@ -298,7 +299,7 @@ export interface OperationQuoteRelation {
   }
 }
 
-export interface PurchaseOrderRelation {
+interface PurchaseOrderRelation {
   document_id: string
   international_operation_id?: string
   document?: {
@@ -366,7 +367,7 @@ export interface OperationSummary {
   }
 }
 
-export interface ExpenseGroup {
+interface ExpenseGroup {
   type: string
   label: string
   total: number

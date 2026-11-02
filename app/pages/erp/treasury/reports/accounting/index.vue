@@ -3,8 +3,12 @@ import type { DateRange } from '~/components/compras/FiltroDateCompras.vue'
 import DateRangePicker from '~/components/compras/FiltroDateCompras.vue'
 import { useExcelExport } from '~/composables/useExcelExport'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import { useAccountsService } from '~/modulos/contabilidad/service/accounts.service'
+import { useTreasuryReportsService } from '~/modulos/erp/treasury-reports/service/treasury-reports.service'
 
 const { exportToExcel } = useExcelExport()
+const accountsService = useAccountsService()
+const treasuryReportsService = useTreasuryReportsService()
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -22,12 +26,10 @@ const fetchData = async () => {
   try {
     // Fetch accounts and movements in parallel
     const [accountsData, movementsData] = await Promise.all([
-      $fetch<any[]>('/api/backend/accounts'),
-      $fetch<any[]>('/api/backend/treasury/movements', {
-        query: {
-          date_from: dateRange.value.start.toISOString().split('T')[0],
-          date_to: dateRange.value.end.toISOString().split('T')[0]
-        }
+      accountsService.findAll(),
+      treasuryReportsService.movements({
+        date_from: dateRange.value.start.toISOString().split('T')[0],
+        date_to: dateRange.value.end.toISOString().split('T')[0]
       })
     ])
     accounts.value = accountsData

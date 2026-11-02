@@ -25,7 +25,7 @@ type Breakdown = {
     sku: string | null
   }
   component_variant: {
-    name: string
+    name: string | null
     sku: string | null
   } | null
 }
@@ -59,7 +59,12 @@ const props = defineProps<{ productId: string }>()
 const tableData = computed<ProductCostRow[]>(() =>
   costingStore.history.map((item) => ({
     ...item,
-    children: item.breakdowns?.length ? item.breakdowns : undefined
+    children: item.breakdowns?.length
+      ? item.breakdowns.map(breakdown => ({
+          ...breakdown,
+          component_variant: breakdown.component_variant ?? null
+        }))
+      : undefined
   }))
 )
 

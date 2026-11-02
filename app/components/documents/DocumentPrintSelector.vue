@@ -4,6 +4,7 @@ import OrdenVentaPrint from './OrdenVentaPrint.vue'
 import RemitoPrint from './RemitoPrint.vue'
 import ValePrint from './ValePrint.vue'
 import DocumentPrintLayout from './DocumentPrintLayout.vue'
+import { useSalesFlowService } from '~/modulos/erp/sales/services/sales-flow.service'
 
 interface Company {
   name: string
@@ -128,6 +129,7 @@ const observations = computed(() => {
 })
 
 const templates = ref<any[]>([])
+const salesFlowService = useSalesFlowService()
 const selectedTemplateId = ref<string | null>(null)
 const selectedTemplate = computed(() => {
   if (!['QUOTE', 'ORDER'].includes(category.value)) return null
@@ -142,7 +144,7 @@ watch(category, async (value) => {
   selectedTemplateId.value = null
   if (!['QUOTE', 'ORDER'].includes(value)) return
   try {
-    templates.value = await $fetch('/api/backend/sales-flow/print-templates', { query: { category: value } })
+    templates.value = await salesFlowService.findPrintTemplates(value)
     selectedTemplateId.value = templates.value.find(item => item.is_default)?.id ?? templates.value[0]?.id ?? null
   } catch {
     // La impresión estándar sigue disponible si aún no se aplicó la migración.

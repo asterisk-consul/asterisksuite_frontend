@@ -11,6 +11,7 @@ import type {
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 import { useExcelExport } from '~/composables/useExcelExport'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { useUsersService } from '~/modulos/access-control/services/users.service'
 
 const { bankAccounts, loading, init, create, update, remove, getUserRoles, addUserRole, removeUserRole } =
   useBankAccounts()
@@ -18,6 +19,7 @@ const { exportToExcel } = useExcelExport()
 const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
 const router = useRouter()
 const toast = useToast()
+const usersService = useUsersService()
 
 const modalOpen = ref(false)
 const editingAccount = ref<BankAccount | null>(null)
@@ -165,12 +167,7 @@ const openEdit = async (account: BankAccount) => {
     if (roles?.length) {
       const ids = roles.map((r) => r.user_id).filter(Boolean)
       if (ids.length > 0) {
-        const userDetails = await $fetch<{ id: string; name: string; email: string }[]>(
-          '/api/access-control/users/batch',
-          {
-            query: { ids: ids.join(',') }
-          }
-        )
+        const userDetails = await usersService.findBatch(ids)
         const userMap = new Map(userDetails.map((u) => [u.id, u]))
         boxUsers.value = roles.map((r) => {
           const detail = userMap.get(r.user_id)
@@ -237,9 +234,7 @@ const searchUsers = () => {
       return
     }
     try {
-      const users = await $fetch<{ id: string; name: string; email: string }[]>('/api/access-control/users/search', {
-        query: { q }
-      })
+      const users = await usersService.search(q)
       const existingIds = new Set([...boxUsers.value.map((u) => u.userId), ...pendingUsers.value.map((u) => u.userId)])
       userResults.value = users.filter((u) => !existingIds.has(u.id))
     } catch {
@@ -250,7 +245,7 @@ const searchUsers = () => {
 
 const loadAllUsers = async () => {
   try {
-    allUsersList.value = await $fetch<{ id: string; name: string; email: string }[]>('/api/access-control/users/all')
+    allUsersList.value = await usersService.findAll()
   } catch {
     allUsersList.value = []
   }
@@ -681,7 +676,7 @@ const selectedAccountType = computed({
                     <span v-if="ur.userEmail && ur.userName" class="text-xs text-muted ml-1">({{ ur.userEmail }})</span>
                     <UBadge
                       :label="userRoleOptions.find((o) => o.value === ur.role)?.label ?? ur.role"
-                      :color="ur.role === 'RESPONSIBLE' ? 'success' : ur.role === 'OPERATOR' ? 'primary' : 'gray'"
+                      :color="ur.role === 'RESPONSIBLE' ? 'success' : ur.role === 'OPERATOR' ? 'primary' : 'neutral'"
                       size="xs"
                       class="ml-2"
                     />
@@ -708,7 +703,7 @@ const selectedAccountType = computed({
                     <span v-if="p.userEmail && p.userName" class="text-xs text-muted ml-1">({{ p.userEmail }})</span>
                     <UBadge
                       :label="userRoleOptions.find((o) => o.value === p.role)?.label ?? p.role"
-                      :color="p.role === 'RESPONSIBLE' ? 'success' : p.role === 'OPERATOR' ? 'primary' : 'gray'"
+                      :color="p.role === 'RESPONSIBLE' ? 'success' : p.role === 'OPERATOR' ? 'primary' : 'neutral'"
                       size="xs"
                       class="ml-2"
                     />
@@ -819,7 +814,7 @@ const selectedAccountType = computed({
               variant="ghost"
               color="neutral"
               class="justify-center"
-              @click="modalOpen = false"
+              @click="() => { modalOpen = false }"
             />
             <UButton
               :label="editingAccount ? 'Guardar cambios' : 'Crear cuenta'"
@@ -874,7 +869,7 @@ const selectedAccountType = computed({
           </UFormField>
         </div>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
           <UButton :label="deleteForm.mode === 'TRANSFER' ? 'Transferir y eliminar' : 'Eliminar igual'" color="error" :loading="deletingAccountBusy" :disabled="!canConfirmDelete" @click="handleDelete" />
         </div>
       </template>
@@ -891,7 +886,7 @@ const selectedAccountType = computed({
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showRemoveModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { showRemoveModal = false }" />
           <UButton label="Confirmar" color="error" @click="executeRemoveUser" />
         </div>
       </template>

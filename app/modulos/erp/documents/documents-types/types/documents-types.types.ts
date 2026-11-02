@@ -35,6 +35,10 @@ export interface DocumentSequence {
 
   name: string
 
+  point_of_sale?: string
+
+  prefix?: string | null
+
   automatic?: boolean
 
   range_start?: number | null

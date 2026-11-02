@@ -1,8 +1,10 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
+import { useMaintenanceService } from '~/modulos/logistica/maintenance/service/maintenance.service'
 
 const route = useRoute()
 const id = route.params.id as string
+const maintenanceService = useMaintenanceService()
 
 const loading = ref(true)
 const vehicle = ref<any>(null)
@@ -16,13 +18,13 @@ useBreadcrumbEntityLabel(
 
 async function fetchVehicle() {
   try {
-    vehicle.value = await $fetch(`/api/backend/vehicles/${id}`)
+    vehicle.value = await maintenanceService.getVehicleById(id)
   } catch { /* */ }
 }
 
 async function fetchTirePositions() {
   try {
-    tirePositions.value = await $fetch(`/api/backend/maintenance/vehicles/${id}/tire-positions`)
+    tirePositions.value = await maintenanceService.getTirePositions(id)
   } catch { /* */ }
 }
 

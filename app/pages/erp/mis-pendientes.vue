@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { DashboardPersonal } from '~/modulos/erp/dashboard/types/dashboard.types'
+import { useDashboardDataService } from '~/modulos/erp/dashboard/services/dashboard-data.service'
 
 definePageMeta({ middleware: ['auth'] })
 
 const loading = ref(true)
 const loadError = ref('')
 const data = ref<DashboardPersonal | null>(null)
+const dashboardDataService = useDashboardDataService()
 const search = ref('')
 const selectedType = ref<'ALL' | 'DOCUMENT' | 'CAPTURE'>('ALL')
 
@@ -28,7 +30,7 @@ const load = async () => {
   loading.value = true
   loadError.value = ''
   try {
-    data.value = await $fetch<DashboardPersonal>('/api/backend/dashboard/personal')
+    data.value = await dashboardDataService.findPersonal()
   } catch {
     loadError.value = 'No pudimos cargar tus pendientes. Revisá la conexión e intentá nuevamente.'
   } finally {

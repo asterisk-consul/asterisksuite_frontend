@@ -21,9 +21,9 @@ export function parseLocalDateTime(dateStr?: string): Date {
   if (!dateStr) return getArgentinaNow()
 
   if (dateStr.includes('T')) {
-    const [datePart, timePart] = dateStr.split('T')
-    const [y, m, d] = datePart.split('-').map(Number)
-    const [h, min, sec] = timePart.replace('Z', '').split(':').map(Number)
+    const [datePart = '', timePart = ''] = dateStr.split('T')
+    const [y = Number.NaN, m = Number.NaN, d = Number.NaN] = datePart.split('-').map(Number)
+    const [h = Number.NaN, min = Number.NaN, sec = 0] = timePart.replace('Z', '').split(':').map(Number)
 
     // Si es medianoche (00:00), usar hora actual Argentina
     if (h === 0 && min === 0) {
@@ -36,7 +36,7 @@ export function parseLocalDateTime(dateStr?: string): Date {
   }
 
   // Solo fecha, sin hora → agregar hora actual Argentina
-  const [y, m, d] = dateStr.split('-').map(Number)
+  const [y = Number.NaN, m = Number.NaN, d = Number.NaN] = dateStr.split('-').map(Number)
   const argNow = getArgentinaNow()
   return new Date(Date.UTC(y, m - 1, d, argNow.getUTCHours(), argNow.getUTCMinutes(), argNow.getUTCSeconds()))
 }

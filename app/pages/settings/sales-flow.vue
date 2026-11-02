@@ -1,6 +1,9 @@
 ﻿<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
+import { useSalesFlowService } from '~/modulos/erp/sales/services/sales-flow.service'
+import { useUsersService } from '~/modulos/access-control/services/users.service'
+
 interface SalesFlowSettings {
   accounting_basis: 'INVOICE' | 'ORDER' | 'ORDER_THEN_INVOICE'
   payment_document_basis: 'INVOICE' | 'ORDER' | 'BOTH'
@@ -19,6 +22,8 @@ interface SalesFlowSettings {
 }
 
 const toast = useToast()
+const salesFlowService = useSalesFlowService()
+const usersService = useUsersService()
 const NO_ASSIGNEE = '__NO_ASSIGNEE__'
 const loading = ref(true)
 const saving = ref(false)
@@ -32,6 +37,12 @@ const userOptions = computed(() => [
     description: user.email
   }))
 ])
+const selectedAssigneeId = computed({
+  get: () => settings.value?.default_order_assignee_id ?? NO_ASSIGNEE,
+  set: (value: string) => {
+    if (settings.value) settings.value.default_order_assignee_id = value === NO_ASSIGNEE ? null : value
+  }
+})
 
 const accountingOptions = [
   { label: 'Factura', value: 'INVOICE', description: 'La deuda nace cuando se confirma la factura.' },
@@ -48,8 +59,8 @@ async function load() {
   loading.value = true
   try {
     const [flowSettings, users] = await Promise.all([
-      $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings'),
-      $fetch<Array<{ id: string, name: string, email: string }>>('/api/access-control/users/all')
+      salesFlowService.getSettings(),
+      usersService.findAll()
     ])
     settings.value = {
       ...flowSettings,
@@ -86,9 +97,7 @@ async function save() {
         ? null
         : settings.value.default_order_assignee_id || null
     }
-    settings.value = await $fetch<SalesFlowSettings>('/api/backend/sales-flow/settings', {
-      method: 'PATCH', body: payload
-    })
+    settings.value = await salesFlowService.updateSettings(payload)
     const recalculated = Number(settings.value.recalculated_delivery_orders ?? 0)
     toast.add({
       title: 'Circuito de ventas guardado',
@@ -166,7 +175,7 @@ onMounted(load)
         <div class="space-y-5">
           <UFormField label="Responsable sugerido" help="Se preseleccionará al confirmar una OV que todavía no tenga responsable.">
             <USelectMenu
-              v-model="settings.default_order_assignee_id"
+              v-model="selectedAssigneeId"
               :items="userOptions"
               value-key="value"
               label-key="label"

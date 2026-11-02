@@ -15,9 +15,7 @@ const productId = computed(() => route.params.id as string)
 const filters = reactive({
   startDate: (route.query.startDate as string) || '2026-01-01',
   endDate: (route.query.endDate as string) || '2026-12-31',
-  supplierId: Array.isArray(route.query.supplierId)
-    ? route.query.supplierId[0]
-    : route.query.supplierId
+  supplierId: typeof route.query.supplierId === 'string' ? route.query.supplierId : undefined
 })
 
 // --- Fetch ---

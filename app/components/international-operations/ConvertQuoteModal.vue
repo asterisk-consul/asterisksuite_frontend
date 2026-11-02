@@ -14,7 +14,7 @@ const busy = computed(() => saving.value || !!props.refreshing)
 const confirmDocument = ref(false)
 const documentTypeId = ref('')
 const assignment = ref<QuoteAssignmentInput>({ container_id: '', expense_type: 'MERCHANDISE' })
-const targetOptions = computed(() => types.items.value.filter(type => type.direction === -1 && ['ORDER', 'INVOICE'].includes(type.category) && type.active !== false).map(type => ({ label: `${type.category === 'ORDER' ? 'Orden de compra' : 'Factura de compra'} · ${type.code} — ${type.description}`, value: type.id })))
+const targetOptions = computed(() => types.items.value.filter(type => type.direction === -1 && type.category != null && ['ORDER', 'INVOICE'].includes(type.category) && type.active !== false).map(type => ({ label: `${type.category === 'ORDER' ? 'Orden de compra' : 'Factura de compra'} · ${type.code} — ${type.description}`, value: type.id })))
 const valid = computed(() => props.quote && assignment.value.container_id && documentTypeId.value && (assignment.value.expense_type !== 'OTHER' || assignment.value.custom_expense_description?.trim()) && (props.quote.document?.currency_code === props.operationCurrencyCode || Number(assignment.value.exchange_rate) > 0))
 watch(() => props.open, async visible => {
   if (!visible || !props.quote) return

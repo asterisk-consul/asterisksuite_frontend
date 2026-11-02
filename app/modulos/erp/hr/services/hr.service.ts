@@ -1,5 +1,8 @@
 ﻿import type { HrVale, HrAccount, HrAccountEntry, PartnerReport } from '../types/hr.types'
 
+const apiFetch = <T>(request: string, options?: any): Promise<T> =>
+  ($fetch as unknown as (request: string, options?: any) => Promise<T>)(request, options)
+
 export interface CommissionSeller {
   id: string
   name: string
@@ -42,6 +45,13 @@ export interface CommissionableDocument {
 }
 
 export const HrService = {
+  async getPartnerReportOptions(): Promise<any[]> {
+    return apiFetch<any[]>('/api/backend/hr/partner-report-options')
+  },
+
+  async getPartnerFunds(partyId: string, currencyCode: string): Promise<any> {
+    return apiFetch<any>(`/api/backend/hr/partners/${partyId}/funds`, { query: { currency_code: currencyCode } })
+  },
   // ══════════════════════════════════════════════════════════
   // VALES
   // ══════════════════════════════════════════════════════════
@@ -52,11 +62,11 @@ export const HrService = {
     status?: string
     type?: string
   }): Promise<HrVale[]> {
-    return $fetch('/api/backend/hr/vales', { query: params })
+    return apiFetch<HrVale[]>('/api/backend/hr/vales', { query: params })
   },
 
   async getVale(id: string): Promise<HrVale> {
-    return $fetch(`/api/backend/hr/vales/${id}`)
+    return apiFetch<HrVale>(`/api/backend/hr/vales/${id}`)
   },
 
   async createVale(dto: {
@@ -71,7 +81,7 @@ export const HrService = {
     date: string
     description?: string
   }): Promise<HrVale> {
-    return $fetch('/api/backend/hr/vales', {
+    return apiFetch<HrVale>('/api/backend/hr/vales', {
       method: 'POST' as any,
       body: dto
     })
@@ -81,14 +91,14 @@ export const HrService = {
     id: string,
     treasury?: { treasury_target_type: 'CASH_BOX' | 'BANK_ACCOUNT'; treasury_target_id: string }
   ): Promise<HrVale> {
-    return $fetch(`/api/backend/hr/vales/${id}/confirm`, {
+    return apiFetch<HrVale>(`/api/backend/hr/vales/${id}/confirm`, {
       method: 'PATCH' as any,
       body: treasury
     })
   },
 
   async cancelVale(id: string): Promise<HrVale> {
-    return $fetch(`/api/backend/hr/vales/${id}/cancel`, {
+    return apiFetch<HrVale>(`/api/backend/hr/vales/${id}/cancel`, {
       method: 'PATCH' as any
     })
   },
@@ -98,11 +108,11 @@ export const HrService = {
   // ══════════════════════════════════════════════════════════
 
   async getHrAccounts(params?: { party_type?: string }): Promise<HrAccount[]> {
-    return $fetch('/api/backend/hr/accounts', { query: params })
+    return apiFetch<HrAccount[]>('/api/backend/hr/accounts', { query: params })
   },
 
   async getHrAccountEntries(id: string): Promise<{ account: HrAccount; entries: HrAccountEntry[] }> {
-    return $fetch(`/api/backend/hr/accounts/${id}/entries`)
+    return apiFetch<{ account: HrAccount; entries: HrAccountEntry[] }>(`/api/backend/hr/accounts/${id}/entries`)
   },
 
   // ══════════════════════════════════════════════════════════
@@ -137,28 +147,28 @@ export const HrService = {
     total_comisiones: number
     cantidad_ov: number
   }> {
-    return $fetch('/api/backend/hr/commissions', {
+    return apiFetch<any>('/api/backend/hr/commissions', {
       query: { month, seller_id: sellerId }
     })
   },
 
   async generateCommissionVale(sellerId: string, month: string): Promise<any> {
-    return $fetch('/api/backend/hr/commissions/vale', {
+    return apiFetch<any>('/api/backend/hr/commissions/vale', {
       method: 'POST' as any,
       body: { seller_id: sellerId, month }
     })
   },
 
   async getCommissionableDocuments(month: string): Promise<CommissionableDocument[]> {
-    return $fetch('/api/backend/hr/commissions/documents', { query: { month } })
+    return apiFetch<CommissionableDocument[]>('/api/backend/hr/commissions/documents', { query: { month } })
   },
 
   async getCommissionSellers(): Promise<CommissionSeller[]> {
-    return $fetch('/api/backend/hr/commissions/sellers')
+    return apiFetch<CommissionSeller[]>('/api/backend/hr/commissions/sellers')
   },
 
   async saveCommissionAssignments(documentId: string, assignments: CommissionAssignment[]) {
-    return $fetch(`/api/backend/hr/commissions/documents/${documentId}/assignments`, {
+    return apiFetch<any>(`/api/backend/hr/commissions/documents/${documentId}/assignments`, {
       method: 'PATCH' as any,
       body: { assignments }
     })
@@ -169,6 +179,6 @@ export const HrService = {
   // ══════════════════════════════════════════════════════════
 
   async getPartnerReport(partyId: string): Promise<PartnerReport> {
-    return $fetch(`/api/backend/hr/partner-report/${partyId}`)
+    return apiFetch<PartnerReport>(`/api/backend/hr/partner-report/${partyId}`)
   }
 }

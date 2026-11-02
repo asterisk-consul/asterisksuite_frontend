@@ -3,11 +3,13 @@ definePageMeta({ middleware: ['auth'] })
 
 import { useCompanyRole } from '~/composables/useCompanyRole'
 import { useDocumentsTypesStore } from '~/modulos/erp/documents/documents-types/store/documents-types.store'
+import { useDocumentSequencesService } from '~/modulos/erp/document-sequences/service/document-sequences.service'
 
 const { isOwnerOrAdmin } = useCompanyRole()
 const toast = useToast()
 const router = useRouter()
 const documentsTypesStore = useDocumentsTypesStore()
+const sequencesService = useDocumentSequencesService()
 
 if (!isOwnerOrAdmin.value) {
   router.push('/erp/treasury/dashboard')
@@ -104,7 +106,7 @@ watch(() => form.document_type_id, () => {
 const fetchSequences = async () => {
   loading.value = true
   try {
-    sequences.value = await $fetch<any[]>('/api/backend/document-sequences')
+    sequences.value = await sequencesService.findAll()
   } catch (e: any) {
     toast.add({ title: 'Error al cargar secuencias', color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
@@ -163,16 +165,10 @@ const handleSubmit = async () => {
     }
     delete (payload as any).document_type_id
     if (editingSequence.value) {
-      await $fetch(`/api/backend/document-sequences/${editingSequence.value.id}`, {
-        method: 'PATCH',
-        body: payload
-      })
+      await sequencesService.update(editingSequence.value.id, payload)
       toast.add({ title: 'Secuencia actualizada', color: 'success' })
     } else {
-      await $fetch('/api/backend/document-sequences', {
-        method: 'POST',
-        body: payload
-      })
+      await sequencesService.create(payload)
       toast.add({ title: 'Secuencia creada', color: 'success' })
     }
     modalOpen.value = false
@@ -197,7 +193,7 @@ const confirmDelete = (seq: any) => {
 const handleDelete = async () => {
   if (!deletingSequence.value) return
   try {
-    await $fetch(`/api/backend/document-sequences/${deletingSequence.value.id}`, { method: 'DELETE' })
+    await sequencesService.remove(deletingSequence.value.id)
     toast.add({ title: 'Secuencia eliminada', color: 'success' })
     deleteModalOpen.value = false
     await fetchSequences()
@@ -257,7 +253,7 @@ function formatSequenceNumber(value: number | string | null | undefined, fallbac
             class="w-full"
           >
             <template v-if="search" #trailing>
-              <UButton icon="i-lucide-x" color="neutral" variant="link" size="xs" aria-label="Limpiar búsqueda" @click="search = ''" />
+              <UButton icon="i-lucide-x" color="neutral" variant="link" size="xs" aria-label="Limpiar búsqueda" @click="() => { search = '' }" />
             </template>
           </UInput>
         </UFormField>
@@ -339,7 +335,7 @@ function formatSequenceNumber(value: number | string | null | undefined, fallbac
     <UModal
       v-model:open="modalOpen"
       :title="editingSequence ? 'Editar secuencia' : 'Nueva secuencia'"
-      :ui="{ width: 'max-w-lg' }"
+      :ui="{ content: 'max-w-lg' }"
     >
       <template #body>
         <UForm :state="form" class="space-y-4" @submit="handleSubmit">
@@ -408,7 +404,7 @@ function formatSequenceNumber(value: number | string | null | undefined, fallbac
             />
           </UFormField>
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { modalOpen = false }" />
             <UButton label="Guardar" type="submit" :loading="saving" :disabled="!form.name || !form.point_of_sale || !form.document_type_id || form.next_number < 1 || netModeNeedsTaxEnabled" />
           </div>
         </UForm>
@@ -424,7 +420,7 @@ function formatSequenceNumber(value: number | string | null | undefined, fallbac
           ?
         </p>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
           <UButton label="Eliminar" color="error" :loading="saving" @click="handleDelete" />
         </div>
       </template>

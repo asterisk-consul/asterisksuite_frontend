@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useTrashService } from '~/modulos/trash/services/trash.service'
 import type { TrashItem } from '~/modulos/trash/types/trash.types'
+import type { TrashTable } from '~/modulos/trash/types/trash.types'
 
 export const useTrashStore = defineStore('trash', () => {
   const items = ref<TrashItem[]>([])
@@ -11,7 +12,7 @@ export const useTrashStore = defineStore('trash', () => {
   const service = useTrashService()
 
   // 🗑️ FETCH ALL
-  const fetchAll = async (params?: { days?: number; table?: string }) => {
+  const fetchAll = async (params?: { days?: number; table?: TrashTable }) => {
     loading.value = true
     error.value = null
     try {

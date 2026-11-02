@@ -333,7 +333,7 @@ const accountActionItems = computed(() => [
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" :disabled="deletingOpeningBalance" @click="showDeleteConfirmation = false" />
+          <UButton label="Cancelar" variant="ghost" :disabled="deletingOpeningBalance" @click="() => { showDeleteConfirmation = false }" />
           <UButton
             label="Eliminar saldo inicial"
             icon="i-lucide-trash-2"
@@ -363,7 +363,7 @@ const accountActionItems = computed(() => [
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" :disabled="deletingManualAdjustment" @click="showDeleteAdjustmentConfirmation = false" />
+          <UButton label="Cancelar" variant="ghost" :disabled="deletingManualAdjustment" @click="() => { showDeleteAdjustmentConfirmation = false }" />
           <UButton label="Eliminar ajuste" icon="i-lucide-trash-2" color="error" :loading="deletingManualAdjustment" :disabled="deletingManualAdjustment" @click="deleteManualAdjustment" />
         </div>
       </template>

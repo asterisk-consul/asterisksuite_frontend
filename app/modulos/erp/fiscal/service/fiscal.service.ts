@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   BusinessPartyIibbRegistration,
   BusinessPartyWithholdingProfile,
   CalculateWithholdingsInput,
@@ -9,45 +9,53 @@
   WithholdingPreviewResult,
 } from '../types/fiscal.types'
 
+const apiFetch = <T>(request: string, options?: any): Promise<T> =>
+  ($fetch as unknown as (request: string, options?: any) => Promise<T>)(request, options)
+
 export function useFiscalService() {
   const urlBase = '/api/backend/fiscal'
+  const requestFetch = (import.meta.server ? useRequestFetch() : $fetch) as typeof $fetch
+
+  function getIibbRegister(params: { date_from?: string; date_to?: string }) {
+    return requestFetch<any>(`${urlBase}/iibb-register`, { query: params })
+  }
 
   function previewWithholdings(input: CalculateWithholdingsInput): Promise<WithholdingPreviewResult> {
-    return $fetch(`${urlBase}/withholdings/preview`, { method: 'POST', body: input })
+    return apiFetch<WithholdingPreviewResult>(`${urlBase}/withholdings/preview`, { method: 'POST', body: input })
   }
 
   function getJurisdictions(): Promise<TaxJurisdiction[]> {
-    return $fetch(`${urlBase}/jurisdictions`)
+    return apiFetch<TaxJurisdiction[]>(`${urlBase}/jurisdictions`)
   }
 
   function getWithholdingConcepts(): Promise<WithholdingConcept[]> {
-    return $fetch(`${urlBase}/withholding-concepts`)
+    return apiFetch<WithholdingConcept[]>(`${urlBase}/withholding-concepts`)
   }
 
   function getPartyWithholdingProfiles(partyId: string): Promise<BusinessPartyWithholdingProfile[]> {
-    return $fetch(`${urlBase}/parties/${partyId}/withholding-profiles`)
+    return apiFetch<BusinessPartyWithholdingProfile[]>(`${urlBase}/parties/${partyId}/withholding-profiles`)
   }
 
   function putPartyWithholdingProfiles(partyId: string, profiles: BusinessPartyWithholdingProfile[]) {
-    return $fetch(`${urlBase}/parties/${partyId}/withholding-profiles`, {
+    return apiFetch<void>(`${urlBase}/parties/${partyId}/withholding-profiles`, {
       method: 'PUT',
       body: { profiles },
     })
   }
 
   function getPartyIibbRegistrations(partyId: string): Promise<BusinessPartyIibbRegistration[]> {
-    return $fetch(`${urlBase}/parties/${partyId}/iibb-registrations`, { timeout: 10_000, retry: 1 })
+    return apiFetch<BusinessPartyIibbRegistration[]>(`${urlBase}/parties/${partyId}/iibb-registrations`, { timeout: 10_000, retry: 1 })
   }
 
   function putPartyIibbRegistrations(partyId: string, registrations: BusinessPartyIibbRegistration[]) {
-    return $fetch(`${urlBase}/parties/${partyId}/iibb-registrations`, {
+    return apiFetch<void>(`${urlBase}/parties/${partyId}/iibb-registrations`, {
       method: 'PUT',
       body: { registrations },
     })
   }
 
   function getCompanyJurisdictions(): Promise<CompanyTaxJurisdiction[]> {
-    return $fetch(`${urlBase}/company-jurisdictions`, { timeout: 10_000, retry: 1 })
+    return apiFetch<CompanyTaxJurisdiction[]>(`${urlBase}/company-jurisdictions`, { timeout: 10_000, retry: 1 })
   }
 
   function putCompanyJurisdictions(jurisdictions: CompanyTaxJurisdiction[]) {
@@ -62,7 +70,7 @@ export function useFiscalService() {
       valid_from: row.valid_from || null,
       valid_to: row.valid_to || null,
     }))
-    return $fetch(`${urlBase}/company-jurisdictions`, {
+    return apiFetch<void>(`${urlBase}/company-jurisdictions`, {
       method: 'PUT',
       body: { jurisdictions: payload },
     })
@@ -70,22 +78,63 @@ export function useFiscalService() {
 
   function getTaxRules(taxType?: string): Promise<TaxRule[]> {
     const query = taxType ? `?tax_type=${taxType}` : ''
-    return $fetch(`${urlBase}/tax-rules${query}`, { timeout: 10_000, retry: 1 })
+    return apiFetch<TaxRule[]>(`${urlBase}/tax-rules${query}`, { timeout: 10_000, retry: 1 })
   }
 
   function createTaxRule(rule: Partial<TaxRule>): Promise<TaxRule> {
-    return $fetch(`${urlBase}/tax-rules`, { method: 'POST', body: rule })
+    return apiFetch<TaxRule>(`${urlBase}/tax-rules`, { method: 'POST', body: rule })
   }
 
   function updateTaxRule(id: string, rule: Partial<TaxRule>): Promise<TaxRule> {
-    return $fetch(`${urlBase}/tax-rules/${id}`, { method: 'PUT', body: rule })
+    return apiFetch<TaxRule>(`${urlBase}/tax-rules/${id}`, { method: 'PUT', body: rule })
   }
 
   function removeTaxRule(id: string) {
-    return $fetch(`${urlBase}/tax-rules/${id}`, { method: 'DELETE' })
+    return apiFetch<void>(`${urlBase}/tax-rules/${id}`, { method: 'DELETE' })
+  }
+
+  function createWithholdingRemittance(body: {
+    withholding_ids: string[]
+    vep_number: string
+    vep_amount: number
+    currency_code: string
+    tax_regime_code?: string
+    due_date?: string
+  }) {
+    return apiFetch<any>(`${urlBase}/withholdings/remittances`, { method: 'POST', body })
+  }
+
+  function findWithholdings() {
+    return apiFetch<{ items: any[] }>(`${urlBase}/withholdings`)
+  }
+
+  function findWithholdingRemittance(id: string) {
+    return apiFetch<any>(`${urlBase}/withholdings/remittances/${id}`)
+  }
+
+  function findWithholdingRemittances() {
+    return apiFetch<any[]>(`${urlBase}/withholdings/remittances`)
+  }
+
+  function createTaxApplication(withholdingId: string, body: {
+    tax_period: string
+    application_date: string
+    amount: number
+    declaration_reference?: string
+    notes?: string
+  }) {
+    return apiFetch<any>(`${urlBase}/withholdings/${withholdingId}/tax-applications`, { method: 'POST', body })
+  }
+
+  function reverseTaxApplication(applicationId: string, reason: string) {
+    return apiFetch<any>(`${urlBase}/withholding-tax-applications/${applicationId}/reverse`, {
+      method: 'POST',
+      body: { reason },
+    })
   }
 
   return {
+    getIibbRegister,
     previewWithholdings,
     getJurisdictions,
     getWithholdingConcepts,
@@ -99,5 +148,11 @@ export function useFiscalService() {
     createTaxRule,
     updateTaxRule,
     removeTaxRule,
+    createWithholdingRemittance,
+    findWithholdings,
+    findWithholdingRemittances,
+    findWithholdingRemittance,
+    createTaxApplication,
+    reverseTaxApplication,
   }
 }

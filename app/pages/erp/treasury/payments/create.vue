@@ -6,6 +6,8 @@ import PaymentForm from '~/modulos/erp/payments/components/PaymentForm.vue'
 import type { PaymentFormData } from '~/modulos/erp/payments/components/PaymentForm.vue'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
+import { useUsersService } from '~/modulos/access-control/services/users.service'
 
 const route = useRoute()
 const { hasPermission } = useRoles()
@@ -36,6 +38,8 @@ const {
 
 const router = useRouter()
 const toast = useToast()
+const intakeService = useIntakeRecordsService()
+const usersService = useUsersService()
 const creatingPayment = ref(false)
 const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
 const quickCaptureLoading = ref(false)
@@ -89,7 +93,7 @@ onMounted(async () => {
     fetchPendingPurchaseDocuments(),
     fetchAvailableOwnChecks(),
     fetchAvailableCustomerChecks(),
-    $fetch<Array<{ id: string; name: string; email: string }>>('/api/access-control/users/all')
+    usersService.findAll()
   ])
   users.value = companyUsers
 
@@ -138,10 +142,7 @@ const enableQuickCapture = async () => {
   }
   quickCaptureLoading.value = true
   try {
-    const capture = await $fetch<{ id: string }>('/api/intake-records', {
-      method: 'POST',
-      body: { title: 'Comprobante de pago pendiente de carga', suggested_type: 'PAYMENT' }
-    })
+    const capture = await intakeService.create({ title: 'Comprobante de pago pendiente de carga', suggested_type: 'PAYMENT' })
     intakeId.value = capture.id
     quickCaptureActive.value = true
   } catch (error: any) {
@@ -155,9 +156,7 @@ const sendQuickCapture = async () => {
   if (!intakeId.value || !assignedTo.value) return
   sendingCapture.value = true
   try {
-    await $fetch(`/api/intake-records/${intakeId.value}/send`, {
-      method: 'POST', body: { assigned_to: assignedTo.value }
-    })
+    await intakeService.send(intakeId.value, assignedTo.value)
     toast.add({ title: 'Comprobante enviado', description: 'El usuario lo encontrará en Capturas pendientes.', color: 'success' })
     await router.push('/erp/treasury/intake')
   } catch (error: any) {
@@ -207,9 +206,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
     if (created?.id) {
       paymentFormRef.value?.completeDraft()
       if (intakeId.value) {
-        await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
-          method: 'POST', body: { target_type: 'PAYMENT', target_id: created.id }
-        })
+        await intakeService.complete(intakeId.value, 'PAYMENT', created.id)
       }
       await router.push(`/erp/treasury/payments/${created.id}`)
     } else {

@@ -1,5 +1,6 @@
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useRolesStore } from '~/modulos/access-control/stores/roles.store'
+import { usePlatformModulesStore } from '~/modulos/platform-modules/platform-modules.store'
 
 export default defineNuxtRouteMiddleware(async () => {
   const auth = useAuthStore()
@@ -29,5 +30,12 @@ export default defineNuxtRouteMiddleware(async () => {
     await rolesStore.fetchMyPermissionsIfNeeded(auth.selectedCompany?.id, auth.user?.id)
   } catch {
     // best-effort: permission fetch failure should not block page render
+  }
+
+  try {
+    const companyId = auth.selectedCompany?.id
+    if (companyId) await usePlatformModulesStore().fetchEffective(companyId)
+  } catch {
+    // Informativo durante el despliegue gradual: no debe bloquear la navegación.
   }
 })

@@ -1,6 +1,7 @@
 export interface Company {
   id: string
   name: string
+  subdomain?: string
   tax_id?: string
   vat_condition?: string
   address?: string

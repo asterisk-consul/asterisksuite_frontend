@@ -10,6 +10,7 @@ import CurrentAccountSummary from '~/components/current-account/CurrentAccountSu
 import CurrentAccountChart from '~/components/current-account/CurrentAccountChart.vue'
 import CurrentAccountEntryTable from '~/components/current-account/CurrentAccountEntryTable.vue'
 import CurrentAccountExport from '~/components/current-account/CurrentAccountExport.vue'
+import { HrService } from '~/modulos/erp/hr/services/hr.service'
 
 const route = useRoute()
 const router = useRouter()
@@ -64,7 +65,7 @@ watch(currentAccount, async (current, _previous, onCleanup) => {
   partnerPosition.value = null
   if (current?.party_type !== 'PARTNER') return
   try {
-    const result = await $fetch<NonNullable<typeof partnerPosition.value>>(`/api/backend/hr/partners/${current.party_id}/funds`, { query: { currency_code: current.currency_code } })
+    const result = await HrService.getPartnerFunds(current.party_id, current.currency_code)
     if (!cancelled) partnerPosition.value = result
   } catch {
     if (!cancelled) toast.add({ title: 'No se pudo consultar el disponible de aportes', color: 'warning' })

@@ -1,9 +1,4 @@
-export interface SelectOption {
-  label: string
-  value: string | number | boolean
-}
-
-export type FieldType =
+type FieldType =
   | 'text'
   | 'number'
   | 'textarea'

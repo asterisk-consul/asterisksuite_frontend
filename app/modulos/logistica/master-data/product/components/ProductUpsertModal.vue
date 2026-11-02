@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CreateProductDto } from '~/modulos/logistica/master-data/product/types/product.types'
+import type { ProductFormState } from '~/modulos/logistica/master-data/product/types/product-form.types'
 
 import ProductForm from './ProductForm.vue'
 
@@ -9,7 +9,7 @@ const open = defineModel<boolean>('open', {
   default: false
 })
 
-const form = defineModel<CreateProductDto>('form', {
+const form = defineModel<ProductFormState>('form', {
   required: true
 })
 

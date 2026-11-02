@@ -8,6 +8,7 @@ import { useCompanyRole } from '~/composables/useCompanyRole'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useEmployeesService } from '~/modulos/erp/employees/service/employees.service'
 import { usePartnersService } from '~/modulos/erp/partners/service/partners.service'
+import { useUsersService } from '~/modulos/access-control/services/users.service'
 import type { Employee } from '~/modulos/erp/employees/types/employees.types'
 import type { Partner } from '~/modulos/erp/partners/types/partners.types'
 
@@ -17,6 +18,7 @@ const { isOwnerOrAdmin } = useCompanyRole()
 const { items: roles, init: initRoles, assignRoles, getUserRoles } = useRoles()
 const employeesService = useEmployeesService()
 const partnersService = usePartnersService()
+const usersService = useUsersService()
 
 interface CompanyUser {
   id: string
@@ -77,6 +79,14 @@ const linking = ref(false)
 const linkType = ref<'existing_employee' | 'existing_partner'>('existing_employee')
 const linkSelectedId = ref('')
 
+function closeAssignModal() { showAssignModal.value = false }
+function closeCreateModal() { showCreateModal.value = false }
+function closeEditModal() { showEditModal.value = false }
+function closePasswordModal() { showPasswordModal.value = false }
+function closeLinkModal() { showLinkModal.value = false }
+function selectExistingEmployee() { linkType.value = 'existing_employee' }
+function selectExistingPartner() { linkType.value = 'existing_partner' }
+
 const linkTypeOptions = [
   { label: 'No vincular', value: 'none' },
   { label: 'Empleado existente', value: 'existing_employee' },
@@ -124,7 +134,7 @@ const getUserLink = (userId: string) => {
 const loadUsers = async () => {
   loading.value = true
   try {
-    users.value = await $fetch<CompanyUser[]>('/api/access-control/users/all')
+    users.value = await usersService.findAll()
   } catch (e) {
     toast.add({ title: 'Error al cargar usuarios', color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
@@ -162,9 +172,7 @@ const openEditModal = async (user: CompanyUser) => {
 
   loadingEditContact.value = true
   try {
-    const contact = await $fetch<{ phone_e164: string; opted_in: boolean }>(
-      `/api/backend/companies/${companyId}/users/${user.id}/whatsapp`,
-    )
+    const contact = await usersService.getWhatsapp(companyId, user.id)
     if (selectedUser.value?.id !== user.id) return
     editUser.value.whatsapp_phone = contact.phone_e164 ?? ''
     editContactOptedIn.value = Boolean(contact.opted_in)
@@ -188,14 +196,11 @@ const saveUser = async () => {
 
   editing.value = true
   try {
-    await $fetch(`/api/access-control/users/${selectedUser.value.id}`, {
-      method: 'PATCH',
-      body: {
+    await usersService.update(selectedUser.value.id, {
         company_id: companyId,
         name: editUser.value.name,
         email: editUser.value.email,
         ...(editContactReady.value ? { whatsapp_phone: editUser.value.whatsapp_phone } : {}),
-      },
     })
     toast.add({ title: 'Usuario actualizado', color: 'success' })
     showEditModal.value = false
@@ -224,10 +229,7 @@ const savePassword = async () => {
 
   changingPassword.value = true
   try {
-    await $fetch(`/api/access-control/users/${selectedUser.value.id}/password`, {
-      method: 'PATCH',
-      body: { company_id: companyId, newPassword: newPassword.value },
-    })
+    await usersService.changePassword(selectedUser.value.id, companyId, newPassword.value)
     toast.add({ title: 'Contraseña actualizada', color: 'success' })
     showPasswordModal.value = false
   } catch (e: any) {
@@ -270,9 +272,9 @@ const unlinkEntity = async (type: 'employee' | 'partner') => {
   unlinking.value = type
   try {
     if (type === 'employee' && linkedEmployee.value) {
-      await $fetch(`/api/backend/employees/${linkedEmployee.value.id}/unlink-user`, { method: 'PATCH' })
+      await employeesService.unlinkUser(linkedEmployee.value.id)
     } else if (type === 'partner' && linkedPartner.value) {
-      await $fetch(`/api/backend/partners/${linkedPartner.value.id}/unlink-user`, { method: 'PATCH' })
+      await partnersService.unlinkUser(linkedPartner.value.id)
     }
     toast.add({ title: type === 'employee' ? 'Empleado desvinculado' : 'Socio desvinculado', color: 'success' })
     await loadEmployeesAndPartners()
@@ -298,15 +300,9 @@ const saveLink = async () => {
   linking.value = true
   try {
     if (linkType.value === 'existing_employee') {
-      await $fetch(`/api/backend/employees/${linkSelectedId.value}/link-user`, {
-        method: 'PATCH',
-        body: { user_id: selectedUser.value.id },
-      })
+      await employeesService.linkUser(linkSelectedId.value, selectedUser.value.id)
     } else {
-      await $fetch(`/api/backend/partners/${linkSelectedId.value}/link-user`, {
-        method: 'PATCH',
-        body: { user_id: selectedUser.value.id },
-      })
+      await partnersService.linkUser(linkSelectedId.value, selectedUser.value.id)
     }
     toast.add({ title: 'Vinculado correctamente', color: 'success' })
     showLinkModal.value = false
@@ -446,10 +442,7 @@ const createUser = async () => {
       body.link_partner_id = selectedPartnerId.value
     }
 
-    await $fetch('/api/access-control/users', {
-      method: 'POST',
-      body,
-    })
+    await usersService.create(body)
 
     const linkMsg = newUser.value.linkType !== 'none' ? ' y vinculado' : ''
     toast.add({ title: `Usuario creado${linkMsg}`, color: 'success' })
@@ -587,7 +580,7 @@ onMounted(async () => {
     </UPageCard>
 
     <!-- Assign Roles Modal -->
-    <UModal v-model:open="showAssignModal" title="Asignar roles" :ui="{ width: 'max-w-lg' }">
+    <UModal v-model:open="showAssignModal" title="Asignar roles" :ui="{ content: 'max-w-lg' }">
       <template #body>
         <div v-if="selectedUser" class="space-y-4">
           <p class="text-sm text-muted">
@@ -619,14 +612,14 @@ onMounted(async () => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showAssignModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="closeAssignModal" />
           <UButton label="Guardar" :loading="savingRoles" :disabled="roles.length === 0" @click="saveRoles" />
         </div>
       </template>
     </UModal>
 
     <!-- Create User Modal -->
-    <UModal v-model:open="showCreateModal" title="Crear usuario" :ui="{ width: 'max-w-lg' }">
+    <UModal v-model:open="showCreateModal" title="Crear usuario" :ui="{ content: 'max-w-lg' }">
       <template #body>
         <div class="space-y-4">
           <UFormField label="Nombre" name="name">
@@ -727,7 +720,7 @@ onMounted(async () => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showCreateModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="closeCreateModal" />
           <UButton
             v-if="newUser.linkType !== 'new_employee' && newUser.linkType !== 'new_partner'"
             label="Crear"
@@ -739,7 +732,7 @@ onMounted(async () => {
     </UModal>
 
     <!-- Edit User Modal -->
-    <UModal v-model:open="showEditModal" title="Editar usuario" :ui="{ width: 'max-w-lg' }">
+    <UModal v-model:open="showEditModal" title="Editar usuario" :ui="{ content: 'max-w-lg' }">
       <template #body>
         <div class="space-y-4">
           <p class="text-sm text-muted">
@@ -782,14 +775,14 @@ onMounted(async () => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showEditModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="closeEditModal" />
           <UButton label="Guardar" :loading="editing" :disabled="loadingEditContact" @click="saveUser" />
         </div>
       </template>
     </UModal>
 
     <!-- Change Password Modal -->
-    <UModal v-model:open="showPasswordModal" title="Cambiar contraseña" :ui="{ width: 'max-w-lg' }">
+    <UModal v-model:open="showPasswordModal" title="Cambiar contraseña" :ui="{ content: 'max-w-lg' }">
       <template #body>
         <div class="space-y-4">
           <p class="text-sm text-muted">
@@ -802,14 +795,14 @@ onMounted(async () => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showPasswordModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="closePasswordModal" />
           <UButton label="Cambiar contraseña" :loading="changingPassword" :disabled="newPassword.length < 6" @click="savePassword" />
         </div>
       </template>
     </UModal>
 
     <!-- Link Employee/Partner Modal -->
-    <UModal v-model:open="showLinkModal" title="Vincular empleado/socio" :ui="{ width: 'max-w-lg' }">
+    <UModal v-model:open="showLinkModal" title="Vincular empleado/socio" :ui="{ content: 'max-w-lg' }">
       <template #body>
         <div class="space-y-4">
           <p class="text-sm text-muted">
@@ -874,14 +867,14 @@ onMounted(async () => {
               :color="linkType === 'existing_employee' ? 'primary' : 'neutral'"
               :variant="linkType === 'existing_employee' ? 'solid' : 'outline'"
               size="sm"
-              @click="linkType = 'existing_employee'"
+              @click="selectExistingEmployee"
             />
             <UButton
               label="Socio"
               :color="linkType === 'existing_partner' ? 'primary' : 'neutral'"
               :variant="linkType === 'existing_partner' ? 'solid' : 'outline'"
               size="sm"
-              @click="linkType = 'existing_partner'"
+              @click="selectExistingPartner"
             />
           </div>
 
@@ -899,7 +892,7 @@ onMounted(async () => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showLinkModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="closeLinkModal" />
           <UButton label="Vincular" :loading="linking" :disabled="!linkSelectedId" @click="saveLink" />
         </div>
       </template>

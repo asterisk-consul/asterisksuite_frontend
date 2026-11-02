@@ -1,10 +1,11 @@
 ﻿import type {
   SalesSummaryResponse,
   SalesMovement,
-  SummaryFilters,
-  PointOfSaleReport,
-  PointOfSaleReportResponse
+  SummaryFilters
 } from './types/salesReports.types'
+
+const apiFetch = <T>(request: string, options?: any): Promise<T> =>
+  ($fetch as unknown as (request: string, options?: any) => Promise<T>)(request, options)
 
 export const SalesService = {
   async getSummary(filters?: SummaryFilters): Promise<SalesSummaryResponse> {
@@ -13,7 +14,7 @@ export const SalesService = {
     if (filters?.endDate) params.set('endDate', filters.endDate)
     if (filters?.supplierId) params.set('supplierId', filters.supplierId)
     const qs = params.toString() ? `?${params.toString()}` : ''
-    return $fetch(`/api/backend/sales-reports/summary${qs}`)
+    return apiFetch<SalesSummaryResponse>(`/api/backend/sales-reports/summary${qs}`)
   },
 
   async getMovements(
@@ -30,22 +31,14 @@ export const SalesService = {
 
     const qs = params.toString() ? `?${params.toString()}` : ''
 
-    return $fetch(`/api/backend/sales-reports/movements${qs}`)
+    return apiFetch<SalesMovement[]>(`/api/backend/sales-reports/movements${qs}`)
   },
 
   async getProducts() {
-    return $fetch('/api/backend/sales-reports/products')
+    return apiFetch<any[]>('/api/backend/sales-reports/products')
   },
 
   async getProductById(id: number | string) {
-    return $fetch(`/api/backend/sales-reports/products/${id}`)
-  },
-
-  async getByPointOfSale(filters?: SummaryFilters): Promise<PointOfSaleReportResponse> {
-    const params = new URLSearchParams()
-    if (filters?.startDate) params.set('startDate', filters.startDate)
-    if (filters?.endDate) params.set('endDate', filters.endDate)
-    const qs = params.toString() ? `?${params.toString()}` : ''
-    return $fetch(`/api/backend/sales-reports/by-point-of-sale${qs}`)
+    return apiFetch<any>(`/api/backend/sales-reports/products/${id}`)
   }
 }

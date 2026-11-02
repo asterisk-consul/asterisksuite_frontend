@@ -6,10 +6,12 @@ import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBank
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
+import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
 
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
+const intakeService = useIntakeRecordsService()
 const intakeId = computed(() => route.query.intakeId as string | undefined)
 
 const { create } = useChecks()
@@ -39,9 +41,7 @@ const handleSubmit = async (formData: CheckFormData) => {
     })
     toast.add({ title: 'Cheque creado', color: 'success' })
     if (intakeId.value && created?.id) {
-      await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
-        method: 'POST', body: { target_type: 'CHECK', target_id: created.id }
-      })
+      await intakeService.complete(intakeId.value, 'CHECK', created.id)
     }
     router.push(created?.id ? `/erp/treasury/checks/${created.id}/edit` : '/erp/treasury/checks')
   } catch (error: any) {

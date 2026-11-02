@@ -162,12 +162,12 @@ const documentPattern: Record<string, { regex: RegExp; length: string; placehold
 }
 
 const docPlaceholder = computed(() => {
-  const rule = documentPattern[form.document_type]
+  const rule = documentPattern[form.document_type ?? '']
   return rule?.placeholder || '20123456789'
 })
 
 const docMaxLength = computed(() => {
-  const rule = documentPattern[form.document_type]
+  const rule = documentPattern[form.document_type ?? '']
   if (!rule) return 20
   if (rule.length.includes('11')) return 11
   if (rule.length.includes('8')) return 8
@@ -438,7 +438,7 @@ const displayTitle = computed(() => {
                 <UButton size="sm" icon="i-heroicons-plus" @click="addLocation">
                   Agregar
                 </UButton>
-                <UButton size="sm" icon="i-lucide-map-pin-plus" variant="outline" @click="showLocationModal = true">
+                <UButton size="sm" icon="i-lucide-map-pin-plus" variant="outline" @click="() => { showLocationModal = true }">
                   Crear nueva
                 </UButton>
               </div>

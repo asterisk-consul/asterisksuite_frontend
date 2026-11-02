@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useExchangeQuotesService } from '~/services/exchange-quotes.service'
 import DollarCard from '@/components/dolar/DolarCard.vue'
 import DollarCardPequeña from '@/components/dolar/DolarCardPequeña.vue'
 
-const { data, pending, error } = await useFetch('/api/dolar')
+const exchangeQuotesService = useExchangeQuotesService()
+const { data, pending, error } = await useAsyncData('exchange-dollar-rates', () => exchangeQuotesService.getDollarRates(), { default: () => [] })
 
-const dolar = computed(() => (data.value as ApiDolar[]) || [])
+const dolar = computed(() => data.value || [])
 
 // Filtrar oficial y blue
 const principales = computed(() =>

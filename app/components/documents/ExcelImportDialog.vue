@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useDataImportService } from '~/modulos/data-import/data-import.service'
 interface ImportColumn {
   key: string
   label: string
@@ -34,6 +35,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const dataImportService = useDataImportService()
 const open = defineModel<boolean>('open', { default: false })
 
 const fileInput = ref<HTMLInputElement>()
@@ -62,10 +64,15 @@ const handleFileSelect = (event: Event) => {
   const reader = new FileReader()
   reader.onload = async (e) => {
     try {
-      const XLSX = await import('xlsx/xlsx.mjs')
+      const XLSX = await import('xlsx')
       const data = new Uint8Array(e.target?.result as ArrayBuffer)
       const workbook = XLSX.read(data, { type: 'array' })
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+      const firstSheetName = workbook.SheetNames[0]
+      const firstSheet = firstSheetName ? workbook.Sheets[firstSheetName] : undefined
+      if (!firstSheet) {
+        toast.add({ title: 'El archivo no contiene hojas para importar', color: 'error' })
+        return
+      }
       const jsonData = XLSX.utils.sheet_to_json(firstSheet)
 
       // Map headers to our column keys
@@ -79,7 +86,9 @@ const handleFileSelect = (event: Event) => {
       previewData.value = jsonData.slice(0, 5).map((row: any) => {
         const mapped: any = {}
         for (const col of props.columns) {
-          const searchKeys = [col.label, col.key].filter(Boolean)
+          const searchKeys = [col.label, col.key].filter(
+            (key): key is string => Boolean(key)
+          )
           let value: any = undefined
           for (const key of searchKeys) {
             // Exact match
@@ -116,10 +125,7 @@ const handleImport = async () => {
     formData.append('file', selectedFile.value)
 
     console.log('[ExcelImport] Sending request...')
-    const result = await $fetch<ImportResult>(props.endpoint, {
-      method: 'POST',
-      body: formData
-    })
+    const result = await dataImportService.upload<ImportResult>(props.endpoint, formData)
 
     console.log('[ExcelImport] Result:', result)
     importResult.value = result
@@ -163,7 +169,7 @@ const handleImport = async () => {
 }
 
 const downloadTemplate = async () => {
-  const XLSX = await import('xlsx/xlsx.mjs')
+  const XLSX = await import('xlsx')
   const headers = props.columns.map(col => col.label)
   const exampleRow = props.columns.map(col => {
     if (col.type === 'number') return 0
@@ -187,10 +193,19 @@ const reset = () => {
   step.value = 'upload'
   if (fileInput.value) fileInput.value.value = ''
 }
+
+const changeStep = (nextStep: 'upload' | 'preview' | 'result') => {
+  step.value = nextStep
+}
+
+const close = () => {
+  reset()
+  open.value = false
+}
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="title" :ui="{ width: 'max-w-2xl' }">
+  <UModal v-model:open="open" :title="title" :ui="{ content: 'max-w-2xl' }">
     <template #body>
       <!-- STEP 1: UPLOAD -->
       <div v-if="step === 'upload'" class="space-y-4">
@@ -232,7 +247,7 @@ const reset = () => {
           <p class="text-sm font-medium">
             Vista previa ({{ previewData.length }} filas de muestra)
           </p>
-          <UButton label="Cambiar archivo" variant="ghost" size="xs" @click="step = 'upload'" />
+          <UButton label="Cambiar archivo" variant="ghost" size="xs" @click="changeStep('upload')" />
         </div>
 
         <div class="overflow-x-auto border border-default rounded-lg">
@@ -264,7 +279,7 @@ const reset = () => {
         </div>
 
         <div class="flex justify-end gap-2">
-          <UButton label="Volver" variant="ghost" @click="step = 'upload'" />
+          <UButton label="Volver" variant="ghost" @click="changeStep('upload')" />
           <UButton
             label="Importar"
             color="primary"
@@ -311,7 +326,7 @@ const reset = () => {
         </div>
 
         <div class="flex justify-end">
-          <UButton label="Cerrar" @click="reset(); open = false" />
+          <UButton label="Cerrar" @click="close" />
         </div>
       </div>
     </template>

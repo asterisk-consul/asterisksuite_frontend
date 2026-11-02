@@ -2,6 +2,7 @@
 import { useCostTemplates } from '~/modulos/logistica/master-data/product/cost-templates/composables/useCostTemplates'
 import CostTemplateForm from '~/modulos/logistica/master-data/product/cost-templates/components/CostTemplateForm.vue'
 import CostComponentForm from '~/modulos/logistica/master-data/product/cost-templates/components/CostComponentForm.vue'
+import type { CostComponent, CostTemplate } from '~/modulos/logistica/master-data/product/cost-templates/types/cost-template.types'
 
 const { templates, components, loading, defaultTemplate, init, deleteTemplate, deleteComponent, setDefault } =
   useCostTemplates()
@@ -25,8 +26,8 @@ const activeTab = ref('templates')
 
 const showTemplateForm = ref(false)
 const showComponentForm = ref(false)
-const editingTemplate = ref(null)
-const editingComponent = ref(null)
+const editingTemplate = ref<CostTemplate | null>(null)
+const editingComponent = ref<CostComponent | null>(null)
 
 // =========================
 // INIT
@@ -45,7 +46,7 @@ const handleCreateTemplate = () => {
   showTemplateForm.value = true
 }
 
-const handleEditTemplate = (template) => {
+const handleEditTemplate = (template: CostTemplate) => {
   editingTemplate.value = template
   showTemplateForm.value = true
 }
@@ -86,7 +87,7 @@ const handleCreateComponent = () => {
   showComponentForm.value = true
 }
 
-const handleEditComponent = (component) => {
+const handleEditComponent = (component: CostComponent) => {
   editingComponent.value = component
   showComponentForm.value = true
 }

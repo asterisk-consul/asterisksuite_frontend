@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useNotificationsService } from '~/modulos/erp/notifications/notifications.service'
 const loading = ref(true)
 const saving = ref(false)
 const pageError = ref('')
 const contact = reactive({ phone_e164: '', opted_in: false, consent_at: null as string | null })
 const toast = useToast()
+const notificationsService = useNotificationsService()
 
 definePageMeta({
   middleware: ['auth']
@@ -13,7 +15,7 @@ async function loadContact() {
   loading.value = true
   pageError.value = ''
   try {
-    const result = await $fetch<{ phone_e164: string; opted_in: boolean; consent_at: string | null }>('/api/backend/notifications/whatsapp/contact')
+    const result = await notificationsService.getWhatsappContact()
     contact.phone_e164 = result.phone_e164 ?? ''
     contact.opted_in = Boolean(result.opted_in)
     contact.consent_at = result.consent_at ?? null
@@ -27,10 +29,7 @@ async function loadContact() {
 async function saveContact() {
   saving.value = true
   try {
-    const result = await $fetch<{ phone_e164: string; opted_in: boolean; consent_at: string | null }>('/api/backend/notifications/whatsapp/contact', {
-      method: 'PUT',
-      body: { phone_e164: contact.phone_e164, opted_in: contact.opted_in }
-    })
+    const result = await notificationsService.updateWhatsappContact({ phone_e164: contact.phone_e164, opted_in: contact.opted_in })
     contact.phone_e164 = result.phone_e164 ?? ''
     contact.opted_in = Boolean(result.opted_in)
     contact.consent_at = result.consent_at ?? null

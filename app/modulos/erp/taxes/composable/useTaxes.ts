@@ -41,11 +41,9 @@ export function useTaxes(taxes: Ref<Tax[]>) {
   const groupedByType = computed(() => {
     return taxes.value.reduce(
       (acc, tax) => {
-        if (!acc[tax.tax_type]) {
-          acc[tax.tax_type] = []
-        }
-
-        acc[tax.tax_type].push(tax)
+        const group = acc[tax.tax_type] ?? []
+        group.push(tax)
+        acc[tax.tax_type] = group
 
         return acc
       },

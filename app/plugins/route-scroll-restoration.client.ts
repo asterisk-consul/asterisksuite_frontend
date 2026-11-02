@@ -4,7 +4,8 @@ import { useAuthStore } from '~/modulos/auth/auth.store'
 type ScrollPosition = { top: number; left: number; windowTop: number }
 
 export default defineNuxtPlugin((nuxtApp) => {
-  const auth = useAuthStore(nuxtApp.$pinia)
+  const auth = useAuthStore()
+  const router = useRouter()
   const positions = new Map<string, ScrollPosition>()
   let browserHistoryNavigation = false
 
@@ -62,11 +63,11 @@ export default defineNuxtPlugin((nuxtApp) => {
     browserHistoryNavigation = true
   })
 
-  nuxtApp.$router.beforeEach((to, from) => {
+  router.beforeEach((to, from) => {
     if (from.matched.length) capture(from.fullPath)
   })
 
-  nuxtApp.$router.afterEach((to, _from, failure) => {
+  router.afterEach((to, _from, failure) => {
     const shouldRestore = browserHistoryNavigation
     browserHistoryNavigation = false
     if (!failure && shouldRestore) void restore(to.fullPath)
