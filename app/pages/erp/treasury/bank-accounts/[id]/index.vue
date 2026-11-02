@@ -11,6 +11,7 @@ import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBank
 import { bankMovementColumns, getMovementSignedAmount, getMovementTypeBadge } from '~/modulos/erp/bank-accounts/movement-columns'
 import RegisterBankMovementModal from '~/modulos/erp/bank-accounts/components/RegisterBankMovementModal.vue'
 import BankChargeRulesPanel from '~/modulos/erp/bank-accounts/components/BankChargeRulesPanel.vue'
+import { partitionCancelledTreasuryMovements } from '~/utils/treasuryMovementVisibility'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -75,9 +76,14 @@ const getCurrencyConfig = (code: string) =>
   CURRENCY_CONFIG[code] ?? { label: code, color: 'text-muted', icon: '💰', bg: 'bg-muted/10' }
 const getAccountTypeConfig = (type: string) => ACCOUNT_TYPE_CONFIG[type] ?? { label: type, icon: 'i-lucide-circle-dot' }
 const isInternalTransfer = (movement: any) => movement.reference_type === 'bank_account_transfer'
+const showCancelledMovements = ref(false)
+const movementVisibility = computed(() => partitionCancelledTreasuryMovements(movements.value))
+const cancelledMovements = computed(() => movementVisibility.value.cancelled)
+const activeMovements = computed(() => movementVisibility.value.active)
+const visibleMovements = computed(() => showCancelledMovements.value ? movements.value : activeMovements.value)
 
 const totalIn = computed(() =>
-  movements.value
+  activeMovements.value
     .filter(movement => !isInternalTransfer(movement))
     .map(getMovementSignedAmount)
     .filter(amount => amount > 0)
@@ -85,7 +91,7 @@ const totalIn = computed(() =>
 )
 
 const totalOut = computed(() =>
-  movements.value
+  activeMovements.value
     .filter(movement => !isInternalTransfer(movement))
     .map(getMovementSignedAmount)
     .filter(amount => amount < 0)
@@ -95,11 +101,11 @@ const totalOut = computed(() =>
 const realBalance = computed(() => Number(account.value?.balance ?? 0))
 
 const incomeMovementCount = computed(() =>
-  movements.value.filter(movement => !isInternalTransfer(movement) && getMovementSignedAmount(movement) > 0).length
+  activeMovements.value.filter(movement => !isInternalTransfer(movement) && getMovementSignedAmount(movement) > 0).length
 )
 
 const expenseMovementCount = computed(() =>
-  movements.value.filter(movement => !isInternalTransfer(movement) && getMovementSignedAmount(movement) < 0).length
+  activeMovements.value.filter(movement => !isInternalTransfer(movement) && getMovementSignedAmount(movement) < 0).length
 )
 
 const detailsButton = resolveComponent('UButton')
@@ -172,13 +178,13 @@ const selectedMovementBadge = computed(() => selectedMovementDetails.value
   : null)
 
 const filterFields: FilterField[] = [
-  { id: 'type', label: 'Filtrar por tipo...', class: 'w-40' },
+  { id: 'movement_type_label', label: 'Filtrar por tipo...', class: 'w-40' },
   { id: 'description', label: 'Filtrar por descripción...', class: 'w-56' }
 ]
 
 const sortFields: SortField[] = [
   { label: 'Fecha', value: 'date' },
-  { label: 'Tipo', value: 'type' },
+  { label: 'Tipo', value: 'movement_type_label' },
   { label: 'Monto', value: 'amount' },
   { label: 'Saldo', value: 'balance_after' }
 ]
@@ -307,12 +313,29 @@ const handleMovementSaved = async () => {
     <!-- MOVEMENTS TABLE -->
     <UPageCard variant="subtle">
       <template #header>
-        <h3 class="text-sm font-semibold">Historial de movimientos</h3>
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold">Historial de movimientos</h3>
+          <UBadge :label="`${visibleMovements.length}`" color="neutral" variant="soft" size="xs" />
+          <UButton
+            v-if="cancelledMovements.length"
+            :label="showCancelledMovements ? 'Ocultar anulados' : `Mostrar anulados (${cancelledMovements.length})`"
+            :icon="showCancelledMovements ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            class="ml-auto"
+            @click="() => { showCancelledMovements = !showCancelledMovements }"
+          />
+        </div>
       </template>
-      <div class="overflow-x-auto">
+      <div v-if="visibleMovements.length === 0" class="py-8 text-center text-sm text-muted">
+        <UIcon name="i-lucide-inbox" class="mx-auto mb-2 size-8 opacity-30" />
+        {{ cancelledMovements.length ? 'No hay movimientos vigentes. Los anulados están ocultos.' : 'No hay movimientos registrados' }}
+      </div>
+      <div v-else class="overflow-x-auto">
         <LogisticaTable
           :loading="loading"
-          :data="movements"
+          :data="visibleMovements"
           :columns="columns"
           :filter-fields="filterFields"
           :sort-fields="sortFields"

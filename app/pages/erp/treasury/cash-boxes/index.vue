@@ -295,12 +295,20 @@ const goToCreate = () => {
     <AppPageHeader title="Cajas" description="Gestión de cajas y sesiones">
       <template #links>
         <UButton
+          data-global-create-shortcut
           label="Nueva caja"
           icon="i-heroicons-plus"
           color="primary"
           variant="solid"
+          class="group/create"
+          aria-keyshortcuts="Alt+N"
+          title="Nueva caja (Alt + N)"
           @click="goToCreate"
-        />
+        >
+          <template #trailing>
+            <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover />
+          </template>
+        </UButton>
       </template>
     </AppPageHeader>
 

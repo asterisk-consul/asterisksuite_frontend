@@ -90,9 +90,7 @@ async function handlePartialInvoice() {
             <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />
             <UBadge v-else-if="invoiceState === 'partial'" label="Factura parcial" color="warning" variant="subtle" />
             <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
-            <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
-              <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
-            </UDropdownMenu>
+            <ShortcutDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions" />
             <DocumentHelpPopover :category="category || 'ORDER'" :actions="[...primaryActions, ...secondaryActions.flat()]" />
           </div>
         </template>

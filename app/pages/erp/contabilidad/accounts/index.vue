@@ -214,7 +214,9 @@ const selectedType = computed({
           <UButton label="Exportar" icon="i-lucide-download" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-down" />
         </UDropdownMenu>
         <UButton v-if="allowImport" label="Importar" icon="i-lucide-upload" color="neutral" variant="outline" @click="() => { showImportDialog = true }" />
-        <UButton label="Nueva cuenta" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate()" />
+        <UButton data-global-create-shortcut class="group/create" label="Nueva cuenta" icon="i-lucide-plus" color="primary" variant="solid" aria-keyshortcuts="Alt+N" @click="openCreate()">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 

@@ -309,8 +309,6 @@ const paymentShortcutActions = computed(() => {
 })
 
 const { shortcutKeys: paymentShortcutKeys } = useDocumentDetailShortcuts(paymentShortcutActions, [actionModalOpen, advanceModalOpen])
-const shortcutKeyText = (label: string) => paymentShortcutKeys(label)?.join(' + ')
-const shortcutAriaValue = (label: string) => paymentShortcutKeys(label)?.join('+')
 
 const handleFormModelUpdate = (value: PaymentFormData) => {
   editingDate.value = value.date ?? ''
@@ -420,56 +418,41 @@ const handleAdvanceSuccess = async () => {
             />
           </div>
           <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-            <UButton
+            <ShortcutButton
               v-if="isConfirmed && canMarkAsPaid"
               label="Marcar pagado"
+              :shortcut-keys="paymentShortcutKeys('Marcar pagado') ?? []"
               icon="i-lucide-check"
               size="sm"
               color="success"
               :loading="isProcessing"
               :disabled="isProcessing"
-              :aria-keyshortcuts="shortcutAriaValue('Marcar pagado')"
-              :title="`Marcar pagado (Alt + ${shortcutKeyText('Marcar pagado')?.split(' + ')[1]})`"
               @click="openAction('pay')"
-            >
-              <template #trailing>
-                <KeyboardShortcutHint :keys="paymentShortcutKeys('Marcar pagado') ?? []" size="2xs" />
-              </template>
-            </UButton>
-            <UButton
+            />
+            <ShortcutButton
               v-if="isConfirmed && canRejectPayment"
               label="Rechazar"
+              :shortcut-keys="paymentShortcutKeys('Rechazar') ?? []"
               icon="i-lucide-x-circle"
               size="sm"
               color="warning"
               variant="soft"
               :loading="isProcessing"
               :disabled="isProcessing"
-              :aria-keyshortcuts="shortcutAriaValue('Rechazar')"
-              :title="`Rechazar (Alt + ${shortcutKeyText('Rechazar')?.split(' + ')[1]})`"
               @click="openAction('reject')"
-            >
-              <template #trailing>
-                <KeyboardShortcutHint :keys="paymentShortcutKeys('Rechazar') ?? []" size="2xs" />
-              </template>
-            </UButton>
-            <UButton
+            />
+            <ShortcutButton
               v-if="(isConfirmed || isPaid) && canReversePayment"
               label="Anular"
+              :shortcut-keys="paymentShortcutKeys('Anular') ?? []"
               icon="i-lucide-undo-2"
               size="sm"
               color="error"
               variant="outline"
               :loading="isProcessing"
               :disabled="isProcessing"
-              :aria-keyshortcuts="shortcutAriaValue('Anular')"
-              :title="`Anular (Alt + ${shortcutKeyText('Anular')?.split(' + ')[1]})`"
               @click="openAction('reverse')"
-            >
-              <template #trailing>
-                <KeyboardShortcutHint :keys="paymentShortcutKeys('Anular') ?? []" size="2xs" />
-              </template>
-            </UButton>
+            />
           </div>
         </div>
       </template>
@@ -521,22 +504,17 @@ const handleAdvanceSuccess = async () => {
             @cancel="router.push('/erp/treasury/payments')"
           >
             <template #action-bar-actions>
-              <UButton
+              <ShortcutButton
                 v-if="isDraft && canConfirmPayment"
                 label="Confirmar"
+                :shortcut-keys="paymentShortcutKeys('Confirmar') ?? []"
                 icon="i-lucide-check-circle"
                 size="sm"
                 color="info"
                 :loading="isProcessing"
                 :disabled="isProcessing || isSaving || hasUnsavedDateChange"
-                :aria-keyshortcuts="shortcutAriaValue('Confirmar')"
-                :title="`Confirmar (Alt + ${shortcutKeyText('Confirmar')?.split(' + ')[1]})`"
                 @click="openAction('confirm')"
-              >
-                <template #trailing>
-                  <KeyboardShortcutHint :keys="paymentShortcutKeys('Confirmar') ?? []" size="2xs" />
-                </template>
-              </UButton>
+              />
             </template>
           </PaymentForm>
           <UiAttachmentManager

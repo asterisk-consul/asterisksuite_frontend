@@ -117,9 +117,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
                 :action="action"
                 :shortcut-keys="shortcutKeys(action.label)"
               />
-              <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
-                <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
-              </UDropdownMenu>
+              <ShortcutDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions" />
             </div>
           </template>
         </UPageHeader>

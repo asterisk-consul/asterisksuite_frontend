@@ -96,9 +96,7 @@ const {
         <template #trailing>
           <div class="flex gap-2 items-center flex-wrap">
             <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
-            <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
-              <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
-            </UDropdownMenu>
+            <ShortcutDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions" />
             <DocumentHelpPopover :category="category || 'REMITO'" :actions="[...primaryActions, ...secondaryActions.flat()]" />
           </div>
         </template>

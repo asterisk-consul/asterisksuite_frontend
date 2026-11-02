@@ -57,7 +57,7 @@ onMounted(async () => { await initBanks(); await load() })
 <template>
   <UPage class="space-y-5">
     <AppPageHeader title="Inversiones" description="Controlá plazos fijos, fondos FIMA, rendimientos y próximas acreditaciones.">
-      <template #links><UButton icon="i-lucide-plus" label="Nueva inversión" @click="openCreate" /></template>
+      <template #links><UButton data-global-create-shortcut class="group/create" icon="i-lucide-plus" label="Nueva inversión" aria-keyshortcuts="Alt+N" @click="openCreate"><template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template></UButton></template>
     </AppPageHeader>
 
     <div class="grid gap-3 md:grid-cols-3">

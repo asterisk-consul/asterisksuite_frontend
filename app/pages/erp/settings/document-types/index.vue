@@ -371,7 +371,9 @@ const badgeForTab = (index: number) => {
             <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" />
           </UDropdownMenu>
         </UFieldGroup>
-        <UButton label="Nuevo tipo" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate" />
+        <UButton data-global-create-shortcut class="group/create" label="Nuevo tipo" icon="i-lucide-plus" color="primary" variant="solid" aria-keyshortcuts="Alt+N" @click="openCreate">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 

@@ -1,5 +1,30 @@
 [
  {
+  "version": "0.119.0-alpha",
+  "date": "2026-11-02",
+  "stage": "alpha",
+  "notes": "Se integran atajos para crear, volver y ejecutar acciones frecuentes. Se corrigen filtros de RRHH y movimientos bancarios, y las anulaciones de pagos y vales dejan de duplicar los historiales operativos de cajas y bancos.",
+  "changes": [
+   { "type": "feat", "scope": "shortcuts", "title": "Incorporar atajos de creación, navegación y acciones frecuentes con indicadores consistentes" },
+   { "type": "fix", "scope": "treasury", "title": "Ocultar inicialmente reversiones de pagos y vales en cajas y bancos sin alterar los saldos" },
+   { "type": "fix", "scope": "tables", "title": "Corregir los filtros de tipo en vales y movimientos bancarios" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agilizar acciones y consultar movimientos sin duplicaciones"
+ },
+ {
+  "version": "0.118.1-alpha",
+  "date": "2026-11-02",
+  "stage": "alpha",
+  "notes": "La administración de plataforma conserva el rol al recargar y muestra las acciones de creación del encabezado.",
+  "changes": [
+   { "type": "fix", "scope": "platform-access", "title": "Incluir el rol global en la respuesta de sesión para mantener Planes y módulos visible al recargar" },
+   { "type": "fix", "scope": "platform-plans", "title": "Mostrar Nuevo plan y otras acciones provistas por AppPageHeader" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Conservar la navegación de plataforma al recargar"
+ },
+ {
   "version": "0.118.0-alpha",
   "date": "2026-11-02",
   "stage": "alpha",

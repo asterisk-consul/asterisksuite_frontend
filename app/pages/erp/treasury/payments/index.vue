@@ -111,10 +111,7 @@ const handleAction = async () => {
 onMounted(() => {
   void init()
   void fetchMyPermissionsIfNeeded(authStore.selectedCompany?.id, authStore.user?.id).catch(() => undefined)
-  window.addEventListener('keydown', handleCreatePaymentShortcut)
 })
-
-onBeforeUnmount(() => window.removeEventListener('keydown', handleCreatePaymentShortcut))
 
 const modeFilter = ref<'ALL' | 'NORMAL' | 'ADVANCE'>('ALL')
 const showCancelled = ref(false)
@@ -149,20 +146,6 @@ const links: ButtonProps[] = [
 
 function goToCreatePayment() {
   return router.push('/erp/treasury/payments/create')
-}
-
-function handleCreatePaymentShortcut(event: KeyboardEvent) {
-  if (event.defaultPrevented || event.isComposing || event.repeat || !canCreatePayment.value) return
-  const target = event.target
-  const isTyping = target instanceof HTMLElement && (
-    target.isContentEditable
-    || Boolean(target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'))
-  )
-  if (event.key.toLowerCase() !== 'n' || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || isTyping) return
-
-  event.preventDefault()
-  event.stopPropagation()
-  void goToCreatePayment()
 }
 
 const filterFields: FilterField[] = [
@@ -230,6 +213,8 @@ const dataActions = computed(() => [
         </UFieldGroup>
         <UButton
           v-if="canCreatePayment"
+          data-global-create-shortcut
+          class="group/create"
           label="Nuevo pago/cobro"
           icon="i-heroicons-plus"
           color="primary"
@@ -239,7 +224,7 @@ const dataActions = computed(() => [
           @click="() => { void (goToCreatePayment()) }"
         >
           <template #trailing>
-            <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" />
+            <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover />
           </template>
         </UButton>
       </template>

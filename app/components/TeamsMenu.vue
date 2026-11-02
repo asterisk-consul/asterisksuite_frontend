@@ -107,16 +107,16 @@ function goToHome() {
       <UButton
         color="neutral"
         variant="ghost"
-        class="w-full rounded-lg data-[state=open]:bg-elevated"
+        class="group/create w-full rounded-lg data-[state=open]:bg-elevated"
         :class="collapsed ? 'justify-center p-2' : 'justify-start gap-2 py-2'"
         :aria-label="collapsed ? `Cambiar empresa: ${selectedCompany?.name ?? ''}` : undefined"
         aria-keyshortcuts="Control+Shift+E"
-        :title="collapsed ? `Cambiar empresa (Ctrl + Shift + E)` : undefined"
+        title="Cambiar empresa (Ctrl + Shift + E)"
       >
         <UIcon :name="selectedCompany?.role === 'OWNER' ? 'i-lucide-crown' : 'i-lucide-building'" class="size-4 shrink-0" />
         <span v-if="!collapsed" class="min-w-0 flex-1 truncate text-left">{{ selectedCompany?.name }}</span>
         <span v-if="!collapsed" class="flex shrink-0 items-center gap-1.5 text-dimmed">
-          <KeyboardShortcutHint :keys="['Ctrl', 'Shift', 'E']" size="2xs" />
+          <KeyboardShortcutHint :keys="['Ctrl', 'Shift', 'E']" size="2xs" reveal-on-hover />
           <UIcon name="i-lucide-chevrons-up-down" class="size-4" />
         </span>
       </UButton>

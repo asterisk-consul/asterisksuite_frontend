@@ -168,7 +168,9 @@ function valeStatusLabel(vale: HrVale) {
     <AppPageHeader title="RRHH" description="Personas, vales y cuentas corrientes internas">
       <template #links>
         <UButton label="Ver vales" icon="i-lucide-receipt-text" to="/erp/rrhh/vales" variant="soft" color="neutral" />
-        <UButton label="Nuevo vale" icon="i-lucide-plus" color="primary" @click="() => { showCreateValeModal = true }" />
+        <UButton data-global-create-shortcut class="group/create" label="Nuevo vale" icon="i-lucide-plus" color="primary" aria-keyshortcuts="Alt+N" @click="() => { showCreateValeModal = true }">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 

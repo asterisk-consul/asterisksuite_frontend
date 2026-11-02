@@ -8,6 +8,7 @@ import {
   HR_VALE_STATUS_COLORS
 } from '~/modulos/erp/hr/types/hr.types'
 import type { HrVale } from '~/modulos/erp/hr/types/hr.types'
+import type { TableFilter } from '~/components/Tablas/types/tablas.types'
 import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import { createTableBuilder } from '~/composables/table/createColumns'
@@ -30,6 +31,7 @@ const router = useRouter()
 // Rango de fechas (vacío = sin límite)
 const dateFrom = ref('')
 const dateTo = ref('')
+const advancedFilters = ref<TableFilter[]>([])
 
 const showCreateModal = ref(false)
 const showCancelModal = ref(false)
@@ -208,6 +210,51 @@ const build = createTableBuilder<HrVale>({ locale: 'es-AR' })
 
 const typeFilterOptions = Object.entries(HR_VALE_TYPE_LABELS).map(([value, label]) => ({ label: value === 'SUELDO' ? 'Sueldo / remuneración' : label, value }))
 const statusFilterOptions = Object.entries(HR_VALE_STATUS_LABELS).map(([value, label]) => ({ label, value }))
+const partnerValeTypeLabels: Partial<Record<HrVale['type'], string>> = {
+  SUELDO: 'Remuneración por trabajo',
+  APORTE: 'Aporte de fondos',
+  RETIRO: 'Retiro de aportes',
+  PRESTAMO: 'Préstamo al socio'
+}
+
+function normalizeTypeSearch(value: unknown) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('es-AR')
+}
+
+function unwrapTypeFilterValue(value: unknown) {
+  let current = value
+  for (let depth = 0; depth < 2 && current && typeof current === 'object'; depth++) {
+    if ('value' in current) current = current.value
+    else if ('label' in current) current = current.label
+    else break
+  }
+  return current
+}
+
+function matchesValeType(vale: HrVale, query: string) {
+  const type = String(vale.type ?? '').trim().toUpperCase() as HrVale['type']
+  const labels = [
+    type,
+    HR_VALE_TYPE_LABELS[type],
+    vale.party_type === 'PARTNER' ? partnerValeTypeLabels[type] : undefined
+  ]
+
+  return labels.some(label => normalizeTypeSearch(label).includes(query))
+}
+
+const tableVales = computed(() => {
+  const typeQueries = advancedFilters.value
+    .filter(filter => filter.column === 'type')
+    .map(filter => normalizeTypeSearch(unwrapTypeFilterValue(filter.value)))
+    .filter((query): query is string => Boolean(query))
+
+  if (!typeQueries.length) return filteredVales.value
+  return filteredVales.value.filter(vale => typeQueries.every(query => matchesValeType(vale, query)))
+})
 
 const columns = build([
   {
@@ -264,6 +311,8 @@ const columns = build([
   {
     key: 'type',
     label: 'Tipo',
+    // El filtro se aplica sobre tableVales para controlar la comparación del tipo visible.
+    filterFn: () => true,
     badge: {
       resolve: (vale) => ({
         label: vale.party_type === 'PARTNER'
@@ -386,7 +435,9 @@ const sortFields = [
   <UPage class="space-y-6 px-4">
     <AppPageHeader title="Vales RRHH" description="Comprobantes internos de empleados y socios">
       <template #links>
-        <UButton label="Nuevo vale" icon="i-lucide-plus" @click="openCreateModal" />
+        <UButton data-global-create-shortcut data-hide-global-create-control class="group/create" label="Nuevo vale" icon="i-lucide-plus" aria-keyshortcuts="Alt+N" @click="openCreateModal">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 
@@ -410,9 +461,10 @@ const sortFields = [
 
     <!-- Tabla -->
     <AsteriskTable
-      :data="filteredVales"
+      :data="tableVales"
       :columns="columns"
       :loading="loading"
+      v-model:filters="advancedFilters"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       storage-key="rrhh-vales"

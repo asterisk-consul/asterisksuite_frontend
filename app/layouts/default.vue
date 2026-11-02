@@ -143,6 +143,8 @@ onBeforeUnmount(() => {
             <UBreadcrumb :items="breadcrumbs" />
           </template>
           <template #right>
+            <GlobalBackShortcut />
+            <GlobalCreateShortcut />
             <div class="relative">
               <UButton
                 icon="i-lucide-bell"

@@ -245,11 +245,16 @@ const accountActionItems = computed(() => [
           </UDropdownMenu>
           <UDropdownMenu :items="nuevoMovimientoItems">
             <UButton
+              data-global-create-shortcut
               label="Nuevo movimiento"
               icon="i-heroicons-plus"
               color="primary"
               variant="solid"
-            />
+              class="group/create"
+              aria-keyshortcuts="Alt+N"
+            >
+              <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+            </UButton>
           </UDropdownMenu>
           <UButton label="Volver" icon="i-lucide-arrow-left" variant="ghost" @click="goBack" />
         </div>

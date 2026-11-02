@@ -77,6 +77,20 @@ export const MOVEMENT_TYPE_OPTIONS = Object.entries(MOVEMENT_TYPE_CONFIG).map(([
   value
 }))
 
+const MOVEMENT_TYPE_FILTER_OPTIONS = [
+  ...Object.values(MOVEMENT_TYPE_CONFIG).map(({ label }) => label),
+  'Reversión de pago',
+  'Constitución',
+  'Rescate / vencimiento'
+].map(label => ({ label, value: label }))
+
+const getMovementConcept = (row: Row) => {
+  const name = row.concept_name_snapshot ?? row.bank_concept?.name
+  if (name) return name
+  if (isInvestmentMovement(row)) return 'Inversión financiera'
+  return '—'
+}
+
 export const bankMovementColumns = (actions: {
   onSortFieldSelect?: (columnId: string) => void
 }): TableColumn<Row>[] => {
@@ -94,7 +108,8 @@ export const bankMovementColumns = (actions: {
         date: true
       },
       {
-        key: 'type',
+        id: 'movement_type_label',
+        accessorFn: row => getMovementTypeBadge(row).label,
         label: 'Tipo',
         sortable: true,
         badge: {
@@ -104,24 +119,27 @@ export const bankMovementColumns = (actions: {
           filter: {
             type: 'select',
             operators: ['equals'],
-            options: MOVEMENT_TYPE_OPTIONS
+            options: MOVEMENT_TYPE_FILTER_OPTIONS
           }
         }
       },
       {
-        key: 'concept',
+        id: 'concept',
+        accessorFn: getMovementConcept,
         label: 'Concepto',
-        cell: ({ row }) => {
-          const name = row.original.concept_name_snapshot ?? row.original.bank_concept?.name
-          if (name) return name
-          if (isInvestmentMovement(row.original)) return 'Inversión financiera'
-          return '—'
-        }
+        cell: ({ row }) => getMovementConcept(row.original)
       },
       {
-        key: 'amount',
+        id: 'amount',
+        accessorFn: getMovementSignedAmount,
         label: 'Monto',
         sortable: true,
+        meta: {
+          filter: {
+            type: 'number',
+            operators: ['equals', 'gt', 'lt']
+          }
+        },
         cell: ({ row }) => {
           const value = row.original.amount
           if (value == null) return '—'
@@ -135,8 +153,15 @@ export const bankMovementColumns = (actions: {
         }
       },
       {
-        key: 'balance_before',
+        id: 'balance_before',
+        accessorFn: row => Number(row.balance_before),
         label: 'Saldo ant.',
+        meta: {
+          filter: {
+            type: 'number',
+            operators: ['equals', 'gt', 'lt']
+          }
+        },
         cell: ({ row }) => {
           const value = row.original.balance_before
           if (value == null) return '—'
@@ -148,9 +173,16 @@ export const bankMovementColumns = (actions: {
         }
       },
       {
-        key: 'balance_after',
+        id: 'balance_after',
+        accessorFn: row => Number(row.balance_after),
         label: 'Saldo',
         sortable: true,
+        meta: {
+          filter: {
+            type: 'number',
+            operators: ['equals', 'gt', 'lt']
+          }
+        },
         cell: ({ row }) => {
           const value = row.original.balance_after
           if (value == null) return '—'

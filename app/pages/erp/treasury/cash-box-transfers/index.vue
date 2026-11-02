@@ -393,7 +393,9 @@ const sortFields: SortField[] = [
   <div>
     <AppPageHeader title="Transferencias de Caja" description="Gestioná las transferencias entre cajas y bancos">
       <template #links>
-        <UButton label="Nueva transferencia" icon="i-heroicons-plus" @click="openCreate" />
+        <UButton data-global-create-shortcut class="group/create" label="Nueva transferencia" icon="i-heroicons-plus" aria-keyshortcuts="Alt+N" @click="openCreate">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 

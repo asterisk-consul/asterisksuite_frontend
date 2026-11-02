@@ -229,7 +229,9 @@ function formatSequenceNumber(value: number | string | null | undefined, fallbac
       description="Cada tipo de comprobante mantiene su propia numeración dentro de un punto de venta"
     >
       <template #links>
-        <UButton label="Nueva secuencia" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate" />
+        <UButton data-global-create-shortcut class="group/create" label="Nueva secuencia" icon="i-lucide-plus" color="primary" variant="solid" aria-keyshortcuts="Alt+N" @click="openCreate">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 

@@ -220,7 +220,7 @@ const targetLink = computed(() => {
 <template>
   <UPage class="space-y-4">
     <AppPageHeader title="Capturas pendientes" description="Comprobantes enviados para completar y registrar.">
-      <template v-if="canCreate" #links><UButton label="Nueva captura" icon="i-lucide-camera" @click="openNewCapture" /></template>
+      <template v-if="canCreate" #links><UButton data-global-create-shortcut class="group/create" label="Nueva captura" icon="i-lucide-camera" aria-keyshortcuts="Alt+N" @click="openNewCapture"><template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template></UButton></template>
     </AppPageHeader>
 
     <LogisticaTable

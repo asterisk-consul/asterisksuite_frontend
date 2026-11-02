@@ -63,12 +63,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleCreateShortcut
   <UDropdownMenu v-if="menuItems.length" v-model:open="menuOpen" :items="menuItems">
     <UButton
       color="primary"
+      class="group/create"
       aria-keyshortcuts="Alt+N"
       title="Crear nuevo comprobante (Alt + N)"
     >
       <UIcon name="i-lucide-plus" class="size-4" />
       <span>Crear nuevo comprobante</span>
-      <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" />
+      <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover />
       <UIcon name="i-lucide-chevron-down" class="size-4" />
     </UButton>
   </UDropdownMenu>

@@ -157,7 +157,9 @@ const conceptTypeIcon = (type: string) => ({
       description="Configurar comisiones, impuestos, gastos e intereses bancarios"
     >
       <template #links>
-        <UButton label="Nuevo concepto" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate" />
+        <UButton data-global-create-shortcut class="group/create" label="Nuevo concepto" icon="i-lucide-plus" color="primary" variant="solid" aria-keyshortcuts="Alt+N" @click="openCreate">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 

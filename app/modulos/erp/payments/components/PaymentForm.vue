@@ -1879,31 +1879,21 @@ defineExpose({ completeDraft: completePaymentDraft })
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-          <UButton
+          <ShortcutButton
             label="Cancelar"
+            :shortcut-keys="props.actionBarTarget ? ['Esc'] : []"
             variant="ghost"
-            :aria-keyshortcuts="props.actionBarTarget ? 'Escape' : undefined"
-            :title="props.actionBarTarget ? 'Cancelar (Esc)' : undefined"
             :disabled="props.loading"
             @click="emit('cancel')"
-          >
-            <template v-if="props.actionBarTarget" #trailing>
-              <KeyboardShortcutHint :keys="['Esc']" size="2xs" />
-            </template>
-          </UButton>
-          <UButton
+          />
+          <ShortcutButton
             :label="props.loading ? 'Guardando…' : (props.submitLabel ?? 'Guardar')"
+            :shortcut-keys="props.actionBarTarget ? ['Ctrl', 'S'] : []"
             type="button"
-            :aria-keyshortcuts="props.actionBarTarget ? 'Control+S' : undefined"
-            :title="props.actionBarTarget ? `${props.submitLabel ?? 'Guardar'} (Ctrl + S)` : undefined"
             :loading="props.loading"
             :disabled="props.loading || (selectedDocs.size > 0 && totalApplied <= 0) || !hasInstrumentSelection"
             @click="handleSubmit"
-          >
-            <template v-if="props.actionBarTarget" #trailing>
-              <KeyboardShortcutHint :keys="['Ctrl', 'S']" size="2xs" />
-            </template>
-          </UButton>
+          />
           <slot v-if="props.actionBarTarget" name="action-bar-actions" />
           <slot v-if="props.actionBarTarget" name="action-bar-status" />
         </div>

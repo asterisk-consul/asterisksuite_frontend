@@ -2,8 +2,10 @@
 const props = withDefaults(defineProps<{
   keys: string[]
   size?: 'sm' | 'xs' | '2xs'
+  revealOnHover?: boolean
 }>(), {
-  size: 'xs'
+  size: 'xs',
+  revealOnHover: false
 })
 
 const label = computed(() => `Atajo: ${props.keys.join(' + ')}`)
@@ -12,6 +14,7 @@ const label = computed(() => `Atajo: ${props.keys.join(' + ')}`)
 <template>
   <span
     class="inline-flex shrink-0 items-center gap-1 align-middle"
+    :class="{ 'keyboard-shortcut-hint--reveal': revealOnHover }"
     :aria-label="label"
     role="img"
   >
@@ -26,3 +29,25 @@ const label = computed(() => `Atajo: ${props.keys.join(' + ')}`)
     </kbd>
   </span>
 </template>
+
+<style>
+.keyboard-shortcut-hint--reveal {
+  max-width: 8rem;
+  transition: max-width 180ms ease, opacity 150ms ease, transform 180ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .group\/create:not(:hover):not(:focus-visible) .keyboard-shortcut-hint--reveal {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateX(0.25rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keyboard-shortcut-hint--reveal {
+    transition: none;
+  }
+}
+</style>

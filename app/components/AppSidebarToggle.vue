@@ -1,4 +1,3 @@
-<!-- components/AppSidebarToggle.vue -->
 <script setup lang="ts">
 defineProps<{
   collapsed: boolean
@@ -7,17 +6,16 @@ defineEmits(['click'])
 </script>
 
 <template>
-  <div
-    class="group relative flex items-center justify-center w-5 h-5 rounded-md cursor-pointer hover:bg-elevated transition-colors"
-    @click="$emit('click')"
-  >
-    <UIcon
-      name="i-lucide-menu"
-      class="absolute transition-all duration-200 opacity-100 group-hover:opacity-0 group-hover:scale-75"
+  <UTooltip :text="collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'">
+    <UButton
+      :icon="collapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
+      :aria-label="collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'"
+      :aria-expanded="!collapsed"
+      color="neutral"
+      variant="ghost"
+      size="xs"
+      class="shrink-0"
+      @click="$emit('click')"
     />
-    <UIcon
-      :name="collapsed ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'"
-      class="absolute transition-all duration-200 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100"
-    />
-  </div>
+  </UTooltip>
 </template>

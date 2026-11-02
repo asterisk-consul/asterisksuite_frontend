@@ -13,6 +13,7 @@ import { useCompanyRole } from '~/composables/useCompanyRole'
 import { useUsersService } from '~/modulos/access-control/services/users.service'
 import type { Check } from '~/modulos/erp/checks/types/checks.types'
 import type { CashBoxMovement, CashBoxMovementDetails } from '~/modulos/erp/cash-box-movements/types/cash-box-movements.types'
+import { partitionCancelledTreasuryMovements } from '~/utils/treasuryMovementVisibility'
 import type { BadgeColor } from '~/types/colors.types'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
@@ -301,14 +302,11 @@ const movementsTabs = [
   { label: 'Hoy', icon: 'i-lucide-calendar-check', value: 'today', slot: 'today' },
   { label: 'Histórico', icon: 'i-lucide-history', value: 'history', slot: 'history' }
 ]
-const isCancelledPaymentMovement = (movement: CashBoxMovement) =>
-  movement.reference_type === 'payment_reversal'
-  || ['CANCELLED', 'REVERSED'].includes(movement.payment?.status ?? '')
-
-const cancelledMovements = computed(() => movements.value.filter(isCancelledPaymentMovement))
+const movementVisibility = computed(() => partitionCancelledTreasuryMovements(movements.value))
+const cancelledMovements = computed(() => movementVisibility.value.cancelled)
 const visibleMovements = computed(() => showCancelledMovements.value
   ? movements.value
-  : movements.value.filter(movement => !isCancelledPaymentMovement(movement)))
+  : movementVisibility.value.active)
 
 const todayMovements = computed(() => {
   const todayDate = today()

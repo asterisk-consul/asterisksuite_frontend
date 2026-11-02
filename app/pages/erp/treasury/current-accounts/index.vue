@@ -255,7 +255,9 @@ const exportHistory = () => {
           <!-- SEARCH + ACTIONS -->
           <div class="flex items-center gap-3">
             <UInput v-model="searchQuery" placeholder="Buscar cliente o proveedor..." icon="i-lucide-search" class="flex-1" />
-            <UButton label="Nuevo saldo inicial" icon="i-lucide-plus" color="primary" variant="solid" size="sm" @click="() => { showSaldoInicialModal = true }" />
+            <UButton data-global-create-shortcut class="group/create" label="Nuevo saldo inicial" icon="i-lucide-plus" color="primary" variant="solid" size="sm" aria-keyshortcuts="Alt+N" @click="() => { showSaldoInicialModal = true }">
+              <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+            </UButton>
             <UButton v-if="canExport('treasury.reports.export')" label="Exportar Excel" icon="i-lucide-download" variant="outline" size="sm" @click="exportActive" />
           </div>
 

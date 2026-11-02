@@ -129,9 +129,12 @@ const selectedRows = computed<T[]>(() => {
   void rowSelection.value
   return table.value?.tableApi?.getFilteredSelectedRowModel().rows.map(row => row.original) ?? []
 })
-const totalCount = computed<number>(() => props.serverSide
-  ? (props.totalRows ?? 0)
-  : (table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0))
+const totalCount = computed<number>(() => {
+  if (props.serverSide) return props.totalRows ?? 0
+  void columnFilters.value
+  void props.data
+  return table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0
+})
 
 /* ========================
    Pagination
@@ -146,6 +149,19 @@ watch(page, (value) => {
 watch(() => props.pageSize, (value) => {
   if (value) pagination.value.pageSize = value
 })
+
+function resetLocalPage() {
+  pagination.value.pageIndex = 0
+  table.value?.tableApi?.setPageIndex(0)
+}
+
+watch(columnFilters, () => {
+  if (props.serverSide) page.value = 1
+  else resetLocalPage()
+}, { deep: true, flush: 'post' })
+watch(() => props.data, () => {
+  if (!props.serverSide) resetLocalPage()
+}, { flush: 'post' })
 
 watch(search, () => {
   if (props.serverSide) page.value = 1

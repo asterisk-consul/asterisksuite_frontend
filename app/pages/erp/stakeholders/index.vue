@@ -85,7 +85,9 @@ const importColumns = [
             <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" />
           </UDropdownMenu>
         </UFieldGroup>
-        <UButton label="Nueva parte interesada" icon="i-heroicons-plus" color="primary" variant="solid" @click="() => { void (openCreate()) }" />
+        <UButton data-global-create-shortcut class="group/create" label="Nueva parte interesada" icon="i-heroicons-plus" color="primary" variant="solid" aria-keyshortcuts="Alt+N" title="Nueva parte interesada (Alt + N)" @click="() => { void (openCreate()) }">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 

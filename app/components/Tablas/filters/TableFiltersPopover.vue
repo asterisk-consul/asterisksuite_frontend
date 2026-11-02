@@ -121,13 +121,13 @@ function onColumnChange(filter: TableFilter, column: string) {
         variant="outline"
         size="sm"
         icon="i-lucide-list-filter"
-        class="justify-center gap-2"
+        class="group/create justify-center gap-2"
         aria-keyshortcuts="Control+Shift+F"
         title="Filtros (Ctrl + Shift + F)"
       >
         <span>Filtros</span>
         <UBadge v-if="filters.length" :label="String(filters.length)" color="primary" variant="soft" size="xs" class="min-w-5 justify-center px-1" />
-        <KeyboardShortcutHint :keys="['Ctrl', 'Shift', 'F']" size="2xs" />
+        <KeyboardShortcutHint :keys="['Ctrl', 'Shift', 'F']" size="2xs" reveal-on-hover />
       </UButton>
 
       <template #content>

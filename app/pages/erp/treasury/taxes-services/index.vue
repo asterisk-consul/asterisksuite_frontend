@@ -466,7 +466,9 @@ onMounted(load)
   <UPage class="min-w-0 max-w-full space-y-6 px-4 pb-8">
     <AppPageHeader title="Servicios e impuestos" description="Planificá vencimientos, revisá importes y registrá los pagos desde un solo lugar.">
       <template #links>
-        <UButton label="Nueva obligación" icon="i-lucide-plus" variant="outline" @click="openCreate(false)" />
+        <UButton data-global-create-shortcut class="group/create" label="Nueva obligación" icon="i-lucide-plus" variant="outline" aria-keyshortcuts="Alt+N" @click="openCreate(false)">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
         <UButton label="Nueva recurrencia" icon="i-lucide-repeat-2" @click="openCreate(true)" />
       </template>
     </AppPageHeader>

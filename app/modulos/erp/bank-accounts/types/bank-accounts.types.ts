@@ -62,6 +62,7 @@ export interface BankAccountMovement {
     retentions_amount: number
     net_amount: number
   } | null
+  payment?: { status: string } | null
 
   created_at?: string
   updated_at?: string
