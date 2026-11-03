@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.124.2-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La Papelera acepta comprobantes en borrador o anulados. La anulación de vales RRHH también limpia el estado y los asientos activos del documento interno; los vales históricos inconsistentes se pueden regularizar desde la tabla sin repetir movimientos de tesorería.",
+  "changes": [
+   { "type": "fix", "scope": "trash", "title": "Exigir borrador o anulación antes de purgar comprobantes" },
+   { "type": "fix", "scope": "hr", "title": "Regularizar comprobantes y saldos de vales anulados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Regularizar vales anulados y proteger la papelera"
+ },
+ {
   "version": "0.124.1-alpha",
   "date": "2026-11-03",
   "stage": "alpha",

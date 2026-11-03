@@ -41,6 +41,9 @@ const cancellingVale = ref<HrVale | null>(null)
 const cancelConfirmText = ref('')
 const showTreasuryModal = ref(false)
 const confirmingVale = ref<HrVale | null>(null)
+const reconcilingCancelledValeId = ref<string | null>(null)
+const valeToReconcile = ref<HrVale | null>(null)
+const showReconcileModal = ref(false)
 const treasuryTargetType = ref<'CASH_BOX' | 'BANK_ACCOUNT'>('CASH_BOX')
 const treasuryTargetId = ref('')
 const treasuryTargets = ref<any[]>([])
@@ -167,6 +170,35 @@ async function confirmCancel() {
   } catch (e: any) {
     toast.add({ title: 'Error al anular vale', description: e?.data?.message || e?.message, color: 'error' })
   }
+}
+
+function openReconciliation(vale: HrVale) {
+  if (!vale.document_needs_reconciliation || vale.document_reconciliation_blocked) return
+  valeToReconcile.value = vale
+  showReconcileModal.value = true
+}
+
+async function reconcileCancelledVale() {
+  const vale = valeToReconcile.value
+  if (!vale?.document_needs_reconciliation || vale.document_reconciliation_blocked) return
+  reconcilingCancelledValeId.value = vale.id
+  try {
+    await hrStore.cancelVale(vale.id)
+    await loadVales()
+    toast.add({ title: 'Comprobante del vale regularizado', description: 'Quedó anulado y sin saldo ni movimientos activos de cuenta corriente.', color: 'success' })
+    showReconcileModal.value = false
+    valeToReconcile.value = null
+  } catch (e: any) {
+    toast.add({ title: 'No se pudo regularizar el comprobante', description: e?.data?.message || e?.message, color: 'error' })
+  } finally {
+    reconcilingCancelledValeId.value = null
+  }
+}
+
+function closeReconciliation() {
+  if (reconcilingCancelledValeId.value) return
+  showReconcileModal.value = false
+  valeToReconcile.value = null
 }
 
 function openCommissionDetails(vale: HrVale) {
@@ -405,6 +437,28 @@ const columns = build([
               onClick: () => payVale(vale)
             })
           : null,
+        vale.document_needs_reconciliation && vale.document_reconciliation_blocked
+          ? h(UButton, {
+              label: 'Pago activo',
+              icon: 'i-lucide-lock-keyhole',
+              variant: 'soft',
+              color: 'warning',
+              size: 'xs',
+              disabled: true,
+              title: 'Anulá primero el pago asociado al comprobante.'
+            })
+          : vale.document_needs_reconciliation
+            ? h(UButton, {
+                label: 'Regularizar',
+                icon: 'i-lucide-wrench',
+                variant: 'soft',
+                color: 'warning',
+                size: 'xs',
+                loading: reconcilingCancelledValeId.value === vale.id,
+                disabled: reconcilingCancelledValeId.value !== null,
+                onClick: () => openReconciliation(vale)
+              })
+            : null,
         vale.status !== 'CANCELLED'
           ? h(UButton, {
               icon: 'i-lucide-x',
@@ -507,6 +561,38 @@ const sortFields = [
         <div class="flex justify-end gap-2">
           <UButton label="Cancelar" variant="ghost" @click="closeTreasuryModal" />
           <UButton label="Confirmar y registrar" color="success" :loading="loading" :disabled="!treasuryTargetId || confirmingWithdrawalBlocked" @click="confirmPartnerVale" />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="showReconcileModal" title="Regularizar comprobante del vale">
+      <template #body>
+        <div class="space-y-3">
+          <p class="text-sm">
+            Se regularizará el comprobante interno del vale
+            <strong>#{{ valeToReconcile?.number }}</strong>
+            de <strong>{{ valeToReconcile?.party?.name }}</strong>.
+          </p>
+          <UAlert
+            title="Qué se va a corregir"
+            description="El comprobante quedará anulado, se quitará el saldo pagado obsoleto y se retirarán sus asientos activos de cuenta corriente. Esta acción no vuelve a registrar ni revertir movimientos de caja o banco."
+            color="warning"
+            variant="subtle"
+          />
+          <p class="text-xs text-muted">Si existe un pago activo asociado, la operación se detendrá y primero tendrás que anular ese pago.</p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton label="Cancelar" variant="ghost" @click="closeReconciliation" />
+          <UButton
+            label="Regularizar comprobante"
+            icon="i-lucide-wrench"
+            color="warning"
+            :loading="reconcilingCancelledValeId === valeToReconcile?.id"
+            :disabled="reconcilingCancelledValeId !== null"
+            @click="reconcileCancelledVale"
+          />
         </div>
       </template>
     </UModal>

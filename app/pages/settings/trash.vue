@@ -295,7 +295,7 @@ onMounted(() => {
       <div>
         <p class="text-sm font-medium">{{ selectedIds.length }} seleccionado(s)</p>
         <p v-if="selectionContainsDocuments" class="text-xs text-muted">
-          Se pueden purgar comprobantes manuales en la papelera, aunque sigan figurando como borrador, si no tienen autorización fiscal ni vínculos activos y confirmás que se cargaron por error. El servidor valida cada comprobante.
+          Un comprobante que nunca se confirmó debe quedar como borrador; si ya se confirmó, debe quedar anulado antes de llegar a la papelera. Si ves otro estado, regularizalo desde su flujo antes de purgarlo.
         </p>
         <p v-if="selectionContainsPayments" class="text-xs text-muted">
           Los pagos y cobros se pueden restaurar, pero conservan sus efectos de tesorería permanentemente.
@@ -433,7 +433,7 @@ onMounted(() => {
             <p v-if="selectedItem.documentDescription" class="mt-1 text-muted">{{ selectedItem.documentDescription }}</p>
             <p v-if="selectedItem.documentReference" class="mt-1"><span class="text-muted">Referencia:</span> {{ selectedItem.documentReference }}</p>
             <p class="mt-2 text-xs text-muted">
-              Solo se purgan comprobantes manuales en la papelera que no tengan autorización fiscal ni relaciones operativas. Los asientos de cuenta corriente deben estar dados de baja; se eliminan sin modificar el saldo.
+              Solo se purgan comprobantes manuales en borrador o anulados que no tengan autorización fiscal ni relaciones operativas. Los asientos de cuenta corriente deben estar dados de baja; se eliminan sin modificar el saldo.
             </p>
           </div>
         </div>
@@ -467,7 +467,7 @@ onMounted(() => {
           variant="soft"
           icon="i-lucide-shield-alert"
           title="Validación de seguridad"
-          description="Solo se purgan comprobantes manuales en la papelera que no tengan autorización fiscal, pagos, cadena documental ni relaciones operativas. Pueden conservar el estado Borrador si nunca se confirmaron. No deben tener movimientos de stock, caja o banco. Los asientos de cuenta corriente deben estar dados de baja; se quitan sin volver a modificar el saldo. Los saldos iniciales tienen un flujo propio. Los números de secuencia no se reutilizan."
+          description="Solo se purgan comprobantes manuales en Borrador o Anulados que no tengan autorización fiscal, pagos, cadena documental ni relaciones operativas. Un comprobante confirmado debe anularse antes de llegar a la papelera. No debe tener movimientos activos de stock, caja o banco. Los asientos de cuenta corriente deben estar dados de baja; se quitan sin volver a modificar el saldo. Los saldos iniciales tienen un flujo propio. Los números de secuencia no se reutilizan."
         />
         <label v-if="selectionContainsDocuments" class="mt-3 flex items-start gap-2 text-sm">
           <UCheckbox v-model="confirmAccidentalDocuments" class="mt-0.5" />

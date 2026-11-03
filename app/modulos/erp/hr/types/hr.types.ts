@@ -25,6 +25,8 @@ export interface HrVale {
     label: string
   } | null
   payment_document?: { id: string; pending: number } | null
+  document_needs_reconciliation?: boolean
+  document_reconciliation_blocked?: boolean
   party?: { id: string; name: string; tax_id: string | null }
   commission_details?: {
     id: string
