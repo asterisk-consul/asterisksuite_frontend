@@ -1,6 +1,7 @@
 import type { Ref, ComputedRef } from 'vue'
 import { getStatusLabel, getStatusColor, getValidTransitions, type BadgeColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from './useDocumentPermissions'
+import { isOrphanNoteTrashCandidate } from '../utils/trash-eligibility'
 
 type Doc = Record<string, any> | null
 
@@ -56,6 +57,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const isDraft = computed(() => doc.value?.status === 0)
   const isPending = computed(() => doc.value?.status === 1)
   const isConfirmed = computed(() => doc.value?.status === 2)
+  const canTrashOrphanNote = computed(() => isOrphanNoteTrashCandidate(doc.value))
 
   const operationAccountingApplies = computed(() => {
     const basis = doc.value?.commercial_operation?.accounting_basis
@@ -227,12 +229,16 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       items.push([{ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onClick: () => { cancelModalOpen.value = true } }])
     }
 
-    if (category.value === 'INVOICE' && doc.value?.status === 3 && store.remove
-      && canDocument(module, category.value, 'delete')) {
+    if (((category.value === 'INVOICE' && doc.value?.status === 3) || canTrashOrphanNote.value) && store.remove
+      && canDocument(module, category.value, 'delete')
+      && (!canTrashOrphanNote.value || doc.value?.status !== 2 || canDocument(module, category.value, 'cancel'))) {
       items.push([{
-        label: 'Enviar a papelera',
+        label: canTrashOrphanNote.value ? 'Anular y enviar a papelera' : 'Enviar a papelera',
         icon: 'i-lucide-trash-2',
         color: 'error',
+        help: canTrashOrphanNote.value
+          ? 'Anula la NC/ND huérfana, quita su movimiento de cuenta corriente y la conserva en la papelera con su historial.'
+          : undefined,
         onClick: () => { deleteModalOpen.value = true }
       }])
     }
@@ -304,10 +310,10 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     if (isConfirmed.value && category.value === 'INVOICE') {
       const ncUrl = module === 'sales'
         ? `/erp/sales/new?category=CREDIT_NOTE&parent_order_id=${id.value}`
-        : `/erp/purchases/purchases-documents/new?category=CREDIT_NOTE&parent_order_id=${id.value}`
+        : `/erp/purchases/purchases-documents/new?category=CREDIT_NOTE&parent_document_id=${id.value}`
       const ndUrl = module === 'sales'
         ? `/erp/sales/new?category=DEBIT_NOTE&parent_order_id=${id.value}`
-        : `/erp/purchases/purchases-documents/new?category=DEBIT_NOTE&parent_order_id=${id.value}`
+        : `/erp/purchases/purchases-documents/new?category=DEBIT_NOTE&parent_document_id=${id.value}`
       if (canDocument(module, 'CREDIT_NOTE', 'create')) items.push([{ label: 'Crear NC', icon: 'i-lucide-file-text', color: 'warning', onClick: () => router.push(ncUrl) }])
       if (canDocument(module, 'DEBIT_NOTE', 'create')) items.push([{ label: 'Crear ND', icon: 'i-lucide-file-text', color: 'info', onClick: () => router.push(ndUrl) }])
     }
@@ -436,6 +442,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     isDraft,
     isPending,
     isConfirmed,
+    canTrashOrphanNote,
     validTransitions,
     invoiceState,
 

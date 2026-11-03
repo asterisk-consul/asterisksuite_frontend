@@ -1,14 +1,19 @@
 <script setup lang="ts">
 definePageMeta({
-  middleware: ['auth']
+  middleware: ['auth', 'trash-access']
 })
 
 import { useTrashStore } from '~/modulos/trash/store/trash.store'
 import { TRASH_TABLES } from '~/modulos/trash/types/trash.types'
 import type { TrashTable } from '~/modulos/trash/types/trash.types'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 
 const store = useTrashStore()
 const toast = useToast()
+const { hasPermission } = useRoles()
+const { isOwner } = useCompanyRole()
+const canRestoreTrash = computed(() => isOwner.value || hasPermission('trash.restore'))
+const canDeleteTrash = computed(() => isOwner.value || hasPermission('trash.delete'))
 
 const search = ref('')
 const filterTable = ref<TrashTable | undefined>(undefined)
@@ -16,6 +21,7 @@ const filterDays = ref<number>(30)
 const selectedIds = ref<string[]>([])
 const showDetailModal = ref(false)
 const showHardDeleteModal = ref(false)
+const confirmAccidentalDocuments = ref(false)
 const selectedItem = ref<any>(null)
 const actionLoading = ref(false)
 const permanentlyProtectedTables = new Set(['payments'])
@@ -165,6 +171,7 @@ const selectionContainsDocuments = computed(() =>
 
 async function restoreSelected() {
   if (selectedIds.value.length === 0) return
+  if (!canRestoreTrash.value) return
   actionLoading.value = true
   try {
     const groups = parseSelection()
@@ -185,6 +192,7 @@ async function restoreSelected() {
 }
 
 async function restoreOne(item: any) {
+  if (!canRestoreTrash.value) return
   actionLoading.value = true
   try {
     await store.restore(item.table, item.id)
@@ -198,6 +206,7 @@ async function restoreOne(item: any) {
 
 function confirmHardDelete() {
   if (selectedIds.value.length === 0) return
+  if (!canDeleteTrash.value) return
   if (selectionContainsPayments.value) {
     toast.add({
       title: 'Los pagos y cobros deben conservarse',
@@ -206,15 +215,22 @@ function confirmHardDelete() {
     })
     return
   }
+  confirmAccidentalDocuments.value = false
   showHardDeleteModal.value = true
 }
 
 async function hardDeleteSelected() {
+  if (!canDeleteTrash.value) return
+  if (selectionContainsDocuments.value && !confirmAccidentalDocuments.value) return
   actionLoading.value = true
   try {
     const groups = parseSelection()
     for (const group of groups) {
-      await store.hardDeleteMany(group.table, group.ids)
+      await store.hardDeleteMany(
+        group.table,
+        group.ids,
+        group.table === 'documents' && confirmAccidentalDocuments.value
+      )
     }
     toast.add({ title: `${selectedIds.value.length} elemento(s) eliminado(s) permanentemente`, color: 'success', icon: 'i-lucide-check-circle' })
     selectedIds.value = []
@@ -236,6 +252,10 @@ async function loadData() {
 watch([filterDays, filterTable], () => {
   selectedIds.value = []
   loadData()
+})
+
+watch(showHardDeleteModal, (open) => {
+  if (!open) confirmAccidentalDocuments.value = false
 })
 
 onMounted(() => {
@@ -275,7 +295,7 @@ onMounted(() => {
       <div>
         <p class="text-sm font-medium">{{ selectedIds.length }} seleccionado(s)</p>
         <p v-if="selectionContainsDocuments" class="text-xs text-muted">
-          Se eliminan solo comprobantes anulados seguros y saldos iniciales ya retirados de la cuenta corriente. El servidor verifica cada comprobante y sus movimientos asociados.
+          Se pueden purgar comprobantes manuales en la papelera, aunque sigan figurando como borrador, si no tienen autorización fiscal ni vínculos activos y confirmás que se cargaron por error. El servidor valida cada comprobante.
         </p>
         <p v-if="selectionContainsPayments" class="text-xs text-muted">
           Los pagos y cobros se pueden restaurar, pero conservan sus efectos de tesorería permanentemente.
@@ -283,6 +303,7 @@ onMounted(() => {
       </div>
       <div class="flex gap-2 ms-auto">
         <UButton
+          v-if="canRestoreTrash"
           label="Restaurar"
           icon="i-lucide-undo-2"
           color="success"
@@ -292,6 +313,7 @@ onMounted(() => {
           @click="restoreSelected"
         />
         <UButton
+          v-if="canDeleteTrash"
           label="Eliminar permanentemente"
           icon="i-lucide-trash-2"
           color="error"
@@ -317,6 +339,7 @@ onMounted(() => {
       <template #select-header>
         <UCheckbox
           :model-value="allSelected"
+          :disabled="!canRestoreTrash && !canDeleteTrash"
           @update:model-value="toggleAll"
         />
       </template>
@@ -324,6 +347,7 @@ onMounted(() => {
       <template #select-cell="{ row }">
         <UCheckbox
           :model-value="isSelected(row.original)"
+          :disabled="!canRestoreTrash && !canDeleteTrash"
           @update:model-value="toggleItem(row.original.table + ':' + row.original.id)"
         />
       </template>
@@ -367,6 +391,7 @@ onMounted(() => {
             @click="openDetail(row.original)"
           />
           <UButton
+            v-if="canRestoreTrash"
             icon="i-lucide-undo-2"
             variant="ghost"
             color="success"
@@ -408,7 +433,7 @@ onMounted(() => {
             <p v-if="selectedItem.documentDescription" class="mt-1 text-muted">{{ selectedItem.documentDescription }}</p>
             <p v-if="selectedItem.documentReference" class="mt-1"><span class="text-muted">Referencia:</span> {{ selectedItem.documentReference }}</p>
             <p class="mt-2 text-xs text-muted">
-              La eliminación definitiva se habilita solo para comprobantes anulados no fiscales, sin pagos ni relaciones operativas.
+              Solo se purgan comprobantes manuales en la papelera que no tengan autorización fiscal ni relaciones operativas. Los asientos de cuenta corriente deben estar dados de baja; se eliminan sin modificar el saldo.
             </p>
           </div>
         </div>
@@ -417,6 +442,7 @@ onMounted(() => {
         <div class="flex justify-end gap-2">
           <UButton label="Cerrar" variant="ghost" @click="() => { showDetailModal = false }" />
           <UButton
+            v-if="canRestoreTrash"
             label="Restaurar"
             icon="i-lucide-undo-2"
             color="success"
@@ -441,8 +467,12 @@ onMounted(() => {
           variant="soft"
           icon="i-lucide-shield-alert"
           title="Validación de seguridad"
-          description="Solo se eliminarán comprobantes anulados sin pagos, asientos de cuenta corriente —incluso revertidos—, cadena documental, movimientos ni efectos fiscales o de stock. Un saldo inicial debe haberse retirado primero desde su cuenta corriente. Los números de secuencia no se reutilizan."
+          description="Solo se purgan comprobantes manuales en la papelera que no tengan autorización fiscal, pagos, cadena documental ni relaciones operativas. Pueden conservar el estado Borrador si nunca se confirmaron. No deben tener movimientos de stock, caja o banco. Los asientos de cuenta corriente deben estar dados de baja; se quitan sin volver a modificar el saldo. Los saldos iniciales tienen un flujo propio. Los números de secuencia no se reutilizan."
         />
+        <label v-if="selectionContainsDocuments" class="mt-3 flex items-start gap-2 text-sm">
+          <UCheckbox v-model="confirmAccidentalDocuments" class="mt-0.5" />
+          <span>Confirmo que los comprobantes seleccionados se cargaron por error y no representan documentos reales emitidos o recibidos ni operaciones vigentes.</span>
+        </label>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
@@ -452,6 +482,7 @@ onMounted(() => {
             color="error"
             icon="i-lucide-trash-2"
             :loading="actionLoading"
+            :disabled="selectionContainsDocuments && !confirmAccidentalDocuments"
             @click="hardDeleteSelected"
           />
         </div>

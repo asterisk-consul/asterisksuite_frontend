@@ -69,9 +69,13 @@ function filterNavigationTree(
   hasModule: (code: string) => boolean,
   isOwnerOrAdmin: boolean,
   isSalesperson: boolean,
-  isPlatformAdmin: boolean
+  isPlatformAdmin: boolean,
+  isOwner: boolean
 ): DrilldownNode[] {
   return nodes.flatMap(node => {
+    if (node.to === '/settings/trash' && !isOwner && !hasPermission('trash.read')) {
+      return []
+    }
     if (node.permission && !isOwnerOrAdmin && !hasPermission(node.permission)) {
       return []
     }
@@ -90,7 +94,8 @@ function filterNavigationTree(
         hasModule,
         isOwnerOrAdmin,
         isSalesperson,
-        isPlatformAdmin
+        isPlatformAdmin,
+        isOwner
       )
       return moduleAvailable && filteredChildren.length > 0 ? [{ ...node, children: filteredChildren }] : []
     }
@@ -101,7 +106,7 @@ function filterNavigationTree(
 export const useDrilldownNavigation = () => {
   const route = useRoute()
   const { hasPermission } = useRoles()
-  const { isOwnerOrAdmin } = useCompanyRole()
+  const { isOwnerOrAdmin, isOwner } = useCompanyRole()
   const { isSalesperson, fetchIfNeeded } = useCurrentUserEmployee()
   const platformModules = usePlatformModulesStore()
   const auth = useAuthStore()
@@ -127,7 +132,8 @@ export const useDrilldownNavigation = () => {
       hasAvailableModule,
       isOwnerOrAdmin.value,
       isSalesperson.value,
-      isPlatformAdmin.value
+      isPlatformAdmin.value,
+      isOwner.value
     )
   )
 
@@ -168,7 +174,8 @@ export const useDrilldownNavigation = () => {
         hasAvailableModule,
         isOwnerOrAdmin.value,
         isSalesperson.value,
-        isPlatformAdmin.value
+        isPlatformAdmin.value,
+        isOwner.value
       )
       stack.value = [...stack.value, { nodes: filteredChildren, parentNode: node }]
     }
@@ -207,7 +214,8 @@ export const useDrilldownNavigation = () => {
         hasAvailableModule,
         isOwnerOrAdmin.value,
         isSalesperson.value,
-        isPlatformAdmin.value
+        isPlatformAdmin.value,
+        isOwner.value
       )
       const destination = findFirstDestination(filteredChildren)
       if (destination?.to) {
@@ -233,7 +241,8 @@ export const useDrilldownNavigation = () => {
               hasAvailableModule,
               isOwnerOrAdmin.value,
               isSalesperson.value,
-              isPlatformAdmin.value
+              isPlatformAdmin.value,
+              isOwner.value
             ),
             parentNode: node
           })
@@ -259,7 +268,8 @@ export const useDrilldownNavigation = () => {
               hasAvailableModule,
               isOwnerOrAdmin.value,
               isSalesperson.value,
-              isPlatformAdmin.value
+              isPlatformAdmin.value,
+              isOwner.value
             ),
             parentNode: node
           })

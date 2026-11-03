@@ -89,6 +89,8 @@ export function mapDocumentToFacturaForm(
 
     document_type_id: document.document_type_id,
 
+    parent_document_id: document.parent_document_id ?? null,
+
     document_sequence_id: document.document_sequence_id ?? null,
 
     party_id: document.party_id,

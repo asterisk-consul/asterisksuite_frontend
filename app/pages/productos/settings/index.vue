@@ -126,7 +126,16 @@ const handleDeleteComponent = async (id: string) => {
       <template #templates>
         <div class="mt-4 space-y-4">
           <div class="flex justify-end">
-            <UButton icon="i-heroicons-plus" size="sm" @click="handleCreateTemplate">Nuevo template</UButton>
+            <ShortcutButton
+              label="Nuevo template"
+              icon="i-heroicons-plus"
+              size="sm"
+              data-global-create-shortcut
+              data-hide-global-create-control
+              :shortcut-keys="['Alt', 'N']"
+              help="Crear una plantilla de costos"
+              @click="handleCreateTemplate"
+            />
           </div>
 
           <div class="space-y-3">
@@ -210,7 +219,16 @@ const handleDeleteComponent = async (id: string) => {
       <template #components>
         <div class="mt-4 space-y-4">
           <div class="flex justify-end">
-            <UButton icon="i-heroicons-plus" size="sm" @click="handleCreateComponent">Nuevo componente</UButton>
+            <ShortcutButton
+              label="Nuevo componente"
+              icon="i-heroicons-plus"
+              size="sm"
+              data-global-create-shortcut
+              data-hide-global-create-control
+              :shortcut-keys="['Alt', 'N']"
+              help="Crear un componente de costo"
+              @click="handleCreateComponent"
+            />
           </div>
 
           <UCard>

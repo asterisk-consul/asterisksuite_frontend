@@ -401,10 +401,30 @@ const affectsStock = computed(() => {
 
 // ─── Reference Document (NC/ND → Factura) ────────────
 const referenceDocumentId = ref<string | undefined>(undefined)
+const referencePartyId = ref<string | undefined>(undefined)
+const referenceDocumentInfo = ref<any>(null)
+const referenceLoading = ref(false)
+let referenceLoadVersion = 0
+
+function notifyReferencePartyChange(previousPartyId?: string | null, referencePartyId?: string | null) {
+  if (!previousPartyId || !referencePartyId || previousPartyId === referencePartyId) return
+
+  const partyLabel = props.moduleCode === 'PURCHASES' ? 'proveedor' : 'cliente'
+  const previousName = partyOptions.value.find(option => option.value === previousPartyId)?.label.split(' · ')[0]
+  const referenceName = partyOptions.value.find(option => option.value === referencePartyId)?.label.split(' · ')[0]
+  toast.add({
+    title: `${partyLabel.charAt(0).toUpperCase()}${partyLabel.slice(1)} actualizado`,
+    description: `Se cambió ${previousName ? `“${previousName}”` : `el ${partyLabel} seleccionado`} por ${referenceName ? `“${referenceName}”` : `el ${partyLabel} de la factura`} para que coincida con la referencia.`,
+    color: 'info'
+  })
+}
 
 function applyReferenceDocument(doc: any) {
   if (!doc) return
+  notifyReferencePartyChange(form.party_id, doc.party_id)
+  referenceDocumentInfo.value = doc
   referenceDocumentId.value = doc.id
+  referencePartyId.value = doc.party_id ?? undefined
   form.party_id = doc.party_id ?? ''
   form.currency_code = doc.currency_code ?? 'ARS'
   form.descrip = doc.descrip ?? ''
@@ -430,20 +450,64 @@ function applyReferenceDocument(doc: any) {
   }).filter((i: any) => i.quantity > 0)
 }
 
-function handleReferenceSelect(documentId: string) {
+function handleReferenceSelect(documentId: string, partyId?: string, invoiceOption?: any) {
+  const loadVersion = ++referenceLoadVersion
+  // Store the relationship immediately so a quick save cannot lose it while getOne loads.
+  referenceDocumentId.value = documentId
+  referenceDocumentInfo.value = invoiceOption ? { ...invoiceOption, id: documentId } : null
+  referenceLoading.value = true
+  if (partyId) {
+    referencePartyId.value = partyId
+    notifyReferencePartyChange(form.party_id, partyId)
+    form.party_id = partyId
+  }
+
   // Fetch full document via the appropriate service
   const fetchDoc = props.moduleCode === 'SALES'
     ? import('~/modulos/erp/sales/services/sales.service').then(m => m.DocumentsSalesService.getOne(documentId))
     : import('~/modulos/erp/purchases/purchases-documents.services').then(m => m.DocumentsPurchasesService.getOne(documentId))
 
   fetchDoc
-    .then(doc => applyReferenceDocument(doc))
-    .catch(e => toast.add({ title: 'Error al cargar factura', description: e?.data?.message, color: 'error' }))
+    .then(doc => {
+      if (loadVersion === referenceLoadVersion && referenceDocumentId.value === documentId) {
+        applyReferenceDocument(doc)
+      }
+    })
+    .catch(e => {
+      if (loadVersion === referenceLoadVersion) {
+        toast.add({ title: 'Error al cargar factura', description: e?.data?.message, color: 'error' })
+      }
+    })
+    .finally(() => {
+      if (loadVersion === referenceLoadVersion) referenceLoading.value = false
+    })
+}
+
+function handleReferenceResolved(invoice: any) {
+  if (invoice.id !== referenceDocumentId.value || !invoice.partyId) return
+  referenceDocumentInfo.value = invoice
+  referencePartyId.value = invoice.partyId
+  notifyReferencePartyChange(form.party_id, invoice.partyId)
+  form.party_id = invoice.partyId
 }
 
 function handleReferenceClear() {
+  referenceLoadVersion += 1
+  referenceLoading.value = false
   referenceDocumentId.value = undefined
+  referencePartyId.value = undefined
+  referenceDocumentInfo.value = null
 }
+
+watch(() => form.party_id, (partyId) => {
+  if (!referenceDocumentId.value || !referencePartyId.value || partyId === referencePartyId.value) return
+  form.party_id = referencePartyId.value
+  toast.add({
+    title: 'El tercero no coincide con la factura',
+    description: `La nota debe conservar el mismo ${moduleCode.value === 'PURCHASES' ? 'proveedor' : 'cliente'} de la factura de referencia. Quitá la referencia para elegir otra factura.`,
+    color: 'warning'
+  })
+})
 
 // Whether to show the reference document picker (NC/ND categories)
 const showReferencePicker = computed(() => {
@@ -451,6 +515,12 @@ const showReferencePicker = computed(() => {
   const selected = documentsTypes.value.find(d => d.id === form.document_type_id)
   return selected?.category === 'CREDIT_NOTE' || selected?.category === 'DEBIT_NOTE'
 })
+
+watch(() => [showReferencePicker.value, props.parentDocumentId] as const, ([isVisible, parentId]) => {
+  if (!isVisible || !parentId || (referenceDocumentId.value === parentId && referencePartyId.value)) return
+  // Al crear una nota desde una factura, precargar la relación y los datos de origen.
+  handleReferenceSelect(parentId)
+}, { immediate: true })
 
 // ─── Exchange Rate: auto-resolve on currency change ─────────
 const isForeignCurrency = computed(() => {
@@ -1059,6 +1129,9 @@ watch(
 
     form.document_type_id = val.document_type_id ?? ''
     form.party_id = val.party_id ?? ''
+    referenceDocumentId.value = (val as any).parent_document_id ?? props.parentDocumentId
+    referenceDocumentInfo.value = (val as any).parent_document ?? null
+    referencePartyId.value = referenceDocumentId.value ? val.party_id ?? undefined : undefined
     form.date = val.date ? new Date(val.date).toISOString().split('T')[0] ?? today() : today()
     form.descrip = val.descrip ?? ''
     form.ref = val.ref ?? ''
@@ -1536,6 +1609,7 @@ function submit() {
   if (sequenceOptions.value.length > 1 && !selectedSequenceId.value) errors.document_sequence_id = 'Elegí el punto de venta para numerar el comprobante.'
   if (documentTypeValidation.value) errors.document_type_id = documentTypeValidation.value
   if (showReferencePicker.value && !referenceDocumentId.value) errors.reference_document_id = 'Seleccioná la factura de referencia.'
+  if (showReferencePicker.value && referenceDocumentId.value && !referencePartyId.value) errors.reference_document_id = 'Esperá a que se cargue el proveedor de la factura de referencia.'
   if (!items.value.length && selectedDocumentCategory.value !== 'OPENING_BALANCE') {
     errors.items = 'Agregá al menos un producto o concepto.'
   } else if (items.value.some(item => !Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0)) {
@@ -1733,6 +1807,7 @@ defineExpose({ submit, completeDraft })
               searchable
               v-model:search-term="partySearch"
               :loading="partySearching"
+              :disabled="showReferencePicker && Boolean(referenceDocumentId)"
               size="lg"
               class="min-w-0 flex-1"
             />
@@ -1761,7 +1836,10 @@ defineExpose({ submit, completeDraft })
               @click="onEditBussinessParty"
             />
           </div>
-          <p class="mt-1 text-xs text-muted">Escribí al menos 2 caracteres para buscar en toda la lista por nombre, razón social o CUIT.</p>
+          <p v-if="showReferencePicker && referenceDocumentId" class="mt-1 text-xs text-muted">
+            El {{ moduleCode === 'PURCHASES' ? 'proveedor' : 'cliente' }} queda asociado a la factura seleccionada. Cambiá la factura desde su selector para usar otro tercero.
+          </p>
+          <p v-else class="mt-1 text-xs text-muted">Escribí al menos 2 caracteres para buscar en toda la lista por nombre, razón social o CUIT.</p>
         </UFormField>
 
         <UFormField label="Tipo de documento" :error="validationErrors.document_type_id" class="min-w-0 xl:col-span-6">
@@ -1934,8 +2012,10 @@ defineExpose({ submit, completeDraft })
       <div v-if="showReferencePicker" class="mt-4">
         <ReferenceDocumentPicker
           :module-code="moduleCode"
-          :selected-invoice="referenceDocumentId ? { id: referenceDocumentId } : null"
+          :selected-invoice="referenceDocumentInfo?.id === referenceDocumentId ? referenceDocumentInfo : (referenceDocumentId ? { id: referenceDocumentId } : null)"
+          :selected-invoice-loading="referenceLoading"
           @select="handleReferenceSelect"
+          @resolved="handleReferenceResolved"
           @clear="handleReferenceClear"
         />
       </div>

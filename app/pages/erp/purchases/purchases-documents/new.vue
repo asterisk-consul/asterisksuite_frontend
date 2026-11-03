@@ -32,6 +32,10 @@ const obligationCurrency = computed(() => (route.query.currency as string) || un
 const obligationDescription = computed(() => (route.query.description as string) || undefined)
 const parentOrderId = computed(() => (route.query.parent_order_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
+const isCreditOrDebitNote = computed(() => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category.value ?? ''))
+const parentDocumentId = computed(() =>
+  (route.query.parent_document_id as string) || (isCreditOrDebitNote.value ? parentOrderId.value : undefined)
+)
 const duplicateId = computed(() => (route.query.duplicate_id as string) || undefined)
 const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
 const internationalOperationId = computed(() => (route.query.international_operation_id as string) || undefined)
@@ -195,7 +199,7 @@ async function handleSubmit(payload: any) {
 
     const fullPayload = {
       ...payload,
-      parent_document_id: parentOrderId.value || undefined
+      parent_document_id: payload.parent_document_id || parentDocumentId.value || parentOrderId.value || undefined
     }
     const created = await DocumentsPurchasesService.create(fullPayload)
     formRef.value?.completeDraft()
@@ -311,7 +315,7 @@ async function handleSubmit(payload: any) {
             module-code="PURCHASES"
             :category="category"
             :initial-values="initialValues"
-            :parent-document-id="parentOrderId"
+            :parent-document-id="parentDocumentId || parentOrderId"
             @submit="handleSubmit"
           />
         </UPageBody>

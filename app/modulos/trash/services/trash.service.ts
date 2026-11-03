@@ -24,10 +24,10 @@ export const useTrashService = () => {
       body: { ids }
     })
 
-  const hardDeleteMany = (table: string, ids: string[]) =>
+  const hardDeleteMany = (table: string, ids: string[], confirmAccidentalDocuments = false) =>
     $fetch(`${base}/hard/${table}`, {
       method: 'DELETE',
-      body: { ids }
+      body: { ids, confirmAccidentalDocuments }
     })
 
   return {

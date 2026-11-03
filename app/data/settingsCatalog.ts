@@ -43,7 +43,8 @@ export const settingsCatalog: SettingsGroup[] = [
     entries: [
       { label: 'Impuestos', description: 'IVA y otros impuestos disponibles.', icon: 'i-lucide-receipt-text', to: '/settings/taxes', permission: 'taxes.read' },
       { label: 'Reglas fiscales', description: 'Percepciones y retenciones por jurisdicción.', icon: 'i-lucide-list-checks', to: '/settings/fiscal-rules', permission: 'taxes.read' },
-      { label: 'Configuración fiscal', description: 'Inscripciones y parámetros fiscales de la empresa.', icon: 'i-lucide-landmark', to: '/settings/fiscal-config', permission: 'companies.read' }
+      { label: 'Configuración fiscal', description: 'Inscripciones y parámetros fiscales de la empresa.', icon: 'i-lucide-landmark', to: '/settings/fiscal-config', permission: 'companies.read' },
+      { label: 'Conexión con ARCA', description: 'Configurar credenciales y probar la conexión de homologación.', icon: 'i-lucide-badge-check', to: '/settings/arca', permission: 'companies.update', ownerOrAdminOnly: true }
     ]
   },
   {

@@ -21,6 +21,7 @@ import {
   getDocumentPaymentSummary,
   isDocumentFullyPaid
 } from '~/modulos/erp/documents/utils/document-payment-status'
+import { canSendDocumentToTrash } from '~/modulos/erp/documents/utils/trash-eligibility'
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 const documentsPurchasesStore = useDocumentsPurchasesStore()
@@ -31,6 +32,11 @@ const toast = useToast()
 const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/purchases/purchases-documents/new')
+
+const canSelectForTrash = (row: any) => canSendDocumentToTrash(row)
+  && !(Number(row.status) === 2
+    && ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(row.document_types?.category ?? '')
+    && !canDocument('purchases', row.document_types?.category, 'cancel'))
 
 const PURCHASE_CATEGORIES = ['ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
 const purchaseCategorySet = new Set<string>(PURCHASE_CATEGORIES)
@@ -233,11 +239,16 @@ async function deleteDrafts(rows: any[]) {
     toast.add({ title: 'No tenés permiso para eliminar uno o más tipos de documento', color: 'warning' })
     return
   }
-  const removable = rows.filter(
-    (row) => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3)
-  )
+  const missingCancelPermission = rows.some((row) => Number(row.status) === 2
+    && ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(row.document_types?.category ?? '')
+    && !canDocument('purchases', row.document_types?.category, 'cancel'))
+  if (missingCancelPermission) {
+    toast.add({ title: 'También necesitás permiso para anular las NC/ND confirmadas', color: 'warning' })
+    return
+  }
+  const removable = rows.filter(canSendDocumentToTrash)
   if (removable.length !== rows.length) {
-    toast.add({ title: 'Solo se pueden enviar a la papelera documentos en borrador o anulados', color: 'warning' })
+    toast.add({ title: 'Hay comprobantes con relaciones o movimientos que impiden enviarlos a la papelera', color: 'warning' })
     return
   }
   try {
@@ -425,7 +436,7 @@ const sortFields = [
         :on-row-click="openDocument"
         :on-delete="deleteDrafts"
         selectable
-        :can-select-row="(row) => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3)"
+        :can-select-row="canSelectForTrash"
       />
     </div>
   </UPage>

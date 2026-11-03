@@ -130,15 +130,6 @@ onMounted(async () => {
   await store.fetchAll()
 })
 
-const links = ref([
-  {
-    label: 'Nueva Lista',
-    icon: 'i-heroicons-plus',
-    onClick: openCreate,
-    color: 'primary' as const,
-    variant: 'solid' as const
-  }
-])
 </script>
 
 <template>
@@ -146,8 +137,21 @@ const links = ref([
     <UPageHeader
       title="Listas de Precio"
       description="Gestionar listas de precios de venta y compra"
-      :links="links"
-    />
+    >
+      <template #links>
+        <ShortcutButton
+          label="Nueva Lista"
+          icon="i-heroicons-plus"
+          color="primary"
+          variant="solid"
+          data-global-create-shortcut
+          data-hide-global-create-control
+          :shortcut-keys="['Alt', 'N']"
+          help="Crear una lista de precios de venta o compra"
+          @click="openCreate"
+        />
+      </template>
+    </UPageHeader>
 
     <div class="flex items-center gap-3">
       <USelect

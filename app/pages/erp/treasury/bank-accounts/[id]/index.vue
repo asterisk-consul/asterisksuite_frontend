@@ -11,6 +11,8 @@ import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBank
 import { bankMovementColumns, getMovementSignedAmount, getMovementTypeBadge } from '~/modulos/erp/bank-accounts/movement-columns'
 import RegisterBankMovementModal from '~/modulos/erp/bank-accounts/components/RegisterBankMovementModal.vue'
 import BankChargeRulesPanel from '~/modulos/erp/bank-accounts/components/BankChargeRulesPanel.vue'
+import BankStatementImportModal from '~/modulos/erp/bank-accounts/components/BankStatementImportModal.vue'
+import { exportBankMovementsWorkbook } from '~/modulos/erp/bank-accounts/movement-spreadsheet'
 import { partitionCancelledTreasuryMovements } from '~/utils/treasuryMovementVisibility'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
@@ -27,6 +29,8 @@ const transferring = ref(false)
 const movementDetailsOpen = ref(false)
 const movementDetailsLoading = ref(false)
 const selectedMovementDetails = ref<BankAccountMovementDetails | null>(null)
+const statementImportOpen = ref(false)
+const exportingMovements = ref(false)
 const toast = useToast()
 const transferDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
 const transferForm = reactive({ destination_bank_account_id: '', amount: 0, date: transferDate(), reference: '', notes: '' })
@@ -245,6 +249,18 @@ const handleMovementSaved = async () => {
   await fetchOne(accountId)
   await fetchMovements(accountId)
 }
+
+async function exportMovements() {
+  if (!account.value || exportingMovements.value) return
+  exportingMovements.value = true
+  try {
+    await exportBankMovementsWorkbook(account.value, visibleMovements.value)
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo exportar el historial', description: error?.message || 'Intentá nuevamente.', color: 'error' })
+  } finally {
+    exportingMovements.value = false
+  }
+}
 </script>
 
 <template>
@@ -313,9 +329,10 @@ const handleMovementSaved = async () => {
     <!-- MOVEMENTS TABLE -->
     <UPageCard variant="subtle">
       <template #header>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <h3 class="text-sm font-semibold">Historial de movimientos</h3>
           <UBadge :label="`${visibleMovements.length}`" color="neutral" variant="soft" size="xs" />
+          <div class="ml-auto flex flex-wrap items-center gap-2">
           <UButton
             v-if="cancelledMovements.length"
             :label="showCancelledMovements ? 'Ocultar anulados' : `Mostrar anulados (${cancelledMovements.length})`"
@@ -323,9 +340,11 @@ const handleMovementSaved = async () => {
             size="xs"
             variant="ghost"
             color="neutral"
-            class="ml-auto"
             @click="() => { showCancelledMovements = !showCancelledMovements }"
           />
+            <UButton label="Importar extracto" icon="i-lucide-upload" size="xs" color="neutral" variant="outline" @click="statementImportOpen = true" />
+            <UButton label="Exportar Excel" icon="i-lucide-file-spreadsheet" size="xs" color="neutral" variant="outline" :loading="exportingMovements" :disabled="exportingMovements || !visibleMovements.length" @click="exportMovements" />
+          </div>
         </div>
       </template>
       <div v-if="visibleMovements.length === 0" class="py-8 text-center text-sm text-muted">
@@ -431,6 +450,14 @@ const handleMovementSaved = async () => {
     </UModal>
 
     <BankChargeRulesPanel :account-id="accountId" :currency-code="account.currency_code" />
+
+    <BankStatementImportModal
+      v-model:open="statementImportOpen"
+      :account-id="accountId"
+      :account-name="`${account.bank_name} · ${account.name}`"
+      :currency-code="account.currency_code"
+      :movements="visibleMovements"
+    />
 
     <RegisterBankMovementModal
       v-model:open="movementModalOpen"

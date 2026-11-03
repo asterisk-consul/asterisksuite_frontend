@@ -3,7 +3,6 @@ definePageMeta({
   middleware: ['auth'],
   breadcrumb: [{ label: 'Stock', to: '/stock' }, { label: 'Productos' }]
 })
-import type { ButtonProps } from '@nuxt/ui'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { productColumns } from '~/modulos/logistica/master-data/product/columns'
@@ -325,16 +324,6 @@ const dataActions = computed(() => [
   ] : [])
 ])
 
-const links: ButtonProps[] = [
-  {
-    label: 'Nuevo Producto',
-    icon: 'i-heroicons-plus',
-    color: 'primary',
-    variant: 'solid',
-    onClick: openCreate
-  }
-]
-
 const filterFields: FilterField[] = [
   { id: 'sku', label: 'Filtrar por SKU...', class: 'w-40' },
   { id: 'name', label: 'Filtrar por nombre...', class: 'w-56' }
@@ -385,7 +374,17 @@ const sortFields: SortField[] = [
             <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" aria-label="Ver acciones de importación y exportación" />
           </UDropdownMenu>
         </UFieldGroup>
-        <UButton label="Nuevo Producto" icon="i-heroicons-plus" color="primary" variant="solid" @click="openCreate" />
+        <ShortcutButton
+          label="Nuevo Producto"
+          icon="i-heroicons-plus"
+          color="primary"
+          variant="solid"
+          data-global-create-shortcut
+          data-hide-global-create-control
+          :shortcut-keys="['Alt', 'N']"
+          help="Abrir el formulario para crear un producto"
+          @click="openCreate"
+        />
       </template>
     </AppPageHeader>
 

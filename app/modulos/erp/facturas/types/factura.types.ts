@@ -98,6 +98,7 @@ export interface Document {
 
   number: number
   document_type_id: string
+  parent_document_id?: string | null
   document_sequence_id?: string | null
 
   document_sequences?: {
@@ -255,6 +256,8 @@ export interface FacturaFormValues {
   updated_at?: string
 
   document_type_id: string
+
+  parent_document_id?: string | null
 
   document_sequence_id?: string | null
 

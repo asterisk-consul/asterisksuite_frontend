@@ -1,5 +1,108 @@
 [
  {
+  "version": "0.124.1-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La purga de comprobantes manuales en papelera ya no depende de que el estado numérico figure como anulado: los borradores retirados del circuito también pueden eliminarse si no conservan autorización fiscal ni movimientos o relaciones activas.",
+  "changes": [
+   { "type": "fix", "scope": "trash", "title": "Permitir purgar comprobantes manuales seguros que siguen en estado borrador" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Permitir eliminar comprobantes seguros desde la papelera"
+ },
+ {
+  "version": "0.124.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La papelera respeta permisos de consulta, restauración y eliminación. Permite purgar comprobantes manuales anulados sin autorización fiscal ni efectos activos tras confirmar que se cargaron por error; protege partes interesadas con documentos, pagos, movimientos o datos asociados.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Purgar comprobantes manuales anulados y desvinculados con confirmación explícita" },
+   { "type": "fix", "scope": "trash", "title": "Respetar permisos para consultar, restaurar y eliminar desde la papelera" },
+   { "type": "fix", "scope": "master-data", "title": "Impedir la eliminación definitiva de partes interesadas con datos asociados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Purgar comprobantes anulados cargados por error"
+ },
+ {
+  "version": "0.123.3-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Permite eliminar definitivamente desde la papelera NC/ND manuales, anuladas y sin origen cuando ya no conservan autorización fiscal, pagos ni movimientos activos; los asientos de cuenta corriente previamente revertidos se limpian sin volver a afectar el saldo.",
+  "changes": [
+   { "type": "fix", "scope": "documents", "title": "Permitir purgar NC/ND huérfanas seguras y sus asientos inactivos de cuenta corriente" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Eliminar notas de crédito y débito cargadas por error"
+ },
+ {
+  "version": "0.123.2-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Alt + N activa el botón principal de alta en las pantallas de Stock y los catálogos relacionados; en costos cambia con la pestaña seleccionada.",
+  "changes": [
+   { "type": "fix", "scope": "stock", "title": "Vincular Alt + N a los botones de alta de productos y catálogos de inventario" },
+   { "type": "fix", "scope": "inventory", "title": "Aplicar el atajo a depósitos, precios, costos y BOM según la pantalla activa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Unificar Alt + N en las altas de Stock"
+ },
+ {
+  "version": "0.123.1-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Permite anular y enviar a la papelera notas de crédito/débito huérfanas sin pagos ni movimientos relacionados. El acceso Nuevo producto del resumen de Stock ejecuta Alt + N y muestra el atajo en el botón correcto.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Retirar de forma segura NC/ND huérfanas y recalcular cuenta corriente" },
+   { "type": "fix", "scope": "stock", "title": "Conectar Alt + N al botón Nuevo producto del resumen de Stock" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Alinear los accesos Nuevo producto y Alt + N en Stock"
+ },
+ {
+  "version": "0.122.1-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Las notas de crédito y débito de compra muestran enseguida la factura de origen, avisan si cambian el proveedor y validan que la referencia corresponda.",
+  "changes": [
+   { "type": "fix", "scope": "purchases", "title": "Precargar la factura de origen y validar el proveedor en notas de compra" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Precargar y validar la factura de referencia de las notas de compra"
+ },
+ {
+  "version": "0.122.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Permite simular localmente la prueba de ARCA con datos ficticios sin subir certificados ni conectarse al servicio.",
+  "changes": [
+   { "type": "feat", "scope": "arca", "title": "Agregar simulación local de la conexión de homologación con datos ficticios" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Probar la pantalla de ARCA con datos ficticios"
+ },
+ {
+  "version": "0.121.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Permite configurar por empresa las credenciales de homologación de ARCA, validar el acceso a WSAA/WSFE y consultar los puntos de venta de prueba.",
+  "changes": [
+   { "type": "feat", "scope": "arca", "title": "Configurar credenciales de homologación y probar conexión con WSAA/WSFE por empresa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Configurar y probar la conexión de homologación con ARCA"
+ },
+ {
+  "version": "0.120.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Exportar movimientos bancarios con una guía de tipos en español e importar extractos CSV o Excel para revisar coincidencias sin modificar saldos.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Importar extractos bancarios de distintos formatos y exportar movimientos con guía de tipos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Revisar extractos bancarios con tipos explicados"
+ },
+ {
   "version": "0.119.0-alpha",
   "date": "2026-11-02",
   "stage": "alpha",

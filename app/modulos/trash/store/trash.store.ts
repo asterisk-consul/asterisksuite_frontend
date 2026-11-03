@@ -93,11 +93,11 @@ export const useTrashStore = defineStore('trash', () => {
   }
 
   // 💀 HARD DELETE
-  const hardDeleteMany = async (table: string, ids: string[]) => {
+  const hardDeleteMany = async (table: string, ids: string[], confirmAccidentalDocuments = false) => {
     loading.value = true
     error.value = null
     try {
-      await service.hardDeleteMany(table, ids)
+      await service.hardDeleteMany(table, ids, confirmAccidentalDocuments)
 
       items.value = items.value.filter(
         (item) => !(item.table === table && ids.includes(item.id))

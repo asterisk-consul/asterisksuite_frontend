@@ -207,6 +207,7 @@ const {
   processing,
   validTransitions,
   invoiceState,
+  canTrashOrphanNote,
   handleConfirm,
   handleCancel,
   handleRemove,
@@ -410,13 +411,19 @@ watch(confirmModalOpen, async (open) => {
     </template>
   </UModal>
 
-  <UModal v-model:open="deleteModalOpen" title="Enviar factura a la papelera">
+  <UModal v-model:open="deleteModalOpen" :title="canTrashOrphanNote ? 'Anular y enviar nota a la papelera' : 'Enviar factura a la papelera'">
     <template #body>
-      <p>La factura anulada <strong>#{{ doc?.number }}</strong> dejará de aparecer en el circuito habitual.</p>
-      <p class="text-sm text-muted mt-2">Se conserva su historial y podrá restaurarse desde la papelera.</p>
+      <template v-if="canTrashOrphanNote">
+        <p>La nota <strong>#{{ doc?.number }}</strong> se anulará y dejará de aparecer en el circuito habitual.</p>
+        <p class="text-sm text-muted mt-2">Su movimiento activo se quitará de la cuenta corriente. El comprobante y su historial quedarán conservados en la papelera y podrán restaurarse.</p>
+      </template>
+      <template v-else>
+        <p>La factura anulada <strong>#{{ doc?.number }}</strong> dejará de aparecer en el circuito habitual.</p>
+        <p class="text-sm text-muted mt-2">Se conserva su historial y podrá restaurarse desde la papelera.</p>
+      </template>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
-        <UButton label="Enviar a papelera" color="error" :loading="processing" @click="handleRemove" />
+        <UButton :label="canTrashOrphanNote ? 'Anular y enviar a papelera' : 'Enviar a papelera'" color="error" :loading="processing" @click="handleRemove" />
       </div>
     </template>
   </UModal>

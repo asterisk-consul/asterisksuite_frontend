@@ -201,15 +201,6 @@ async function handleSubmit(data: any) {
 
   modalOpen.value = false
 }
-const links = ref([
-  {
-    label: 'Nuevo Depósito',
-    icon: 'i-heroicons-plus',
-    onClick: openCreate,
-    color: 'primary' as const,
-    variant: 'solid' as const
-  }
-])
 </script>
 
 <template>
@@ -217,9 +208,22 @@ const links = ref([
     <UPageHeader
       title="Depósitos"
       description="Listado de depósitos"
-      :links="links"
       class="mb-4 w-full"
-    />
+    >
+      <template #links>
+        <ShortcutButton
+          label="Nuevo Depósito"
+          icon="i-heroicons-plus"
+          color="primary"
+          variant="solid"
+          data-global-create-shortcut
+          data-hide-global-create-control
+          :shortcut-keys="['Alt', 'N']"
+          help="Crear un depósito de almacenamiento"
+          @click="openCreate"
+        />
+      </template>
+    </UPageHeader>
 
     <LogisticaTable :loading="loading" :data="warehouses" :columns="columns" :on-row-click="openEdit" :on-delete="handleBulkDelete" />
   </UPage>

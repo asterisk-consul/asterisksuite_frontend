@@ -92,32 +92,6 @@ const handleComponentSaved = () => {
   editingComponent.value = null
 }
 
-// =========================
-// LINKS POR TAB
-// =========================
-
-const links = computed(() => {
-  if (activeTab.value === 'templates') {
-    return [
-      {
-        label: 'Nuevo template',
-        icon: 'i-lucide-plus',
-        onClick: () => router.push('/cost-templates/create'),
-        color: 'primary' as const,
-        variant: 'solid' as const
-      }
-    ]
-  }
-  return [
-    {
-      label: 'Nuevo componente',
-      icon: 'i-lucide-plus',
-      onClick: openCreateComponent,
-      color: 'primary' as const,
-      variant: 'solid' as const
-    }
-  ]
-})
 </script>
 
 <template>
@@ -125,8 +99,32 @@ const links = computed(() => {
     <AppPageHeader
       title="Templates de costo"
       description="Gestioná los templates y componentes de costo"
-      :links="links"
-    />
+    >
+      <template #links>
+        <ShortcutButton
+          v-if="activeTab === 'templates'"
+          label="Nuevo template"
+          icon="i-lucide-plus"
+          color="primary"
+          data-global-create-shortcut
+          data-hide-global-create-control
+          :shortcut-keys="['Alt', 'N']"
+          help="Abrir el formulario para crear un template de costo"
+          to="/cost-templates/create"
+        />
+        <ShortcutButton
+          v-else
+          label="Nuevo componente"
+          icon="i-lucide-plus"
+          color="primary"
+          data-global-create-shortcut
+          data-hide-global-create-control
+          :shortcut-keys="['Alt', 'N']"
+          help="Crear un componente de costo"
+          @click="openCreateComponent"
+        />
+      </template>
+    </AppPageHeader>
 
     <UTabs v-model="activeTab" :items="tabs" variant="link" class="w-full">
       <!-- TEMPLATES -->

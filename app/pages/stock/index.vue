@@ -201,11 +201,15 @@ onMounted(loadDashboard)
             variant="outline"
             to="/productos"
           />
-          <UButton
+          <ShortcutButton
             v-if="can(['products.create'])"
             label="Nuevo producto"
             icon="i-lucide-plus"
             color="primary"
+            data-global-create-shortcut
+            data-hide-global-create-control
+            :shortcut-keys="['Alt', 'N']"
+            help="Abrir el formulario para crear un producto"
             to="/productos/create"
           />
           <UButton
