@@ -24,15 +24,22 @@ const extensionDraft = ref<Record<string, any>>({})
 const partyId = computed(() => (route.query.party_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
 const parentOrderId = computed(() => (route.query.parent_order_id as string) || undefined)
+const parentDocumentId = computed(() =>
+  (route.query.parent_document_id as string) || (['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category.value ?? '') ? parentOrderId.value : undefined)
+)
 const duplicateId = computed(() => (route.query.duplicate_id as string) || undefined)
 const intakeId = computed(() => route.query.intakeId as string | undefined)
 
 const isQuote = computed(() => category.value === 'QUOTE')
 const isOrder = computed(() => category.value === 'ORDER')
 const isRemito = computed(() => category.value === 'REMITO')
+const isInvoiceReferenceNote = computed(() => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category.value ?? ''))
+const missingNoteSource = computed(() => isInvoiceReferenceNote.value && !parentDocumentId.value)
 
 const pageDescription = computed(() => isRemito.value
   ? 'Indicá las cantidades y el depósito de salida de cada producto'
+  : missingNoteSource.value
+    ? 'Para mantener la trazabilidad, iniciá la nota desde una factura confirmada'
   : 'Completá los datos y agregá los productos'
 )
 
@@ -67,7 +74,7 @@ onMounted(async () => {
       toast.add({ title: 'No se pudo cargar el documento para duplicarlo', description: e?.data?.message || e?.message, color: 'error' })
     }
   }
-  if (parentOrderId.value) {
+  if (parentOrderId.value && !isInvoiceReferenceNote.value) {
     try {
       const order = await DocumentsSalesService.getOne(parentOrderId.value)
       orderData.value = order
@@ -139,7 +146,7 @@ async function handleSubmit(payload: any) {
     const fullPayload = {
       ...payload,
       ...extensionData,
-      parent_document_id: parentOrderId.value || undefined
+      parent_document_id: (isInvoiceReferenceNote.value ? parentDocumentId.value : parentOrderId.value) || undefined
     }
 
     // Los controles opcionales usan '' cuando están vacíos. Class-validator
@@ -179,7 +186,7 @@ async function handleSubmit(payload: any) {
           :description="pageDescription"
         >
           <template #links>
-            <UButton :label="`Guardar ${pageTitle}`" icon="i-lucide-check" :loading="saving" @click="formRef?.submit()">
+            <UButton v-if="!missingNoteSource" :label="`Guardar ${pageTitle}`" icon="i-lucide-check" :loading="saving" @click="formRef?.submit()">
               <template #trailing>
                 <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
               </template>
@@ -189,14 +196,32 @@ async function handleSubmit(payload: any) {
 
         <UPageBody class="mx-auto w-full max-w-screen-2xl space-y-6">
           <!-- Form principal (genérico) -->
+          <UAlert
+            v-if="missingNoteSource"
+            class="mb-4"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-file-warning"
+            title="La nota se crea desde una factura"
+            description="Abrí una factura confirmada y elegí Crear NC o Crear ND para conservar el cliente y la trazabilidad del comprobante."
+          />
+          <UButton
+            v-if="missingNoteSource"
+            label="Ir a facturas"
+            icon="i-lucide-receipt"
+            variant="outline"
+            @click="router.push('/erp/sales/comprobantes?category=INVOICE')"
+          />
+
           <SalesDocumentForm
+            v-else
             ref="formRef"
             :loading="saving"
             module-code="SALES"
             :category="category"
             :operational-mode="isRemito"
             :initial-values="initialValues"
-            :parent-document-id="parentOrderId"
+            :parent-document-id="isInvoiceReferenceNote ? parentDocumentId : parentOrderId"
             :draft-extension="extensionDraft"
             @submit="handleSubmit"
             @restore-extension="extensionDraft = $event"

@@ -257,8 +257,18 @@ const form = reactive({
 
 watch(() => form.party_id, async (partyId) => {
   const requestId = ++selectedPartyLoadId
+  if (!partyId) {
+    selectedPartyFallback.value = null
+    return
+  }
+  if ([...remoteParties.value, ...parties.value].some(party => party.id === partyId)) {
+    if (selectedPartyFallback.value?.id !== partyId) selectedPartyFallback.value = null
+    return
+  }
+  // Una factura elegida ya aporta los datos fiscales mínimos del tercero;
+  // mantenerlos visibles mientras se conserva la selección evita un select vacío.
+  if (selectedPartyFallback.value?.id === partyId) return
   selectedPartyFallback.value = null
-  if (!partyId || [...remoteParties.value, ...parties.value].some(party => party.id === partyId)) return
 
   try {
     const party = await partiesService.findOne(partyId)
@@ -419,8 +429,19 @@ function notifyReferencePartyChange(previousPartyId?: string | null, referencePa
   })
 }
 
+function setReferencePartyFallback(party: any) {
+  if (!party?.id || !party.name || !party.type) return
+  selectedPartyFallback.value = {
+    ...party,
+    vat_condition: party.vat_condition ?? '',
+    exemption_rate: Number(party.exemption_rate ?? 0),
+    roles: party.roles ?? [],
+  } as BusinessParty
+}
+
 function applyReferenceDocument(doc: any) {
   if (!doc) return
+  setReferencePartyFallback(doc.business_parties)
   notifyReferencePartyChange(form.party_id, doc.party_id)
   referenceDocumentInfo.value = doc
   referenceDocumentId.value = doc.id
@@ -456,16 +477,17 @@ function handleReferenceSelect(documentId: string, partyId?: string, invoiceOpti
   referenceDocumentId.value = documentId
   referenceDocumentInfo.value = invoiceOption ? { ...invoiceOption, id: documentId } : null
   referenceLoading.value = true
+  setReferencePartyFallback(invoiceOption?.businessParty)
   if (partyId) {
     referencePartyId.value = partyId
     notifyReferencePartyChange(form.party_id, partyId)
     form.party_id = partyId
   }
 
-  // Fetch full document via the appropriate service
+  // Fetch only the source fields needed to seed the note, not the full invoice.
   const fetchDoc = props.moduleCode === 'SALES'
-    ? import('~/modulos/erp/sales/services/sales.service').then(m => m.DocumentsSalesService.getOne(documentId))
-    : import('~/modulos/erp/purchases/purchases-documents.services').then(m => m.DocumentsPurchasesService.getOne(documentId))
+    ? import('~/modulos/erp/sales/services/sales.service').then(m => m.DocumentsSalesService.getInvoiceReference(documentId))
+    : import('~/modulos/erp/purchases/purchases-documents.services').then(m => m.DocumentsPurchasesService.getInvoiceReference(documentId))
 
   fetchDoc
     .then(doc => {
@@ -484,11 +506,14 @@ function handleReferenceSelect(documentId: string, partyId?: string, invoiceOpti
 }
 
 function handleReferenceResolved(invoice: any) {
-  if (invoice.id !== referenceDocumentId.value || !invoice.partyId) return
+  if (invoice.id !== referenceDocumentId.value) return
+  setReferencePartyFallback(invoice.businessParty)
+  const invoicePartyId = invoice.partyId ?? invoice.businessParty?.id
+  if (!invoicePartyId) return
   referenceDocumentInfo.value = invoice
-  referencePartyId.value = invoice.partyId
-  notifyReferencePartyChange(form.party_id, invoice.partyId)
-  form.party_id = invoice.partyId
+  referencePartyId.value = invoicePartyId
+  notifyReferencePartyChange(form.party_id, invoicePartyId)
+  form.party_id = invoicePartyId
 }
 
 function handleReferenceClear() {
@@ -511,6 +536,11 @@ watch(() => form.party_id, (partyId) => {
 
 // Whether to show the reference document picker (NC/ND categories)
 const showReferencePicker = computed(() => {
+  if (props.category === 'CREDIT_NOTE' || props.category === 'DEBIT_NOTE') return true
+  const selected = documentsTypes.value.find(d => d.id === form.document_type_id)
+  return selected?.category === 'CREDIT_NOTE' || selected?.category === 'DEBIT_NOTE'
+})
+const isInvoiceReferenceNote = computed(() => {
   if (props.category === 'CREDIT_NOTE' || props.category === 'DEBIT_NOTE') return true
   const selected = documentsTypes.value.find(d => d.id === form.document_type_id)
   return selected?.category === 'CREDIT_NOTE' || selected?.category === 'DEBIT_NOTE'
@@ -1131,7 +1161,15 @@ watch(
     form.party_id = val.party_id ?? ''
     referenceDocumentId.value = (val as any).parent_document_id ?? props.parentDocumentId
     referenceDocumentInfo.value = (val as any).parent_document ?? null
-    referencePartyId.value = referenceDocumentId.value ? val.party_id ?? undefined : undefined
+    const linkedDocument = (val as any).parent_document
+    const linkedParty = linkedDocument?.business_parties
+    const linkedPartyId = linkedDocument?.party_id ?? linkedParty?.id
+    referencePartyId.value = referenceDocumentId.value ? linkedPartyId ?? val.party_id ?? undefined : undefined
+    if (referenceDocumentId.value && linkedPartyId) {
+      setReferencePartyFallback(linkedParty)
+      notifyReferencePartyChange(val.party_id, linkedPartyId)
+      form.party_id = linkedPartyId
+    }
     form.date = val.date ? new Date(val.date).toISOString().split('T')[0] ?? today() : today()
     form.descrip = val.descrip ?? ''
     form.ref = val.ref ?? ''
@@ -2012,8 +2050,8 @@ defineExpose({ submit, completeDraft })
       <div v-if="showReferencePicker" class="mt-4">
         <ReferenceDocumentPicker
           :module-code="moduleCode"
+          :selection-locked="isInvoiceReferenceNote && Boolean(referenceDocumentId) && !props.initialValues?.id"
           :selected-invoice="referenceDocumentInfo?.id === referenceDocumentId ? referenceDocumentInfo : (referenceDocumentId ? { id: referenceDocumentId } : null)"
-          :selected-invoice-loading="referenceLoading"
           @select="handleReferenceSelect"
           @resolved="handleReferenceResolved"
           @clear="handleReferenceClear"

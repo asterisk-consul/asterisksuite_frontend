@@ -173,19 +173,19 @@ async function confirmCancel() {
 }
 
 function openReconciliation(vale: HrVale) {
-  if (!vale.document_needs_reconciliation || vale.document_reconciliation_blocked) return
+  if ((!vale.document_needs_reconciliation && !vale.treasury_needs_reconciliation) || vale.document_reconciliation_blocked) return
   valeToReconcile.value = vale
   showReconcileModal.value = true
 }
 
 async function reconcileCancelledVale() {
   const vale = valeToReconcile.value
-  if (!vale?.document_needs_reconciliation || vale.document_reconciliation_blocked) return
+  if ((!vale?.document_needs_reconciliation && !vale?.treasury_needs_reconciliation) || vale.document_reconciliation_blocked) return
   reconcilingCancelledValeId.value = vale.id
   try {
     await hrStore.cancelVale(vale.id)
     await loadVales()
-    toast.add({ title: 'Comprobante del vale regularizado', description: 'Quedó anulado y sin saldo ni movimientos activos de cuenta corriente.', color: 'success' })
+    toast.add({ title: 'Anulación del vale regularizada', description: 'Se corrigió el comprobante y se registró cualquier reversión de caja o banco que faltaba, sin duplicar movimientos.', color: 'success' })
     showReconcileModal.value = false
     valeToReconcile.value = null
   } catch (e: any) {
@@ -437,7 +437,7 @@ const columns = build([
               onClick: () => payVale(vale)
             })
           : null,
-        vale.document_needs_reconciliation && vale.document_reconciliation_blocked
+        (vale.document_needs_reconciliation || vale.treasury_needs_reconciliation) && vale.document_reconciliation_blocked
           ? h(UButton, {
               label: 'Pago activo',
               icon: 'i-lucide-lock-keyhole',
@@ -447,7 +447,7 @@ const columns = build([
               disabled: true,
               title: 'Anulá primero el pago asociado al comprobante.'
             })
-          : vale.document_needs_reconciliation
+          : (vale.document_needs_reconciliation || vale.treasury_needs_reconciliation)
             ? h(UButton, {
                 label: 'Regularizar',
                 icon: 'i-lucide-wrench',
@@ -565,17 +565,17 @@ const sortFields = [
       </template>
     </UModal>
 
-    <UModal v-model:open="showReconcileModal" title="Regularizar comprobante del vale">
+    <UModal v-model:open="showReconcileModal" title="Regularizar anulación del vale">
       <template #body>
         <div class="space-y-3">
           <p class="text-sm">
-            Se regularizará el comprobante interno del vale
+            Se regularizará la anulación y el comprobante interno del vale
             <strong>#{{ valeToReconcile?.number }}</strong>
             de <strong>{{ valeToReconcile?.party?.name }}</strong>.
           </p>
           <UAlert
             title="Qué se va a corregir"
-            description="El comprobante quedará anulado, se quitará el saldo pagado obsoleto y se retirarán sus asientos activos de cuenta corriente. Esta acción no vuelve a registrar ni revertir movimientos de caja o banco."
+            description="El comprobante quedará anulado y sin saldo pagado obsoleto ni asientos activos de cuenta corriente. Si falta la reversión del movimiento de caja o banco del vale, se registrará una sola; si ya existe, no se duplicará."
             color="warning"
             variant="subtle"
           />

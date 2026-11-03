@@ -110,6 +110,26 @@ export const useTrashStore = defineStore('trash', () => {
     }
   }
 
+  const reconcileValeDocument = async (documentId: string) => {
+    error.value = null
+    try {
+      return await service.reconcileValeDocument(documentId)
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    }
+  }
+
+  const getValeTreasuryImpacts = async (documentId: string) => {
+    error.value = null
+    try {
+      return await service.getValeTreasuryImpacts(documentId)
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    }
+  }
+
   const clearError = () => {
     error.value = null
   }
@@ -124,6 +144,8 @@ export const useTrashStore = defineStore('trash', () => {
     softDeleteMany,
     restoreMany,
     hardDeleteMany,
+    reconcileValeDocument,
+    getValeTreasuryImpacts,
     clearError
   }
 })

@@ -36,6 +36,7 @@ const isCreditOrDebitNote = computed(() => ['CREDIT_NOTE', 'DEBIT_NOTE'].include
 const parentDocumentId = computed(() =>
   (route.query.parent_document_id as string) || (isCreditOrDebitNote.value ? parentOrderId.value : undefined)
 )
+const missingNoteSource = computed(() => isCreditOrDebitNote.value && !parentDocumentId.value)
 const duplicateId = computed(() => (route.query.duplicate_id as string) || undefined)
 const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
 const internationalOperationId = computed(() => (route.query.international_operation_id as string) || undefined)
@@ -102,7 +103,7 @@ onMounted(async () => {
       })
     }
   }
-  if (parentOrderId.value) {
+  if (parentOrderId.value && !isCreditOrDebitNote.value) {
     try {
       const order = await DocumentsPurchasesService.getOne(parentOrderId.value)
       orderData.value = order
@@ -259,10 +260,10 @@ async function handleSubmit(payload: any) {
       <UPage class="space-y-6">
         <AppPageHeader
           :title="`Crear ${pageTitle}`"
-          description="Completá los datos y agregá los productos"
+          :description="missingNoteSource ? 'Para mantener la trazabilidad, iniciá la nota desde una factura confirmada' : 'Completá los datos y agregá los productos'"
         >
           <template #links>
-            <UButton :label="`Guardar ${pageTitle}`" icon="i-lucide-check" :loading="saving" @click="formRef?.submit()">
+            <UButton v-if="!missingNoteSource" :label="`Guardar ${pageTitle}`" icon="i-lucide-check" :loading="saving" @click="formRef?.submit()">
               <template #trailing>
                 <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
               </template>
@@ -272,7 +273,7 @@ async function handleSubmit(payload: any) {
 
         <UPageBody class="mx-auto w-full max-w-screen-2xl">
           <UAlert
-            v-if="internationalOperationId"
+            v-if="!missingNoteSource && internationalOperationId"
             class="mb-4"
             color="primary"
             variant="subtle"
@@ -281,7 +282,7 @@ async function handleSubmit(payload: any) {
             :description="`Al guardar, se asociará como ${internationalExpenseType === 'OTHER' ? (internationalCustomExpenseDescription || 'otro gasto') : internationalExpenseLabel}${internationalContainerId ? ` y al contenedor ${internationalContainerNumber || 'seleccionado'}` : ' para toda la operación'}. Moneda de la operación: ${internationalOperationCurrency || 'consultando…'}. Si la factura usa otra moneda, se aplicará la última cotización disponible.`"
           />
 
-          <UCard v-if="!intakeId" class="mb-4">
+          <UCard v-if="!missingNoteSource && !intakeId" class="mb-4">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div class="flex items-start gap-3">
                 <div class="rounded-lg bg-primary/10 p-2 text-primary">
@@ -303,13 +304,31 @@ async function handleSubmit(payload: any) {
           </UCard>
 
           <UiAttachmentManager
-            v-else-if="intakeId"
+            v-else-if="!missingNoteSource && intakeId"
             class="mb-4"
             entity-type="intake"
             :entity-id="intakeId"
           />
 
+          <UAlert
+            v-if="missingNoteSource"
+            class="mb-4"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-file-warning"
+            title="La nota se crea desde una factura"
+            description="Abrí una factura de compra confirmada y elegí Crear NC o Crear ND para conservar el proveedor y la trazabilidad del comprobante."
+          />
+          <UButton
+            v-if="missingNoteSource"
+            label="Ir a facturas de compra"
+            icon="i-lucide-receipt"
+            variant="outline"
+            @click="router.push('/erp/purchases/comprobantes?category=INVOICE')"
+          />
+
           <SalesDocumentForm
+            v-else
             ref="formRef"
             :loading="saving"
             module-code="PURCHASES"

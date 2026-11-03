@@ -27,7 +27,7 @@ const selectedTripIds = ref<Set<string>>(new Set())
 
 const saleDocTypes = computed(() =>
   (documentTypes.value ?? []).filter(
-    (dt: any) => dt.direction === 1 && (dt.category === 'INVOICE' || dt.category === 'CREDIT_NOTE' || dt.category === 'DEBIT_NOTE')
+    (dt: any) => dt.direction === 1 && dt.category === 'INVOICE'
   )
 )
 

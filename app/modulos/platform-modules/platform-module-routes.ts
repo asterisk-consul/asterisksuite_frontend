@@ -3,6 +3,7 @@ const moduleRoutes: Array<{ moduleCode: string; patterns: RegExp[] }> = [
   { moduleCode: 'INTERNATIONAL_OPERATIONS', patterns: [/^\/operaciones-internacionales(?:\/|$)/] },
   { moduleCode: 'REPORTS', patterns: [/^\/erp\/reports(?:\/|$)/] },
   { moduleCode: 'WHATSAPP', patterns: [/^\/settings\/whatsapp(?:\/|$)/] },
+  { moduleCode: 'ARCA', patterns: [/^\/settings\/arca(?:\/|$)/] },
   { moduleCode: 'MCP', patterns: [/^\/settings\/connected-apps(?:\/|$)/, /^\/mcp\/authorize(?:\/|$)/] },
   { moduleCode: 'MANUFACTURING', patterns: [/^\/(?:fabricacion|bom)(?:\/|$)/] },
   { moduleCode: 'ACCOUNTING', patterns: [/^\/erp\/contabilidad(?:\/|$)/] },

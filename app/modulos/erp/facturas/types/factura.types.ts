@@ -99,6 +99,7 @@ export interface Document {
   number: number
   document_type_id: string
   parent_document_id?: string | null
+  parent_document?: Partial<InvoiceReferenceDocument> | null
   document_sequence_id?: string | null
 
   document_sequences?: {
@@ -183,6 +184,45 @@ export interface Document {
   fiscal_authorization_code?: string | null
 }
 
+export interface InvoiceReferenceParty {
+  id: string
+  name: string
+  type: string
+  business_names: string | null
+  email: string | null
+  tax_id: string | null
+  vat_condition: string | null
+  exemption_rate: number | string
+  active: boolean
+  roles: Array<{ id: string; role: string; active: boolean }>
+}
+
+export interface InvoiceReferenceItem {
+  id: string
+  product_id: string | null
+  variant_id: string | null
+  quantity: number | string
+  quantity_invoiced: number | string | null
+  unit_price: number | string
+  products: { name: string } | null
+  product_variants: { name: string | null } | null
+}
+
+/** Datos livianos de una factura usados al buscar o vincular una NC/ND. */
+export interface InvoiceReferenceDocument {
+  id: string
+  number: number
+  date: string
+  total: number | string
+  party_id: string | null
+  currency_code: string | null
+  ref: string | null
+  descrip: string | null
+  document_types: { code: string } | null
+  business_parties: InvoiceReferenceParty | null
+  document_items?: InvoiceReferenceItem[]
+}
+
 export interface FacturaTax {
   tax_id: string
 
@@ -258,6 +298,8 @@ export interface FacturaFormValues {
   document_type_id: string
 
   parent_document_id?: string | null
+
+  parent_document?: Partial<InvoiceReferenceDocument> | null
 
   document_sequence_id?: string | null
 

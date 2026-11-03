@@ -37,6 +37,8 @@ const props = defineProps<{
   onRowClick?: (row: T) => void
   getRowId?: (row: T, index: number) => string
   compact?: boolean
+  hideToolbar?: boolean
+  hideFooter?: boolean
   tableMinWidth?: number
 }>()
 const sorting = defineModel<SortingState>('sorting', {
@@ -202,7 +204,7 @@ async function confirmDelete(): Promise<void> {
     ========================= -->
 
     <TableToolbar
-      v-if="filterFields?.length || sortFields?.length || columns?.length"
+      v-if="!hideToolbar && (filterFields?.length || sortFields?.length || columns?.length)"
       :table="table"
       :columns="tableColumns"
       v-model:sorting="sorting"
@@ -266,7 +268,7 @@ async function confirmDelete(): Promise<void> {
          Footer
     ========================= -->
 
-    <div class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2">
+    <div v-if="!hideFooter" class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2">
       <div class="text-xs text-muted">{{ selectedCount }} seleccionadas • {{ totalCount }} totales</div>
 
       <UPagination

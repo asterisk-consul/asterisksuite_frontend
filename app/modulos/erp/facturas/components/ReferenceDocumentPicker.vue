@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { nextTick } from 'vue'
+import type { InvoiceReferenceDocument } from '~/modulos/erp/facturas/types/factura.types'
+
 type InvoiceOption = {
   id?: string
   value: string
@@ -11,12 +14,13 @@ type InvoiceOption = {
   number?: number
   documentTypeCode?: string
   currencyCode?: string
+  businessParty?: InvoiceReferenceDocument['business_parties']
 }
 
 const props = defineProps<{
   moduleCode: 'SALES' | 'PURCHASES'
   selectedInvoice?: (Partial<InvoiceOption> & { id: string; total?: number | string }) | null
-  selectedInvoiceLoading?: boolean
+  selectionLocked?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -28,32 +32,69 @@ const emit = defineEmits<{
 const toast = useToast()
 
 const loading = ref(false)
-const documents = ref<any[]>([])
+const documents = ref<InvoiceReferenceDocument[]>([])
 const selectedOption = ref<any>(null)
-const hasFetchedInvoices = ref(false)
+const menuOpen = ref(false)
+const searchTerm = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+let latestRequest = 0
+let ignoreOpenUntil = 0
 
-async function fetchInvoices() {
-  if (loading.value || hasFetchedInvoices.value) return
+async function fetchInvoices(search = searchTerm.value) {
+  const request = ++latestRequest
   loading.value = true
   try {
     const service = props.moduleCode === 'SALES'
       ? await import('~/modulos/erp/sales/services/sales.service').then(m => m.DocumentsSalesService)
       : await import('~/modulos/erp/purchases/purchases-documents.services').then(m => m.DocumentsPurchasesService)
 
-    const allDocs = await service.getAll({
-      category: 'INVOICE',
-      status: 2,
-      direction: props.moduleCode === 'SALES' ? 1 : -1,
+    const result = await service.getInvoiceReferences({
+      page: 1,
+      pageSize: 50,
+      ...(search.trim() ? { search: search.trim() } : {}),
     })
 
-    documents.value = allDocs
-    hasFetchedInvoices.value = true
+    if (request === latestRequest) documents.value = result.items ?? []
   } catch (e: any) {
-    toast.add({ title: 'Error al cargar facturas', description: e?.data?.message, color: 'error' })
+    if (request === latestRequest) {
+      toast.add({ title: 'Error al buscar facturas', description: e?.data?.message, color: 'error' })
+    }
   } finally {
-    loading.value = false
+    if (request === latestRequest) loading.value = false
   }
 }
+
+watch(searchTerm, (search) => {
+  if (!menuOpen.value) return
+  clearTimeout(searchTimer)
+  latestRequest++
+  loading.value = true
+  documents.value = []
+  searchTimer = setTimeout(() => void fetchInvoices(search), 250)
+})
+
+function handleOpenChange(open: boolean) {
+  // A combobox can emit a late "open" while its option click is finishing.
+  // Keep the selected value visible instead of immediately reopening it.
+  if (open && Date.now() < ignoreOpenUntil) {
+    menuOpen.value = false
+    return
+  }
+  menuOpen.value = open
+  clearTimeout(searchTimer)
+  if (open) {
+    void fetchInvoices(searchTerm.value)
+    return
+  }
+  latestRequest++
+  loading.value = false
+  searchTerm.value = ''
+}
+
+onBeforeUnmount(() => {
+  clearTimeout(searchTimer)
+  latestRequest++
+})
 
 function toInvoiceOption(doc: any): InvoiceOption {
   if (doc.label && doc.value) return doc as InvoiceOption
@@ -71,28 +112,30 @@ function toInvoiceOption(doc: any): InvoiceOption {
     id: doc.id ?? doc.value,
     value: doc.id ?? doc.value,
     label,
-    description: `${partyName} · ${date || 'Sin fecha'} · ${total}`,
-    partyId: doc.party_id ?? doc.partyId,
+    description: `${partyName}${doc.ref ? ` · Ref. ${doc.ref}` : ''} · ${date || 'Sin fecha'} · ${total}`,
+    partyId: doc.party_id ?? doc.partyId ?? doc.business_parties?.id,
     partyName,
     total,
     date,
     number: doc.number,
     documentTypeCode: code,
     currencyCode: currency,
+    businessParty: doc.business_parties ?? doc.businessParty,
   }
 }
 
 const invoiceOptions = computed(() => documents.value.map(toInvoiceOption))
 const pickerOptions = computed(() => {
   const options = invoiceOptions.value
+  if (menuOpen.value) return options
   if (selectedOption.value && !options.some(option => option.value === selectedOption.value.value)) {
     return [selectedOption.value, ...options]
   }
   return options
 })
 
-// Keep a linked invoice visible as soon as its own data arrives; the full list loads only when needed.
-watch(() => [props.selectedInvoice?.id, props.selectedInvoice?.number, props.selectedInvoiceLoading, invoiceOptions.value] as const, ([selectedId, selectedNumber, selectedLoading, options]) => {
+// Keep a linked invoice visible from its own data, without loading the invoice catalog.
+watch(() => [props.selectedInvoice?.id, props.selectedInvoice?.number, invoiceOptions.value] as const, ([selectedId, selectedNumber, options]) => {
   if (!selectedId) {
     selectedOption.value = null
     return
@@ -116,24 +159,35 @@ watch(() => [props.selectedInvoice?.id, props.selectedInvoice?.number, props.sel
     total: '',
     date: '',
   }
-  if (!selectedLoading && !hasFetchedInvoices.value) void fetchInvoices()
 }, { immediate: true })
 
 function handleSelect(option: any) {
-  if (!option) {
+  const selected = option && typeof option === 'object'
+    ? toInvoiceOption(option)
+    : pickerOptions.value.find(item => item.value === option)
+  if (!selected) {
+    closeMenu()
     emit('clear')
     return
   }
-  emit('select', option.value, option.partyId, option)
+  selectedOption.value = selected
+  closeMenu()
+  emit('select', selected.value, selected.partyId, selected)
 }
 
-function handleOpenChange(open: boolean) {
-  if (open && !hasFetchedInvoices.value) void fetchInvoices()
+function closeMenu() {
+  ignoreOpenUntil = Date.now() + 180
+  menuOpen.value = false
+  searchTerm.value = ''
+  void nextTick(() => { menuOpen.value = false })
 }
 
-onMounted(() => {
-  if (!props.selectedInvoice?.id) void fetchInvoices()
-})
+function clearSelection() {
+  selectedOption.value = null
+  closeMenu()
+  emit('clear')
+}
+
 </script>
 
 <template>
@@ -141,29 +195,45 @@ onMounted(() => {
     <label class="text-sm font-medium">
       Factura de referencia <span class="text-error">*</span>
     </label>
-    <div class="flex gap-2">
+    <div class="flex min-w-0 gap-2">
+      <div
+        v-if="selectionLocked"
+        class="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 rounded-md border border-default bg-elevated/40 px-3 py-2 text-sm"
+      >
+        <div class="flex min-w-0 items-center gap-2">
+          <UIcon name="i-lucide-lock-keyhole" class="size-4 shrink-0 text-muted" />
+          <span class="truncate font-medium">{{ selectedOption?.label || (loading ? 'Cargando factura…' : 'Factura de origen') }}</span>
+        </div>
+        <span class="shrink-0 text-xs text-muted">Origen fijo</span>
+      </div>
       <USelectMenu
+        v-else
         v-model="selectedOption"
+        :open="menuOpen"
+        v-model:search-term="searchTerm"
         :items="pickerOptions"
-        :filter-fields="['label', 'description', 'partyName', 'total', 'date']"
+        ignore-filter
         :loading="loading"
         searchable
-        placeholder="Buscar por número, proveedor, fecha o importe..."
-        class="w-full"
+        placeholder="Buscar por número, referencia o proveedor..."
+        class="w-full min-w-0"
         @update:open="handleOpenChange"
         @update:model-value="handleSelect"
       />
       <UButton
-        v-if="selectedOption"
+        v-if="selectedOption && !selectionLocked"
         icon="i-lucide-x"
         variant="ghost"
         color="error"
         size="sm"
-        @click="selectedOption = null; emit('clear')"
+        @click="clearSelection"
       />
     </div>
-    <p class="text-xs text-muted">
-      La referencia es obligatoria y debe ser una factura confirmada. El {{ moduleCode === 'PURCHASES' ? 'proveedor' : 'cliente' }} se toma de ella; fecha e importe son orientativos porque la nota puede ajustar solo una parte.
+    <p v-if="!selectionLocked" class="text-xs text-muted">
+      Es obligatoria y solo admite facturas confirmadas. Escribí número, referencia o {{ moduleCode === 'PURCHASES' ? 'proveedor' : 'cliente' }} para buscar; se muestran hasta 50 coincidencias recientes.
+    </p>
+    <p v-if="selectionLocked" class="text-xs text-muted">
+      La factura de origen queda fija para conservar la trazabilidad. Si necesitás otra, iniciá la nota desde la factura correcta.
     </p>
     <div v-if="selectedOption" class="grid grid-cols-2 gap-3 rounded-lg border border-default bg-elevated/40 p-3 text-sm sm:grid-cols-4">
       <div class="min-w-0">

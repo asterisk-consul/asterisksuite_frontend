@@ -1,4 +1,4 @@
-﻿import type { Document } from '~/modulos/erp/facturas/types/factura.types'
+import type { Document, InvoiceReferenceDocument } from '~/modulos/erp/facturas/types/factura.types'
 
 import type { PaginatedResponse, ServerListParams } from '~/types/pagination'
 
@@ -21,6 +21,14 @@ export const DocumentsSalesService = {
     return apiFetch<Document[]>('/api/backend/documents/sales', {
       query: params
     })
+  },
+
+  async getInvoiceReferences(params: { page: number; pageSize: number; search?: string }): Promise<PaginatedResponse<InvoiceReferenceDocument>> {
+    return apiFetch<PaginatedResponse<InvoiceReferenceDocument>>('/api/backend/documents/sales/reference-invoices', { query: params })
+  },
+
+  async getInvoiceReference(id: string): Promise<InvoiceReferenceDocument> {
+    return apiFetch<InvoiceReferenceDocument>(`/api/backend/documents/sales/reference-invoices/${id}`)
   },
 
   async getPage(params: SalesListParams & ServerListParams): Promise<PaginatedResponse<Document>> {

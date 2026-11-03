@@ -1,7 +1,7 @@
 ﻿import type { PurchasesDocument } from '../purchases/types/purchases-documents'
 
 import type { PaginatedResponse, ServerListParams } from '~/types/pagination'
-import type { Document } from '~/modulos/erp/facturas/types/factura.types'
+import type { Document, InvoiceReferenceDocument } from '~/modulos/erp/facturas/types/factura.types'
 
 const apiFetch = <T>(request: string, options?: any): Promise<T> =>
   ($fetch as unknown as (request: string, options?: any) => Promise<T>)(request, options)
@@ -20,6 +20,14 @@ export const DocumentsPurchasesService = {
     return apiFetch<Document[]>('/api/backend/documents/purchases', {
       query: params
     })
+  },
+
+  async getInvoiceReferences(params: { page: number; pageSize: number; search?: string }): Promise<PaginatedResponse<InvoiceReferenceDocument>> {
+    return apiFetch<PaginatedResponse<InvoiceReferenceDocument>>('/api/backend/documents/purchases/reference-invoices', { query: params })
+  },
+
+  async getInvoiceReference(id: string): Promise<InvoiceReferenceDocument> {
+    return apiFetch<InvoiceReferenceDocument>(`/api/backend/documents/purchases/reference-invoices/${id}`)
   },
 
   async getPage(params: PurchasesListParams & ServerListParams): Promise<PaginatedResponse<Document>> {

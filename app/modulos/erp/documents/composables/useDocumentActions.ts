@@ -309,10 +309,10 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     // Crear NC/ND (from INVOICE confirmed)
     if (isConfirmed.value && category.value === 'INVOICE') {
       const ncUrl = module === 'sales'
-        ? `/erp/sales/new?category=CREDIT_NOTE&parent_order_id=${id.value}`
+        ? `/erp/sales/new?category=CREDIT_NOTE&parent_document_id=${id.value}`
         : `/erp/purchases/purchases-documents/new?category=CREDIT_NOTE&parent_document_id=${id.value}`
       const ndUrl = module === 'sales'
-        ? `/erp/sales/new?category=DEBIT_NOTE&parent_order_id=${id.value}`
+        ? `/erp/sales/new?category=DEBIT_NOTE&parent_document_id=${id.value}`
         : `/erp/purchases/purchases-documents/new?category=DEBIT_NOTE&parent_document_id=${id.value}`
       if (canDocument(module, 'CREDIT_NOTE', 'create')) items.push([{ label: 'Crear NC', icon: 'i-lucide-file-text', color: 'warning', onClick: () => router.push(ncUrl) }])
       if (canDocument(module, 'DEBIT_NOTE', 'create')) items.push([{ label: 'Crear ND', icon: 'i-lucide-file-text', color: 'info', onClick: () => router.push(ndUrl) }])

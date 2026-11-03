@@ -2,11 +2,16 @@
 import { settingsCatalog } from '~/data/settingsCatalog'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useAuthStore } from '~/modulos/auth/auth.store'
+import { usePlatformModulesStore } from '~/modulos/platform-modules/platform-modules.store'
 
 definePageMeta({ middleware: ['auth'] })
 
 const { hasPermission, init: initRoles } = useRoles()
 const { isOwnerOrAdmin, isOwner } = useCompanyRole()
+const authStore = useAuthStore()
+const platformModules = usePlatformModulesStore()
+const activeCompanyId = computed(() => authStore.selectedCompany?.id ?? '')
 const search = ref('')
 const showAdvanced = ref(false)
 
@@ -20,9 +25,13 @@ const groups = computed(() => {
           ? isOwner.value || hasPermission(entry.permission)
           : !entry.permission || isOwnerOrAdmin.value || hasPermission(entry.permission)
         const allowed = hasEntryPermission && (!entry.ownerOrAdminOnly || isOwnerOrAdmin.value)
+        const moduleAvailable = !entry.moduleCode
+          || !activeCompanyId.value
+          || platformModules.loadedCompanyId !== activeCompanyId.value
+          || platformModules.hasModule(entry.moduleCode)
         const visible = showAdvanced.value || !entry.advanced || Boolean(term)
         const matches = !term || `${group.label} ${entry.label} ${entry.description}`.toLocaleLowerCase('es').includes(term)
-        return allowed && visible && matches
+        return allowed && moduleAvailable && visible && matches
       })
     }))
     .filter(group => group.entries.length)
@@ -35,6 +44,10 @@ const recommendedSteps = [
   { label: 'Tesorería', to: '/erp/treasury/cash-boxes', icon: 'i-lucide-wallet' },
   { label: 'Usuarios y permisos', to: '/settings/users', icon: 'i-lucide-users' }
 ]
+
+watch(activeCompanyId, (companyId) => {
+  if (companyId) void platformModules.fetchEffective(companyId).catch(() => undefined)
+}, { immediate: true })
 
 onMounted(initRoles)
 </script>

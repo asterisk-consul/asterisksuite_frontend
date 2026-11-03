@@ -1,5 +1,67 @@
 [
  {
+  "version": "0.126.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Las notas de crédito y débito se inician desde facturas confirmadas. En edición se puede cambiar la referencia; el cliente o proveedor se actualiza y la búsqueda carga solo los datos necesarios.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Iniciar notas de crédito y débito desde facturas confirmadas" },
+   { "type": "fix", "scope": "documents", "title": "Permitir cambiar la factura de referencia al editar y actualizar el tercero asociado" },
+   { "type": "fix", "scope": "documents", "title": "Cerrar el selector al elegir la referencia y restringir notas generadas desde viajes" },
+   { "type": "perf", "scope": "documents", "title": "Buscar facturas de referencia con resultados paginados y datos acotados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Crear notas desde facturas y cambiar su referencia al editar"
+ },
+ {
+  "version": "0.125.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "ARCA queda integrado al control de módulos por empresa y apagado por defecto hasta que la plataforma lo habilite.",
+  "changes": [
+   { "type": "feat", "scope": "arca", "title": "Habilitar o deshabilitar ARCA por plan o excepción de empresa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Controlar la disponibilidad de ARCA por empresa"
+ },
+ {
+  "version": "0.124.5-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La Papelera explica el motivo exacto por el que un comprobante de vale necesita limpieza y separa los pendientes del documento/cuenta corriente de los de Tesorería. No pide una reversión bancaria cuando no hubo movimiento o cuando el movimiento inverso ya existe.",
+  "changes": [
+   { "type": "fix", "scope": "trash", "title": "Mostrar por separado los pendientes del comprobante y de Tesorería para vales anulados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Aclarar la limpieza pendiente de vales anulados"
+ },
+ {
+  "version": "0.124.4-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La Papelera detalla por qué un vale RRHH anulado necesita limpieza: estado o saldo pagado del comprobante, asientos activos de cuenta corriente y/o reversión de Tesorería. El detalle muestra la caja o banco y sus movimientos; solo se registra el movimiento compensatorio cuando realmente falta.",
+  "changes": [
+   { "type": "fix", "scope": "hr", "title": "Reponer de forma idempotente reversiones de tesorería faltantes al regularizar vales anulados" },
+   { "type": "fix", "scope": "trash", "title": "Distinguir limpieza de comprobantes y reversiones de Tesorería en vales anulados" },
+   { "type": "fix", "scope": "trash", "title": "Mostrar con claridad los estados de comprobantes internos VALE" },
+   { "type": "feat", "scope": "trash", "title": "Consultar caja o banco e importes afectados desde el detalle del vale en la Papelera" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Distinguir la limpieza pendiente de vales en la Papelera"
+ },
+ {
+  "version": "0.124.3-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La Papelera presenta en una tabla más clara el tipo, los datos identificativos, el estado, la fecha de baja y quién envió cada registro; la búsqueda también encuentra nombres y referencias.",
+  "changes": [
+   { "type": "style", "scope": "trash", "title": "Mejorar la lectura de registros, estados y referencias en la Papelera" },
+   { "type": "feat", "scope": "trash", "title": "Mostrar datos identificativos de entidades disponibles en la Papelera" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la tabla de la Papelera"
+ },
+ {
   "version": "0.124.2-alpha",
   "date": "2026-11-03",
   "stage": "alpha",

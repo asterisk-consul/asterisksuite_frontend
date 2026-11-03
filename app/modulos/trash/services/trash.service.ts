@@ -30,12 +30,20 @@ export const useTrashService = () => {
       body: { ids, confirmAccidentalDocuments }
     })
 
+  const reconcileValeDocument = (documentId: string) =>
+    $fetch(`${base}/documents/${documentId}/reconcile-vale`, { method: 'PATCH' })
+
+  const getValeTreasuryImpacts = (documentId: string) =>
+    $fetch<{ impacts: NonNullable<TrashItem['hrValeTreasuryImpacts']> }>(`${base}/documents/${documentId}/vale-treasury`)
+
   return {
     getAll,
     softDelete,
     restore,
     softDeleteMany,
     restoreMany,
-    hardDeleteMany
+    hardDeleteMany,
+    reconcileValeDocument,
+    getValeTreasuryImpacts
   }
 }
