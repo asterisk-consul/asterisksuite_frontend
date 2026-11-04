@@ -2,10 +2,12 @@
 import { useManagementReportsService } from '~/modulos/erp/management-reports/management-reports.service'
 import type { ManagementReportMetadata, ManagementReportResponse, PaymentState, ProgressState, ReportBasis, ReportGroupBy } from '~/modulos/erp/management-reports/management-reports.types'
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
-import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
+import type { ExtendedColumn, TableFilter } from '~/components/Tablas/types/tablas.types'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
+import type { SortingState } from '@tanstack/vue-table'
 import { h, resolveComponent } from 'vue'
 import { reportTableFilter } from '~/modulos/erp/management-reports/report-table-filter'
+import { PAYMENT_METHOD_UNKNOWN_LABEL, paymentDestinationDisplay, paymentDestinationLabel, paymentMethodFilterOptions, paymentMethodLabel } from '~/modulos/erp/management-reports/payment-methods'
 
 definePageMeta({ middleware: ['auth', 'management-reports'] })
 
@@ -30,6 +32,10 @@ const ULinkComponent = resolveComponent('ULink')
 const UBadgeComponent = resolveComponent('UBadge')
 let reloadTimer: ReturnType<typeof setTimeout> | null = null
 let requestSequence = 0
+const reportDetailSorting = ref<SortingState>([])
+const reportDetailFilters = ref<TableFilter[]>([])
+/** Columnas del detalle que solo existen cuando la base es Cobros. */
+const COLLECTION_ONLY_DETAIL_COLUMNS = ['payment_method_display', 'payment_destination_display']
 
 const currentDate = new Date()
 const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
@@ -104,13 +110,48 @@ const sellerColumns: ExtendedColumn<ManagementTableRow>[] = [
   textColumn('name', 'Vendedor'), numberColumn('document_count', 'Documentos'), numberColumn('quantity', 'Unidades'),
   textColumn('revenue_display', 'Venta'), textColumn('paid_display', 'Cobrado'),
 ]
-const reportRowColumns: ExtendedColumn<ManagementTableRow>[] = [
-  textColumn('date_display', 'Fecha'),
+const reportRowDateColumn = (): ExtendedColumn<ManagementTableRow> => ({
+  accessorKey: 'date',
+  header: 'Fecha',
+  filterFn: reportTableFilter,
+  cell: ({ row }: any) => new Date(row.original.date).toLocaleDateString('es-AR'),
+  meta: { label: 'Fecha', filter: { type: 'date-range', operators: ['between'] } },
+})
+const reportRowCurrencyColumn = (accessorKey: string, label: string): ExtendedColumn<ManagementTableRow> => ({
+  accessorKey,
+  header: label,
+  filterFn: reportTableFilter,
+  cell: ({ row }: any) => formatCurrency(row.original[accessorKey], row.original.currency_code),
+  meta: { label, filter: { type: 'number', operators: ['equals', 'gt', 'lt'] } },
+})
+const reportRowPaymentMethodColumn = (): ExtendedColumn<ManagementTableRow> => ({
+  ...selectColumn('payment_method_display', 'Medio de pago', paymentMethodFilterOptions),
+  cell: ({ row }: any) => h(UBadgeComponent, { label: row.original.payment_method_display, variant: 'subtle' }),
+})
+const reportRowDestinationColumn = (): ExtendedColumn<ManagementTableRow> => ({
+  ...textColumn('payment_destination_display', 'Banco / Caja'),
+  cell: ({ row }: any) => {
+    const destinations = row.original.payment_destinations ?? []
+    if (!destinations.length) return h('span', { class: 'text-muted' }, PAYMENT_METHOD_UNKNOWN_LABEL)
+    return h('div', { class: 'flex flex-col gap-0.5' }, destinations.map((destination: any) => h('span', { class: 'truncate' }, [
+      paymentDestinationLabel(destination) ?? paymentMethodLabel(destination.method),
+      ...(destination.amount != null
+        ? [h('span', { class: 'text-muted' }, ` · ${formatCurrency(destination.amount, row.original.currency_code)}`)]
+        : []),
+    ])))
+  },
+})
+const reportRowColumns = computed<ExtendedColumn<ManagementTableRow>[]>(() => [
+  reportRowDateColumn(),
   { ...textColumn('label', 'Documento'), cell: ({ row }: any) => h(ULinkComponent, { to: documentRoute(row.original), class: 'text-primary hover:underline' }, () => row.original.label) },
-  textColumn('party_name', 'Cliente'), selectColumn('currency_code', 'Moneda', ['ARS', 'USD']),
-  textColumn('total_display', 'Total'), textColumn('paid_display', 'Cobrado'), textColumn('pending_display', 'Pendiente'),
+  textColumn('party_name', 'Cliente'),
+  ...(filters.basis === 'COLLECTION' ? [reportRowPaymentMethodColumn(), reportRowDestinationColumn()] : []),
+  selectColumn('currency_code', 'Moneda', ['ARS', 'USD']),
+  reportRowCurrencyColumn('amount', 'Total'),
+  reportRowCurrencyColumn('paid_amount', 'Cobrado'),
+  reportRowCurrencyColumn('pending_amount', 'Pendiente'),
   { ...selectColumn('payment_state_label', 'Estado', ['Cobrado', 'Parcial', 'Pendiente']), cell: ({ row }: any) => h(UBadgeComponent, { label: row.original.payment_state_label, variant: 'subtle' }) },
-]
+])
 const revenueProductRows = computed(() => (report.value?.commercial_performance?.products_by_revenue ?? []).map(product => ({
   ...product,
   id: product.product_id,
@@ -125,12 +166,20 @@ const sellerRows = computed(() => (report.value?.commercial_performance?.sellers
 })))
 const reportTableRows = computed(() => (report.value?.rows ?? []).map(row => ({
   ...row,
-  date_display: new Date(row.date).toLocaleDateString('es-AR'),
-  total_display: formatCurrency(row.amount, row.currency_code),
-  paid_display: formatCurrency(row.paid_amount, row.currency_code),
-  pending_display: formatCurrency(row.pending_amount, row.currency_code),
+  payment_method_display: paymentMethodLabel(row.payment_method),
+  payment_destination_display: paymentDestinationDisplay(row.payment_destinations),
   payment_state_label: row.payment_state === 'PAID' ? 'Cobrado' : row.payment_state === 'PARTIAL' ? 'Parcial' : 'Pendiente',
 })))
+const reportDetailFilterFields = computed(() => {
+  const fields: Array<[string, string]> = [['label', 'Documento'], ['party_name', 'Cliente']]
+  if (filters.basis === 'COLLECTION') fields.push(['payment_method_display', 'Medio de pago'], ['payment_destination_display', 'Banco / Caja'])
+  return quickFilters(...fields)
+})
+const reportDetailSortFields = computed(() => {
+  const fields: Array<[string, string]> = [['Fecha', 'date'], ['Total', 'amount'], ['Cobrado', 'paid_amount'], ['Pendiente', 'pending_amount']]
+  if (filters.basis === 'COLLECTION') fields.push(['Medio de pago', 'payment_method_display'], ['Banco / Caja', 'payment_destination_display'])
+  return sortOptions(...fields)
+})
 
 const chartOption = computed(() => ({
   tooltip: { trigger: 'axis' },
@@ -219,6 +268,11 @@ function scheduleReload() {
 watch(() => filters.basis, (basis) => {
   if (basis === 'COLLECTION') filters.payment_state = 'ALL'
   if (basis !== 'SALES_ORDER' && filters.group_by === 'SELLER') filters.group_by = 'MONTH'
+  // Estas columnas solo existen en Cobros: se limpia su estado al salir de esa base.
+  if (basis !== 'COLLECTION') {
+    reportDetailSorting.value = reportDetailSorting.value.filter(sort => !COLLECTION_ONLY_DETAIL_COLUMNS.includes(sort.id))
+    reportDetailFilters.value = reportDetailFilters.value.filter(filter => !COLLECTION_ONLY_DETAIL_COLUMNS.includes(filter.column))
+  }
 })
 
 watch(
@@ -389,12 +443,14 @@ onMounted(loadMetadata)
       <UPageCard variant="subtle" class="overflow-hidden">
         <template #header><div><p class="font-semibold">Detalle del reporte</p><p class="text-xs text-muted">Primeros 200 resultados de la base seleccionada</p></div></template>
         <AsteriskTable
+          v-model:sorting="reportDetailSorting"
+          v-model:filters="reportDetailFilters"
           compact
           storage-key="management-report-detail"
           :data="reportTableRows"
           :columns="reportRowColumns"
-          :filter-fields="quickFilters(['label', 'Documento'], ['party_name', 'Cliente'])"
-          :sort-fields="sortOptions(['Fecha', 'date'], ['Total', 'amount_display'], ['Cobrado', 'paid_display'], ['Pendiente', 'pending_display'])"
+          :filter-fields="reportDetailFilterFields"
+          :sort-fields="reportDetailSortFields"
           search-placeholder="Buscar documento o cliente..."
         />
       </UPageCard>

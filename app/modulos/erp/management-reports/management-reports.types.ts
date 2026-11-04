@@ -3,6 +3,13 @@ export type ReportGroupBy = 'DAY' | 'MONTH' | 'PARTY' | 'SELLER' | 'CURRENCY'
 export type PaymentState = 'ALL' | 'UNPAID' | 'PARTIAL' | 'PAID'
 export type ProgressState = 'ALL' | 'NONE' | 'PARTIAL' | 'COMPLETE'
 
+export interface ManagementReportPaymentDestination {
+  method: string
+  amount: number | null
+  bank_account: { bank_name: string; account_number?: string | null; alias?: string | null; name: string } | null
+  cash_box: { name: string } | null
+}
+
 export interface ManagementReportRow {
   id: string
   date: string
@@ -19,6 +26,10 @@ export interface ManagementReportRow {
   payment_state: PaymentState
   invoicing_state: ProgressState
   delivery_state: ProgressState
+  /** Solo en filas de Cobros: medio con el que se registró el cobro. */
+  payment_method?: string | null
+  /** Solo en filas de Cobros: cuentas y cajas donde ingresó el dinero. */
+  payment_destinations?: ManagementReportPaymentDestination[] | null
 }
 
 export interface ManagementReportMetadata {
