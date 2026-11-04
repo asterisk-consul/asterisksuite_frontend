@@ -28,6 +28,8 @@ export interface DocumentItem {
 
   product_id: string | null
 
+  item_instructions?: string | null
+
   quantity: number
 
   purchase_unit_id?: string | null
@@ -245,6 +247,11 @@ export interface FacturaItem {
   id?: string
 
   product_id: string | null
+
+  item_instructions?: string | null
+
+  /** Estado visual del formulario; no forma parte del payload. */
+  instructions_expanded?: boolean
 
   variant_id?: string | null
 

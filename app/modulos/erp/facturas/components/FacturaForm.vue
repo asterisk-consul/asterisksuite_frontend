@@ -622,6 +622,9 @@ const adjustmentBasisOptions = [
 const selectedDocumentCategory = computed(() =>
   documentsTypes.value.find((documentType) => documentType.id === form.document_type_id)?.category ?? props.category
 )
+const canAddItemInstructions = computed(() =>
+  moduleCode.value === 'SALES' && selectedDocumentCategory.value === 'ORDER'
+)
 const canAddCommercialAdjustments = computed(() => {
   const documentTypeAccepts = documentsTypes.value
     .find((documentType) => documentType.id === form.document_type_id)?.accepts_commercial_adjustments === true
@@ -1289,6 +1292,7 @@ watch(
           variant_name: item.product_variants?.name ?? null,
           warehouse_id: item.warehouse_id ?? null,
           product_name: item.products?.name || item.products?.description || 'Producto',
+          item_instructions: item.item_instructions ?? '',
           quantity: Number(item.quantity ?? 0),
           unit_price: originalUnitPrice,
           discount_percentage: discountPercentage,
@@ -1608,6 +1612,8 @@ async function addItem(prod: any) {
     variant_id: prod.variant_id ?? null,
     variant_name: prod.variant_name ?? null,
     product_name: prod.product_name,
+    item_instructions: '',
+    instructions_expanded: false,
     quantity,
     purchase_unit_id: props.moduleCode === 'PURCHASES' ? (prod.purchase_unit_id ?? null) : null,
     unit_conversion_factor: props.moduleCode === 'PURCHASES' ? Number(prod.purchase_to_stock_factor ?? 1) : 1,
@@ -1734,6 +1740,7 @@ function submit() {
       : {}),
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
+      item_instructions: String(i.item_instructions ?? '').trim() || undefined,
       variant_id: i.variant_id || undefined,
       warehouse_id: props.operationalMode
         ? (i.warehouse_id || form.warehouse_id || undefined)
@@ -2111,6 +2118,7 @@ defineExpose({ submit, completeDraft })
       />
       <FacturaItemsTable
         :items="items"
+        :allow-item-instructions="canAddItemInstructions"
         :product-options="productOptions"
         :currency-code="form.currency_code"
         :warehouses="warehouseOptions"

@@ -7,7 +7,6 @@ const props = defineProps<{
   loading?: boolean
   showActions?: boolean
   requireDeliveryAddress?: boolean
-  warnWhenDeliveryDataEmpty?: boolean
   defaultSellerToCurrent?: boolean
 }>()
 
@@ -129,7 +128,8 @@ const getFormData = () => {
   if (!data.confirmed_delivery_date) data.confirmed_delivery_date = undefined
   return data
 }
-defineExpose({ getFormData, validateDeliveryInfo })
+const isDeliveryInfoEmpty = () => !hasDeliveryDetails.value
+defineExpose({ getFormData, validateDeliveryInfo, isDeliveryInfoEmpty })
 </script>
 
 <template>
@@ -158,14 +158,6 @@ defineExpose({ getFormData, validateDeliveryInfo })
       </div>
     </UCard>
 
-    <UAlert
-      v-if="!requireDeliveryAddress && warnWhenDeliveryDataEmpty !== false && !hasDeliveryDetails"
-      color="warning"
-      variant="subtle"
-      icon="i-lucide-info"
-      title="Sin datos de entrega"
-      description="Esta OV todavía no tiene información de entrega cargada. Podés agregarla en esta sección si la necesitás."
-    />
     <details :open="hasDeliveryDetails" class="group overflow-hidden rounded-xl border border-default bg-default transition-all group-open:border-primary/40 group-open:shadow-sm">
     <summary class="flex cursor-pointer list-none items-center justify-between gap-4 border-l-4 border-primary/60 bg-primary/5 px-4 py-3.5 transition-colors hover:bg-primary/10 [&::-webkit-details-marker]:hidden">
       <div class="flex min-w-0 items-center gap-3">

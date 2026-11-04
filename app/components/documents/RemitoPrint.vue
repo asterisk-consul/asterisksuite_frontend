@@ -5,7 +5,7 @@ const props = defineProps<{
   date: string
   company: { name: string; tax_id?: string; address?: string; phone?: string; iva_condition?: string }
   customer: { name: string; tax_id?: string; address?: string; iva_condition?: string }
-  items: { code: string; description: string; quantity: number }[]
+  items: { code: string; description: string; item_instructions?: string | null; quantity: number }[]
   observations?: string
   point_of_sale?: string
   document?: any
@@ -138,7 +138,12 @@ const headerRight = computed(() => {
       <tbody>
         <tr v-for="(item, i) in items" :key="i" :style="{ background: i % 2 === 1 ? '#fafafa' : '#fff' }">
           <td style="padding: 5px 10px; font-size: 11px; border-bottom: 1px solid #eee;">{{ item.code }}</td>
-          <td style="padding: 5px 10px; font-size: 11px; border-bottom: 1px solid #eee;">{{ item.description }}</td>
+          <td style="padding: 5px 10px; font-size: 11px; border-bottom: 1px solid #eee;">
+            <div>{{ item.description }}</div>
+            <div v-if="item.item_instructions" style="margin-top: 3px; color: #444; white-space: pre-wrap;">
+              <strong>Medidas e indicaciones:</strong> {{ item.item_instructions }}
+            </div>
+          </td>
           <td style="padding: 5px 10px; font-size: 11px; text-align: center; border-bottom: 1px solid #eee; font-weight: 600;">{{ item.quantity }}</td>
         </tr>
       </tbody>

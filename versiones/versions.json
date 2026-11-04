@@ -1,14 +1,25 @@
 [
  {
+  "version": "0.131.0-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Las Órdenes de Venta permiten registrar medidas e indicaciones en cada renglón. Se copian a los remitos completos, parciales y generados desde despacho, y se muestran en el detalle y la impresión.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Agregar medidas e indicaciones por producto en OV y remitos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agregar instrucciones por producto en ventas"
+ },
+ {
   "version": "0.130.2-alpha",
   "date": "2026-11-04",
   "stage": "alpha",
-  "notes": "Cuando la dirección de entrega de la OV es opcional, la empresa puede activar o desactivar el aviso que aparece si todos los datos de entrega están vacíos.",
+  "notes": "Cuando la dirección de entrega de la OV es opcional, la empresa puede activar o desactivar la confirmación modal para guardar si todos los datos de entrega están vacíos.",
   "changes": [
-   { "type": "feat", "scope": "sales", "title": "Configurar el aviso cuando una OV no tiene datos de entrega" }
+   { "type": "feat", "scope": "sales", "title": "Confirmar el guardado de una OV sin datos de entrega" }
   ],
   "contributors": ["agustin"],
-  "message": "Configurar el aviso de datos de entrega vacíos"
+  "message": "Confirmar el guardado de OV sin datos de entrega"
  },
  {
   "version": "0.130.1-alpha",

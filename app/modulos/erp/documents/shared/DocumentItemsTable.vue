@@ -101,6 +101,9 @@ function discountAmount(item: any) {
       <template #product-cell="{ row }">
         <div>
           <p class="font-medium">{{ row.original.products?.name ?? 'Producto libre' }}</p>
+          <p v-if="row.original.item_instructions" class="mt-1 whitespace-pre-wrap text-xs text-muted">
+            <span class="font-medium text-default">Medidas e indicaciones:</span> {{ row.original.item_instructions }}
+          </p>
           <p v-if="row.original.products?.sku" class="text-xs text-muted">SKU: {{ row.original.products.sku }}</p>
           <p v-if="row.original.product_variants?.name" class="text-xs font-medium text-primary">
             Variante: {{ row.original.product_variants.name }}<template v-if="row.original.product_variants.sku"> · {{ row.original.product_variants.sku }}</template>

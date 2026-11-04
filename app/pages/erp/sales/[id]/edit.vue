@@ -62,6 +62,12 @@ type DeliveryFieldKey = keyof typeof deliveryFieldLabels
 const clearDeliveryConfirmOpen = ref(false)
 const pendingDocumentPayload = ref<Record<string, any> | null>(null)
 const pendingClearDeliveryFields = ref<DeliveryFieldKey[]>([])
+const emptyDeliveryConfirmOpen = ref(false)
+const pendingEmptyDeliveryPayload = ref<Record<string, any> | null>(null)
+
+watch(emptyDeliveryConfirmOpen, (open) => {
+  if (!open) pendingEmptyDeliveryPayload.value = null
+})
 
 watch(orderDetails, (details) => {
   if (details && Object.keys(extensionDraft.value).length === 0) {
@@ -98,7 +104,7 @@ onMounted(async () => {
 })
 
 async function handleSubmit(payload: any) {
-  if (saving.value) return
+  if (saving.value || clearDeliveryConfirmOpen.value || emptyDeliveryConfirmOpen.value) return
   if (isOrder.value && ordenVentaRef.value && !ordenVentaRef.value.validateDeliveryInfo()) {
     toast.add({ title: 'Falta la dirección de entrega', description: 'Completá la dirección para guardar esta OV.', color: 'warning' })
     return
@@ -123,6 +129,12 @@ async function handleSubmit(payload: any) {
       pendingDocumentPayload.value = documentPayload
       pendingClearDeliveryFields.value = fieldsToClear
       clearDeliveryConfirmOpen.value = true
+      return
+    }
+
+    if (warnWhenDeliveryDataEmpty.value && ordenVentaRef.value?.isDeliveryInfoEmpty()) {
+      pendingEmptyDeliveryPayload.value = documentPayload
+      emptyDeliveryConfirmOpen.value = true
       return
     }
   }
@@ -179,6 +191,20 @@ async function confirmDeliveryClear() {
   pendingClearDeliveryFields.value = []
   await saveDocument(payload, fields)
 }
+
+function cancelEmptyDeliverySave() {
+  emptyDeliveryConfirmOpen.value = false
+  pendingEmptyDeliveryPayload.value = null
+}
+
+async function confirmEmptyDeliverySave() {
+  const payload = pendingEmptyDeliveryPayload.value
+  if (!payload) return cancelEmptyDeliverySave()
+
+  emptyDeliveryConfirmOpen.value = false
+  pendingEmptyDeliveryPayload.value = null
+  await saveDocument(payload)
+}
 </script>
 
 <template>
@@ -218,7 +244,6 @@ async function confirmDeliveryClear() {
                 v-model="extensionDraft"
                 :loading="saving"
                 :require-delivery-address="requireDeliveryAddress"
-                :warn-when-delivery-data-empty="warnWhenDeliveryDataEmpty"
               />
             </template>
           </FacturaForm>
@@ -249,6 +274,29 @@ async function confirmDeliveryClear() {
               <div class="flex justify-end gap-2">
                 <UButton label="Volver a revisar" variant="ghost" :disabled="saving" @click="cancelDeliveryClear" />
                 <UButton label="Guardar y borrar datos" color="error" :loading="saving" @click="confirmDeliveryClear" />
+              </div>
+            </div>
+          </template>
+        </UModal>
+
+        <UModal
+          v-model:open="emptyDeliveryConfirmOpen"
+          title="¿Guardar la OV sin datos de entrega?"
+          description="La sección de entrega está vacía. Confirmá si querés continuar."
+          :ui="{ content: 'sm:max-w-lg' }"
+        >
+          <template #body>
+            <div class="flex flex-col gap-4">
+              <UAlert
+                color="warning"
+                variant="subtle"
+                icon="i-lucide-triangle-alert"
+                title="No se cargó información de entrega"
+                description="Podés volver al formulario para completarla o guardar la OV sin esos datos."
+              />
+              <div class="flex justify-end gap-2">
+                <UButton label="Volver al formulario" variant="ghost" @click="cancelEmptyDeliverySave" />
+                <UButton label="Continuar y guardar" icon="i-lucide-check" @click="confirmEmptyDeliverySave" />
               </div>
             </div>
           </template>

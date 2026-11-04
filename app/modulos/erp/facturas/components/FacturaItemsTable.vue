@@ -34,6 +34,7 @@ interface Props {
   canRegularizeStock?: boolean
   isPurchaseDocument?: boolean
   lockPurchaseAdjustments?: boolean
+  allowItemInstructions?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -204,6 +205,7 @@ function handleAdd() {
 }
 
 const UInput = resolveComponent('UInput')
+const UTextarea = resolveComponent('UTextarea')
 
 const UButton = resolveComponent('UButton')
 const USelect = resolveComponent('USelect')
@@ -212,7 +214,49 @@ const UTooltip = resolveComponent('UTooltip')
 const columns = computed(() => [
   {
     accessorKey: 'product_name',
-    header: 'Producto'
+    header: 'Producto',
+    cell: ({ row }: any) => {
+      const item = row.original as FacturaItem
+      const instructions = String(item.item_instructions ?? '').trim()
+      const expanded = item.instructions_expanded === true
+
+      return h('div', { class: 'min-w-52 py-1' }, [
+        h('p', { class: 'font-medium' }, item.product_name || 'Producto'),
+        ...(props.allowItemInstructions
+          ? [
+              h(UButton, {
+                type: 'button',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'primary',
+                icon: expanded ? 'i-lucide-chevron-up' : instructions ? 'i-lucide-pencil' : 'i-lucide-ruler',
+                class: 'mt-1 -ml-2',
+                'aria-expanded': expanded,
+                'aria-label': `${expanded ? 'Ocultar' : instructions ? 'Editar' : 'Agregar'} medidas e indicaciones de ${item.product_name || 'producto'}`,
+                onClick: () => { item.instructions_expanded = !expanded }
+              }, () => expanded
+                ? 'Ocultar medidas e indicaciones'
+                : instructions
+                  ? 'Editar medidas e indicaciones'
+                  : 'Agregar medidas e indicaciones'),
+              ...(expanded
+                ? [h(UTextarea, {
+                    modelValue: item.item_instructions ?? '',
+                    rows: 2,
+                    maxlength: 1000,
+                    autoresize: true,
+                    placeholder: 'Largo 120 cm, ancho 80 cm; perforaciones a 10 cm',
+                    class: 'mt-1 min-w-64',
+                    'aria-label': `Medidas e indicaciones de ${item.product_name || 'producto'}`,
+                    'onUpdate:modelValue': (value: string) => { item.item_instructions = value }
+                  })]
+                : instructions
+                  ? [h('p', { class: 'mt-1 whitespace-pre-wrap text-xs text-muted' }, instructions)]
+                  : [])
+            ]
+          : [])
+      ])
+    }
   },
   {
     accessorKey: 'variant_id',

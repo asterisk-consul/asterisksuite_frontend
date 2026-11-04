@@ -25,6 +25,12 @@ const extensionDraft = ref<Record<string, any>>({})
 const requireDeliveryAddress = ref(false)
 const warnWhenDeliveryDataEmpty = ref(true)
 const deliverySettingsLoading = ref(false)
+const emptyDeliveryConfirmOpen = ref(false)
+const pendingEmptyDeliveryPayload = ref<Record<string, any> | null>(null)
+
+watch(emptyDeliveryConfirmOpen, (open) => {
+  if (!open) pendingEmptyDeliveryPayload.value = null
+})
 
 const partyId = computed(() => (route.query.party_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
@@ -120,6 +126,7 @@ const initialValues = computed(() => {
 
       return {
         product_id: item.product_id,
+        ...(isRemito ? { item_instructions: item.item_instructions ?? '' } : {}),
         quantity: Number(item.quantity) - processedQuantity,
         unit_price: Number(item.original_unit_price ?? item.unit_price),
         discount_percentage: Number(item.discount_percentage ?? 0),
@@ -149,38 +156,50 @@ const initialValues = computed(() => {
 })
 
 async function handleSubmit(payload: any) {
-  if (saving.value) return
+  if (saving.value || emptyDeliveryConfirmOpen.value) return
   if (isOrder.value && ordenVentaRef.value && !ordenVentaRef.value.validateDeliveryInfo()) {
     toast.add({ title: 'Falta la dirección de entrega', description: 'Completá la dirección para guardar esta OV.', color: 'warning' })
     return
   }
+  // Combinar payload base con campos de extensión.
+  let extensionData = {}
+  if (isQuote.value && presupuestoRef.value) {
+    extensionData = presupuestoRef.value.getFormData()
+  } else if (isOrder.value && ordenVentaRef.value) {
+    extensionData = ordenVentaRef.value.getFormData()
+  }
+
+  const fullPayload = {
+    ...payload,
+    ...extensionData,
+    parent_document_id: (isInvoiceReferenceNote.value ? parentDocumentId.value : parentOrderId.value) || undefined
+  }
+
+  // Los controles opcionales usan '' cuando están vacíos. Class-validator
+  // considera ese valor presente y rechaza UUID/fechas opcionales; omitirlos
+  // permite que el backend los persista como null.
+  const normalizedPayload = Object.fromEntries(
+    Object.entries(fullPayload).filter(([key, value]) =>
+      value !== '' || key === 'document_type_id' || key === 'date'
+    )
+  )
+
+  if (isOrder.value
+    && warnWhenDeliveryDataEmpty.value
+    && ordenVentaRef.value?.isDeliveryInfoEmpty()) {
+    pendingEmptyDeliveryPayload.value = normalizedPayload
+    emptyDeliveryConfirmOpen.value = true
+    return
+  }
+
+  await createDocument(normalizedPayload)
+}
+
+async function createDocument(payload: Record<string, any>) {
+  if (saving.value) return
   try {
     saving.value = true
-
-    // Combinar payload base con campos de extensión
-    let extensionData = {}
-    if (isQuote.value && presupuestoRef.value) {
-      extensionData = presupuestoRef.value.getFormData()
-    } else if (isOrder.value && ordenVentaRef.value) {
-      extensionData = ordenVentaRef.value.getFormData()
-    }
-
-    const fullPayload = {
-      ...payload,
-      ...extensionData,
-      parent_document_id: (isInvoiceReferenceNote.value ? parentDocumentId.value : parentOrderId.value) || undefined
-    }
-
-    // Los controles opcionales usan '' cuando están vacíos. Class-validator
-    // considera ese valor presente y rechaza UUID/fechas opcionales; omitirlos
-    // permite que el backend los persista como null.
-    const normalizedPayload = Object.fromEntries(
-      Object.entries(fullPayload).filter(([key, value]) =>
-        value !== '' || key === 'document_type_id' || key === 'date'
-      )
-    )
-
-    const created = await DocumentsSalesService.create(normalizedPayload)
+    const created = await DocumentsSalesService.create(payload)
     formRef.value?.completeDraft()
     if (intakeId.value) {
       await intakeService.complete(intakeId.value, 'SALES_DOCUMENT', created.id)
@@ -196,6 +215,20 @@ async function handleSubmit(payload: any) {
   } finally {
     saving.value = false
   }
+}
+
+function cancelEmptyDeliverySave() {
+  emptyDeliveryConfirmOpen.value = false
+  pendingEmptyDeliveryPayload.value = null
+}
+
+async function confirmEmptyDeliverySave() {
+  const payload = pendingEmptyDeliveryPayload.value
+  if (!payload) return cancelEmptyDeliverySave()
+
+  emptyDeliveryConfirmOpen.value = false
+  pendingEmptyDeliveryPayload.value = null
+  await createDocument(payload)
 }
 </script>
 
@@ -250,10 +283,33 @@ async function handleSubmit(payload: any) {
           >
             <template #document-details>
               <PresupuestoForm v-if="isQuote" ref="presupuestoRef" v-model="extensionDraft" />
-              <OrdenVentaForm v-else-if="isOrder" ref="ordenVentaRef" v-model="extensionDraft" :require-delivery-address="requireDeliveryAddress" :warn-when-delivery-data-empty="warnWhenDeliveryDataEmpty" default-seller-to-current />
+              <OrdenVentaForm v-else-if="isOrder" ref="ordenVentaRef" v-model="extensionDraft" :require-delivery-address="requireDeliveryAddress" default-seller-to-current />
             </template>
           </SalesDocumentForm>
         </UPageBody>
+
+        <UModal
+          v-model:open="emptyDeliveryConfirmOpen"
+          title="¿Guardar la OV sin datos de entrega?"
+          description="La sección de entrega está vacía. Confirmá si querés continuar."
+          :ui="{ content: 'sm:max-w-lg' }"
+        >
+          <template #body>
+            <div class="flex flex-col gap-4">
+              <UAlert
+                color="warning"
+                variant="subtle"
+                icon="i-lucide-triangle-alert"
+                title="No se cargó información de entrega"
+                description="Podés volver al formulario para completarla o guardar la OV sin esos datos."
+              />
+              <div class="flex justify-end gap-2">
+                <UButton label="Volver al formulario" variant="ghost" @click="cancelEmptyDeliverySave" />
+                <UButton label="Continuar y guardar" icon="i-lucide-check" @click="confirmEmptyDeliverySave" />
+              </div>
+            </div>
+          </template>
+        </UModal>
       </UPage>
     </template>
   </UDashboardPanel>

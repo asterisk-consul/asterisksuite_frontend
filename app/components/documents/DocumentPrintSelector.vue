@@ -76,6 +76,7 @@ const printItems = computed(() =>
   (props.document?.document_items ?? []).map((item: any) => ({
     code: item.products?.sku ?? item.product_id?.slice(0, 8) ?? '',
     description: item.products?.name ?? 'Ítem',
+    item_instructions: item.item_instructions ?? null,
     quantity: Number(item.quantity),
     unit_price: Number(item.unit_price),
     discount_percentage: itemDiscountPercentage(item),

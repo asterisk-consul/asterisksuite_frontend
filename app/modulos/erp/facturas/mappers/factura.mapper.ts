@@ -41,6 +41,8 @@ export function mapDocumentToFacturaForm(
 
         product_id: item.product_id,
 
+        item_instructions: item.item_instructions ?? null,
+
         product_name: item.products?.name ?? '',
 
         product_code: item.products?.code ?? '',
