@@ -16,6 +16,7 @@ export const createSalesColumns = (actions: {
   canDuplicate?: (row: Row) => boolean
   showAmounts?: boolean
   showCreator?: boolean
+  showSeller?: boolean
   statusFilterOptions?: { label: string; value: number | string }[] | null
 }): ExtendedColumn<Row>[] => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
@@ -145,6 +146,17 @@ export const createSalesColumns = (actions: {
         label: 'Cliente',
         accessorFn: (row) => row.business_parties?.name ?? '-'
       },
+      ...(actions.showSeller
+        ? [{
+            id: 'seller',
+            label: 'Vendedor',
+            meta: { filter: false as const },
+            accessorFn: (row: Row) => {
+              const seller = (row as any).orden_venta_doc?.seller
+              return seller ? `${seller.first_name} ${seller.last_name}`.trim() : 'Sin vendedor'
+            }
+          }]
+        : []),
       {
         key: 'descrip',
         label: 'Descripción',

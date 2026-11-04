@@ -79,7 +79,8 @@ const serverTable = useServerTable(
       status: typeof statusFilter.value === 'number' ? statusFilter.value : undefined,
       deliveryStatus,
       category: categoryFilter.value,
-      excludeCancelled: !showCancelled.value
+      excludeCancelled: !showCancelled.value,
+      excludeOpeningBalances: true
     })
   },
   'sales-comprobantes'
@@ -321,6 +322,7 @@ const columns = computed(() =>
     onDuplicate: duplicateDocument,
     canDuplicate: (row) => canDocument('sales', row.document_types?.category ?? '', 'create'),
     showCreator: isOwnerOrAdmin.value,
+    showSeller: categoryFilter.value === 'ORDER',
     statusFilterOptions: statusOptions.value.length
       ? statusOptions.value.map(({ label, value }) => ({ label, value }))
       : null

@@ -9,20 +9,40 @@ import { canSettleDocument } from '~/modulos/erp/documents/utils/document-paymen
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 import { useServerTable } from '~/composables/table/useServerTable'
 import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
+import { DocumentsSalesService, type SalespersonOption } from '~/modulos/erp/sales/services/sales.service'
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
 const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
+const allSellersOption = '__ALL_SELLERS__'
 useDocumentFormPreload('/erp/sales/new?category=ORDER')
 
 const statusFilter = ref<number | string | undefined>(undefined)
+const selectedSellerId = ref(allSellersOption)
+const salespeople = ref<SalespersonOption[]>([])
 const showCancelled = ref(false)
 const documents = computed(() => store.items ?? [])
 const visibleDocuments = computed(() => showCancelled.value
   ? documents.value
   : documents.value.filter(document => !isDocumentCancelled('ORDER', document.status)))
 const loading = computed(() => store.loading)
+const sellerOptions = computed(() => [
+  { id: allSellersOption, name: 'Todos los vendedores' },
+  ...salespeople.value.map(seller => ({
+    id: seller.id,
+    name: `${seller.first_name} ${seller.last_name}`.trim(),
+  })),
+])
+
+onMounted(async () => {
+  try {
+    salespeople.value = await DocumentsSalesService.getSalespeople()
+  } catch {
+    // El filtro es complementario; el listado de OV sigue disponible si falla.
+  }
+})
+
 const serverTable = useServerTable((query) => {
   const deliveryStatus = typeof statusFilter.value === 'string'
     ? statusFilter.value.replace('order-flow:', '') as 'PENDING' | 'ELIGIBLE' | 'DRAFT_CREATED'
@@ -32,6 +52,7 @@ const serverTable = useServerTable((query) => {
     status: typeof statusFilter.value === 'number' ? statusFilter.value : undefined,
     deliveryStatus,
     category: 'ORDER',
+    seller_id: selectedSellerId.value === allSellersOption ? undefined : selectedSellerId.value,
     excludeCancelled: !showCancelled.value
   })
 })
@@ -41,6 +62,10 @@ watch(statusFilter, (status) => {
     showCancelled.value = true
     return
   }
+  page.value = 1
+  refresh()
+})
+watch(selectedSellerId, () => {
   page.value = 1
   refresh()
 })
@@ -106,6 +131,7 @@ const columns = computed(() =>
     onCollect: collectDocument,
     onDuplicate: duplicateDocument,
     canDuplicate: () => canDocument('sales', 'ORDER', 'create'),
+    showSeller: true,
     showCreator: isOwnerOrAdmin.value,
     statusFilterOptions: statusOptions
   })
@@ -184,6 +210,20 @@ const statusButtons = [{ label: 'Todos', value: undefined }, ...statusOptions]
           <span>Mostrar canceladas</span>
           <USwitch v-model="showCancelled" aria-label="Mostrar órdenes de venta canceladas" />
         </label>
+      </div>
+
+      <div v-if="salespeople.length" class="flex justify-end">
+        <UFormField label="Filtrar por vendedor" class="w-full sm:max-w-sm">
+          <USelectMenu
+            v-model="selectedSellerId"
+            :items="sellerOptions"
+            label-key="name"
+            value-key="id"
+            searchable
+            class="w-full"
+            aria-label="Filtrar órdenes de venta por vendedor"
+          />
+        </UFormField>
       </div>
 
       <LogisticaTable

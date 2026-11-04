@@ -6,6 +6,7 @@ import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.servic
 import { buildDocumentDuplicateValues, buildDocumentExtensionDuplicateValues } from '~/modulos/erp/documents/utils/document-duplicate'
 import { getDocumentSubmitError } from '~/utils/document-submit-error'
 import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
+import { useSalesFlowService } from '~/modulos/erp/sales/services/sales-flow.service'
 
 const PresupuestoForm = defineAsyncComponent(() => import('~/modulos/erp/documents/presupuesto/PresupuestoForm.vue'))
 const OrdenVentaForm = defineAsyncComponent(() => import('~/modulos/erp/documents/orden-venta/OrdenVentaForm.vue'))
@@ -14,12 +15,16 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const intakeService = useIntakeRecordsService()
+const salesFlowService = useSalesFlowService()
 
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof SalesDocumentForm> | null>(null)
 const presupuestoRef = ref<any>(null)
 const ordenVentaRef = ref<any>(null)
 const extensionDraft = ref<Record<string, any>>({})
+const requireDeliveryAddress = ref(false)
+const warnWhenDeliveryDataEmpty = ref(true)
+const deliverySettingsLoading = ref(false)
 
 const partyId = computed(() => (route.query.party_id as string) || undefined)
 const category = computed(() => (route.query.category as string) || undefined)
@@ -60,6 +65,19 @@ const orderData = ref<any>(null)
 const duplicateData = ref<any>(null)
 
 onMounted(async () => {
+  if (isOrder.value) {
+    deliverySettingsLoading.value = true
+    try {
+      const settings = await salesFlowService.getSettings()
+      requireDeliveryAddress.value = settings.require_order_delivery_address ?? false
+      warnWhenDeliveryDataEmpty.value = settings.warn_when_order_delivery_data_empty ?? true
+    } catch {
+      toast.add({ title: 'No se pudo cargar la regla de entrega de la OV', color: 'warning' })
+    } finally {
+      deliverySettingsLoading.value = false
+    }
+  }
+
   if (duplicateId.value) {
     try {
       duplicateData.value = await DocumentsSalesService.getOne(duplicateId.value)
@@ -132,6 +150,10 @@ const initialValues = computed(() => {
 
 async function handleSubmit(payload: any) {
   if (saving.value) return
+  if (isOrder.value && ordenVentaRef.value && !ordenVentaRef.value.validateDeliveryInfo()) {
+    toast.add({ title: 'Falta la dirección de entrega', description: 'Completá la dirección para guardar esta OV.', color: 'warning' })
+    return
+  }
   try {
     saving.value = true
 
@@ -186,7 +208,7 @@ async function handleSubmit(payload: any) {
           :description="pageDescription"
         >
           <template #links>
-            <UButton v-if="!missingNoteSource" :label="`Guardar ${pageTitle}`" icon="i-lucide-check" :loading="saving" @click="formRef?.submit()">
+            <UButton v-if="!missingNoteSource" :label="`Guardar ${pageTitle}`" icon="i-lucide-check" :loading="saving" :disabled="isOrder && deliverySettingsLoading" @click="formRef?.submit()">
               <template #trailing>
                 <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
               </template>
@@ -228,7 +250,7 @@ async function handleSubmit(payload: any) {
           >
             <template #document-details>
               <PresupuestoForm v-if="isQuote" ref="presupuestoRef" v-model="extensionDraft" />
-              <OrdenVentaForm v-else-if="isOrder" ref="ordenVentaRef" v-model="extensionDraft" />
+              <OrdenVentaForm v-else-if="isOrder" ref="ordenVentaRef" v-model="extensionDraft" :require-delivery-address="requireDeliveryAddress" :warn-when-delivery-data-empty="warnWhenDeliveryDataEmpty" default-seller-to-current />
             </template>
           </SalesDocumentForm>
         </UPageBody>

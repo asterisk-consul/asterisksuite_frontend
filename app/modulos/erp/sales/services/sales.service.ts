@@ -14,7 +14,15 @@ export type SalesListParams = {
     direction?: number
     party_id?: string
     excludeCancelled?: boolean
+    excludeOpeningBalances?: boolean
+    seller_id?: string
 } & Partial<ServerListParams>
+
+export type SalespersonOption = {
+  id: string
+  first_name: string
+  last_name: string
+}
 
 export const DocumentsSalesService = {
   async getAll(params?: SalesListParams): Promise<Document[]> {
@@ -43,6 +51,10 @@ export const DocumentsSalesService = {
 
   async getOne(id: string): Promise<Document> {
     return apiFetch<Document>(`/api/backend/documents/sales/${id}`)
+  },
+
+  async getSalespeople(): Promise<SalespersonOption[]> {
+    return apiFetch<SalespersonOption[]>('/api/backend/documents/sales/salespeople')
   },
 
   async createDispatch(id: string): Promise<any> {

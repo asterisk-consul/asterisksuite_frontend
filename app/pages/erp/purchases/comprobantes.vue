@@ -84,7 +84,8 @@ const serverTable = useServerTable(
     status: statusFilter.value,
     category: categoryFilter.value,
     categories: categoryFilter.value ? undefined : PURCHASE_CATEGORIES.join(','),
-    excludeCancelled: !showCancelled.value
+    excludeCancelled: !showCancelled.value,
+    excludeOpeningBalances: true
   }),
   'purchases-comprobantes'
 )

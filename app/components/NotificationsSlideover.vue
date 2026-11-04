@@ -31,6 +31,15 @@ const cardAlerts = ref<any | null>(null)
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 const canReadChecks = computed(() => isOwnerOrAdmin.value || hasPermission('checks.read'))
+const canRequestFiscalAlerts = computed(() => isOwnerOrAdmin.value || [
+  'taxes.create',
+  'taxes.update',
+  'taxes.delete',
+  'fiscal-authorizations.create',
+  'fiscal-authorizations.update',
+  'fiscal-authorizations.delete',
+  'fiscal-authorizations.configure-alerts'
+].some(hasPermission))
 
 const cardSettlementAlertKey = 'CARD_SETTLEMENTS:PENDING'
 const corporateCardAlertKey = 'CORPORATE_CARD:UPCOMING_INSTALLMENTS'
@@ -81,12 +90,15 @@ const accountAlertKey = (alert: any) => `OLD_ACCOUNT_BALANCE:${alert.id}`
 function notificationIcon(type: string) {
   if (type === 'CHECK_DUE') return 'i-lucide-calendar-days'
   if (type === 'CHECK_OVERDUE') return 'i-lucide-calendar-clock'
+  if (type === 'DOCUMENT_AUDIT') return 'i-lucide-eye'
+  if (type === 'INTAKE_UPDATE') return 'i-lucide-camera'
   return 'i-lucide-user-round-check'
 }
 
 function notificationIconTone(type: string) {
   if (type === 'CHECK_DUE') return 'info'
   if (type === 'CHECK_OVERDUE') return 'warning'
+  if (type === 'DOCUMENT_AUDIT' || type === 'INTAKE_UPDATE') return 'info'
   return 'primary'
 }
 
@@ -99,6 +111,10 @@ function formatNotificationTime(value: string) {
 }
 
 async function loadFiscalAlerts() {
+  if (!canRequestFiscalAlerts.value) {
+    fiscalAlerts.value = []
+    return
+  }
   try {
     const rows = await fiscalAuthorizationsService.findAlerts()
     fiscalAlerts.value = rows.filter(alert => !isAlertDismissed(fiscalAlertKey(alert)))

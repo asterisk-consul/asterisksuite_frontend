@@ -8,10 +8,6 @@ function fmtDate(d?: string) {
   return d ? d.slice(0, 10) : '-'
 }
 
-function fmtCurrency(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: props.document?.currency_code ?? 'ARS' }).format(n ?? 0)
-}
-
 const priorityColors: Record<string, string> = {
   BAJA: 'neutral',
   MEDIA: 'info',
@@ -23,19 +19,6 @@ const sellerName = computed(() => {
   const seller = props.document?.orden_venta_doc?.seller
   if (!seller) return null
   return `${seller.first_name} ${seller.last_name}`
-})
-
-const commissionAmount = computed(() => {
-  const ov = props.document?.orden_venta_doc
-  if (!ov?.commission_rate || !props.document?.subtotal) return null
-  const operation = props.document?.commercial_operation
-  const subtotal = Number(props.document.subtotal)
-  const total = Number(operation?.ordered_total ?? props.document.total ?? 0)
-  const accruedGross = ov.commission_base === 'PAID'
-    ? Number(operation?.paid_total ?? props.document.paid_amount ?? 0)
-    : Number(operation?.invoiced_total ?? 0)
-  const baseAmount = total > 0 ? subtotal * Math.min(accruedGross / total, 1) : 0
-  return baseAmount * Number(ov.commission_rate) / 100
 })
 
 const operation = computed(() => props.document?.commercial_operation)
@@ -117,6 +100,17 @@ const deliveryFlow = computed(() => {
       </template>
     </UAlert>
 
+    <UCard v-if="sellerName">
+      <template #header>
+        <h3 class="font-semibold">Datos comerciales</h3>
+      </template>
+      <div class="flex flex-col gap-1 text-sm">
+        <p class="text-muted">Vendedor de la venta</p>
+        <p class="font-medium">{{ sellerName }}</p>
+        <p class="text-xs text-muted">Este dato permite consultar las ventas por vendedor. Las comisiones se administran desde RR. HH.</p>
+      </div>
+    </UCard>
+
     <UCard>
       <template #header>
         <h3 class="font-semibold">Información de entrega</h3>
@@ -149,20 +143,6 @@ const deliveryFlow = computed(() => {
         <div v-if="document.orden_venta_doc.transport_provider">
           <p class="text-muted">Transporte</p>
           <p class="font-medium">{{ document.orden_venta_doc.transport_provider }}</p>
-        </div>
-        <div v-if="sellerName">
-          <p class="text-muted">Vendedor</p>
-          <p class="font-medium">{{ sellerName }}</p>
-        </div>
-        <div v-if="showAmounts !== false && document.orden_venta_doc.commission_rate">
-          <p class="text-muted">Comisión</p>
-          <p class="font-medium">
-            {{ document.orden_venta_doc.commission_rate }}%
-            <span class="text-xs text-muted">({{ document.orden_venta_doc.commission_base === 'PAID' ? 'sobre cobrado' : 'sobre facturado' }})</span>
-            <template v-if="commissionAmount !== null">
-              — {{ fmtCurrency(commissionAmount) }}
-            </template>
-          </p>
         </div>
       </div>
       <div v-if="document.orden_venta_doc.delivery_instructions" class="mt-4 text-sm">

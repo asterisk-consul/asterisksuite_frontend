@@ -10,6 +10,8 @@ interface SalesFlowSettings {
   require_payment_for_delivery: boolean
   delivery_payment_percentage: number
   require_invoice_for_delivery: boolean
+  require_order_delivery_address: boolean
+  warn_when_order_delivery_data_empty: boolean
   auto_create_delivery_note: boolean
   allow_partial_delivery: boolean
   reserve_stock_on_order_confirmation: boolean
@@ -18,6 +20,7 @@ interface SalesFlowSettings {
   prompt_order_assignee_on_confirmation: boolean
   require_order_assignee_on_confirmation: boolean
   default_order_assignee_id: string | null
+  default_order_auditor_id: string | null
   recalculated_delivery_orders?: number
 }
 
@@ -25,6 +28,7 @@ const toast = useToast()
 const salesFlowService = useSalesFlowService()
 const usersService = useUsersService()
 const NO_ASSIGNEE = '__NO_ASSIGNEE__'
+const NO_AUDITOR = '__NO_AUDITOR__'
 const loading = ref(true)
 const saving = ref(false)
 const settings = ref<SalesFlowSettings>()
@@ -37,10 +41,24 @@ const userOptions = computed(() => [
     description: user.email
   }))
 ])
+const auditorOptions = computed(() => [
+  { value: NO_AUDITOR, label: 'Sin auditor predeterminado', description: 'Podés asignarlo en cada documento.' },
+  ...companyUsers.value.map(user => ({
+    value: user.id,
+    label: user.name || user.email,
+    description: user.email
+  }))
+])
 const selectedAssigneeId = computed({
   get: () => settings.value?.default_order_assignee_id ?? NO_ASSIGNEE,
   set: (value: string) => {
     if (settings.value) settings.value.default_order_assignee_id = value === NO_ASSIGNEE ? null : value
+  }
+})
+const selectedAuditorId = computed({
+  get: () => settings.value?.default_order_auditor_id ?? NO_AUDITOR,
+  set: (value: string) => {
+    if (settings.value) settings.value.default_order_auditor_id = value === NO_AUDITOR ? null : value
   }
 })
 
@@ -54,6 +72,10 @@ const paymentOptions = [
   { label: 'Orden de venta', value: 'ORDER' },
   { label: 'OV o factura', value: 'BOTH' }
 ]
+const deliveryAddressRequirementOptions = [
+  { label: 'Opcional', value: false },
+  { label: 'Obligatoria', value: true }
+]
 
 async function load() {
   loading.value = true
@@ -64,9 +86,12 @@ async function load() {
     ])
     settings.value = {
       ...flowSettings,
+      require_order_delivery_address: flowSettings.require_order_delivery_address ?? false,
+      warn_when_order_delivery_data_empty: flowSettings.warn_when_order_delivery_data_empty ?? true,
       prompt_order_assignee_on_confirmation: flowSettings.prompt_order_assignee_on_confirmation ?? true,
       require_order_assignee_on_confirmation: flowSettings.require_order_assignee_on_confirmation ?? false,
-      default_order_assignee_id: flowSettings.default_order_assignee_id || NO_ASSIGNEE
+      default_order_assignee_id: flowSettings.default_order_assignee_id || NO_ASSIGNEE,
+      default_order_auditor_id: flowSettings.default_order_auditor_id || NO_AUDITOR
     }
     companyUsers.value = users
   } catch {
@@ -86,6 +111,8 @@ async function save() {
       require_payment_for_delivery: settings.value.require_payment_for_delivery,
       delivery_payment_percentage: Number(settings.value.delivery_payment_percentage),
       require_invoice_for_delivery: settings.value.require_invoice_for_delivery,
+      require_order_delivery_address: settings.value.require_order_delivery_address,
+      warn_when_order_delivery_data_empty: settings.value.warn_when_order_delivery_data_empty,
       auto_create_delivery_note: settings.value.auto_create_delivery_note,
       allow_partial_delivery: settings.value.allow_partial_delivery,
       reserve_stock_on_order_confirmation: settings.value.reserve_stock_on_order_confirmation,
@@ -95,7 +122,10 @@ async function save() {
       require_order_assignee_on_confirmation: settings.value.require_order_assignee_on_confirmation,
       default_order_assignee_id: settings.value.default_order_assignee_id === NO_ASSIGNEE
         ? null
-        : settings.value.default_order_assignee_id || null
+        : settings.value.default_order_assignee_id || null,
+      default_order_auditor_id: settings.value.default_order_auditor_id === NO_AUDITOR
+        ? null
+        : settings.value.default_order_auditor_id || null
     }
     settings.value = await salesFlowService.updateSettings(payload)
     const recalculated = Number(settings.value.recalculated_delivery_orders ?? 0)
@@ -198,6 +228,23 @@ onMounted(load)
         </div>
       </UPageCard>
 
+      <UPageCard title="Auditor de seguimiento" description="Una persona puede recibir avisos y consultar el historial de cambios de cada documento de la cadena de ventas.">
+        <div class="space-y-4">
+          <UFormField label="Auditor sugerido para nuevas OV" help="Se asigna al crear una OV y se conserva al generar remitos o facturas derivadas. También podés cambiarlo desde cada documento.">
+            <USelectMenu
+              v-model="selectedAuditorId"
+              :items="auditorOptions"
+              value-key="value"
+              label-key="label"
+              placeholder="Sin auditor predeterminado"
+              searchable
+              class="w-full"
+            />
+          </UFormField>
+          <UAlert color="info" variant="subtle" icon="i-lucide-eye" title="Seguimiento de estados" description="El auditor recibe una notificación dentro de la app cuando cambia el estado. El historial queda guardado en cada documento aunque se elimine la notificación." />
+        </div>
+      </UPageCard>
+
       <UPageCard title="Condición para remitir" description="El remito se habilita con las condiciones que definas para la operación.">
         <div class="space-y-5">
           <div class="flex items-start justify-between gap-6">
@@ -211,6 +258,26 @@ onMounted(load)
           <div class="flex items-start justify-between gap-6">
             <div><p class="font-medium">Exigir factura</p><p class="text-sm text-muted">La entrega queda pendiente hasta que la OV tenga al menos una factura.</p></div>
             <USwitch v-model="settings.require_invoice_for_delivery" />
+          </div>
+          <USeparator />
+          <UFormField
+            label="Dirección de entrega en la OV"
+            help="Si es obligatoria, se valida al guardar o editar la OV. Los demás datos de entrega siguen siendo opcionales."
+          >
+            <USelect
+              v-model="settings.require_order_delivery_address"
+              :items="deliveryAddressRequirementOptions"
+              value-key="value"
+              label-key="label"
+              class="w-full sm:w-64"
+            />
+          </UFormField>
+          <div v-if="!settings.require_order_delivery_address" class="flex items-start justify-between gap-6">
+            <div>
+              <p class="font-medium">Avisar si la información de entrega está vacía</p>
+              <p class="text-sm text-muted">Muestra un aviso en la OV cuando no se completó ningún dato de entrega. No impide guardarla.</p>
+            </div>
+            <USwitch v-model="settings.warn_when_order_delivery_data_empty" />
           </div>
           <USeparator />
           <div class="flex items-start justify-between gap-6">

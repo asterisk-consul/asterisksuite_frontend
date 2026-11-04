@@ -265,7 +265,10 @@ const targetLink = computed(() => {
 
   <UModal v-model:open="detailOpen" :title="selected?.title" :ui="{ content: 'sm:max-w-4xl' }">
     <template #body><div v-if="selected" class="space-y-4">
-      <div class="flex items-center justify-between"><UBadge :label="statusInfo[selected.status].label" :color="statusInfo[selected.status].color" /><span class="text-sm text-muted">{{ selected.assignee?.name || 'Sin responsable' }}</span></div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <UBadge :label="statusInfo[selected.status].label" :color="statusInfo[selected.status].color" />
+        <span class="text-sm text-muted">Creada por {{ selected.creator?.name || 'Sin identificar' }} · Asignada a {{ selected.assignee?.name || 'Sin responsable' }}</span>
+      </div>
       <p v-if="selected.notes" class="text-sm">{{ selected.notes }}</p>
 
       <div class="grid gap-2 sm:grid-cols-3">

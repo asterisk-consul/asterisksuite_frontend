@@ -1,5 +1,106 @@
 [
  {
+  "version": "0.130.2-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Cuando la dirección de entrega de la OV es opcional, la empresa puede activar o desactivar el aviso que aparece si todos los datos de entrega están vacíos.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Configurar el aviso cuando una OV no tiene datos de entrega" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Configurar el aviso de datos de entrega vacíos"
+ },
+ {
+  "version": "0.130.1-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Mis pendientes muestra la referencia o descripción separada del nombre de la contraparte y permite buscar por tipo, número, contraparte, referencia, estado y fecha.",
+  "changes": [
+   { "type": "fix", "scope": "dashboard", "title": "Mostrar y buscar referencias en Mis pendientes" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la búsqueda de Mis pendientes"
+ },
+ {
+  "version": "0.130.0-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "La OV permite registrar un único vendedor activo para atribuir la venta y consultarla por vendedor. Si el usuario actual está vinculado a un empleado vendedor, se lo preselecciona. La liquidación de comisiones se mantiene en RR. HH.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Atribuir y filtrar las Órdenes de Venta por vendedor" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Registrar el vendedor de cada OV"
+ },
+ {
+  "version": "0.129.2-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "El historial de seguimiento y auditoría de documentos de venta queda visible únicamente para el auditor asignado y el propietario de la empresa.",
+  "changes": [
+   { "type": "fix", "scope": "sales", "title": "Restringir la consulta del historial de auditoría al auditor y al propietario de la empresa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Restringir el acceso al historial de auditoría"
+ },
+ {
+  "version": "0.129.1-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "El mantenimiento pendiente actualiza dependencias de backend y frontend, incorpora @nuxthub/core en el backend, cambia la URL predeterminada del ejemplo HTTP de vehículos y retira documentación interna obsoleta de corredores y versionado.",
+  "changes": [
+   { "type": "chore", "scope": "dependencies", "title": "Actualizar dependencias de backend y frontend" },
+   { "type": "chore", "scope": "examples", "title": "Usar la API remota como destino predeterminado del ejemplo HTTP de vehículos" },
+   { "type": "chore", "scope": "docs", "title": "Retirar documentación interna obsoleta de corredores y versionado" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Actualizar dependencias y limpiar recursos de desarrollo"
+ },
+ {
+  "version": "0.129.0-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "El Circuito de ventas permite sugerir un auditor para las nuevas OV. El auditor y el responsable se conservan al crear documentos derivados; el auditor recibe avisos de cambios de estado y condiciones de entrega, con un historial persistente por documento.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Asignar auditor y seguir los cambios de documentos de venta" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agregar auditor de seguimiento a las ventas"
+ },
+ {
+  "version": "0.128.1-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Las alertas de impuestos y autorizaciones fiscales llegan a sus responsables administrativos. Si no hay usuarios con esos permisos, las reciben los administradores u owners de la empresa.",
+  "changes": [
+   { "type": "fix", "scope": "notifications", "title": "Limitar las alertas fiscales a sus responsables administrativos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Dirigir las alertas fiscales a sus responsables"
+ },
+ {
+  "version": "0.128.0-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "El Circuito de ventas permite exigir una dirección de entrega en las Órdenes de Venta. Cuando se activa, la dirección se valida al crear o editar la OV; los demás datos de entrega siguen siendo opcionales.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Configurar la dirección de entrega obligatoria para las OV" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Permitir exigir la dirección de entrega de las OV"
+ },
+ {
+  "version": "0.127.0-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Los remitos vinculados a una OV muestran los datos de entrega de su origen, tanto en el detalle como al imprimirlos.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Mostrar en el remito los datos de entrega de la OV de origen" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Llevar los datos de entrega de la OV al remito"
+ },
+ {
   "version": "0.126.1-alpha",
   "date": "2026-11-04",
   "stage": "alpha",

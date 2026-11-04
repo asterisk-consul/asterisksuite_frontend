@@ -11,6 +11,7 @@ import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 
 import { mapDocumentToFacturaForm } from '~/modulos/erp/facturas/mappers/factura.mapper'
 import { getDocumentSubmitError } from '~/utils/document-submit-error'
+import { useSalesFlowService } from '~/modulos/erp/sales/services/sales-flow.service'
 
 const documentsSalesStore = useDocumentsSalesStore()
 
@@ -19,6 +20,7 @@ const route = useRoute()
 const router = useRouter()
 
 const toast = useToast()
+const salesFlowService = useSalesFlowService()
 
 const saving = ref(false)
 
@@ -44,6 +46,22 @@ const pageTitle = computed(() => {
 })
 const orderDetails = computed(() => documentsSalesStore.current?.orden_venta_doc ?? undefined)
 const extensionDraft = ref<Record<string, any>>({})
+const requireDeliveryAddress = ref(false)
+const warnWhenDeliveryDataEmpty = ref(true)
+const deliverySettingsLoading = ref(false)
+const deliveryFieldLabels = {
+  delivery_address: 'Dirección de entrega',
+  delivery_contact: 'Contacto',
+  delivery_phone: 'Teléfono',
+  delivery_time: 'Tiempo de entrega',
+  delivery_instructions: 'Instrucciones de entrega',
+  transport_provider: 'Transporte',
+  confirmed_delivery_date: 'Fecha comprometida'
+} as const
+type DeliveryFieldKey = keyof typeof deliveryFieldLabels
+const clearDeliveryConfirmOpen = ref(false)
+const pendingDocumentPayload = ref<Record<string, any> | null>(null)
+const pendingClearDeliveryFields = ref<DeliveryFieldKey[]>([])
 
 watch(orderDetails, (details) => {
   if (details && Object.keys(extensionDraft.value).length === 0) {
@@ -62,6 +80,18 @@ const ordenVentaRef = ref<InstanceType<typeof OrdenVentaForm> | null>(null)
 onMounted(async () => {
   try {
     await documentsSalesStore.fetchOne(route.params.id as string)
+    if (isOrder.value) {
+      deliverySettingsLoading.value = true
+      try {
+        const settings = await salesFlowService.getSettings()
+        requireDeliveryAddress.value = settings.require_order_delivery_address ?? false
+        warnWhenDeliveryDataEmpty.value = settings.warn_when_order_delivery_data_empty ?? true
+      } catch {
+        toast.add({ title: 'No se pudo cargar la regla de entrega de la OV', color: 'warning' })
+      } finally {
+        deliverySettingsLoading.value = false
+      }
+    }
   } finally {
     loading.value = false
   }
@@ -69,17 +99,45 @@ onMounted(async () => {
 
 async function handleSubmit(payload: any) {
   if (saving.value) return
+  if (isOrder.value && ordenVentaRef.value && !ordenVentaRef.value.validateDeliveryInfo()) {
+    toast.add({ title: 'Falta la dirección de entrega', description: 'Completá la dirección para guardar esta OV.', color: 'warning' })
+    return
+  }
+
+  const extensionData = isOrder.value && ordenVentaRef.value
+    ? ordenVentaRef.value.getFormData()
+    : {}
+  const documentPayload = {
+    ...payload,
+    ...extensionData,
+    expected_updated_at: documentsSalesStore.current?.updated_at
+  }
+
+  if (isOrder.value) {
+    const storedDelivery = orderDetails.value ?? {}
+    const fieldsToClear = (Object.keys(deliveryFieldLabels) as DeliveryFieldKey[])
+      .filter((field) => String(storedDelivery[field] ?? '').trim() !== ''
+        && String(extensionData[field] ?? '').trim() === '')
+
+    if (fieldsToClear.length) {
+      pendingDocumentPayload.value = documentPayload
+      pendingClearDeliveryFields.value = fieldsToClear
+      clearDeliveryConfirmOpen.value = true
+      return
+    }
+  }
+
+  await saveDocument(documentPayload)
+}
+
+async function saveDocument(payload: Record<string, any>, clearFields: DeliveryFieldKey[] = []) {
+  if (saving.value) return
   try {
     saving.value = true
 
-    const extensionData = isOrder.value && ordenVentaRef.value
-      ? ordenVentaRef.value.getFormData()
-      : {}
-
     await documentsSalesStore.update(route.params.id as string, {
       ...payload,
-      ...extensionData,
-      expected_updated_at: documentsSalesStore.current?.updated_at
+      ...(clearFields.length ? { clear_delivery_fields: clearFields } : {})
     })
     formRef.value?.completeDraft()
 
@@ -104,6 +162,23 @@ async function handleSubmit(payload: any) {
     saving.value = false
   }
 }
+
+function cancelDeliveryClear() {
+  clearDeliveryConfirmOpen.value = false
+  pendingDocumentPayload.value = null
+  pendingClearDeliveryFields.value = []
+}
+
+async function confirmDeliveryClear() {
+  const payload = pendingDocumentPayload.value
+  const fields = [...pendingClearDeliveryFields.value]
+  if (!payload || !fields.length) return cancelDeliveryClear()
+
+  clearDeliveryConfirmOpen.value = false
+  pendingDocumentPayload.value = null
+  pendingClearDeliveryFields.value = []
+  await saveDocument(payload, fields)
+}
 </script>
 
 <template>
@@ -115,7 +190,7 @@ async function handleSubmit(payload: any) {
           :description="isRemito ? 'Revisá cantidades y elegí el depósito de salida de cada producto.' : `Modificá los datos de la ${pageTitle}.`"
         >
           <template #links>
-            <UButton label="Guardar Cambios" icon="i-lucide-check" :loading="saving" @click="formRef?.submit()">
+            <UButton label="Guardar Cambios" icon="i-lucide-check" :loading="saving" :disabled="isOrder && deliverySettingsLoading" @click="formRef?.submit()">
               <template #trailing>
                 <KeyboardShortcutHint :keys="['Ctrl', 'S']" />
               </template>
@@ -142,12 +217,42 @@ async function handleSubmit(payload: any) {
                 ref="ordenVentaRef"
                 v-model="extensionDraft"
                 :loading="saving"
+                :require-delivery-address="requireDeliveryAddress"
+                :warn-when-delivery-data-empty="warnWhenDeliveryDataEmpty"
               />
             </template>
           </FacturaForm>
 
           <div v-else-if="loading" class="p-10 text-center">Cargando...</div>
         </UPageBody>
+
+        <UModal
+          v-model:open="clearDeliveryConfirmOpen"
+          title="Confirmar eliminación de datos de entrega"
+          description="Se detectaron datos guardados que quedarían vacíos al guardar esta OV."
+          :ui="{ content: 'sm:max-w-lg' }"
+        >
+          <template #body>
+            <div class="flex flex-col gap-4">
+              <UAlert
+                color="warning"
+                variant="subtle"
+                icon="i-lucide-triangle-alert"
+                title="Esta acción borrará información guardada"
+                description="Solo se borrarán los campos que confirmes. El resto de la OV se guardará normalmente."
+              />
+              <ul class="list-inside list-disc space-y-1 text-sm text-muted">
+                <li v-for="field in pendingClearDeliveryFields" :key="field">
+                  {{ deliveryFieldLabels[field] }}
+                </li>
+              </ul>
+              <div class="flex justify-end gap-2">
+                <UButton label="Volver a revisar" variant="ghost" :disabled="saving" @click="cancelDeliveryClear" />
+                <UButton label="Guardar y borrar datos" color="error" :loading="saving" @click="confirmDeliveryClear" />
+              </div>
+            </div>
+          </template>
+        </UModal>
       </UPage>
     </template>
   </UDashboardPanel>

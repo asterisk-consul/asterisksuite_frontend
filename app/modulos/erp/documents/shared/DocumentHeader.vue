@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import DocumentAssignment from './DocumentAssignment.vue'
+import DocumentAuditorAssignment from './DocumentAuditorAssignment.vue'
+import DocumentActivityTimeline from './DocumentActivityTimeline.vue'
 import DocumentReference from './DocumentReference.vue'
 import { getStatusLabel, getStatusColor, getStatusDescription, type BadgeColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 
 const props = defineProps<{
   document: any
@@ -19,6 +22,10 @@ const emit = defineEmits<{
 }>()
 
 const { can: canDocument } = useDocumentPermissions()
+const auth = useAuthStore()
+const canViewAudit = computed(() =>
+  auth.selectedCompany?.role === 'OWNER' || props.document?.auditor_user_id === auth.user?.id,
+)
 
 function canOpenDocument(doc: any): boolean {
   if (!doc) return false
@@ -93,6 +100,11 @@ function resolveDocLink(doc: any): string {
     </div>
 
     <DocumentAssignment :key="document.id" :document-id="document.id" :assigned-to="document.assigned_to" />
+
+    <div v-if="document.document_types?.direction === 1" class="flex flex-col gap-3">
+      <DocumentAuditorAssignment :key="`auditor-${document.id}`" :document-id="document.id" :auditor-user-id="document.auditor_user_id" />
+      <DocumentActivityTimeline v-if="canViewAudit" :key="`activity-${document.id}`" :document-id="document.id" />
+    </div>
 
     <!-- Documento padre -->
     <UAlert v-if="document.parent_document" color="info" variant="soft" icon="i-lucide-link">

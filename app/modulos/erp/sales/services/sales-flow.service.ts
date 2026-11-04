@@ -4,6 +4,8 @@ export interface SalesFlowSettings {
   require_payment_for_delivery: boolean
   delivery_payment_percentage: number
   require_invoice_for_delivery: boolean
+  require_order_delivery_address: boolean
+  warn_when_order_delivery_data_empty: boolean
   auto_create_delivery_note: boolean
   allow_partial_delivery: boolean
   reserve_stock_on_order_confirmation: boolean
@@ -12,6 +14,7 @@ export interface SalesFlowSettings {
   prompt_order_assignee_on_confirmation: boolean
   require_order_assignee_on_confirmation: boolean
   default_order_assignee_id: string | null
+  default_order_auditor_id: string | null
   recalculated_delivery_orders?: number
 }
 
