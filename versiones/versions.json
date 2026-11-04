@@ -1,5 +1,16 @@
 [
  {
+  "version": "0.126.1-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Al abrir un comprobante de venta se carga el documento completo, incluidos sus ítems y datos necesarios para las acciones del detalle.",
+  "changes": [
+   { "type": "fix", "scope": "sales", "title": "Cargar el documento completo al abrir su detalle" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir la carga del detalle de ventas"
+ },
+ {
   "version": "0.126.0-alpha",
   "date": "2026-11-03",
   "stage": "alpha",
