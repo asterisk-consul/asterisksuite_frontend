@@ -22,6 +22,7 @@ export type SalespersonOption = {
   id: string
   first_name: string
   last_name: string
+  seller_type: 'EMPLOYEE' | 'PARTNER'
 }
 
 export const DocumentsSalesService = {
@@ -82,7 +83,7 @@ export const DocumentsSalesService = {
       body: dto
     })
   },
-  async confirm(id: string, options?: { assigned_to?: string | null }): Promise<Document> {
+  async confirm(id: string, options?: { assigned_to?: string | null; confirm_empty_delivery_data?: boolean }): Promise<Document> {
     return apiFetch<Document>(`/api/backend/documents/sales/${id}/confirm`, {
       method: 'PATCH' as any,
       body: options ?? {}

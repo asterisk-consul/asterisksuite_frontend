@@ -16,7 +16,7 @@ const priorityColors: Record<string, string> = {
 }
 
 const sellerName = computed(() => {
-  const seller = props.document?.orden_venta_doc?.seller
+  const seller = props.document?.orden_venta_doc?.seller_partner ?? props.document?.orden_venta_doc?.seller
   if (!seller) return null
   return `${seller.first_name} ${seller.last_name}`
 })
@@ -104,7 +104,7 @@ const deliveryFlow = computed(() => {
       <template #header>
         <h3 class="font-semibold">Datos comerciales</h3>
       </template>
-      <div class="flex flex-col gap-1 text-sm">
+      <div v-if="sellerName" class="flex flex-col gap-1 text-sm">
         <p class="text-muted">Vendedor de la venta</p>
         <p class="font-medium">{{ sellerName }}</p>
         <p class="text-xs text-muted">Este dato permite consultar las ventas por vendedor. Las comisiones se administran desde RR. HH.</p>

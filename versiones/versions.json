@@ -1,5 +1,106 @@
 [
  {
+  "version": "0.136.0-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "La conciliación de extractos se realiza por cuenta bancaria, con reglas de lectura revisables y asiento asociado a la cuenta bancaria y la cuenta del concepto. Las OVs pueden asignar un socio como vendedor sin mostrar porcentajes en el comprobante, y el formulario unificado conserva el perfil y los datos de socios.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Importar y conciliar extractos bancarios por cuenta con su asiento contable" },
+   { "type": "feat", "scope": "sales", "title": "Seleccionar socios como vendedores de OV sin exponer porcentajes de participación" },
+   { "type": "fix", "scope": "master-data", "title": "Conservar los datos y el perfil de socios en el formulario unificado de partes interesadas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Conciliar extractos y vincular socios vendedores"
+ },
+ {
+  "version": "0.135.2-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "La pantalla de acceso conserva el mensaje de marca, simplifica la presentación y muestra la empresa asociada al subdominio activo.",
+  "changes": [
+   { "type": "style", "scope": "auth", "title": "Simplificar el login y mostrar la empresa del espacio" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mostrar la empresa al iniciar sesión"
+ },
+ {
+  "version": "0.135.1-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "La pantalla de inicio de sesión adopta la identidad visual de Asterisk Suite y se adapta a celulares y pantallas grandes.",
+  "changes": [
+   { "type": "style", "scope": "auth", "title": "Rediseñar el inicio de sesión con una presentación adaptable" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar el acceso desde computadoras y celulares"
+ },
+ {
+  "version": "0.135.0-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "Los socios pueden clasificarse como inversionistas para registrar aportes y devoluciones de capital sin participación en ventas. La devolución puede cargarse en retiros parciales o programarse en cuotas, que quedan como vales RETIRO en borrador y reservan el saldo hasta su confirmación.",
+  "changes": [
+   { "type": "feat", "scope": "hr", "title": "Registrar inversionistas y programar devoluciones de capital en cuotas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Registrar inversionistas y programar la devolución de sus aportes"
+ },
+ {
+  "version": "0.134.0-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "La participación societaria de los socios se calcula sobre nuevas OV o su facturación, según Circuito de ventas. La comisión por vender se configura por separado; ambos conceptos pueden liquidarse juntos con detalle y por moneda.",
+  "changes": [
+   { "type": "feat", "scope": "hr", "title": "Configurar participación societaria y comisión de socios en ventas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Calcular y liquidar la participación de los socios en ventas"
+ },
+ {
+  "version": "0.133.1-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "Se corrige el registro del guard de permisos del módulo de auditoría para evitar errores de dependencias al iniciar la aplicación.",
+  "changes": [
+   { "type": "fix", "scope": "audit", "title": "Corregir la inyección de permisos del módulo de auditoría" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir el inicio del módulo de auditoría"
+ },
+ {
+  "version": "0.133.0-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "El Circuito de ventas permite definir empleados y socios como vendedores predeterminados. Cada uno puede comisionar sobre hasta el 100% de la venta, de forma independiente. Las nuevas OVs muestran esas asignaciones pendientes en RRHH, sin generar ni confirmar vales automáticamente.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Precargar vendedores y socios para las comisiones de nuevas OVs" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Precargar comisiones en las nuevas órdenes de venta"
+ },
+ {
+  "version": "0.132.1-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "Al confirmar una OV, se valida la información de entrega guardada. Si la dirección es obligatoria, no se puede confirmar sin completarla; si es opcional y el aviso está activo, se pide confirmación cuando todos los datos están vacíos.",
+  "changes": [
+   { "type": "fix", "scope": "sales", "title": "Validar los datos de entrega al confirmar una OV" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Validar la entrega al confirmar una OV"
+ },
+ {
+  "version": "0.132.0-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "Los usuarios autorizados de plataforma pueden consultar los cambios registrados en el tenant seleccionado desde una grilla paginada, filtrar por entidad, acción, fecha o usuario y comparar valores anteriores y nuevos.",
+  "changes": [
+   { "type": "feat", "scope": "audit", "title": "Consultar la auditoría de cambios en una tabla por empresa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Consultar los logs de la empresa desde Configuración"
+ },
+ {
   "version": "0.131.0-alpha",
   "date": "2026-11-04",
   "stage": "alpha",

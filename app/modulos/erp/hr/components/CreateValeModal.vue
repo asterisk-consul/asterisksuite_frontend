@@ -33,7 +33,7 @@ const treasuryTargetId = ref('')
 const cashBoxes = ref<any[]>([])
 const bankAccounts = ref<any[]>([])
 const pendingCreatedValeId = ref<string | null>(null)
-const partnerFunds = ref<{ contributions: number; withdrawals: number; balance: number; available: number; remuneration_pending: number } | null>(null)
+const partnerFunds = ref<{ contributions: number; withdrawals: number; balance: number; planned_withdrawals: number; available: number; remuneration_pending: number } | null>(null)
 const loadingFunds = ref(false)
 const fundsError = ref(false)
 let fundsRequest = 0
@@ -49,11 +49,11 @@ const createForm = ref({
   description: ''
 })
 
-const people = ref<Array<{ id: string; name: string; type: string }>>([])
+const people = ref<Array<{ id: string; name: string; type: string; partner_kind?: 'PARTNER' | 'INVESTOR' }>>([])
 
 const partyTypeOptions = [
   { label: 'Empleado', value: 'EMPLOYEE' },
-  { label: 'Socio', value: 'PARTNER' }
+  { label: 'Socio / inversionista', value: 'PARTNER' }
 ]
 
 const valeTypeOptions: Record<string, { label: string; value: string; icon: string; description: string }[]> = {
@@ -76,15 +76,29 @@ const currencyOptions = [
   { label: 'Dólar (USD)', value: 'USD' }
 ]
 
-const availableTypeOptions = computed(() =>
-  valeTypeOptions[createForm.value.party_type] || []
-)
-
 const filteredPeople = computed(() =>
   people.value
     .filter(p => p.type === createForm.value.party_type)
     .map(p => ({ label: p.name, value: p.id }))
 )
+
+const selectedPerson = computed(() => people.value.find(person => person.id === createForm.value.party_id))
+const isInvestor = computed(() => selectedPerson.value?.partner_kind === 'INVESTOR')
+const availableTypeOptions = computed(() => {
+  const options = valeTypeOptions[createForm.value.party_type] || []
+  return isInvestor.value
+    ? options
+        .filter(option => ['APORTE', 'RETIRO'].includes(option.value))
+        .map(option => option.value === 'RETIRO'
+          ? { ...option, label: 'Devolver inversión', description: 'Retirar una cuota del capital aportado, hasta el saldo disponible' }
+          : option)
+    : options
+})
+
+watch(availableTypeOptions, (options) => {
+  const firstOption = options[0]
+  if (firstOption && !options.some(option => option.value === createForm.value.type)) createForm.value.type = firstOption.value
+})
 
 const alertTitle = computed(() =>
   confirmAutomatically.value
@@ -154,7 +168,8 @@ async function loadPeople() {
       ...partners.map((p: any) => ({
         id: p.party_id ?? p.id,
         name: `${p.first_name} ${p.last_name}`,
-        type: 'PARTNER'
+        type: 'PARTNER',
+        partner_kind: p.partner_kind ?? 'PARTNER'
       }))
     ]
   } catch (e) {
@@ -358,6 +373,15 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           />
         </UFormField>
 
+        <UAlert
+          v-if="isInvestor"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-landmark"
+          title="Movimientos de inversión"
+          description="Este perfil solo admite aportes de fondos y retiros del capital aportado. Los retiros disponibles descuentan las cuotas que ya estén programadas."
+        />
+
         <!-- Tipo de vale (cards) -->
         <UFormField label="Tipo de vale" required>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -408,6 +432,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           <template v-else-if="partnerFunds">
             <div class="flex justify-between text-sm"><span>Aportes confirmados</span><span>{{ formatFunds(partnerFunds.contributions) }}</span></div>
             <div class="flex justify-between text-sm"><span>Retiros confirmados</span><span>{{ formatFunds(partnerFunds.withdrawals) }}</span></div>
+            <div v-if="partnerFunds.planned_withdrawals > 0" class="flex justify-between text-sm"><span>Reservado en cuotas</span><span>{{ formatFunds(partnerFunds.planned_withdrawals) }}</span></div>
             <div class="flex justify-between font-semibold"><span>Disponible para retirar</span><span>{{ formatFunds(partnerFunds.available) }}</span></div>
             <div class="flex justify-between text-sm"><span>Remuneraciones pendientes de pago</span><span>{{ formatFunds(partnerFunds.remuneration_pending) }}</span></div>
             <div v-if="isWithdrawal" class="flex justify-between text-sm" :class="withdrawalBlocked ? 'text-error' : 'text-muted'"><span>Saldo después del retiro</span><span>{{ formatFunds(partnerFunds.balance - Number(createForm.amount || 0)) }}</span></div>

@@ -29,6 +29,7 @@ export const useBusinessPartiesStore = defineStore('businessParties', () => {
 
   const currentCompanyId = ref<string | null>(null)
   let fetchPromise: Promise<BusinessParty[]> | null = null
+  let cacheGeneration = 0
 
   type CachedParties = {
     version: number
@@ -93,16 +94,42 @@ export const useBusinessPartiesStore = defineStore('businessParties', () => {
     if (!companyId) return null
 
     if (currentCompanyId.value !== companyId) {
+      cacheGeneration += 1
       currentCompanyId.value = companyId
       items.value = []
       current.value = null
       lastUpdatedAt.value = null
       usingCache.value = false
+      loading.value = false
+      refreshing.value = false
       fetchPromise = null
       hydrateCache(companyId)
     }
 
     return companyId
+  }
+
+  const invalidateCache = () => {
+    const companyId = prepareCompany()
+    if (!companyId) return
+
+    // RR. HH. también crea/edita la ficha común mediante sus propios endpoints.
+    // Evitamos que Terceros reutilice una copia local anterior al cambio.
+    lastUpdatedAt.value = null
+    usingCache.value = false
+    refreshFailed.value = false
+    cacheGeneration += 1
+    fetchPromise = null
+    loading.value = false
+    refreshing.value = false
+
+    if (import.meta.client) {
+      try {
+        localStorage.removeItem(cacheKey(companyId))
+      } catch {
+        // La siguiente carga igualmente consulta al servidor.
+      }
+    }
   }
 
   // =========================
@@ -144,14 +171,19 @@ export const useBusinessPartiesStore = defineStore('businessParties', () => {
     refreshFailed.value = false
     error.value = null
 
-    fetchPromise = service.findAll()
+    const requestGeneration = cacheGeneration
+    let request: Promise<BusinessParty[]>
+    request = service.findAll()
       .then((data) => {
-        items.value = data
-        usingCache.value = false
-        persistCache()
+        if (requestGeneration === cacheGeneration) {
+          items.value = data
+          usingCache.value = false
+          persistCache()
+        }
         return data
       })
       .catch((err: any) => {
+        if (requestGeneration !== cacheGeneration) return items.value
         error.value = err?.data?.message || err?.message || 'No se pudieron actualizar los clientes y proveedores'
         if (items.value.length > 0) {
           refreshFailed.value = true
@@ -160,12 +192,15 @@ export const useBusinessPartiesStore = defineStore('businessParties', () => {
         throw err
       })
       .finally(() => {
-        loading.value = false
-        refreshing.value = false
-        fetchPromise = null
+        if (fetchPromise === request) {
+          loading.value = false
+          refreshing.value = false
+          fetchPromise = null
+        }
       })
+    fetchPromise = request
 
-    return fetchPromise
+    return request
   }
 
   // =========================
@@ -286,6 +321,7 @@ export const useBusinessPartiesStore = defineStore('businessParties', () => {
 
     // actions
     fetchAll,
+    invalidateCache,
     fetchOne,
     create,
     update,

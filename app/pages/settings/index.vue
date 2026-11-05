@@ -21,9 +21,11 @@ const groups = computed(() => {
     .map(group => ({
       ...group,
       entries: group.entries.filter(entry => {
-        const hasEntryPermission = entry.permission === 'trash.read'
-          ? isOwner.value || hasPermission(entry.permission)
-          : !entry.permission || isOwnerOrAdmin.value || hasPermission(entry.permission)
+        const hasEntryPermission = entry.platformAuditOnly
+          ? ['PLATFORM_ADMIN', 'PLATFORM_OWNER'].includes(authStore.user?.role ?? '')
+          : entry.permission === 'trash.read'
+            ? isOwner.value || hasPermission(entry.permission)
+            : !entry.permission || isOwnerOrAdmin.value || hasPermission(entry.permission)
         const allowed = hasEntryPermission && (!entry.ownerOrAdminOnly || isOwnerOrAdmin.value)
         const moduleAvailable = !entry.moduleCode
           || !activeCompanyId.value

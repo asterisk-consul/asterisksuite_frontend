@@ -48,6 +48,14 @@ export const useAuthStore = defineStore('auth', () => {
     return getSubdomainFromHostname(serverHostname)
   }
 
+  function getCurrentTenantSubdomain(): string | null {
+    const hostSubdomain = getCurrentSubdomain()
+    if (hostSubdomain) return hostSubdomain
+
+    // En hosts compartidos, como dev, el contexto tenant vigente está en la cookie.
+    return selectedTenantCookie.value?.trim().toLowerCase() || null
+  }
+
   function autoSelectCompanyBySubdomain(): boolean {
     const subdomain = getCurrentSubdomain()
     if (!subdomain || companies.value.length === 0) return false
@@ -289,6 +297,7 @@ export const useAuthStore = defineStore('auth', () => {
     init,
     logout,
     selectCompany,
-    autoSelectByHostname
+    autoSelectByHostname,
+    getCurrentTenantSubdomain
   }
 })

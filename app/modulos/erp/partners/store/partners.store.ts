@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { usePartnersService } from '~/modulos/erp/partners/service/partners.service'
+import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import type { Partner, CreatePartnerInput, UpdatePartnerInput } from '~/modulos/erp/partners/types/partners.types'
 
 export const usePartnersStore = defineStore('partners', () => {
   const service = usePartnersService()
+  const businessPartiesStore = useBusinessPartiesStore()
 
   const items = ref<Partner[]>([])
   const current = ref<Partner | null>(null)
@@ -46,6 +48,7 @@ export const usePartnersStore = defineStore('partners', () => {
       error.value = null
       const created = await service.create(payload)
       items.value.unshift(created)
+      businessPartiesStore.invalidateCache()
       return created
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al crear socio'
@@ -63,6 +66,7 @@ export const usePartnersStore = defineStore('partners', () => {
       const index = items.value.findIndex(i => i.id === id)
       if (index !== -1) items.value[index] = updated
       if (current.value?.id === id) current.value = updated
+      businessPartiesStore.invalidateCache()
       return updated
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al actualizar socio'
@@ -79,6 +83,7 @@ export const usePartnersStore = defineStore('partners', () => {
       await service.remove(id)
       items.value = items.value.filter(i => i.id !== id)
       if (current.value?.id === id) current.value = null
+      businessPartiesStore.invalidateCache()
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al eliminar socio'
       throw err

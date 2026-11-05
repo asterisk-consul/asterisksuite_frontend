@@ -13,10 +13,14 @@ export function mapFormToPartnerDto(form: BusinessPartyForm): CreatePartnerInput
     create_user: form.create_user,
     first_name: firstName,
     last_name: lastName,
+    partner_kind: form.partner_kind ?? 'PARTNER',
     document_type: form.document_type || undefined,
     document_number: form.tax_id || undefined,
     share_percentage: form.share_percentage ? String(form.share_percentage) : undefined,
     capital_contributed: form.capital_contributed ? String(form.capital_contributed) : undefined,
+    is_salesperson: form.is_salesperson ?? false,
+    default_commission_rate: form.is_salesperson ? Number(form.default_commission_rate ?? 0) : undefined,
+    commission_base: form.is_salesperson ? form.commission_base ?? 'INVOICED' : undefined,
     is_active: form.active ?? true,
     // ─── Business party fields ──
     business_name: form.name || [firstName, lastName].filter(Boolean).join(' '),
@@ -57,6 +61,7 @@ export function mapPartnerToForm(partner: Partner): BusinessPartyForm {
     name: party?.name || `${partner.first_name} ${partner.last_name}`,
     first_name: partner.first_name || '',
     last_name: partner.last_name || '',
+    partner_kind: partner.partner_kind ?? 'PARTNER',
     business_names: '',
     document_type: partner.document_type || '',
     email: party?.email || '',
@@ -67,6 +72,9 @@ export function mapPartnerToForm(partner: Partner): BusinessPartyForm {
     // ─── Partner fields ──
     share_percentage: partner.share_percentage || '',
     capital_contributed: partner.capital_contributed || '',
+    is_salesperson: partner.is_salesperson ?? false,
+    default_commission_rate: Number(partner.default_commission_rate ?? 0),
+    commission_base: partner.commission_base ?? 'INVOICED',
     // ─── Party relations ──
     locations:
       party?.party_locations?.map((l) => ({

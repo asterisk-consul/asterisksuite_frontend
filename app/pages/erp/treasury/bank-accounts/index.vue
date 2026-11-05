@@ -12,6 +12,8 @@ import type {
 import { useExcelExport } from '~/composables/useExcelExport'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { useUsersService } from '~/modulos/access-control/services/users.service'
+import { useAccountsService } from '~/modulos/contabilidad/service/accounts.service'
+import type { Account } from '~/modulos/contabilidad/types/accounts.types'
 
 const { bankAccounts, loading, init, create, update, remove, getUserRoles, addUserRole, removeUserRole } =
   useBankAccounts()
@@ -20,6 +22,7 @@ const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies
 const router = useRouter()
 const toast = useToast()
 const usersService = useUsersService()
+const accountsService = useAccountsService()
 
 const modalOpen = ref(false)
 const editingAccount = ref<BankAccount | null>(null)
@@ -42,6 +45,7 @@ const form = reactive<CreateBankAccountInput>({
   alias: '',
   account_number: '',
   currency_code: 'ARS',
+  accounting_account_id: null,
   balance: 0,
   active: true
 })
@@ -55,6 +59,7 @@ const showAllUsers = ref(false)
 const allUsersList = ref<{ id: string; name: string; email: string }[]>([])
 const showRemoveModal = ref(false)
 const userToRemove = ref<{ userId: string; userName: string; userEmail: string; role: string } | null>(null)
+const chartAccounts = ref<Account[]>([])
 
 const userRoleOptions = [
   { label: 'Responsable', value: 'RESPONSIBLE' },
@@ -70,9 +75,17 @@ const selectedUserRole = computed({
 })
 const selectedUserRoleRaw = ref('OPERATOR')
 
-onMounted(() => {
-  init()
-  initCurrencies()
+const accountingAccountOptions = computed(() => chartAccounts.value
+  .filter((account) => account.account_type === 'ASSET' && account.active && !account.deleted_at)
+  .map((account) => ({ label: `${account.code} · ${account.name}`, value: account.id })))
+
+const selectedAccountingAccount = computed({
+  get: () => accountingAccountOptions.value.find((option) => option.value === form.accounting_account_id) ?? null,
+  set: (option: { label: string; value: string } | null) => { form.accounting_account_id = option?.value ?? null }
+})
+
+onMounted(async () => {
+  await Promise.all([init(), initCurrencies(), accountsService.findAll().then((accounts) => { chartAccounts.value = accounts }).catch(() => { chartAccounts.value = [] })])
 })
 
 const formatCurrency = (amount: number | string | null | undefined, currency = 'ARS') => {
@@ -139,6 +152,7 @@ const openCreate = () => {
     alias: '',
     account_number: '',
     currency_code: 'ARS',
+    accounting_account_id: null,
     balance: 0,
     active: true
   })
@@ -157,6 +171,7 @@ const openEdit = async (account: BankAccount) => {
     alias: account.alias ?? '',
     account_number: account.account_number ?? '',
     currency_code: account.currency_code,
+    accounting_account_id: account.accounting_account_id ?? null,
     balance: account.balance,
     active: account.active
   })
@@ -406,7 +421,7 @@ const handleExport = () => {
 
 const links: ButtonProps[] = [
   {
-    label: 'Exportar',
+    label: 'Exportar cuentas',
     icon: 'i-lucide-download',
     variant: 'ghost',
     onClick: handleExport
@@ -626,6 +641,16 @@ const selectedAccountType = computed({
                     placeholder="Número de cuenta"
                     class="w-full"
                     icon="i-lucide-credit-card"
+                  />
+                </UFormField>
+                <UFormField label="Cuenta contable del banco" name="accounting_account_id" description="Necesaria para importar movimientos con asiento contable. Usá una cuenta activa de tipo Activo.">
+                  <USelectMenu
+                    v-model="selectedAccountingAccount"
+                    :items="accountingAccountOptions"
+                    value-key="value"
+                    placeholder="Seleccionar cuenta del plan"
+                    class="w-full"
+                    :disabled="!accountingAccountOptions.length"
                   />
                 </UFormField>
                 <UFormField

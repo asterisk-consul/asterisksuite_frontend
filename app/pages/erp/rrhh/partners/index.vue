@@ -39,6 +39,7 @@ const filterFields: FilterField[] = [
 const sortFields: SortField[] = [
   { value: 'first_name', label: 'Nombre' },
   { value: 'last_name', label: 'Apellido' },
+  { value: 'partner_kind', label: 'Perfil' },
   { value: 'share_percentage', label: '% Participación' },
   { value: 'capital_contributed', label: 'Capital' },
   { value: 'created_at', label: 'Fecha Creación' }
@@ -47,9 +48,9 @@ const sortFields: SortField[] = [
 
 <template>
   <UPage class="space-y-6 px-4">
-    <AppPageHeader title="Socios" description="Gestión de socios y participaciones">
+    <AppPageHeader title="Socios e inversionistas" description="Participaciones, aportes y devoluciones de capital">
       <template #links>
-        <UButton data-global-create-shortcut class="group/create" label="Nuevo socio" icon="i-heroicons-plus" color="primary" aria-keyshortcuts="Alt+N" @click="() => { void (openCreate()) }">
+        <UButton data-global-create-shortcut class="group/create" label="Nuevo socio o inversionista" icon="i-heroicons-plus" color="primary" aria-keyshortcuts="Alt+N" @click="() => { void (openCreate()) }">
           <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
         </UButton>
       </template>

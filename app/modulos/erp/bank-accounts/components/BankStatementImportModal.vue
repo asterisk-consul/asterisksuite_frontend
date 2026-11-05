@@ -2,11 +2,14 @@
 import type { BankAccountMovement } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 import { BANK_MOVEMENT_TYPE_GUIDE } from '~/modulos/erp/bank-accounts/movement-spreadsheet'
 import { getMovementSignedAmount, getMovementTypeBadge } from '~/modulos/erp/bank-accounts/movement-columns'
+import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
+import { useBankConcepts } from '~/modulos/erp/bank-concepts/composable/useBankConcepts'
 
 interface Props {
   accountId: string
   accountName: string
   currencyCode: string
+  bankAccountingAccountId?: string | null
   movements: BankAccountMovement[]
 }
 
@@ -39,16 +42,26 @@ interface ReconciliationSuggestion {
 }
 
 const props = defineProps<Props>()
+const emit = defineEmits<{ imported: [] }>()
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
+const { importStatementMovements } = useBankAccounts()
+const { activeConcepts, init: initConcepts } = useBankConcepts()
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileName = ref('')
+const fileHash = ref('')
+const sourceSheetName = ref('')
 const headers = ref<string[]>([])
 const sourceRows = ref<unknown[][]>([])
 const parsing = ref(false)
 const errorMessage = ref('')
 const headerRowNumber = ref(1)
 const savedProfile = ref(false)
+const importing = ref(false)
+const importPage = ref(0)
+const selectedImportRows = ref<number[]>([])
+const conceptByRow = reactive<Record<number, string>>({})
+const importPageSize = 25
 const mapping = reactive<ColumnMapping>({ date: '', description: '', amount: '', debit: '', credit: '', direction: '', reference: '', balance: '' })
 
 const fieldOptions = computed(() => [
@@ -61,6 +74,18 @@ const mappingIsValid = computed(() => Boolean(
   && mapping.description
   && (mapping.amount || mapping.debit || mapping.credit)
 ))
+
+const movementsBySignedCent = computed(() => {
+  const index = new Map<number, BankAccountMovement[]>()
+  for (const movement of props.movements) {
+    if (movement.deleted_at) continue
+    const cents = Math.round(getMovementSignedAmount(movement) * 100)
+    const matches = index.get(cents) ?? []
+    matches.push(movement)
+    index.set(cents, matches)
+  }
+  return index
+})
 
 const normalizedLines = computed<StatementLine[]>(() => sourceRows.value.map((row, index) => {
   const valueFor = (column: string) => {
@@ -103,8 +128,23 @@ const suggestions = computed<ReconciliationSuggestion[]>(() => {
       return { line, status: 'invalid', candidateCount: 0 }
     }
 
+    const importKey = fileHash.value ? `${props.accountId}:${fileHash.value}:${line.rowNumber}` : ''
+    const previouslyImported = importKey
+      ? props.movements.find((movement) => movement.import_key === importKey)
+      : undefined
+    if (previouslyImported) {
+      usedMovementIds.add(previouslyImported.id)
+      return { line, status: 'suggested', movement: previouslyImported, candidateCount: 1 }
+    }
+
     const normalizedReference = normalizeText(line.reference)
-    const matches = props.movements
+    const amountCents = Math.round(line.amount * 100)
+    const amountCandidates = [
+      ...(movementsBySignedCent.value.get(amountCents - 1) ?? []),
+      ...(movementsBySignedCent.value.get(amountCents) ?? []),
+      ...(movementsBySignedCent.value.get(amountCents + 1) ?? [])
+    ]
+    const matches = amountCandidates
       .filter((movement) => {
         if (usedMovementIds.has(movement.id)) return false
         const signedAmount = getMovementSignedAmount(movement)
@@ -141,9 +181,26 @@ const summary = computed(() => ({
 }))
 
 const previewSuggestions = computed(() => suggestions.value.slice(0, 40))
+const unmatchedSuggestions = computed(() => suggestions.value.filter((item) => item.status === 'unmatched'))
+const importPageCount = computed(() => Math.max(1, Math.ceil(unmatchedSuggestions.value.length / importPageSize)))
+const importPageSuggestions = computed(() => unmatchedSuggestions.value.slice(importPage.value * importPageSize, (importPage.value + 1) * importPageSize))
+const importConceptOptions = computed(() => activeConcepts.value
+  .filter((concept: any) => concept.affects_balance && concept.accounting_account?.trim() && !concept.requires_receipt)
+  .map((concept: any) => ({ label: `${concept.code} · ${concept.name} · Cuenta ${concept.accounting_account}`, value: concept.id })))
+const selectedSuggestions = computed(() => unmatchedSuggestions.value.filter((item) => selectedImportRows.value.includes(item.line.rowNumber)))
+const selectedRowsMissingConcept = computed(() => selectedSuggestions.value.filter((item) => !conceptByRow[item.line.rowNumber]).length)
+const allVisibleImportRowsSelected = computed(() => importPageSuggestions.value.length > 0 && importPageSuggestions.value.every((item) => selectedImportRows.value.includes(item.line.rowNumber)))
 
-watch(open, (isOpen) => {
-  if (!isOpen) reset()
+watch(open, async (isOpen) => {
+  if (!isOpen) {
+    reset()
+    return
+  }
+  try {
+    await initConcepts()
+  } catch {
+    // La comparación sigue disponible aunque no se puedan cargar conceptos.
+  }
 })
 
 function normalizeText(value: unknown) {
@@ -258,6 +315,8 @@ async function handleFileSelection(event: Event) {
   sourceRows.value = []
   headers.value = []
   fileName.value = ''
+  fileHash.value = ''
+  sourceSheetName.value = ''
   if (file.size > 10 * 1024 * 1024) {
     errorMessage.value = 'El archivo supera 10 MB. Exportá un período más corto para continuar.'
     if (fileInput.value) fileInput.value.value = ''
@@ -267,27 +326,40 @@ async function handleFileSelection(event: Event) {
   parsing.value = true
   try {
     const XLSX = await import('xlsx')
-    const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true })
-    const sheetName = workbook.SheetNames[0]
-    const sheet = sheetName ? workbook.Sheets[sheetName] : undefined
-    if (!sheet) throw new Error('El archivo no contiene una hoja para leer.')
+    const buffer = await file.arrayBuffer()
+    const digest = await globalThis.crypto?.subtle?.digest('SHA-256', buffer)
+    if (!digest) throw new Error('El navegador no permite calcular la huella de seguridad del archivo.')
+    fileHash.value = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+    const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
+    const guidanceSheets = new Set(['instrucciones', 'guiadetipos', 'guia', 'readme', 'comparacion', 'movimientoscuenta', 'movimientossistema'])
+    let detected: { sheetName: string; allRows: unknown[][]; headerIndex: number; score: number } | null = null
 
-    const allRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '', raw: true, blankrows: false })
-    let bestHeaderIndex = -1
-    let bestScore = 0
-    for (let index = 0; index < Math.min(allRows.length, 30); index += 1) {
-      const rowHeaders = (allRows[index] ?? []).map((cell) => String(cell ?? '').trim())
-      const date = firstMatchingHeader(rowHeaders, ['fecha', 'date'])
-      const description = firstMatchingHeader(rowHeaders, ['descripcion', 'concepto', 'detalle', 'description', 'movement'])
-      const amount = firstMatchingHeader(rowHeaders, ['importe', 'monto', 'amount', 'debito', 'debit', 'credito', 'credit'])
-      const score = Number(Boolean(date)) + Number(Boolean(description)) + Number(Boolean(amount))
-      if (score > bestScore) {
-        bestScore = score
-        bestHeaderIndex = index
+    for (const sheetName of workbook.SheetNames) {
+      if (guidanceSheets.has(normalizeHeader(sheetName))) continue
+      const sheet = workbook.Sheets[sheetName]
+      if (!sheet) continue
+      const allRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '', raw: true, blankrows: true })
+      let headerIndex = -1
+      let score = 0
+      for (let index = 0; index < Math.min(allRows.length, 30); index += 1) {
+        const rowHeaders = (allRows[index] ?? []).map((cell) => String(cell ?? '').trim())
+        const date = firstMatchingHeader(rowHeaders, ['fecha', 'date'])
+        const description = firstMatchingHeader(rowHeaders, ['descripcion', 'concepto', 'detalle', 'description', 'movement'])
+        const amount = firstMatchingHeader(rowHeaders, ['importe', 'monto', 'amount', 'debito', 'debit', 'credito', 'credit'])
+        const candidateScore = Number(Boolean(date)) + Number(Boolean(description)) + Number(Boolean(amount))
+        if (candidateScore > score) {
+          score = candidateScore
+          headerIndex = index
+        }
+      }
+      if (score >= 2 && (!detected || score > detected.score)) {
+        detected = { sheetName, allRows, headerIndex, score }
       }
     }
-    if (bestHeaderIndex < 0 || bestScore < 2) throw new Error('No pude detectar los encabezados. El archivo debe incluir al menos fecha y descripción.')
 
+    if (!detected) throw new Error('No pude detectar una hoja de movimientos. El archivo debe incluir fecha, descripción y un importe o débito/crédito.')
+
+    const { sheetName, allRows, headerIndex: bestHeaderIndex } = detected
     const rawHeaders = (allRows[bestHeaderIndex] ?? []).map((cell, index) => String(cell ?? '').trim() || `Columna ${index + 1}`)
     const seen = new Map<string, number>()
     headers.value = rawHeaders.map((header) => {
@@ -300,6 +372,7 @@ async function handleFileSelection(event: Event) {
     headerRowNumber.value = bestHeaderIndex + 1
     mapColumns(headers.value)
     fileName.value = file.name
+    sourceSheetName.value = sheetName
   } catch (error: any) {
     sourceRows.value = []
     headers.value = []
@@ -335,6 +408,54 @@ function statusColor(status: ReconciliationSuggestion['status']) {
   return status === 'suggested' ? 'success' : status === 'invalid' || status === 'ambiguous' ? 'warning' : 'neutral'
 }
 
+function toggleImportRow(rowNumber: number, checked: boolean) {
+  const next = new Set(selectedImportRows.value)
+  if (checked) next.add(rowNumber)
+  else next.delete(rowNumber)
+  selectedImportRows.value = [...next]
+}
+
+function toggleVisibleImportRows() {
+  if (allVisibleImportRowsSelected.value) {
+    const visible = new Set(importPageSuggestions.value.map((item) => item.line.rowNumber))
+    selectedImportRows.value = selectedImportRows.value.filter((rowNumber) => !visible.has(rowNumber))
+    return
+  }
+  selectedImportRows.value = [...new Set([
+    ...selectedImportRows.value,
+    ...importPageSuggestions.value.map((item) => item.line.rowNumber)
+  ])]
+}
+
+async function registerSelectedMovements() {
+  if (!fileHash.value || !props.bankAccountingAccountId || !selectedSuggestions.value.length || selectedSuggestions.value.length > 50 || selectedRowsMissingConcept.value) return
+  importing.value = true
+  try {
+    const result = await importStatementMovements(props.accountId, {
+      file_hash: fileHash.value,
+      rows: selectedSuggestions.value.map(({ line }) => ({
+        row_number: line.rowNumber,
+        date: line.date,
+        description: line.description,
+        reference: line.reference || undefined,
+        amount: line.amount!,
+        bank_concept_id: conceptByRow[line.rowNumber]!
+      }))
+    })
+    toast.add({
+      title: 'Movimientos registrados',
+      description: `${result.created} nuevos · ${result.already_imported} ya importados. Se actualizó el saldo y se generaron los asientos.`,
+      color: 'success'
+    })
+    selectedImportRows.value = []
+    emit('imported')
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo registrar el extracto', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    importing.value = false
+  }
+}
+
 function formatMoney(amount: number | null) {
   if (amount == null) return '—'
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: props.currencyCode, maximumFractionDigits: 2 }).format(amount)
@@ -343,6 +464,19 @@ function formatMoney(amount: number | null) {
 async function exportComparison() {
   const XLSX = await import('xlsx')
   const workbook = XLSX.utils.book_new()
+  const instructionsSheet = XLSX.utils.aoa_to_sheet([
+    ['Comparación de extracto bancario'],
+    ['Cuenta', props.accountName],
+    ['Moneda', props.currencyCode],
+    ['Hoja de datos', 'Comparación contiene las filas del extracto y el resultado sugerido. Movimientos del sistema contiene los registros ya cargados para esta cuenta.'],
+    ['Lectura', 'Los importes positivos aumentan el saldo de esta cuenta y los negativos lo reducen. La naturaleza diferencia CREDIT de DEBIT.'],
+    ['Resultado', 'Una coincidencia sugerida no modifica registros. Revisá manualmente los pendientes y ambiguos antes de conciliarlos fuera de este reporte.'],
+    ['Efecto en Asterisk Suite', 'Exportar este archivo no agrega movimientos ni modifica el saldo o genera asientos contables.'],
+    ['Reimportación', 'La app ignora las hojas Instrucciones, Guía de tipos y Comparación para buscar una hoja de movimientos compatible.']
+  ])
+  instructionsSheet['!cols'] = [{ wch: 24 }, { wch: 112 }]
+  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instrucciones')
+
   const statementSheet = XLSX.utils.json_to_sheet(suggestions.value.map(({ line, status, movement, candidateCount }) => ({
     Fila: line.rowNumber,
     Fecha: line.date,
@@ -391,31 +525,45 @@ async function exportComparison() {
 
 function reset() {
   fileName.value = ''
+  fileHash.value = ''
+  sourceSheetName.value = ''
   headers.value = []
   sourceRows.value = []
   errorMessage.value = ''
   savedProfile.value = false
+  importing.value = false
+  importPage.value = 0
+  selectedImportRows.value = []
+  for (const key of Object.keys(conceptByRow)) delete conceptByRow[Number(key)]
   Object.assign(mapping, { date: '', description: '', amount: '', debit: '', credit: '', direction: '', reference: '', balance: '' })
 }
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Importar extracto bancario" :ui="{ content: 'sm:max-w-5xl' }">
+  <UModal v-model:open="open" title="Importar y comparar extracto bancario" :ui="{ content: 'sm:max-w-5xl' }">
     <template #body>
       <div class="space-y-5">
         <UAlert
           color="info"
           variant="subtle"
           icon="i-lucide-shield-check"
-          title="Importación de revisión"
-          :description="`El archivo se compara en ${currencyCode} con los movimientos de esta cuenta. Esta vista no agrega movimientos ni modifica el saldo.`"
+          title="Primero compará; después elegí qué registrar"
+          :description="`Comparar no modifica nada. Las filas sin coincidencia se pueden registrar de forma explícita: actualizan el saldo de ${accountName}, usan el concepto contable elegido y generan un asiento balanceado. Se procesan hasta 50 filas por envío.`"
+        />
+        <UAlert
+          v-if="!bankAccountingAccountId"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-landmark"
+          title="Falta configurar la cuenta contable del banco"
+          description="Asigná una cuenta activa de tipo Activo en la configuración de esta cuenta bancaria para habilitar el registro con asiento."
         />
 
         <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default p-4">
           <div>
             <p class="font-medium">{{ accountName }}</p>
-            <p class="text-sm text-muted">{{ currencyCode }} · CSV o Excel de cualquier banco</p>
-            <p v-if="fileName" class="mt-1 text-xs text-muted">Archivo: {{ fileName }}</p>
+            <p class="text-sm text-muted">Esta cuenta · {{ currencyCode }} · CSV o Excel de cualquier banco</p>
+            <p v-if="fileName" class="mt-1 text-xs text-muted">Archivo: {{ fileName }}<span v-if="sourceSheetName"> · Hoja leída: {{ sourceSheetName }}</span></p>
           </div>
           <label class="inline-flex cursor-pointer items-center gap-2 rounded-md border border-default px-3 py-2 text-sm font-medium hover:bg-elevated">
             <UIcon name="i-lucide-upload" class="size-4" /> Elegir archivo
@@ -464,6 +612,70 @@ function reset() {
             <UPageCard variant="subtle"><p class="text-xs text-muted">Filas para revisar</p><p class="text-xl font-semibold text-warning">{{ summary.invalid }}</p></UPageCard>
           </div>
 
+          <section v-if="mappingIsValid && unmatchedSuggestions.length" class="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="font-semibold">Registrar movimientos sin coincidencia</h3>
+                <p class="text-sm text-muted">Elegí las filas que faltan y asigná un concepto contable a cada una. Las coincidencias ambiguas quedan para revisión manual.</p>
+              </div>
+              <div class="text-right text-sm text-muted">
+                <p>{{ selectedSuggestions.length }} seleccionados · máximo 50</p>
+                <p v-if="selectedRowsMissingConcept" class="text-warning">{{ selectedRowsMissingConcept }} sin concepto</p>
+              </div>
+            </div>
+
+            <UAlert
+              v-if="!importConceptOptions.length"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-list-checks"
+              description="No hay conceptos activos con cuenta contable y efecto en saldo. Configuralos en Conceptos bancarios antes de importar."
+            />
+
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                :label="allVisibleImportRowsSelected ? 'Quitar selección de esta página' : 'Seleccionar esta página'"
+                :disabled="!importPageSuggestions.length || !importConceptOptions.length"
+                @click="toggleVisibleImportRows"
+              />
+              <div class="flex items-center gap-2 text-sm text-muted">
+                <span>Página {{ importPage + 1 }} de {{ importPageCount }}</span>
+                <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-chevron-left" :disabled="importPage === 0" aria-label="Página anterior" @click="importPage -= 1" />
+                <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-chevron-right" :disabled="importPage + 1 >= importPageCount" aria-label="Página siguiente" @click="importPage += 1" />
+              </div>
+            </div>
+
+            <div class="max-h-80 space-y-2 overflow-y-auto pr-1">
+              <article v-for="suggestion in importPageSuggestions" :key="suggestion.line.rowNumber" class="grid gap-3 rounded-lg border border-default bg-default/70 p-3 md:grid-cols-[auto_minmax(0,1fr)_minmax(16rem,0.9fr)] md:items-center">
+                <UCheckbox
+                  :model-value="selectedImportRows.includes(suggestion.line.rowNumber)"
+                  :disabled="!bankAccountingAccountId || !importConceptOptions.length"
+                  :aria-label="`Seleccionar fila ${suggestion.line.rowNumber}`"
+                  @update:model-value="value => toggleImportRow(suggestion.line.rowNumber, Boolean(value))"
+                />
+                <div class="min-w-0">
+                  <p class="text-xs text-muted">Fila {{ suggestion.line.rowNumber }} · {{ suggestion.line.date }}<span v-if="suggestion.line.reference"> · Ref. {{ suggestion.line.reference }}</span></p>
+                  <p class="truncate text-sm font-medium">{{ suggestion.line.description }}</p>
+                  <p class="text-sm font-semibold tabular-nums" :class="(suggestion.line.amount ?? 0) < 0 ? 'text-error' : 'text-success'">{{ formatMoney(suggestion.line.amount) }}</p>
+                </div>
+                <USelectMenu
+                  v-model="conceptByRow[suggestion.line.rowNumber]"
+                  :items="importConceptOptions"
+                  value-key="value"
+                  searchable
+                  placeholder="Elegir concepto y cuenta"
+                  class="w-full"
+                  :disabled="!bankAccountingAccountId || !importConceptOptions.length"
+                />
+              </article>
+            </div>
+
+            <p class="text-xs text-muted">Se usa la cotización oficial configurada para la fecha del movimiento cuando la cuenta no opera en la moneda base. Si volvés a importar el mismo archivo, las filas ya registradas no se duplican.</p>
+          </section>
+
           <div v-if="mappingIsValid" class="space-y-2">
             <h3 class="font-semibold">Vista previa de comparación <span class="text-sm font-normal text-muted">(primeras {{ previewSuggestions.length }} filas)</span></h3>
             <div class="max-h-80 space-y-2 overflow-y-auto pr-1">
@@ -487,6 +699,14 @@ function reset() {
         <div class="flex flex-wrap justify-end gap-2 border-t border-default pt-4">
           <UButton label="Cerrar" color="neutral" variant="ghost" @click="open = false" />
           <UButton v-if="mappingIsValid && summary.total" label="Exportar comparación y guía" icon="i-lucide-file-spreadsheet" @click="exportComparison" />
+          <UButton
+            v-if="mappingIsValid && unmatchedSuggestions.length"
+            label="Registrar seleccionados"
+            icon="i-lucide-file-check-2"
+            :loading="importing"
+            :disabled="!bankAccountingAccountId || !selectedSuggestions.length || selectedSuggestions.length > 50 || selectedRowsMissingConcept"
+            @click="registerSelectedMovements"
+          />
         </div>
       </div>
     </template>

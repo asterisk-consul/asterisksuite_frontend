@@ -5,13 +5,59 @@ const apiFetch = <T>(request: string, options?: any): Promise<T> =>
 
 export interface CommissionSeller {
   id: string
+  seller_type: 'EMPLOYEE' | 'PARTNER'
   name: string
+  party_id: string | null
   default_commission_rate: number
   commission_base: 'INVOICED' | 'PAID'
 }
 
+export interface CommissionSettlementReport {
+  month: string
+  sellers: Array<{
+    seller_id: string
+    seller_type: 'EMPLOYEE' | 'PARTNER'
+    seller_name: string
+    party_id: string | null
+    currency_code: string
+    total_ventas: number
+    total_comisiones: number
+    total_participacion: number
+    total_pendiente: number
+    cantidad_ov: number
+    items: Array<{
+      kind: 'COMMISSION' | 'PARTNER_SHARE'
+      document_id: string
+      ov_number: number
+      subtotal: number
+      sold_subtotal: number
+      settled_amount: number
+      commission_rate?: number
+      share_percentage?: number
+      commission_amount: number
+      commission_base: 'INVOICED' | 'PAID' | 'ORDER'
+      participation_rate: number
+      date: string
+    }>
+  }>
+  totals_by_currency: Array<{
+    currency_code: string
+    total_ventas: number
+    total_comisiones: number
+    total_participacion: number
+    total_pendiente: number
+    cantidad_ov: number
+  }>
+  total_ventas: number
+  total_comisiones: number
+  total_participacion: number
+  total_pendiente: number
+  cantidad_ov: number
+}
+
 export interface CommissionAssignment {
   seller_id: string
+  seller_type: 'EMPLOYEE' | 'PARTNER'
   seller_name?: string
   participation_rate: number
   commission_rate: number
@@ -51,6 +97,22 @@ export const HrService = {
 
   async getPartnerFunds(partyId: string, currencyCode: string): Promise<any> {
     return apiFetch<any>(`/api/backend/hr/partners/${partyId}/funds`, { query: { currency_code: currencyCode } })
+  },
+
+  async getPartnerInvestmentPlans(partnerId: string): Promise<any[]> {
+    return apiFetch<any[]>(`/api/backend/hr/partners/${partnerId}/investment-plans`)
+  },
+
+  async createPartnerInvestmentPlan(partnerId: string, body: {
+    idempotency_key: string
+    currency_code: string
+    description?: string
+    installments: Array<{ due_date: string; amount: number }>
+  }): Promise<any> {
+    return apiFetch<any>(`/api/backend/hr/partners/${partnerId}/investment-plans`, {
+      method: 'POST' as any,
+      body
+    })
   },
   // ══════════════════════════════════════════════════════════
   // VALES
@@ -121,41 +183,18 @@ export const HrService = {
 
   async getCommissionsReport(
     month: string,
-    sellerId?: string
-  ): Promise<{
-    month: string
-    sellers: {
-      seller_id: string
-      seller_name: string
-      party_id: string | null
-      total_ventas: number
-      total_comisiones: number
-      cantidad_ov: number
-      items: {
-        document_id: string
-        ov_number: number
-        subtotal: number
-        sold_subtotal: number
-        settled_amount: number
-        commission_rate: number
-        commission_amount: number
-        commission_base: 'INVOICED' | 'PAID'
-        date: string
-      }[]
-    }[]
-    total_ventas: number
-    total_comisiones: number
-    cantidad_ov: number
-  }> {
-    return apiFetch<any>('/api/backend/hr/commissions', {
-      query: { month, seller_id: sellerId }
+    sellerId?: string,
+    sellerType: 'EMPLOYEE' | 'PARTNER' = 'EMPLOYEE'
+  ): Promise<CommissionSettlementReport> {
+    return apiFetch<CommissionSettlementReport>('/api/backend/hr/commissions', {
+      query: { month, seller_id: sellerId, seller_type: sellerType }
     })
   },
 
-  async generateCommissionVale(sellerId: string, month: string): Promise<any> {
+  async generateCommissionVale(sellerId: string, month: string, sellerType: 'EMPLOYEE' | 'PARTNER' = 'EMPLOYEE', currencyCode?: string): Promise<any> {
     return apiFetch<any>('/api/backend/hr/commissions/vale', {
       method: 'POST' as any,
-      body: { seller_id: sellerId, month }
+      body: { seller_id: sellerId, seller_type: sellerType, month, currency_code: currencyCode }
     })
   },
 

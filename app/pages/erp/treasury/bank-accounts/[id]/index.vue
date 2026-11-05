@@ -146,6 +146,10 @@ async function openMovementDetails(movement: BankAccountMovement) {
   }
 }
 
+async function refreshAfterStatementImport() {
+  await Promise.all([fetchOne(accountId), fetchMovements(accountId)])
+}
+
 const movementChecks = computed(() => {
   const payment = selectedMovementDetails.value?.payment
   const checksById = new Map<string, { check: any; amountApplied?: number }>()
@@ -342,8 +346,8 @@ async function exportMovements() {
             color="neutral"
             @click="() => { showCancelledMovements = !showCancelledMovements }"
           />
-            <UButton label="Importar extracto" icon="i-lucide-upload" size="xs" color="neutral" variant="outline" @click="statementImportOpen = true" />
-            <UButton label="Exportar Excel" icon="i-lucide-file-spreadsheet" size="xs" color="neutral" variant="outline" :loading="exportingMovements" :disabled="exportingMovements || !visibleMovements.length" @click="exportMovements" />
+            <UButton label="Comparar extracto" icon="i-lucide-upload" size="xs" color="neutral" variant="outline" @click="statementImportOpen = true" />
+            <UButton label="Exportar movimientos" icon="i-lucide-file-spreadsheet" size="xs" color="neutral" variant="outline" :loading="exportingMovements" :disabled="exportingMovements || !visibleMovements.length" @click="exportMovements" />
           </div>
         </div>
       </template>
@@ -371,7 +375,7 @@ async function exportMovements() {
         </div>
         <div v-else-if="selectedMovementDetails" class="space-y-5">
           <section class="grid gap-3 rounded-xl border border-default bg-elevated/40 p-4 sm:grid-cols-3">
-            <div><p class="text-xs text-muted">Movimiento</p><UBadge v-if="selectedMovementBadge" :color="selectedMovementBadge.color as any" variant="subtle">{{ selectedMovementBadge.label }}</UBadge></div>
+            <div><p class="text-xs text-muted">Movimiento</p><div class="flex flex-wrap items-center gap-2"><UBadge v-if="selectedMovementBadge" :color="selectedMovementBadge.color as any" variant="subtle">{{ selectedMovementBadge.label }}</UBadge><UBadge v-if="selectedMovementDetails.deleted_at" color="error" variant="subtle">Anulado</UBadge></div></div>
             <div><p class="text-xs text-muted">Fecha de operación</p><p class="font-medium">{{ formatDate(selectedMovementDetails.date) }}</p></div>
             <div><p class="text-xs text-muted">Importe</p><p class="font-semibold" :class="getMovementSignedAmount(selectedMovementDetails) >= 0 ? 'text-success' : 'text-error'">{{ formatCurrency(Math.abs(getMovementSignedAmount(selectedMovementDetails)), selectedMovementDetails.currency_code) }}</p></div>
             <div><p class="text-xs text-muted">Referencia</p><p class="font-medium break-all">{{ selectedMovementDetails.reference || '—' }}</p></div>
@@ -418,6 +422,37 @@ async function exportMovements() {
             </div>
           </section>
 
+          <section v-if="selectedMovementDetails.accounting_entry" class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h4 class="font-semibold">Asiento contable</h4>
+              <UBadge :color="selectedMovementDetails.accounting_entry.reversed_at ? 'warning' : 'success'" variant="subtle">
+                {{ selectedMovementDetails.accounting_entry.reversed_at ? 'Revertido' : 'Activo' }}
+              </UBadge>
+            </div>
+            <p class="text-sm text-muted">
+              {{ formatDate(selectedMovementDetails.accounting_entry.entry_date) }} ·
+              {{ selectedMovementDetails.accounting_entry.description }}
+              <span v-if="selectedMovementDetails.accounting_entry.exchange_rate && Number(selectedMovementDetails.accounting_entry.exchange_rate) !== 1">
+                · Cotización {{ selectedMovementDetails.accounting_entry.exchange_rate }} {{ selectedMovementDetails.accounting_entry.currency_code }} / moneda base
+              </span>
+            </p>
+            <div class="space-y-2">
+              <div v-for="line in selectedMovementDetails.accounting_entry.lines" :key="line.id" class="grid gap-2 rounded-lg border border-default px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_9rem_9rem] sm:items-center">
+                <span class="min-w-0"><strong>{{ line.account.code }}</strong> · {{ line.account.name }}</span>
+                <span class="text-muted">Debe {{ formatCurrency(line.debit, line.currency_code) }}</span>
+                <span class="text-muted">Haber {{ formatCurrency(line.credit, line.currency_code) }}</span>
+              </div>
+            </div>
+            <div v-if="selectedMovementDetails.accounting_entry.reversal" class="rounded-lg border border-warning/25 bg-warning/5 p-3">
+              <p class="mb-2 text-sm font-medium">Asiento inverso · {{ formatDate(selectedMovementDetails.accounting_entry.reversal.entry_date) }}</p>
+              <div v-for="line in selectedMovementDetails.accounting_entry.reversal.lines" :key="line.id" class="grid gap-2 py-1 text-sm sm:grid-cols-[minmax(0,1fr)_9rem_9rem]">
+                <span><strong>{{ line.account.code }}</strong> · {{ line.account.name }}</span>
+                <span class="text-muted">Debe {{ formatCurrency(line.debit, line.currency_code) }}</span>
+                <span class="text-muted">Haber {{ formatCurrency(line.credit, line.currency_code) }}</span>
+              </div>
+            </div>
+          </section>
+
           <section v-if="!selectedMovementDetails.payment && movementChecks.length" class="space-y-2">
             <h4 class="font-semibold">Cheque asociado</h4>
             <article v-for="item in movementChecks" :key="item.check.id" class="grid gap-3 rounded-xl border border-info/25 bg-info/5 p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -456,7 +491,9 @@ async function exportMovements() {
       :account-id="accountId"
       :account-name="`${account.bank_name} · ${account.name}`"
       :currency-code="account.currency_code"
+      :bank-account-accounting-id="account.accounting_account_id"
       :movements="visibleMovements"
+      @imported="refreshAfterStatementImport"
     />
 
     <RegisterBankMovementModal

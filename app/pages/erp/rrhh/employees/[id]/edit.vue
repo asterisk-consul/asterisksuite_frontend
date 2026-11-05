@@ -52,6 +52,7 @@ const handleSubmit = async (form: FormType) => {
     <BusinessPartyForm
       v-else-if="formData"
       :model-value="formData"
+      :allowed-types="['EMPLOYEE']"
       :loading="saving"
       :error="store.error"
       header-title="Editar Empleado"

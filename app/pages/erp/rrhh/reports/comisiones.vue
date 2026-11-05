@@ -57,10 +57,10 @@ function toggleSeller(sellerId: string) {
   }
 }
 
-async function generateVale(sellerId: string, sellerName: string) {
+async function generateVale(sellerId: string, sellerName: string, sellerType: 'EMPLOYEE' | 'PARTNER' = 'EMPLOYEE') {
   generating.value = true
   try {
-    const vale = await hrStore.generateCommissionVale(sellerId, currentMonth.value)
+      const vale = await hrStore.generateCommissionVale(sellerId, currentMonth.value, sellerType)
     toast.add({
       title: `Vale COMISION #${vale.number} generado`,
       description: `${sellerName} — ${fmt(vale.amount)}`,
@@ -86,7 +86,7 @@ async function generateAllVales() {
 
   for (const seller of report.value.sellers) {
     try {
-      const vale = await hrStore.generateCommissionVale(seller.seller_id, currentMonth.value)
+      const vale = await hrStore.generateCommissionVale(seller.seller_id, currentMonth.value, seller.seller_type)
       created++
       total += Number(vale.amount)
     } catch (e: any) {
@@ -174,19 +174,19 @@ watch([currentMonth, selectedSellerId], () => loadReport())
     <div v-if="report?.sellers?.length" class="space-y-4">
       <div
         v-for="seller in report.sellers"
-        :key="seller.seller_id"
+        :key="`${seller.seller_type}:${seller.seller_id}`"
         class="border border-default rounded-lg overflow-hidden"
       >
         <!-- Header del vendedor -->
         <div
           class="flex items-center justify-between p-4 bg-default hover:bg-muted/50 cursor-pointer"
-          @click="toggleSeller(seller.seller_id)"
+          @click="toggleSeller(`${seller.seller_type}:${seller.seller_id}`)"
         >
           <div class="flex items-center gap-4">
             <UIcon
               name="i-lucide-chevron-right"
               class="size-4 transition-transform"
-              :class="{ 'rotate-90': expandedSellers.has(seller.seller_id) }"
+              :class="{ 'rotate-90': expandedSellers.has(`${seller.seller_type}:${seller.seller_id}`) }"
             />
             <div>
               <p class="font-semibold">{{ seller.seller_name }}</p>
@@ -205,13 +205,13 @@ watch([currentMonth, selectedSellerId], () => loadReport())
               variant="outline"
               size="sm"
               :loading="generating"
-              @click.stop="generateVale(seller.seller_id, seller.seller_name)"
+              @click.stop="generateVale(seller.seller_id, seller.seller_name, seller.seller_type)"
             />
           </div>
         </div>
 
         <!-- Detalle expandible -->
-        <div v-if="expandedSellers.has(seller.seller_id)" class="border-t border-default">
+        <div v-if="expandedSellers.has(`${seller.seller_type}:${seller.seller_id}`)" class="border-t border-default">
           <table class="w-full text-sm">
             <thead>
               <tr class="bg-muted/30">

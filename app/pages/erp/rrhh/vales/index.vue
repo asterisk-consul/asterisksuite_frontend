@@ -10,6 +10,7 @@ import {
 import type { HrVale } from '~/modulos/erp/hr/types/hr.types'
 import type { TableFilter } from '~/components/Tablas/types/tablas.types'
 import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
+import PartnerInvestmentPlanModal from '~/modulos/erp/hr/components/PartnerInvestmentPlanModal.vue'
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
@@ -34,8 +35,10 @@ const dateTo = ref('')
 const advancedFilters = ref<TableFilter[]>([])
 
 const showCreateModal = ref(false)
+const showInvestmentPlanModal = ref(false)
 const showCancelModal = ref(false)
 const showCommissionModal = ref(false)
+const loadingCommissionValeId = ref<string | null>(null)
 const selectedVale = ref<HrVale | null>(null)
 const cancellingVale = ref<HrVale | null>(null)
 const cancelConfirmText = ref('')
@@ -201,9 +204,16 @@ function closeReconciliation() {
   valeToReconcile.value = null
 }
 
-function openCommissionDetails(vale: HrVale) {
-  selectedVale.value = vale
-  showCommissionModal.value = true
+async function openCommissionDetails(vale: HrVale) {
+  loadingCommissionValeId.value = vale.id
+  try {
+    selectedVale.value = await HrService.getVale(vale.id)
+    showCommissionModal.value = true
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo cargar el detalle del vale', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    loadingCommissionValeId.value = null
+  }
 }
 
 function closeCancelModal() {
@@ -223,6 +233,10 @@ function closeTreasuryModal() {
 
 function openCreateModal() {
   showCreateModal.value = true
+}
+
+function openInvestmentPlanModal() {
+  showInvestmentPlanModal.value = true
 }
 
 function payVale(vale: HrVale) {
@@ -272,7 +286,9 @@ function matchesValeType(vale: HrVale, query: string) {
   const labels = [
     type,
     HR_VALE_TYPE_LABELS[type],
-    vale.party_type === 'PARTNER' ? partnerValeTypeLabels[type] : undefined
+    vale.party_type === 'PARTNER'
+      ? vale.partner_kind === 'INVESTOR' && type === 'RETIRO' ? 'Devolución de inversión' : partnerValeTypeLabels[type]
+      : undefined
   ]
 
   return labels.some(label => normalizeTypeSearch(label).includes(query))
@@ -302,7 +318,9 @@ const columns = build([
     meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } },
     cell: ({ row }) => {
       const vale = row.original
-      const partyType = vale.party_type === 'PARTNER' ? 'Socio' : 'Empleado'
+      const partyType = vale.party_type === 'PARTNER'
+        ? vale.partner_kind === 'INVESTOR' ? 'Inversionista' : 'Socio'
+        : 'Empleado'
       return h('div', { class: 'min-w-36' }, [
         h('div', { class: 'font-medium' }, vale.party?.name ?? '-'),
         h('div', { class: 'text-xs text-muted' }, [partyType, vale.party?.tax_id ? ` · CUIT ${vale.party.tax_id}` : ''].join(''))
@@ -348,7 +366,7 @@ const columns = build([
     badge: {
       resolve: (vale) => ({
         label: vale.party_type === 'PARTNER'
-          ? ({ SUELDO: 'Remuneración por trabajo', APORTE: 'Aporte de fondos', RETIRO: 'Retiro de aportes', PRESTAMO: 'Préstamo al socio' } as Record<string, string>)[vale.type] ?? HR_VALE_TYPE_LABELS[vale.type] ?? vale.type
+          ? ({ SUELDO: 'Remuneración por trabajo', APORTE: 'Aporte de fondos', RETIRO: vale.partner_kind === 'INVESTOR' ? 'Devolución de inversión' : 'Retiro de aportes', PRESTAMO: 'Préstamo al socio' } as Record<string, string>)[vale.type] ?? HR_VALE_TYPE_LABELS[vale.type] ?? vale.type
           : HR_VALE_TYPE_LABELS[vale.type] ?? vale.type,
         color: HR_VALE_TYPE_COLORS[vale.type] as any
       })
@@ -409,12 +427,13 @@ const columns = build([
     cell: ({ row }) => {
       const vale = row.original
       return h('div', { class: 'flex gap-1' }, [
-        vale.commission_details?.length
+        vale.type === 'COMISION'
           ? h(UButton, {
               icon: 'i-lucide-list',
               variant: 'ghost',
               color: 'info',
               size: 'sm',
+              loading: loadingCommissionValeId.value === vale.id,
               onClick: () => openCommissionDetails(vale)
             })
           : null,
@@ -489,6 +508,7 @@ const sortFields = [
   <UPage class="space-y-6 px-4">
     <AppPageHeader title="Vales RRHH" description="Comprobantes internos de empleados y socios">
       <template #links>
+        <UButton label="Programar devolución" icon="i-lucide-calendar-clock" color="neutral" variant="outline" @click="openInvestmentPlanModal" />
         <UButton data-global-create-shortcut data-hide-global-create-control class="group/create" label="Nuevo vale" icon="i-lucide-plus" aria-keyshortcuts="Alt+N" @click="openCreateModal">
           <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
         </UButton>
@@ -530,6 +550,11 @@ const sortFields = [
     <!-- ========================= -->
     <CreateValeModal
       v-model:open="showCreateModal"
+      @success="loadVales"
+    />
+
+    <PartnerInvestmentPlanModal
+      v-model:open="showInvestmentPlanModal"
       @success="loadVales"
     />
 
@@ -653,19 +678,21 @@ const sortFields = [
         <div class="p-6 space-y-4">
           <div class="flex items-center justify-between">
             <div>
-              <h2 class="text-lg font-semibold">Detalle de comisiones</h2>
+              <h2 class="text-lg font-semibold">Detalle de liquidación</h2>
               <p class="text-sm text-muted mt-1">
                 Vale #{{ selectedVale?.number }} — {{ selectedVale?.party?.name }}
               </p>
             </div>
             <UBadge
-              :label="`${selectedVale?.commission_details?.length ?? 0} OV`"
+              :label="`${selectedVale?.commission_details?.length ?? 0} comisiones · ${selectedVale?.partner_share_details?.length ?? 0} participaciones`"
               color="primary"
               variant="subtle"
             />
           </div>
 
-          <div v-if="selectedVale?.commission_details?.length" class="border border-default rounded-lg overflow-hidden">
+          <div v-if="selectedVale?.commission_details?.length" class="space-y-2">
+            <h3 class="font-medium">Comisiones por venta</h3>
+            <div class="border border-default rounded-lg overflow-hidden">
             <table class="w-full text-sm">
               <thead>
                 <tr class="bg-muted/30">
@@ -685,18 +712,44 @@ const sortFields = [
                   <td class="px-4 py-2 text-right font-semibold">{{ fmt(Number(detail.commission_amount)) }}</td>
                 </tr>
               </tbody>
-              <tfoot>
-                <tr class="bg-muted/20 font-semibold">
-                  <td colspan="3" class="px-4 py-2">Total</td>
-                  <td class="px-4 py-2 text-right"></td>
-                  <td class="px-4 py-2 text-right text-primary">{{ fmt(Number(selectedVale?.amount ?? 0)) }}</td>
-                </tr>
-              </tfoot>
             </table>
+            </div>
           </div>
 
-          <div v-else class="text-center py-8 text-muted">
+          <div v-if="selectedVale?.partner_share_details?.length" class="space-y-2">
+            <h3 class="font-medium">Participación societaria</h3>
+            <div class="border border-default rounded-lg overflow-hidden">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-muted/30">
+                    <th class="text-left px-4 py-2 font-medium">OV #</th>
+                    <th class="text-left px-4 py-2 font-medium">Fecha</th>
+                    <th class="text-right px-4 py-2 font-medium">Base neta</th>
+                    <th class="text-right px-4 py-2 font-medium">Regla</th>
+                    <th class="text-right px-4 py-2 font-medium">Participación %</th>
+                    <th class="text-right px-4 py-2 font-medium">Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="detail in selectedVale.partner_share_details" :key="detail.id" class="border-t border-default">
+                    <td class="px-4 py-2 font-mono">OV-{{ String(detail.document?.number ?? 0).padStart(8, '0') }}</td>
+                    <td class="px-4 py-2">{{ fmtDate(detail.date) }}</td>
+                    <td class="px-4 py-2 text-right">{{ fmtCurrency(Number(detail.base_amount), selectedVale?.currency_code) }}</td>
+                    <td class="px-4 py-2 text-right">{{ detail.calculation_basis === 'ORDER' ? 'OV' : 'Facturado' }}</td>
+                    <td class="px-4 py-2 text-right">{{ detail.share_percentage }}%</td>
+                    <td class="px-4 py-2 text-right font-semibold">{{ fmtCurrency(Number(detail.share_amount), selectedVale?.currency_code) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div v-if="!selectedVale?.commission_details?.length && !selectedVale?.partner_share_details?.length" class="text-center py-8 text-muted">
             Este vale no tiene detalles de comisiones.
+          </div>
+
+          <div v-else class="flex justify-end border-t border-default pt-3 font-semibold">
+            Total del vale: {{ fmtCurrency(Number(selectedVale?.amount ?? 0), selectedVale?.currency_code) }}
           </div>
 
           <div class="flex justify-end pt-3 border-t border-default">

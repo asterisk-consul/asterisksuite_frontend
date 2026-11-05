@@ -44,14 +44,37 @@ export const partnerColumns = (actions: {
         sortable: true
       },
       {
+        key: 'partner_kind',
+        label: 'Perfil',
+        sortable: true,
+        badge: {
+          resolve: (row) => ({
+            label: row.partner_kind === 'INVESTOR' ? 'Inversionista' : 'Socio',
+            color: row.partner_kind === 'INVESTOR' ? 'info' as BadgeColor : 'primary' as BadgeColor
+          })
+        },
+        meta: {
+          filter: {
+            type: 'select',
+            operators: ['equals'],
+            options: [
+              { label: 'Socio', value: 'PARTNER' },
+              { label: 'Inversionista', value: 'INVESTOR' }
+            ]
+          }
+        }
+      },
+      {
         key: 'share_percentage',
         label: '% Participación',
-        sortable: true
+        sortable: true,
+        cell: ({ row }) => row.original.partner_kind === 'INVESTOR' ? '—' : `${row.original.share_percentage ?? '—'}${row.original.share_percentage ? '%' : ''}`
       },
       {
         key: 'capital_contributed',
         label: 'Capital',
-        sortable: true
+        sortable: true,
+        cell: ({ row }) => row.original.partner_kind === 'INVESTOR' ? 'Por movimientos' : row.original.capital_contributed ?? '—'
       },
       {
         key: 'user',

@@ -28,29 +28,36 @@ const rows = ref<CommissionAssignment[]>([])
 
 const ALL_SELLERS = '__all__'
 const filterSeller = ref<string>(ALL_SELLERS)
+const sellerIdentity = (seller: { seller_type: 'EMPLOYEE' | 'PARTNER'; seller_id: string }) =>
+  `${seller.seller_type}:${seller.seller_id}`
 
+const commissionSellerOptions = computed(() => sellers.value.map((item) => ({
+    label: `${item.name} · ${item.seller_type === 'PARTNER' ? 'Socio' : 'Empleado'}`,
+    value: `${item.seller_type}:${item.id}`
+  })))
 const sellerOptions = computed(() => [
   { label: 'Todos los vendedores', value: ALL_SELLERS, icon: 'i-lucide-users' },
-  ...sellers.value.map((item) => ({ label: item.name, value: item.id }))
+  ...commissionSellerOptions.value,
 ])
-const participation = computed(() => rows.value.reduce((sum, item) => sum + Number(item.participation_rate || 0), 0))
 const pending = computed(() => documents.value.filter((item) => !item.assignments.length).length)
 
 const filteredDocuments = computed(() => {
   if (!filterSeller.value || filterSeller.value === ALL_SELLERS) return documents.value
   return documents.value.filter((item) =>
-    item.assignments.some((assignment) => assignment.seller_id === filterSeller.value)
+    item.assignments.some((assignment) => sellerIdentity(assignment) === filterSeller.value)
   )
 })
 
 /** Resumen de comisiones por vendedor en el período (todas las OVs, sin filtro). */
 const sellerSummary = computed(() => {
-  const map = new Map<string, { seller_id: string; name: string; accrued: number; settled: number; pending: number }>()
+  const map = new Map<string, { seller_id: string; seller_type: 'EMPLOYEE' | 'PARTNER'; name: string; accrued: number; settled: number; pending: number }>()
   for (const document of documents.value) {
     for (const assignment of document.assignments) {
-      const entry = map.get(assignment.seller_id) ?? {
+      const key = sellerIdentity(assignment)
+      const entry = map.get(key) ?? {
         seller_id: assignment.seller_id,
-        name: assignment.seller_name || 'Vendedor',
+        seller_type: assignment.seller_type,
+        name: `${assignment.seller_name || 'Vendedor'} · ${assignment.seller_type === 'PARTNER' ? 'Socio' : 'Empleado'}`,
         accrued: 0,
         settled: 0,
         pending: 0
@@ -58,7 +65,7 @@ const sellerSummary = computed(() => {
       entry.accrued += Number(assignment.accrued_amount ?? 0)
       entry.settled += Number(assignment.settled_amount ?? 0)
       entry.pending += Number(assignment.pending_amount ?? 0)
-      map.set(assignment.seller_id, entry)
+      map.set(key, entry)
     }
   }
   return [...map.values()]
@@ -118,7 +125,8 @@ async function load() {
 function defaults(seller?: CommissionSeller): CommissionAssignment {
   return {
     seller_id: seller?.id ?? '',
-    participation_rate: rows.value.length ? 0 : 100,
+    seller_type: seller?.seller_type ?? 'EMPLOYEE',
+    participation_rate: 100,
     commission_rate: Number(seller?.default_commission_rate ?? 0),
     commission_base: seller?.commission_base ?? 'INVOICED'
   }
@@ -141,8 +149,8 @@ function openAssignments(document: CommissionableDocument) {
 }
 
 function addSeller() {
-  const used = new Set(rows.value.map((item) => item.seller_id))
-  const seller = sellers.value.find((item) => !used.has(item.id))
+  const used = new Set(rows.value.map((item) => sellerIdentity(item)))
+  const seller = sellers.value.find((item) => !used.has(`${item.seller_type}:${item.id}`))
   if (!seller) {
     toast.add({ title: 'No quedan vendedores disponibles', color: 'warning' })
     return
@@ -151,10 +159,17 @@ function addSeller() {
 }
 
 function applySellerDefaults(row: CommissionAssignment) {
-  const seller = sellers.value.find((item) => item.id === row.seller_id)
+  const seller = sellers.value.find((item) => item.id === row.seller_id && item.seller_type === row.seller_type)
   if (!seller) return
   row.commission_rate = Number(seller.default_commission_rate ?? 0)
   row.commission_base = seller.commission_base ?? 'INVOICED'
+}
+
+function setAssignmentSeller(row: CommissionAssignment, key: string) {
+  const [sellerType, sellerId] = key.split(':', 2)
+  row.seller_type = sellerType === 'PARTNER' ? 'PARTNER' : 'EMPLOYEE'
+  row.seller_id = sellerId ?? ''
+  applySellerDefaults(row)
 }
 
 async function save() {
@@ -163,12 +178,19 @@ async function save() {
     toast.add({ title: 'Seleccioná todos los vendedores', color: 'warning' })
     return
   }
-  if (new Set(rows.value.map((item) => item.seller_id)).size !== rows.value.length) {
+  if (new Set(rows.value.map(sellerIdentity)).size !== rows.value.length) {
     toast.add({ title: 'Un vendedor no puede repetirse', color: 'warning' })
     return
   }
-  if (Math.abs(participation.value - 100) > 0.01) {
-    toast.add({ title: 'La participación debe sumar 100%', color: 'warning' })
+  if (rows.value.some((item) =>
+    !Number.isFinite(Number(item.participation_rate))
+    || !Number.isFinite(Number(item.commission_rate))
+    || Number(item.participation_rate) < 0.01
+    || Number(item.participation_rate) > 100
+    || Number(item.commission_rate) < 0
+    || Number(item.commission_rate) > 100
+  )) {
+    toast.add({ title: 'La participación debe ser mayor que 0% y hasta 100%; la comisión puede ser de 0% a 100%', color: 'warning' })
     return
   }
   saving.value = true
@@ -187,10 +209,10 @@ async function save() {
 async function generate(seller: any) {
   generating.value = true
   try {
-    const vale = await HrService.generateCommissionVale(seller.seller_id, month.value)
+    const vale = await HrService.generateCommissionVale(seller.seller_id, month.value, seller.seller_type, seller.currency_code)
     toast.add({
       title: `Vale COMISION #${vale.number} generado`,
-      description: `${seller.seller_name} · ${money(vale.amount)}`,
+      description: `${seller.seller_name} · ${money(vale.amount, seller.currency_code)}`,
       color: 'success'
     })
     await load()
@@ -209,7 +231,7 @@ onMounted(load)
   <UPage class="space-y-6 px-4">
     <AppPageHeader
       title="Comisiones de ventas"
-      description="Asigná vendedores desde RRHH y liquidá según la facturación o los cobros reales."
+      description="Asigná vendedores y liquidá sus comisiones y la participación societaria según la configuración de ventas."
     />
 
     <div class="flex flex-wrap items-end justify-between gap-4">
@@ -239,27 +261,27 @@ onMounted(load)
         variant="subtle"
         icon="i-lucide-info"
         title="La OV ya no define comisiones"
-        description="Elegí aquí los vendedores, su participación y la tasa. La regla inicial por facturación o cobro se toma del empleado."
+        description="Elegí empleados o socios y definí para cada uno qué porcentaje de la venta comisiona y su tasa. Cada participación es independiente; varios vendedores pueden comisionar sobre el 100% de la misma OV."
       />
 
       <!-- Resumen de comisiones por vendedor -->
       <div v-if="sellerSummary.length" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <button
           v-for="entry in sellerSummary"
-          :key="entry.seller_id"
+          :key="`${entry.seller_type}:${entry.seller_id}`"
           type="button"
           class="rounded-lg border bg-elevated/30 p-4 text-left transition-colors"
           :class="
-            filterSeller === entry.seller_id
+            filterSeller === `${entry.seller_type}:${entry.seller_id}`
               ? 'border-primary/60 bg-primary/10'
               : 'border-default hover:border-default/80 hover:bg-elevated/50'
           "
-          @click="() => toggleSellerFilter(entry.seller_id)"
+          @click="() => toggleSellerFilter(`${entry.seller_type}:${entry.seller_id}`)"
         >
           <div class="flex items-center justify-between gap-2">
             <span class="truncate text-sm font-medium">{{ entry.name }}</span>
             <UIcon
-              :name="filterSeller === entry.seller_id ? 'i-lucide-filter-x' : 'i-lucide-user'"
+              :name="filterSeller === `${entry.seller_type}:${entry.seller_id}` ? 'i-lucide-filter-x' : 'i-lucide-user'"
               class="size-4 shrink-0 text-muted"
             />
           </div>
@@ -374,7 +396,7 @@ onMounted(load)
                       </UBadge>
                     </div>
                     <p class="text-[11px] tabular-nums text-muted">
-                      Base sin IVA {{ money(document.commission_base_amount, document.currency_code) }}
+                      Base acumulada por vendedor sin IVA {{ money(document.commission_base_amount, document.currency_code) }}
                     </p>
                     <p v-if="document.has_unpaid_collection_commission" class="text-[11px] text-info">
                       Cobrado {{ document.paid_percentage.toFixed(1) }}%; la comisión puede aumentar con nuevos cobros.
@@ -395,10 +417,11 @@ onMounted(load)
                   <div v-if="document.assignments.length" class="space-y-1">
                     <div
                       v-for="assignment in document.assignments"
-                      :key="assignment.seller_id"
+                      :key="`${assignment.seller_type}:${assignment.seller_id}`"
                       class="flex items-baseline gap-1.5"
                     >
                       <span class="text-sm font-medium">{{ assignment.seller_name }}</span>
+                      <UBadge size="xs" color="neutral" variant="subtle">{{ assignment.seller_type === 'PARTNER' ? 'Socio' : 'Empleado' }}</UBadge>
                       <span class="text-xs text-muted tabular-nums">
                         {{ assignment.participation_rate }}% part. · {{ assignment.commission_rate }}% com.
                       </span>
@@ -432,30 +455,31 @@ onMounted(load)
     </template>
 
     <template v-else>
-      <div v-if="report" class="grid gap-4 md:grid-cols-3">
-        <UPageCard>
-          <p class="text-sm text-muted">Base comisionable</p>
-          <p class="text-2xl font-bold">{{ money(report.total_ventas) }}</p>
-        </UPageCard>
-        <UPageCard>
-          <p class="text-sm text-muted">Comisión disponible</p>
-          <p class="text-2xl font-bold text-primary">{{ money(report.total_comisiones) }}</p>
-        </UPageCard>
-        <UPageCard>
-          <p class="text-sm text-muted">Documentos</p>
-          <p class="text-2xl font-bold">{{ report.cantidad_ov }}</p>
+      <div v-if="report?.totals_by_currency?.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <UPageCard v-for="total in report.totals_by_currency" :key="total.currency_code">
+          <p class="text-sm text-muted">{{ total.currency_code }} · pendiente para liquidar</p>
+          <p class="text-2xl font-bold text-primary">{{ money(total.total_pendiente, total.currency_code) }}</p>
+          <p class="mt-2 text-sm text-muted">
+            Comisiones {{ money(total.total_comisiones, total.currency_code) }}
+            · Participación {{ money(total.total_participacion, total.currency_code) }}
+          </p>
+          <p class="mt-1 text-xs text-muted">{{ total.cantidad_ov }} OV · base neta {{ money(total.total_ventas, total.currency_code) }}</p>
         </UPageCard>
       </div>
-      <UCard v-for="seller in report?.sellers ?? []" :key="seller.seller_id">
+      <UCard v-for="seller in report?.sellers ?? []" :key="`${seller.seller_type}:${seller.seller_id}:${seller.currency_code}`">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p class="font-semibold">{{ seller.seller_name }}</p>
+            <p class="font-semibold">{{ seller.seller_name }} · {{ seller.currency_code }}</p>
             <p class="text-sm text-muted">
-              {{ seller.cantidad_ov }} documento(s) · base {{ money(seller.total_ventas) }}
+              {{ seller.cantidad_ov }} OV · base neta acumulada {{ money(seller.total_ventas, seller.currency_code) }}
+            </p>
+            <p class="text-xs text-muted">
+              Comisiones {{ money(seller.total_comisiones, seller.currency_code) }}
+              · Participación societaria {{ money(seller.total_participacion, seller.currency_code) }}
             </p>
           </div>
           <div class="flex items-center gap-4">
-            <strong class="text-xl text-primary">{{ money(seller.total_comisiones) }}</strong>
+            <strong class="text-xl text-primary">{{ money(seller.total_pendiente, seller.currency_code) }}</strong>
             <UButton
               v-if="canSettle"
               label="Generar vale"
@@ -470,35 +494,36 @@ onMounted(load)
           <table class="w-full min-w-[720px] text-sm">
             <thead class="border-b border-default text-left text-muted">
               <tr>
+                <th>Concepto</th>
                 <th class="py-2">OV</th>
                 <th>Fecha</th>
-                <th class="text-right">Participación</th>
                 <th class="text-right">Base alcanzada</th>
                 <th class="text-right">Regla</th>
-                <th class="text-right">Comisión</th>
+                <th class="text-right">Importe</th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="item in seller.items"
-                :key="`${item.document_id}-${seller.seller_id}`"
+                :key="`${item.kind}-${item.document_id}-${seller.seller_type}:${seller.seller_id}`"
                 class="border-b border-default/50"
               >
+                <td>{{ item.kind === 'PARTNER_SHARE' ? 'Participación societaria' : 'Comisión de venta' }}</td>
                 <td class="py-2">#{{ item.ov_number }}</td>
                 <td>{{ date(item.date) }}</td>
-                <td class="text-right">{{ item.participation_rate }}%</td>
-                <td class="text-right">{{ money(item.subtotal) }}</td>
+                <td class="text-right">{{ money(item.subtotal, seller.currency_code) }}</td>
                 <td class="text-right">
-                  {{ item.commission_rate }}% · {{ item.commission_base === 'PAID' ? 'Cobrado' : 'Facturado' }}
+                  {{ item.kind === 'PARTNER_SHARE' ? item.share_percentage : item.commission_rate }}%
+                  · {{ item.commission_base === 'PAID' ? 'Cobrado' : item.commission_base === 'ORDER' ? 'OV' : 'Facturado' }}
                 </td>
-                <td class="text-right font-semibold">{{ money(item.commission_amount) }}</td>
+                <td class="text-right font-semibold">{{ money(item.commission_amount, seller.currency_code) }}</td>
               </tr>
             </tbody>
           </table>
         </div>
       </UCard>
       <div v-if="!loading && !report?.sellers?.length" class="py-12 text-center text-muted">
-        No hay comisiones devengadas pendientes.
+        No hay comisiones ni participación societaria pendientes de liquidar.
       </div>
     </template>
 
@@ -511,6 +536,13 @@ onMounted(load)
               {{ selected?.document_type }} #{{ selected?.number }} · {{ selected?.customer }}
             </p>
           </div>
+          <UAlert
+            color="info"
+            variant="subtle"
+            icon="i-lucide-info"
+            title="La participación es independiente para cada vendedor"
+            description="Cada porcentaje se calcula sobre la venta. Podés dejar 100% en varios vendedores; no hace falta que los porcentajes sumen 100%."
+          />
           <div class="space-y-3">
             <div
               v-for="(row, index) in rows"
@@ -519,12 +551,12 @@ onMounted(load)
             >
               <UFormField label="Vendedor">
                 <USelectMenu
-                  v-model="row.seller_id"
-                  :items="sellerOptions"
+                  :model-value="sellerIdentity(row)"
+                  :items="commissionSellerOptions"
                   value-key="value"
                   searchable
                   class="w-full"
-                  @update:model-value="applySellerDefaults(row)"
+                  @update:model-value="setAssignmentSeller(row, $event)"
                 />
               </UFormField>
               <UFormField label="Participación %">
@@ -553,11 +585,8 @@ onMounted(load)
               />
             </div>
           </div>
-          <div class="flex items-center justify-between">
+          <div class="flex justify-start">
             <UButton label="Agregar vendedor" icon="i-lucide-plus" variant="soft" @click="addSeller" />
-            <UBadge :color="Math.abs(participation - 100) <= 0.01 ? 'success' : 'warning'" variant="subtle">
-              Participación: {{ participation.toFixed(2) }}%
-            </UBadge>
           </div>
           <div class="flex justify-end gap-2 border-t border-default pt-4">
             <UButton label="Cancelar" color="neutral" variant="ghost" @click="() => { modalOpen = false }" />
@@ -565,7 +594,6 @@ onMounted(load)
               label="Guardar asignación"
               icon="i-lucide-save"
               :loading="saving"
-              :disabled="Math.abs(participation - 100) > 0.01"
               @click="save"
             />
           </div>

@@ -10,7 +10,7 @@ type DocumentActionsConfig = {
   category: ComputedRef<string | null | undefined>
   router: ReturnType<typeof useRouter>
   store: {
-    confirm: (id: string, options?: { updateProductPrices?: boolean; assigned_to?: string | null }) => Promise<any>
+    confirm: (id: string, options?: { updateProductPrices?: boolean; assigned_to?: string | null; confirm_empty_delivery_data?: boolean }) => Promise<any>
     cancel: (id: string) => Promise<any>
     changeStatus: (id: string, status: number) => Promise<any>
     fetchOne: (id: string) => Promise<any>

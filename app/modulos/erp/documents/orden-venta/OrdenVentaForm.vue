@@ -24,14 +24,16 @@ const sellerOptionsFailed = ref(false)
 const sellerOptions = computed(() => [
   { id: noSellerId, name: 'Sin vendedor' },
   ...salespeople.value.map(seller => ({
-    id: seller.id,
-    name: `${seller.first_name} ${seller.last_name}`.trim(),
+    id: `${seller.seller_type}:${seller.id}`,
+    name: `${seller.first_name} ${seller.last_name}`.trim()
+      + (seller.seller_type === 'PARTNER' ? ' · Socio' : ' · Empleado'),
   })),
 ])
 
 const form = reactive({
   priority: 'MEDIA',
   seller_id: noSellerId,
+  seller_type: 'EMPLOYEE' as 'EMPLOYEE' | 'PARTNER',
   delivery_address: '',
   delivery_contact: '',
   delivery_phone: '',
@@ -39,6 +41,19 @@ const form = reactive({
   delivery_instructions: '',
   transport_provider: '',
   confirmed_delivery_date: ''
+})
+const selectedSeller = computed({
+  get: () => form.seller_id === noSellerId ? noSellerId : `${form.seller_type}:${form.seller_id}`,
+  set: (value: string) => {
+    if (!value || value === noSellerId) {
+      form.seller_id = noSellerId
+      form.seller_type = 'EMPLOYEE'
+      return
+    }
+    const [type, id] = value.split(':', 2)
+    form.seller_id = id ?? noSellerId
+    form.seller_type = type === 'PARTNER' ? 'PARTNER' : 'EMPLOYEE'
+  },
 })
 const deliveryAddressError = ref(false)
 const hasDeliveryDetails = computed(() => [
@@ -66,7 +81,10 @@ watch(
 
     Object.assign(form, {
       priority: val.priority ?? 'MEDIA',
-      seller_id: val.seller_id ?? noSellerId,
+      seller_id: val.seller_type === 'PARTNER'
+        ? val.seller_partner_id ?? val.seller_id ?? noSellerId
+        : val.seller_id ?? noSellerId,
+      seller_type: val.seller_type === 'PARTNER' ? 'PARTNER' : 'EMPLOYEE',
       delivery_address: val.delivery_address ?? '',
       delivery_contact: val.delivery_contact ?? '',
       delivery_phone: val.delivery_phone ?? '',
@@ -94,15 +112,16 @@ onMounted(async () => {
   if (!props.defaultSellerToCurrent || form.seller_id !== noSellerId) return
   try {
     const currentEmployee = await employeesService.findCurrentUser()
-    if (currentEmployee?.is_salesperson && salespeople.value.some(seller => seller.id === currentEmployee.id)) {
+    if (currentEmployee?.is_salesperson && salespeople.value.some(seller => seller.seller_type === 'EMPLOYEE' && seller.id === currentEmployee.id)) {
       form.seller_id = currentEmployee.id
+      form.seller_type = 'EMPLOYEE'
     }
   } catch {
     // La asignación automática es una ayuda; el vendedor se puede elegir manualmente.
   }
 })
 
-watch(form, (value) => emit('update:modelValue', { ...value }), { deep: true, immediate: true })
+watch(form, (value) => emit('update:modelValue', { ...(props.modelValue ?? {}), ...value }), { deep: true, immediate: true })
 
 // Expose form data for parent to read
 const validateDeliveryInfo = () => {
@@ -115,6 +134,7 @@ const getFormData = () => {
   const data: Record<string, any> = {
     priority: form.priority,
     seller_id: form.seller_id === noSellerId ? null : form.seller_id,
+    seller_type: form.seller_id === noSellerId ? null : form.seller_type,
     delivery_address: form.delivery_address,
     delivery_contact: form.delivery_contact,
     delivery_phone: form.delivery_phone,
@@ -142,17 +162,17 @@ defineExpose({ getFormData, validateDeliveryInfo, isDeliveryInfoEmpty })
         </div>
         <div class="flex flex-col gap-2">
           <USelectMenu
-            v-model="form.seller_id"
+            v-model="selectedSeller"
             :items="sellerOptions"
             label-key="name"
             value-key="id"
             placeholder="Seleccionar vendedor"
             class="w-full"
             :loading="sellerOptionsLoading"
-            :disabled="sellerOptionsLoading || sellerOptionsFailed || salespeople.length === 0"
+            :disabled="sellerOptionsLoading || sellerOptionsFailed"
           />
           <p v-if="sellerOptionsFailed" class="text-xs text-error">No se pudo cargar la lista de vendedores.</p>
-          <p v-else-if="!sellerOptionsLoading && salespeople.length === 0" class="text-xs text-muted">No hay empleados activos habilitados como vendedores.</p>
+          <p v-else-if="!sellerOptionsLoading && salespeople.length === 0" class="text-xs text-muted">No hay empleados ni socios activos habilitados como vendedores.</p>
           <p v-else class="text-xs text-muted">Si tu usuario está vinculado a un vendedor, se preselecciona al crear la OV.</p>
         </div>
       </div>

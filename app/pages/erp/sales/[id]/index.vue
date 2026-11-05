@@ -43,9 +43,13 @@ const confirmationAssigneeId = ref<string | undefined>(undefined)
 const assignmentSettings = ref({
   prompt_order_assignee_on_confirmation: true,
   require_order_assignee_on_confirmation: false,
-  default_order_assignee_id: null as string | null
+  default_order_assignee_id: null as string | null,
+  require_order_delivery_address: false,
+  warn_when_order_delivery_data_empty: true,
 })
 const companyUsers = ref<Array<{ id: string, name: string, email: string }>>([])
+const emptyDeliveryConfirmOpen = ref(false)
+const deliveryWarningAcknowledged = ref(false)
 const assigneeOptions = computed(() => [
   ...(assignmentSettings.value.require_order_assignee_on_confirmation || orderHasAssignee.value
     ? []
@@ -68,6 +72,20 @@ const showAssigneePrompt = computed(() => isSalesOrder.value
 const effectiveConfirmationAssigneeId = computed(() => confirmationAssigneeId.value === NO_ASSIGNEE
   ? null
   : confirmationAssigneeId.value)
+const orderDeliveryDataIsEmpty = computed(() => {
+  const delivery = doc.value?.orden_venta_doc
+  return ![
+    delivery?.delivery_address,
+    delivery?.delivery_contact,
+    delivery?.delivery_phone,
+    delivery?.delivery_time,
+    delivery?.delivery_instructions,
+    delivery?.transport_provider,
+    delivery?.confirmed_delivery_date,
+  ].some(value => String(value ?? '').trim() !== '')
+})
+const requiredOrderDeliveryAddressMissing = computed(() => assignmentSettings.value.require_order_delivery_address
+  && !String(doc.value?.orden_venta_doc?.delivery_address ?? '').trim())
 const amountsVisible = computed(() => doc.value?.amounts_visible !== false)
 const orderFlowStatus = computed(() => getOrderFlowPresentation(doc.value))
 const canCreateDispatchOrder = computed(() => {
@@ -142,6 +160,15 @@ async function openStockAvailability() {
 }
 
 async function confirmWithAvailability() {
+  if (isSalesOrder.value && requiredOrderDeliveryAddressMissing.value) {
+    useToast().add({
+      title: 'Falta la dirección de entrega',
+      description: 'La configuración exige una dirección para confirmar esta OV. Completala desde Editar.',
+      color: 'warning',
+    })
+    return
+  }
+
   if (isSalesOrder.value) {
     const loaded = await loadStockAvailability()
     if (!loaded) return
@@ -154,6 +181,15 @@ async function confirmWithAvailability() {
     useToast().add({ title: 'Falta asignar un responsable', description: 'Seleccioná quién continuará esta Orden de Venta.', color: 'warning' })
     return
   }
+  if (isSalesOrder.value
+    && !assignmentSettings.value.require_order_delivery_address
+    && assignmentSettings.value.warn_when_order_delivery_data_empty
+    && orderDeliveryDataIsEmpty.value
+    && !deliveryWarningAcknowledged.value) {
+    confirmModalOpen.value = false
+    emptyDeliveryConfirmOpen.value = true
+    return
+  }
   await handleConfirm()
 }
 
@@ -161,15 +197,15 @@ async function loadAssignmentContext() {
   if (!isSalesOrder.value) return
   assignmentContextLoading.value = true
   try {
-    const [settings, users] = await Promise.all([
-      salesFlowService.getSettings(),
-      usersService.findAll()
-    ])
+    const settings = await salesFlowService.getSettings()
     assignmentSettings.value = {
       prompt_order_assignee_on_confirmation: settings.prompt_order_assignee_on_confirmation ?? true,
       require_order_assignee_on_confirmation: settings.require_order_assignee_on_confirmation ?? false,
-      default_order_assignee_id: settings.default_order_assignee_id ?? null
+      default_order_assignee_id: settings.default_order_assignee_id ?? null,
+      require_order_delivery_address: settings.require_order_delivery_address ?? false,
+      warn_when_order_delivery_data_empty: settings.warn_when_order_delivery_data_empty ?? true,
     }
+    const users = await usersService.findAll()
     companyUsers.value = users
     confirmationAssigneeId.value = doc.value?.assigned_to
       || (users.some(user => user.id === settings.default_order_assignee_id) ? settings.default_order_assignee_id ?? NO_ASSIGNEE : NO_ASSIGNEE)
@@ -222,9 +258,14 @@ const {
   module: 'sales',
   printElement,
   store: {
-    confirm: (id) => store.confirm(id, isSalesOrder.value && (showAssigneePrompt.value || orderHasAssignee.value)
-      ? { assigned_to: effectiveConfirmationAssigneeId.value }
-      : undefined),
+    confirm: (id) => {
+      const options: { assigned_to?: string | null; confirm_empty_delivery_data?: boolean } = {}
+      if (isSalesOrder.value && (showAssigneePrompt.value || orderHasAssignee.value)) {
+        options.assigned_to = effectiveConfirmationAssigneeId.value
+      }
+      if (deliveryWarningAcknowledged.value) options.confirm_empty_delivery_data = true
+      return store.confirm(id, Object.keys(options).length ? options : undefined)
+    },
     cancel: (id) => store.cancel(id),
     changeStatus: (id, status) => store.changeStatus(id, status),
     fetchOne: (id) => store.fetchOne(id),
@@ -236,8 +277,25 @@ const {
 
 const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
   confirmModalOpen, cancelModalOpen, deleteModalOpen, statusModalOpen,
-  acceptModalOpen, deliverModalOpen, stockAvailabilityOpen,
+  acceptModalOpen, deliverModalOpen, stockAvailabilityOpen, emptyDeliveryConfirmOpen,
 ])
+
+async function editOrderDelivery() {
+  emptyDeliveryConfirmOpen.value = false
+  confirmModalOpen.value = false
+  if (doc.value) await router.push(`/erp/sales/${doc.value.id}/edit`)
+}
+
+async function confirmWithoutDeliveryData() {
+  if (processing.value) return
+  deliveryWarningAcknowledged.value = true
+  emptyDeliveryConfirmOpen.value = false
+  try {
+    await confirmWithAvailability()
+  } finally {
+    deliveryWarningAcknowledged.value = false
+  }
+}
 
 watch(confirmModalOpen, async (open) => {
   if (open && isSalesOrder.value && doc.value) {
@@ -376,16 +434,54 @@ watch(confirmModalOpen, async (open) => {
           title="La configuración actual no permite confirmar esta OV"
           description="Falta stock reservable y no están permitidas las reservas parciales ni la venta sin stock."
         />
+        <UAlert
+          v-if="isSalesOrder && requiredOrderDeliveryAddressMissing"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-map-pin"
+          title="Falta la dirección obligatoria"
+          description="Completá la dirección de entrega antes de confirmar esta OV."
+        />
       </div>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />
         <UButton
+          v-if="isSalesOrder && requiredOrderDeliveryAddressMissing"
+          label="Editar OV"
+          icon="i-lucide-pencil"
+          variant="outline"
+          @click="router.push(`/erp/sales/${doc?.id}/edit`)"
+        />
+        <UButton
           :label="isSalesOrder && (showAssigneePrompt || orderHasAssignee) && effectiveConfirmationAssigneeId && effectiveConfirmationAssigneeId !== doc?.assigned_to ? 'Asignar y confirmar' : (isSalesOrder && stockAvailability?.summary?.with_shortage ? 'Confirmar OV con faltante' : (isSalesOrder && !orderHasAssignee ? 'Confirmar sin asignar' : 'Confirmar'))"
           color="success"
           :loading="processing || stockAvailabilityLoading"
-          :disabled="stockAvailabilityLoading || assignmentContextLoading || stockAvailability?.policy?.blocks_confirmation || (isSalesOrder && assignmentSettings.require_order_assignee_on_confirmation && !orderHasAssignee && !effectiveConfirmationAssigneeId)"
+          :disabled="stockAvailabilityLoading || assignmentContextLoading || stockAvailability?.policy?.blocks_confirmation || (isSalesOrder && requiredOrderDeliveryAddressMissing) || (isSalesOrder && assignmentSettings.require_order_assignee_on_confirmation && !orderHasAssignee && !effectiveConfirmationAssigneeId)"
           @click="confirmWithAvailability"
         />
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="emptyDeliveryConfirmOpen"
+    title="¿Confirmar la OV sin datos de entrega?"
+    description="La sección de entrega está vacía. Confirmá si querés continuar."
+    :ui="{ content: 'sm:max-w-lg' }"
+  >
+    <template #body>
+      <div class="flex flex-col gap-4">
+        <UAlert
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          title="No se cargó información de entrega"
+          description="Podés volver a la OV para completar dirección, contacto, teléfono, fecha, horario, transporte e instrucciones, o confirmar igualmente."
+        />
+        <div class="flex justify-end gap-2">
+          <UButton label="Completar datos" variant="ghost" @click="editOrderDelivery" />
+          <UButton label="Confirmar igualmente" icon="i-lucide-check" @click="confirmWithoutDeliveryData" />
+        </div>
       </div>
     </template>
   </UModal>

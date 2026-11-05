@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useEmployeesService } from '~/modulos/erp/employees/service/employees.service'
+import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import type { Employee, CreateEmployeeInput, UpdateEmployeeInput } from '~/modulos/erp/employees/types/employees.types'
 
 export const useEmployeesStore = defineStore('employees', () => {
   const service = useEmployeesService()
+  const businessPartiesStore = useBusinessPartiesStore()
 
   const items = ref<Employee[]>([])
   const current = ref<Employee | null>(null)
@@ -46,6 +48,7 @@ export const useEmployeesStore = defineStore('employees', () => {
       error.value = null
       const created = await service.create(payload)
       items.value.unshift(created)
+      businessPartiesStore.invalidateCache()
       return created
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al crear empleado'
@@ -63,6 +66,7 @@ export const useEmployeesStore = defineStore('employees', () => {
       const index = items.value.findIndex(i => i.id === id)
       if (index !== -1) items.value[index] = updated
       if (current.value?.id === id) current.value = updated
+      businessPartiesStore.invalidateCache()
       return updated
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al actualizar empleado'
@@ -79,6 +83,7 @@ export const useEmployeesStore = defineStore('employees', () => {
       await service.remove(id)
       items.value = items.value.filter(i => i.id !== id)
       if (current.value?.id === id) current.value = null
+      businessPartiesStore.invalidateCache()
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al eliminar empleado'
       throw err

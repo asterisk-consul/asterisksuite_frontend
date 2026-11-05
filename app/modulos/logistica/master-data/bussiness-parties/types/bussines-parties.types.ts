@@ -80,6 +80,8 @@ export interface BusinessParty {
   employee?: {
     id: string
     user_id?: string | null
+    first_name?: string | null
+    last_name?: string | null
     position?: string | null
     department?: string | null
     hire_date?: string | null
@@ -90,6 +92,18 @@ export interface BusinessParty {
     commission_base?: 'INVOICED' | 'PAID' | null
     is_active: boolean
     user?: { id: string; name: string; email: string; active: boolean } | null
+  } | null
+  partner?: {
+    id: string
+    first_name: string
+    last_name: string
+    partner_kind?: 'PARTNER' | 'INVESTOR' | null
+    share_percentage?: string | number | null
+    capital_contributed?: string | number | null
+    is_salesperson?: boolean
+    default_commission_rate?: string | number | null
+    commission_base?: 'INVOICED' | 'PAID' | null
+    is_active?: boolean
   } | null
 }
 
@@ -108,6 +122,13 @@ export type CreateBusinessPartyInput = {
 
   active?: boolean
 
+  // ─── Datos de persona / socio (solo cuando corresponda por tipo) ──
+  first_name?: string
+  last_name?: string
+  partner_kind?: 'PARTNER' | 'INVESTOR'
+  share_percentage?: string | null
+  capital_contributed?: string | null
+
   // ─── Employee labor fields (persisted on linked employee when type=EMPLOYEE) ──
   position?: string
   department?: string
@@ -115,7 +136,7 @@ export type CreateBusinessPartyInput = {
   salary?: string
   currency_code?: string
   is_salesperson?: boolean
-  default_commission_rate?: number
+  default_commission_rate?: number | null
   commission_base?: string
   customer_enabled?: boolean
 
@@ -205,6 +226,7 @@ export interface BusinessPartyForm {
   customer_enabled?: boolean
 
   // ─── Partner fields (optional, shown when type=PARTNER) ──
+  partner_kind?: 'PARTNER' | 'INVESTOR'
   share_percentage?: string
   capital_contributed?: string
 }

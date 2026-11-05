@@ -7,26 +7,42 @@ export interface CommissionReport {
   month: string
   sellers: {
     seller_id: string
+    seller_type: 'EMPLOYEE' | 'PARTNER'
     seller_name: string
     party_id: string | null
+    currency_code: string
     total_ventas: number
     total_comisiones: number
+    total_participacion: number
+    total_pendiente: number
     cantidad_ov: number
     items: {
+      kind: 'COMMISSION' | 'PARTNER_SHARE'
       document_id: string
       ov_number: number
       subtotal: number
       sold_subtotal: number
       settled_amount: number
-      commission_rate: number
+      commission_rate?: number
+      share_percentage?: number
       commission_amount: number
-      commission_base: 'INVOICED' | 'PAID'
+      commission_base: 'INVOICED' | 'PAID' | 'ORDER'
       participation_rate: number
       date: string
     }[]
   }[]
+  totals_by_currency: {
+    currency_code: string
+    total_ventas: number
+    total_comisiones: number
+    total_participacion: number
+    total_pendiente: number
+    cantidad_ov: number
+  }[]
   total_ventas: number
   total_comisiones: number
+  total_participacion: number
+  total_pendiente: number
   cantidad_ov: number
 }
 
@@ -155,11 +171,11 @@ export const useHrStore = defineStore('hr', () => {
   // REPORTE DE COMISIONES
   // ══════════════════════════════════════════════════════════
 
-  const fetchCommissionsReport = async (month: string, sellerId?: string) => {
+  const fetchCommissionsReport = async (month: string, sellerId?: string, sellerType: 'EMPLOYEE' | 'PARTNER' = 'EMPLOYEE') => {
     loading.value = true
     error.value = null
     try {
-      const report = await HrService.getCommissionsReport(month, sellerId)
+      const report = await HrService.getCommissionsReport(month, sellerId, sellerType)
       return report
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al cargar reporte de comisiones'
@@ -169,11 +185,11 @@ export const useHrStore = defineStore('hr', () => {
     }
   }
 
-  const generateCommissionVale = async (sellerId: string, month: string) => {
+  const generateCommissionVale = async (sellerId: string, month: string, sellerType: 'EMPLOYEE' | 'PARTNER' = 'EMPLOYEE') => {
     loading.value = true
     error.value = null
     try {
-      const vale = await HrService.generateCommissionVale(sellerId, month)
+      const vale = await HrService.generateCommissionVale(sellerId, month, sellerType)
       return vale
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al generar vale de comisiones'

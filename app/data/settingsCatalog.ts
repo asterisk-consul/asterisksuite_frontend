@@ -5,6 +5,7 @@ export interface SettingsEntry {
   to: string
   permission?: string
   ownerOrAdminOnly?: boolean
+  platformAuditOnly?: boolean
   moduleCode?: string
   advanced?: boolean
 }
@@ -81,6 +82,7 @@ export const settingsCatalog: SettingsGroup[] = [
       { label: 'Seguridad', description: 'Contraseña y seguridad de la cuenta.', icon: 'i-lucide-lock-keyhole', to: '/settings/security' },
       { label: 'Conexiones de IA', description: 'Revisar o revocar las conexiones externas autorizadas para cada empresa.', icon: 'i-lucide-plug-zap', to: '/settings/connected-apps' },
       { label: 'Notificaciones', description: 'Avisos de asignaciones y alertas de la empresa.', icon: 'i-lucide-bell-ring', to: '/settings/notifications' },
+      { label: 'Auditoría de cambios', description: 'Consultar quién creó, editó o eliminó registros de esta empresa.', icon: 'i-lucide-history', to: '/settings/audit', platformAuditOnly: true },
       { label: 'Papelera', description: 'Recuperación de registros eliminados.', icon: 'i-lucide-trash-2', to: '/settings/trash', permission: 'trash.read', advanced: true }
     ]
   },

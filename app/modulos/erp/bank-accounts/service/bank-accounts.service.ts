@@ -10,7 +10,9 @@
   BankChargeRule,
   BankChargeRuleInput,
   BankChargeRuleTrigger,
-  SuggestedBankCharge
+  SuggestedBankCharge,
+  ImportBankStatementInput,
+  ImportBankStatementResult
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 
 const urlBase = '/api/backend/bank-accounts'
@@ -61,6 +63,9 @@ export const useBankAccountsService = () => {
     })
   }
 
+  const importStatementMovements = (id: string, data: ImportBankStatementInput) =>
+    $fetch<ImportBankStatementResult>(`${urlBase}/${id}/movements/import`, { method: 'POST', body: data })
+
   const createTransfer = (id: string, data: { destination_bank_account_id: string; amount: number; date: string; reference?: string; notes?: string }) =>
     $fetch(`${urlBase}/${id}/transfers`, { method: 'POST', body: data })
 
@@ -103,6 +108,7 @@ export const useBankAccountsService = () => {
     getMovements,
     getMovementDetails,
     createMovement,
+    importStatementMovements,
     createTransfer,
     cancelMovement,
     getUserRoles,

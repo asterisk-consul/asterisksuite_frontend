@@ -62,6 +62,7 @@ async function handleSubmit(form: FormType) {
     <BusinessPartyForm
       v-else-if="!isEditing || formData"
       :model-value="formData ?? initialForm"
+      :allowed-types="[partyType]"
       :loading="saving"
       :error="store.error"
       @submit="handleSubmit"

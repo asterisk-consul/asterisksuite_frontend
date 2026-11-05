@@ -36,6 +36,30 @@ export async function exportBankMovementsWorkbook(
 ) {
   const XLSX = await import('xlsx')
   const workbook = XLSX.utils.book_new()
+
+  const instructionsSheet = XLSX.utils.aoa_to_sheet([
+    ['Movimientos de una cuenta bancaria'],
+    ['Cuenta', `${account.bank_name} · ${account.name}`],
+    ['Moneda', account.currency_code],
+    ['Cómo leer este archivo', 'La hoja Movimientos contiene únicamente el historial de esta cuenta. Los importes se expresan desde la perspectiva de la cuenta: débitos negativos y créditos positivos.'],
+    ['Cómo importar un extracto', 'Al elegir un archivo, Asterisk Suite busca una hoja con encabezados de movimientos e ignora las hojas llamadas Instrucciones o Guía. Podés importar CSV, XLS o XLSX.'],
+    ['Columnas requeridas', 'Fecha, descripción y un importe con signo; o fecha, descripción y columnas separadas de débito y crédito.'],
+    ['Columnas opcionales', 'Naturaleza/sentido, referencia y saldo del extracto. Si el importe no tiene signo, la app interpreta un sentido reconocido en la columna Naturaleza; si no, lo toma como crédito.'],
+    ['Formato de fecha', 'Se aceptan fechas de Excel y formatos día/mes/año o año-mes-día.'],
+    ['Formato de importe', 'Se aceptan números y formatos locales como 1.234,56. En un importe único, los negativos representan débitos y los positivos créditos.'],
+    ['Conciliación', 'La comparación sugiere coincidencias por importe, referencia y fecha. Exportar o comparar no modifica los movimientos ni el saldo de Asterisk Suite.'],
+    ['Registro de faltantes', 'Desde el detalle de la cuenta se pueden registrar filas sin coincidencia, hasta 50 por envío. Seleccioná cada fila y asignale un concepto bancario.'],
+    ['Requisitos contables', 'La cuenta bancaria debe tener vinculada una cuenta contable activa de tipo Activo. Cada concepto debe tener una cuenta contable activa y afectar el saldo. Los conceptos que requieren comprobante no se pueden importar.'],
+    ['Efecto al registrar', 'Registrar crea movimientos, actualiza el saldo y genera un asiento balanceado entre la cuenta contable bancaria y la cuenta del concepto. Los créditos debitan el banco; los débitos acreditan el banco.'],
+    ['Moneda extranjera', 'Si la cuenta no usa la moneda base, el asiento convierte con la cotización oficial configurada para la fecha del movimiento.'],
+    ['Reimportar', 'El mismo archivo vuelve a mostrar como ya importadas las filas que fueron registradas antes. Comparar y exportar nunca cambian los datos.'],
+    ['Naturaleza', 'DEBIT reduce el saldo; CREDIT lo aumenta. El tipo de movimiento describe el origen y no reemplaza esta naturaleza.'],
+    ['Transferencias', 'Una transferencia puede ser débito o crédito según el sentido de esta cuenta.'],
+    ['Alcance', 'Los movimientos anulados se incluyen en el exportado solo cuando la opción Mostrar anulados estaba activa.']
+  ])
+  instructionsSheet['!cols'] = [{ wch: 28 }, { wch: 116 }]
+  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instrucciones')
+
   const movementRows = movements.map((movement) => {
     const signedAmount = getMovementSignedAmount(movement)
     const type = getMovementTypeBadge(movement)
@@ -69,19 +93,6 @@ export async function exportBankMovementsWorkbook(
   })))
   guideSheet['!cols'] = [{ wch: 34 }, { wch: 32 }, { wch: 88 }, { wch: 54 }]
   XLSX.utils.book_append_sheet(workbook, guideSheet, 'Guía de tipos')
-
-  const instructionsSheet = XLSX.utils.aoa_to_sheet([
-    ['Extracto de movimientos bancarios'],
-    ['Cuenta', `${account.bank_name} · ${account.name}`],
-    ['Moneda', account.currency_code],
-    ['Alcance', 'Se exportaron los movimientos operativos del historial de esta cuenta. Los anulados se incluyen si estaba activada la opción Mostrar anulados.'],
-    ['Importe', 'Los importes se expresan desde la perspectiva de esta cuenta: los débitos son negativos y los créditos positivos.'],
-    ['Tipo y naturaleza', 'El tipo describe el origen o clase del movimiento. La naturaleza indica si el saldo de la cuenta disminuye (DEBIT) o aumenta (CREDIT).'],
-    ['Transferencias', 'Una transferencia puede ser débito o crédito. Revisá siempre la naturaleza y el signo del importe.'],
-    ['Conciliación', 'Este archivo es una exportación informativa; editarlo no modifica los movimientos ni el saldo en Asterisk Suite.']
-  ])
-  instructionsSheet['!cols'] = [{ wch: 24 }, { wch: 110 }]
-  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instrucciones')
 
   const safeName = account.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
   XLSX.writeFile(workbook, `movimientos-bancarios-${safeName || 'cuenta'}.xlsx`)
