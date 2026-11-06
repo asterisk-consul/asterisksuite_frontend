@@ -275,6 +275,25 @@ async function exportMovements() {
       :links="links"
     />
 
+    <div class="flex flex-wrap justify-end gap-2">
+      <UButton
+        label="Importar y conciliar extracto"
+        icon="i-lucide-upload"
+        color="neutral"
+        variant="outline"
+        @click="statementImportOpen = true"
+      />
+      <UButton
+        label="Exportar movimientos"
+        icon="i-lucide-file-spreadsheet"
+        color="neutral"
+        variant="outline"
+        :loading="exportingMovements"
+        :disabled="exportingMovements || !visibleMovements.length"
+        @click="exportMovements"
+      />
+    </div>
+
     <!-- ACCOUNT INFO -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4">
       <UPageCard variant="subtle">
@@ -346,8 +365,6 @@ async function exportMovements() {
             color="neutral"
             @click="() => { showCancelledMovements = !showCancelledMovements }"
           />
-            <UButton label="Comparar extracto" icon="i-lucide-upload" size="xs" color="neutral" variant="outline" @click="statementImportOpen = true" />
-            <UButton label="Exportar movimientos" icon="i-lucide-file-spreadsheet" size="xs" color="neutral" variant="outline" :loading="exportingMovements" :disabled="exportingMovements || !visibleMovements.length" @click="exportMovements" />
           </div>
         </div>
       </template>

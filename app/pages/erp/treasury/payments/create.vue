@@ -72,6 +72,9 @@ const initialValues = ref<PaymentFormData | undefined>(
         payment_method: withholdingRemittanceId.value ? 'BANK_TRANSFER' : checkId.value ? 'CHECK' : 'CASH',
         amount: obligationAmount.value,
         currency_code: obligationCurrency.value,
+        exchange_rate: null,
+        rate_type: 'OFFICIAL',
+        converted_amount: null,
         description: obligationDescription.value,
         reference: '',
         party_id: partyId.value,
@@ -122,6 +125,8 @@ onMounted(async () => {
         party_id: doc.party_id ?? partyId.value ?? '',
         party_type: doc.party_type ?? 'CUSTOMER',
         currency_code: doc.currency_code ?? 'ARS',
+        exchange_rate: doc.exchange_rate == null ? null : Number(doc.exchange_rate),
+        rate_type: doc.rate_type ?? 'OFFICIAL',
         amount: doc.pending_amount,
         documents: [{ document_id: documentId.value, amount_applied: doc.pending_amount }]
       }
@@ -188,6 +193,9 @@ const handleSubmit = async (formData: PaymentFormData) => {
         formData.payment_method === 'CREDIT_CARD' ? formData.expected_clearing_date || undefined : undefined,
       amount: formData.amount,
       currency_code: formData.currency_code,
+      exchange_rate: formData.exchange_rate ?? undefined,
+      rate_type: formData.rate_type ?? undefined,
+      converted_amount: formData.converted_amount ?? undefined,
       description: formData.description || undefined,
       reference: formData.reference || undefined,
       party_id: formData.party_id || undefined,

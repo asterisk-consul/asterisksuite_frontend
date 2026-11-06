@@ -91,6 +91,7 @@ const props = defineProps<{
   loading?: boolean
   readonly?: boolean
   allowFinalizedFinancialEdit?: boolean
+  allowFinalizedRateEdit?: boolean
   savingFinancialDetails?: boolean
   localDraftEnabled?: boolean
   submitLabel?: string
@@ -100,7 +101,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [PaymentFormData]
   submit: [PaymentFormData]
-  'save-finalized-details': [{ account_id: string | null; party_id?: string | null; withholdings: PaymentWithholdingPayload[] }]
+  'save-finalized-details': [{ rate_only?: boolean; account_id?: string | null; party_id?: string | null; withholdings?: PaymentWithholdingPayload[]; exchange_rate?: number | null; rate_type?: string | null }]
   cancel: []
 }>()
 const { cashBoxes, loading: cashBoxesLoading, init: initCashBoxes, openSession, getSessions } = useCashBoxes()
@@ -1092,6 +1093,13 @@ const totalApplied = computed(() => {
   return Math.round(total * 100) / 100
 })
 
+const usdDocumentForPayment = computed(() => {
+  const selected = Array.from(selectedDocs.value.values()).find(entry => entry.doc.currency_code?.toUpperCase() === 'USD')?.doc
+  if (selected) return selected
+  const linked = (props.modelValue?.documents ?? []).map((row: any) => row.document).find((document: any) => document?.currency_code?.toUpperCase() === 'USD')
+  return linked ?? null
+})
+
 const syncDocumentAllocationsToForm = () => {
   const entries = Array.from(selectedDocs.value.values())
   form.documents = entries
@@ -1179,17 +1187,30 @@ watch(selectedPaymentMethod, async (val) => {
   }
 })
 
-watch(() => form.currency_code, () => {
+watch(() => form.currency_code, (newCode, previousCode) => {
   form.cash_box_id = ''
   form.bank_account_id = ''
   selectedChecks.value.clear()
   form.check_ids = []
   form.credit_card_id = ''
+
+  if (!previousCode || previousCode === newCode || selectedDocs.value.size === 0) return
+  const from = previousCode.toUpperCase()
+  const to = newCode.toUpperCase()
+  if (!((from === 'USD' && to === 'ARS') || (from === 'ARS' && to === 'USD'))) return
+
+  for (const [, entry] of selectedDocs.value.entries()) {
+    const rate = Number(entry.doc.exchange_rate ?? resolvedRate.value)
+    if (!Number.isFinite(rate) || rate <= 0) continue
+    entry.amount = Number((from === 'USD' ? entry.amount * rate : entry.amount / rate).toFixed(2))
+  }
+  selectedDocs.value = new Map(selectedDocs.value)
+  syncDocumentAllocationsToForm()
 })
 
 // Recalcular montos de documentos cuando cambia la cotización
 watch(resolvedRate, (newRate) => {
-  if (!newRate || selectedDocs.value.size === 0) return
+  if (!newRate || selectedDocs.value.size === 0 || requiresUsdConversion.value) return
   const payCurrency = form.currency_code?.toUpperCase()
   for (const [, entry] of selectedDocs.value.entries()) {
     const docCurrency = entry.doc.currency_code?.toUpperCase()
@@ -1208,26 +1229,79 @@ const isForeignCurrency = computed(() => {
   if (!baseCurrency.value) return false
   return form.currency_code.toUpperCase() !== baseCurrency.value.code.toUpperCase()
 })
+const requiresUsdConversion = computed(() =>
+  form.currency_code?.toUpperCase() === 'ARS' && Boolean(usdDocumentForPayment.value)
+)
+const canEditFinalizedRate = computed(() => props.allowFinalizedRateEdit && requiresUsdConversion.value)
+const requiresExchangeRate = computed(() => isForeignCurrency.value || requiresUsdConversion.value)
+const exchangeRateLabel = computed(() => requiresUsdConversion.value ? 'Cotización ARS por USD' : 'Tipo de cambio')
+const exchangeRateHint = computed(() => requiresUsdConversion.value
+  ? 'Se propone la cotización guardada en la factura. Podés cambiarla por la cotización efectiva del pago.'
+  : 'Se usa para expresar el pago en moneda base.')
+const conversionPreview = computed(() => {
+  if (!form.exchange_rate || form.exchange_rate <= 0) return null
+  if (requiresUsdConversion.value) {
+    const amount = props.readonly ? finalizedGrossApplied.value : (totalApplied.value || Number(form.amount || 0))
+    return { amount: Number((amount / form.exchange_rate).toFixed(2)), currency: 'USD' }
+  }
+  const converted = convertAmount(props.readonly ? Number(form.amount || 0) : Number(form.amount || 0))
+  return converted == null ? null : { amount: converted, currency: baseCurrency.value?.code ?? 'ARS' }
+})
+const manualRateOverride = ref(false)
+
+const suggestUsdDocumentRate = async () => {
+  if (!requiresUsdConversion.value || manualRateOverride.value) return
+  const document = usdDocumentForPayment.value
+  if (document?.exchange_rate && Number(document.exchange_rate) > 0) {
+    form.exchange_rate = Number(document.exchange_rate)
+    form.rate_type = document.rate_type ?? 'OFFICIAL'
+    return
+  }
+  if (!form.exchange_rate || form.exchange_rate <= 0) {
+    await autoResolve('USD', 'ARS', form.rate_type)
+    if (!manualRateOverride.value && resolvedRate.value) form.exchange_rate = resolvedRate.value
+  }
+}
+
+const handleExchangeRateInput = () => {
+  manualRateOverride.value = true
+  if (isForeignCurrency.value && form.exchange_rate) setManualRate(form.exchange_rate)
+}
 
 watch(
   () => form.currency_code,
   async (newCode) => {
-    if (!newCode || !isForeignCurrency.value) {
-      form.exchange_rate = null
+    manualRateOverride.value = false
+    await nextTick()
+    if (!newCode) return
+    if (isForeignCurrency.value) {
+      await autoResolve(newCode, baseCurrency.value?.code ?? 'ARS', form.rate_type)
+      if (resolvedRate.value) form.exchange_rate = resolvedRate.value
+      if (form.exchange_rate && form.amount) form.converted_amount = convertAmount(form.amount)
+      return
+    }
+    if (requiresUsdConversion.value) {
+      await suggestUsdDocumentRate()
       form.converted_amount = null
       return
     }
-    await autoResolve(newCode, baseCurrency.value?.code ?? 'ARS', form.rate_type)
-    form.exchange_rate = resolvedRate.value
-    if (form.exchange_rate && form.amount) {
-      form.converted_amount = convertAmount(form.amount)
-    }
+    form.exchange_rate = null
+    form.converted_amount = null
   },
   { immediate: true },
 )
 
+watch(usdDocumentForPayment, () => {
+  if (requiresUsdConversion.value) void suggestUsdDocumentRate()
+  else if (!isForeignCurrency.value) {
+    form.exchange_rate = null
+    form.converted_amount = null
+    manualRateOverride.value = false
+  }
+})
+
 watch(resolvedRate, (rate) => {
-  if (rate) {
+  if (rate && isForeignCurrency.value && !manualRateOverride.value) {
     form.exchange_rate = rate
     if (form.amount) {
       form.converted_amount = convertAmount(form.amount)
@@ -1237,7 +1311,7 @@ watch(resolvedRate, (rate) => {
 
 watch(() => form.amount, (amount) => {
   if (form.exchange_rate && amount) {
-    form.converted_amount = convertAmount(amount)
+    form.converted_amount = isForeignCurrency.value ? convertAmount(amount) : null
   }
 })
 
@@ -1471,6 +1545,17 @@ function handlePaymentFormShortcut(event: KeyboardEvent) {
 
 const handleSubmit = async () => {
   instrumentValidationAttempted.value = true
+  if (requiresExchangeRate.value && (!form.exchange_rate || Number(form.exchange_rate) <= 0)) {
+    toast.add({
+      title: 'Falta ingresar la cotización',
+      description: requiresUsdConversion.value
+        ? 'El pago en pesos aplicado a un comprobante en USD necesita una cotización ARS por USD.'
+        : 'Ingresá un tipo de cambio mayor a cero para convertir el importe.',
+      color: 'warning',
+      icon: 'i-lucide-circle-alert'
+    })
+    return
+  }
   if (!hasInstrumentSelection.value) {
     toast.add({
       title: 'Falta seleccionar dónde registrar el movimiento',
@@ -1594,6 +1679,18 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
 }
 
 const submitFinalizedDetails = () => {
+  if (requiresExchangeRate.value && (!form.exchange_rate || Number(form.exchange_rate) <= 0)) {
+    toast.add({ title: 'Falta ingresar la cotización', description: 'El pago en pesos aplicado a un comprobante en USD necesita una cotización ARS por USD.', color: 'warning' })
+    return
+  }
+  if (canEditFinalizedRate.value && !props.allowFinalizedFinancialEdit) {
+    emit('save-finalized-details', {
+      rate_only: true,
+      exchange_rate: Number(form.exchange_rate),
+      rate_type: form.rate_type ?? 'OFFICIAL',
+    })
+    return
+  }
   const documents = props.modelValue?.documents ?? []
   const grossApplied = finalizedGrossApplied.value
   const valid = withholdings.value.filter(item => Number(item.withheld_amount) > 0)
@@ -1624,7 +1721,8 @@ const submitFinalizedDetails = () => {
   emit('save-finalized-details', {
     account_id: form.account_id || null,
     ...(form.type === 'EXPENSE' ? { party_id: form.party_id || null } : {}),
-    withholdings: withholdingsPayload
+    withholdings: withholdingsPayload,
+    ...(requiresExchangeRate.value ? { exchange_rate: Number(form.exchange_rate), rate_type: form.rate_type ?? 'OFFICIAL' } : {})
   })
 }
 
@@ -1762,17 +1860,31 @@ defineExpose({ completeDraft: completePaymentDraft })
       </div>
     </UCard>
 
-    <UCard v-if="allowFinalizedFinancialEdit || withholdings.length || form.account_id || form.type === 'EXPENSE'">
+    <UCard v-if="allowFinalizedFinancialEdit || allowFinalizedRateEdit || withholdings.length || form.account_id || form.type === 'EXPENSE' || requiresUsdConversion">
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <div>
-            <p class="font-medium">Retenciones y cuenta contable</p>
-          <p class="text-xs text-muted">El importe aplicado se conserva; las retenciones se descuentan del pago y actualizan el movimiento original de caja o banco.</p>
+            <p class="font-medium">{{ canEditFinalizedRate && !allowFinalizedFinancialEdit ? 'Cotización del pago' : 'Datos financieros' }}</p>
+            <p class="text-xs text-muted">La cotización actualiza equivalencias; no cambia el importe en pesos ni vuelve a contabilizar el pago.</p>
           </div>
-          <UBadge v-if="!allowFinalizedFinancialEdit" label="Solo lectura" variant="subtle" />
+          <UBadge v-if="!allowFinalizedFinancialEdit && !canEditFinalizedRate" label="Solo lectura" variant="subtle" />
         </div>
       </template>
       <div class="space-y-4">
+        <UFormField v-if="requiresUsdConversion" :label="exchangeRateLabel" name="exchange_rate" :description="exchangeRateHint" required>
+          <UInput
+            v-if="allowFinalizedFinancialEdit || canEditFinalizedRate"
+            v-model.number="exchangeRateInput"
+            type="number"
+            min="0.000001"
+            step="0.000001"
+            placeholder="Ej.: 1490"
+            @update:model-value="handleExchangeRateInput"
+          />
+          <p v-else class="font-medium">
+            {{ form.exchange_rate ? `${formatCurrency(Number(form.exchange_rate), 'ARS')} por USD` : 'Sin cotización' }}
+          </p>
+        </UFormField>
         <UFormField v-if="form.type === 'EXPENSE' && !form.party_id && allowFinalizedFinancialEdit" label="Proveedor o entidad" name="party_id" hint="Necesario para registrar retenciones y reflejarlas en su cuenta corriente.">
           <USelectMenu
             v-model="finalizedParty"
@@ -1842,7 +1954,7 @@ defineExpose({ completeDraft: completePaymentDraft })
         <UAlert v-else-if="form.type === 'EXPENSE'" color="warning" variant="subtle" title="Falta asociar un proveedor o entidad" description="Las retenciones deben quedar vinculadas a una parte interesada. Seleccionala arriba para habilitar su carga; la cuenta contable puede editarse sin ese dato." />
         <UAlert v-if="canEditFinalizedRetentions" color="info" variant="subtle" title="Se actualizará el pago" description="El importe neto y el saldo de caja o banco se recalcularán sobre el movimiento original; el importe aplicado al comprobante se conserva." />
         <UAlert v-else-if="allowFinalizedFinancialEdit && initialWithholdings?.some((item: any) => item.is_locked)" color="warning" variant="subtle" title="Retenciones protegidas" description="Hay retenciones con certificado o remesa asociada. Podés cambiar la cuenta contable, pero primero debés resolver esa trazabilidad para editar las retenciones." />
-        <div v-if="allowFinalizedFinancialEdit" class="flex justify-end">
+        <div v-if="allowFinalizedFinancialEdit || canEditFinalizedRate" class="flex justify-end">
           <UButton label="Guardar cambios financieros" icon="i-lucide-save" :loading="savingFinancialDetails" :disabled="savingFinancialDetails" @click="submitFinalizedDetails" />
         </div>
       </div>
@@ -1954,8 +2066,8 @@ defineExpose({ completeDraft: completePaymentDraft })
         </UFormField>
       </div>
 
-      <!-- Cotización para movimientos en moneda extranjera -->
-      <div v-if="isForeignCurrency" class="grid grid-cols-1 gap-4 rounded-lg border border-default bg-default/50 p-3 sm:grid-cols-3">
+      <!-- Cotización del movimiento o del pago en ARS aplicado a comprobantes USD -->
+      <div v-if="requiresExchangeRate" class="grid grid-cols-1 gap-4 rounded-lg border border-default bg-default/50 p-3 sm:grid-cols-3">
         <UFormField label="Tipo de cambio" name="rate_type">
           <USelect
             v-model="form.rate_type"
@@ -1969,19 +2081,19 @@ defineExpose({ completeDraft: completePaymentDraft })
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Cotización" name="exchange_rate">
+        <UFormField :label="exchangeRateLabel" name="exchange_rate" :description="exchangeRateHint" required>
           <UInput
             v-model.number="exchangeRateInput"
             type="number"
             step="0.000001"
-            min="0"
+            min="0.000001"
             placeholder="1.000000"
-            @input="() => { if (form.exchange_rate) setManualRate(form.exchange_rate) }"
+            @update:model-value="handleExchangeRateInput"
           />
         </UFormField>
-        <UFormField v-if="form.exchange_rate && form.amount" label="Equivalente ARS">
+        <UFormField v-if="conversionPreview" :label="`Equivalente ${conversionPreview.currency}`">
           <div class="h-10 flex items-center text-lg font-semibold text-primary">
-            {{ formatCurrency(convertAmount(form.amount) ?? 0, 'ARS') }}
+            {{ formatCurrency(conversionPreview.amount, conversionPreview.currency) }}
           </div>
         </UFormField>
       </div>

@@ -29,6 +29,8 @@ export interface PaymentDocument {
     party_id: string | null
     date: string
     currency_code: string
+    exchange_rate?: number | string | null
+    rate_type?: string | null
     document_types?: {
       id?: string
       code: string

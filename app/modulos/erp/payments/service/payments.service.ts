@@ -175,7 +175,7 @@ export const usePaymentsService = () => {
     })
   }
 
-  const updateFinalizedFinancialDetails = (id: string, data: { account_id: string | null; party_id?: string | null; withholdings: NonNullable<CreatePaymentInput['withholdings']> }) => {
+  const updateFinalizedFinancialDetails = (id: string, data: { rate_only?: boolean; account_id?: string | null; party_id?: string | null; withholdings?: NonNullable<CreatePaymentInput['withholdings']>; exchange_rate?: number | null; rate_type?: string | null }) => {
     return $fetch<Payment>(`${urlBase}/${id}/financial-details`, { method: 'PATCH', body: data })
   }
 

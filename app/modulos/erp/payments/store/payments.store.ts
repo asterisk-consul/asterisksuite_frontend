@@ -103,7 +103,7 @@ export const usePaymentsStore = defineStore('payments', () => {
     return updated
   }
 
-  const updateFinalizedFinancialDetails = async (id: string, payload: { account_id: string | null; party_id?: string | null; withholdings: NonNullable<UpdatePaymentInput['withholdings']> }) => {
+  const updateFinalizedFinancialDetails = async (id: string, payload: { rate_only?: boolean; account_id?: string | null; party_id?: string | null; withholdings?: NonNullable<UpdatePaymentInput['withholdings']>; exchange_rate?: number | null; rate_type?: string | null }) => {
     const updated = await service.updateFinalizedFinancialDetails(id, payload)
     const index = items.value.findIndex(item => item.id === id)
     if (index !== -1) items.value[index] = updated
