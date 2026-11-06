@@ -144,12 +144,12 @@ export const useAuthStore = defineStore('auth', () => {
     return Boolean(selectedCompany.value)
   }
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string, rememberMe = false) {
     loading.value = true
     error.value = null
 
     try {
-      const res = await authService.login(email, password)
+      const res = await authService.login(email, password, rememberMe)
       resetEmployeeCache()
       user.value = res.user
       selectedCompany.value = null

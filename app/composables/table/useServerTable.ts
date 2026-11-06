@@ -91,7 +91,11 @@ export function useServerTable(load: (query: {
   })
 
   const refresh = () => load(query.value)
-  watch(query, refresh, { immediate: true })
+  // Keep failed requests in the owning store's error state without surfacing an
+  // unhandled watcher rejection (for example, when permissions changed).
+  watch(query, () => {
+    void refresh().catch(() => undefined)
+  }, { immediate: true })
   onScopeDispose(() => {
     clearTimeout(searchTimer)
     clearTimeout(filterTimer)

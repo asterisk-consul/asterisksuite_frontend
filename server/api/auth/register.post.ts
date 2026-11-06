@@ -28,6 +28,11 @@ export default defineEventHandler(async (event) => {
       maxAge: 60 * 60 * 24 * 7
     })
 
+    setCookie(event, 'api_remember', '1', {
+      ...getCookieOptions(),
+      maxAge: 60 * 60 * 24 * 7
+    })
+
     return { user: api.user }
   } catch (e: any) {
     throw createError({

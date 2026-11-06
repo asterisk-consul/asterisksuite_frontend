@@ -4,7 +4,8 @@
   CreatePaymentInput,
   UpdatePaymentInput,
   ApplyAdvanceInput,
-  AdvanceAvailable
+  AdvanceAvailable,
+  RelatedDocumentPayment,
 } from '~/modulos/erp/payments/types/payments.types'
 
 const urlBase = '/api/backend/payments'
@@ -87,6 +88,10 @@ export const usePaymentsService = () => {
 
   const findOne = (id: string) => {
     return $fetch<Payment>(`${urlBase}/${id}`)
+  }
+
+  const findByDocument = (documentId: string) => {
+    return $fetch<RelatedDocumentPayment[]>(`${urlBase}/by-document/${documentId}`)
   }
 
   const findPendingSalesDocuments = (partyId?: string) => {
@@ -233,6 +238,7 @@ export const usePaymentsService = () => {
   return {
     findAll,
     findOne,
+    findByDocument,
     findPendingSalesDocuments,
     findPendingPurchaseDocuments,
     findAvailableChecks,

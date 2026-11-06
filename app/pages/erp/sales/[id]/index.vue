@@ -11,6 +11,8 @@ import DocumentActionButton from '~/modulos/erp/documents/shared/DocumentActionB
 import DocumentChain from '~/modulos/erp/documents/shared/DocumentChain.vue'
 import DocumentItemsTable from '~/modulos/erp/documents/shared/DocumentItemsTable.vue'
 import DocumentTotals from '~/modulos/erp/documents/shared/DocumentTotals.vue'
+import DocumentRelatedPayments from '~/modulos/erp/documents/shared/DocumentRelatedPayments.vue'
+import DocumentPaymentStatusBadge from '~/modulos/erp/documents/shared/DocumentPaymentStatusBadge.vue'
 import DocumentPrintSelector from '~/components/documents/DocumentPrintSelector.vue'
 import PresupuestoView from '~/modulos/erp/documents/presupuesto/PresupuestoView.vue'
 import OrdenVentaView from '~/modulos/erp/documents/orden-venta/OrdenVentaView.vue'
@@ -329,6 +331,7 @@ watch(confirmModalOpen, async (open) => {
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
+            <DocumentPaymentStatusBadge v-if="doc" :document="doc" />
             <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />
             <UBadge v-else-if="invoiceState === 'partial'" label="Factura parcial" color="warning" variant="subtle" />
             <UButton v-if="isSalesOrder" label="Ver disponibilidad" icon="i-lucide-warehouse" color="neutral" variant="outline" size="sm" :loading="stockAvailabilityLoading" @click="openStockAvailability" />
@@ -377,6 +380,7 @@ watch(confirmModalOpen, async (open) => {
           :show-warehouse="category === 'REMITO'"
         />
         <DocumentTotals v-if="doc && category !== 'REMITO' && amountsVisible" :document="doc" />
+        <DocumentRelatedPayments v-if="doc && category === 'INVOICE'" :key="doc.id" :document-id="doc.id" />
         <UAlert
           v-if="doc && category === 'ORDER' && !amountsVisible"
           color="neutral"

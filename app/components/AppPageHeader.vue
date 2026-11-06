@@ -65,7 +65,7 @@ onMounted(() => {
 const headerUi = computed(() => ({
   ...props.ui,
   root: isCompact.value ? 'py-2 border-b-0' : (props.ui?.root ?? ''),
-  title: isCompact.value ? 'text-base font-bold truncate min-w-0' : (props.ui?.title ?? ''),
+  title: isCompact.value ? 'text-base font-bold truncate min-w-0' : `min-w-0 ${props.ui?.title ?? ''}`,
   description: isCompact.value ? 'hidden' : (props.ui?.description ?? ''),
   links: isCompact.value ? 'flex-nowrap overflow-x-auto' : (props.ui?.links ?? '')
 }))
@@ -109,7 +109,7 @@ const isCreateHeaderLink = (link: ButtonProps) =>
         <template #title>
           <div class="flex items-center gap-2 min-w-0">
             <AppSidebarToggle :collapsed="mainCollapsed" @click="toggleMain" />
-            <span class="truncate">{{ title }}</span>
+            <span class="min-w-0 flex-1 truncate" :title="title">{{ title }}</span>
           </div>
         </template>
         <template v-if="$slots.links || headerLinks.length" #links>

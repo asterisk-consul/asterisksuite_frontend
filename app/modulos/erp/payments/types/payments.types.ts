@@ -112,6 +112,20 @@ export interface Payment {
   obligations?: PaymentObligationSummary[]
 }
 
+export interface RelatedDocumentPayment {
+  id: string
+  number: number
+  type: PaymentType
+  date: string
+  payment_method: PaymentMethod
+  amount: number | string
+  amount_applied: number | string
+  currency_code: string
+  status: PaymentStatus
+  description?: string | null
+  reference?: string | null
+}
+
 export interface CreatePaymentDocumentInput {
   document_id: string
   amount_applied: number

@@ -38,6 +38,10 @@ const canSelectForTrash = (row: any) => canSendDocumentToTrash(row)
     && ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(row.document_types?.category ?? '')
     && !canDocument('sales', row.document_types?.category, 'cancel'))
 
+const SALES_CATEGORIES = ['QUOTE', 'ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
+const readableSalesCategories = computed(() =>
+  SALES_CATEGORIES.filter((category) => canDocument('sales', category, 'read'))
+)
 const documents = computed(() => documentsSalesStore.items)
 const pending = computed(() => documentsSalesStore.loading)
 const error = computed(() => documentsSalesStore.error)
@@ -61,7 +65,10 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 const route = useRoute()
-const initialCategory = typeof route.query.category === 'string' ? route.query.category : undefined
+const initialCategory = typeof route.query.category === 'string'
+  && readableSalesCategories.value.includes(route.query.category as typeof SALES_CATEGORIES[number])
+  ? route.query.category
+  : undefined
 const categoryFilter = ref<string | undefined>(initialCategory)
 const statusFilter = ref<number | string | undefined>(undefined)
 const showFullyPaid = ref(true)
@@ -78,7 +85,10 @@ const serverTable = useServerTable(
       ...query,
       status: typeof statusFilter.value === 'number' ? statusFilter.value : undefined,
       deliveryStatus,
-      category: categoryFilter.value,
+      category: categoryFilter.value && readableSalesCategories.value.includes(categoryFilter.value as typeof SALES_CATEGORIES[number])
+        ? categoryFilter.value
+        : undefined,
+      categories: categoryFilter.value ? undefined : readableSalesCategories.value.join(','),
       excludeCancelled: !showCancelled.value,
       excludeOpeningBalances: true
     })
@@ -87,10 +97,21 @@ const serverTable = useServerTable(
 )
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
 
+watch(readableSalesCategories, (allowedCategories) => {
+  if (categoryFilter.value && !allowedCategories.includes(categoryFilter.value as typeof SALES_CATEGORIES[number])) {
+    categoryFilter.value = undefined
+    return
+  }
+  if (!categoryFilter.value) {
+    if (page.value !== 1) page.value = 1
+    else void refresh().catch(() => undefined)
+  }
+})
+
 watch(categoryFilter, () => {
   statusFilter.value = undefined
   if (page.value !== 1) page.value = 1
-  else refresh()
+  else void refresh().catch(() => undefined)
   // Persistir la categoría en la URL (deep-link desde el dashboard)
   router.replace({ query: { ...route.query, category: categoryFilter.value || undefined } })
 })
@@ -101,7 +122,7 @@ watch(statusFilter, (status) => {
     return
   }
   if (page.value !== 1) page.value = 1
-  else refresh()
+  else void refresh().catch(() => undefined)
 })
 watch(showCancelled, (show) => {
   if (!show && categoryFilter.value && statusFilter.value === getCancelledDocumentStatus(categoryFilter.value)) {
@@ -109,13 +130,11 @@ watch(showCancelled, (show) => {
     return
   }
   if (page.value !== 1) page.value = 1
-  else refresh()
+  else void refresh().catch(() => undefined)
 })
 watch(showFullyPaid, () => { page.value = 1 })
 
 // ─── Filtros de categoría ─────────────────────────────────────────────────────
-const SALES_CATEGORIES = ['QUOTE', 'ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
-
 const categoryOptions = computed(() => {
   const docs = documents.value ?? []
   const counts = new Map<string, number>()

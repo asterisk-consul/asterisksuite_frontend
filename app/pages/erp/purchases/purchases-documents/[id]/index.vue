@@ -5,6 +5,8 @@ definePageMeta({
 })
 
 import FacturaView from '~/modulos/erp/facturas/components/FacturaView.vue'
+import DocumentRelatedPayments from '~/modulos/erp/documents/shared/DocumentRelatedPayments.vue'
+import DocumentPaymentStatusBadge from '~/modulos/erp/documents/shared/DocumentPaymentStatusBadge.vue'
 import DocumentAssignment from '~/modulos/erp/documents/shared/DocumentAssignment.vue'
 import DocumentChain from '~/modulos/erp/documents/shared/DocumentChain.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
@@ -112,6 +114,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
         >
           <template #headline>
             <div class="flex gap-2 items-center flex-wrap">
+              <DocumentPaymentStatusBadge v-if="factura" :document="factura" />
               <DocumentActionButton
                 v-for="action in primaryActions"
                 :key="action.label"
@@ -128,6 +131,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
           <div v-if="factura" id="printable-document">
             <DocumentAssignment :key="factura.id" :document-id="factura.id" />
             <FacturaView :document="factura" mode="purchase" />
+            <DocumentRelatedPayments v-if="category === 'INVOICE'" :key="factura.id" :document-id="factura.id" />
           </div>
           <UiAttachmentManager
             v-if="factura"

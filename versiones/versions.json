@@ -1,5 +1,64 @@
 [
  {
+  "version": "0.138.3-alpha",
+  "date": "2026-11-06",
+  "stage": "alpha",
+  "notes": "Se actualizan dependencias del frontend y backend, se retiran documentos internos de corredores y versionado, y se ajusta el archivo de prueba de vehículos para usar el endpoint remoto.",
+  "changes": [
+   { "type": "chore", "scope": "dependencies", "title": "Actualizar dependencias de frontend y backend" },
+   { "type": "docs", "scope": "internal", "title": "Retirar documentación interna de corredores y versionado" },
+   { "type": "chore", "scope": "dev", "title": "Ajustar el endpoint del cliente HTTP de vehículos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Actualizar dependencias y material interno"
+ },
+ {
+  "version": "0.138.2-alpha",
+  "date": "2026-11-06",
+  "stage": "alpha",
+  "notes": "Las bandejas de comprobantes consultan solo categorías permitidas y el detalle distingue el estado del documento del estado de pago/cobro. Las facturas muestran si están pagadas y las OVs lo muestran cuando el circuito maneja la deuda desde la orden.",
+  "changes": [
+   { "type": "fix", "scope": "documents", "title": "Corregir permisos y categorías en las bandejas de comprobantes" },
+   { "type": "feat", "scope": "sales-purchases", "title": "Mostrar el estado de pago o cobro junto al estado documental" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir bandejas y mostrar estado de pago en comprobantes"
+ },
+ {
+  "version": "0.138.1-alpha",
+  "date": "2026-11-06",
+  "stage": "alpha",
+  "notes": "Desde una operación internacional, los usuarios con permiso pueden abrir en Tesorería el detalle de cada pago o cobro asociado a sus facturas.",
+  "changes": [
+   { "type": "fix", "scope": "international-operations", "title": "Abrir los pagos asociados desde el detalle de la operación" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Abrir los pagos asociados a facturas internacionales"
+ },
+ {
+  "version": "0.138.0-alpha",
+  "date": "2026-11-06",
+  "stage": "alpha",
+  "notes": "Los pagos en pesos aplicados a facturas en dólares convierten el saldo con la cotización correspondiente. Desde el detalle de la factura se pueden consultar y abrir los pagos o cobros asociados según los permisos del usuario.",
+  "changes": [
+   { "type": "fix", "scope": "treasury", "title": "Convertir a pesos los importes de facturas en dólares al aplicar pagos" },
+   { "type": "feat", "scope": "sales", "title": "Consultar y abrir pagos o cobros desde el detalle de la factura" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Convertir pagos en moneda extranjera y abrir movimientos desde la factura"
+ },
+ {
+  "version": "0.137.1-alpha",
+  "date": "2026-11-06",
+  "stage": "alpha",
+  "notes": "El checkbox Recordarme controla la persistencia de las cookies de autenticación: desmarcado usa cookies de sesión; marcado conserva el acceso entre aperturas del navegador hasta siete días sin actividad.",
+  "changes": [
+   { "type": "fix", "scope": "auth", "title": "Hacer que Recordarme controle la duración de la sesión" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Hacer que Recordarme conserve la sesión"
+ },
+ {
   "version": "0.136.0-alpha",
   "date": "2026-11-05",
   "stage": "alpha",

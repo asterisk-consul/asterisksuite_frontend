@@ -14,7 +14,11 @@ export function getDocumentPaymentSummary(document: any): DocumentPaymentSummary
   const operation = document.commercial_operation
   const basis = operation?.payment_document_basis
   const usesOperationBalance = category === 'ORDER' && (basis === 'ORDER' || basis === 'BOTH')
-  const applies = Boolean(document.document_types?.affects_payment || usesOperationBalance)
+  // For OVs, the sales circuit is authoritative: do not show or settle an
+  // order-level balance when the company records debt from invoices.
+  const applies = category === 'ORDER'
+    ? usesOperationBalance
+    : Boolean(document.document_types?.affects_payment)
   const total = Math.max(0, Number(usesOperationBalance ? operation?.ordered_total : document.total) || 0)
   const paid = Math.max(0, Number(usesOperationBalance ? operation?.paid_total : document.paid_amount) || 0)
   const pending = Math.max(0, total - paid)

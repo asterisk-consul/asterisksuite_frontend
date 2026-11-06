@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import AssociateDocumentModal from '~/components/international-operations/AssociateDocumentModal.vue'
 import AssociateQuoteModal from '~/components/international-operations/AssociateQuoteModal.vue'
 import CreateQuoteModal from '~/components/international-operations/CreateQuoteModal.vue'
@@ -20,7 +22,13 @@ definePageMeta({ layout: 'default', middleware: ['auth'] })
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const auth = useAuthStore()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const id = route.params.id as string
+const canReadPaymentDetails = computed(() =>
+  ['OWNER', 'ADMIN'].includes(String(auth.selectedCompany?.role ?? '').toUpperCase())
+  || hasPermission('payments.read'),
+)
 
 const {
   current: operation,
@@ -214,8 +222,8 @@ const quoteStatusLabel = (status: string) =>
 const onResize = () => updateStickyOffsets()
 
 onMounted(async () => {
-  await fetchOne(id)
-  await fetchSummary(id)
+  void fetchMyPermissionsIfNeeded(auth.selectedCompany?.id, auth.user?.id).catch(() => {})
+  await Promise.all([fetchOne(id), fetchSummary(id)])
   await nextTick()
   updateStickyOffsets()
   setupObserver()
@@ -2074,7 +2082,17 @@ const scrollTo = (sectionId: string) => {
                     class="flex items-center justify-between gap-3 text-sm bg-muted/20 rounded-lg px-3 py-2"
                   >
                     <div class="flex items-center gap-2 min-w-0">
-                      <span class="font-medium text-xs">Pago Nº {{ pd.payment?.number }}</span>
+                      <NuxtLink
+                        v-if="pd.payment?.id && canReadPaymentDetails"
+                        :to="`/erp/treasury/payments/${pd.payment.id}`"
+                        class="inline-flex items-center gap-1 font-medium text-xs text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
+                      >
+                        {{ pd.payment?.type === 'COLLECTION' ? 'Cobro' : 'Pago' }} Nº {{ pd.payment?.number }}
+                        <UIcon name="i-lucide-arrow-up-right" class="size-3" />
+                      </NuxtLink>
+                      <span v-else class="font-medium text-xs">
+                        {{ pd.payment?.type === 'COLLECTION' ? 'Cobro' : 'Pago' }} Nº {{ pd.payment?.number }}
+                      </span>
                       <UBadge
                         :label="pd.payment?.status"
                         :color="pd.payment?.status === 'PAID' ? 'success' : 'warning'"

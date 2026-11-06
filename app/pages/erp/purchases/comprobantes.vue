@@ -40,6 +40,9 @@ const canSelectForTrash = (row: any) => canSendDocumentToTrash(row)
 
 const PURCHASE_CATEGORIES = ['ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
 const purchaseCategorySet = new Set<string>(PURCHASE_CATEGORIES)
+const readablePurchaseCategories = computed(() =>
+  PURCHASE_CATEGORIES.filter((category) => canDocument('purchases', category, 'read'))
+)
 
 // El endpoint también abastece otros circuitos internos con dirección de compra
 // (por ejemplo, vales de RRHH y saldos iniciales). Este listado muestra sólo
@@ -70,7 +73,9 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
 }
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
-const initialCategory = typeof route.query.category === 'string' && purchaseCategorySet.has(route.query.category)
+const initialCategory = typeof route.query.category === 'string'
+  && purchaseCategorySet.has(route.query.category)
+  && readablePurchaseCategories.value.includes(route.query.category as typeof PURCHASE_CATEGORIES[number])
   ? route.query.category
   : undefined
 const categoryFilter = ref<string | undefined>(initialCategory)
@@ -83,7 +88,7 @@ const serverTable = useServerTable(
     ...query,
     status: statusFilter.value,
     category: categoryFilter.value,
-    categories: categoryFilter.value ? undefined : PURCHASE_CATEGORIES.join(','),
+    categories: categoryFilter.value ? undefined : readablePurchaseCategories.value.join(','),
     excludeCancelled: !showCancelled.value,
     excludeOpeningBalances: true
   }),
@@ -91,10 +96,21 @@ const serverTable = useServerTable(
 )
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
 
+watch(readablePurchaseCategories, (allowedCategories) => {
+  if (categoryFilter.value && !allowedCategories.includes(categoryFilter.value as typeof PURCHASE_CATEGORIES[number])) {
+    categoryFilter.value = undefined
+    return
+  }
+  if (!categoryFilter.value) {
+    if (page.value !== 1) page.value = 1
+    else void refresh().catch(() => undefined)
+  }
+})
+
 watch(categoryFilter, () => {
   statusFilter.value = undefined
   if (page.value !== 1) page.value = 1
-  else refresh()
+  else void refresh().catch(() => undefined)
   router.replace({ query: { ...route.query, category: categoryFilter.value || undefined } })
 })
 
@@ -104,7 +120,7 @@ watch(statusFilter, (status) => {
     return
   }
   if (page.value !== 1) page.value = 1
-  else refresh()
+  else void refresh().catch(() => undefined)
 })
 watch(showCancelled, (show) => {
   if (!show && categoryFilter.value && statusFilter.value === getCancelledDocumentStatus(categoryFilter.value, -1)) {
@@ -112,7 +128,7 @@ watch(showCancelled, (show) => {
     return
   }
   if (page.value !== 1) page.value = 1
-  else refresh()
+  else void refresh().catch(() => undefined)
 })
 watch(showFullyPaid, () => { page.value = 1 })
 

@@ -13,10 +13,10 @@ export const authService = {
     return useRequestFetch()
   },
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string, rememberMe = false) {
     return await this.getFetch()<ApiLoginResponse>('/api/auth/login', {
       method: 'POST',
-      body: { email, password }
+      body: { email, password, remember: rememberMe }
     })
   },
 

@@ -3,6 +3,7 @@ import { getTenant } from '~~/server/utils/tenant'
 
 export default defineEventHandler(async (event) => {
   const refreshToken = getCookie(event, 'api_refresh')
+  const rememberMe = getCookie(event, 'api_remember') === '1'
 
   if (!refreshToken) {
     throw createError({ statusCode: 401, message: 'No refresh token' })
@@ -22,15 +23,23 @@ export default defineEventHandler(async (event) => {
       headers: { 'x-tenant': tenant }
     })
 
+    const cookieOptions = getCookieOptions()
     setCookie(event, 'api_access', api.accessToken, {
-      ...getCookieOptions(),
-      maxAge: 60 * 60 * 24
+      ...cookieOptions,
+      ...(rememberMe ? { maxAge: 60 * 60 * 24 } : {})
     })
 
     setCookie(event, 'api_refresh', api.refreshToken, {
-      ...getCookieOptions(),
-      maxAge: 60 * 60 * 24 * 7
+      ...cookieOptions,
+      ...(rememberMe ? { maxAge: 60 * 60 * 24 * 7 } : {})
     })
+
+    if (rememberMe) {
+      setCookie(event, 'api_remember', '1', {
+        ...cookieOptions,
+        maxAge: 60 * 60 * 24 * 7
+      })
+    }
 
     return {
       ok: true,
@@ -43,6 +52,7 @@ export default defineEventHandler(async (event) => {
     const cookieOpts = getCookieOptions()
     deleteCookie(event, 'api_access', { path: cookieOpts.path, domain: cookieOpts.domain })
     deleteCookie(event, 'api_refresh', { path: cookieOpts.path, domain: cookieOpts.domain })
+    deleteCookie(event, 'api_remember', { path: cookieOpts.path, domain: cookieOpts.domain })
 
     throw createError({
       statusCode: 401,

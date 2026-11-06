@@ -10,7 +10,9 @@ export const schema = z.object({
     .string({
       required_error: 'Password requerido'
     })
-    .min(4, 'Mínimo 4 caracteres')
+    .min(4, 'Mínimo 4 caracteres'),
+
+  remember: z.boolean().optional()
 })
 
 export type Schema = z.output<typeof schema>

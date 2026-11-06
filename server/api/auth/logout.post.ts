@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
   const cookieOpts = getCookieOptions()
   deleteCookie(event, 'api_access', { path: cookieOpts.path, domain: cookieOpts.domain })
   deleteCookie(event, 'api_refresh', { path: cookieOpts.path, domain: cookieOpts.domain })
+  deleteCookie(event, 'api_remember', { path: cookieOpts.path, domain: cookieOpts.domain })
 
   return { ok: true }
 })

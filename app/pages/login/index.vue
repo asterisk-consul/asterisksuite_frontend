@@ -64,7 +64,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   try {
     showError.value = false
 
-    await auth.login(payload.data.username, payload.data.password)
+    await auth.login(payload.data.username, payload.data.password, payload.data.remember ?? false)
 
     toast.add({
       title: 'Ingreso exitoso',
