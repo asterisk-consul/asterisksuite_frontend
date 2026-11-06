@@ -4,7 +4,7 @@
 // Picking
 // ===============================
 
-export interface PickingItemInput {
+interface PickingItemInput {
   product_id: string
   quantity: string // decimal viene como string
 }

@@ -3,6 +3,8 @@ import { navigationTree } from '~/data/navigationTree'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 import { useCurrentUserEmployee } from '~/composables/useCurrentUserEmployee'
+import { usePlatformModulesStore } from '~/modulos/platform-modules/platform-modules.store'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 
 // Tipo de nivel en el stack: nodos + referencia al nodo padre
 export interface StackLevel {
@@ -61,35 +63,61 @@ function findFirstDestination(nodes: DrilldownNode[]): DrilldownNode | null {
 }
 
 // Filtrar nodos recursivamente por permisos y condiciones de visibilidad
-export function filterNavigationTree(
+function filterNavigationTree(
   nodes: DrilldownNode[],
   hasPermission: (code: string) => boolean,
+  hasModule: (code: string) => boolean,
   isOwnerOrAdmin: boolean,
-  isSalesperson: boolean
+  isSalesperson: boolean,
+  isPlatformAdmin: boolean,
+  isOwner: boolean
 ): DrilldownNode[] {
-  return nodes.filter(node => {
+  return nodes.flatMap(node => {
+    if (node.to === '/settings/trash' && !isOwner && !hasPermission('trash.read')) {
+      return []
+    }
     if (node.permission && !isOwnerOrAdmin && !hasPermission(node.permission)) {
-      return false
+      return []
     }
     if (node.permissions?.length && !isOwnerOrAdmin && !node.permissions.some(hasPermission)) {
-      return false
+      return []
     }
     if (node.visibleIf === 'is_salesperson' && !isSalesperson) {
-      return false
+      return []
     }
+    if (node.visibleIf === 'is_platform_admin' && !isPlatformAdmin) return []
+    const moduleAvailable = !node.moduleCode || hasModule(node.moduleCode)
     if (node.children?.length) {
-      const filteredChildren = filterNavigationTree(node.children, hasPermission, isOwnerOrAdmin, isSalesperson)
-      return filteredChildren.length > 0
+      const filteredChildren = filterNavigationTree(
+        node.children,
+        hasPermission,
+        hasModule,
+        isOwnerOrAdmin,
+        isSalesperson,
+        isPlatformAdmin,
+        isOwner
+      )
+      return moduleAvailable && filteredChildren.length > 0 ? [{ ...node, children: filteredChildren }] : []
     }
-    return true
+    return moduleAvailable ? [node] : []
   })
 }
 
 export const useDrilldownNavigation = () => {
   const route = useRoute()
   const { hasPermission } = useRoles()
-  const { isOwnerOrAdmin } = useCompanyRole()
+  const { isOwnerOrAdmin, isOwner } = useCompanyRole()
   const { isSalesperson, fetchIfNeeded } = useCurrentUserEmployee()
+  const platformModules = usePlatformModulesStore()
+  const auth = useAuthStore()
+  const isPlatformAdmin = computed(() => ['PLATFORM_OWNER', 'PLATFORM_ADMIN'].includes(auth.user?.role ?? ''))
+  const hasAvailableModule = (code: string) => {
+    const companyId = auth.selectedCompany?.id
+    // Durante una carga fallida o sin empresa activa se conserva la navegación;
+    // el backend sigue siendo la autoridad para permitir o rechazar la operación.
+    if (!companyId || platformModules.loadedCompanyId !== companyId || platformModules.error) return true
+    return platformModules.hasModule(code)
+  }
 
   // Cargar el empleado del usuario actual (define is_salesperson para visibleIf)
   // Solo hace el fetch una vez; el watch de filteredTree reconstruye el nav cuando llega
@@ -97,7 +125,17 @@ export const useDrilldownNavigation = () => {
     fetchIfNeeded()
   })
 
-  const filteredTree = computed(() => filterNavigationTree(navigationTree, hasPermission, isOwnerOrAdmin.value, isSalesperson.value))
+  const filteredTree = computed(() =>
+    filterNavigationTree(
+      navigationTree,
+      hasPermission,
+      hasAvailableModule,
+      isOwnerOrAdmin.value,
+      isSalesperson.value,
+      isPlatformAdmin.value,
+      isOwner.value
+    )
+  )
 
   // Stack: cada nivel tiene nodos + referencia al nodo padre
   const stackState = useState<StackLevel[]>('drilldown-stack', () => [{ nodes: navigationTree }])
@@ -130,7 +168,15 @@ export const useDrilldownNavigation = () => {
 
   const push = (node: DrilldownNode) => {
     if (node.children?.length) {
-      const filteredChildren = filterNavigationTree(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value)
+      const filteredChildren = filterNavigationTree(
+        node.children,
+        hasPermission,
+        hasAvailableModule,
+        isOwnerOrAdmin.value,
+        isSalesperson.value,
+        isPlatformAdmin.value,
+        isOwner.value
+      )
       stack.value = [...stack.value, { nodes: filteredChildren, parentNode: node }]
     }
   }
@@ -162,7 +208,15 @@ export const useDrilldownNavigation = () => {
   const select = (node: DrilldownNode) => {
     if (node.children?.length) {
       push(node)
-      const filteredChildren = filterNavigationTree(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value)
+      const filteredChildren = filterNavigationTree(
+        node.children,
+        hasPermission,
+        hasAvailableModule,
+        isOwnerOrAdmin.value,
+        isSalesperson.value,
+        isPlatformAdmin.value,
+        isOwner.value
+      )
       const destination = findFirstDestination(filteredChildren)
       if (destination?.to) {
         void navigateTo(destination.to)
@@ -180,7 +234,18 @@ export const useDrilldownNavigation = () => {
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
-          levels.push({ nodes: filterNavigationTree(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value), parentNode: node })
+          levels.push({
+            nodes: filterNavigationTree(
+              node.children,
+              hasPermission,
+              hasAvailableModule,
+              isOwnerOrAdmin.value,
+              isSalesperson.value,
+              isPlatformAdmin.value,
+              isOwner.value
+            ),
+            parentNode: node
+          })
         }
       }
       stackState.value = levels
@@ -196,7 +261,18 @@ export const useDrilldownNavigation = () => {
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
-          levels.push({ nodes: filterNavigationTree(node.children, hasPermission, isOwnerOrAdmin.value, isSalesperson.value), parentNode: node })
+          levels.push({
+            nodes: filterNavigationTree(
+              node.children,
+              hasPermission,
+              hasAvailableModule,
+              isOwnerOrAdmin.value,
+              isSalesperson.value,
+              isPlatformAdmin.value,
+              isOwner.value
+            ),
+            parentNode: node
+          })
         }
       }
       stackState.value = levels

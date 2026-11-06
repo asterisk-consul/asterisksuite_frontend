@@ -189,7 +189,9 @@ onMounted(async () => {
       description="Plantillas reutilizables para descuentos y bonificaciones en documentos habilitados."
     >
       <template #links>
-        <UButton v-if="canManage" label="Nuevo concepto" icon="i-lucide-plus" @click="openCreate" />
+        <UButton v-if="canManage" data-global-create-shortcut class="group/create" label="Nuevo concepto" icon="i-lucide-plus" aria-keyshortcuts="Alt+N" @click="openCreate">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 
@@ -350,7 +352,7 @@ onMounted(async () => {
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancelar" color="neutral" variant="outline" :disabled="saving" @click="modalOpen = false" />
+          <UButton label="Cancelar" color="neutral" variant="outline" :disabled="saving" @click="() => { modalOpen = false }" />
           <UButton :label="editing ? 'Guardar cambios' : 'Crear concepto'" :loading="saving" @click="save" />
         </div>
       </template>

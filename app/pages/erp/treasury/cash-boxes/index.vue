@@ -2,6 +2,7 @@
 definePageMeta({ middleware: ['auth'] })
 
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
+import { useCashBoxTransfersService } from '~/modulos/erp/cash-box-transfers/service/cash-box-transfers.service'
 import type { CashBox } from '~/modulos/erp/cash-boxes/types/cash-boxes.types'
 
 const {
@@ -21,6 +22,7 @@ const {
 
 const router = useRouter()
 const toast = useToast()
+const transfersService = useCashBoxTransfersService()
 
 const searchQuery = ref('')
 const deleteModalOpen = ref(false)
@@ -56,11 +58,11 @@ const availableTargetBoxes = computed(() => {
 
 onMounted(() => init())
 
-const formatCurrency = (amount: number | string | null | undefined, currency = 'ARS') => {
+const formatCurrency = (amount: number | string | null | undefined, currency: string | null = 'ARS') => {
   const num = Number(amount) || 0
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency,
+    currency: currency ?? 'ARS',
     maximumFractionDigits: 2
   }).format(num)
 }
@@ -138,14 +140,11 @@ const handleTransferAndDelete = async () => {
   transferSaving.value = true
   try {
     // Create transfer between boxes
-    await $fetch('/api/backend/cash-box-transfers', {
-      method: 'POST',
-      body: {
+    await transfersService.create({
         from_cash_box_id: transferSourceBox.value.id,
         to_cash_box_id: transferForm.target_box_id,
         amount: transferForm.amount,
         notes: transferForm.notes || `Transferencia para eliminar caja ${transferSourceBox.value.name}`
-      }
     })
 
     toast.add({ title: 'Transferencia realizada', color: 'success' })
@@ -285,6 +284,10 @@ const goToDetail = (box: CashBox) => {
 const goToEdit = (box: CashBox) => {
   router.push(`/erp/treasury/cash-boxes/${box.id}/edit`)
 }
+
+const goToCreate = () => {
+  void router.push('/erp/treasury/cash-boxes/create')
+}
 </script>
 
 <template>
@@ -292,12 +295,20 @@ const goToEdit = (box: CashBox) => {
     <AppPageHeader title="Cajas" description="Gestión de cajas y sesiones">
       <template #links>
         <UButton
+          data-global-create-shortcut
           label="Nueva caja"
           icon="i-heroicons-plus"
           color="primary"
           variant="solid"
-          @click="router.push('/erp/treasury/cash-boxes/create')"
-        />
+          class="group/create"
+          aria-keyshortcuts="Alt+N"
+          title="Nueva caja (Alt + N)"
+          @click="goToCreate"
+        >
+          <template #trailing>
+            <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover />
+          </template>
+        </UButton>
       </template>
     </AppPageHeader>
 
@@ -487,7 +498,7 @@ const goToEdit = (box: CashBox) => {
           </UFormField>
         </div>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
           <UButton :label="getCashBoxBalance(deletingBox) !== 0 ? 'Transferir y eliminar' : 'Eliminar caja'" color="error" :loading="deleteSaving" :disabled="deleteForm.confirmation !== 'ELIMINAR' || ((getCashBoxBalance(deletingBox) !== 0 || deletingBox?.is_main) && !deleteForm.target_cash_box_id)" @click="handleDelete" />
         </div>
       </template>
@@ -497,7 +508,7 @@ const goToEdit = (box: CashBox) => {
     <UModal
       v-model:open="sessionModalOpen"
       :title="sessionAction === 'open' ? 'Abrir sesión' : 'Cerrar sesión'"
-      :ui="{ width: 'max-w-lg' }"
+      :ui="{ content: 'max-w-lg' }"
     >
       <template #body>
         <UForm :state="sessionForm" class="space-y-4" @submit="handleSession">
@@ -585,7 +596,7 @@ const goToEdit = (box: CashBox) => {
           </template>
 
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="sessionModalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { sessionModalOpen = false }" />
             <UButton
               :label="sessionAction === 'open' ? 'Abrir' : 'Cerrar sesión'"
               :color="sessionAction === 'open' ? 'success' : 'warning'"
@@ -616,7 +627,7 @@ const goToEdit = (box: CashBox) => {
             <UInput v-model="forceCloseForm.reason" placeholder="Motivo del cierre..." />
           </UFormField>
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="forceCloseModalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { forceCloseModalOpen = false }" />
             <UButton label="Cerrar sesión" color="warning" :loading="forceCloseSaving" :disabled="!forceCloseForm.reason.trim()" @click="handleForceClose" />
           </div>
         </div>
@@ -624,7 +635,7 @@ const goToEdit = (box: CashBox) => {
     </UModal>
 
     <!-- TRANSFER MODAL (before delete) -->
-    <UModal v-model:open="transferModalOpen" title="Transferir saldo antes de eliminar" :ui="{ width: 'max-w-lg' }">
+    <UModal v-model:open="transferModalOpen" title="Transferir saldo antes de eliminar" :ui="{ content: 'max-w-lg' }">
       <template #body>
         <div class="space-y-4">
           <UAlert
@@ -650,6 +661,7 @@ const goToEdit = (box: CashBox) => {
                 }))
               "
               placeholder="Seleccionar caja destino"
+              value-key="value"
             />
           </UFormField>
 
@@ -658,7 +670,7 @@ const goToEdit = (box: CashBox) => {
           </UFormField>
 
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="transferModalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { transferModalOpen = false }" />
             <UButton
               label="Transferir y eliminar"
               color="error"

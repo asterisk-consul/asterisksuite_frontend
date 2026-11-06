@@ -3,10 +3,9 @@ import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 import type { Employee } from '~/modulos/erp/employees/types/employees.types'
+import type { BadgeColor } from '~/types/colors.types'
 
 type Row = Employee
-
-type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
 export const employeeColumns = (actions: {
   onEdit?: (row: Row) => void

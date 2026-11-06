@@ -4,8 +4,11 @@ import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 import { formatDate } from '~/utils/dates'
+import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
 
 definePageMeta({ layout: 'default', middleware: ['auth'] })
+
+const fiscalService = useFiscalService()
 
 interface WithholdingRow {
   id: string
@@ -120,7 +123,7 @@ const periodLabel = (key: string) => {
 const fetchWithholdings = async () => {
   loading.value = true
   try {
-    const res = await $fetch<{ items: WithholdingRow[] }>('/api/backend/fiscal/withholdings')
+    const res = await fiscalService.findWithholdings()
     items.value = res.items
   } catch (e: any) {
     console.error('Error cargando retenciones:', e)
@@ -320,10 +323,10 @@ const createRemittance = async () => {
   if (savingRemittance.value || !selectedIds.value.length || !vepNumber.value.trim()) return
   savingRemittance.value = true
   try {
-    await $fetch('/api/backend/fiscal/withholdings/remittances', { method: 'POST', body: {
+    await fiscalService.createWithholdingRemittance({
       withholding_ids: selectedIds.value, vep_number: vepNumber.value.trim(), vep_amount: Number(vepAmount.value.toFixed(2)),
       currency_code: selectedCurrency.value, tax_regime_code: regimeCode.value.trim() || undefined, due_date: dueDate.value || undefined,
-    } })
+    })
     toast.add({ title: 'VEP asociado', description: 'Ahora podés registrarlo como un pago bancario.', color: 'success' })
     remittanceModalOpen.value = false
     selectedIds.value = []
@@ -357,13 +360,13 @@ const createTaxApplication = async () => {
   if (!item || !Number.isFinite(amount) || amount <= 0 || amount > taxCreditAvailable(item) + 0.001 || !taxApplicationPeriod.value || !taxApplicationDate.value) return
   savingTaxApplication.value = true
   try {
-    await $fetch(`/api/backend/fiscal/withholdings/${item.id}/tax-applications`, { method: 'POST', body: {
+    await fiscalService.createTaxApplication(item.id, {
       tax_period: taxApplicationPeriod.value,
       application_date: taxApplicationDate.value,
       amount,
       declaration_reference: taxApplicationReference.value.trim() || undefined,
       notes: taxApplicationNotes.value.trim() || undefined,
-    } })
+    })
     toast.add({ title: 'Imputación registrada', description: 'El crédito disponible se actualizó; la retención y su certificado se conservaron.', color: 'success' })
     await fetchWithholdings()
     selectedWithholding.value = items.value.find(current => current.id === item.id) ?? null
@@ -383,9 +386,7 @@ const reverseTaxApplication = async () => {
   if (!applicationToReverse.value || !reversalReason.value.trim()) return
   savingReverseApplication.value = true
   try {
-    await $fetch(`/api/backend/fiscal/withholding-tax-applications/${applicationToReverse.value.id}/reverse`, {
-      method: 'POST', body: { reason: reversalReason.value.trim() },
-    })
+    await fiscalService.reverseTaxApplication(applicationToReverse.value.id, reversalReason.value.trim())
     toast.add({ title: 'Imputación revertida', description: 'El importe volvió a estar disponible y el movimiento quedó en el historial.', color: 'success' })
     reverseApplicationModalOpen.value = false
     await fetchWithholdings()
@@ -560,7 +561,7 @@ onMounted(fetchWithholdings)
       </div>
     </template>
     <template #footer>
-      <div class="flex justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" @click="reverseApplicationModalOpen = false" /><UButton label="Revertir y liberar saldo" color="error" icon="i-lucide-undo-2" :loading="savingReverseApplication" :disabled="!reversalReason.trim()" @click="reverseTaxApplication" /></div>
+      <div class="flex justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" @click="() => { reverseApplicationModalOpen = false }" /><UButton label="Revertir y liberar saldo" color="error" icon="i-lucide-undo-2" :loading="savingReverseApplication" :disabled="!reversalReason.trim()" @click="reverseTaxApplication" /></div>
     </template>
   </UModal>
 </template>

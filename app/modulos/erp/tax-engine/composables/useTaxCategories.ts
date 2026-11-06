@@ -6,6 +6,8 @@
   active: boolean
 }
 
+import { TaxesService } from '~/modulos/erp/taxes/services/taxes.service'
+
 export function useTaxCategories() {
   const categories = ref<TaxCategory[]>([])
   const loading = ref(false)
@@ -13,7 +15,7 @@ export function useTaxCategories() {
   async function fetchAll() {
     loading.value = true
     try {
-      categories.value = await $fetch<TaxCategory[]>('/api/backend/tax-engine/tax-categories')
+      categories.value = await TaxesService.getTaxCategories()
     } catch (e) {
       console.error('Error fetching tax categories:', e)
       categories.value = []

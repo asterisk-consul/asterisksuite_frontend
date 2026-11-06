@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 import { useMaintenanceStore } from '~/modulos/logistica/maintenance/store/maintenance.store'
+import { useMaintenanceService } from '~/modulos/logistica/maintenance/service/maintenance.service'
 import {
   MaintenanceAssetType,
   MaintenanceCategory,
@@ -10,6 +11,7 @@ import {
 
 const router = useRouter()
 const store = useMaintenanceStore()
+const maintenanceService = useMaintenanceService()
 const toast = useToast()
 
 const saving = ref(false)
@@ -96,10 +98,10 @@ async function fetchAssets() {
   loadingAssets.value = true
   try {
     if (form.asset_type === MaintenanceAssetType.VEHICLE) {
-      const data = await $fetch<any[]>('/api/backend/vehicles')
+      const data = await maintenanceService.getVehicleDirectory()
       vehicles.value = data
     } else if (form.asset_type === MaintenanceAssetType.TIRE) {
-      const data = await $fetch<any>('/api/backend/maintenance/tires', { params: { limit: 500 } })
+      const data = await maintenanceService.getTires({ limit: 500 })
       tires.value = data.data ?? data
     }
   } catch {
@@ -142,7 +144,7 @@ async function handleSubmit() {
     router.push(`/logistica/mantenimiento/${created.id}`)
   } catch (err: any) {
     console.error('[ORDEN] Error completo:', err)
-    toast.add({ title: 'Error al crear', color: 'error', description: store.error })
+    toast.add({ title: 'Error al crear', color: 'error', description: store.error ?? undefined })
   } finally {
     saving.value = false
   }

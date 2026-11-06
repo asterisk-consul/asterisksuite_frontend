@@ -7,10 +7,13 @@ export default defineEventHandler(async (event) => {
   if (refreshToken) {
     const config = useRuntimeConfig()
     const tenant = getTenant(event)
-    await $fetch(`${config.apiBase}/auth/logout`, {
+    await globalThis.fetch(`${String(config.apiBase).replace(/\/$/, '')}/auth/logout`, {
       method: 'POST',
-      body: { refreshToken },
-      headers: { 'x-tenant': tenant }
+      body: JSON.stringify({ refreshToken }),
+      headers: {
+        'x-tenant': tenant,
+        'Content-Type': 'application/json'
+      }
     }).catch(() => {})
   }
 

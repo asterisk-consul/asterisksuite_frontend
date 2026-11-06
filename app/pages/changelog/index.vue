@@ -3,6 +3,7 @@ definePageMeta({
   middleware: ['auth'],
   layout: 'changelog'
 })
+import { useChangelogService } from '~/services/changelog.service'
 
 type ChangelogVersion = {
   tag: string
@@ -25,7 +26,8 @@ type ChangelogChange = {
 
 type ChangelogModule = { name: string, version: string }
 
-const { data: versions } = await useFetch<ChangelogVersion[]>('/api/changelog')
+const changelogService = useChangelogService()
+const { data: versions } = await useAsyncData('app-changelog', () => changelogService.findAll())
 const safeVersions = computed(() => versions.value || [])
 
 const searchQuery = ref('')
@@ -132,7 +134,7 @@ function groupedChanges(changes: ChangelogChange[]) {
           v-for="version in filteredVersions"
           :key="version.tag"
           :title="`v${version.tag}`"
-          :description="version.notes"
+          :description="version.notes ?? undefined"
           :date="version.date"
           :badge="getBadge(version.tag)"
           :ui="{

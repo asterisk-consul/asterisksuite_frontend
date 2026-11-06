@@ -9,8 +9,11 @@ export interface DocumentSequence {
   current_number: number
   automatic: boolean
   active: boolean
+  deleted_at?: string | null
   created_at?: string
   updated_at?: string
+  /** Legacy relation returned by older sequence endpoints. */
+  document_types?: { id: string; code?: string; description?: string }[] | null
   document_type_sequences?: {
     document_type_id: string
     sequence_id: string

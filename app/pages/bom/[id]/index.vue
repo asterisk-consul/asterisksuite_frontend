@@ -282,9 +282,7 @@ const productActions = computed(() => [[
             @click="handleCalculateCost"
           />
 
-          <UDropdownMenu :items="productActions" :content="{ align: 'end' }">
-            <UButton label="Más" icon="i-lucide-ellipsis" color="neutral" variant="ghost" trailing-icon="i-lucide-chevron-down" />
-          </UDropdownMenu>
+          <ShortcutDropdownMenu :items="productActions" color="neutral" />
 
           <UButton label="Guardar" icon="i-lucide-save" :loading="saving" @click="handleSave" />
         </div>

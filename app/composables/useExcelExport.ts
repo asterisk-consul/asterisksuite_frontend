@@ -14,7 +14,7 @@ export interface ExportOptions {
 
 export function useExcelExport() {
   const exportToExcel = async (options: ExportOptions) => {
-    const XLSX = await import('xlsx/xlsx.mjs')
+    const XLSX = await import('xlsx')
     const { filename, sheetName = 'Datos', columns, data } = options
 
     // Build header row
@@ -49,7 +49,7 @@ export function useExcelExport() {
   }
 
   const exportWithTemplate = async (options: ExportOptions & { template?: any[] }) => {
-    const XLSX = await import('xlsx/xlsx.mjs')
+    const XLSX = await import('xlsx')
     const { filename, sheetName = 'Datos', columns, data, template = [] } = options
 
     // Template row (headers)

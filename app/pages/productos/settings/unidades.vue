@@ -63,11 +63,15 @@ onMounted(async () => {
     variant="naked"
     class="mb-2 mt-4 w-full lg:max-w-2xl mx-auto"
   >
-    <UButton
+    <ShortcutButton
       icon="i-heroicons-plus"
       label="Nueva Unidad"
       color="neutral"
       class="w-fit lg:ms-auto"
+      data-global-create-shortcut
+      data-hide-global-create-control
+      :shortcut-keys="['Alt', 'N']"
+      help="Crear una unidad de medida"
       @click="unitCreate"
     />
   </UPageCard>

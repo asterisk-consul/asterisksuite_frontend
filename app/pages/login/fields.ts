@@ -4,14 +4,14 @@ export const fields: AuthFormField[] = [
     name: 'username', // <-- cambió de email a username
     type: 'text', // ya no es email
     label: 'Usuario',
-    placeholder: 'Ingresa tu usuario',
+    placeholder: 'Ingresá tu usuario',
     required: true
   },
   {
     name: 'password',
-    label: 'Password',
+    label: 'Contraseña',
     type: 'password',
-    placeholder: 'Ingresa tu contraseña',
+    placeholder: 'Ingresá tu contraseña',
     required: true
   },
   {

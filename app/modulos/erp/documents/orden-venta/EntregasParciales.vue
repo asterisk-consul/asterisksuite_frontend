@@ -1,4 +1,13 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+
+interface DeliveryTrackingItem {
+  quantity: number | string
+  quantity_delivered?: number | null
+  quantity_invoiced?: number | null
+  products?: { name?: string | null } | null
+}
+
 const props = defineProps<{
   document: any
 }>()
@@ -12,7 +21,17 @@ function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: props.document?.currency_code ?? 'ARS' }).format(n ?? 0)
 }
 
-const items = computed(() => props.document?.document_items ?? [])
+const items = computed<DeliveryTrackingItem[]>(() =>
+  Array.isArray(props.document?.document_items) ? props.document.document_items : []
+)
+
+const columns: TableColumn<DeliveryTrackingItem>[] = [
+  { id: 'product', header: 'Producto' },
+  { id: 'quantity', header: 'Total' },
+  { id: 'delivered', header: 'Entregado' },
+  { id: 'pending', header: 'Pendiente' },
+  { id: 'invoiced', header: 'Facturado' }
+]
 
 const canDeliver = computed(() => {
   return items.value.some((i: any) => {
@@ -41,13 +60,7 @@ const canInvoice = computed(() => {
       </div>
     </template>
 
-    <UTable :data="items" :columns="[
-      { id: 'product', header: 'Producto' },
-      { id: 'quantity', header: 'Total' },
-      { id: 'delivered', header: 'Entregado' },
-      { id: 'pending', header: 'Pendiente' },
-      { id: 'invoiced', header: 'Facturado' },
-    ]">
+    <UTable :data="items" :columns="columns">
       <template #product-cell="{ row }">
         <span class="font-medium">{{ row.original.products?.name ?? 'Producto libre' }}</span>
       </template>

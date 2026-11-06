@@ -215,7 +215,7 @@ onMounted(async () => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showCreateModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { showCreateModal = false }" />
           <UButton label="Crear" :loading="saving" @click="handleCreate" />
         </div>
       </template>
@@ -238,7 +238,7 @@ onMounted(async () => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showEditModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { showEditModal = false }" />
           <UButton label="Guardar" :loading="saving" @click="handleEdit" />
         </div>
       </template>
@@ -255,7 +255,7 @@ onMounted(async () => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="showDeleteModal = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { showDeleteModal = false }" />
           <UButton label="Eliminar" color="error" :loading="saving" @click="handleDelete" />
         </div>
       </template>

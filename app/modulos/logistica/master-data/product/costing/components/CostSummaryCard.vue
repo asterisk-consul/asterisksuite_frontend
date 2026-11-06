@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts">
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { useCurrencyRatesService } from '~/modulos/erp/currency-rates/service/currency-rates.service'
 
 const props = defineProps<{
   totalCost: number | string
@@ -12,6 +13,7 @@ const props = defineProps<{
 }>()
 
 const { currencies, init: initCurrencies } = useCurrencies()
+const currencyRatesService = useCurrencyRatesService()
 const toast = useToast()
 
 onMounted(async () => {
@@ -97,11 +99,8 @@ watch(resolvedCurrencyId, async (id) => {
 
   converting.value = true
   try {
-    const result = await $fetch<{ converted_amount: number }>('/api/backend/pricing/exchange/convert', {
-      method: 'GET',
-      query: { amount: 1, from: props.originalCurrencyCode, to: tc.code }
-    })
-    conversionRate.value = result.converted_amount
+    const result = await currencyRatesService.convert(props.originalCurrencyCode, tc.code, 1)
+    conversionRate.value = Number(result.converted_amount ?? result.convertedAmount ?? result.rate)
   } catch (err: any) {
     conversionRate.value = null
     const msg = err?.data?.message || err?.message || 'No existe cotización'

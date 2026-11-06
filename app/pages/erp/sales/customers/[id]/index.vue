@@ -8,7 +8,12 @@ import CustomerHistoryTimeline from '~/components/CustomerHistoryTimeline.vue'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import CurrentAccountEntryTable from '~/components/current-account/CurrentAccountEntryTable.vue'
 import { createTableBuilder } from '@/composables/table/createColumns'
+import type { BadgeColor } from '@/composables/table/createColumns'
 import type { SortingState } from '@tanstack/vue-table'
+import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
+import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
+import { usePaymentsService } from '~/modulos/erp/payments/service/payments.service'
+import { useCurrentAccountsService } from '~/modulos/erp/current-accounts/service/current-accounts.service'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,15 +28,18 @@ const activeTab = usePersistedViewTab('customer-record', 'documents')
 const loadingData = ref(true)
 
 const sorting = ref<SortingState>([])
+const partiesService = useBusinessPartiesService()
+const paymentsService = usePaymentsService()
+const currentAccountsService = useCurrentAccountsService()
 
 onMounted(async () => {
   loadingData.value = true
   try {
     const [partyData, docsData, paymentsData, statementData] = await Promise.all([
-      $fetch<any>(`/api/backend/master-data/business-parties/${id}`),
-      $fetch<any[]>(`/api/backend/documents/sales?party_id=${id}`),
-      $fetch<any[]>(`/api/backend/payments?party_id=${id}`),
-      $fetch<any>(`/api/backend/current-accounts/party/${id}/statement`).catch(() => null)
+      partiesService.findOne(id),
+      DocumentsSalesService.getAll({ party_id: id }),
+      paymentsService.findAll({ party_id: id }),
+      currentAccountsService.getStatement(id).catch(() => null)
     ])
     party.value = partyData
     documents.value = docsData || []
@@ -205,7 +213,7 @@ const paymentTableColumns = buildDocs([
     sortable: true,
     badge: {
       resolve: (row: any) => {
-        const map: Record<string, { label: string; color: string }> = {
+        const map: Record<string, { label: string; color: BadgeColor }> = {
           PAYMENT: { label: 'Pago', color: 'error' },
           COLLECTION: { label: 'Cobro', color: 'success' }
         }
@@ -219,7 +227,7 @@ const paymentTableColumns = buildDocs([
     label: 'Método',
     badge: {
       resolve: (row: any) => {
-        const map: Record<string, { label: string; color: string }> = {
+        const map: Record<string, { label: string; color: BadgeColor }> = {
           CASH: { label: 'Efectivo', color: 'neutral' },
           CHECK: { label: 'Cheque', color: 'warning' },
           BANK_TRANSFER: { label: 'Transferencia', color: 'primary' }
@@ -247,7 +255,7 @@ const paymentTableColumns = buildDocs([
     label: 'Estado',
     badge: {
       resolve: (row: any) => {
-        const map: Record<string, { label: string; color: string }> = {
+        const map: Record<string, { label: string; color: BadgeColor }> = {
           DRAFT: { label: 'Borrador', color: 'neutral' },
           CONFIRMED: { label: 'Confirmado', color: 'info' },
           PAID: { label: 'Pagado', color: 'success' },
@@ -280,7 +288,7 @@ const paymentTableColumns = buildDocs([
               icon="i-lucide-arrow-left"
               variant="ghost"
               color="neutral"
-              @click="router.push('/erp/sales/customers')"
+              @click="() => { void (router.push('/erp/sales/customers')) }"
             />
             <div>
               <h1 class="text-xl font-bold">{{ party.name }}</h1>
@@ -292,7 +300,7 @@ const paymentTableColumns = buildDocs([
           label="Editar"
           icon="i-lucide-pencil"
           variant="outline"
-          @click="router.push(`/erp/sales/customers/${id}/edit`)"
+          @click="() => { void (router.push(`/erp/sales/customers/${id}/edit`)) }"
         />
       </div>
 

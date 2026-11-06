@@ -7,6 +7,8 @@ export interface BankAccount {
   alias?: string | null
   account_number?: string | null
   currency_code: string
+  accounting_account_id?: string | null
+  accounting_account?: { id: string; code: string; name: string; account_type: string } | null
   balance: number
   active: boolean
   can_set_initial_balance?: boolean
@@ -35,6 +37,7 @@ export interface BankAccountMovement {
   reference?: string | null
   reference_type?: string | null
   reference_id?: string | null
+  import_key?: string | null
   bank_concept_id?: string | null
   concept_code_snapshot?: string | null
   concept_name_snapshot?: string | null
@@ -62,12 +65,15 @@ export interface BankAccountMovement {
     retentions_amount: number
     net_amount: number
   } | null
+  payment?: { status: string } | null
 
   created_at?: string
   updated_at?: string
+  deleted_at?: string | null
 }
 
 export interface BankAccountMovementDetails extends BankAccountMovement {
+  accounting_entry?: BankMovementAccountingEntry | null
   linked_check?: BankMovementCheckDetails | null
   charge?: {
     id: string
@@ -113,6 +119,35 @@ export interface BankAccountMovementDetails extends BankAccountMovement {
   } | null
 }
 
+export interface BankMovementAccountingEntry {
+  id: string
+  entry_date: string
+  description: string
+  currency_code: string
+  exchange_rate?: number | null
+  base_amount: number
+  reversed_at?: string | null
+  reversal?: {
+    id: string
+    entry_date: string
+    description: string
+    currency_code: string
+    base_amount: number
+    lines: BankMovementAccountingLine[]
+  } | null
+  lines: BankMovementAccountingLine[]
+}
+
+export interface BankMovementAccountingLine {
+  id: string
+  line_number: number
+  description: string
+  debit: number
+  credit: number
+  currency_code: string
+  account: { id: string; code: string; name: string; account_type: string }
+}
+
 export interface BankMovementCheckDetails {
   id: string
   check_number: string
@@ -148,6 +183,24 @@ export interface CreateBankMovementInput {
   effective_date?: string
 }
 
+export interface ImportBankStatementInput {
+  file_hash: string
+  rows: Array<{
+    row_number: number
+    date: string
+    description: string
+    reference?: string | null
+    amount: number
+    bank_concept_id: string
+  }>
+}
+
+export interface ImportBankStatementResult {
+  created: number
+  already_imported: number
+  balance: number
+}
+
 export interface CreateBankAccountInput {
   name: string
   bank_name: string
@@ -156,6 +209,7 @@ export interface CreateBankAccountInput {
   alias?: string
   account_number?: string
   currency_code: string
+  accounting_account_id?: string | null
   balance?: number
   active?: boolean
 }

@@ -347,7 +347,7 @@ function fmtShort(n: number): string {
   if (abs >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'K'
   return '$' + n.toFixed(0)
 }
-function fmtDate(d?: string): string {
+function fmtDate(d?: string | null): string {
   return d ? d.slice(0, 10) : '-'
 }
 

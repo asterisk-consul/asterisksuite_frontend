@@ -26,7 +26,7 @@ useBreadcrumbEntityLabel(
 
 const toInputDate = (date: string | null | undefined): string => {
   if (!date) return ''
-  return date.split('T')[0]
+  return date.split('T')[0] ?? ''
 }
 
 onMounted(async () => {

@@ -57,7 +57,7 @@ onMounted(async () => { await initBanks(); await load() })
 <template>
   <UPage class="space-y-5">
     <AppPageHeader title="Inversiones" description="Controlá plazos fijos, fondos FIMA, rendimientos y próximas acreditaciones.">
-      <template #links><UButton icon="i-lucide-plus" label="Nueva inversión" @click="openCreate" /></template>
+      <template #links><UButton data-global-create-shortcut class="group/create" icon="i-lucide-plus" label="Nueva inversión" aria-keyshortcuts="Alt+N" @click="openCreate"><template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template></UButton></template>
     </AppPageHeader>
 
     <div class="grid gap-3 md:grid-cols-3">
@@ -68,7 +68,7 @@ onMounted(async () => { await initBanks(); await load() })
       <UCard v-if="!summary.by_currency?.length"><p class="text-muted">Todavía no hay capital invertido.</p></UCard>
     </div>
 
-    <div class="flex items-center justify-between gap-3"><h2 class="text-lg font-semibold">Cartera</h2><UButtonGroup><UButton label="Activas" :variant="typeFilter === 'ACTIVE' ? 'solid' : 'outline'" @click="typeFilter = 'ACTIVE'"/><UButton label="Todas" :variant="typeFilter === 'ALL' ? 'solid' : 'outline'" @click="typeFilter = 'ALL'"/></UButtonGroup></div>
+    <div class="flex items-center justify-between gap-3"><h2 class="text-lg font-semibold">Cartera</h2><UButtonGroup><UButton label="Activas" :variant="typeFilter === 'ACTIVE' ? 'solid' : 'outline'" @click="() => { typeFilter = 'ACTIVE' }"/><UButton label="Todas" :variant="typeFilter === 'ALL' ? 'solid' : 'outline'" @click="() => { typeFilter = 'ALL' }"/></UButtonGroup></div>
     <div v-if="loading" class="space-y-3"><USkeleton v-for="n in 3" :key="n" class="h-32" /></div>
     <div v-else class="grid gap-4 xl:grid-cols-2">
       <UCard v-for="row in filtered" :key="row.id" class="hover:ring-1 hover:ring-primary/40 cursor-pointer" @click="navigateTo(`/erp/treasury/investments/${row.id}`)">
@@ -95,7 +95,7 @@ onMounted(async () => { await initBanks(); await load() })
           <div v-if="expectedUnits" class="flex items-center justify-between rounded-md border border-default bg-default p-3"><span class="text-sm text-muted">Cálculo automático: capital ÷ valor de cuotaparte</span><strong>{{ expectedUnits.toLocaleString('es-AR', { maximumFractionDigits: 8 }) }} cuotapartes</strong></div>
         </div>
         <div class="grid gap-4 sm:grid-cols-2"><UFormField label="Referencia"><UInput v-model="form.reference" class="w-full"/></UFormField><UFormField label="Notas"><UTextarea v-model="form.notes" class="w-full"/></UFormField></div>
-        <div class="flex justify-end gap-2"><UButton label="Cancelar" variant="ghost" :disabled="saving" @click="modalOpen=false"/><UButton label="Constituir inversión" :loading="saving" :disabled="saving || !canSubmit" @click="save"/></div>
+        <div class="flex justify-end gap-2"><UButton label="Cancelar" variant="ghost" :disabled="saving" @click="() => { modalOpen=false }"/><UButton label="Constituir inversión" :loading="saving" :disabled="saving || !canSubmit" @click="save"/></div>
       </div></template>
     </UModal>
   </UPage>

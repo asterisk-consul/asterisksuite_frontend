@@ -163,7 +163,7 @@ const rules: HelpPageRule[] = [
     }
   },
   {
-    matches: path => path.startsWith('/logistica/viajes') || path.startsWith('/logistica/operaciones'),
+    matches: path => path.startsWith('/logistica/viajes'),
     context: {
       label: 'Logística · Viajes y despachos',
       guideSlugs: ['procesos/logistica/viajes', 'procesos/logistica/ordenes-de-despacho', 'procesos/logistica/tarifas'],

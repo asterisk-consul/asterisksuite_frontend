@@ -155,7 +155,7 @@ const viewOptions: { label: string; value: 'table' | 'charts'; icon: string }[] 
             :label="opt.label"
             :color="view === opt.value ? 'primary' : 'neutral'"
             :variant="view === opt.value ? 'solid' : 'ghost'"
-            @click="view = opt.value"
+            @click="() => { view = opt.value }"
           />
         </UButtonGroup>
       </div>

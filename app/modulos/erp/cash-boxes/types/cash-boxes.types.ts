@@ -1,7 +1,7 @@
 export type CashBoxType = 'MAIN' | 'FIXED' | 'REGISTER'
 export type CashBoxStatus = 'OPEN' | 'CLOSED'
 export type CashBoxSessionStatus = 'OPEN' | 'CLOSED' | 'FORCED'
-export type CashBoxUserRole = 'RESPONSIBLE' | 'OPERATOR' | 'VIEWER'
+export type CashBoxUserRoleKind = 'RESPONSIBLE' | 'OPERATOR' | 'VIEWER'
 
 export interface CashBoxBalance {
   id: string
@@ -37,7 +37,7 @@ export interface CashBoxUserRole {
   id: string
   cash_box_id: string
   user_id: string
-  role: 'RESPONSIBLE' | 'OPERATOR' | 'VIEWER'
+  role: CashBoxUserRoleKind
 }
 
 export interface CashBox {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { FileService } from '@/services/fileApi'
+import { useDataImportService } from '~/modulos/data-import/data-import.service'
 
+const dataImportService = useDataImportService()
 const file = ref<File | null>(null)
 const loading = ref(false)
 const result = ref<any>(null)
@@ -15,7 +16,7 @@ async function upload() {
   result.value = null
 
   try {
-    const response = await FileService.importVentas(file.value)
+    const response = await dataImportService.importVentas(file.value)
     result.value = response.data
 
     // Mostrar notificación según resultado

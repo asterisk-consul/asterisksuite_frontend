@@ -27,7 +27,7 @@ const selectedTripIds = ref<Set<string>>(new Set())
 
 const saleDocTypes = computed(() =>
   (documentTypes.value ?? []).filter(
-    (dt: any) => dt.direction === 1 && (dt.category === 'INVOICE' || dt.category === 'CREDIT_NOTE' || dt.category === 'DEBIT_NOTE')
+    (dt: any) => dt.direction === 1 && dt.category === 'INVOICE'
   )
 )
 
@@ -129,7 +129,7 @@ watch(open, (val) => {
         <!-- Trips table -->
         <div v-else class="space-y-2">
           <div class="flex items-center gap-2 text-sm">
-            <UCheckbox :model-value="allSelected" @update:model-value="(v: boolean) => allSelected = v" />
+            <UCheckbox :model-value="allSelected" @update:model-value="(v: boolean | 'indeterminate') => { allSelected = v === true }" />
             <span class="font-medium">
               Seleccionar todos ({{ trips.length }})
             </span>
@@ -188,7 +188,7 @@ watch(open, (val) => {
             label="Cancelar"
             variant="ghost"
             color="neutral"
-            @click="open = false"
+            @click="() => { open = false }"
           />
           <UButton
             label="Generar"

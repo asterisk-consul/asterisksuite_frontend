@@ -166,7 +166,7 @@ export const useDocumentsSalesStore = defineStore(
     // ─────────────────────────────────────
     // Confirm
     // ─────────────────────────────────────
-    const confirm = async (id: string, options?: { assigned_to?: string | null }) => {
+    const confirm = async (id: string, options?: { assigned_to?: string | null; confirm_empty_delivery_data?: boolean }) => {
       loading.value = true
 
       error.value = null

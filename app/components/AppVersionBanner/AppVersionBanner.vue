@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useChangelogService } from '~/services/changelog.service'
 interface Props {
   version: string
   changelogUrl: string
@@ -14,9 +15,8 @@ const emit = defineEmits<Emits>()
 
 // Texto del banner: campo `message` de la última versión en versions.json,
 // con fallback a `notes` y a un texto genérico
-const { data: versions } = useFetch<Array<{ message?: string | null; notes?: string | null }>>('/api/changelog', {
-  default: () => []
-})
+const changelogService = useChangelogService()
+const { data: versions } = useAsyncData('app-changelog', () => changelogService.findAll(), { default: () => [] })
 const latestMessage = computed(() =>
   versions.value?.[0]?.message ?? versions.value?.[0]?.notes ?? null
 )

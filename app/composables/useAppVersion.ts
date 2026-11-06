@@ -24,7 +24,7 @@ export function useAppVersion() {
   const getChangelogUrl = () => '/changelog'
 
   return {
-    currentVersion: readonly(currentVersion),
+    currentVersion,
     dismissedVersion: readonly(dismissedVersion),
     showBanner: readonly(showBanner),
     init,

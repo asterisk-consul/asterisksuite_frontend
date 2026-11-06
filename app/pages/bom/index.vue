@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { ButtonProps } from '@nuxt/ui'
 import BomTable from '~/modulos/logistica/master-data/product/costing/components/BomTable.vue'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
 
@@ -14,20 +13,26 @@ const bomProducts = computed(() => products.value.filter(product => ['BOM', 'ENG
 const calculatedProducts = computed(() => bomProducts.value.filter(product => product.last_cost_calculated_at).length)
 const pendingProducts = computed(() => bomProducts.value.length - calculatedProducts.value)
 
-const links = computed<ButtonProps[]>(() => [{
-  label: 'Nuevo BOM',
-  icon: 'i-lucide-plus',
-  to: '/bom/create',
-  color: 'primary',
-  variant: 'solid'
-}])
-
 onMounted(init)
 </script>
 
 <template>
   <div class="flex flex-col h-full">
-    <AppPageHeader title="BOM e ingeniería" description="Estructuras de materiales y costos de fabricación" class="sticky top-0 z-10 px-4" :links="links" />
+    <AppPageHeader title="BOM e ingeniería" description="Estructuras de materiales y costos de fabricación" class="sticky top-0 z-10 px-4">
+      <template #links>
+        <ShortcutButton
+          label="Nuevo BOM"
+          icon="i-lucide-plus"
+          color="primary"
+          variant="solid"
+          data-global-create-shortcut
+          data-hide-global-create-control
+          :shortcut-keys="['Alt', 'N']"
+          help="Crear una estructura de materiales"
+          to="/bom/create"
+        />
+      </template>
+    </AppPageHeader>
 
     <UPage>
       <UPageBody>

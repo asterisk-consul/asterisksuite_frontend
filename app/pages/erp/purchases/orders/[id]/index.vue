@@ -61,7 +61,7 @@ const {
   store: {
     confirm: (id) => store.confirm(id),
     cancel: (id) => store.cancel(id),
-    changeStatus: (id, status) => store.changeStatus(id, status),
+    changeStatus: (id, status) => store.update(id, { status }),
     fetchOne: (id) => store.fetchOne(id),
   },
 })
@@ -80,9 +80,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [confirmModa
             :action="action"
             :shortcut-keys="shortcutKeys(action.label)"
           />
-          <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
-            <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
-          </UDropdownMenu>
+          <ShortcutDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions" />
         </div>
       </template>
     </AppPageHeader>
@@ -95,7 +93,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [confirmModa
       <div v-if="doc && company" id="printable-document" class="print-only">
         <DocumentPrintSelector :document="doc" :company="company" />
       </div>
-      <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" />
+      <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code ?? 'ARS'" />
       <DocumentTotals v-if="doc" :document="doc" />
     </div>
 
@@ -104,7 +102,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [confirmModa
         <p>¿Confirmar la orden de compra <strong>#{{ doc?.number }}</strong>?</p>
         <p class="text-sm text-muted mt-2">Una vez confirmada, podrás generar una factura.</p>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />
           <UButton label="Confirmar" color="success" :loading="processing" @click="handleConfirm" />
         </div>
       </template>
@@ -114,7 +112,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [confirmModa
       <template #body>
         <p>¿Anular la orden de compra <strong>#{{ doc?.number }}</strong>?</p>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="cancelModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { cancelModalOpen = false }" />
           <UButton label="Anular" color="error" :loading="processing" @click="handleCancel" />
         </div>
       </template>

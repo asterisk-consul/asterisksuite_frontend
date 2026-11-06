@@ -8,6 +8,7 @@ import { useDispatchOrdersStore } from '~/modulos/logistica/documents/dispatch-o
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import type { BadgeColor } from '~/types/colors.types'
 
 const tripsStore = useTripsStore()
 const driversStore = useChoferesStore()
@@ -45,7 +46,7 @@ const formatCurrency = (amount: number | string | null | undefined, currency = '
   }).format(num)
 }
 
-const TRIP_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+const TRIP_STATUS_CONFIG: Record<string, { label: string; color: BadgeColor }> = {
   PLANNED: { label: 'Planificado', color: 'warning' },
   PENDING: { label: 'Pendiente', color: 'neutral' }, // compatibilidad histórica
   IN_PROGRESS: { label: 'En curso', color: 'info' },
@@ -54,16 +55,12 @@ const TRIP_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   ON_HOLD: { label: 'En espera', color: 'warning' }
 }
 
-const DISPATCH_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  DRAFT: { label: 'Borrador', color: 'neutral' }, // compatibilidad histórica
+const DISPATCH_STATUS_CONFIG: Record<string, { label: string; color: BadgeColor }> = {
   PENDING: { label: 'Pendiente', color: 'warning' },
   ASSIGNED: { label: 'Asignado', color: 'info' },
   IN_PROGRESS: { label: 'En viaje', color: 'primary' },
   COMPLETED: { label: 'Completado', color: 'success' },
   CANCELLED: { label: 'Cancelado', color: 'error' },
-  CONFIRMED: { label: 'Confirmado', color: 'info' }, // compatibilidad histórica
-  IN_TRANSIT: { label: 'En tránsito', color: 'primary' },
-  DELIVERED: { label: 'Entregado', color: 'success' }
 }
 
 const trips = computed(() => tripsStore.items ?? [])
@@ -79,10 +76,10 @@ const completedTrips = computed(() => trips.value.filter((t) => t.status === 'CO
 const activeDrivers = computed(() => drivers.value.filter((d) => d.active))
 const inactiveDrivers = computed(() => drivers.value.filter((d) => !d.active))
 
-const activeVehicles = computed(() => vehicles.value.filter((v) => v.active !== false))
-const pendingOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'PENDING' || o.status === 'DRAFT'))
-const assignedOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'ASSIGNED' || o.status === 'CONFIRMED'))
-const inTransitOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'IN_PROGRESS' || o.status === 'IN_TRANSIT'))
+const activeVehicles = computed(() => vehicles.value.filter((vehicle) => !vehicle.deleted_at))
+const pendingOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'PENDING'))
+const assignedOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'ASSIGNED'))
+const inTransitOrders = computed(() => dispatchOrders.value.filter((o) => o.status === 'IN_PROGRESS'))
 const openOrderValue = computed(() => dispatchOrders.value
   .filter((o) => !['COMPLETED', 'CANCELLED', 'DELIVERED'].includes(o.status))
   .reduce((sum, order) => sum + Number(order.tariff_total ?? 0), 0))
@@ -179,7 +176,7 @@ const dispatchPipeline = computed(() => {
       color: DISPATCH_STATUS_CONFIG[status]?.color ?? 'neutral'
     }))
     .sort((a, b) => {
-      const order = ['DRAFT', 'PENDING', 'ASSIGNED', 'CONFIRMED', 'IN_PROGRESS', 'IN_TRANSIT', 'COMPLETED', 'DELIVERED', 'CANCELLED']
+      const order = ['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
       return order.indexOf(a.status) - order.indexOf(b.status)
     })
   return entries
@@ -219,7 +216,7 @@ const quickActions = [
 ]
 
 const tripStatusLabel = (status: string) => TRIP_STATUS_CONFIG[status]?.label ?? status
-const tripStatusColor = (status: string) => TRIP_STATUS_CONFIG[status]?.color ?? 'neutral'
+const tripStatusColor = (status: string): BadgeColor => TRIP_STATUS_CONFIG[status]?.color ?? 'neutral'
 </script>
 
 <template>
@@ -357,9 +354,9 @@ const tripStatusColor = (status: string) => TRIP_STATUS_CONFIG[status]?.color ??
                   {{ trip.reference_number ?? `Viaje #${trip.id.slice(0, 8)}` }}
                 </p>
                 <p class="text-xs text-muted truncate">
-                  {{ trip.locations_trips_origin_location_idTolocations?.name ?? 'Origen' }}
+                  {{ trip.locations_trips_origin_location_idTolocations?.city ?? trip.locations_trips_origin_location_idTolocations?.address ?? 'Origen' }}
                   →
-                  {{ trip.locations_trips_destination_location_idTolocations?.name ?? 'Destino' }}
+                  {{ trip.locations_trips_destination_location_idTolocations?.city ?? trip.locations_trips_destination_location_idTolocations?.address ?? 'Destino' }}
                 </p>
               </div>
             </div>

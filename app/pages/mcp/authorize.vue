@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useMcpAuthorizationService } from '~/modulos/erp/mcp/mcp-authorization.service'
 
 definePageMeta({ layout: 'public', auth: false })
 
@@ -13,6 +14,7 @@ interface AuthorizationRequest {
 const route = useRoute()
 const auth = useAuthStore()
 const toast = useToast()
+const authorizationService = useMcpAuthorizationService()
 const request = ref<AuthorizationRequest | null>(null)
 const selectedCompanyId = ref('')
 const loading = ref(false)
@@ -28,7 +30,7 @@ if (!auth.isLogged) {
   errorMessage.value = 'La solicitud de conexión no contiene un identificador válido.'
 } else {
   try {
-    request.value = await $fetch<AuthorizationRequest>(`/api/mcp/authorization/request?request_id=${encodeURIComponent(requestId)}`)
+    request.value = await authorizationService.getRequest(requestId) as AuthorizationRequest
     selectedCompanyId.value = auth.selectedCompany?.id || auth.companies[0]?.id || ''
   } catch (error: any) {
     errorMessage.value = error?.data?.message || error?.statusMessage || 'La solicitud venció o ya fue utilizada.'
@@ -51,10 +53,7 @@ async function approve() {
   if (!requestId || !selectedCompanyId.value) return
   loading.value = true
   try {
-    const result = await $fetch<{ redirect_url: string }>(`/api/mcp/authorization/request/${encodeURIComponent(requestId)}/approve`, {
-      method: 'POST',
-      body: { company_id: selectedCompanyId.value }
-    })
+    const result = await authorizationService.approve(requestId, selectedCompanyId.value)
     await continueToClient(result)
   } catch (error: any) {
     toast.add({ title: 'No se pudo autorizar', description: error?.data?.message || error?.statusMessage || 'Intentá de nuevo.', color: 'error' })
@@ -67,7 +66,7 @@ async function deny() {
   if (!requestId) return navigateTo('/')
   loading.value = true
   try {
-    const result = await $fetch<{ redirect_url: string }>(`/api/mcp/authorization/request/${encodeURIComponent(requestId)}/deny`, { method: 'POST' })
+    const result = await authorizationService.deny(requestId)
     await continueToClient(result)
   } catch (error: any) {
     toast.add({ title: 'No se pudo rechazar la conexión', description: error?.data?.message || error?.statusMessage || 'La solicitud pudo haber vencido.', color: 'error' })
@@ -115,7 +114,7 @@ async function deny() {
         </div>
 
         <div class="flex flex-col-reverse justify-end gap-2 sm:flex-row">
-          <UButton label="Rechazar" color="neutral" variant="outline" :loading="loading" @click="deny" />
+          <UButton label="Rechazar" color="neutral" variant="outline" :loading="loading" @click="() => { void (deny()) }" />
           <UButton label="Autorizar conexión" icon="i-lucide-shield-check" :disabled="!selectedCompanyId" :loading="loading" @click="approve" />
         </div>
       </div>

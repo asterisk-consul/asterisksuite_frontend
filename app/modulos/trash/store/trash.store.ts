@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useTrashService } from '~/modulos/trash/services/trash.service'
 import type { TrashItem } from '~/modulos/trash/types/trash.types'
+import type { TrashTable } from '~/modulos/trash/types/trash.types'
 
 export const useTrashStore = defineStore('trash', () => {
   const items = ref<TrashItem[]>([])
@@ -11,7 +12,7 @@ export const useTrashStore = defineStore('trash', () => {
   const service = useTrashService()
 
   // 🗑️ FETCH ALL
-  const fetchAll = async (params?: { days?: number; table?: string }) => {
+  const fetchAll = async (params?: { days?: number; table?: TrashTable }) => {
     loading.value = true
     error.value = null
     try {
@@ -92,11 +93,11 @@ export const useTrashStore = defineStore('trash', () => {
   }
 
   // 💀 HARD DELETE
-  const hardDeleteMany = async (table: string, ids: string[]) => {
+  const hardDeleteMany = async (table: string, ids: string[], confirmAccidentalDocuments = false) => {
     loading.value = true
     error.value = null
     try {
-      await service.hardDeleteMany(table, ids)
+      await service.hardDeleteMany(table, ids, confirmAccidentalDocuments)
 
       items.value = items.value.filter(
         (item) => !(item.table === table && ids.includes(item.id))
@@ -106,6 +107,26 @@ export const useTrashStore = defineStore('trash', () => {
       throw err
     } finally {
       loading.value = false
+    }
+  }
+
+  const reconcileValeDocument = async (documentId: string) => {
+    error.value = null
+    try {
+      return await service.reconcileValeDocument(documentId)
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
+    }
+  }
+
+  const getValeTreasuryImpacts = async (documentId: string) => {
+    error.value = null
+    try {
+      return await service.getValeTreasuryImpacts(documentId)
+    } catch (err: any) {
+      error.value = err?.data?.message || err.message
+      throw err
     }
   }
 
@@ -123,6 +144,8 @@ export const useTrashStore = defineStore('trash', () => {
     softDeleteMany,
     restoreMany,
     hardDeleteMany,
+    reconcileValeDocument,
+    getValeTreasuryImpacts,
     clearError
   }
 })

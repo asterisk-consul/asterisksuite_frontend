@@ -1,6 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
+import { useStockService } from '~/modulos/logistica/warehouses/stock/stock.service'
+
 type WarehouseAvailability = {
   id: string
   name: string
@@ -55,6 +57,7 @@ const products = ref<ProductAvailability[]>([])
 const meta = ref<AvailabilityResponse['meta']>({ total: 0, page: 1, limit: 25, pages: 0, days: 30 })
 const expanded = ref(new Set<string>())
 const toast = useToast()
+const stockService = useStockService()
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 function changePage(delta: number) {
@@ -77,9 +80,7 @@ const formatDate = (value?: string | null) => value
 async function load() {
   loading.value = true
   try {
-    const response = await $fetch<AvailabilityResponse>('/api/backend/warehouse/stock/reports/availability', {
-      query: { search: search.value || undefined, days: days.value, page: page.value, limit: 25 }
-    })
+    const response = await stockService.getAvailabilityReport({ search: search.value || undefined, days: days.value, page: page.value, limit: 25 })
     products.value = response.data
     meta.value = response.meta
   } catch (error: any) {

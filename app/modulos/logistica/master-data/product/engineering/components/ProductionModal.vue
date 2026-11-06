@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
+import { useWarehouseProductionService, type WarehouseProductionPreview, type WarehouseProductionRequest } from '~/modulos/logistica/warehouses/warehouse/production.service'
 
 const props = defineProps<{ open: boolean; productId: string; productName?: string; variantId?: string; variantName?: string }>()
 const emit = defineEmits<{ 'update:open': [value: boolean]; completed: [result: any] }>()
 
 const depositsStore = useDepositosStore()
+const productionService = useWarehouseProductionService()
 const { warehouses, loading: loadingWarehouses } = storeToRefs(depositsStore)
 const toast = useToast()
 const materialWarehouseId = ref('')
 const outputWarehouseId = ref('')
 const quantity = ref(1)
-const preview = ref<any | null>(null)
+const preview = ref<WarehouseProductionPreview | null>(null)
 const loadingPreview = ref(false)
 const producing = ref(false)
 
@@ -18,22 +20,21 @@ const warehouseOptions = computed(() => warehouses.value
   .filter(warehouse => warehouse.active)
   .map(warehouse => ({ label: `${warehouse.code ? `${warehouse.code} · ` : ''}${warehouse.name}`, value: warehouse.id })))
 
+const productionRequest = (): WarehouseProductionRequest => ({
+  productId: props.productId,
+  variantId: props.variantId || undefined,
+  quantity: Number(quantity.value),
+  materialWarehouseId: materialWarehouseId.value,
+  outputWarehouseId: outputWarehouseId.value
+})
+
 const canPreview = computed(() => !!materialWarehouseId.value && !!outputWarehouseId.value && Number(quantity.value) > 0)
 
 const loadPreview = async () => {
   if (!canPreview.value) return
   loadingPreview.value = true
   try {
-    preview.value = await $fetch('/api/backend/warehouse/stock/production/preview', {
-      method: 'POST',
-      body: {
-        product_id: props.productId,
-        variant_id: props.variantId || undefined,
-        material_warehouse_id: materialWarehouseId.value,
-        output_warehouse_id: outputWarehouseId.value,
-        quantity: Number(quantity.value)
-      }
-    })
+    preview.value = await productionService.preview(productionRequest())
   } catch (err: any) {
     preview.value = null
     toast.add({ title: 'No se pudo calcular la fabricación', description: err?.data?.message || err?.message, color: 'error' })
@@ -46,16 +47,7 @@ const execute = async () => {
   if (producing.value || !preview.value?.can_produce) return
   producing.value = true
   try {
-    const result = await $fetch('/api/backend/warehouse/stock/production/execute', {
-      method: 'POST',
-      body: {
-        product_id: props.productId,
-        variant_id: props.variantId || undefined,
-        material_warehouse_id: materialWarehouseId.value,
-        output_warehouse_id: outputWarehouseId.value,
-        quantity: Number(quantity.value)
-      }
-    })
+    const result = await productionService.execute(productionRequest())
     toast.add({
       title: 'Fabricación registrada',
       description: `Ingresaron ${quantity.value} unidades de ${props.productName ?? 'producto terminado'}${props.variantName ? ` · ${props.variantName}` : ''}.`,
@@ -88,7 +80,7 @@ const formatQuantity = (value: number) => Number(value).toLocaleString('es-AR', 
 </script>
 
 <template>
-  <UModal :open="open" title="Fabricar producto" :ui="{ width: 'max-w-4xl' }" @update:open="emit('update:open', $event)">
+  <UModal :open="open" title="Fabricar producto" :ui="{ content: 'max-w-4xl' }" @update:open="emit('update:open', $event)">
     <template #body>
       <div class="space-y-5">
         <div class="rounded-lg border border-default bg-elevated/40 p-4">

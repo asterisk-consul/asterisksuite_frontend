@@ -1,5 +1,487 @@
 [
  {
+  "version": "0.136.0-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "La conciliación de extractos se realiza por cuenta bancaria, con reglas de lectura revisables y asiento asociado a la cuenta bancaria y la cuenta del concepto. Las OVs pueden asignar un socio como vendedor sin mostrar porcentajes en el comprobante, y el formulario unificado conserva el perfil y los datos de socios.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Importar y conciliar extractos bancarios por cuenta con su asiento contable" },
+   { "type": "feat", "scope": "sales", "title": "Seleccionar socios como vendedores de OV sin exponer porcentajes de participación" },
+   { "type": "fix", "scope": "master-data", "title": "Conservar los datos y el perfil de socios en el formulario unificado de partes interesadas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Conciliar extractos y vincular socios vendedores"
+ },
+ {
+  "version": "0.135.2-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "La pantalla de acceso conserva el mensaje de marca, simplifica la presentación y muestra la empresa asociada al subdominio activo.",
+  "changes": [
+   { "type": "style", "scope": "auth", "title": "Simplificar el login y mostrar la empresa del espacio" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mostrar la empresa al iniciar sesión"
+ },
+ {
+  "version": "0.135.1-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "La pantalla de inicio de sesión adopta la identidad visual de Asterisk Suite y se adapta a celulares y pantallas grandes.",
+  "changes": [
+   { "type": "style", "scope": "auth", "title": "Rediseñar el inicio de sesión con una presentación adaptable" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar el acceso desde computadoras y celulares"
+ },
+ {
+  "version": "0.135.0-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "Los socios pueden clasificarse como inversionistas para registrar aportes y devoluciones de capital sin participación en ventas. La devolución puede cargarse en retiros parciales o programarse en cuotas, que quedan como vales RETIRO en borrador y reservan el saldo hasta su confirmación.",
+  "changes": [
+   { "type": "feat", "scope": "hr", "title": "Registrar inversionistas y programar devoluciones de capital en cuotas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Registrar inversionistas y programar la devolución de sus aportes"
+ },
+ {
+  "version": "0.134.0-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "La participación societaria de los socios se calcula sobre nuevas OV o su facturación, según Circuito de ventas. La comisión por vender se configura por separado; ambos conceptos pueden liquidarse juntos con detalle y por moneda.",
+  "changes": [
+   { "type": "feat", "scope": "hr", "title": "Configurar participación societaria y comisión de socios en ventas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Calcular y liquidar la participación de los socios en ventas"
+ },
+ {
+  "version": "0.133.1-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "Se corrige el registro del guard de permisos del módulo de auditoría para evitar errores de dependencias al iniciar la aplicación.",
+  "changes": [
+   { "type": "fix", "scope": "audit", "title": "Corregir la inyección de permisos del módulo de auditoría" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir el inicio del módulo de auditoría"
+ },
+ {
+  "version": "0.133.0-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "El Circuito de ventas permite definir empleados y socios como vendedores predeterminados. Cada uno puede comisionar sobre hasta el 100% de la venta, de forma independiente. Las nuevas OVs muestran esas asignaciones pendientes en RRHH, sin generar ni confirmar vales automáticamente.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Precargar vendedores y socios para las comisiones de nuevas OVs" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Precargar comisiones en las nuevas órdenes de venta"
+ },
+ {
+  "version": "0.132.1-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "Al confirmar una OV, se valida la información de entrega guardada. Si la dirección es obligatoria, no se puede confirmar sin completarla; si es opcional y el aviso está activo, se pide confirmación cuando todos los datos están vacíos.",
+  "changes": [
+   { "type": "fix", "scope": "sales", "title": "Validar los datos de entrega al confirmar una OV" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Validar la entrega al confirmar una OV"
+ },
+ {
+  "version": "0.132.0-alpha",
+  "date": "2026-11-05",
+  "stage": "alpha",
+  "notes": "Los usuarios autorizados de plataforma pueden consultar los cambios registrados en el tenant seleccionado desde una grilla paginada, filtrar por entidad, acción, fecha o usuario y comparar valores anteriores y nuevos.",
+  "changes": [
+   { "type": "feat", "scope": "audit", "title": "Consultar la auditoría de cambios en una tabla por empresa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Consultar los logs de la empresa desde Configuración"
+ },
+ {
+  "version": "0.131.0-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Las Órdenes de Venta permiten registrar medidas e indicaciones en cada renglón. Se copian a los remitos completos, parciales y generados desde despacho, y se muestran en el detalle y la impresión.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Agregar medidas e indicaciones por producto en OV y remitos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agregar instrucciones por producto en ventas"
+ },
+ {
+  "version": "0.130.2-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Cuando la dirección de entrega de la OV es opcional, la empresa puede activar o desactivar la confirmación modal para guardar si todos los datos de entrega están vacíos.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Confirmar el guardado de una OV sin datos de entrega" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Confirmar el guardado de OV sin datos de entrega"
+ },
+ {
+  "version": "0.130.1-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Mis pendientes muestra la referencia o descripción separada del nombre de la contraparte y permite buscar por tipo, número, contraparte, referencia, estado y fecha.",
+  "changes": [
+   { "type": "fix", "scope": "dashboard", "title": "Mostrar y buscar referencias en Mis pendientes" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la búsqueda de Mis pendientes"
+ },
+ {
+  "version": "0.130.0-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "La OV permite registrar un único vendedor activo para atribuir la venta y consultarla por vendedor. Si el usuario actual está vinculado a un empleado vendedor, se lo preselecciona. La liquidación de comisiones se mantiene en RR. HH.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Atribuir y filtrar las Órdenes de Venta por vendedor" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Registrar el vendedor de cada OV"
+ },
+ {
+  "version": "0.129.2-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "El historial de seguimiento y auditoría de documentos de venta queda visible únicamente para el auditor asignado y el propietario de la empresa.",
+  "changes": [
+   { "type": "fix", "scope": "sales", "title": "Restringir la consulta del historial de auditoría al auditor y al propietario de la empresa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Restringir el acceso al historial de auditoría"
+ },
+ {
+  "version": "0.129.1-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "El mantenimiento pendiente actualiza dependencias de backend y frontend, incorpora @nuxthub/core en el backend, cambia la URL predeterminada del ejemplo HTTP de vehículos y retira documentación interna obsoleta de corredores y versionado.",
+  "changes": [
+   { "type": "chore", "scope": "dependencies", "title": "Actualizar dependencias de backend y frontend" },
+   { "type": "chore", "scope": "examples", "title": "Usar la API remota como destino predeterminado del ejemplo HTTP de vehículos" },
+   { "type": "chore", "scope": "docs", "title": "Retirar documentación interna obsoleta de corredores y versionado" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Actualizar dependencias y limpiar recursos de desarrollo"
+ },
+ {
+  "version": "0.129.0-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "El Circuito de ventas permite sugerir un auditor para las nuevas OV. El auditor y el responsable se conservan al crear documentos derivados; el auditor recibe avisos de cambios de estado y condiciones de entrega, con un historial persistente por documento.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Asignar auditor y seguir los cambios de documentos de venta" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agregar auditor de seguimiento a las ventas"
+ },
+ {
+  "version": "0.128.1-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Las alertas de impuestos y autorizaciones fiscales llegan a sus responsables administrativos. Si no hay usuarios con esos permisos, las reciben los administradores u owners de la empresa.",
+  "changes": [
+   { "type": "fix", "scope": "notifications", "title": "Limitar las alertas fiscales a sus responsables administrativos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Dirigir las alertas fiscales a sus responsables"
+ },
+ {
+  "version": "0.128.0-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "El Circuito de ventas permite exigir una dirección de entrega en las Órdenes de Venta. Cuando se activa, la dirección se valida al crear o editar la OV; los demás datos de entrega siguen siendo opcionales.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Configurar la dirección de entrega obligatoria para las OV" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Permitir exigir la dirección de entrega de las OV"
+ },
+ {
+  "version": "0.127.0-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Los remitos vinculados a una OV muestran los datos de entrega de su origen, tanto en el detalle como al imprimirlos.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Mostrar en el remito los datos de entrega de la OV de origen" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Llevar los datos de entrega de la OV al remito"
+ },
+ {
+  "version": "0.126.1-alpha",
+  "date": "2026-11-04",
+  "stage": "alpha",
+  "notes": "Al abrir un comprobante de venta se carga el documento completo, incluidos sus ítems y datos necesarios para las acciones del detalle.",
+  "changes": [
+   { "type": "fix", "scope": "sales", "title": "Cargar el documento completo al abrir su detalle" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir la carga del detalle de ventas"
+ },
+ {
+  "version": "0.126.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Las notas de crédito y débito se inician desde facturas confirmadas. En edición se puede cambiar la referencia; el cliente o proveedor se actualiza y la búsqueda carga solo los datos necesarios.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Iniciar notas de crédito y débito desde facturas confirmadas" },
+   { "type": "fix", "scope": "documents", "title": "Permitir cambiar la factura de referencia al editar y actualizar el tercero asociado" },
+   { "type": "fix", "scope": "documents", "title": "Cerrar el selector al elegir la referencia y restringir notas generadas desde viajes" },
+   { "type": "perf", "scope": "documents", "title": "Buscar facturas de referencia con resultados paginados y datos acotados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Crear notas desde facturas y cambiar su referencia al editar"
+ },
+ {
+  "version": "0.125.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "ARCA queda integrado al control de módulos por empresa y apagado por defecto hasta que la plataforma lo habilite.",
+  "changes": [
+   { "type": "feat", "scope": "arca", "title": "Habilitar o deshabilitar ARCA por plan o excepción de empresa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Controlar la disponibilidad de ARCA por empresa"
+ },
+ {
+  "version": "0.124.5-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La Papelera explica el motivo exacto por el que un comprobante de vale necesita limpieza y separa los pendientes del documento/cuenta corriente de los de Tesorería. No pide una reversión bancaria cuando no hubo movimiento o cuando el movimiento inverso ya existe.",
+  "changes": [
+   { "type": "fix", "scope": "trash", "title": "Mostrar por separado los pendientes del comprobante y de Tesorería para vales anulados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Aclarar la limpieza pendiente de vales anulados"
+ },
+ {
+  "version": "0.124.4-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La Papelera detalla por qué un vale RRHH anulado necesita limpieza: estado o saldo pagado del comprobante, asientos activos de cuenta corriente y/o reversión de Tesorería. El detalle muestra la caja o banco y sus movimientos; solo se registra el movimiento compensatorio cuando realmente falta.",
+  "changes": [
+   { "type": "fix", "scope": "hr", "title": "Reponer de forma idempotente reversiones de tesorería faltantes al regularizar vales anulados" },
+   { "type": "fix", "scope": "trash", "title": "Distinguir limpieza de comprobantes y reversiones de Tesorería en vales anulados" },
+   { "type": "fix", "scope": "trash", "title": "Mostrar con claridad los estados de comprobantes internos VALE" },
+   { "type": "feat", "scope": "trash", "title": "Consultar caja o banco e importes afectados desde el detalle del vale en la Papelera" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Distinguir la limpieza pendiente de vales en la Papelera"
+ },
+ {
+  "version": "0.124.3-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La Papelera presenta en una tabla más clara el tipo, los datos identificativos, el estado, la fecha de baja y quién envió cada registro; la búsqueda también encuentra nombres y referencias.",
+  "changes": [
+   { "type": "style", "scope": "trash", "title": "Mejorar la lectura de registros, estados y referencias en la Papelera" },
+   { "type": "feat", "scope": "trash", "title": "Mostrar datos identificativos de entidades disponibles en la Papelera" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la tabla de la Papelera"
+ },
+ {
+  "version": "0.124.2-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La Papelera acepta comprobantes en borrador o anulados. La anulación de vales RRHH también limpia el estado y los asientos activos del documento interno; los vales históricos inconsistentes se pueden regularizar desde la tabla sin repetir movimientos de tesorería.",
+  "changes": [
+   { "type": "fix", "scope": "trash", "title": "Exigir borrador o anulación antes de purgar comprobantes" },
+   { "type": "fix", "scope": "hr", "title": "Regularizar comprobantes y saldos de vales anulados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Regularizar vales anulados y proteger la papelera"
+ },
+ {
+  "version": "0.124.1-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La purga de comprobantes manuales en papelera ya no depende de que el estado numérico figure como anulado: los borradores retirados del circuito también pueden eliminarse si no conservan autorización fiscal ni movimientos o relaciones activas.",
+  "changes": [
+   { "type": "fix", "scope": "trash", "title": "Permitir purgar comprobantes manuales seguros que siguen en estado borrador" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Permitir eliminar comprobantes seguros desde la papelera"
+ },
+ {
+  "version": "0.124.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "La papelera respeta permisos de consulta, restauración y eliminación. Permite purgar comprobantes manuales anulados sin autorización fiscal ni efectos activos tras confirmar que se cargaron por error; protege partes interesadas con documentos, pagos, movimientos o datos asociados.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Purgar comprobantes manuales anulados y desvinculados con confirmación explícita" },
+   { "type": "fix", "scope": "trash", "title": "Respetar permisos para consultar, restaurar y eliminar desde la papelera" },
+   { "type": "fix", "scope": "master-data", "title": "Impedir la eliminación definitiva de partes interesadas con datos asociados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Purgar comprobantes anulados cargados por error"
+ },
+ {
+  "version": "0.123.3-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Permite eliminar definitivamente desde la papelera NC/ND manuales, anuladas y sin origen cuando ya no conservan autorización fiscal, pagos ni movimientos activos; los asientos de cuenta corriente previamente revertidos se limpian sin volver a afectar el saldo.",
+  "changes": [
+   { "type": "fix", "scope": "documents", "title": "Permitir purgar NC/ND huérfanas seguras y sus asientos inactivos de cuenta corriente" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Eliminar notas de crédito y débito cargadas por error"
+ },
+ {
+  "version": "0.123.2-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Alt + N activa el botón principal de alta en las pantallas de Stock y los catálogos relacionados; en costos cambia con la pestaña seleccionada.",
+  "changes": [
+   { "type": "fix", "scope": "stock", "title": "Vincular Alt + N a los botones de alta de productos y catálogos de inventario" },
+   { "type": "fix", "scope": "inventory", "title": "Aplicar el atajo a depósitos, precios, costos y BOM según la pantalla activa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Unificar Alt + N en las altas de Stock"
+ },
+ {
+  "version": "0.123.1-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Permite anular y enviar a la papelera notas de crédito/débito huérfanas sin pagos ni movimientos relacionados. El acceso Nuevo producto del resumen de Stock ejecuta Alt + N y muestra el atajo en el botón correcto.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Retirar de forma segura NC/ND huérfanas y recalcular cuenta corriente" },
+   { "type": "fix", "scope": "stock", "title": "Conectar Alt + N al botón Nuevo producto del resumen de Stock" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Alinear los accesos Nuevo producto y Alt + N en Stock"
+ },
+ {
+  "version": "0.122.1-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Las notas de crédito y débito de compra muestran enseguida la factura de origen, avisan si cambian el proveedor y validan que la referencia corresponda.",
+  "changes": [
+   { "type": "fix", "scope": "purchases", "title": "Precargar la factura de origen y validar el proveedor en notas de compra" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Precargar y validar la factura de referencia de las notas de compra"
+ },
+ {
+  "version": "0.122.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Permite simular localmente la prueba de ARCA con datos ficticios sin subir certificados ni conectarse al servicio.",
+  "changes": [
+   { "type": "feat", "scope": "arca", "title": "Agregar simulación local de la conexión de homologación con datos ficticios" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Probar la pantalla de ARCA con datos ficticios"
+ },
+ {
+  "version": "0.121.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Permite configurar por empresa las credenciales de homologación de ARCA, validar el acceso a WSAA/WSFE y consultar los puntos de venta de prueba.",
+  "changes": [
+   { "type": "feat", "scope": "arca", "title": "Configurar credenciales de homologación y probar conexión con WSAA/WSFE por empresa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Configurar y probar la conexión de homologación con ARCA"
+ },
+ {
+  "version": "0.120.0-alpha",
+  "date": "2026-11-03",
+  "stage": "alpha",
+  "notes": "Exportar movimientos bancarios con una guía de tipos en español e importar extractos CSV o Excel para revisar coincidencias sin modificar saldos.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Importar extractos bancarios de distintos formatos y exportar movimientos con guía de tipos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Revisar extractos bancarios con tipos explicados"
+ },
+ {
+  "version": "0.119.0-alpha",
+  "date": "2026-11-02",
+  "stage": "alpha",
+  "notes": "Se integran atajos para crear, volver y ejecutar acciones frecuentes. Se corrigen filtros de RRHH y movimientos bancarios, y las anulaciones de pagos y vales dejan de duplicar los historiales operativos de cajas y bancos.",
+  "changes": [
+   { "type": "feat", "scope": "shortcuts", "title": "Incorporar atajos de creación, navegación y acciones frecuentes con indicadores consistentes" },
+   { "type": "fix", "scope": "treasury", "title": "Ocultar inicialmente reversiones de pagos y vales en cajas y bancos sin alterar los saldos" },
+   { "type": "fix", "scope": "tables", "title": "Corregir los filtros de tipo en vales y movimientos bancarios" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agilizar acciones y consultar movimientos sin duplicaciones"
+ },
+ {
+  "version": "0.118.1-alpha",
+  "date": "2026-11-02",
+  "stage": "alpha",
+  "notes": "La administración de plataforma conserva el rol al recargar y muestra las acciones de creación del encabezado.",
+  "changes": [
+   { "type": "fix", "scope": "platform-access", "title": "Incluir el rol global en la respuesta de sesión para mantener Planes y módulos visible al recargar" },
+   { "type": "fix", "scope": "platform-plans", "title": "Mostrar Nuevo plan y otras acciones provistas por AppPageHeader" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Conservar la navegación de plataforma al recargar"
+ },
+ {
+  "version": "0.118.0-alpha",
+  "date": "2026-11-02",
+  "stage": "alpha",
+  "notes": "PLATFORM_OWNER puede asignar cuentas existentes como administradores de plataforma y limitar las empresas que gestionan. El alcance es independiente de los usuarios y roles del ERP tenant.",
+  "changes": [
+   { "type": "feat", "scope": "platform-access", "title": "Administrar cuentas PLATFORM_ADMIN y asignarles empresas sin otorgar acceso al ERP" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Asignar administradores de plataforma con alcance por empresa"
+ },
+ {
+  "version": "0.117.2-alpha",
+  "date": "2026-11-02",
+  "stage": "alpha",
+  "notes": "PLATFORM_ADMIN solo puede gestionar las empresas asociadas a su usuario. PLATFORM_OWNER conserva la gestión global de empresas, planes y altas.",
+  "changes": [
+   { "type": "fix", "scope": "platform-access", "title": "Limitar a PLATFORM_ADMIN a las empresas asociadas y reservar la gestión global a PLATFORM_OWNER" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Restringir la gestión de empresas al alcance de cada rol de plataforma"
+ },
+ {
+  "version": "0.117.1-alpha",
+  "date": "2026-11-02",
+  "stage": "alpha",
+  "notes": "Si la base de plataforma todavía no tiene sembrado el catálogo de módulos, el acceso existente al ERP se conserva mientras se completa la configuración.",
+  "changes": [
+   { "type": "fix", "scope": "platform-modules", "title": "Conservar el acceso al ERP cuando falta el catálogo de módulos de plataforma" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Conservar el acceso durante la inicialización del catálogo de módulos"
+ },
+ {
+  "version": "0.117.0-alpha",
+  "date": "2026-10-31",
+  "stage": "alpha",
+  "notes": "El administrador de plataforma puede dar de alta empresas con un titular registrado, un plan y un estado inicial, y luego configurar sus módulos desde la misma pantalla.",
+  "changes": [
+   { "type": "feat", "scope": "platform-companies", "title": "Crear empresas manualmente desde plataforma y asociar titular, plan y estado inicial" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Dar de alta empresas desde la administración de plataforma"
+ },
+ {
+  "version": "0.116.1-alpha",
+  "date": "2026-10-31",
+  "stage": "alpha",
+  "notes": "La administración de planes abre en la gestión de empresas y muestra si cada módulo está habilitado por plan o por excepción. Los cambios fallidos presentan un aviso para poder corregirlos.",
+  "changes": [
+   { "type": "style", "scope": "platform-modules", "title": "Priorizar el control de módulos por empresa al abrir Planes y módulos" },
+   { "type": "fix", "scope": "platform-modules", "title": "Informar errores al guardar excepciones de acceso por módulo" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Administrar módulos directamente desde cada empresa"
+ },
+ {
   "version": "0.116.0-alpha",
   "date": "2026-10-30",
   "stage": "alpha",

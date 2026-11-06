@@ -76,7 +76,14 @@ const canEditFinalizedFinancialDetails = computed(() =>
   && (['OWNER', 'ADMIN'].includes(String(authStore.selectedCompany?.role)) || hasPermission('payments.update'))
   && ['CASH', 'BANK_TRANSFER'].includes(String(currentPayment.value?.payment_method))
   && currentPayment.value?.payment_mode !== 'ADVANCE'
-  && (currentPayment.value?.type === 'EXPENSE' || Boolean(currentPayment.value?.party_id && currentPayment.value?.documents?.length))
+  && (currentPayment.value?.type === 'PAYMENT' && !currentPayment.value?.party_id || Boolean(currentPayment.value?.party_id && currentPayment.value?.documents?.length))
+)
+const canEditFinalizedExchangeRate = computed(() =>
+  (isConfirmed.value || isPaid.value)
+  && (['OWNER', 'ADMIN'].includes(String(authStore.selectedCompany?.role)) || hasPermission('payments.update'))
+  && currentPayment.value?.payment_mode !== 'ADVANCE'
+  && currentPayment.value?.currency_code?.toUpperCase() === 'ARS'
+  && Boolean(currentPayment.value?.documents?.some((row: any) => row.document?.currency_code?.toUpperCase() === 'USD'))
 )
 const isAdvance = computed(() => currentPayment.value?.payment_mode === 'ADVANCE')
 const hasUnsavedDateChange = computed(() => isDraft.value && editingDate.value !== savedDate.value)
@@ -113,6 +120,9 @@ onMounted(async () => {
         })),
         amount: Number(payment.amount),
         currency_code: payment.currency_code ?? 'ARS',
+        exchange_rate: payment.exchange_rate == null ? null : Number(payment.exchange_rate),
+        rate_type: payment.rate_type ?? 'OFFICIAL',
+        converted_amount: payment.converted_amount == null ? null : Number(payment.converted_amount),
         description: payment.description ?? '',
         reference: payment.reference ?? '',
         party_id: payment.party_id ?? '',
@@ -204,12 +214,15 @@ const handleSubmit = async (formData: PaymentFormData) => {
       payment_mode: formData.payment_mode as any,
       amount: formData.amount,
       currency_code: formData.currency_code,
+      exchange_rate: formData.exchange_rate ?? undefined,
+      rate_type: formData.rate_type ?? undefined,
+      converted_amount: formData.converted_amount ?? undefined,
       description: formData.description || undefined,
       reference: formData.reference || undefined,
       party_id: formData.party_id || undefined,
       bank_account_id: formData.payment_method === 'MIXED' ? undefined : formData.bank_account_id || undefined,
       cash_box_id: formData.payment_method === 'MIXED' ? undefined : formData.cash_box_id || undefined,
-      account_id: formData.account_id || null,
+      account_id: formData.account_id || undefined,
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
       checks: formData.checks ?? [],
       documents: formData.documents ?? [],
@@ -231,8 +244,8 @@ const handleSubmit = async (formData: PaymentFormData) => {
   }
 }
 
-const handleFinalizedDetailsSave = async (payload: { account_id: string | null; party_id?: string | null; withholdings: any[] }) => {
-  if (isSaving.value || !canEditFinalizedFinancialDetails.value) return
+const handleFinalizedDetailsSave = async (payload: { rate_only?: boolean; account_id?: string | null; party_id?: string | null; withholdings?: any[]; exchange_rate?: number | null; rate_type?: string | null }) => {
+  if (isSaving.value || (!canEditFinalizedFinancialDetails.value && !canEditFinalizedExchangeRate.value)) return
   isSaving.value = true
   try {
     const updated = await updateFinalizedFinancialDetails(paymentId, payload)
@@ -241,6 +254,8 @@ const handleFinalizedDetailsSave = async (payload: { account_id: string | null; 
       ...paymentData.value,
       amount: Number(updated.amount),
       converted_amount: updated.converted_amount == null ? null : Number(updated.converted_amount),
+      exchange_rate: updated.exchange_rate == null ? null : Number(updated.exchange_rate),
+      rate_type: updated.rate_type ?? 'OFFICIAL',
       account_id: updated.account_id ?? '',
       account: (updated as any).account,
       party_id: updated.party_id ?? '',
@@ -264,7 +279,7 @@ const handleFinalizedDetailsSave = async (payload: { account_id: string | null; 
       certificate_date: w.certificate_date?.split('T')[0] ?? undefined,
       is_locked: Boolean(w.certificate_number || w.remittance_id),
     }))
-    toast.add({ title: 'Cambios financieros guardados', description: 'Se actualizó el importe del pago y se recalcularon los saldos de caja/banco y cuenta corriente. El bruto aplicado a las facturas se conservó.', color: 'success' })
+    toast.add({ title: 'Cambios financieros guardados', description: 'La cotización no altera los importes nominales en pesos. Si modificaste retenciones, se recalcularon el movimiento y los saldos; el importe aplicado a las facturas se conserva.', color: 'success' })
   } catch (error: any) {
     toast.add({ title: 'No se pudieron guardar los cambios', description: error?.data?.message || error?.message || 'Revisá las retenciones y la cuenta seleccionada.', color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
@@ -309,8 +324,6 @@ const paymentShortcutActions = computed(() => {
 })
 
 const { shortcutKeys: paymentShortcutKeys } = useDocumentDetailShortcuts(paymentShortcutActions, [actionModalOpen, advanceModalOpen])
-const shortcutKeyText = (label: string) => paymentShortcutKeys(label)?.join(' + ')
-const shortcutAriaValue = (label: string) => paymentShortcutKeys(label)?.join('+')
 
 const handleFormModelUpdate = (value: PaymentFormData) => {
   editingDate.value = value.date ?? ''
@@ -379,6 +392,15 @@ const handleAdvanceSuccess = async () => {
       :title="isDraft ? (isAdvance ? 'Editar anticipo' : 'Editar pago / cobro') : (isAdvance ? 'Detalle del anticipo' : 'Detalle de pago / cobro')"
       :description="isDraft ? (isAdvance ? 'Anticipo a proveedor o cliente' : 'Modificar pago o cobro en borrador') : 'Solo se pueden editar operaciones en borrador. Esta operación ya no admite cambios.'"
     >
+      <template #links>
+        <PaymentStatusIndicator
+          v-if="currentPayment"
+          :status="currentPayment.status"
+          :confirmed-at="currentPayment.confirmed_at"
+          :payment-date="currentPayment.payment_date"
+          stacked
+        />
+      </template>
       <template #footer>
         <div v-if="isDraft" id="payment-form-actions" class="w-full pt-5 pb-3" />
         <div v-else-if="currentPayment" class="flex w-full flex-col gap-3 pt-5 pb-3 sm:flex-row sm:items-center sm:justify-between">
@@ -398,7 +420,7 @@ const handleAdvanceSuccess = async () => {
               size="sm"
               color="info"
               variant="outline"
-              @click="advanceModalOpen = true"
+              @click="() => { advanceModalOpen = true }"
             />
             <UButton
               v-if="(isConfirmed || isPaid) && currentPayment.party_id"
@@ -407,64 +429,44 @@ const handleAdvanceSuccess = async () => {
               size="sm"
               color="primary"
               variant="outline"
-              @click="router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)"
+              @click="() => { void (router.push(`/erp/treasury/current-accounts/${currentPayment!.party_id}?currency=${currentPayment!.currency_code ?? 'ARS'}`)) }"
             />
           </div>
           <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-            <UButton
+            <ShortcutButton
               v-if="isConfirmed && canMarkAsPaid"
               label="Marcar pagado"
+              :shortcut-keys="paymentShortcutKeys('Marcar pagado') ?? []"
               icon="i-lucide-check"
               size="sm"
               color="success"
               :loading="isProcessing"
               :disabled="isProcessing"
-              :aria-keyshortcuts="shortcutAriaValue('Marcar pagado')"
-              :title="`Marcar pagado (Alt + ${shortcutKeyText('Marcar pagado')?.split(' + ')[1]})`"
               @click="openAction('pay')"
-            >
-              <template #trailing>
-                <KeyboardShortcutHint :keys="paymentShortcutKeys('Marcar pagado') ?? []" size="2xs" />
-              </template>
-            </UButton>
-            <UButton
+            />
+            <ShortcutButton
               v-if="isConfirmed && canRejectPayment"
               label="Rechazar"
+              :shortcut-keys="paymentShortcutKeys('Rechazar') ?? []"
               icon="i-lucide-x-circle"
               size="sm"
               color="warning"
               variant="soft"
               :loading="isProcessing"
               :disabled="isProcessing"
-              :aria-keyshortcuts="shortcutAriaValue('Rechazar')"
-              :title="`Rechazar (Alt + ${shortcutKeyText('Rechazar')?.split(' + ')[1]})`"
               @click="openAction('reject')"
-            >
-              <template #trailing>
-                <KeyboardShortcutHint :keys="paymentShortcutKeys('Rechazar') ?? []" size="2xs" />
-              </template>
-            </UButton>
-            <UButton
+            />
+            <ShortcutButton
               v-if="(isConfirmed || isPaid) && canReversePayment"
               label="Anular"
+              :shortcut-keys="paymentShortcutKeys('Anular') ?? []"
               icon="i-lucide-undo-2"
               size="sm"
               color="error"
               variant="outline"
               :loading="isProcessing"
               :disabled="isProcessing"
-              :aria-keyshortcuts="shortcutAriaValue('Anular')"
-              :title="`Anular (Alt + ${shortcutKeyText('Anular')?.split(' + ')[1]})`"
               @click="openAction('reverse')"
-            >
-              <template #trailing>
-                <KeyboardShortcutHint :keys="paymentShortcutKeys('Anular') ?? []" size="2xs" />
-              </template>
-            </UButton>
-            <PaymentStatusIndicator
-              :status="currentPayment.status"
-              :confirmed-at="currentPayment.confirmed_at"
-              :payment-date="currentPayment.payment_date"
             />
           </div>
         </div>
@@ -507,6 +509,7 @@ const handleAdvanceSuccess = async () => {
             :available-customer-checks="availableCustomerChecks"
             :initial-withholdings="initialWithholdings"
             :allow-finalized-financial-edit="canEditFinalizedFinancialDetails"
+            :allow-finalized-rate-edit="canEditFinalizedExchangeRate"
             :saving-financial-details="isSaving"
             :local-draft-enabled="false"
             :loading="isSaving"
@@ -517,29 +520,16 @@ const handleAdvanceSuccess = async () => {
             @cancel="router.push('/erp/treasury/payments')"
           >
             <template #action-bar-actions>
-              <UButton
+              <ShortcutButton
                 v-if="isDraft && canConfirmPayment"
                 label="Confirmar"
+                :shortcut-keys="paymentShortcutKeys('Confirmar') ?? []"
                 icon="i-lucide-check-circle"
                 size="sm"
                 color="info"
                 :loading="isProcessing"
                 :disabled="isProcessing || isSaving || hasUnsavedDateChange"
-                :aria-keyshortcuts="shortcutAriaValue('Confirmar')"
-                :title="`Confirmar (Alt + ${shortcutKeyText('Confirmar')?.split(' + ')[1]})`"
                 @click="openAction('confirm')"
-              >
-                <template #trailing>
-                  <KeyboardShortcutHint :keys="paymentShortcutKeys('Confirmar') ?? []" size="2xs" />
-                </template>
-              </UButton>
-            </template>
-            <template #action-bar-status>
-              <PaymentStatusIndicator
-                v-if="isDraft"
-                :status="currentPayment.status"
-                :confirmed-at="currentPayment.confirmed_at"
-                :payment-date="currentPayment.payment_date"
               />
             </template>
           </PaymentForm>
@@ -577,7 +567,7 @@ const handleAdvanceSuccess = async () => {
           />
         </div>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="actionModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { actionModalOpen = false }" />
           <UButton
             :label="actionLabels[actionType]?.button"
             :color="(actionLabels[actionType]?.color as any)"

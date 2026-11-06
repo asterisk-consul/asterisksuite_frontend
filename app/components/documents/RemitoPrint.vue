@@ -5,7 +5,7 @@ const props = defineProps<{
   date: string
   company: { name: string; tax_id?: string; address?: string; phone?: string; iva_condition?: string }
   customer: { name: string; tax_id?: string; address?: string; iva_condition?: string }
-  items: { code: string; description: string; quantity: number }[]
+  items: { code: string; description: string; item_instructions?: string | null; quantity: number }[]
   observations?: string
   point_of_sale?: string
   document?: any
@@ -27,6 +27,13 @@ const fiscalAuthorizationExpiration = computed(() => {
   const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/)
   return match ? `${match[3]}/${match[2]}/${match[1]}` : date.slice(0, 10)
 })
+
+function formatDeliveryDate(value?: string | Date | null) {
+  if (!value) return '—'
+  const date = String(value)
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : date.slice(0, 10)
+}
 
 // Para purchase: proveedor arriba, empresa abajo
 // Para sale: empresa arriba, cliente abajo
@@ -91,11 +98,31 @@ const headerRight = computed(() => {
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Dirección</td>
         <td colspan="3" style="padding: 6px 10px; font-size: 11px;">{{ document.orden_venta_doc.delivery_address }}</td>
       </tr>
-      <tr v-if="document?.orden_venta_doc?.delivery_contact">
+      <tr v-if="document?.orden_venta_doc?.priority">
+        <td style="padding: 6px 10px; font-size: 11px; color: #555;">Prioridad</td>
+        <td colspan="3" style="padding: 6px 10px; font-size: 11px;">{{ document.orden_venta_doc.priority }}</td>
+      </tr>
+      <tr v-if="document?.orden_venta_doc?.confirmed_delivery_date">
+        <td style="padding: 6px 10px; font-size: 11px; color: #555;">Fecha comprometida</td>
+        <td colspan="3" style="padding: 6px 10px; font-size: 11px;">{{ formatDeliveryDate(document.orden_venta_doc.confirmed_delivery_date) }}</td>
+      </tr>
+      <tr v-if="document?.orden_venta_doc?.delivery_contact || document?.orden_venta_doc?.delivery_phone">
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Contacto</td>
-        <td style="padding: 6px 10px; font-size: 11px;">{{ document.orden_venta_doc.delivery_contact }}</td>
+        <td style="padding: 6px 10px; font-size: 11px;">{{ document.orden_venta_doc.delivery_contact || '—' }}</td>
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Teléfono</td>
         <td style="padding: 6px 10px; font-size: 11px;">{{ document.orden_venta_doc.delivery_phone || '—' }}</td>
+      </tr>
+      <tr v-if="document?.orden_venta_doc?.delivery_time">
+        <td style="padding: 6px 10px; font-size: 11px; color: #555;">Horario / tiempo</td>
+        <td colspan="3" style="padding: 6px 10px; font-size: 11px;">{{ document.orden_venta_doc.delivery_time }}</td>
+      </tr>
+      <tr v-if="document?.orden_venta_doc?.transport_provider">
+        <td style="padding: 6px 10px; font-size: 11px; color: #555;">Transporte</td>
+        <td colspan="3" style="padding: 6px 10px; font-size: 11px;">{{ document.orden_venta_doc.transport_provider }}</td>
+      </tr>
+      <tr v-if="document?.orden_venta_doc?.delivery_instructions">
+        <td style="padding: 6px 10px; font-size: 11px; color: #555;">Instrucciones</td>
+        <td colspan="3" style="padding: 6px 10px; font-size: 11px; white-space: pre-wrap;">{{ document.orden_venta_doc.delivery_instructions }}</td>
       </tr>
     </table>
 
@@ -111,7 +138,12 @@ const headerRight = computed(() => {
       <tbody>
         <tr v-for="(item, i) in items" :key="i" :style="{ background: i % 2 === 1 ? '#fafafa' : '#fff' }">
           <td style="padding: 5px 10px; font-size: 11px; border-bottom: 1px solid #eee;">{{ item.code }}</td>
-          <td style="padding: 5px 10px; font-size: 11px; border-bottom: 1px solid #eee;">{{ item.description }}</td>
+          <td style="padding: 5px 10px; font-size: 11px; border-bottom: 1px solid #eee;">
+            <div>{{ item.description }}</div>
+            <div v-if="item.item_instructions" style="margin-top: 3px; color: #444; white-space: pre-wrap;">
+              <strong>Medidas e indicaciones:</strong> {{ item.item_instructions }}
+            </div>
+          </td>
           <td style="padding: 5px 10px; font-size: 11px; text-align: center; border-bottom: 1px solid #eee; font-weight: 600;">{{ item.quantity }}</td>
         </tr>
       </tbody>

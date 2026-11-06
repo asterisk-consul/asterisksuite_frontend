@@ -3,6 +3,7 @@ definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
+import { useDocumentsTypesService } from '~/modulos/erp/documents/documents-types/services/documents-types.service'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import GenerateFromTripsModal from '~/components/sales/GenerateFromTripsModal.vue'
 import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
@@ -21,14 +22,21 @@ import {
   getDocumentPaymentSummary,
   isDocumentFullyPaid
 } from '~/modulos/erp/documents/utils/document-payment-status'
+import { canSendDocumentToTrash } from '~/modulos/erp/documents/utils/trash-eligibility'
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 const documentsSalesStore = useDocumentsSalesStore()
+const documentsTypesService = useDocumentsTypesService()
 const router = useRouter()
 const toast = useToast()
 const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=INVOICE')
+
+const canSelectForTrash = (row: any) => canSendDocumentToTrash(row)
+  && !(Number(row.status) === 2
+    && ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(row.document_types?.category ?? '')
+    && !canDocument('sales', row.document_types?.category, 'cancel'))
 
 const documents = computed(() => documentsSalesStore.items)
 const pending = computed(() => documentsSalesStore.loading)
@@ -38,7 +46,7 @@ const error = computed(() => documentsSalesStore.error)
 const docTypes = ref<any[]>([])
 onMounted(async () => {
   try {
-    docTypes.value = await $fetch<any[]>('/api/backend/documents/documents-types')
+    docTypes.value = await documentsTypesService.findAll()
   } catch {
     /* ignore */
   }
@@ -71,7 +79,8 @@ const serverTable = useServerTable(
       status: typeof statusFilter.value === 'number' ? statusFilter.value : undefined,
       deliveryStatus,
       category: categoryFilter.value,
-      excludeCancelled: !showCancelled.value
+      excludeCancelled: !showCancelled.value,
+      excludeOpeningBalances: true
     })
   },
   'sales-comprobantes'
@@ -211,15 +220,16 @@ const stats = computed(() => {
       byCategory: [],
       byStatus: statuses.map((s) => {
         const matching = docs.filter((d) => matchesStatusOption(d, s))
+        const flowValue = String(s.value ?? '')
         return {
           label: s.label,
           count: matching.length,
           total: matching.reduce((a, d) => a + Number(d.total), 0),
           color: typeof s.value === 'number'
             ? getStatusColor(categoryFilter.value, s.value)
-            : s.value.endsWith('PENDING')
+            : flowValue.endsWith('PENDING')
               ? 'warning'
-              : s.value.endsWith('ELIGIBLE')
+              : flowValue.endsWith('ELIGIBLE')
                 ? 'primary'
                 : 'info'
         }
@@ -276,11 +286,16 @@ async function deleteDrafts(rows: any[]) {
     toast.add({ title: 'No tenés permiso para eliminar uno o más tipos de documento', color: 'warning' })
     return
   }
-  const removable = rows.filter(
-    (row) => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3)
-  )
+  const missingCancelPermission = rows.some((row) => Number(row.status) === 2
+    && ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(row.document_types?.category ?? '')
+    && !canDocument('sales', row.document_types?.category, 'cancel'))
+  if (missingCancelPermission) {
+    toast.add({ title: 'También necesitás permiso para anular las NC/ND confirmadas', color: 'warning' })
+    return
+  }
+  const removable = rows.filter(canSendDocumentToTrash)
   if (removable.length !== rows.length) {
-    toast.add({ title: 'Solo se pueden enviar a la papelera documentos en borrador o anulados', color: 'warning' })
+    toast.add({ title: 'Hay comprobantes con relaciones o movimientos que impiden enviarlos a la papelera', color: 'warning' })
     return
   }
   try {
@@ -307,6 +322,7 @@ const columns = computed(() =>
     onDuplicate: duplicateDocument,
     canDuplicate: (row) => canDocument('sales', row.document_types?.category ?? '', 'create'),
     showCreator: isOwnerOrAdmin.value,
+    showSeller: categoryFilter.value === 'ORDER',
     statusFilterOptions: statusOptions.value.length
       ? statusOptions.value.map(({ label, value }) => ({ label, value }))
       : null
@@ -332,7 +348,7 @@ const sortFields = [
     <AppPageHeader title="Comprobantes de venta" description="Gestión de documentos de venta">
       <template #links>
         <CreateDocumentMenu direction="sales" />
-        <UButton icon="i-lucide-file-plus" label="Generar desde viajes" @click="showGenerateModal = true" />
+        <UButton icon="i-lucide-file-plus" label="Generar desde viajes" @click="() => { showGenerateModal = true }" />
       </template>
     </AppPageHeader>
 
@@ -479,7 +495,7 @@ const sortFields = [
         :on-row-click="openDocument"
         :on-delete="deleteDrafts"
         selectable
-        :can-select-row="(row) => row.status === 0 || (row.document_types?.category === 'INVOICE' && row.status === 3)"
+        :can-select-row="canSelectForTrash"
       />
     </div>
   </UPage>

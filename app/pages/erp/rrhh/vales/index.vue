@@ -8,15 +8,22 @@ import {
   HR_VALE_STATUS_COLORS
 } from '~/modulos/erp/hr/types/hr.types'
 import type { HrVale } from '~/modulos/erp/hr/types/hr.types'
+import type { TableFilter } from '~/components/Tablas/types/tablas.types'
 import CreateValeModal from '~/modulos/erp/hr/components/CreateValeModal.vue'
+import PartnerInvestmentPlanModal from '~/modulos/erp/hr/components/PartnerInvestmentPlanModal.vue'
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { useRrhhTotals } from '~/modulos/erp/rrhh/composables/useRrhhTotals'
 import RrhhTotalsCards from '~/components/rrhh/RrhhTotalsCards.vue'
+import { HrService } from '~/modulos/erp/hr/services/hr.service'
+import { useCashBoxesService } from '~/modulos/erp/cash-boxes/service/cash-boxes.service'
+import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
 
 definePageMeta({ middleware: ['auth'] })
 
 const hrStore = useHrStore()
+const cashBoxesService = useCashBoxesService()
+const bankAccountsService = useBankAccountsService()
 const vales = computed(() => hrStore.vales)
 const loading = computed(() => hrStore.loading)
 const toast = useToast()
@@ -25,15 +32,21 @@ const router = useRouter()
 // Rango de fechas (vacío = sin límite)
 const dateFrom = ref('')
 const dateTo = ref('')
+const advancedFilters = ref<TableFilter[]>([])
 
 const showCreateModal = ref(false)
+const showInvestmentPlanModal = ref(false)
 const showCancelModal = ref(false)
 const showCommissionModal = ref(false)
+const loadingCommissionValeId = ref<string | null>(null)
 const selectedVale = ref<HrVale | null>(null)
 const cancellingVale = ref<HrVale | null>(null)
 const cancelConfirmText = ref('')
 const showTreasuryModal = ref(false)
 const confirmingVale = ref<HrVale | null>(null)
+const reconcilingCancelledValeId = ref<string | null>(null)
+const valeToReconcile = ref<HrVale | null>(null)
+const showReconcileModal = ref(false)
 const treasuryTargetType = ref<'CASH_BOX' | 'BANK_ACCOUNT'>('CASH_BOX')
 const treasuryTargetId = ref('')
 const treasuryTargets = ref<any[]>([])
@@ -100,13 +113,13 @@ async function handleConfirm(id: string) {
     confirmingFunds.value = null
     if (vale.type === 'RETIRO') {
       try {
-        confirmingFunds.value = await $fetch(`/api/backend/hr/partners/${vale.party_id}/funds`, { query: { currency_code: vale.currency_code } })
+        confirmingFunds.value = await HrService.getPartnerFunds(vale.party_id, vale.currency_code)
       } catch (e: any) {
         toast.add({ title: 'No se pudo consultar el disponible del socio', description: e?.data?.message, color: 'error' })
         return
       }
     }
-    treasuryTargets.value = await $fetch<any[]>('/api/backend/cash-boxes')
+    treasuryTargets.value = await cashBoxesService.findAll()
     showTreasuryModal.value = true
     return
   }
@@ -138,8 +151,8 @@ watch(treasuryTargetType, async type => {
   treasuryTargetId.value = ''
   if (!showTreasuryModal.value) return
   treasuryTargets.value = type === 'CASH_BOX'
-    ? await $fetch<any[]>('/api/backend/cash-boxes')
-    : await $fetch<any[]>('/api/backend/bank-accounts')
+    ? await cashBoxesService.findAll()
+    : await bankAccountsService.findAll()
 })
 
 function handleCancel(id: string) {
@@ -162,9 +175,45 @@ async function confirmCancel() {
   }
 }
 
-function openCommissionDetails(vale: HrVale) {
-  selectedVale.value = vale
-  showCommissionModal.value = true
+function openReconciliation(vale: HrVale) {
+  if ((!vale.document_needs_reconciliation && !vale.treasury_needs_reconciliation) || vale.document_reconciliation_blocked) return
+  valeToReconcile.value = vale
+  showReconcileModal.value = true
+}
+
+async function reconcileCancelledVale() {
+  const vale = valeToReconcile.value
+  if ((!vale?.document_needs_reconciliation && !vale?.treasury_needs_reconciliation) || vale.document_reconciliation_blocked) return
+  reconcilingCancelledValeId.value = vale.id
+  try {
+    await hrStore.cancelVale(vale.id)
+    await loadVales()
+    toast.add({ title: 'Anulación del vale regularizada', description: 'Se corrigió el comprobante y se registró cualquier reversión de caja o banco que faltaba, sin duplicar movimientos.', color: 'success' })
+    showReconcileModal.value = false
+    valeToReconcile.value = null
+  } catch (e: any) {
+    toast.add({ title: 'No se pudo regularizar el comprobante', description: e?.data?.message || e?.message, color: 'error' })
+  } finally {
+    reconcilingCancelledValeId.value = null
+  }
+}
+
+function closeReconciliation() {
+  if (reconcilingCancelledValeId.value) return
+  showReconcileModal.value = false
+  valeToReconcile.value = null
+}
+
+async function openCommissionDetails(vale: HrVale) {
+  loadingCommissionValeId.value = vale.id
+  try {
+    selectedVale.value = await HrService.getVale(vale.id)
+    showCommissionModal.value = true
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo cargar el detalle del vale', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    loadingCommissionValeId.value = null
+  }
 }
 
 function closeCancelModal() {
@@ -186,6 +235,10 @@ function openCreateModal() {
   showCreateModal.value = true
 }
 
+function openInvestmentPlanModal() {
+  showInvestmentPlanModal.value = true
+}
+
 function payVale(vale: HrVale) {
   const documentId = vale.payment_document?.id
   if (!documentId) return
@@ -203,6 +256,53 @@ const build = createTableBuilder<HrVale>({ locale: 'es-AR' })
 
 const typeFilterOptions = Object.entries(HR_VALE_TYPE_LABELS).map(([value, label]) => ({ label: value === 'SUELDO' ? 'Sueldo / remuneración' : label, value }))
 const statusFilterOptions = Object.entries(HR_VALE_STATUS_LABELS).map(([value, label]) => ({ label, value }))
+const partnerValeTypeLabels: Partial<Record<HrVale['type'], string>> = {
+  SUELDO: 'Remuneración por trabajo',
+  APORTE: 'Aporte de fondos',
+  RETIRO: 'Retiro de aportes',
+  PRESTAMO: 'Préstamo al socio'
+}
+
+function normalizeTypeSearch(value: unknown) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('es-AR')
+}
+
+function unwrapTypeFilterValue(value: unknown) {
+  let current = value
+  for (let depth = 0; depth < 2 && current && typeof current === 'object'; depth++) {
+    if ('value' in current) current = current.value
+    else if ('label' in current) current = current.label
+    else break
+  }
+  return current
+}
+
+function matchesValeType(vale: HrVale, query: string) {
+  const type = String(vale.type ?? '').trim().toUpperCase() as HrVale['type']
+  const labels = [
+    type,
+    HR_VALE_TYPE_LABELS[type],
+    vale.party_type === 'PARTNER'
+      ? vale.partner_kind === 'INVESTOR' && type === 'RETIRO' ? 'Devolución de inversión' : partnerValeTypeLabels[type]
+      : undefined
+  ]
+
+  return labels.some(label => normalizeTypeSearch(label).includes(query))
+}
+
+const tableVales = computed(() => {
+  const typeQueries = advancedFilters.value
+    .filter(filter => filter.column === 'type')
+    .map(filter => normalizeTypeSearch(unwrapTypeFilterValue(filter.value)))
+    .filter((query): query is string => Boolean(query))
+
+  if (!typeQueries.length) return filteredVales.value
+  return filteredVales.value.filter(vale => typeQueries.every(query => matchesValeType(vale, query)))
+})
 
 const columns = build([
   {
@@ -218,7 +318,9 @@ const columns = build([
     meta: { filter: { type: 'text', operators: ['contains', 'equals', 'startsWith'] } },
     cell: ({ row }) => {
       const vale = row.original
-      const partyType = vale.party_type === 'PARTNER' ? 'Socio' : 'Empleado'
+      const partyType = vale.party_type === 'PARTNER'
+        ? vale.partner_kind === 'INVESTOR' ? 'Inversionista' : 'Socio'
+        : 'Empleado'
       return h('div', { class: 'min-w-36' }, [
         h('div', { class: 'font-medium' }, vale.party?.name ?? '-'),
         h('div', { class: 'text-xs text-muted' }, [partyType, vale.party?.tax_id ? ` · CUIT ${vale.party.tax_id}` : ''].join(''))
@@ -259,10 +361,12 @@ const columns = build([
   {
     key: 'type',
     label: 'Tipo',
+    // El filtro se aplica sobre tableVales para controlar la comparación del tipo visible.
+    filterFn: () => true,
     badge: {
       resolve: (vale) => ({
         label: vale.party_type === 'PARTNER'
-          ? ({ SUELDO: 'Remuneración por trabajo', APORTE: 'Aporte de fondos', RETIRO: 'Retiro de aportes', PRESTAMO: 'Préstamo al socio' } as Record<string, string>)[vale.type] ?? HR_VALE_TYPE_LABELS[vale.type] ?? vale.type
+          ? ({ SUELDO: 'Remuneración por trabajo', APORTE: 'Aporte de fondos', RETIRO: vale.partner_kind === 'INVESTOR' ? 'Devolución de inversión' : 'Retiro de aportes', PRESTAMO: 'Préstamo al socio' } as Record<string, string>)[vale.type] ?? HR_VALE_TYPE_LABELS[vale.type] ?? vale.type
           : HR_VALE_TYPE_LABELS[vale.type] ?? vale.type,
         color: HR_VALE_TYPE_COLORS[vale.type] as any
       })
@@ -323,12 +427,13 @@ const columns = build([
     cell: ({ row }) => {
       const vale = row.original
       return h('div', { class: 'flex gap-1' }, [
-        vale.commission_details?.length
+        vale.type === 'COMISION'
           ? h(UButton, {
               icon: 'i-lucide-list',
               variant: 'ghost',
               color: 'info',
               size: 'sm',
+              loading: loadingCommissionValeId.value === vale.id,
               onClick: () => openCommissionDetails(vale)
             })
           : null,
@@ -351,6 +456,28 @@ const columns = build([
               onClick: () => payVale(vale)
             })
           : null,
+        (vale.document_needs_reconciliation || vale.treasury_needs_reconciliation) && vale.document_reconciliation_blocked
+          ? h(UButton, {
+              label: 'Pago activo',
+              icon: 'i-lucide-lock-keyhole',
+              variant: 'soft',
+              color: 'warning',
+              size: 'xs',
+              disabled: true,
+              title: 'Anulá primero el pago asociado al comprobante.'
+            })
+          : (vale.document_needs_reconciliation || vale.treasury_needs_reconciliation)
+            ? h(UButton, {
+                label: 'Regularizar',
+                icon: 'i-lucide-wrench',
+                variant: 'soft',
+                color: 'warning',
+                size: 'xs',
+                loading: reconcilingCancelledValeId.value === vale.id,
+                disabled: reconcilingCancelledValeId.value !== null,
+                onClick: () => openReconciliation(vale)
+              })
+            : null,
         vale.status !== 'CANCELLED'
           ? h(UButton, {
               icon: 'i-lucide-x',
@@ -381,7 +508,10 @@ const sortFields = [
   <UPage class="space-y-6 px-4">
     <AppPageHeader title="Vales RRHH" description="Comprobantes internos de empleados y socios">
       <template #links>
-        <UButton label="Nuevo vale" icon="i-lucide-plus" @click="openCreateModal" />
+        <UButton label="Programar devolución" icon="i-lucide-calendar-clock" color="neutral" variant="outline" @click="openInvestmentPlanModal" />
+        <UButton data-global-create-shortcut data-hide-global-create-control class="group/create" label="Nuevo vale" icon="i-lucide-plus" aria-keyshortcuts="Alt+N" @click="openCreateModal">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 
@@ -405,9 +535,10 @@ const sortFields = [
 
     <!-- Tabla -->
     <AsteriskTable
-      :data="filteredVales"
+      :data="tableVales"
       :columns="columns"
       :loading="loading"
+      v-model:filters="advancedFilters"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       storage-key="rrhh-vales"
@@ -419,6 +550,11 @@ const sortFields = [
     <!-- ========================= -->
     <CreateValeModal
       v-model:open="showCreateModal"
+      @success="loadVales"
+    />
+
+    <PartnerInvestmentPlanModal
+      v-model:open="showInvestmentPlanModal"
       @success="loadVales"
     />
 
@@ -450,6 +586,38 @@ const sortFields = [
         <div class="flex justify-end gap-2">
           <UButton label="Cancelar" variant="ghost" @click="closeTreasuryModal" />
           <UButton label="Confirmar y registrar" color="success" :loading="loading" :disabled="!treasuryTargetId || confirmingWithdrawalBlocked" @click="confirmPartnerVale" />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="showReconcileModal" title="Regularizar anulación del vale">
+      <template #body>
+        <div class="space-y-3">
+          <p class="text-sm">
+            Se regularizará la anulación y el comprobante interno del vale
+            <strong>#{{ valeToReconcile?.number }}</strong>
+            de <strong>{{ valeToReconcile?.party?.name }}</strong>.
+          </p>
+          <UAlert
+            title="Qué se va a corregir"
+            description="El comprobante quedará anulado y sin saldo pagado obsoleto ni asientos activos de cuenta corriente. Si falta la reversión del movimiento de caja o banco del vale, se registrará una sola; si ya existe, no se duplicará."
+            color="warning"
+            variant="subtle"
+          />
+          <p class="text-xs text-muted">Si existe un pago activo asociado, la operación se detendrá y primero tendrás que anular ese pago.</p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton label="Cancelar" variant="ghost" @click="closeReconciliation" />
+          <UButton
+            label="Regularizar comprobante"
+            icon="i-lucide-wrench"
+            color="warning"
+            :loading="reconcilingCancelledValeId === valeToReconcile?.id"
+            :disabled="reconcilingCancelledValeId !== null"
+            @click="reconcileCancelledVale"
+          />
         </div>
       </template>
     </UModal>
@@ -510,19 +678,21 @@ const sortFields = [
         <div class="p-6 space-y-4">
           <div class="flex items-center justify-between">
             <div>
-              <h2 class="text-lg font-semibold">Detalle de comisiones</h2>
+              <h2 class="text-lg font-semibold">Detalle de liquidación</h2>
               <p class="text-sm text-muted mt-1">
                 Vale #{{ selectedVale?.number }} — {{ selectedVale?.party?.name }}
               </p>
             </div>
             <UBadge
-              :label="`${selectedVale?.commission_details?.length ?? 0} OV`"
+              :label="`${selectedVale?.commission_details?.length ?? 0} comisiones · ${selectedVale?.partner_share_details?.length ?? 0} participaciones`"
               color="primary"
               variant="subtle"
             />
           </div>
 
-          <div v-if="selectedVale?.commission_details?.length" class="border border-default rounded-lg overflow-hidden">
+          <div v-if="selectedVale?.commission_details?.length" class="space-y-2">
+            <h3 class="font-medium">Comisiones por venta</h3>
+            <div class="border border-default rounded-lg overflow-hidden">
             <table class="w-full text-sm">
               <thead>
                 <tr class="bg-muted/30">
@@ -542,18 +712,44 @@ const sortFields = [
                   <td class="px-4 py-2 text-right font-semibold">{{ fmt(Number(detail.commission_amount)) }}</td>
                 </tr>
               </tbody>
-              <tfoot>
-                <tr class="bg-muted/20 font-semibold">
-                  <td colspan="3" class="px-4 py-2">Total</td>
-                  <td class="px-4 py-2 text-right"></td>
-                  <td class="px-4 py-2 text-right text-primary">{{ fmt(Number(selectedVale?.amount ?? 0)) }}</td>
-                </tr>
-              </tfoot>
             </table>
+            </div>
           </div>
 
-          <div v-else class="text-center py-8 text-muted">
+          <div v-if="selectedVale?.partner_share_details?.length" class="space-y-2">
+            <h3 class="font-medium">Participación societaria</h3>
+            <div class="border border-default rounded-lg overflow-hidden">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-muted/30">
+                    <th class="text-left px-4 py-2 font-medium">OV #</th>
+                    <th class="text-left px-4 py-2 font-medium">Fecha</th>
+                    <th class="text-right px-4 py-2 font-medium">Base neta</th>
+                    <th class="text-right px-4 py-2 font-medium">Regla</th>
+                    <th class="text-right px-4 py-2 font-medium">Participación %</th>
+                    <th class="text-right px-4 py-2 font-medium">Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="detail in selectedVale.partner_share_details" :key="detail.id" class="border-t border-default">
+                    <td class="px-4 py-2 font-mono">OV-{{ String(detail.document?.number ?? 0).padStart(8, '0') }}</td>
+                    <td class="px-4 py-2">{{ fmtDate(detail.date) }}</td>
+                    <td class="px-4 py-2 text-right">{{ fmtCurrency(Number(detail.base_amount), selectedVale?.currency_code) }}</td>
+                    <td class="px-4 py-2 text-right">{{ detail.calculation_basis === 'ORDER' ? 'OV' : 'Facturado' }}</td>
+                    <td class="px-4 py-2 text-right">{{ detail.share_percentage }}%</td>
+                    <td class="px-4 py-2 text-right font-semibold">{{ fmtCurrency(Number(detail.share_amount), selectedVale?.currency_code) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div v-if="!selectedVale?.commission_details?.length && !selectedVale?.partner_share_details?.length" class="text-center py-8 text-muted">
             Este vale no tiene detalles de comisiones.
+          </div>
+
+          <div v-else class="flex justify-end border-t border-default pt-3 font-semibold">
+            Total del vale: {{ fmtCurrency(Number(selectedVale?.amount ?? 0), selectedVale?.currency_code) }}
           </div>
 
           <div class="flex justify-end pt-3 border-t border-default">

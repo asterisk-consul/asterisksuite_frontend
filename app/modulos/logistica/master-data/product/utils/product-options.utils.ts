@@ -4,6 +4,8 @@ import type {
   CalculationType,
   ProductCostSource
 } from '~/modulos/logistica/master-data/product/types/product.types'
+import type { BadgeColor } from '~/types/colors.types'
+export type { BadgeColor } from '~/types/colors.types'
 
 export const usageTypeOptions: {
   label: string
@@ -87,8 +89,6 @@ export const ProductCostSourceOptions: {
     value: 'RATE'
   }
 ]
-
-export type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
 export type BadgeItem = {
   label: string

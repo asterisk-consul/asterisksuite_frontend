@@ -120,8 +120,8 @@ export async function apiProxy(
         const value = response.headers.get(header)
         if (value) setResponseHeader(event, header, value)
       }
-      const binary = Buffer.from(response._data)
-      setResponseHeader(event, 'content-length', String(binary.length))
+      const binary = Buffer.from(response._data ?? new ArrayBuffer(0))
+      setResponseHeader(event, 'content-length', binary.length)
       return binary
     }
 

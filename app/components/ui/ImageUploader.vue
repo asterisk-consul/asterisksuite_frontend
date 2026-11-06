@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { enqueueUpload, listPendingUploads, removePendingUpload, type PendingUpload } from '~/utils/offline-upload-queue'
+import { usePhotosService } from '~/modulos/logistica/media/photos/photos.service'
 
 interface Props {
   entityType: string
@@ -29,6 +30,7 @@ const preview = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement>()
 const pendingUploads = ref<PendingUpload[]>([])
 const retrying = ref(false)
+const photosService = usePhotosService()
 const online = ref(true)
 
 async function loadPending() {
@@ -119,10 +121,7 @@ async function uploadFile(file: File, pendingId?: string) {
     formData.append('entity_id', props.entityId)
     formData.append('photo_type', props.photoType)
 
-    const result = await $fetch<any>('/api/media/upload', {
-      method: 'POST',
-      body: formData,
-    })
+    const result = await photosService.uploadMedia(formData)
 
     emit('uploaded', result)
     if (pendingId) await removePendingUpload(pendingId)

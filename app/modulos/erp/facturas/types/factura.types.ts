@@ -28,6 +28,8 @@ export interface DocumentItem {
 
   product_id: string | null
 
+  item_instructions?: string | null
+
   quantity: number
 
   purchase_unit_id?: string | null
@@ -98,6 +100,8 @@ export interface Document {
 
   number: number
   document_type_id: string
+  parent_document_id?: string | null
+  parent_document?: Partial<InvoiceReferenceDocument> | null
   document_sequence_id?: string | null
 
   document_sequences?: {
@@ -131,6 +135,15 @@ export interface Document {
 
   total: number
 
+  assigned_to?: string | null
+
+  amounts_visible?: boolean
+  monetary_visibility?: {
+    restricted_by_status?: boolean
+    paid_percentage?: number | null
+    required_percentage?: number | null
+  } | null
+
   paid_amount?: number | null
 
   descrip?: string | null
@@ -151,9 +164,11 @@ export interface Document {
     ordered_total?: number | null
     paid_total?: number | null
     delivery_status?: string | null
+    delivery_note_id?: string | null
   } | null
 
   orden_venta_doc?: Record<string, any> | null
+  orden_compra_doc?: Record<string, any> | null
 
   business_parties?: {
     id: string
@@ -168,6 +183,46 @@ export interface Document {
   document_taxes?: DocumentTax[]
 
   commercial_adjustments?: CommercialAdjustment[] | null
+  fiscal_authorization_code?: string | null
+}
+
+export interface InvoiceReferenceParty {
+  id: string
+  name: string
+  type: string
+  business_names: string | null
+  email: string | null
+  tax_id: string | null
+  vat_condition: string | null
+  exemption_rate: number | string
+  active: boolean
+  roles: Array<{ id: string; role: string; active: boolean }>
+}
+
+export interface InvoiceReferenceItem {
+  id: string
+  product_id: string | null
+  variant_id: string | null
+  quantity: number | string
+  quantity_invoiced: number | string | null
+  unit_price: number | string
+  products: { name: string } | null
+  product_variants: { name: string | null } | null
+}
+
+/** Datos livianos de una factura usados al buscar o vincular una NC/ND. */
+export interface InvoiceReferenceDocument {
+  id: string
+  number: number
+  date: string
+  total: number | string
+  party_id: string | null
+  currency_code: string | null
+  ref: string | null
+  descrip: string | null
+  document_types: { code: string } | null
+  business_parties: InvoiceReferenceParty | null
+  document_items?: InvoiceReferenceItem[]
 }
 
 export interface FacturaTax {
@@ -193,6 +248,11 @@ export interface FacturaItem {
 
   product_id: string | null
 
+  item_instructions?: string | null
+
+  /** Estado visual del formulario; no forma parte del payload. */
+  instructions_expanded?: boolean
+
   variant_id?: string | null
 
   variant_name?: string | null
@@ -213,7 +273,18 @@ export interface FacturaItem {
 
   unit_price: number
 
+  original_unit_price?: number
+
   discount_percentage?: number
+
+  /** Manual net amount for supplier lines; taxes remain calculated separately. */
+  net_subtotal_override?: number | null
+
+  /** Manual displayed subtotal for supplier lines. */
+  subtotal_override?: number | null
+
+  /** Manual discount amount entered for supplier lines. */
+  discount_amount_override?: number | null
 
   price: number
 
@@ -232,6 +303,10 @@ export interface FacturaFormValues {
   updated_at?: string
 
   document_type_id: string
+
+  parent_document_id?: string | null
+
+  parent_document?: Partial<InvoiceReferenceDocument> | null
 
   document_sequence_id?: string | null
 

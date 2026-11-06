@@ -65,7 +65,7 @@ const description = computed(() => {
           label="Cancelar"
           color="neutral"
           variant="ghost"
-          @click="open = false"
+          @click="() => { open = false }"
         />
 
         <UButton

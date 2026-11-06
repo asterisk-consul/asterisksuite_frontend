@@ -1,41 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
-
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import BusinessPartyForm from '~/modulos/logistica/master-data/bussiness-parties/components/BusinessPartyForm.vue'
-import type { BusinessPartyForm as FormType } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
-import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
-import { mapFormToBusinessPartyDto } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
-
-const router = useRouter()
-const store = useBusinessPartiesStore()
-
-const saving = ref(false)
-
-const handleSubmit = async (form: FormType) => {
-  try {
-    saving.value = true
-    const payload = mapFormToBusinessPartyDto(form)
-    const created = await store.create(payload)
-    await router.push(`/erp/sales/customers/${created.id}/edit?section=taxes&created=1`)
-  } catch (error) {
-    console.error(error)
-  } finally {
-    saving.value = false
-  }
-}
+import BusinessPartyEditorPage from '~/modulos/logistica/master-data/bussiness-parties/components/BusinessPartyEditorPage.vue'
 </script>
 
 <template>
-  <div class="p-4 max-w-3xl mx-auto">
-    <h1 class="text-xl font-semibold mb-4">Nuevo Cliente</h1>
-
-    <BusinessPartyForm
-      :model-value="{ type: 'CUSTOMER' } as any"
-      :loading="saving"
-      :error="store.error"
-      @submit="handleSubmit"
-    />
-  </div>
+  <BusinessPartyEditorPage party-type="CUSTOMER" />
 </template>

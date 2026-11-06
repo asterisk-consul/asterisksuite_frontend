@@ -295,7 +295,9 @@ function fmtMes(mesKey: string) {
     'Nov',
     'Dic'
   ]
-  return `${names[parseInt(m) - 1]} ${y.slice(2)}`
+  const monthName = names[parseInt(m ?? '', 10) - 1] ?? ''
+  if (!monthName || !y) return mesKey
+  return `${monthName} ${y.slice(2)}`
 }
 
 // --- Sorting ---
@@ -316,7 +318,7 @@ const headerLinks = computed(() => [
     label: pending.value ? 'Actualizando...' : 'Actualizar',
     icon: 'i-lucide-refresh-cw',
     color: 'primary' as const,
-    onClick: refresh,
+    onClick: () => { void refresh() },
     disabled: pending.value
   }
 ])

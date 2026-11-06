@@ -111,10 +111,7 @@ const handleAction = async () => {
 onMounted(() => {
   void init()
   void fetchMyPermissionsIfNeeded(authStore.selectedCompany?.id, authStore.user?.id).catch(() => undefined)
-  window.addEventListener('keydown', handleCreatePaymentShortcut)
 })
-
-onBeforeUnmount(() => window.removeEventListener('keydown', handleCreatePaymentShortcut))
 
 const modeFilter = ref<'ALL' | 'NORMAL' | 'ADVANCE'>('ALL')
 const showCancelled = ref(false)
@@ -143,26 +140,12 @@ const links: ButtonProps[] = [
     icon: 'i-heroicons-plus',
     color: 'primary',
     variant: 'solid',
-    onClick: () => router.push('/erp/treasury/payments/create')
+    onClick: () => { void router.push('/erp/treasury/payments/create') }
   }
 ]
 
 function goToCreatePayment() {
   return router.push('/erp/treasury/payments/create')
-}
-
-function handleCreatePaymentShortcut(event: KeyboardEvent) {
-  if (event.defaultPrevented || event.isComposing || event.repeat || !canCreatePayment.value) return
-  const target = event.target
-  const isTyping = target instanceof HTMLElement && (
-    target.isContentEditable
-    || Boolean(target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'))
-  )
-  if (event.key.toLowerCase() !== 'n' || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || isTyping) return
-
-  event.preventDefault()
-  event.stopPropagation()
-  void goToCreatePayment()
 }
 
 const filterFields: FilterField[] = [
@@ -230,16 +213,18 @@ const dataActions = computed(() => [
         </UFieldGroup>
         <UButton
           v-if="canCreatePayment"
+          data-global-create-shortcut
+          class="group/create"
           label="Nuevo pago/cobro"
           icon="i-heroicons-plus"
           color="primary"
           variant="solid"
           aria-keyshortcuts="Alt+N"
           title="Nuevo pago/cobro (Alt + N)"
-          @click="goToCreatePayment"
+          @click="() => { void (goToCreatePayment()) }"
         >
           <template #trailing>
-            <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" />
+            <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover />
           </template>
         </UButton>
       </template>
@@ -253,21 +238,21 @@ const dataActions = computed(() => [
         size="xs"
         :color="modeFilter === 'ALL' ? 'primary' : 'neutral'"
         :variant="modeFilter === 'ALL' ? 'solid' : 'ghost'"
-        @click="modeFilter = 'ALL'"
+        @click="() => { modeFilter = 'ALL' }"
       />
       <UButton
         label="Normales"
         size="xs"
         :color="modeFilter === 'NORMAL' ? 'primary' : 'neutral'"
         :variant="modeFilter === 'NORMAL' ? 'solid' : 'ghost'"
-        @click="modeFilter = 'NORMAL'"
+        @click="() => { modeFilter = 'NORMAL' }"
       />
       <UButton
         label="Anticipos"
         size="xs"
         :color="modeFilter === 'ADVANCE' ? 'warning' : 'neutral'"
         :variant="modeFilter === 'ADVANCE' ? 'solid' : 'ghost'"
-        @click="modeFilter = 'ADVANCE'"
+        @click="() => { modeFilter = 'ADVANCE' }"
       />
       <div class="ml-auto flex items-center gap-3 rounded-lg border border-default px-3 py-1.5">
         <span class="text-sm text-muted">Mostrar anulados</span>
@@ -350,7 +335,7 @@ const dataActions = computed(() => [
           />
         </div>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="actionModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { actionModalOpen = false }" />
           <UButton
             :label="actionLabels[actionType]?.button"
             :color="(actionLabels[actionType]?.color as any)"
@@ -367,7 +352,7 @@ const dataActions = computed(() => [
       description="Selecciona un archivo Excel con los pagos a importar"
       :columns="importColumns"
       endpoint="/api/backend/payments/import"
-      @success="init"
+      @success="() => init()"
     />
   </UPage>
 </template>

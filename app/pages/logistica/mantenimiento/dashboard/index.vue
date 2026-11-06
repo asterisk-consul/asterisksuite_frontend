@@ -3,11 +3,14 @@ definePageMeta({ middleware: ['auth'] })
 import { storeToRefs } from 'pinia'
 import { useMaintenanceStore } from '~/modulos/logistica/maintenance/store/maintenance.store'
 import type { DashboardOverview, UpcomingMaintenance, TireStats } from '~/modulos/logistica/maintenance/types/maintenance.types'
+import { useMaintenanceService } from '~/modulos/logistica/maintenance/service/maintenance.service'
+import type { BadgeColor } from '~/types/colors.types'
 
 /* ---------------------------------------
    STATE
 --------------------------------------- */
 const store = useMaintenanceStore()
+const maintenanceService = useMaintenanceService()
 const { loading, dashboard, upcomingMaintenances } = storeToRefs(store)
 
 const tireStats = ref<TireStats | null>(null)
@@ -17,7 +20,7 @@ const loadingTireStats = ref(false)
 async function fetchTireStats() {
   loadingTireStats.value = true
   try {
-    const result = await $fetch<TireStats>('/api/backend/maintenance/dashboard/tires')
+    const result = await maintenanceService.getTireDashboardStats() as TireStats
     tireStats.value = result
   } catch {
     // silently fail
@@ -29,8 +32,6 @@ async function fetchTireStats() {
 /* ---------------------------------------
    CONFIG
 --------------------------------------- */
-type BadgeColor = 'error' | 'neutral' | 'info' | 'success' | 'warning' | 'primary' | 'secondary'
-
 const statusConfig: Record<string, { color: BadgeColor; label: string }> = {
   PENDING: { color: 'warning', label: 'Pendiente' },
   SCHEDULED: { color: 'info', label: 'Programada' },

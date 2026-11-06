@@ -37,6 +37,8 @@ const props = defineProps<{
   onRowClick?: (row: T) => void
   getRowId?: (row: T, index: number) => string
   compact?: boolean
+  hideToolbar?: boolean
+  hideFooter?: boolean
   tableMinWidth?: number
 }>()
 const sorting = defineModel<SortingState>('sorting', {
@@ -95,8 +97,8 @@ const tableColumns = computed<ExtendedColumn<T>[]>(() => {
         modelValue: someSelected && !allSelected ? 'indeterminate' : allSelected,
         disabled: eligibleRows.length === 0,
         'aria-label': 'Seleccionar filas permitidas',
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-          eligibleRows.forEach((row: any) => row.toggleSelected(!!value))
+        'onUpdate:modelValue': (value: unknown) =>
+          eligibleRows.forEach((row: any) => row.toggleSelected(Boolean(value)))
       })
     },
     cell: ({ row }: any) => {
@@ -105,7 +107,7 @@ const tableColumns = computed<ExtendedColumn<T>[]>(() => {
         modelValue: row.getIsSelected(),
         disabled: !enabled,
         'aria-label': enabled ? 'Seleccionar fila' : 'Esta fila no se puede seleccionar',
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value)
+        'onUpdate:modelValue': (value: unknown) => row.toggleSelected(Boolean(value))
       })
     }
   }
@@ -129,9 +131,12 @@ const selectedRows = computed<T[]>(() => {
   void rowSelection.value
   return table.value?.tableApi?.getFilteredSelectedRowModel().rows.map(row => row.original) ?? []
 })
-const totalCount = computed<number>(() => props.serverSide
-  ? (props.totalRows ?? 0)
-  : (table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0))
+const totalCount = computed<number>(() => {
+  if (props.serverSide) return props.totalRows ?? 0
+  void columnFilters.value
+  void props.data
+  return table.value?.tableApi?.getFilteredRowModel().rows.length ?? 0
+})
 
 /* ========================
    Pagination
@@ -146,6 +151,19 @@ watch(page, (value) => {
 watch(() => props.pageSize, (value) => {
   if (value) pagination.value.pageSize = value
 })
+
+function resetLocalPage() {
+  pagination.value.pageIndex = 0
+  table.value?.tableApi?.setPageIndex(0)
+}
+
+watch(columnFilters, () => {
+  if (props.serverSide) page.value = 1
+  else resetLocalPage()
+}, { deep: true, flush: 'post' })
+watch(() => props.data, () => {
+  if (!props.serverSide) resetLocalPage()
+}, { flush: 'post' })
 
 watch(search, () => {
   if (props.serverSide) page.value = 1
@@ -186,7 +204,7 @@ async function confirmDelete(): Promise<void> {
     ========================= -->
 
     <TableToolbar
-      v-if="filterFields?.length || sortFields?.length || columns?.length"
+      v-if="!hideToolbar && (filterFields?.length || sortFields?.length || columns?.length)"
       :table="table"
       :columns="tableColumns"
       v-model:sorting="sorting"
@@ -250,7 +268,7 @@ async function confirmDelete(): Promise<void> {
          Footer
     ========================= -->
 
-    <div class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2">
+    <div v-if="!hideFooter" class="flex items-center justify-between border-t border-default bg-muted/30 px-4 py-2">
       <div class="text-xs text-muted">{{ selectedCount }} seleccionadas • {{ totalCount }} totales</div>
 
       <UPagination

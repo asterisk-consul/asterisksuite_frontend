@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { useExchangeQuotesService } from '~/services/exchange-quotes.service'
 import DollarCard from '@/components/dolar/DolarCard.vue'
-import DollarCardPequeña from '@/components/dolar/DolarCardPequeña.vue'
 
-const { data, pending, error } = await useFetch('/api/cotizaciones')
+const exchangeQuotesService = useExchangeQuotesService()
+const { data, pending, error } = await useAsyncData('exchange-other-currencies', () => exchangeQuotesService.getOtherCurrencyRates(), { default: () => [] })
 
-const dolar = computed(() => (data.value as ApiDolar[]) || [])
+const dolar = computed(() => data.value || [])
 const resto = computed(() =>
   dolar.value.filter((d) => d.moneda.toUpperCase() !== 'USD')
 )

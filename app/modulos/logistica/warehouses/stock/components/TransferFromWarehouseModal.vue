@@ -115,7 +115,7 @@ watch([open, () => props.loading], ([isOpen, isLoading]) => {
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton variant="outline" :disabled="loading" @click="open = false">
+        <UButton variant="outline" :disabled="loading" @click="() => { open = false }">
           Cancelar
         </UButton>
         <UButton

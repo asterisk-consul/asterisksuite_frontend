@@ -7,6 +7,7 @@ import type { TableColumn } from '@nuxt/ui'
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { useServerTable } from '~/composables/table/useServerTable'
+import { useFilesService } from '~/modulos/logistica/media/files/files.service'
 
 interface FileAssociation {
   entity_type: string
@@ -39,6 +40,7 @@ const storageBreakdown = ref<StorageBreakdown[]>([])
 const loading = ref(false)
 const loadError = ref('')
 const toast = useToast()
+const filesService = useFilesService()
 const NuxtLink = resolveComponent('NuxtLink')
 let latestRequestId = 0
 
@@ -47,13 +49,15 @@ async function loadFiles(query: { page: number; pageSize: number; search?: strin
   loading.value = true
   loadError.value = ''
   try {
-    const response = await $fetch<{
+    const response = await filesService.findLibrary({
+      ...query
+    }) as {
       items: LibraryFile[]
       total: number
       storage_active_files: number
       storage_original_bytes: number
       storage_breakdown: StorageBreakdown[]
-    }>('/api/media/library', { query })
+    }
     if (requestId !== latestRequestId) return
     files.value = response.items
     totalRows.value = response.total
@@ -215,7 +219,7 @@ const storageChartDescription = computed(() => storageSegments.value.length
 
       <UAlert v-if="loadError" color="error" variant="subtle" :description="loadError">
         <template #actions>
-          <UButton label="Reintentar" icon="i-lucide-refresh-cw" size="xs" color="error" variant="soft" @click="serverTable.refresh()" />
+          <UButton label="Reintentar" icon="i-lucide-refresh-cw" size="xs" color="error" variant="soft" @click="() => { void serverTable.refresh() }" />
         </template>
       </UAlert>
 

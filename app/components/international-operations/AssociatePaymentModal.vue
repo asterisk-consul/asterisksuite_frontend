@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { usePaymentsService } from '~/modulos/erp/payments/service/payments.service'
+import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 
 interface Props {
   open: boolean
@@ -19,6 +20,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const service = usePaymentsService()
+const operationsService = useInternationalOperationsService()
 
 const loading = ref(false)
 
@@ -82,10 +84,7 @@ const handleAssociate = async () => {
   if (!selectedPaymentId.value) return
   try {
     loading.value = true
-    await $fetch(`/api/backend/${props.operationId}/payments`, {
-      method: 'POST',
-      body: { payment_id: selectedPaymentId.value, container_id: selectedContainerId.value || undefined }
-    })
+    await operationsService.associatePayment(props.operationId, selectedPaymentId.value, selectedContainerId.value || undefined)
     emit('associated')
     emit('update:open', false)
   } catch (err) {

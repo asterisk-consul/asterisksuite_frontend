@@ -5,7 +5,8 @@ export interface DrilldownNode {
   exact?: boolean
   permission?: string
   permissions?: string[]
-  visibleIf?: 'is_salesperson'
+  moduleCode?: string
+  visibleIf?: 'is_salesperson' | 'is_platform_admin'
   children?: DrilldownNode[]
 }
 
@@ -22,6 +23,7 @@ export const navigationTree: DrilldownNode[] = [
   // ─── MIS VENTAS ──────────────────────────────────────────────
   {
     label: 'Mis ventas',
+    moduleCode: 'SALES',
     icon: 'i-lucide-bar-chart-3',
     to: '/mis-ventas',
     visibleIf: 'is_salesperson',
@@ -37,6 +39,7 @@ export const navigationTree: DrilldownNode[] = [
   // ─── ERP: VENTAS ───────────────────────────────────────────────
   {
     label: 'Ventas',
+    moduleCode: 'SALES',
     icon: 'i-lucide-receipt',
     children: [
       {
@@ -104,6 +107,7 @@ export const navigationTree: DrilldownNode[] = [
   // ─── ERP: COMPRAS ──────────────────────────────────────────────
   {
     label: 'Compras',
+    moduleCode: 'PURCHASES',
     icon: 'i-lucide-folder-closed',
     children: [
       {
@@ -161,6 +165,7 @@ export const navigationTree: DrilldownNode[] = [
   // ─── ERP: TESORERÍA ────────────────────────────────────────────
   {
     label: 'Tesorería',
+    moduleCode: 'TREASURY',
     icon: 'i-lucide-wallet',
     to: '/erp/treasury/dashboard',
     children: [
@@ -270,6 +275,7 @@ export const navigationTree: DrilldownNode[] = [
       },
       {
         label: 'Contabilidad',
+        moduleCode: 'ACCOUNTING',
         icon: 'i-lucide-calculator',
         children: [
           {
@@ -322,6 +328,7 @@ export const navigationTree: DrilldownNode[] = [
   // ─── ERP: REPORTES ─────────────────────────────────────────────
   {
     label: 'Reportes',
+    moduleCode: 'REPORTS',
     icon: 'i-lucide-chart-column-big',
     permission: 'management_reports.read',
     children: [
@@ -387,6 +394,7 @@ export const navigationTree: DrilldownNode[] = [
   // ─── ERP: RRHH ─────────────────────────────────────────────────
   {
     label: 'RRHH',
+    moduleCode: 'HR',
     icon: 'i-lucide-users',
     to: '/erp/rrhh',
     permission: 'employees.read',
@@ -426,6 +434,7 @@ export const navigationTree: DrilldownNode[] = [
   // ─── ERP: PARTES INTERESADAS ───────────────────────────────────
   {
     label: 'Partes interesadas',
+    moduleCode: 'MASTER_DATA',
     icon: 'i-lucide-building-2',
     to: '/erp/stakeholders',
     permission: 'business_parties.read',
@@ -438,6 +447,7 @@ export const navigationTree: DrilldownNode[] = [
   // ─── LOGÍSTICA ─────────────────────────────────────────────────
   {
     label: 'Logística',
+    moduleCode: 'LOGISTICS',
     icon: 'i-lucide-truck',
     to: '/logistica',
     permission: 'trips.read',
@@ -487,6 +497,7 @@ export const navigationTree: DrilldownNode[] = [
       },
       {
         label: 'Mantenimiento',
+        moduleCode: 'MAINTENANCE',
         icon: 'i-lucide-wrench',
         to: '/logistica/mantenimiento',
         permission: 'trips.read',
@@ -583,9 +594,10 @@ export const navigationTree: DrilldownNode[] = [
       'production.manage_bom'
     ],
     children: [
-      { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/stock', permission: 'products.read' },
+      { label: 'Resumen', moduleCode: 'INVENTORY', icon: 'i-lucide-layout-dashboard', to: '/stock', permission: 'products.read' },
       {
         label: 'Productos',
+        moduleCode: 'MASTER_DATA',
         icon: 'i-lucide-package',
         to: '/productos',
         permission: 'products.read',
@@ -615,6 +627,7 @@ export const navigationTree: DrilldownNode[] = [
       },
       {
         label: 'Fabricación',
+        moduleCode: 'MANUFACTURING',
         icon: 'i-lucide-factory',
         to: '/fabricacion',
         permissions: ['production.read', 'production.execute', 'production.history', 'production.manage_bom'],
@@ -652,6 +665,7 @@ export const navigationTree: DrilldownNode[] = [
   // ─── OPERACIONES INTERNACIONALES ───────────────────────────────
   {
     label: 'Operaciones Internacionales',
+    moduleCode: 'INTERNATIONAL_OPERATIONS',
     icon: 'i-lucide-globe',
     permission: 'international_operations.read',
     children: [
@@ -696,6 +710,14 @@ export const navigationTree: DrilldownNode[] = [
       },
       { label: 'Usuarios', icon: 'i-lucide-users', to: '/settings/users', permission: 'roles.read' },
       { label: 'Roles y permisos', icon: 'i-lucide-shield', to: '/settings/roles', permission: 'roles.read' },
+      { label: 'WhatsApp', moduleCode: 'WHATSAPP', icon: 'i-lucide-message-circle', to: '/settings/whatsapp', permission: 'companies.read' },
+      { label: 'Conexiones de IA', moduleCode: 'MCP', icon: 'i-lucide-plug-zap', to: '/settings/connected-apps' },
+      {
+        label: 'Planes y módulos',
+        icon: 'i-lucide-blocks',
+        to: '/settings/platform-plans',
+        visibleIf: 'is_platform_admin'
+      },
       { label: 'Notificaciones', icon: 'i-lucide-bell', to: '/settings/notifications' },
       { label: 'Papelera', icon: 'i-lucide-trash-2', to: '/settings/trash', permission: 'trash.read' }
     ]

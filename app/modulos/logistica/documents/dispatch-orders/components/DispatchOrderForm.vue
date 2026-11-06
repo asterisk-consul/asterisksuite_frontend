@@ -368,7 +368,7 @@ watch(
               color="neutral"
               variant="outline"
               size="sm"
-              @click="form.order_number = nextOrderNumber"
+              @click="() => { form.order_number = nextOrderNumber }"
             />
           </div>
         </UFormField>
@@ -390,7 +390,7 @@ watch(
             <UButton
               icon="i-lucide-plus"
               variant="outline"
-              @click="showBusinessPartiesModal = true"
+              @click="() => { showBusinessPartiesModal = true }"
             />
 
             <UButton
@@ -414,7 +414,7 @@ watch(
             <UButton
               icon="i-lucide-plus"
               variant="outline"
-              @click="showCorridorModal = true"
+              @click="() => { showCorridorModal = true }"
             />
             <UButton
               icon="i-lucide-pencil"

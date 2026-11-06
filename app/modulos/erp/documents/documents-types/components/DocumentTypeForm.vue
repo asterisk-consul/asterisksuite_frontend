@@ -2,6 +2,7 @@
 import { reactive, watch, computed, onMounted } from 'vue'
 import { useDocumentSequencesStore } from '~/modulos/erp/document-sequences/store/document-sequences.store'
 import { getCategoryStatuses } from '~/modulos/erp/documents/types/document-statuses'
+import { TaxesService } from '~/modulos/erp/taxes/services/taxes.service'
 
 export interface DocumentTypeFormData {
   id?: string
@@ -54,7 +55,7 @@ const taxes = ref<any[]>([])
 onMounted(async () => {
   await sequencesStore.fetchAll()
   try {
-    taxes.value = await $fetch<any[]>('/api/backend/taxes')
+    taxes.value = await TaxesService.getAll()
   } catch (e) {
     console.error('Error loading taxes:', e)
   }
@@ -260,11 +261,13 @@ const sequenceOptions = computed(() => sequencesStore.items
     value: sequence.id
   })))
 
+type SequenceOption = (typeof sequenceOptions.value)[number]
+
 const selectedSequences = computed({
-  get: () =>
+  get: (): SequenceOption[] =>
     (form.document_sequence_ids ?? [])
       .map((id: any) => sequenceOptions.value.find(o => o.value === (typeof id === 'string' ? id : id.value)))
-      .filter(Boolean),
+      .filter((option): option is SequenceOption => option !== undefined),
   set: (val: any) => {
     form.document_sequence_ids = (val ?? []).map((item: any) => typeof item === 'string' ? item : item.value)
   }
@@ -281,7 +284,7 @@ const selectedCategory = computed({
 })
 
 const selectedLetterType = computed({
-  get: () => letterOptions.find(o => o.value === form.letter_type) ?? undefined,
+  get: () => form.letter_type || undefined,
   set: (val: any) => { form.letter_type = selectValue(val) }
 })
 </script>
@@ -362,7 +365,7 @@ const selectedLetterType = computed({
           <p class="text-sm font-medium">Secuencias que se crearán al guardar</p>
           <div v-for="(sequence, index) in pendingSequenceDrafts" :key="`${sequence.point_of_sale}-${index}`" class="flex items-center justify-between gap-3 text-sm">
             <span class="min-w-0 truncate">{{ sequence.name }} · PV {{ sequence.point_of_sale }}{{ sequence.prefix ? ` · ${sequence.prefix}` : '' }}</span>
-            <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" type="button" :aria-label="`Quitar ${sequence.name}`" @click="pendingSequenceDrafts.splice(index, 1)" />
+            <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" type="button" :aria-label="`Quitar ${sequence.name}`" @click="() => { pendingSequenceDrafts.splice(index, 1) }" />
           </div>
         </div>
       </div>
@@ -610,7 +613,7 @@ const selectedLetterType = computed({
     </div>
 
     <!-- Inline Sequence Creation -->
-    <UModal v-model:open="showSeqCreate" title="Nueva secuencia" :ui="{ width: 'max-w-lg' }">
+    <UModal v-model:open="showSeqCreate" title="Nueva secuencia" :ui="{ content: 'max-w-lg' }">
       <template #body>
         <UForm :state="seqForm" class="space-y-4" @submit="handleSeqCreate">
           <UFormField label="Nombre" required>
@@ -634,7 +637,7 @@ const selectedLetterType = computed({
           </div>
           <USwitch v-model="seqForm.automatic" label="Numeración automática" />
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="showSeqCreate = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { showSeqCreate = false }" />
             <UButton label="Crear secuencia" color="primary" type="submit" :loading="seqCreating" />
           </div>
         </UForm>

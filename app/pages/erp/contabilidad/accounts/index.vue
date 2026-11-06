@@ -59,7 +59,7 @@ const accountTypeIcons: Record<AccountType, string> = {
   EXPENSE: 'i-lucide-arrow-down-right'
 }
 
-const accountTypeColors: Record<AccountType, string> = {
+const accountTypeColors: Record<AccountType, import('~/composables/table/createColumns').BadgeColor> = {
   ASSET: 'success',
   LIABILITY: 'error',
   EQUITY: 'primary',
@@ -213,8 +213,10 @@ const selectedType = computed({
         ]">
           <UButton label="Exportar" icon="i-lucide-download" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-down" />
         </UDropdownMenu>
-        <UButton v-if="allowImport" label="Importar" icon="i-lucide-upload" color="neutral" variant="outline" @click="showImportDialog = true" />
-        <UButton label="Nueva cuenta" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate()" />
+        <UButton v-if="allowImport" label="Importar" icon="i-lucide-upload" color="neutral" variant="outline" @click="() => { showImportDialog = true }" />
+        <UButton data-global-create-shortcut class="group/create" label="Nueva cuenta" icon="i-lucide-plus" color="primary" variant="solid" aria-keyshortcuts="Alt+N" @click="openCreate()">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 
@@ -292,7 +294,7 @@ const selectedType = computed({
     <UModal
       v-model:open="modalOpen"
       :title="editingAccount ? 'Editar cuenta' : 'Nueva cuenta'"
-      :ui="{ width: 'max-w-lg' }"
+      :ui="{ content: 'max-w-lg' }"
     >
       <template #body>
         <UForm :state="form" class="space-y-4" @submit="handleSubmit">
@@ -309,7 +311,7 @@ const selectedType = computed({
             <USelectMenu v-model="selectedParent" :items="parentOptions" />
           </UFormField>
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { modalOpen = false }" />
             <UButton label="Guardar" type="submit" :loading="saving" />
           </div>
         </UForm>
@@ -325,7 +327,7 @@ const selectedType = computed({
           ?
         </p>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
           <UButton label="Eliminar" color="error" @click="handleDelete" />
         </div>
       </template>

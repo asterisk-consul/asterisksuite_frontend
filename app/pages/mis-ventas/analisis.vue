@@ -26,7 +26,7 @@ const percentColor = (current: number, previous: number) => {
 
 const formatMonth = (period: string) => {
   const [year, month] = period.split('-')
-  const d = new Date(parseInt(year), parseInt(month) - 1, 1)
+  const d = new Date(parseInt(year ?? '', 10), parseInt(month ?? '', 10) - 1, 1)
   return d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
 }
 

@@ -2,11 +2,16 @@
 definePageMeta({ middleware: ['auth'] })
 import type { ButtonProps } from '@nuxt/ui'
 import { useMaintenanceStore } from '~/modulos/logistica/maintenance/store/maintenance.store'
+import { useMaintenanceService } from '~/modulos/logistica/maintenance/service/maintenance.service'
+import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
 import type { Tire } from '~/modulos/logistica/maintenance/types/maintenance.types'
+import type { BadgeColor } from '~/types/colors.types'
 
 const route = useRoute()
 const router = useRouter()
 const store = useMaintenanceStore()
+const maintenanceService = useMaintenanceService()
+const partiesService = useBusinessPartiesService()
 
 const id = route.params.id as string
 const loading = ref(true)
@@ -15,8 +20,6 @@ const activeTab = ref('info')
 const tire = computed(() => store.currentTire)
 
 // Status config
-type BadgeColor = 'error' | 'neutral' | 'info' | 'success' | 'warning' | 'primary' | 'secondary'
-
 const statusConfig: Record<string, { color: BadgeColor; label: string }> = {
   IN_STOCK: { color: 'info', label: 'En Stock' },
   INSTALLED: { color: 'success', label: 'Instalada' },
@@ -145,7 +148,7 @@ watch(selectedInstallVehicle, async (val) => {
   if (val?.value) {
     loadingPositions.value = true
     try {
-      const data = await $fetch<any[]>(`/api/backend/maintenance/vehicles/${val.value}/tire-positions`)
+      const data = await maintenanceService.getTirePositions(val.value)
       vehiclePositions.value = data
     } catch { vehiclePositions.value = [] } finally {
       loadingPositions.value = false
@@ -175,21 +178,21 @@ watch(selectedRemoveDestination, (val) => {
 async function fetchVehicles() {
   loadingVehicles.value = true
   try {
-    vehicles.value = await $fetch<any[]>('/api/backend/vehicles')
+    vehicles.value = await maintenanceService.getVehicleDirectory()
   } catch { /* */ } finally { loadingVehicles.value = false }
 }
 
 async function fetchSuppliers() {
   loadingSuppliers.value = true
   try {
-    suppliers.value = await $fetch<any[]>('/api/backend/master-data/business-parties', { params: { type: 'SUPPLIER' } })
+    suppliers.value = await partiesService.findAll({ type: 'SUPPLIER' })
   } catch { /* */ } finally { loadingSuppliers.value = false }
 }
 
 async function fetchCustomers() {
   loadingCustomers.value = true
   try {
-    customers.value = await $fetch<any[]>('/api/backend/master-data/business-parties', { params: { type: 'CUSTOMER' } })
+    customers.value = await partiesService.findAll({ type: 'CUSTOMER' })
   } catch { /* */ } finally { loadingCustomers.value = false }
 }
 
@@ -281,12 +284,12 @@ async function handleSell() {
 
       <!-- Action buttons -->
       <div class="flex flex-wrap gap-2">
-        <UButton v-if="canInstall" label="Instalar" icon="i-lucide-plus-circle" color="success" variant="outline" @click="showInstallModal = true" />
-        <UButton v-if="canRemove" label="Retirar" icon="i-lucide-minus-circle" color="warning" variant="outline" @click="showRemoveModal = true" />
+        <UButton v-if="canInstall" label="Instalar" icon="i-lucide-plus-circle" color="success" variant="outline" @click="() => { showInstallModal = true }" />
+        <UButton v-if="canRemove" label="Retirar" icon="i-lucide-minus-circle" color="warning" variant="outline" @click="() => { showRemoveModal = true }" />
         <UButton v-if="canRotate" label="Rotar" icon="i-lucide-refresh-cw" color="primary" variant="outline" />
-        <UButton v-if="canRepair" label="Reparar" icon="i-lucide-wrench" color="secondary" variant="outline" @click="showRepairModal = true" />
-        <UButton v-if="canScrap" label="Dar de Baja" icon="i-lucide-trash-2" color="error" variant="outline" @click="showScrapModal = true" />
-        <UButton v-if="canSell" label="Vender" icon="i-lucide-banknote" color="neutral" variant="outline" @click="showSellModal = true" />
+        <UButton v-if="canRepair" label="Reparar" icon="i-lucide-wrench" color="secondary" variant="outline" @click="() => { showRepairModal = true }" />
+        <UButton v-if="canScrap" label="Dar de Baja" icon="i-lucide-trash-2" color="error" variant="outline" @click="() => { showScrapModal = true }" />
+        <UButton v-if="canSell" label="Vender" icon="i-lucide-banknote" color="neutral" variant="outline" @click="() => { showSellModal = true }" />
       </div>
 
       <!-- Tabs -->
@@ -486,7 +489,7 @@ async function handleSell() {
           </UFormField>
 
           <div class="flex justify-end gap-2">
-            <UButton variant="outline" label="Cancelar" @click="showInstallModal = false" />
+            <UButton variant="outline" label="Cancelar" @click="() => { showInstallModal = false }" />
             <UButton label="Instalar" color="success" :disabled="!installForm.vehicle_id || !installForm.position_id" @click="handleInstall" />
           </div>
         </div>
@@ -526,7 +529,7 @@ async function handleSell() {
           </UFormField>
 
           <div class="flex justify-end gap-2">
-            <UButton variant="outline" label="Cancelar" @click="showRemoveModal = false" />
+            <UButton variant="outline" label="Cancelar" @click="() => { showRemoveModal = false }" />
             <UButton label="Retirar" color="warning" @click="handleRemove" />
           </div>
         </div>
@@ -572,7 +575,7 @@ async function handleSell() {
           </UFormField>
 
           <div class="flex justify-end gap-2">
-            <UButton variant="outline" label="Cancelar" @click="showRepairModal = false" />
+            <UButton variant="outline" label="Cancelar" @click="() => { showRepairModal = false }" />
             <UButton label="Reparar" color="secondary" :disabled="!repairForm.supplier_id || !repairForm.description" @click="handleRepair" />
           </div>
         </div>
@@ -596,7 +599,7 @@ async function handleSell() {
           </UFormField>
 
           <div class="flex justify-end gap-2">
-            <UButton variant="outline" label="Cancelar" @click="showScrapModal = false" />
+            <UButton variant="outline" label="Cancelar" @click="() => { showScrapModal = false }" />
             <UButton label="Dar de Baja" color="error" :disabled="!scrapForm.reason" @click="handleScrap" />
           </div>
         </div>
@@ -632,7 +635,7 @@ async function handleSell() {
           </UFormField>
 
           <div class="flex justify-end gap-2">
-            <UButton variant="outline" label="Cancelar" @click="showSellModal = false" />
+            <UButton variant="outline" label="Cancelar" @click="() => { showSellModal = false }" />
             <UButton label="Vender" :disabled="!sellForm.customer_id" @click="handleSell" />
           </div>
         </div>

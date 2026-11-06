@@ -15,10 +15,10 @@ const fieldLabels: Record<string, string> = {
 function formatValidationMessage(value: unknown): string[] {
   if (typeof value === 'string') {
     const match = value.match(/^([a-zA-Z0-9_.]+)\s+(.+)$/)
-    if (!match) return [value]
-    const label = fieldLabels[match[1]]
+    const [, property, rule] = match ?? []
+    if (!property || !rule) return [value]
+    const label = fieldLabels[property]
     if (!label) return [value]
-    const rule = match[2]
     if (rule.includes('valid ISO 8601 date')) return [`${label}: ingresá una fecha válida.`]
     if (rule.includes('UUID')) return [`${label}: seleccioná un valor válido.`]
     if (rule.includes('shorter than or equal to')) return [`${label}: el texto supera el máximo permitido.`]

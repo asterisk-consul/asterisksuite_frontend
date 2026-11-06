@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { es } from '@nuxt/ui/locale'
-const colorMode = useColorMode()
 import type { ToasterProps } from '#ui/types'
+
+const colorMode = useColorMode()
 const toaster: ToasterProps = { position: 'top-center', duration: 3000 }
 const color = computed(() => (colorMode.value === 'dark' ? '#1b1718' : 'white'))
 

@@ -1,13 +1,15 @@
 import type { TrashTable } from '~/modulos/trash/types/trash.types'
+import { useTrashService } from '~/modulos/trash/services/trash.service'
 
 export function useTableDelete(tableName: TrashTable) {
   const toast = useToast()
   const loading = ref(false)
+  const trashService = useTrashService()
 
   async function deleteOne(id: string) {
     loading.value = true
     try {
-      await $fetch(`/api/trash/${tableName}/${id}`, { method: 'DELETE' })
+      await trashService.softDelete(tableName, id)
       toast.add({
         title: 'Enviado a la papelera',
         description: 'Podés recuperar el elemento desde la Papelera en Ajustes.',
@@ -30,10 +32,7 @@ export function useTableDelete(tableName: TrashTable) {
   async function deleteMany(ids: string[]) {
     loading.value = true
     try {
-      await $fetch(`/api/trash/bulk/${tableName}`, {
-        method: 'DELETE',
-        body: { ids }
-      })
+      await trashService.softDeleteMany(tableName, ids)
       toast.add({
         title: `${ids.length} elemento(s) enviado(s) a la papelera`,
         description: 'Podés recuperarlos desde la Papelera en Ajustes.',

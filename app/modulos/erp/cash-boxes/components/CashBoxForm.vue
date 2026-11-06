@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { useUsersService } from '~/modulos/access-control/services/users.service'
 import type { CreateCashBoxInput, CashBoxUserRole } from '~/modulos/erp/cash-boxes/types/cash-boxes.types'
 
 export interface CashBoxFormData {
@@ -36,6 +37,7 @@ const emit = defineEmits<{
 const { addUserRole, removeUserRole } = useCashBoxes()
 const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
 const toast = useToast()
+const usersService = useUsersService()
 
 const defaultForm: CashBoxFormData = {
   name: '',
@@ -111,9 +113,7 @@ const searchUsers = () => {
       return
     }
     try {
-      const users = await $fetch<{ id: string; name: string; email: string }[]>('/api/access-control/users/search', {
-        query: { q }
-      })
+      const users = await usersService.search(q)
       const existingIds = new Set([
         ...boxUsers.value.map(u => u.userId),
         ...pendingUsers.value.map(u => u.userId)
@@ -127,7 +127,7 @@ const searchUsers = () => {
 
 const loadAllUsers = async () => {
   try {
-    allUsersList.value = await $fetch<{ id: string; name: string; email: string }[]>('/api/access-control/users/all')
+    allUsersList.value = await usersService.findAll()
   } catch {
     allUsersList.value = []
   }
@@ -218,9 +218,7 @@ const setBoxUsers = (users: CashBoxUserRole[]) => {
     return
   }
 
-  $fetch<{ id: string; name: string; email: string }[]>('/api/access-control/users/batch', {
-    query: { ids: ids.join(',') }
-  }).then((userDetails) => {
+  usersService.findBatch(ids).then((userDetails) => {
     console.log('[setBoxUsers] batch response:', userDetails)
     const userMap = new Map(userDetails.map(u => [u.id, u]))
     boxUsers.value = users.map(u => {
@@ -350,7 +348,7 @@ const handleSubmit = () => {
             <span v-if="ur.userEmail && ur.userName" class="text-xs text-muted ml-1">({{ ur.userEmail }})</span>
             <UBadge
               :label="userRoleOptions.find(o => o.value === ur.role)?.label ?? ur.role"
-              :color="ur.role === 'RESPONSIBLE' ? 'success' : ur.role === 'OPERATOR' ? 'primary' : 'gray'"
+              :color="ur.role === 'RESPONSIBLE' ? 'success' : ur.role === 'OPERATOR' ? 'primary' : 'neutral'"
               size="xs"
               class="ml-2"
             />
@@ -371,7 +369,7 @@ const handleSubmit = () => {
             <span v-if="p.userEmail && p.userName" class="text-xs text-muted ml-1">({{ p.userEmail }})</span>
             <UBadge
               :label="userRoleOptions.find(o => o.value === p.role)?.label ?? p.role"
-              :color="p.role === 'RESPONSIBLE' ? 'success' : p.role === 'OPERATOR' ? 'primary' : 'gray'"
+              :color="p.role === 'RESPONSIBLE' ? 'success' : p.role === 'OPERATOR' ? 'primary' : 'neutral'"
               size="xs"
               class="ml-2"
             />
@@ -459,7 +457,7 @@ const handleSubmit = () => {
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton label="Cancelar" variant="ghost" @click="showRemoveModal = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { showRemoveModal = false }" />
         <UButton label="Confirmar" color="error" @click="executeRemoveUser" />
       </div>
     </template>

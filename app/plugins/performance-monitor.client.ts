@@ -1,25 +1,7 @@
-type PerformancePayload = {
-  kind: 'initial-load' | 'route-navigation'
-  route: string
-  version?: string
-  metrics: Record<string, number>
-}
+import { sendPerformanceMetric } from '~/services/performance-metrics.service'
 
 function rounded(value: number | undefined) {
   return Math.max(0, Math.round(Number(value ?? 0)))
-}
-
-function sendMetric(payload: PerformancePayload) {
-  const body = JSON.stringify(payload)
-  if (navigator.sendBeacon) {
-    navigator.sendBeacon('/api/performance', new Blob([body], { type: 'application/json' }))
-    return
-  }
-  void $fetch('/api/performance', {
-    method: 'POST',
-    body: payload,
-    keepalive: true
-  }).catch(() => {})
 }
 
 export default defineNuxtPlugin((nuxtApp) => {
@@ -56,7 +38,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       const chunks = resources.filter((entry) => new URL(entry.name).pathname.startsWith('/_nuxt/'))
       const apiCalls = resources.filter((entry) => new URL(entry.name).pathname.startsWith('/api/'))
 
-      sendMetric({
+      sendPerformanceMetric({
         kind: 'initial-load',
         route: window.location.pathname,
         version: String(config.public.appVersion ?? ''),
@@ -86,7 +68,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   })
   nuxtApp.hook('page:finish', () => {
     if (!routeStartedAt) return
-    sendMetric({
+    sendPerformanceMetric({
       kind: 'route-navigation',
       route: window.location.pathname,
       version: String(config.public.appVersion ?? ''),

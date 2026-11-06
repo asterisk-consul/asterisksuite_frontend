@@ -6,6 +6,7 @@ import { createTableBuilder } from '@/composables/table/createColumns'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 
 type Row = Payment
+type DocumentReference = { label: string; detail?: string; to?: string }
 
 const typeConfig: Record<string, { label: string; color?: string }> = {
   PAYMENT: { label: 'Pago', color: 'error' },
@@ -41,11 +42,12 @@ const formatPaymentAmount = (amount: number | string | null | undefined, currenc
   }).format(Number(amount) || 0)
 }
 
-function getDocumentReferences(row: Row) {
+function getDocumentReferences(row: Row): DocumentReference[] {
   if (row.source_kind === 'PARTNER_VALE') {
     return [{
       label: `Vale de socio · N° ${row.number}`,
-      detail: row.description ?? row.source_description ?? undefined
+      detail: row.description ?? row.source_description ?? undefined,
+      to: undefined
     }]
   }
 
@@ -71,13 +73,14 @@ function getDocumentReferences(row: Row) {
     const amount = formatPaymentAmount(obligation.amount ?? obligation.estimated_amount, obligation.currency_code)
     return {
       label: obligation.description,
-      detail: [`Período ${obligation.period_key}`, amount].filter(Boolean).join(' · ')
+      detail: [`Período ${obligation.period_key}`, amount].filter(Boolean).join(' · '),
+      to: undefined
     }
   })
 
   if (documents.length || obligations.length) return [...documents, ...obligations]
   return row.description
-    ? [{ label: 'Sin comprobante asociado', detail: row.description }]
+    ? [{ label: 'Sin comprobante asociado', detail: row.description, to: undefined }]
     : []
 }
 

@@ -4,6 +4,8 @@ export interface TrashItem<T = any> {
   deletedAt: string
   deletedBy?: string
   deletedByName?: string
+  displayName?: string | null
+  displayDetail?: string | null
   documentNumber?: number
   documentStatus?: number
   documentReference?: string | null
@@ -11,6 +13,23 @@ export interface TrashItem<T = any> {
   documentCategory?: string | null
   documentTypeName?: string | null
   documentDirection?: number | null
+  hrValeId?: string | null
+  hrValeNeedsReconciliation?: boolean
+  hrValeDocumentNeedsReconciliation?: boolean
+  hrValeDocumentStatusNeedsReconciliation?: boolean
+  hrValePaidAmountNeedsReconciliation?: boolean
+  hrValeAccountEntriesNeedReconciliation?: boolean
+  hrValeTreasuryNeedsReconciliation?: boolean
+  hrValeReconciliationBlocked?: boolean
+  hrValeTreasuryImpacts?: {
+    id: string
+    accountLabel: string
+    movementLabel: string
+    amount: number
+    currencyCode: string
+    date: string
+    isReversal: boolean
+  }[]
   data?: T
 }
 

@@ -41,11 +41,13 @@ export function mapDocumentToFacturaForm(
 
         product_id: item.product_id,
 
+        item_instructions: item.item_instructions ?? null,
+
         product_name: item.products?.name ?? '',
 
         product_code: item.products?.code ?? '',
 
-        warehouse_id: item.warehouse_id ?? document.warehouse_id ?? null,
+        warehouse_id: (item as typeof item & { warehouse_id?: string | null }).warehouse_id ?? document.warehouse_id ?? null,
 
         quantity: Number(item.quantity ?? 0),
 
@@ -89,6 +91,10 @@ export function mapDocumentToFacturaForm(
 
     document_type_id: document.document_type_id,
 
+    parent_document_id: document.parent_document_id ?? null,
+
+    parent_document: document.parent_document ?? null,
+
     document_sequence_id: document.document_sequence_id ?? null,
 
     party_id: document.party_id,
@@ -102,7 +108,7 @@ export function mapDocumentToFacturaForm(
     rate_type: document.rate_type ?? 'OFFICIAL',
 
     date: document.date
-      ? new Date(document.date as string).toISOString().split('T')[0]
+      ? new Date(document.date as string).toISOString().split('T')[0] ?? ''
       : '',
 
     descrip: document.descrip ?? '',

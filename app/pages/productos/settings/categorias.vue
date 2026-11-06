@@ -55,7 +55,7 @@ function openCreateRoot() {
   modalOpen.value = true
 }
 
-function openCreateChild(parentId: string) {
+function openCreateChild(parentId: string | null) {
   mode.value = 'create'
 
   form.value = {
@@ -138,11 +138,15 @@ onMounted(() => {
     variant="naked"
     class="mb-2 mt-4 w-full lg:max-w-2xl mx-auto"
   >
-    <UButton
+    <ShortcutButton
       icon="i-heroicons-plus"
       label="Nueva categoría"
       color="neutral"
       class="w-fit lg:ms-auto"
+      data-global-create-shortcut
+      data-hide-global-create-control
+      :shortcut-keys="['Alt', 'N']"
+      help="Crear una categoría principal"
       @click="openCreateRoot"
     />
   </UPageCard>

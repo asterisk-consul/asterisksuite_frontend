@@ -3,11 +3,15 @@ import type { DateRange } from '~/components/compras/FiltroDateCompras.vue'
 import DateRangePicker from '~/components/compras/FiltroDateCompras.vue'
 import { useExcelExport } from '~/composables/useExcelExport'
 import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
+import { useAccountsService } from '~/modulos/contabilidad/service/accounts.service'
+import { useTreasuryReportsService } from '~/modulos/erp/treasury-reports/service/treasury-reports.service'
 
 definePageMeta({ middleware: ['auth'] })
 
 const { exportToExcel } = useExcelExport()
 const { canExport } = useDataTransferPermissions()
+const accountsService = useAccountsService()
+const treasuryReportsService = useTreasuryReportsService()
 const loading = ref(false)
 const accounts = ref<any[]>([])
 const movements = ref<any[]>([])
@@ -21,12 +25,10 @@ const fetchData = async () => {
   loading.value = true
   try {
     const [accountsData, movementsData] = await Promise.all([
-      $fetch<any[]>('/api/backend/accounts'),
-      $fetch<any[]>('/api/backend/treasury/movements', {
-        query: {
-          date_from: dateRange.value.start.toISOString().split('T')[0],
-          date_to: dateRange.value.end.toISOString().split('T')[0]
-        }
+      accountsService.findAll(),
+      treasuryReportsService.movements({
+        date_from: dateRange.value.start.toISOString().split('T')[0],
+        date_to: dateRange.value.end.toISOString().split('T')[0]
       })
     ])
     accounts.value = accountsData

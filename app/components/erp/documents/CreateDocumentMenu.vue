@@ -12,16 +12,12 @@ const categories = computed(() => props.direction === 'sales'
       { category: 'QUOTE', label: 'Presupuesto', icon: 'i-lucide-file-text' },
       { category: 'ORDER', label: 'Orden de Venta', icon: 'i-lucide-clipboard-list' },
       { category: 'INVOICE', label: 'Factura', icon: 'i-lucide-receipt' },
-      { category: 'REMITO', label: 'Remito', icon: 'i-lucide-package-check' },
-      { category: 'CREDIT_NOTE', label: 'Nota de Crédito', icon: 'i-lucide-file-minus-2' },
-      { category: 'DEBIT_NOTE', label: 'Nota de Débito', icon: 'i-lucide-file-plus-2' }
+      { category: 'REMITO', label: 'Remito', icon: 'i-lucide-package-check' }
     ]
   : [
       { category: 'ORDER', label: 'Orden de Compra', icon: 'i-lucide-clipboard-list' },
       { category: 'INVOICE', label: 'Factura', icon: 'i-lucide-receipt' },
-      { category: 'REMITO', label: 'Remito', icon: 'i-lucide-package-check' },
-      { category: 'CREDIT_NOTE', label: 'Nota de Crédito', icon: 'i-lucide-file-minus-2' },
-      { category: 'DEBIT_NOTE', label: 'Nota de Débito', icon: 'i-lucide-file-plus-2' }
+      { category: 'REMITO', label: 'Remito', icon: 'i-lucide-package-check' }
     ])
 
 function getCreatePath(category: string) {
@@ -63,12 +59,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleCreateShortcut
   <UDropdownMenu v-if="menuItems.length" v-model:open="menuOpen" :items="menuItems">
     <UButton
       color="primary"
+      class="group/create"
       aria-keyshortcuts="Alt+N"
       title="Crear nuevo comprobante (Alt + N)"
     >
       <UIcon name="i-lucide-plus" class="size-4" />
       <span>Crear nuevo comprobante</span>
-      <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" />
+      <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover />
       <UIcon name="i-lucide-chevron-down" class="size-4" />
     </UButton>
   </UDropdownMenu>

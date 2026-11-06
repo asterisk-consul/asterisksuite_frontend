@@ -251,7 +251,7 @@ function applyTemplate(template: SavedManagementReportTemplate) {
   templateName.value = template.name
   shareTemplate.value = template.shared
   selectedColumns.value = [...template.columns]
-  selectedVisualizations.value = [...(template.visualizations?.length ? template.visualizations : ['KPIS', 'CHART', 'TABLE'])]
+  selectedVisualizations.value = [...(template.visualizations?.length ? template.visualizations : ['KPIS', 'CHART', 'TABLE'] as ReportVisualization[])]
   chartType.value = template.chart_type ?? 'BAR'
   canvasComponents.value = template.components?.length ? template.components.map(item => ({ ...item })) : [
     ...(template.visualizations?.includes('KPIS') ?? true ? [{ id: crypto.randomUUID(), type: 'KPI' as const, title: 'Resumen de ventas', dimension: 'MONTH' as const, metric: 'TOTAL' as const, width: 12 as const }] : []),
@@ -391,7 +391,7 @@ onMounted(async () => {
           <UAlert v-if="report && report.summary.count > report.rows.length" color="warning" variant="subtle" icon="i-lucide-triangle-alert" title="Vista limitada a 5.000 filas" :description="`El resumen considera ${report.summary.count.toLocaleString('es-AR')} registros; los gráficos y la tabla usan las primeras ${report.rows.length.toLocaleString('es-AR')}. Reducí el período o aplicá filtros para analizar un tramo específico.`" />
           <div v-if="!canvasComponents.length" class="flex min-h-80 flex-col items-center justify-center rounded-xl border border-dashed border-default p-8 text-center"><UIcon name="i-lucide-layout-dashboard" class="mb-3 size-9 text-muted"/><p class="font-semibold">El lienzo está vacío</p><p class="mt-1 text-sm text-muted">Agregá un indicador, gráfico o tabla desde la barra superior.</p></div>
           <VueDraggable v-else v-model="canvasComponents" :animation="180" handle=".report-drag-handle" class="grid grid-cols-12 gap-3">
-            <UPageCard v-for="component in canvasComponents" :key="component.id" variant="subtle" class="relative min-w-0 cursor-pointer" :class="[`col-span-12 ${component.width === 4 ? 'lg:col-span-4' : component.width === 6 ? 'lg:col-span-6' : component.width === 8 ? 'lg:col-span-8' : 'lg:col-span-12'}`, selectedComponentId === component.id ? 'ring-2 ring-primary' : 'hover:border-primary/50']" @click="selectedComponentId = component.id">
+            <UPageCard v-for="component in canvasComponents" :key="component.id" variant="subtle" class="relative min-w-0 cursor-pointer" :class="[`col-span-12 ${component.width === 4 ? 'lg:col-span-4' : component.width === 6 ? 'lg:col-span-6' : component.width === 8 ? 'lg:col-span-8' : 'lg:col-span-12'}`, selectedComponentId === component.id ? 'ring-2 ring-primary' : 'hover:border-primary/50']" @click="() => { selectedComponentId = component.id }">
               <template #header><div class="flex min-w-0 items-center gap-2"><UButton icon="i-lucide-grip-vertical" color="neutral" variant="ghost" size="xs" class="report-drag-handle cursor-grab" aria-label="Arrastrar para ordenar" @click.stop/><div class="min-w-0 flex-1"><p class="truncate font-semibold">{{ component.title }}</p><p class="text-xs text-muted">{{ componentLabel(component.type) }}<template v-if="component.type !== 'KPI'"> · {{ dimensionOptions.find(item => item.value === component.dimension)?.label }} · {{ metricOptions.find(item => item.value === component.metric)?.label }}</template></p></div><UBadge v-if="selectedComponentId === component.id" color="primary" variant="subtle">Seleccionado</UBadge></div></template>
               <template v-if="report">
                 <div v-if="component.type === 'KPI'" class="grid grid-cols-1 gap-2 sm:grid-cols-2"><div v-for="(values, currency) in report.summary.by_currency" :key="currency" class="rounded-lg bg-elevated/50 p-3"><p class="text-xs font-semibold uppercase text-muted">{{ currency }} · {{ values.count }} registros</p><p class="mt-1 text-xl font-bold">{{ formatCurrency(values[component.metric === 'PAID' ? 'paid' : component.metric === 'PENDING' ? 'pending' : 'total'], currency) }}</p><p v-if="component.metric === 'TOTAL'" class="mt-1 text-xs text-muted">Cobrado {{ formatCurrency(values.paid, currency) }} · Pendiente {{ formatCurrency(values.pending, currency) }}</p></div><p v-if="!Object.keys(report.summary.by_currency).length" class="text-sm text-muted">Sin datos para mostrar.</p></div>
@@ -437,8 +437,8 @@ onMounted(async () => {
   <UModal v-model:open="showDeleteTemplateModal" title="Eliminar plantilla" description="Se eliminará la configuración guardada. Los datos del sistema no se modifican.">
     <template #footer>
       <div class="flex w-full justify-end gap-2">
-        <UButton label="Cancelar" color="neutral" variant="outline" @click="showDeleteTemplateModal = false" />
-        <UButton label="Eliminar" color="error" icon="i-lucide-trash-2" :loading="!!deletingId" :disabled="!templatePendingDelete" @click="templatePendingDelete && deleteTemplate(templatePendingDelete)" />
+        <UButton label="Cancelar" color="neutral" variant="outline" @click="() => { showDeleteTemplateModal = false }" />
+        <UButton label="Eliminar" color="error" icon="i-lucide-trash-2" :loading="!!deletingId" :disabled="!templatePendingDelete" @click="() => { if (templatePendingDelete) void deleteTemplate(templatePendingDelete) }" />
       </div>
     </template>
   </UModal>

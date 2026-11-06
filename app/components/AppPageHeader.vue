@@ -73,6 +73,28 @@ const headerUi = computed(() => ({
 const rootClasses = computed(() =>
   isCompact.value ? 'bg-default border-b border-default -mx-4 sm:-mx-6 px-4 sm:px-6' : ''
 )
+
+const headerLinks = computed(() => {
+  const links = props.links ?? []
+  const createIndexes = links
+    .map((link, index) => /^\s*nuev[oa]\b/i.test(String(link.label ?? '')) ? index : -1)
+    .filter(index => index >= 0)
+
+  if (createIndexes.length !== 1) return links
+  const createIndex = createIndexes[0]
+
+  return links.map((link, index) => index === createIndex
+    ? {
+        ...link,
+        'data-global-create-shortcut': '',
+        'aria-keyshortcuts': 'Alt+N',
+        title: `${String(link.label)} (Alt + N)`
+      } as ButtonProps
+    : link)
+})
+
+const isCreateHeaderLink = (link: ButtonProps) =>
+  Object.prototype.hasOwnProperty.call(link, 'data-global-create-shortcut')
 </script>
 
 <template>
@@ -83,17 +105,32 @@ const rootClasses = computed(() =>
   >
     <slot v-if="!isCompact" name="breadcrumb" />
     <div>
-      <UPageHeader :description="description || undefined" :ui="headerUi" :links="links">
+      <UPageHeader :description="description || undefined" :ui="headerUi">
         <template #title>
           <div class="flex items-center gap-2 min-w-0">
             <AppSidebarToggle :collapsed="mainCollapsed" @click="toggleMain" />
             <span class="truncate">{{ title }}</span>
           </div>
         </template>
-        <template v-if="$slots.links" #links>
-          <slot name="links" />
+        <template v-if="$slots.links || headerLinks.length" #links>
+          <slot v-if="$slots.links" name="links" />
+          <template v-else>
+            <UButton
+              v-for="(link, index) in headerLinks"
+              :key="`${String(link.label ?? 'action')}-${index}`"
+              v-bind="link"
+              :class="isCreateHeaderLink(link) ? 'group/create' : undefined"
+            >
+              <template v-if="isCreateHeaderLink(link)" #trailing>
+                <KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover />
+              </template>
+            </UButton>
+          </template>
         </template>
       </UPageHeader>
+      <div v-if="$slots.actions" class="flex flex-wrap items-center justify-end gap-2 pb-3">
+        <slot name="actions" />
+      </div>
       <slot name="footer" />
     </div>
   </div>

@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { h } from 'vue'
+import { h, resolveComponent } from 'vue'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useMySalesStore } from '~/modulos/erp/sales/my-sales/my-sales.store'
-import type { TableColumn } from '@nuxt/ui'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 
 definePageMeta({ middleware: ['auth'] })
 
 const store = useMySalesStore()
+const NuxtLink = resolveComponent('NuxtLink')
+const UBadge = resolveComponent('UBadge')
 const { orders, loading } = storeToRefs(store)
 
 const currentPeriod = ref(new Date().toISOString().slice(0, 7))
@@ -36,7 +38,7 @@ const statusColors: Record<string, string> = {
   'Cobrada': 'success',
 }
 
-const columns: TableColumn<any>[] = [
+const columns: ExtendedColumn<any>[] = [
   {
     accessorKey: 'date',
     header: 'Fecha',

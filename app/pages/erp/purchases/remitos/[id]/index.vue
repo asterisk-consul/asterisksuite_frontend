@@ -63,7 +63,7 @@ const {
   store: {
     confirm: (id) => store.confirm(id),
     cancel: (id) => store.cancel(id),
-    changeStatus: (id, status) => store.changeStatus(id, status),
+    changeStatus: (id, status) => store.update(id, { status }),
     fetchOne: (id) => store.fetchOne(id),
   },
 })
@@ -83,9 +83,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [confirmModa
             :action="action"
             :shortcut-keys="shortcutKeys(action.label)"
           />
-          <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
-            <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
-          </UDropdownMenu>
+          <ShortcutDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions" />
         </div>
         </template>
       </UDashboardNavbar>
@@ -129,7 +127,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [confirmModa
         <p>¿Confirmar este remito e ingresar la mercadería?</p>
         <p class="text-sm text-muted mt-2">Se sumará el stock en los depósitos seleccionados.</p>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />
           <UButton label="Confirmar remito" color="success" :loading="processing" :disabled="itemsWithoutWarehouse.length > 0" @click="handleConfirm" />
         </div>
       </template>
@@ -139,7 +137,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [confirmModa
       <template #body>
         <p>¿Anular el remito de compra <strong>#{{ doc?.number }}</strong>?</p>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="cancelModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { cancelModalOpen = false }" />
           <UButton label="Anular" color="error" :loading="processing" @click="handleCancel" />
         </div>
       </template>

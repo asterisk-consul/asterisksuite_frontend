@@ -3,11 +3,23 @@ export default defineEventHandler(async (event) => {
   const token = getCookie(event, 'api2_token')
   const body = await readBody(event)
 
-  return await $fetch(`${config.apiBase2}/media/photos`, {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : ''
-    },
+  const response = await globalThis.fetch(`${String(config.apiBase2).replace(/\/$/, '')}/media/photos`, {
     method: 'POST',
-    body
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+      'Content-Type': 'application/json'
+    },
+    body: body == null ? undefined : JSON.stringify(body)
   })
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => undefined)
+    throw createError({
+      statusCode: response.status,
+      statusMessage: 'No se pudieron guardar las fotos',
+      data: errorBody
+    })
+  }
+
+  return await response.json()
 })

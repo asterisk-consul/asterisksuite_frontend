@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
+import { useCompaniesService } from '~/modulos/companies/service/company.service'
 
 definePageMeta({
   middleware: ['auth']
@@ -8,6 +9,7 @@ definePageMeta({
 
 const auth = useAuthStore()
 const companyStore = useCompaniesStore()
+const companiesService = useCompaniesService()
 const toast = useToast()
 
 // ─── State ────────────────────────────────────────────────
@@ -54,7 +56,7 @@ function onSubdomainInput() {
   checkingSubdomain.value = true
   debounceTimer = setTimeout(async () => {
     try {
-      const res = await $fetch<{ available: boolean; message?: string }>(`/api/companies/check-subdomain?subdomain=${form.subdomain}`)
+      const res = await companiesService.checkSubdomain(form.subdomain)
       subdomainAvailable.value = res.available
       subdomainMessage.value = res.available ? '' : (res.message || 'Este subdomain ya está en uso')
     } catch {
@@ -93,7 +95,7 @@ async function handleSubmit() {
 
     const result = await companyStore.create(payload)
 
-    created.value = { name: result.name, subdomain: result.subdomain }
+    created.value = { name: result.name, subdomain: result.subdomain ?? form.subdomain }
 
     // Refresh auth to include the new company
     await auth.fetchMe()

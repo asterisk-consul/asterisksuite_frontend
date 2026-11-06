@@ -83,25 +83,51 @@ const modalOpen = ref(false)
 const isEditing = ref(false)
 const saving = ref(false)
 
-const emptyRule = (): Partial<TaxRule> => ({
+type TaxRuleForm = Omit<
+  Partial<TaxRule>,
+  | 'jurisdiction_id'
+  | 'withholding_concept_id'
+  | 'cuit_suffix_group'
+  | 'rate'
+  | 'fixed_amount'
+  | 'minimum_amount'
+  | 'valid_to'
+  | 'brackets'
+> & {
+  jurisdiction_id?: string
+  withholding_concept_id?: string
+  cuit_suffix_group?: string
+  rate?: number
+  fixed_amount?: number
+  minimum_amount?: number
+  valid_to?: string
+  brackets?: { id?: string; accumulated_from: number; accumulated_to?: number; rate: number }[]
+}
+
+const emptyRule = (): TaxRuleForm => ({
   name: '',
   tax_type: 'IIBB',
   application_type: 'PERCEPTION',
-  jurisdiction_id: null,
-  withholding_concept_id: null,
+  jurisdiction_id: undefined,
+  withholding_concept_id: undefined,
   operation_type: 'SALE',
-  cuit_suffix_group: null,
+  cuit_suffix_group: undefined,
   base_type: 'PAYMENT_AMOUNT',
   calculation_method: 'RATE_TIMES_BASE',
-  rate: null,
-  minimum_amount: null,
+  rate: undefined,
+  fixed_amount: undefined,
+  minimum_amount: undefined,
   valid_from: new Date().toISOString().slice(0, 10),
-  valid_to: null,
+  valid_to: undefined,
   is_active: true,
   brackets: []
 })
 
-const form = ref<Partial<TaxRule>>(emptyRule())
+const form = ref<TaxRuleForm>(emptyRule())
+const operationTypeInput = computed<string | undefined>({
+  get: () => form.value.operation_type ?? undefined,
+  set: value => { form.value.operation_type = value ?? null }
+})
 
 const cuitGroupOptions = [
   { label: 'Personas Jurídicas (30/33/34)', value: 'PJ' },
@@ -146,7 +172,7 @@ const addBracket = () => {
   const last = form.value.brackets[form.value.brackets.length - 1]
   form.value.brackets.push({
     accumulated_from: last?.accumulated_to ?? 0,
-    accumulated_to: null,
+    accumulated_to: undefined,
     rate: last?.rate ?? 2
   })
 }
@@ -170,20 +196,21 @@ const openEdit = (rule: TaxRule) => {
     name: rule.name,
     tax_type: rule.tax_type,
     application_type: rule.application_type,
-    jurisdiction_id: rule.jurisdiction_id,
-    withholding_concept_id: rule.withholding_concept_id,
+    jurisdiction_id: rule.jurisdiction_id ?? undefined,
+    withholding_concept_id: rule.withholding_concept_id ?? undefined,
     operation_type: rule.operation_type ?? 'ALL',
-    cuit_suffix_group: rule.cuit_suffix_group,
+    cuit_suffix_group: rule.cuit_suffix_group ?? undefined,
     base_type: rule.base_type,
     calculation_method: rule.calculation_method,
-    rate: rule.rate != null ? Number(rule.rate) : null,
-    minimum_amount: rule.minimum_amount != null ? Number(rule.minimum_amount) : null,
+    rate: rule.rate != null ? Number(rule.rate) : undefined,
+    fixed_amount: rule.fixed_amount != null ? Number(rule.fixed_amount) : undefined,
+    minimum_amount: rule.minimum_amount != null ? Number(rule.minimum_amount) : undefined,
     valid_from: rule.valid_from?.slice(0, 10),
-    valid_to: rule.valid_to?.slice(0, 10) ?? null,
+    valid_to: rule.valid_to?.slice(0, 10) ?? undefined,
     is_active: rule.is_active,
     brackets: rule.brackets.map((b) => ({
       accumulated_from: Number(b.accumulated_from),
-      accumulated_to: b.accumulated_to != null ? Number(b.accumulated_to) : null,
+      accumulated_to: b.accumulated_to != null ? Number(b.accumulated_to) : undefined,
       rate: Number(b.rate)
     }))
   }
@@ -202,9 +229,21 @@ const save = async () => {
 
   saving.value = true
   try {
-    const { id: _id, ...payload } = {
-      ...form.value,
-      operation_type: form.value.operation_type === 'ALL' ? null : form.value.operation_type
+    const { id: _id, ...formValues } = form.value
+    const payload: Partial<TaxRule> = {
+      ...formValues,
+      jurisdiction_id: formValues.jurisdiction_id ?? null,
+      withholding_concept_id: formValues.withholding_concept_id ?? null,
+      cuit_suffix_group: formValues.cuit_suffix_group ?? null,
+      rate: formValues.rate ?? null,
+      fixed_amount: formValues.fixed_amount ?? null,
+      minimum_amount: formValues.minimum_amount ?? null,
+      valid_to: formValues.valid_to ?? null,
+      operation_type: form.value.operation_type === 'ALL' ? null : form.value.operation_type,
+      brackets: formValues.brackets?.map((bracket) => ({
+        ...bracket,
+        accumulated_to: bracket.accumulated_to ?? null
+      }))
     }
     if (isEditing.value && form.value.id) {
       await fiscalService.updateTaxRule(form.value.id, payload)
@@ -441,7 +480,7 @@ onMounted(fetchRules)
               </UFormField>
               <UFormField label="Tipo de operación" description="Venta para percepciones; compra para retenciones.">
                 <USelectMenu
-                  v-model="form.operation_type"
+                  v-model="operationTypeInput"
                   :items="operationTypeOptions"
                   value-key="value"
                   class="w-full"
@@ -615,7 +654,7 @@ onMounted(fetchRules)
         <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p class="text-xs text-muted">Los cambios solo afectan cálculos nuevos.</p>
           <div class="flex justify-end gap-2">
-            <UButton label="Cancelar" variant="ghost" @click="modalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { modalOpen = false }" />
             <UButton
               :label="isEditing ? 'Guardar cambios' : 'Crear regla'"
               icon="i-lucide-check"

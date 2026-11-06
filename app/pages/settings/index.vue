@@ -2,11 +2,16 @@
 import { settingsCatalog } from '~/data/settingsCatalog'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useAuthStore } from '~/modulos/auth/auth.store'
+import { usePlatformModulesStore } from '~/modulos/platform-modules/platform-modules.store'
 
 definePageMeta({ middleware: ['auth'] })
 
 const { hasPermission, init: initRoles } = useRoles()
-const { isOwnerOrAdmin } = useCompanyRole()
+const { isOwnerOrAdmin, isOwner } = useCompanyRole()
+const authStore = useAuthStore()
+const platformModules = usePlatformModulesStore()
+const activeCompanyId = computed(() => authStore.selectedCompany?.id ?? '')
 const search = ref('')
 const showAdvanced = ref(false)
 
@@ -16,10 +21,19 @@ const groups = computed(() => {
     .map(group => ({
       ...group,
       entries: group.entries.filter(entry => {
-        const allowed = (!entry.permission || isOwnerOrAdmin.value || hasPermission(entry.permission)) && (!entry.ownerOrAdminOnly || isOwnerOrAdmin.value)
+        const hasEntryPermission = entry.platformAuditOnly
+          ? ['PLATFORM_ADMIN', 'PLATFORM_OWNER'].includes(authStore.user?.role ?? '')
+          : entry.permission === 'trash.read'
+            ? isOwner.value || hasPermission(entry.permission)
+            : !entry.permission || isOwnerOrAdmin.value || hasPermission(entry.permission)
+        const allowed = hasEntryPermission && (!entry.ownerOrAdminOnly || isOwnerOrAdmin.value)
+        const moduleAvailable = !entry.moduleCode
+          || !activeCompanyId.value
+          || platformModules.loadedCompanyId !== activeCompanyId.value
+          || platformModules.hasModule(entry.moduleCode)
         const visible = showAdvanced.value || !entry.advanced || Boolean(term)
         const matches = !term || `${group.label} ${entry.label} ${entry.description}`.toLocaleLowerCase('es').includes(term)
-        return allowed && visible && matches
+        return allowed && moduleAvailable && visible && matches
       })
     }))
     .filter(group => group.entries.length)
@@ -32,6 +46,10 @@ const recommendedSteps = [
   { label: 'Tesorería', to: '/erp/treasury/cash-boxes', icon: 'i-lucide-wallet' },
   { label: 'Usuarios y permisos', to: '/settings/users', icon: 'i-lucide-users' }
 ]
+
+watch(activeCompanyId, (companyId) => {
+  if (companyId) void platformModules.fetchEffective(companyId).catch(() => undefined)
+}, { immediate: true })
 
 onMounted(initRoles)
 </script>
@@ -50,7 +68,7 @@ onMounted(initRoles)
     </UCard>
 
     <div class="flex flex-col gap-3 rounded-xl border border-default bg-default p-4 md:flex-row md:items-end">
-      <UFormField label="Buscar una configuración" description="Escribí qué necesitás configurar." class="flex-1"><UInput v-model="search" icon="i-lucide-search" placeholder="Ej.: remitos, impuestos, usuarios o cajas" size="lg" class="w-full"><template v-if="search" #trailing><UButton icon="i-lucide-x" variant="link" color="neutral" size="xs" @click="search = ''" /></template></UInput></UFormField>
+      <UFormField label="Buscar una configuración" description="Escribí qué necesitás configurar." class="flex-1"><UInput v-model="search" icon="i-lucide-search" placeholder="Ej.: remitos, impuestos, usuarios o cajas" size="lg" class="w-full"><template v-if="search" #trailing><UButton icon="i-lucide-x" variant="link" color="neutral" size="xs" @click="() => { search = '' }" /></template></UInput></UFormField>
       <div class="flex items-center justify-between gap-3 rounded-lg border border-default px-3 py-2.5"><div><p class="text-sm font-medium">Opciones avanzadas</p><p class="text-xs text-muted">Configuración técnica y recuperación.</p></div><USwitch v-model="showAdvanced" /></div>
     </div>
 
@@ -65,6 +83,6 @@ onMounted(initRoles)
       </section>
     </div>
 
-    <div v-else class="rounded-xl border border-dashed border-default py-14 text-center"><UIcon name="i-lucide-search-x" class="mx-auto mb-3 size-10 text-muted" /><p class="font-medium">No encontramos esa configuración</p><p class="text-sm text-muted">Probá con otra palabra o activá las opciones avanzadas.</p><UButton label="Limpiar búsqueda" variant="link" @click="search = ''" /></div>
+    <div v-else class="rounded-xl border border-dashed border-default py-14 text-center"><UIcon name="i-lucide-search-x" class="mx-auto mb-3 size-10 text-muted" /><p class="font-medium">No encontramos esa configuración</p><p class="text-sm text-muted">Probá con otra palabra o activá las opciones avanzadas.</p><UButton label="Limpiar búsqueda" variant="link" @click="() => { search = '' }" /></div>
   </UPage>
 </template>

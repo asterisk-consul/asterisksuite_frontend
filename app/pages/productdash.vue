@@ -313,8 +313,8 @@ function exportCSV() {
     p.invoiceCount,
     p.creditNoteCount,
     p.avgPurchaseValue,
-    fmtDate(p.firstPurchaseDate),
-    fmtDate(p.lastPurchaseDate)
+    fmtDate(p.firstPurchaseDate ?? undefined),
+    fmtDate(p.lastPurchaseDate ?? undefined)
   ])
   const csv = [headers, ...rows]
     .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
@@ -717,10 +717,10 @@ onMounted(fetchData)
                     {{ fmt(p.avgPurchaseValue) }}
                   </td>
                   <td class="td text-gray-400">
-                    {{ fmtDate(p.firstPurchaseDate) }}
+                    {{ fmtDate(p.firstPurchaseDate ?? undefined) }}
                   </td>
                   <td class="td text-gray-400">
-                    {{ fmtDate(p.lastPurchaseDate) }}
+                    {{ fmtDate(p.lastPurchaseDate ?? undefined) }}
                   </td>
                   <td class="td">
                     <div class="flex items-center gap-1">

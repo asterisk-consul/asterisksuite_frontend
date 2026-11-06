@@ -90,9 +90,7 @@ async function handlePartialInvoice() {
             <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />
             <UBadge v-else-if="invoiceState === 'partial'" label="Factura parcial" color="warning" variant="subtle" />
             <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
-            <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
-              <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
-            </UDropdownMenu>
+            <ShortcutDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions" />
             <DocumentHelpPopover :category="category || 'ORDER'" :actions="[...primaryActions, ...secondaryActions.flat()]" />
           </div>
         </template>
@@ -114,7 +112,7 @@ async function handlePartialInvoice() {
         <div v-if="doc && company" id="printable-document" class="print-only">
           <DocumentPrintSelector :document="doc" :company="company" />
         </div>
-        <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" :show-amounts="amountsVisible" show-tracking />
+        <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code ?? 'ARS'" :show-amounts="amountsVisible" show-tracking />
         <DocumentTotals v-if="doc && amountsVisible" :document="doc" />
         <UAlert
           v-if="doc && !amountsVisible"
@@ -134,7 +132,7 @@ async function handlePartialInvoice() {
         <UButton v-for="t in validTransitions" :key="t.status" :label="t.label" :color="t.color" variant="outline" class="w-full justify-start" :loading="processing" @click="handleStatus(t.status)" />
       </div>
       <div class="flex justify-end pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="statusModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { statusModalOpen = false }" />
       </div>
     </template>
   </UModal>

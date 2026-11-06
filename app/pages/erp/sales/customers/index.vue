@@ -82,7 +82,9 @@ const importColumns = [
             <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" />
           </UDropdownMenu>
         </UFieldGroup>
-        <UButton label="Nuevo cliente" icon="i-heroicons-plus" color="primary" @click="openCreate" />
+        <UButton data-global-create-shortcut class="group/create" label="Nuevo cliente" icon="i-heroicons-plus" color="primary" aria-keyshortcuts="Alt+N" @click="() => { void (openCreate()) }">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 
@@ -104,6 +106,6 @@ const importColumns = [
     description="Selecciona un archivo Excel con los clientes a importar. Se pueden incluir contactos y cuentas bancarias en la misma fila."
     :columns="importColumns"
     endpoint="/api/backend/business-parties/import"
-    @success="store.fetchAll"
+    @success="() => store.fetchAll()"
   />
 </template>

@@ -172,13 +172,13 @@ onMounted(load)
           <p class="text-xs text-muted">{{ row.jurisdiction?.code }}</p>
         </div>
         <UFormField label="N.º inscripción" class="lg:col-span-2">
-          <UInput v-model="row.registration_number" placeholder="Opcional" class="w-full" />
+          <UInput :model-value="row.registration_number ?? undefined" placeholder="Opcional" class="w-full" @update:model-value="value => { row.registration_number = value || null }" />
         </UFormField>
         <UFormField label="Percepción" class="lg:col-span-2"><USwitch v-model="row.is_perception_agent" /></UFormField>
         <UFormField label="Retención" class="lg:col-span-2"><USwitch v-model="row.is_withholding_agent" /></UFormField>
         <div class="grid grid-cols-[1fr_1fr_auto] gap-2 lg:col-span-4">
-          <UFormField label="Desde"><UInput v-model="row.valid_from" type="date" class="w-full" /></UFormField>
-          <UFormField label="Hasta"><UInput v-model="row.valid_to" type="date" class="w-full" /></UFormField>
+        <UFormField label="Desde"><UInput :model-value="row.valid_from ?? ''" type="date" class="w-full" @update:model-value="value => { row.valid_from = value || null }" /></UFormField>
+        <UFormField label="Hasta"><UInput :model-value="row.valid_to ?? ''" type="date" class="w-full" @update:model-value="value => { row.valid_to = value || null }" /></UFormField>
           <UButton icon="i-lucide-trash-2" color="error" variant="ghost" class="self-end" aria-label="Quitar jurisdicción" @click="removeJurisdiction(row.jurisdiction_id)" />
         </div>
       </div>

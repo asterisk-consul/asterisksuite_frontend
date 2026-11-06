@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 import { useStockStore } from '~/modulos/logistica/warehouses/stock/stock.store'
+import { useStockService } from '~/modulos/logistica/warehouses/stock/stock.service'
 import { useUnitsStore } from '~/modulos/almacen/units/store/units.store'
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
 import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
@@ -30,6 +31,7 @@ const canConfigureReplenishment = computed(() => isOwnerOrAdmin.value || hasPerm
 
 const depositosStore = useDepositosStore()
 const stockStore = useStockStore()
+const stockService = useStockService()
 const unitsStore = useUnitsStore()
 const locationsStore = useLocationsStore()
 
@@ -74,7 +76,7 @@ async function openReplenishmentPolicy(item: WarehouseStockItem) {
   Object.assign(replenishmentForm, { reorder_point: 0, target_stock: 0, lead_time_days: 0, active: true })
   replenishmentOpen.value = true
   try {
-    const policies = await $fetch<any[]>(`/api/backend/warehouse/replenishment/policies/product/${item.product_id}`)
+    const policies = await stockService.findReplenishmentPolicies(item.product_id)
     const policy = policies.find(value => value.warehouse_id === warehouseId.value)
     if (policy) {
       replenishmentEditingId.value = policy.id
@@ -99,18 +101,13 @@ async function saveReplenishmentPolicy() {
   }
   replenishmentSaving.value = true
   try {
-    await $fetch(replenishmentEditingId.value
-      ? `/api/backend/warehouse/replenishment/policies/${replenishmentEditingId.value}`
-      : '/api/backend/warehouse/replenishment/policies', {
-      method: replenishmentEditingId.value ? 'PATCH' : 'POST',
-      body: {
+    await stockService.saveReplenishmentPolicy(replenishmentEditingId.value, {
         product_id: replenishmentProduct.value.id,
         warehouse_id: warehouseId.value,
         reorder_point: Number(replenishmentForm.reorder_point),
         target_stock: Number(replenishmentForm.target_stock),
         lead_time_days: Number(replenishmentForm.lead_time_days),
         active: replenishmentForm.active
-      }
     })
     replenishmentOpen.value = false
     toast.add({ title: replenishmentEditingId.value ? 'Política actualizada' : 'Política creada', color: 'success' })
@@ -200,9 +197,7 @@ async function handleTransfer(data: { from_warehouse_id: string; to_warehouse_id
 }
 
 async function loadReservations() {
-  reservations.value = await $fetch<any[]>('/api/backend/warehouse/stock-reservations', {
-    query: { warehouse_id: warehouseId.value }
-  }).catch(() => [])
+  reservations.value = await stockService.findReservations(warehouseId.value).catch(() => [])
 }
 
 async function createReservation() {
@@ -213,15 +208,12 @@ async function createReservation() {
   }
   reservationSaving.value = true
   try {
-    await $fetch('/api/backend/warehouse/stock-reservations', {
-      method: 'POST',
-      body: {
+    await stockService.createReservation({
         warehouse_id: warehouseId.value,
         product_id: reservationForm.product_id,
         quantity: Number(reservationForm.quantity),
         reason: reservationForm.reason,
         expires_at: reservationForm.expires_at || undefined
-      }
     })
     Object.assign(reservationForm, { product_id: '', quantity: 1, reason: '', expires_at: '' })
     showReservationModal.value = false
@@ -238,7 +230,7 @@ async function releaseReservation(id: string) {
   if (releasingReservationIds.value.has(id)) return
   releasingReservationIds.value.add(id)
   try {
-    await $fetch(`/api/backend/warehouse/stock-reservations/${id}/release`, { method: 'PATCH' })
+    await stockService.releaseReservation(id)
     await Promise.all([stockStore.fetchStock(warehouseId.value), loadReservations()])
     toast.add({ title: 'Reserva liberada', color: 'success' })
   } catch (error: any) {
@@ -749,7 +741,7 @@ const links = ref<ButtonProps[]>([
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancelar" color="neutral" variant="ghost" :disabled="reservationSaving" @click="showReservationModal = false" />
+          <UButton label="Cancelar" color="neutral" variant="ghost" :disabled="reservationSaving" @click="() => { showReservationModal = false }" />
           <UButton label="Crear reserva" icon="i-lucide-bookmark-plus" :loading="reservationSaving" :disabled="reservationSaving" @click="createReservation" />
         </div>
       </template>
@@ -793,7 +785,7 @@ const links = ref<ButtonProps[]>([
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancelar" color="neutral" variant="outline" @click="replenishmentOpen = false" />
+          <UButton label="Cancelar" color="neutral" variant="outline" @click="() => { replenishmentOpen = false }" />
           <UButton label="Guardar política" icon="i-lucide-save" :loading="replenishmentSaving" @click="saveReplenishmentPolicy" />
         </div>
       </template>

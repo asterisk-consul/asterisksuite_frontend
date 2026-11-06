@@ -40,6 +40,11 @@ export const useMaintenanceService = () => {
   const dashboardBaseUrl = '/api/backend/maintenance/dashboard'
   const reportsBaseUrl = '/api/backend/maintenance/reports'
 
+  const getVehicleDirectory = () => $fetch<any[]>('/api/backend/vehicles')
+  const getVehicleById = (id: string) => $fetch<any>(`/api/backend/vehicles/${id}`)
+  const getTirePositions = (vehicleId: string) => $fetch<any[]>(`/api/backend/maintenance/vehicles/${vehicleId}/tire-positions`)
+  const getTireDashboardStats = () => $fetch<any>(`${dashboardBaseUrl}/tires`)
+
   // ================= ORDERS =================
 
   const getOrders = (filters?: FilterMaintenanceOrders) =>
@@ -336,6 +341,10 @@ export const useMaintenanceService = () => {
   return {
     // Orders
     getOrders,
+    getVehicleDirectory,
+    getVehicleById,
+    getTirePositions,
+    getTireDashboardStats,
     getOrderById,
     createOrder,
     updateOrder,

@@ -1,8 +1,13 @@
 <script setup lang="ts">
+import { DocumentsSalesService, type SalespersonOption } from '~/modulos/erp/sales/services/sales.service'
+import { useEmployeesService } from '~/modulos/erp/employees/service/employees.service'
+
 const props = defineProps<{
   modelValue?: any
   loading?: boolean
   showActions?: boolean
+  requireDeliveryAddress?: boolean
+  defaultSellerToCurrent?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -11,8 +16,24 @@ const emit = defineEmits<{
   'update:modelValue': [value: Record<string, any>]
 }>()
 
+const noSellerId = '__NO_SELLER__'
+const employeesService = useEmployeesService()
+const salespeople = ref<SalespersonOption[]>([])
+const sellerOptionsLoading = ref(false)
+const sellerOptionsFailed = ref(false)
+const sellerOptions = computed(() => [
+  { id: noSellerId, name: 'Sin vendedor' },
+  ...salespeople.value.map(seller => ({
+    id: `${seller.seller_type}:${seller.id}`,
+    name: `${seller.first_name} ${seller.last_name}`.trim()
+      + (seller.seller_type === 'PARTNER' ? ' · Socio' : ' · Empleado'),
+  })),
+])
+
 const form = reactive({
   priority: 'MEDIA',
+  seller_id: noSellerId,
+  seller_type: 'EMPLOYEE' as 'EMPLOYEE' | 'PARTNER',
   delivery_address: '',
   delivery_contact: '',
   delivery_phone: '',
@@ -21,7 +42,37 @@ const form = reactive({
   transport_provider: '',
   confirmed_delivery_date: ''
 })
-const hasDeliveryDetails = computed(() => Object.values(form).some(value => String(value ?? '').trim() !== '' && value !== 'MEDIA'))
+const selectedSeller = computed({
+  get: () => form.seller_id === noSellerId ? noSellerId : `${form.seller_type}:${form.seller_id}`,
+  set: (value: string) => {
+    if (!value || value === noSellerId) {
+      form.seller_id = noSellerId
+      form.seller_type = 'EMPLOYEE'
+      return
+    }
+    const [type, id] = value.split(':', 2)
+    form.seller_id = id ?? noSellerId
+    form.seller_type = type === 'PARTNER' ? 'PARTNER' : 'EMPLOYEE'
+  },
+})
+const deliveryAddressError = ref(false)
+const hasDeliveryDetails = computed(() => [
+  form.delivery_address,
+  form.delivery_contact,
+  form.delivery_phone,
+  form.delivery_time,
+  form.delivery_instructions,
+  form.transport_provider,
+  form.confirmed_delivery_date
+].some(value => String(value ?? '').trim() !== ''))
+
+watch(() => props.requireDeliveryAddress, (required) => {
+  if (!required) deliveryAddressError.value = false
+})
+
+watch(() => form.delivery_address, (address) => {
+  if (address.trim()) deliveryAddressError.value = false
+})
 
 watch(
   () => props.modelValue,
@@ -30,6 +81,10 @@ watch(
 
     Object.assign(form, {
       priority: val.priority ?? 'MEDIA',
+      seller_id: val.seller_type === 'PARTNER'
+        ? val.seller_partner_id ?? val.seller_id ?? noSellerId
+        : val.seller_id ?? noSellerId,
+      seller_type: val.seller_type === 'PARTNER' ? 'PARTNER' : 'EMPLOYEE',
       delivery_address: val.delivery_address ?? '',
       delivery_contact: val.delivery_contact ?? '',
       delivery_phone: val.delivery_phone ?? '',
@@ -42,12 +97,44 @@ watch(
   { immediate: true }
 )
 
-watch(form, (value) => emit('update:modelValue', { ...value }), { deep: true, immediate: true })
+onMounted(async () => {
+  sellerOptionsLoading.value = true
+  sellerOptionsFailed.value = false
+  try {
+    salespeople.value = await DocumentsSalesService.getSalespeople()
+  } catch {
+    sellerOptionsFailed.value = true
+    return
+  } finally {
+    sellerOptionsLoading.value = false
+  }
+
+  if (!props.defaultSellerToCurrent || form.seller_id !== noSellerId) return
+  try {
+    const currentEmployee = await employeesService.findCurrentUser()
+    if (currentEmployee?.is_salesperson && salespeople.value.some(seller => seller.seller_type === 'EMPLOYEE' && seller.id === currentEmployee.id)) {
+      form.seller_id = currentEmployee.id
+      form.seller_type = 'EMPLOYEE'
+    }
+  } catch {
+    // La asignación automática es una ayuda; el vendedor se puede elegir manualmente.
+  }
+})
+
+watch(form, (value) => emit('update:modelValue', { ...(props.modelValue ?? {}), ...value }), { deep: true, immediate: true })
 
 // Expose form data for parent to read
+const validateDeliveryInfo = () => {
+  const valid = !props.requireDeliveryAddress || Boolean(form.delivery_address.trim())
+  deliveryAddressError.value = !valid
+  return valid
+}
+
 const getFormData = () => {
   const data: Record<string, any> = {
     priority: form.priority,
+    seller_id: form.seller_id === noSellerId ? null : form.seller_id,
+    seller_type: form.seller_id === noSellerId ? null : form.seller_type,
     delivery_address: form.delivery_address,
     delivery_contact: form.delivery_contact,
     delivery_phone: form.delivery_phone,
@@ -61,11 +148,37 @@ const getFormData = () => {
   if (!data.confirmed_delivery_date) data.confirmed_delivery_date = undefined
   return data
 }
-defineExpose({ getFormData })
+const isDeliveryInfoEmpty = () => !hasDeliveryDetails.value
+defineExpose({ getFormData, validateDeliveryInfo, isDeliveryInfoEmpty })
 </script>
 
 <template>
-  <details :open="hasDeliveryDetails" class="group overflow-hidden rounded-xl border border-default bg-default transition-all group-open:border-primary/40 group-open:shadow-sm">
+  <div class="flex flex-col gap-3">
+    <UCard>
+      <div class="grid gap-3 sm:grid-cols-[minmax(12rem,0.7fr)_minmax(16rem,1fr)] sm:items-center">
+        <div>
+          <h3 class="font-semibold">Vendedor de la venta</h3>
+          <p class="mt-1 text-xs text-muted">Identifica quién realizó esta OV para consultar las ventas por vendedor. Las comisiones se administran desde RR. HH.</p>
+        </div>
+        <div class="flex flex-col gap-2">
+          <USelectMenu
+            v-model="selectedSeller"
+            :items="sellerOptions"
+            label-key="name"
+            value-key="id"
+            placeholder="Seleccionar vendedor"
+            class="w-full"
+            :loading="sellerOptionsLoading"
+            :disabled="sellerOptionsLoading || sellerOptionsFailed"
+          />
+          <p v-if="sellerOptionsFailed" class="text-xs text-error">No se pudo cargar la lista de vendedores.</p>
+          <p v-else-if="!sellerOptionsLoading && salespeople.length === 0" class="text-xs text-muted">No hay empleados ni socios activos habilitados como vendedores.</p>
+          <p v-else class="text-xs text-muted">Si tu usuario está vinculado a un vendedor, se preselecciona al crear la OV.</p>
+        </div>
+      </div>
+    </UCard>
+
+    <details :open="hasDeliveryDetails" class="group overflow-hidden rounded-xl border border-default bg-default transition-all group-open:border-primary/40 group-open:shadow-sm">
     <summary class="flex cursor-pointer list-none items-center justify-between gap-4 border-l-4 border-primary/60 bg-primary/5 px-4 py-3.5 transition-colors hover:bg-primary/10 [&::-webkit-details-marker]:hidden">
       <div class="flex min-w-0 items-center gap-3">
         <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -104,7 +217,13 @@ defineExpose({ getFormData })
           <UInput v-model="form.confirmed_delivery_date" type="date" class="w-full" />
         </UFormField>
       </div>
-      <UFormField label="Dirección de entrega" name="delivery_address">
+      <UFormField
+        label="Dirección de entrega"
+        name="delivery_address"
+        :required="requireDeliveryAddress"
+        :error="deliveryAddressError ? 'Ingresá la dirección de entrega para guardar la OV.' : undefined"
+        :help="requireDeliveryAddress ? 'Obligatoria según el Circuito de ventas.' : 'Opcional según el Circuito de ventas.'"
+      >
         <UInput v-model="form.delivery_address" placeholder="Dirección completa" class="w-full" />
       </UFormField>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -132,5 +251,6 @@ defineExpose({ getFormData })
         />
       </UFormField>
     </div>
-  </details>
+    </details>
+  </div>
 </template>

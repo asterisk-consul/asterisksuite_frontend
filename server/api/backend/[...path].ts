@@ -184,12 +184,19 @@ export default defineEventHandler(async (event) => {
   // Traducir al path correcto del backend
   const backendPath = translatePath(frontendPath)
 
+  const allowedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
+  const proxyMethod = method === 'HEAD'
+    ? 'GET'
+    : allowedMethods.find(allowedMethod => allowedMethod === method)
+  if (!proxyMethod) {
+    throw createError({ statusCode: 405, statusMessage: 'Método HTTP no permitido' })
+  }
   const options: {
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
     body?: any
     query?: Record<string, string>
     rawResponse?: boolean
-  } = { method }
+  } = { method: proxyMethod }
 
   // Reenviar el body también en DELETE: algunas bajas protegidas requieren
   // confirmación y/o un destino para transferir el saldo.

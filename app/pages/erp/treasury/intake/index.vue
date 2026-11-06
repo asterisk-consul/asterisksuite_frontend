@@ -9,6 +9,8 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
+import { useUsersService } from '~/modulos/access-control/services/users.service'
 
 type IntakeStatus = 'DRAFT' | 'SENT' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED'
 interface IntakeRecord {
@@ -19,6 +21,8 @@ interface IntakeRecord {
 }
 
 const toast = useToast()
+const intakeService = useIntakeRecordsService()
+const usersService = useUsersService()
 const route = useRoute()
 const authStore = useAuthStore()
 const { hasPermission } = useRoles()
@@ -109,8 +113,8 @@ const load = async () => {
   loading.value = true
   try {
     [records.value, users.value] = await Promise.all([
-      $fetch<IntakeRecord[]>('/api/intake-records'),
-      $fetch<Array<{ id: string; name: string; email: string }>>('/api/access-control/users/all'),
+      intakeService.findAll(),
+      usersService.findAll(),
     ])
   } finally { loading.value = false }
 }
@@ -118,7 +122,7 @@ const load = async () => {
 const createCapture = async () => {
   creating.value = true
   try {
-    const created = await $fetch<IntakeRecord>('/api/intake-records', { method: 'POST', body: form })
+    const created = await intakeService.create(form)
     Object.assign(form, { title: '', notes: '', suggested_type: 'PAYMENT' })
     records.value.unshift(created)
     selected.value = created
@@ -169,7 +173,7 @@ watch(() => route.query.record, openRecordFromQuery)
 const sendRecord = async () => {
   if (!selected.value) return
   try {
-    await $fetch(`/api/intake-records/${selected.value.id}/send`, { method: 'POST', body: { assigned_to: assignedTo.value } })
+    await intakeService.send(selected.value.id, assignedTo.value)
     toast.add({ title: 'Captura enviada', color: 'success' })
     detailOpen.value = false
     await load()
@@ -179,7 +183,7 @@ const sendRecord = async () => {
 const startRecord = async () => {
   if (!selected.value) return
   try {
-    await $fetch(`/api/intake-records/${selected.value.id}/start`, { method: 'POST' })
+    await intakeService.start(selected.value.id)
     selected.value.status = 'IN_PROGRESS'
     await load()
   } catch (e: any) { toast.add({ title: 'No se pudo iniciar', description: e?.data?.message, color: 'error' }) }
@@ -189,7 +193,7 @@ const deleteRecord = async () => {
   if (!selected.value) return
   deleting.value = true
   try {
-    await $fetch(`/api/intake-records/${selected.value.id}`, { method: 'DELETE' })
+    await intakeService.remove(selected.value.id)
     records.value = records.value.filter(record => record.id !== selected.value?.id)
     deleteOpen.value = false
     detailOpen.value = false
@@ -216,7 +220,7 @@ const targetLink = computed(() => {
 <template>
   <UPage class="space-y-4">
     <AppPageHeader title="Capturas pendientes" description="Comprobantes enviados para completar y registrar.">
-      <template v-if="canCreate" #links><UButton label="Nueva captura" icon="i-lucide-camera" @click="openNewCapture" /></template>
+      <template v-if="canCreate" #links><UButton data-global-create-shortcut class="group/create" label="Nueva captura" icon="i-lucide-camera" aria-keyshortcuts="Alt+N" @click="openNewCapture"><template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template></UButton></template>
     </AppPageHeader>
 
     <LogisticaTable
@@ -236,7 +240,7 @@ const targetLink = computed(() => {
         <UFormField label="Tipo de registro"><USelect v-model="form.suggested_type" :items="typeOptions" class="w-full" /></UFormField>
         <UFormField label="Nota (opcional)"><UTextarea v-model="form.notes" placeholder="Información útil para quien complete el registro" :rows="3" class="w-full" /></UFormField>
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" @click="createOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { createOpen = false }" />
           <UButton label="Continuar y subir archivo" icon="i-lucide-arrow-right" :loading="creating" @click="createCapture" />
         </div>
       </template>
@@ -261,7 +265,10 @@ const targetLink = computed(() => {
 
   <UModal v-model:open="detailOpen" :title="selected?.title" :ui="{ content: 'sm:max-w-4xl' }">
     <template #body><div v-if="selected" class="space-y-4">
-      <div class="flex items-center justify-between"><UBadge :label="statusInfo[selected.status].label" :color="statusInfo[selected.status].color" /><span class="text-sm text-muted">{{ selected.assignee?.name || 'Sin responsable' }}</span></div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <UBadge :label="statusInfo[selected.status].label" :color="statusInfo[selected.status].color" />
+        <span class="text-sm text-muted">Creada por {{ selected.creator?.name || 'Sin identificar' }} · Asignada a {{ selected.assignee?.name || 'Sin responsable' }}</span>
+      </div>
       <p v-if="selected.notes" class="text-sm">{{ selected.notes }}</p>
 
       <div class="grid gap-2 sm:grid-cols-3">
@@ -301,7 +308,7 @@ const targetLink = computed(() => {
             icon="i-lucide-trash-2"
             color="error"
             variant="ghost"
-            @click="deleteOpen = true"
+            @click="() => { deleteOpen = true }"
           />
           <span v-else />
           <UButton v-if="canSend" label="Enviar para completar" icon="i-lucide-send" :disabled="!assignedTo" @click="sendRecord" />
@@ -330,7 +337,7 @@ const targetLink = computed(() => {
           description="También dejarán de estar disponibles todas las imágenes y documentos adjuntos a este borrador."
         />
         <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" color="neutral" variant="ghost" @click="deleteOpen = false" />
+          <UButton label="Cancelar" color="neutral" variant="ghost" @click="() => { deleteOpen = false }" />
           <UButton label="Eliminar borrador" icon="i-lucide-trash-2" color="error" :loading="deleting" @click="deleteRecord" />
         </div>
       </div>

@@ -8,9 +8,12 @@ import DocumentTypeModal from '~/modulos/erp/documents/documents-types/component
 import type { DocumentTypeFormData } from '~/modulos/erp/documents/documents-types/components/DocumentTypeForm.vue'
 import type {
   DocumentsType,
-  CustomFieldConfig
+  CustomFieldConfig,
+  CreateDocumentsTypeDto,
+  DocumentCategory
 } from '~/modulos/erp/documents/documents-types/types/documents-types.types'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import type { BadgeColor } from '~/types/colors.types'
 
 const { isOwnerOrAdmin } = useCompanyRole()
 const docTypes = useDocumentTypes()
@@ -183,15 +186,31 @@ function getSubmitErrorMessage(error: any, code: string) {
     return `Ya existe un tipo de documento con el código “${code}”. Elegí otro código.`
   }
   const englishValidation = String(rawMessage ?? '').match(/^([\w_]+) must be (.+)$/i)
-  if (englishValidation) {
-    const field = validationFieldLabels[englishValidation[1]] ?? englishValidation[1]
-    return `${field}: ${describeValidationConstraint(`must be ${englishValidation[2]}`)}`
+  const invalidField = englishValidation?.[1]
+  const validationDescription = englishValidation?.[2]
+  if (invalidField && validationDescription) {
+    const field = validationFieldLabels[invalidField] ?? invalidField
+    return `${field}: ${describeValidationConstraint(`must be ${validationDescription}`)}`
   }
   return rawMessage || 'No se pudo guardar el tipo de documento. Revisá los datos e intentá nuevamente.'
 }
 
 const handleSubmit = async (formData: DocumentTypeFormData) => {
-  const { pending_sequence_drafts = [], ...documentTypePayload } = formData
+  const {
+    id: _formId,
+    pending_sequence_drafts = [],
+    tax_ids: _taxIds,
+    enabled_statuses: _enabledStatuses,
+    category,
+    ...documentTypeFields
+  } = formData
+  void _formId
+  void _taxIds
+  void _enabledStatuses
+  const documentTypePayload: CreateDocumentsTypeDto = {
+    ...documentTypeFields,
+    ...(category ? { category: category as DocumentCategory } : {})
+  }
   let savedTypeId: string | undefined
   const wasEditing = !!editingType.value
   try {
@@ -285,16 +304,17 @@ const dataActions: DropdownMenuItem[] = [
   { label: 'Exportar Excel', icon: 'i-lucide-file-spreadsheet', onSelect: handleExportExcel }
 ]
 
-const categoryBadgeColor = (cat: string | null | undefined) =>
-  ({
-    INVOICE: 'primary',
-    CREDIT_NOTE: 'success',
-    DEBIT_NOTE: 'error',
-    ORDER: 'info',
-    QUOTE: 'warning',
-    RECEIPT: 'secondary',
-    REMITO: 'info'
-  })[cat ?? ''] ?? 'neutral'
+const categoryBadgeColors: Record<string, BadgeColor> = {
+  INVOICE: 'primary',
+  CREDIT_NOTE: 'success',
+  DEBIT_NOTE: 'error',
+  ORDER: 'info',
+  QUOTE: 'warning',
+  RECEIPT: 'secondary',
+  REMITO: 'info'
+}
+const categoryBadgeColor = (cat: string | null | undefined): BadgeColor =>
+  categoryBadgeColors[cat ?? ''] ?? 'neutral'
 
 const categoryOptions = [
   { label: 'Todas', value: '' },
@@ -319,7 +339,7 @@ const functionOptions = [
   { label: 'Sin funciones activas', value: 'none', icon: 'i-lucide-circle-off' }
 ]
 
-const fieldTypeOptions = [
+const fieldTypeOptions: Array<{ label: string; value: CustomFieldConfig['type'] }> = [
   { label: 'Texto', value: 'text' },
   { label: 'Número', value: 'number' },
   { label: 'Fecha', value: 'date' },
@@ -351,7 +371,9 @@ const badgeForTab = (index: number) => {
             <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" />
           </UDropdownMenu>
         </UFieldGroup>
-        <UButton label="Nuevo tipo" icon="i-lucide-plus" color="primary" variant="solid" @click="openCreate" />
+        <UButton data-global-create-shortcut class="group/create" label="Nuevo tipo" icon="i-lucide-plus" color="primary" variant="solid" aria-keyshortcuts="Alt+N" @click="openCreate">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
       </template>
     </AppPageHeader>
 
@@ -573,7 +595,7 @@ const badgeForTab = (index: number) => {
               <UFormField label="Etiqueta"><UInput v-model="field.label" /></UFormField>
             </div>
             <div class="grid grid-cols-2 gap-3 mt-2">
-              <UFormField label="Tipo"><USelectMenu v-model="field.type" :items="fieldTypeOptions" /></UFormField>
+              <UFormField label="Tipo"><USelectMenu v-model="field.type" :items="fieldTypeOptions" value-key="value" /></UFormField>
               <UFormField label="Placeholder"><UInput v-model="field.placeholder" /></UFormField>
             </div>
             <div class="flex items-center gap-4 mt-2">
@@ -583,7 +605,7 @@ const badgeForTab = (index: number) => {
           </div>
           <UButton label="Agregar" icon="i-lucide-plus" variant="outline" size="sm" @click="addCustomField" />
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" @click="customFieldsModalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" @click="() => { customFieldsModalOpen = false }" />
             <UButton label="Guardar" color="primary" @click="saveCustomFields" />
           </div>
         </div>
@@ -598,7 +620,7 @@ const badgeForTab = (index: number) => {
           ?
         </p>
         <div class="flex justify-end gap-2 pt-4">
-          <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
+          <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
           <UButton label="Eliminar" color="error" @click="handleDelete" />
         </div>
       </template>

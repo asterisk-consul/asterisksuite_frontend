@@ -60,7 +60,7 @@ export type FilterOperator =
   | 'lt'
   | 'in'
 
-export type FilterType = 'text' | 'number' | 'date-range' | 'select' | 'boolean'
+type FilterType = 'text' | 'number' | 'date-range' | 'select' | 'boolean'
 
 export interface TableFilter {
   id: string

@@ -5,6 +5,7 @@ definePageMeta({
 })
 
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { TaxesService } from '~/modulos/erp/taxes/services/taxes.service'
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -34,9 +35,7 @@ async function fetchSettings() {
 
   loading.value = true
   try {
-    settings.value = await $fetch<TaxSettings>('/api/backend/tax-engine/company-settings', {
-      query: { company_id: companyId.value }
-    })
+    settings.value = await TaxesService.getCompanySettings(companyId.value)
   } catch (e) {
     console.error('Error fetching tax settings:', e)
     toast.add({ title: 'Error al cargar configuración', color: 'error' })
@@ -50,15 +49,12 @@ async function saveSettings() {
 
   saving.value = true
   try {
-    await $fetch('/api/backend/tax-engine/company-settings', {
-      method: 'PATCH',
-      body: {
+    await TaxesService.updateCompanySettings({
         company_id: companyId.value,
         fiscal_mode: settings.value.fiscal_mode,
         prices_include_tax: settings.value.prices_include_tax,
         show_tax_breakdown: settings.value.show_tax_breakdown,
         country: settings.value.country
-      }
     })
     toast.add({ title: 'Configuración guardada', color: 'success' })
   } catch (e) {

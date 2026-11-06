@@ -198,7 +198,7 @@ const unifiedPriceRows = computed<UnifiedRow[]>(() => {
       rows.push({
         id: vc.id,
         type: 'variant_cost',
-        variant_name: vc.variant_name,
+        variant_name: vc.variant_name ?? null,
         variant_sku: vc.variant_sku ?? null,
         currency: vc.currency,
         sale_price: null,
@@ -1026,7 +1026,7 @@ watch(
               <UTooltip text="Eliminar">
                 <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="deleteVariantCost(row.original.id)" />
               </UTooltip>
-              <UBadge :label="SOURCE_LABELS[row.original.source] ?? row.original.source" color="warning" variant="soft" size="xs" />
+              <UBadge :label="SOURCE_LABELS[row.original.source ?? ''] ?? row.original.source ?? '—'" color="warning" variant="soft" size="xs" />
             </template>
           </div>
         </template>
@@ -1073,7 +1073,7 @@ watch(
 
           <template #footer>
             <div class="flex justify-end gap-2">
-              <UButton color="neutral" variant="ghost" @click="showProductPriceModal = false">Cancelar</UButton>
+              <UButton color="neutral" variant="ghost" @click="() => { showProductPriceModal = false }">Cancelar</UButton>
               <UButton
                 :loading="loadingProductPrice"
                 :disabled="!productPriceForm.currency_id || !productPriceForm.price"
@@ -1103,7 +1103,7 @@ watch(
 
           <template #footer>
             <div class="flex justify-end gap-2">
-              <UButton color="neutral" variant="ghost" @click="showDeletePriceConfirm = false">Cancelar</UButton>
+              <UButton color="neutral" variant="ghost" @click="() => { showDeletePriceConfirm = false }">Cancelar</UButton>
               <UButton color="error" :loading="loadingDelete" @click="confirmDeletePrice">Eliminar</UButton>
             </div>
           </template>
@@ -1155,7 +1155,7 @@ watch(
 
           <template #footer>
             <div class="flex justify-end gap-2">
-              <UButton color="neutral" variant="ghost" @click="showVariantCostModal = false">Cancelar</UButton>
+              <UButton color="neutral" variant="ghost" @click="() => { showVariantCostModal = false }">Cancelar</UButton>
               <UButton
                 :loading="loadingVariantCost"
                 :disabled="!variantCostForm.variant_id || !variantCostForm.currency_id || !variantCostForm.cost"
@@ -1274,7 +1274,7 @@ watch(
 
           <template #footer>
             <div class="flex justify-end gap-2">
-              <UButton color="neutral" variant="ghost" @click="showVariantPriceModal = false">Cancelar</UButton>
+              <UButton color="neutral" variant="ghost" @click="() => { showVariantPriceModal = false }">Cancelar</UButton>
               <UButton
                 :loading="loadingVariantPrice"
                 :disabled="!variantPriceForm.variant_id || !variantPriceForm.currency_id || variantPriceForm.price === undefined"

@@ -2,6 +2,7 @@
 import { useCostTemplates } from '~/modulos/logistica/master-data/product/cost-templates/composables/useCostTemplates'
 import CostTemplateForm from '~/modulos/logistica/master-data/product/cost-templates/components/CostTemplateForm.vue'
 import CostComponentForm from '~/modulos/logistica/master-data/product/cost-templates/components/CostComponentForm.vue'
+import type { CostComponent, CostTemplate } from '~/modulos/logistica/master-data/product/cost-templates/types/cost-template.types'
 
 const { templates, components, loading, defaultTemplate, init, deleteTemplate, deleteComponent, setDefault } =
   useCostTemplates()
@@ -25,8 +26,8 @@ const activeTab = ref('templates')
 
 const showTemplateForm = ref(false)
 const showComponentForm = ref(false)
-const editingTemplate = ref(null)
-const editingComponent = ref(null)
+const editingTemplate = ref<CostTemplate | null>(null)
+const editingComponent = ref<CostComponent | null>(null)
 
 // =========================
 // INIT
@@ -45,7 +46,7 @@ const handleCreateTemplate = () => {
   showTemplateForm.value = true
 }
 
-const handleEditTemplate = (template) => {
+const handleEditTemplate = (template: CostTemplate) => {
   editingTemplate.value = template
   showTemplateForm.value = true
 }
@@ -86,7 +87,7 @@ const handleCreateComponent = () => {
   showComponentForm.value = true
 }
 
-const handleEditComponent = (component) => {
+const handleEditComponent = (component: CostComponent) => {
   editingComponent.value = component
   showComponentForm.value = true
 }
@@ -125,7 +126,16 @@ const handleDeleteComponent = async (id: string) => {
       <template #templates>
         <div class="mt-4 space-y-4">
           <div class="flex justify-end">
-            <UButton icon="i-heroicons-plus" size="sm" @click="handleCreateTemplate">Nuevo template</UButton>
+            <ShortcutButton
+              label="Nuevo template"
+              icon="i-heroicons-plus"
+              size="sm"
+              data-global-create-shortcut
+              data-hide-global-create-control
+              :shortcut-keys="['Alt', 'N']"
+              help="Crear una plantilla de costos"
+              @click="handleCreateTemplate"
+            />
           </div>
 
           <div class="space-y-3">
@@ -209,7 +219,16 @@ const handleDeleteComponent = async (id: string) => {
       <template #components>
         <div class="mt-4 space-y-4">
           <div class="flex justify-end">
-            <UButton icon="i-heroicons-plus" size="sm" @click="handleCreateComponent">Nuevo componente</UButton>
+            <ShortcutButton
+              label="Nuevo componente"
+              icon="i-heroicons-plus"
+              size="sm"
+              data-global-create-shortcut
+              data-hide-global-create-control
+              :shortcut-keys="['Alt', 'N']"
+              help="Crear un componente de costo"
+              @click="handleCreateComponent"
+            />
           </div>
 
           <UCard>

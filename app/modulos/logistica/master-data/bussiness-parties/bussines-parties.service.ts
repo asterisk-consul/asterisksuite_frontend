@@ -1,9 +1,10 @@
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 const urlBase = '/api/backend/master-data/business-parties'
 export const useBusinessPartiesService = () => {
-  const findAll = () => {
+  const findAll = (params?: { type?: string; active?: boolean }) => {
     return $fetch<BusinessParty[]>(`${urlBase}`, {
       method: 'GET',
+      query: params,
       timeout: 15_000,
       retry: 2,
       retryDelay: 500

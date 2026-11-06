@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCurrencyWhole as formatCurrency } from '~/utils/formatMoneda'
 const props = defineProps<{
   data?: {
     totalVales: number
@@ -10,13 +11,7 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
+
 
 const VALE_STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Borrador',

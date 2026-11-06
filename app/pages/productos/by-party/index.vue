@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
+import { storeToRefs } from 'pinia'
+import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
+import { usePartyPricesService } from '~/modulos/erp/pricing/services/party-prices.service'
 
 definePageMeta({ middleware: ['auth'] })
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const partiesStore = useBusinessPartiesStore()
+const partyPricesService = usePartyPricesService()
+const { items: parties } = storeToRefs(partiesStore)
 const partyType = ref<'CUSTOMER' | 'SUPPLIER'>(route.query.type === 'SUPPLIER' ? 'SUPPLIER' : 'CUSTOMER')
 const selectedPartyId = ref(typeof route.query.partyId === 'string' ? route.query.partyId : '')
 const activeTab = ref<'current' | 'history'>('current')
 const search = ref('')
-const parties = ref<any[]>([])
 const prices = ref<any[]>([])
 const history = ref<any[]>([])
 const loading = ref(false)
@@ -132,8 +137,8 @@ async function loadPrices() {
   loading.value = true
   try {
     [prices.value, history.value] = await Promise.all([
-      $fetch<any[]>(`/api/backend/pricing/party-prices/party/${selectedPartyId.value}`),
-      $fetch<any[]>(`/api/backend/pricing/party-prices/party/${selectedPartyId.value}/history`)
+      partyPricesService.byParty(selectedPartyId.value),
+      partyPricesService.partyHistory(selectedPartyId.value)
     ])
   } catch (error: any) {
     toast.add({ title: 'No se pudieron cargar los precios', description: error?.data?.message, color: 'error' })
@@ -141,9 +146,8 @@ async function loadPrices() {
     loading.value = false
   }
 }
-
 async function useGeneralPrice(item: any) {
-  await $fetch(`/api/backend/pricing/party-prices/${item.id}`, { method: 'DELETE' })
+  await partyPricesService.remove(item.id)
   toast.add({ title: 'Precio específico desactivado', description: 'El producto volverá a utilizar su precio general.', color: 'success' })
   await loadPrices()
 }
@@ -161,7 +165,7 @@ watch(selectedPartyId, async value => {
 })
 
 onMounted(async () => {
-  parties.value = await $fetch<any[]>('/api/backend/master-data/business-parties')
+  await partiesStore.fetchAll()
   if (selectedPartyId.value) await loadPrices()
 })
 </script>
@@ -197,7 +201,7 @@ onMounted(async () => {
             ]">
               <UButton label="Exportar" icon="i-lucide-download" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-down" />
             </UDropdownMenu>
-            <UButton label="Importar" icon="i-lucide-upload" color="neutral" variant="outline" @click="showImportDialog = true" />
+            <UButton label="Importar" icon="i-lucide-upload" color="neutral" variant="outline" @click="() => { showImportDialog = true }" />
             <UButton label="Administrar productos" icon="i-lucide-settings-2" color="neutral" variant="outline" :to="`/erp/stakeholders/${selectedPartyId}/edit`" />
           </div>
         </div>

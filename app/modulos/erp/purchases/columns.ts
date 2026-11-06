@@ -3,6 +3,7 @@ import { UTooltip, UButton, UBadge, UProgress, UDropdownMenu } from '#components
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { CATEGORY_LABELS, getStatusLabel, getStatusColor, isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
 import type { Document } from '~/modulos/erp/facturas/types/factura.types'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import { canSettleDocument, getDocumentPaymentSummary } from '~/modulos/erp/documents/utils/document-payment-status'
 
 type Row = Document
@@ -14,7 +15,7 @@ export const createPurchasesColumns = (actions: {
   canDuplicate?: (row: Row) => boolean
   showCreator?: boolean
   statusFilterOptions?: { label: string; value: number }[] | null
-}) => {
+}): ExtendedColumn<Row>[] => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
   const fmtNumber = (row: Row) => `${row.document_types?.code ?? ''}-${String(row.number).padStart(8, '0')}`
 
@@ -26,7 +27,7 @@ export const createPurchasesColumns = (actions: {
         sortable: true,
         meta: {
           filter: actions.statusFilterOptions === null
-            ? false
+            ? false as const
             : actions.statusFilterOptions
               ? { type: 'select', operators: ['equals'], options: actions.statusFilterOptions }
               : { type: 'number', operators: ['equals'] }
@@ -153,7 +154,7 @@ export const createPurchasesColumns = (actions: {
             {
               id: 'creator',
               label: 'Cargado por',
-              meta: { filter: false },
+              meta: { filter: false as const },
               accessorFn: (row: Row) => row.creator?.name ?? row.creator?.email ?? '-'
             }
           ]
@@ -163,7 +164,7 @@ export const createPurchasesColumns = (actions: {
       ? [{
           id: 'document_actions',
           header: '',
-          meta: { label: 'Acciones', filter: false, disableColumnVisibility: true },
+          meta: { label: 'Acciones', filter: false as const, disableColumnVisibility: true },
           enableHiding: false,
           cell: ({ row }: any) => {
             const document = row.original as Row

@@ -322,7 +322,7 @@ const handleCreateAndAdd = async () => {
             variant="ghost"
             color="neutral"
             icon="i-lucide-plus"
-            @click="showNewComponentForm = true"
+            @click="() => { showNewComponentForm = true }"
           >
             Crear nuevo componente
           </UButton>
@@ -348,7 +348,7 @@ const handleCreateAndAdd = async () => {
             </UFormField>
 
             <div class="flex justify-end gap-2">
-              <UButton size="sm" variant="ghost" color="neutral" @click="showNewComponentForm = false">
+              <UButton size="sm" variant="ghost" color="neutral" @click="() => { showNewComponentForm = false }">
                 Cancelar
               </UButton>
               <UButton

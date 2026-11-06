@@ -1,6 +1,5 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'logistica',
   middleware: ['auth']
 })
 
@@ -236,7 +235,7 @@ function handleDropPending() {
         color="neutral"
         label="Menu"
         class="w-fit"
-        @click="moduleCollapsed = !moduleCollapsed"
+        @click="() => { moduleCollapsed = !moduleCollapsed }"
       />
       <UPageHeader title="Planificación">
         <template #description>

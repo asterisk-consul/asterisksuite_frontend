@@ -4,6 +4,7 @@ import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depo
 import { useStockStore } from '~/modulos/logistica/warehouses/stock/stock.store'
 import { useUnitsStore } from '~/modulos/almacen/units/store/units.store'
 import { useLocationsStore } from '~/modulos/logistica/master-data/locations/store/locations.store'
+import { useLocations } from '~/modulos/logistica/master-data/locations/composables/useLocations'
 import { warehouseFormFields } from '~/modulos/logistica/warehouses/warehouse/warehouseFormFields'
 import ModalForm from '~/components/ModalForm.vue'
 import type { ButtonProps } from '@nuxt/ui'

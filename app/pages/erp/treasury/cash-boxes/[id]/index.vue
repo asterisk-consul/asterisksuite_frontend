@@ -10,8 +10,11 @@ import { cashBoxMovementColumns, getCashBoxMovementBadge } from '~/modulos/erp/c
 import { useChecksService } from '~/modulos/erp/checks/service/checks.service'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useUsersService } from '~/modulos/access-control/services/users.service'
 import type { Check } from '~/modulos/erp/checks/types/checks.types'
 import type { CashBoxMovement, CashBoxMovementDetails } from '~/modulos/erp/cash-box-movements/types/cash-box-movements.types'
+import { partitionCancelledTreasuryMovements } from '~/utils/treasuryMovementVisibility'
+import type { BadgeColor } from '~/types/colors.types'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -19,6 +22,7 @@ const route = useRoute()
 const router = useRouter()
 const boxId = route.params.id as string
 const toast = useToast()
+const usersService = useUsersService()
 
 const {
   current: box,
@@ -81,9 +85,7 @@ onMounted(async () => {
 
   if (userIds.size > 0) {
     try {
-      const users = await $fetch<{ id: string; name: string }[]>('/api/access-control/users/batch', {
-        query: { ids: Array.from(userIds).join(',') }
-      })
+      const users = await usersService.findBatch(Array.from(userIds))
       for (const u of users) {
         sessionUserNames.value.set(u.id, u.name)
       }
@@ -138,13 +140,14 @@ const getUserName = (userId: any) => {
   return sessionUserNames.value.get(userId) ?? userId.slice(0, 8)
 }
 
-const sessionStatusConfig: Record<string, { label: string; color: string }> = {
+const sessionStatusConfig: Record<string, { label: string; color: BadgeColor }> = {
   OPEN: { label: 'Abierta', color: 'success' },
   CLOSED: { label: 'Cerrada', color: 'neutral' },
   FORCED: { label: 'Forzado', color: 'error' }
 }
 
-const getSessionStatus = (status: string) => sessionStatusConfig[status] ?? { label: status, color: 'neutral' }
+const getSessionStatus = (status: string): { label: string; color: BadgeColor } =>
+  sessionStatusConfig[status] ?? { label: status, color: 'neutral' }
 
 const boxHasActiveSession = computed(() => box.value?.status === 'OPEN' && currentSession.value)
 
@@ -299,14 +302,11 @@ const movementsTabs = [
   { label: 'Hoy', icon: 'i-lucide-calendar-check', value: 'today', slot: 'today' },
   { label: 'Histórico', icon: 'i-lucide-history', value: 'history', slot: 'history' }
 ]
-const isCancelledPaymentMovement = (movement: CashBoxMovement) =>
-  movement.reference_type === 'payment_reversal'
-  || ['CANCELLED', 'REVERSED'].includes(movement.payment?.status ?? '')
-
-const cancelledMovements = computed(() => movements.value.filter(isCancelledPaymentMovement))
+const movementVisibility = computed(() => partitionCancelledTreasuryMovements(movements.value))
+const cancelledMovements = computed(() => movementVisibility.value.cancelled)
 const visibleMovements = computed(() => showCancelledMovements.value
   ? movements.value
-  : movements.value.filter(movement => !isCancelledPaymentMovement(movement)))
+  : movementVisibility.value.active)
 
 const todayMovements = computed(() => {
   const todayDate = today()
@@ -503,7 +503,7 @@ const links = computed(() => [
     label: 'Volver',
     icon: 'i-lucide-arrow-left',
     variant: 'ghost' as const,
-    onClick: () => router.push('/erp/treasury/cash-boxes')
+    onClick: () => { void router.push('/erp/treasury/cash-boxes') }
   },
   {
     label: 'Editar',
@@ -562,7 +562,7 @@ const links = computed(() => [
           </div>
           <div>
             <p class="text-sm font-semibold">Sesión activa</p>
-            <p class="text-xs text-muted">Abierta el {{ formatDate(currentSession.opened_at) }}</p>
+            <p class="text-xs text-muted">Abierta el {{ formatDate(currentSession?.opened_at) }}</p>
           </div>
         </div>
         <UBadge
@@ -577,15 +577,15 @@ const links = computed(() => [
       <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div>
           <p class="text-xs text-muted font-medium uppercase">Abierta por</p>
-          <p class="text-sm font-semibold">{{ getUserName(currentSession.user_id) }}</p>
+          <p class="text-sm font-semibold">{{ getUserName(currentSession?.user_id ?? '') }}</p>
         </div>
         <div>
           <p class="text-xs text-muted font-medium uppercase">Fecha apertura</p>
-          <p class="text-sm font-semibold">{{ formatShortDate(currentSession.opened_at) }}</p>
+          <p class="text-sm font-semibold">{{ formatShortDate(currentSession?.opened_at) }}</p>
         </div>
         <div>
           <p class="text-xs text-muted font-medium uppercase">Saldo apertura</p>
-          <p class="text-sm font-semibold">{{ formatCurrency(currentSession.opening_balance) }}</p>
+          <p class="text-sm font-semibold">{{ formatCurrency(currentSession?.opening_balance ?? 0) }}</p>
         </div>
         <div>
           <p class="text-xs text-muted font-medium uppercase">Ingresos</p>
@@ -676,7 +676,7 @@ const links = computed(() => [
                 variant="ghost"
                 color="neutral"
                 class="ml-auto"
-                @click="showCancelledMovements = !showCancelledMovements"
+                @click="() => { showCancelledMovements = !showCancelledMovements }"
               />
             </div>
           </template>
@@ -713,7 +713,7 @@ const links = computed(() => [
                 variant="ghost"
                 color="neutral"
                 class="ml-auto"
-                @click="showCancelledMovements = !showCancelledMovements"
+                @click="() => { showCancelledMovements = !showCancelledMovements }"
               />
             </div>
           </template>
@@ -824,7 +824,7 @@ const links = computed(() => [
     <UModal
       v-model:open="sessionModalOpen"
       :title="sessionAction === 'open' ? 'Abrir sesión' : 'Cerrar sesión'"
-      :ui="{ width: 'max-w-lg' }"
+      :ui="{ content: 'max-w-lg' }"
     >
       <template #body>
         <UForm :state="sessionForm" class="space-y-4" @submit="handleSession">
@@ -869,7 +869,7 @@ const links = computed(() => [
             </UFormField>
           </template>
           <div class="flex justify-end gap-2 pt-4">
-            <UButton label="Cancelar" variant="ghost" :disabled="sessionSaving" @click="sessionModalOpen = false" />
+            <UButton label="Cancelar" variant="ghost" :disabled="sessionSaving" @click="() => { sessionModalOpen = false }" />
             <UButton
               :label="sessionAction === 'open' ? 'Abrir' : 'Cerrar sesión'"
               :color="sessionAction === 'open' ? 'success' : 'warning'"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCurrencyWhole as formatCurrency } from '~/utils/formatMoneda'
 import { useTreasuryReports } from '~/modulos/erp/treasury-reports/composables/useTreasuryReports'
 
 const props = defineProps<{
@@ -7,14 +8,7 @@ const props = defineProps<{
 
 const loadError = ref(false)
 
-const formatCurrency = (amount: number | string | null | undefined, currency = 'ARS') => {
-  const num = Number(amount) || 0
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(num)
-}
+
 
 const { dashboard: treasuryData, loading: treasuryLoading, fetchDashboard } = useTreasuryReports()
 

@@ -3,6 +3,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useDispatchOrdersStore } from '~/modulos/logistica/documents/dispatch-orders/store/dispatch-orders.store'
 import type { CreateDispatchOrderDto } from '~/modulos/logistica/documents/dispatch-orders/types/dispatch-orders.types'
 import DispatchOrderForm from '~/modulos/logistica/documents/dispatch-orders/components/DispatchOrderForm.vue'
+import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -37,7 +38,7 @@ async function createRemito() {
   if (creatingRemito.value) return
   creatingRemito.value = true
   try {
-    const remito = await $fetch<any>(`/api/backend/documents/sales/dispatch/${id}/create-remito`, { method: 'POST' })
+    const remito = await DocumentsSalesService.createRemitoFromDispatch(id)
     useToast().add({ title: 'Remito creado', description: 'Se copiaron el cliente y los productos del despacho.', color: 'success' })
     await router.push(`/erp/remitos/${remito.id}`)
   } catch (error: any) {
@@ -56,7 +57,7 @@ async function createRemito() {
         variant="ghost"
         color="neutral"
         label="Menu"
-        @click="moduleCollapsed = !moduleCollapsed"
+        @click="() => { moduleCollapsed = !moduleCollapsed }"
       />
 
       <UPageHeader title="Editar Orden de Despacho">

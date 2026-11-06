@@ -26,7 +26,7 @@ import type {
   Location
 } from '~/modulos/logistica/master-data/locations/types/locations.types'
 
-type EditableField = 'city' | 'province' | 'country' | 'postalCode'
+type EditableField = 'city' | 'province' | 'country' | 'postalCode' | 'address'
 
 type EditableValue = string | null | undefined
 /* ---------------------------------------

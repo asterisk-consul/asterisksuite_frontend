@@ -67,6 +67,7 @@ export interface Product {
   cost_template_id?: string | null
 
   is_composed: boolean
+  has_engineering?: boolean
   auto_calculate_cost: boolean
   sale_margin_percentage?: number | string
 
@@ -193,6 +194,7 @@ export interface CreateProductDto {
   active?: boolean
 
   product_type?: ProductType
+  usage_type?: UsageType
 
   is_composed?: boolean
   auto_calculate_cost?: boolean

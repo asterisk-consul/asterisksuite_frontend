@@ -4,10 +4,9 @@ import { createTableBuilder } from '@/composables/table/createColumns'
 import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 import type { Partner } from '~/modulos/erp/partners/types/partners.types'
+import type { BadgeColor } from '~/types/colors.types'
 
 type Row = Partner
-
-type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
 export const partnerColumns = (actions: {
   onEdit?: (row: Row) => void
@@ -45,14 +44,37 @@ export const partnerColumns = (actions: {
         sortable: true
       },
       {
+        key: 'partner_kind',
+        label: 'Perfil',
+        sortable: true,
+        badge: {
+          resolve: (row) => ({
+            label: row.partner_kind === 'INVESTOR' ? 'Inversionista' : 'Socio',
+            color: row.partner_kind === 'INVESTOR' ? 'info' as BadgeColor : 'primary' as BadgeColor
+          })
+        },
+        meta: {
+          filter: {
+            type: 'select',
+            operators: ['equals'],
+            options: [
+              { label: 'Socio', value: 'PARTNER' },
+              { label: 'Inversionista', value: 'INVESTOR' }
+            ]
+          }
+        }
+      },
+      {
         key: 'share_percentage',
         label: '% Participación',
-        sortable: true
+        sortable: true,
+        cell: ({ row }) => row.original.partner_kind === 'INVESTOR' ? '—' : `${row.original.share_percentage ?? '—'}${row.original.share_percentage ? '%' : ''}`
       },
       {
         key: 'capital_contributed',
         label: 'Capital',
-        sortable: true
+        sortable: true,
+        cell: ({ row }) => row.original.partner_kind === 'INVESTOR' ? 'Por movimientos' : row.original.capital_contributed ?? '—'
       },
       {
         key: 'user',

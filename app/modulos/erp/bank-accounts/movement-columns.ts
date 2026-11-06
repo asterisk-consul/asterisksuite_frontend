@@ -1,6 +1,7 @@
 import type { BankAccountMovement } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
+import type { BadgeColor } from '@/composables/table/createColumns'
 
 type Row = BankAccountMovement
 
@@ -36,7 +37,7 @@ export const getMovementSignedAmount = (row: Row) => {
 const investmentMovementLabel = (row: Row) =>
   getMovementSignedAmount(row) < 0 ? 'Constitución' : 'Rescate / vencimiento'
 
-export const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; color: string; side: 'in' | 'out' }> = {
+export const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; color: BadgeColor; side: 'in' | 'out' }> = {
   OPENING_BALANCE: { label: 'Saldo inicial', color: 'neutral', side: 'in' },
   DEPOSIT: { label: 'Depósito', color: 'success', side: 'in' },
   WITHDRAWAL: { label: 'Retiro', color: 'error', side: 'out' },
@@ -54,7 +55,7 @@ export const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; color: string
   RETENTION: { label: 'Retención bancaria', color: 'warning', side: 'out' },
 }
 
-export const getMovementTypeBadge = (row: Row) => {
+export const getMovementTypeBadge = (row: Row): { label: string; color: BadgeColor } => {
   if (isPaymentReversal(row)) {
     return {
       label: 'Reversión de pago',
@@ -76,6 +77,20 @@ export const MOVEMENT_TYPE_OPTIONS = Object.entries(MOVEMENT_TYPE_CONFIG).map(([
   value
 }))
 
+const MOVEMENT_TYPE_FILTER_OPTIONS = [
+  ...Object.values(MOVEMENT_TYPE_CONFIG).map(({ label }) => label),
+  'Reversión de pago',
+  'Constitución',
+  'Rescate / vencimiento'
+].map(label => ({ label, value: label }))
+
+const getMovementConcept = (row: Row) => {
+  const name = row.concept_name_snapshot ?? row.bank_concept?.name
+  if (name) return name
+  if (isInvestmentMovement(row)) return 'Inversión financiera'
+  return '—'
+}
+
 export const bankMovementColumns = (actions: {
   onSortFieldSelect?: (columnId: string) => void
 }): TableColumn<Row>[] => {
@@ -93,7 +108,8 @@ export const bankMovementColumns = (actions: {
         date: true
       },
       {
-        key: 'type',
+        id: 'movement_type_label',
+        accessorFn: row => getMovementTypeBadge(row).label,
         label: 'Tipo',
         sortable: true,
         badge: {
@@ -103,24 +119,27 @@ export const bankMovementColumns = (actions: {
           filter: {
             type: 'select',
             operators: ['equals'],
-            options: MOVEMENT_TYPE_OPTIONS
+            options: MOVEMENT_TYPE_FILTER_OPTIONS
           }
         }
       },
       {
-        key: 'concept',
+        id: 'concept',
+        accessorFn: getMovementConcept,
         label: 'Concepto',
-        cell: ({ row }) => {
-          const name = row.original.concept_name_snapshot ?? row.original.bank_concept?.name
-          if (name) return name
-          if (isInvestmentMovement(row.original)) return 'Inversión financiera'
-          return '—'
-        }
+        cell: ({ row }) => getMovementConcept(row.original)
       },
       {
-        key: 'amount',
+        id: 'amount',
+        accessorFn: getMovementSignedAmount,
         label: 'Monto',
         sortable: true,
+        meta: {
+          filter: {
+            type: 'number',
+            operators: ['equals', 'gt', 'lt']
+          }
+        },
         cell: ({ row }) => {
           const value = row.original.amount
           if (value == null) return '—'
@@ -134,8 +153,15 @@ export const bankMovementColumns = (actions: {
         }
       },
       {
-        key: 'balance_before',
+        id: 'balance_before',
+        accessorFn: row => Number(row.balance_before),
         label: 'Saldo ant.',
+        meta: {
+          filter: {
+            type: 'number',
+            operators: ['equals', 'gt', 'lt']
+          }
+        },
         cell: ({ row }) => {
           const value = row.original.balance_before
           if (value == null) return '—'
@@ -147,9 +173,16 @@ export const bankMovementColumns = (actions: {
         }
       },
       {
-        key: 'balance_after',
+        id: 'balance_after',
+        accessorFn: row => Number(row.balance_after),
         label: 'Saldo',
         sortable: true,
+        meta: {
+          filter: {
+            type: 'number',
+            operators: ['equals', 'gt', 'lt']
+          }
+        },
         cell: ({ row }) => {
           const value = row.original.balance_after
           if (value == null) return '—'

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
-import type { Mail } from '~/types'
 
 defineProps<{
   mail: Mail

@@ -125,7 +125,7 @@ async function handleSubmit() {
     toast.add({ title: 'Plan creado', color: 'success' })
     router.push(`/logistica/mantenimiento/planes/${created.id}`)
   } catch (err: any) {
-    toast.add({ title: 'Error al crear plan', color: 'error', description: store.error })
+    toast.add({ title: 'Error al crear plan', color: 'error', description: store.error ?? undefined })
   } finally {
     saving.value = false
   }

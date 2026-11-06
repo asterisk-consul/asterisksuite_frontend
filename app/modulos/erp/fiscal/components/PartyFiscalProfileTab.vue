@@ -53,7 +53,26 @@ const TAX_TYPES = [
 ]
 
 // ─── Inscripciones IIBB ──────────────────────────────────────
-const registrations = ref<BusinessPartyIibbRegistration[]>([])
+type IibbRegistrationForm = Omit<
+  BusinessPartyIibbRegistration,
+  | 'jurisdiction_id'
+  | 'registration_number'
+  | 'prorrate_percentage'
+  | 'perception_rate'
+  | 'retention_rate'
+  | 'valid_from'
+  | 'valid_to'
+> & {
+  jurisdiction_id?: string
+  registration_number?: string
+  prorrate_percentage?: number
+  perception_rate?: number
+  retention_rate?: number
+  valid_from?: string
+  valid_to?: string
+}
+
+const registrations = ref<IibbRegistrationForm[]>([])
 const jurisdictions = ref<TaxJurisdiction[]>([])
 const registrationsLoading = ref(false)
 const showAdvancedIibb = ref(false)
@@ -82,13 +101,13 @@ const cmRowsCount = computed(() =>
 const addRegistration = () => {
   registrations.value.push({
     registration_type: 'DIRECTO',
-    jurisdiction_id: null,
-    registration_number: null,
-    prorrate_percentage: null,
-    perception_rate: null,
-    retention_rate: null,
-    valid_from: null,
-    valid_to: null,
+    jurisdiction_id: undefined,
+    registration_number: undefined,
+    prorrate_percentage: undefined,
+    perception_rate: undefined,
+    retention_rate: undefined,
+    valid_from: undefined,
+    valid_to: undefined,
     source: 'MANUAL',
     is_active: true
   })
@@ -120,13 +139,13 @@ const loadAll = async () => {
     registrations.value = loadedRegistrations.map(r => ({
       id: r.id,
       registration_type: r.registration_type,
-      jurisdiction_id: r.jurisdiction_id,
-      registration_number: r.registration_number,
-      prorrate_percentage: r.prorrate_percentage != null ? Number(r.prorrate_percentage) : null,
-      perception_rate: r.perception_rate != null ? Number(r.perception_rate) : null,
-      retention_rate: r.retention_rate != null ? Number(r.retention_rate) : null,
-      valid_from: r.valid_from?.slice(0, 10) ?? null,
-      valid_to: r.valid_to?.slice(0, 10) ?? null,
+      jurisdiction_id: r.jurisdiction_id ?? undefined,
+      registration_number: r.registration_number ?? undefined,
+      prorrate_percentage: r.prorrate_percentage != null ? Number(r.prorrate_percentage) : undefined,
+      perception_rate: r.perception_rate != null ? Number(r.perception_rate) : undefined,
+      retention_rate: r.retention_rate != null ? Number(r.retention_rate) : undefined,
+      valid_from: r.valid_from?.slice(0, 10) ?? undefined,
+      valid_to: r.valid_to?.slice(0, 10) ?? undefined,
       source: r.source ?? 'MANUAL',
       is_active: r.is_active
     }))
@@ -172,7 +191,16 @@ const save = async () => {
   saving.value = true
   try {
     await fiscalService.putPartyWithholdingProfiles(props.partyId, profiles.value)
-    await fiscalService.putPartyIibbRegistrations(props.partyId, registrations.value)
+    await fiscalService.putPartyIibbRegistrations(props.partyId, registrations.value.map((registration) => ({
+      ...registration,
+      jurisdiction_id: registration.jurisdiction_id ?? null,
+      registration_number: registration.registration_number ?? null,
+      prorrate_percentage: registration.prorrate_percentage ?? null,
+      perception_rate: registration.perception_rate ?? null,
+      retention_rate: registration.retention_rate ?? null,
+      valid_from: registration.valid_from ?? null,
+      valid_to: registration.valid_to ?? null
+    })))
     toast.add({ title: 'Perfil fiscal guardado', color: 'success' })
   } catch (e: any) {
     console.error('Error guardando perfil fiscal:', e)
@@ -278,7 +306,7 @@ watch(() => props.partyId, loadAll, { immediate: true })
             <p class="text-xs text-muted">Agregá las provincias del tercero. Las alícuotas vacías usan la configuración general.</p>
           </div>
           <div class="flex gap-2">
-            <UButton :label="showAdvancedIibb ? 'Ocultar vigencias' : 'Vigencias'" size="xs" variant="ghost" @click="showAdvancedIibb = !showAdvancedIibb" />
+            <UButton :label="showAdvancedIibb ? 'Ocultar vigencias' : 'Vigencias'" size="xs" variant="ghost" @click="() => { showAdvancedIibb = !showAdvancedIibb }" />
             <UButton label="Agregar" size="xs" icon="i-lucide-plus" @click="addRegistration" />
           </div>
         </div>

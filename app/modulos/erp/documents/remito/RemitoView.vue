@@ -5,13 +5,31 @@ const props = defineProps<{
 }>()
 
 const warehouseLabel = computed(() => props.mode === 'purchase' ? 'Depósito de ingreso' : 'Depósito de salida')
+const sourceOrderDelivery = computed(() => props.document?.orden_venta_doc ?? null)
+const hasSourceOrderDelivery = computed(() => {
+  const delivery = sourceOrderDelivery.value
+  return Boolean(delivery && [
+    delivery.priority,
+    delivery.confirmed_delivery_date,
+    delivery.delivery_address,
+    delivery.delivery_contact,
+    delivery.delivery_phone,
+    delivery.delivery_time,
+    delivery.transport_provider,
+    delivery.delivery_instructions,
+  ].some(value => String(value ?? '').trim() !== ''))
+})
 
-const sourceWarehouses = computed(() => {
+type Warehouse = { id: string; name: string }
+const sourceWarehouses = computed<Warehouse[]>(() => {
   const values = (props.document?.document_items ?? [])
-    .map((item: any) => item.warehouse)
-    .filter(Boolean)
-  if (props.document?.warehouse) values.unshift(props.document.warehouse)
-  return [...new Map(values.map((warehouse: any) => [warehouse.id, warehouse])).values()]
+    .map((item: any) => item.warehouse as Warehouse | null | undefined)
+    .filter((warehouse: Warehouse | null | undefined): warehouse is Warehouse => !!warehouse)
+  const documentWarehouse = props.document?.warehouse as Warehouse | undefined
+  if (documentWarehouse) values.unshift(documentWarehouse)
+  const unique = new Map<string, Warehouse>()
+  for (const warehouse of values) unique.set(warehouse.id, warehouse)
+  return [...unique.values()]
 })
 
 function fmtDate(d?: string) {
@@ -41,6 +59,54 @@ function fmtDate(d?: string) {
               {{ warehouse.name }}
             </UBadge>
           </div>
+        </div>
+      </div>
+    </UCard>
+
+    <UCard v-if="props.mode !== 'purchase' && hasSourceOrderDelivery">
+      <template #header>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="font-semibold">Información de entrega de la OV</h3>
+          <UBadge
+            v-if="document.parent_document"
+            :label="`OV ${document.parent_document.document_types?.code ?? ''}-${String(document.parent_document.number).padStart(8, '0')}`"
+            color="neutral"
+            variant="subtle"
+          />
+        </div>
+      </template>
+      <div class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+        <div v-if="sourceOrderDelivery.priority">
+          <p class="text-muted">Prioridad</p>
+          <UBadge :label="sourceOrderDelivery.priority" color="warning" variant="subtle" />
+        </div>
+        <div v-if="sourceOrderDelivery.confirmed_delivery_date">
+          <p class="text-muted">Fecha comprometida</p>
+          <p class="font-medium">{{ fmtDate(sourceOrderDelivery.confirmed_delivery_date) }}</p>
+        </div>
+        <div v-if="sourceOrderDelivery.delivery_address" class="sm:col-span-2">
+          <p class="text-muted">Dirección</p>
+          <p class="font-medium">{{ sourceOrderDelivery.delivery_address }}</p>
+        </div>
+        <div v-if="sourceOrderDelivery.delivery_contact">
+          <p class="text-muted">Contacto</p>
+          <p class="font-medium">{{ sourceOrderDelivery.delivery_contact }}</p>
+        </div>
+        <div v-if="sourceOrderDelivery.delivery_phone">
+          <p class="text-muted">Teléfono</p>
+          <p class="font-medium">{{ sourceOrderDelivery.delivery_phone }}</p>
+        </div>
+        <div v-if="sourceOrderDelivery.delivery_time">
+          <p class="text-muted">Horario / tiempo</p>
+          <p class="font-medium">{{ sourceOrderDelivery.delivery_time }}</p>
+        </div>
+        <div v-if="sourceOrderDelivery.transport_provider">
+          <p class="text-muted">Transporte</p>
+          <p class="font-medium">{{ sourceOrderDelivery.transport_provider }}</p>
+        </div>
+        <div v-if="sourceOrderDelivery.delivery_instructions" class="sm:col-span-2">
+          <p class="text-muted">Instrucciones</p>
+          <p class="whitespace-pre-wrap font-medium">{{ sourceOrderDelivery.delivery_instructions }}</p>
         </div>
       </div>
     </UCard>

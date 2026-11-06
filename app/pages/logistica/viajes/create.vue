@@ -74,7 +74,7 @@ const handleOrdersSaved = () => {
               variant="link"
               color="neutral"
               class="px-0"
-              @click="router.push('/logistica/viajes/')"
+              @click="() => { void (router.push('/logistica/viajes/')) }"
             >
               saltar este paso
             </UButton>

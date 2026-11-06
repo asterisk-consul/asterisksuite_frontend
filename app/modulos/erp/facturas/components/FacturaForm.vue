@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { reactive, ref, computed, defineAsyncComponent, onMounted, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 
@@ -24,6 +24,7 @@ import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
+import { TaxesService } from '~/modulos/erp/taxes/services/taxes.service'
 import type { BusinessPartyIibbRegistration, CompanyTaxJurisdiction, TaxRule } from '~/modulos/erp/fiscal/types/fiscal.types'
 
 // Document Types
@@ -40,6 +41,7 @@ import { getDocumentLineAmounts, hasLegacyGrossLinePrices } from '~/modulos/erp/
 
 // Invoice
 import { getDocumentTypeForVatCondition, type VatCondition } from '~/modulos/erp/invoices/utils/vatConditionMap'
+import { usePartyPricesService } from '~/modulos/erp/pricing/services/party-prices.service'
 
 import type { CommercialAdjustment, Document, FacturaFormValues, FacturaItem } from '../types/factura.types'
 
@@ -66,6 +68,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const partyPricesService = usePartyPricesService()
 
 // ─── Stores ──────────────────────────────────────────
 const authStore = useAuthStore()
@@ -254,8 +257,18 @@ const form = reactive({
 
 watch(() => form.party_id, async (partyId) => {
   const requestId = ++selectedPartyLoadId
+  if (!partyId) {
+    selectedPartyFallback.value = null
+    return
+  }
+  if ([...remoteParties.value, ...parties.value].some(party => party.id === partyId)) {
+    if (selectedPartyFallback.value?.id !== partyId) selectedPartyFallback.value = null
+    return
+  }
+  // Una factura elegida ya aporta los datos fiscales mínimos del tercero;
+  // mantenerlos visibles mientras se conserva la selección evita un select vacío.
+  if (selectedPartyFallback.value?.id === partyId) return
   selectedPartyFallback.value = null
-  if (!partyId || [...remoteParties.value, ...parties.value].some(party => party.id === partyId)) return
 
   try {
     const party = await partiesService.findOne(partyId)
@@ -361,10 +374,11 @@ const warehouseOptions = computed(() => {
 
 function warehouseOptionsForItem(item: FacturaItem) {
   if (props.moduleCode !== 'SALES' || !item.product_id) return allWarehouseOptions.value
+  const productId = item.product_id
   return allWarehouseOptions.value
     .map(option => ({
       ...option,
-      available: stockByWarehouse.value[option.value]?.[item.product_id] ?? 0
+      available: stockByWarehouse.value[option.value]?.[productId] ?? 0
     }))
     .filter(option => option.available >= Number(item.quantity || 0))
     .map(option => ({ ...option, label: `${option.label} · disponible: ${option.available}` }))
@@ -388,7 +402,7 @@ function singleWarehouseForProduct(productId: string): string | null {
       available: stockByWarehouse.value[option.value]?.[productId] ?? 0
     }))
     .filter(option => option.available > 0)
-  return options.length === 1 ? options[0].value : null
+  return options.length === 1 ? options[0]?.value ?? null : null
 }
 const affectsStock = computed(() => {
   const type = documentsTypes.value.find(item => item.id === form.document_type_id)
@@ -397,10 +411,41 @@ const affectsStock = computed(() => {
 
 // ─── Reference Document (NC/ND → Factura) ────────────
 const referenceDocumentId = ref<string | undefined>(undefined)
+const referencePartyId = ref<string | undefined>(undefined)
+const referenceDocumentInfo = ref<any>(null)
+const referenceLoading = ref(false)
+let referenceLoadVersion = 0
+
+function notifyReferencePartyChange(previousPartyId?: string | null, referencePartyId?: string | null) {
+  if (!previousPartyId || !referencePartyId || previousPartyId === referencePartyId) return
+
+  const partyLabel = props.moduleCode === 'PURCHASES' ? 'proveedor' : 'cliente'
+  const previousName = partyOptions.value.find(option => option.value === previousPartyId)?.label.split(' · ')[0]
+  const referenceName = partyOptions.value.find(option => option.value === referencePartyId)?.label.split(' · ')[0]
+  toast.add({
+    title: `${partyLabel.charAt(0).toUpperCase()}${partyLabel.slice(1)} actualizado`,
+    description: `Se cambió ${previousName ? `“${previousName}”` : `el ${partyLabel} seleccionado`} por ${referenceName ? `“${referenceName}”` : `el ${partyLabel} de la factura`} para que coincida con la referencia.`,
+    color: 'info'
+  })
+}
+
+function setReferencePartyFallback(party: any) {
+  if (!party?.id || !party.name || !party.type) return
+  selectedPartyFallback.value = {
+    ...party,
+    vat_condition: party.vat_condition ?? '',
+    exemption_rate: Number(party.exemption_rate ?? 0),
+    roles: party.roles ?? [],
+  } as BusinessParty
+}
 
 function applyReferenceDocument(doc: any) {
   if (!doc) return
+  setReferencePartyFallback(doc.business_parties)
+  notifyReferencePartyChange(form.party_id, doc.party_id)
+  referenceDocumentInfo.value = doc
   referenceDocumentId.value = doc.id
+  referencePartyId.value = doc.party_id ?? undefined
   form.party_id = doc.party_id ?? ''
   form.currency_code = doc.currency_code ?? 'ARS'
   form.descrip = doc.descrip ?? ''
@@ -426,20 +471,68 @@ function applyReferenceDocument(doc: any) {
   }).filter((i: any) => i.quantity > 0)
 }
 
-function handleReferenceSelect(documentId: string) {
-  // Fetch full document via the appropriate service
+function handleReferenceSelect(documentId: string, partyId?: string, invoiceOption?: any) {
+  const loadVersion = ++referenceLoadVersion
+  // Store the relationship immediately so a quick save cannot lose it while getOne loads.
+  referenceDocumentId.value = documentId
+  referenceDocumentInfo.value = invoiceOption ? { ...invoiceOption, id: documentId } : null
+  referenceLoading.value = true
+  setReferencePartyFallback(invoiceOption?.businessParty)
+  if (partyId) {
+    referencePartyId.value = partyId
+    notifyReferencePartyChange(form.party_id, partyId)
+    form.party_id = partyId
+  }
+
+  // Fetch only the source fields needed to seed the note, not the full invoice.
   const fetchDoc = props.moduleCode === 'SALES'
-    ? import('~/modulos/erp/sales/services/sales.service').then(m => m.DocumentsSalesService.getOne(documentId))
-    : import('~/modulos/erp/purchases/purchases-documents.services').then(m => m.DocumentsPurchasesService.getOne(documentId))
+    ? import('~/modulos/erp/sales/services/sales.service').then(m => m.DocumentsSalesService.getInvoiceReference(documentId))
+    : import('~/modulos/erp/purchases/purchases-documents.services').then(m => m.DocumentsPurchasesService.getInvoiceReference(documentId))
 
   fetchDoc
-    .then(doc => applyReferenceDocument(doc))
-    .catch(e => toast.add({ title: 'Error al cargar factura', description: e?.data?.message, color: 'error' }))
+    .then(doc => {
+      if (loadVersion === referenceLoadVersion && referenceDocumentId.value === documentId) {
+        applyReferenceDocument(doc)
+      }
+    })
+    .catch(e => {
+      if (loadVersion === referenceLoadVersion) {
+        toast.add({ title: 'Error al cargar factura', description: e?.data?.message, color: 'error' })
+      }
+    })
+    .finally(() => {
+      if (loadVersion === referenceLoadVersion) referenceLoading.value = false
+    })
+}
+
+function handleReferenceResolved(invoice: any) {
+  if (invoice.id !== referenceDocumentId.value) return
+  setReferencePartyFallback(invoice.businessParty)
+  const invoicePartyId = invoice.partyId ?? invoice.businessParty?.id
+  if (!invoicePartyId) return
+  referenceDocumentInfo.value = invoice
+  referencePartyId.value = invoicePartyId
+  notifyReferencePartyChange(form.party_id, invoicePartyId)
+  form.party_id = invoicePartyId
 }
 
 function handleReferenceClear() {
+  referenceLoadVersion += 1
+  referenceLoading.value = false
   referenceDocumentId.value = undefined
+  referencePartyId.value = undefined
+  referenceDocumentInfo.value = null
 }
+
+watch(() => form.party_id, (partyId) => {
+  if (!referenceDocumentId.value || !referencePartyId.value || partyId === referencePartyId.value) return
+  form.party_id = referencePartyId.value
+  toast.add({
+    title: 'El tercero no coincide con la factura',
+    description: `La nota debe conservar el mismo ${moduleCode.value === 'PURCHASES' ? 'proveedor' : 'cliente'} de la factura de referencia. Quitá la referencia para elegir otra factura.`,
+    color: 'warning'
+  })
+})
 
 // Whether to show the reference document picker (NC/ND categories)
 const showReferencePicker = computed(() => {
@@ -447,6 +540,17 @@ const showReferencePicker = computed(() => {
   const selected = documentsTypes.value.find(d => d.id === form.document_type_id)
   return selected?.category === 'CREDIT_NOTE' || selected?.category === 'DEBIT_NOTE'
 })
+const isInvoiceReferenceNote = computed(() => {
+  if (props.category === 'CREDIT_NOTE' || props.category === 'DEBIT_NOTE') return true
+  const selected = documentsTypes.value.find(d => d.id === form.document_type_id)
+  return selected?.category === 'CREDIT_NOTE' || selected?.category === 'DEBIT_NOTE'
+})
+
+watch(() => [showReferencePicker.value, props.parentDocumentId] as const, ([isVisible, parentId]) => {
+  if (!isVisible || !parentId || (referenceDocumentId.value === parentId && referencePartyId.value)) return
+  // Al crear una nota desde una factura, precargar la relación y los datos de origen.
+  handleReferenceSelect(parentId)
+}, { immediate: true })
 
 // ─── Exchange Rate: auto-resolve on currency change ─────────
 const isForeignCurrency = computed(() => {
@@ -517,6 +621,9 @@ const adjustmentBasisOptions = [
 ]
 const selectedDocumentCategory = computed(() =>
   documentsTypes.value.find((documentType) => documentType.id === form.document_type_id)?.category ?? props.category
+)
+const canAddItemInstructions = computed(() =>
+  moduleCode.value === 'SALES' && selectedDocumentCategory.value === 'ORDER'
 )
 const canAddCommercialAdjustments = computed(() => {
   const documentTypeAccepts = documentsTypes.value
@@ -846,9 +953,7 @@ async function fetchPreview() {
   isRecalculating = true
   try {
     const currentDocType = documentsTypes.value.find((d) => d.id === form.document_type_id)
-    const result = await $fetch('/api/backend/tax-engine/calculate-preview', {
-      method: 'POST',
-      body: {
+    const result = await TaxesService.calculatePreview({
         issuerCompanyId: authStore.selectedCompany?.id ?? '',
         partnerId: form.party_id || undefined,
         partnerVatCondition: selectedParty.value?.vat_condition,
@@ -872,7 +977,6 @@ async function fetchPreview() {
             ? Number(i.net_subtotal_override) / Number(i.quantity)
             : Number(i.unit_price) * (1 - Math.min(100, Math.max(0, Number(i.discount_percentage || 0))) / 100)
         }))
-      }
     })
     lastPreview.value = result
 
@@ -1006,7 +1110,9 @@ watch(
     if (!items.value.length) return
 
     await Promise.all(items.value.map(async (item) => {
-      const agreedPrice = await resolvePartyPrice(item.product_id, newCurrency)
+      const productId = item.product_id
+      if (!productId) return
+      const agreedPrice = await resolvePartyPrice(productId, newCurrency)
       if (agreedPrice !== null) {
         item.unit_price = agreedPrice
         item.net_subtotal_override = null
@@ -1056,7 +1162,18 @@ watch(
 
     form.document_type_id = val.document_type_id ?? ''
     form.party_id = val.party_id ?? ''
-    form.date = val.date ? new Date(val.date).toISOString().split('T')[0] : today()
+    referenceDocumentId.value = (val as any).parent_document_id ?? props.parentDocumentId
+    referenceDocumentInfo.value = (val as any).parent_document ?? null
+    const linkedDocument = (val as any).parent_document
+    const linkedParty = linkedDocument?.business_parties
+    const linkedPartyId = linkedDocument?.party_id ?? linkedParty?.id
+    referencePartyId.value = referenceDocumentId.value ? linkedPartyId ?? val.party_id ?? undefined : undefined
+    if (referenceDocumentId.value && linkedPartyId) {
+      setReferencePartyFallback(linkedParty)
+      notifyReferencePartyChange(val.party_id, linkedPartyId)
+      form.party_id = linkedPartyId
+    }
+    form.date = val.date ? new Date(val.date).toISOString().split('T')[0] ?? today() : today()
     form.descrip = val.descrip ?? ''
     form.ref = val.ref ?? ''
     form.currency_code = val.currency_code ?? 'ARS'
@@ -1080,7 +1197,8 @@ watch(
     // Mapear items del documento
     // Si vienen del mapper (items), usarlos directamente
     // Si vienen raw del backend (document_items), mapearlos
-    const sourceItems = val.items?.length ? val.items : (val.document_items ?? [])
+    const rawDocumentItems = 'document_items' in val ? val.document_items ?? [] : []
+    const sourceItems = val.items?.length ? val.items : rawDocumentItems
     const legacyGrossPrices = hasLegacyGrossLinePrices(val.subtotal, sourceItems)
     const savedCommercialAdjustments = Array.isArray(val.commercial_adjustments) ? val.commercial_adjustments : []
     const savedNetDiscounts = savedCommercialAdjustments.reduce(
@@ -1174,6 +1292,7 @@ watch(
           variant_name: item.product_variants?.name ?? null,
           warehouse_id: item.warehouse_id ?? null,
           product_name: item.products?.name || item.products?.description || 'Producto',
+          item_instructions: item.item_instructions ?? '',
           quantity: Number(item.quantity ?? 0),
           unit_price: originalUnitPrice,
           discount_percentage: discountPercentage,
@@ -1418,13 +1537,11 @@ async function resolvePartyPrice(productId: string, currencyCode = form.currency
   if (!form.party_id || !productId || !currencyCode) return null
 
   try {
-    const result = await $fetch<{ price: number | null }>('/api/backend/pricing/party-prices/resolve', {
-      query: {
-        productId,
-        partyId: form.party_id,
-        currencyCode,
-        operationType: props.moduleCode === 'SALES' ? 'SALE' : 'PURCHASE'
-      }
+    const result = await partyPricesService.resolve({
+      productId,
+      partyId: form.party_id,
+      currencyCode,
+      operationType: props.moduleCode === 'SALES' ? 'SALE' : 'PURCHASE'
     })
     return result.price === null ? null : Number(result.price)
   } catch (error) {
@@ -1432,7 +1549,6 @@ async function resolvePartyPrice(productId: string, currencyCode = form.currency
     return null
   }
 }
-
 watch(
   () => form.party_id,
   async (newParty, oldParty) => {
@@ -1453,7 +1569,9 @@ watch(
     }
 
     await Promise.all(items.value.map(async (item) => {
-      const price = await resolvePartyPrice(item.product_id)
+      const productId = item.product_id
+      if (!productId) return
+      const price = await resolvePartyPrice(productId)
       if (price !== null) {
         item.unit_price = price
         item.net_subtotal_override = null
@@ -1467,6 +1585,7 @@ watch(
 )
 
 async function addItem(prod: any) {
+  if (!prod.product_id) return
   const quantity = 1
 
   // La currency del documento es la fuente de verdad
@@ -1493,6 +1612,8 @@ async function addItem(prod: any) {
     variant_id: prod.variant_id ?? null,
     variant_name: prod.variant_name ?? null,
     product_name: prod.product_name,
+    item_instructions: '',
+    instructions_expanded: false,
     quantity,
     purchase_unit_id: props.moduleCode === 'PURCHASES' ? (prod.purchase_unit_id ?? null) : null,
     unit_conversion_factor: props.moduleCode === 'PURCHASES' ? Number(prod.purchase_to_stock_factor ?? 1) : 1,
@@ -1532,6 +1653,7 @@ function submit() {
   if (sequenceOptions.value.length > 1 && !selectedSequenceId.value) errors.document_sequence_id = 'Elegí el punto de venta para numerar el comprobante.'
   if (documentTypeValidation.value) errors.document_type_id = documentTypeValidation.value
   if (showReferencePicker.value && !referenceDocumentId.value) errors.reference_document_id = 'Seleccioná la factura de referencia.'
+  if (showReferencePicker.value && referenceDocumentId.value && !referencePartyId.value) errors.reference_document_id = 'Esperá a que se cargue el proveedor de la factura de referencia.'
   if (!items.value.length && selectedDocumentCategory.value !== 'OPENING_BALANCE') {
     errors.items = 'Agregá al menos un producto o concepto.'
   } else if (items.value.some(item => !Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0)) {
@@ -1618,6 +1740,7 @@ function submit() {
       : {}),
     items: items.value.map((i, idx) => ({
       product_id: i.product_id,
+      item_instructions: String(i.item_instructions ?? '').trim() || undefined,
       variant_id: i.variant_id || undefined,
       warehouse_id: props.operationalMode
         ? (i.warehouse_id || form.warehouse_id || undefined)
@@ -1729,6 +1852,7 @@ defineExpose({ submit, completeDraft })
               searchable
               v-model:search-term="partySearch"
               :loading="partySearching"
+              :disabled="showReferencePicker && Boolean(referenceDocumentId)"
               size="lg"
               class="min-w-0 flex-1"
             />
@@ -1744,7 +1868,7 @@ defineExpose({ submit, completeDraft })
                 @click="copySelectedPartyName"
               />
             </UTooltip>
-            <UButton icon="i-lucide-plus" variant="outline" size="lg" square class="shrink-0" aria-label="Crear cliente o proveedor" @click="showBusinessPartiesModal = true" />
+            <UButton icon="i-lucide-plus" variant="outline" size="lg" square class="shrink-0" aria-label="Crear cliente o proveedor" @click="() => { showBusinessPartiesModal = true }" />
             <UButton
               icon="i-lucide-pencil"
               variant="outline"
@@ -1757,7 +1881,10 @@ defineExpose({ submit, completeDraft })
               @click="onEditBussinessParty"
             />
           </div>
-          <p class="mt-1 text-xs text-muted">Escribí al menos 2 caracteres para buscar en toda la lista por nombre, razón social o CUIT.</p>
+          <p v-if="showReferencePicker && referenceDocumentId" class="mt-1 text-xs text-muted">
+            El {{ moduleCode === 'PURCHASES' ? 'proveedor' : 'cliente' }} queda asociado a la factura seleccionada. Cambiá la factura desde su selector para usar otro tercero.
+          </p>
+          <p v-else class="mt-1 text-xs text-muted">Escribí al menos 2 caracteres para buscar en toda la lista por nombre, razón social o CUIT.</p>
         </UFormField>
 
         <UFormField label="Tipo de documento" :error="validationErrors.document_type_id" class="min-w-0 xl:col-span-6">
@@ -1876,7 +2003,7 @@ defineExpose({ submit, completeDraft })
             min="0"
             placeholder="1.000000"
             class="w-full min-w-0"
-            @update:model-value="(val: number) => { if (val) setManualRate(val) }"
+            @update:model-value="(val: number | null) => { if (val) setManualRate(val) }"
           />
         </UFormField>
         <div v-if="form.exchange_rate && total" class="min-w-0">
@@ -1895,7 +2022,7 @@ defineExpose({ submit, completeDraft })
           </div>
           <USwitch v-model="advancedWarehouseAssignment" label="Depósito por producto" />
         </div>
-        <UFormField v-if="moduleCode !== 'SALES'" :label="moduleCode === 'SALES' ? 'Depósito de salida' : 'Depósito receptor'" required>
+        <UFormField label="Depósito receptor" required>
           <USelect
             v-model="form.warehouse_id"
             :items="warehouseOptions"
@@ -1930,8 +2057,10 @@ defineExpose({ submit, completeDraft })
       <div v-if="showReferencePicker" class="mt-4">
         <ReferenceDocumentPicker
           :module-code="moduleCode"
-          :selected-invoice="referenceDocumentId ? { id: referenceDocumentId } : null"
+          :selection-locked="isInvoiceReferenceNote && Boolean(referenceDocumentId) && !props.initialValues?.id"
+          :selected-invoice="referenceDocumentInfo?.id === referenceDocumentId ? referenceDocumentInfo : (referenceDocumentId ? { id: referenceDocumentId } : null)"
           @select="handleReferenceSelect"
+          @resolved="handleReferenceResolved"
           @clear="handleReferenceClear"
         />
       </div>
@@ -1989,6 +2118,7 @@ defineExpose({ submit, completeDraft })
       />
       <FacturaItemsTable
         :items="items"
+        :allow-item-instructions="canAddItemInstructions"
         :product-options="productOptions"
         :currency-code="form.currency_code"
         :warehouses="warehouseOptions"
@@ -2133,7 +2263,7 @@ defineExpose({ submit, completeDraft })
                 size="sm"
                 color="neutral"
                 variant="ghost"
-                @click="supplierTotalOverride = null"
+                @click="() => { supplierTotalOverride = null }"
               />
             </div>
           </UFormField>

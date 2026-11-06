@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCurrencyWhole as formatCurrency } from '~/utils/formatMoneda'
 import { QUOTE_STATUSES, QUOTE_STATUS_COLORS } from '~/modulos/erp/documents/types/document-statuses'
 
 const props = defineProps<{
@@ -10,13 +11,7 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
+
 
 const statusItems = computed(() => {
   if (!props.data) return []

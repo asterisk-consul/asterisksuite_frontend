@@ -1,6 +1,7 @@
 ﻿import { ref, computed, watch } from 'vue'
 import { useCurrencies } from './useCurrencies'
 import { useCurrencyRates } from '~/modulos/erp/currency-rates/composables/useCurrencyRates'
+import { useCurrencyRatesService } from '~/modulos/erp/currency-rates/service/currency-rates.service'
 
 export interface ExchangeRateState {
   exchangeRate: number | null
@@ -12,6 +13,7 @@ export interface ExchangeRateState {
 export function useExchangeRate() {
   const { currencies, baseCurrency, init: initCurrencies } = useCurrencies()
   const { getLatestRateValue, convert, fetchAll: fetchRates } = useCurrencyRates()
+  const ratesService = useCurrencyRatesService()
 
   const exchangeRate = ref<number | null>(null)
   const rateType = ref<string>('OFFICIAL')
@@ -63,9 +65,7 @@ export function useExchangeRate() {
       }
 
       // Fallback: try the server API
-      const result = await $fetch('/api/backend/pricing/exchange/convert', {
-        query: { from: fromCode, to: toCode, amount: 1, rateType: type ?? rateType.value },
-      })
+      const result = await ratesService.convert(fromCode, toCode, 1, type ?? rateType.value)
 
       if (result?.rate) {
         exchangeRate.value = result.rate

@@ -88,10 +88,17 @@ const calcVariation = (oldData: any, newData: any) => {
   return ((newVal - oldVal) / oldVal) * 100
 }
 
-const getVariationColor = (pct: number) => {
+const getVariationColor = (pct: number | null) => {
+  if (pct === null || pct === 0) return 'text-muted'
   if (pct > 0) return 'text-emerald-600'
   if (pct < 0) return 'text-red-500'
   return 'text-muted'
+}
+
+const formatVariation = (oldData: any, newData: any) => {
+  const variation = calcVariation(oldData, newData)
+  if (variation === null) return '—'
+  return `${variation > 0 ? '+' : ''}${variation.toFixed(1)}%`
 }
 </script>
 
@@ -158,8 +165,7 @@ const getVariationColor = (pct: number) => {
               class="text-sm font-medium"
               :class="getVariationColor(calcVariation(row.original.old_data, row.original.new_data))"
             >
-              {{ calcVariation(row.original.old_data, row.original.new_data) > 0 ? '+' : ''
-              }}{{ calcVariation(row.original.old_data, row.original.new_data)?.toFixed(1) }}%
+              {{ formatVariation(row.original.old_data, row.original.new_data) }}
             </span>
             <span v-else class="text-sm text-muted">—</span>
           </template>

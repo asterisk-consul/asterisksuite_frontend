@@ -1,16 +1,12 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
-interface ConnectedApp {
-  id: string
-  clientName: string
-  company: { id: string; name: string; subdomain: string | null } | null
-  scopes: string[]
-  createdAt: string
-  revokedAt: string | null
-}
+import { useMcpConnectionsService, type McpConnection } from '~/modulos/integrations/mcp-connections.service'
+
+type ConnectedApp = McpConnection
 
 const toast = useToast()
+const service = useMcpConnectionsService()
 const connections = ref<ConnectedApp[]>([])
 const loading = ref(true)
 const revokingId = ref<string | null>(null)
@@ -23,7 +19,7 @@ const descriptions: Record<string, string> = {
 async function loadConnections() {
   loading.value = true
   try {
-    connections.value = await $fetch<ConnectedApp[]>('/api/mcp/connections')
+    connections.value = await service.findAll()
   } catch (error: any) {
     toast.add({ title: 'No se pudieron cargar las conexiones', description: error?.data?.message || error?.statusMessage || 'Reintentá más tarde.', color: 'error' })
   } finally {
@@ -34,7 +30,7 @@ async function loadConnections() {
 async function revoke(connection: ConnectedApp) {
   revokingId.value = connection.id
   try {
-    await $fetch(`/api/mcp/connections/${encodeURIComponent(connection.id)}`, { method: 'DELETE' })
+    await service.revoke(connection.id)
     connection.revokedAt = new Date().toISOString()
     toast.add({ title: 'Conexión revocada', description: `${connection.clientName} ya no puede acceder a esta empresa.`, color: 'success' })
   } catch (error: any) {

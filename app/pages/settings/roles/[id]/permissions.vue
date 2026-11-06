@@ -4,10 +4,13 @@ definePageMeta({ middleware: ['auth'] })
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { usePermissions } from '~/modulos/access-control/composables/usePermissions'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useRolesService } from '~/modulos/access-control/services/roles.service'
 
 const route = useRoute()
 const router = useRouter()
+const confirmNavigation = () => !hasUnsavedChanges.value || window.confirm('Tenés cambios sin guardar. ¿Salir?')
 const toast = useToast()
+const rolesService = useRolesService()
 
 const { isOwnerOrAdmin } = useCompanyRole()
 const { groupedByModule, total: totalPermissions, init: initPermissions } = usePermissions()
@@ -112,7 +115,7 @@ onMounted(async () => {
     collapsedSubgroups.value = new Set(groupedByModule.value.flatMap(group =>
       (group.subgroups ?? []).map((_, index) => `${group.label}-${index}`),
     ))
-    const data = await $fetch<any>(`/api/access-control/roles/${roleId}`)
+    const data = await rolesService.findOne(roleId)
     roleName.value = data.name || ''
     const codes = (data.permissions || []).map((p: any) => p.permission?.code).filter(Boolean)
     selectedPermissionCodes.value = codes
@@ -268,14 +271,14 @@ const savePermissions = async () => {
             label="Volver"
             icon="i-lucide-arrow-left"
             variant="ghost"
-            @click="hasUnsavedChanges ? (confirm('Tenés cambios sin guardar. ¿Salir?') && router.push('/settings/roles')) : router.push('/settings/roles')"
+            @click="() => { if (confirmNavigation()) void router.push('/settings/roles') }"
           />
           <UButton
             v-else
             label="Volver"
             icon="i-lucide-arrow-left"
             variant="ghost"
-            @click="router.push('/settings/roles')"
+            @click="() => { void (router.push('/settings/roles')) }"
           />
           <UButton label="Guardar" icon="i-lucide-check" :loading="saving" :disabled="!hasUnsavedChanges" @click="savePermissions" />
         </div>
@@ -291,7 +294,7 @@ const savePermissions = async () => {
               class="min-w-0 flex-1"
             >
               <template v-if="permSearch" #trailing>
-                <UButton icon="i-lucide-x" color="neutral" variant="link" size="xs" aria-label="Limpiar búsqueda" @click="permSearch = ''" />
+                <UButton icon="i-lucide-x" color="neutral" variant="link" size="xs" aria-label="Limpiar búsqueda" @click="() => { permSearch = '' }" />
               </template>
             </UInput>
             <div class="flex shrink-0 gap-2">
@@ -548,7 +551,7 @@ const savePermissions = async () => {
           label="Descartar"
           color="neutral"
           variant="ghost"
-          @click="selectedPermissionCodes = [...initialPermissionCodes]"
+          @click="() => { selectedPermissionCodes = [...initialPermissionCodes] }"
         />
         <UButton
           label="Guardar cambios"

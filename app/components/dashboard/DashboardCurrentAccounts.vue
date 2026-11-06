@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCurrencyWhole as formatCurrency } from '~/utils/formatMoneda'
 import type { DashboardCurrentAccountItem } from '~/modulos/erp/dashboard/types/dashboard.types'
 
 defineProps<{
@@ -6,13 +7,7 @@ defineProps<{
   loading?: boolean
 }>()
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
+
 </script>
 
 <template>

@@ -2,9 +2,11 @@
 definePageMeta({ middleware: ['auth'] })
 
 import { useAccountsStore } from '~/modulos/contabilidad/store/accounts.store'
+import { useTreasuryReportsService } from '~/modulos/erp/treasury-reports/service/treasury-reports.service'
 
 const toast = useToast()
 const accountsStore = useAccountsStore()
+const treasuryReportsService = useTreasuryReportsService()
 
 const dateFrom = ref('')
 const dateTo = ref('')
@@ -85,7 +87,7 @@ async function loadData() {
     if (dateTo.value) params.date_to = dateTo.value
     if (accountFilter.value) params.account_id = accountFilter.value
     if (typeFilter.value !== 'ALL') params.type = typeFilter.value
-    data.value = await $fetch<any>('/api/backend/treasury/expenses-by-account', { params })
+    data.value = await treasuryReportsService.expensesByAccount(params)
   } catch (e: any) {
     toast.add({ title: 'Error al cargar reporte', description: e?.data?.message || e.message, color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {
@@ -120,7 +122,7 @@ onMounted(async () => {
       description="Pagos y cobros confirmados agrupados por cuenta contable del plan de cuentas"
     >
       <template #links>
-        <UButton label="Volver" icon="i-lucide-arrow-left" variant="ghost" @click="navigateTo('/erp/treasury/reports')" />
+        <UButton label="Volver" icon="i-lucide-arrow-left" variant="ghost" @click="() => { void navigateTo('/erp/treasury/reports') }" />
       </template>
     </AppPageHeader>
 

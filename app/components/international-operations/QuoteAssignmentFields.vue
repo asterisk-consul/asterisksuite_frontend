@@ -14,6 +14,10 @@ const { expenseTypeOptions } = useInternationalOperations()
 const { autoResolve, loading: rateLoading } = useExchangeRate()
 const containerOptions = computed(() => props.containers.map(container => ({ label: container.container_number, value: container.id })))
 const mismatch = computed(() => props.documentCurrencyCode && props.operationCurrencyCode && props.documentCurrencyCode !== props.operationCurrencyCode)
+const exchangeRateInput = computed<number | undefined>({
+  get: () => assignment.value.exchange_rate ?? undefined,
+  set: value => { assignment.value.exchange_rate = value ?? null }
+})
 let rateRequest = 0
 watch([() => props.documentCurrencyCode, () => props.operationCurrencyCode, () => assignment.value] as const, async ([currency, operationCurrency], previous) => {
   const request = ++rateRequest
@@ -39,6 +43,6 @@ watch([() => props.documentCurrencyCode, () => props.operationCurrencyCode, () =
       <UFormField label="Categoría de gasto" required><USelect v-model="assignment.expense_type" :items="expenseTypeOptions" :disabled="disabled" class="w-full" /></UFormField>
     </div>
     <UFormField v-if="assignment.expense_type === 'OTHER'" label="Concepto de otros gastos" required><UInput v-model="assignment.custom_expense_description" :disabled="disabled" :maxlength="255" class="w-full" /></UFormField>
-    <UFormField v-if="mismatch" label="Cotización para la operación" description="Para ARS/moneda extranjera, indicá los ARS por una unidad extranjera." required><UInput v-model.number="assignment.exchange_rate" type="number" :min="0.000001" :step="0.000001" :loading="rateLoading" class="w-full" /></UFormField>
+    <UFormField v-if="mismatch" label="Cotización para la operación" description="Para ARS/moneda extranjera, indicá los ARS por una unidad extranjera." required><UInput v-model.number="exchangeRateInput" type="number" :min="0.000001" :step="0.000001" :loading="rateLoading" class="w-full" /></UFormField>
   </div>
 </template>

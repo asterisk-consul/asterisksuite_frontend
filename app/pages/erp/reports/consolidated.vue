@@ -187,13 +187,19 @@ const workbookColumns = computed<ExtendedColumn<ReportTableRow>[]>(() => [
     cell: ({ row }: any) => h('span', { class: 'block min-w-28 text-right font-semibold font-mono tabular-nums' }, formatAmount(row.original.total, row.original.currency_code)),
   },
 ])
-const workbookConsolidatedTotals = computed<Record<WorkbookMetricKey, CurrencyTotals>>(() => Object.fromEntries(summaryMetricCards.map((metric) => {
-  const totals: CurrencyTotals = {}
-  for (const company of report.value?.companies ?? []) {
-    for (const [currency, amount] of Object.entries(workbookCompanyTotals(company, metric.key))) totals[currency] = (totals[currency] ?? 0) + amount
+const workbookConsolidatedTotals = computed<Record<WorkbookMetricKey, CurrencyTotals>>(() => {
+  const result = {} as Record<WorkbookMetricKey, CurrencyTotals>
+  for (const metric of summaryMetricCards) {
+    const totals: CurrencyTotals = {}
+    for (const company of report.value?.companies ?? []) {
+      for (const [currency, amount] of Object.entries(workbookCompanyTotals(company, metric.key))) {
+        totals[currency] = (totals[currency] ?? 0) + amount
+      }
+    }
+    result[metric.key] = totals
   }
-  return [metric.key, totals]
-})))
+  return result
+})
 const workbookCurrencies = computed(() => [...new Set(Object.values(workbookConsolidatedTotals.value).flatMap(totals => Object.keys(totals)))].sort())
 const chartCurrencyOptions = computed(() => workbookCurrencies.value.map(currency => ({ label: currency, value: currency })))
 watch(workbookCurrencies, (currencies) => {
@@ -489,8 +495,8 @@ watch(presentationMode, (mode) => {
       <section class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-default p-3">
         <div class="min-w-0"><h2 class="text-sm font-semibold">3. Presentación</h2><p class="text-xs text-muted">{{ companyDisplayMode === 'combined' ? 'Tablas agrupadas e identificadas por empresa.' : 'Tablas separadas por empresa.' }}</p></div>
         <div class="flex w-full gap-2 sm:w-auto">
-          <UButton label="Juntas" icon="i-lucide-layers-2" class="flex-1 sm:flex-none" :color="companyDisplayMode === 'combined' ? 'primary' : 'neutral'" :variant="companyDisplayMode === 'combined' ? 'solid' : 'outline'" @click="companyDisplayMode = 'combined'" />
-          <UButton label="Por empresa" icon="i-lucide-building-2" class="flex-1 sm:flex-none" :color="companyDisplayMode === 'separate' ? 'primary' : 'neutral'" :variant="companyDisplayMode === 'separate' ? 'solid' : 'outline'" @click="companyDisplayMode = 'separate'" />
+          <UButton label="Juntas" icon="i-lucide-layers-2" class="flex-1 sm:flex-none" :color="companyDisplayMode === 'combined' ? 'primary' : 'neutral'" :variant="companyDisplayMode === 'combined' ? 'solid' : 'outline'" @click="() => { companyDisplayMode = 'combined' }" />
+          <UButton label="Por empresa" icon="i-lucide-building-2" class="flex-1 sm:flex-none" :color="companyDisplayMode === 'separate' ? 'primary' : 'neutral'" :variant="companyDisplayMode === 'separate' ? 'solid' : 'outline'" @click="() => { companyDisplayMode = 'separate' }" />
         </div>
       </section>
 
@@ -516,7 +522,7 @@ watch(presentationMode, (mode) => {
       </div>
       <div v-if="reportView === 'consolidated'" class="overflow-hidden rounded-2xl border border-default bg-elevated/20">
         <div class="flex min-w-max gap-2 overflow-x-auto p-2" role="tablist" aria-label="Modo de visualización">
-          <UButton v-for="mode in presentationModes" :key="mode.id" :label="mode.label" :icon="mode.icon" role="tab" :aria-selected="presentationMode === mode.id" :color="presentationMode === mode.id ? 'primary' : 'neutral'" :variant="presentationMode === mode.id ? 'solid' : 'ghost'" @click="presentationMode = mode.id" />
+          <UButton v-for="mode in presentationModes" :key="mode.id" :label="mode.label" :icon="mode.icon" role="tab" :aria-selected="presentationMode === mode.id" :color="presentationMode === mode.id ? 'primary' : 'neutral'" :variant="presentationMode === mode.id ? 'solid' : 'ghost'" @click="() => { presentationMode = mode.id }" />
         </div>
         <div class="border-t border-default px-4 py-3 text-sm text-muted">
           {{ presentationModes.find(mode => mode.id === presentationMode)?.description }}
@@ -524,7 +530,7 @@ watch(presentationMode, (mode) => {
       </div>
       <div v-if="reportView === 'consolidated' && showThemeTabs" class="overflow-hidden rounded-xl border border-default bg-elevated/10">
         <div class="flex min-w-max gap-1 overflow-x-auto p-2" role="tablist" aria-label="Secciones del reporte">
-          <UButton v-for="sheet in visibleReportSheets" :key="sheet.id" :label="sheet.label" :icon="sheet.icon" role="tab" :aria-selected="activeSheet === sheet.id" :color="activeSheet === sheet.id ? 'primary' : 'neutral'" :variant="activeSheet === sheet.id ? 'solid' : 'ghost'" @click="activeSheet = sheet.id" />
+          <UButton v-for="sheet in visibleReportSheets" :key="sheet.id" :label="sheet.label" :icon="sheet.icon" role="tab" :aria-selected="activeSheet === sheet.id" :color="activeSheet === sheet.id ? 'primary' : 'neutral'" :variant="activeSheet === sheet.id ? 'solid' : 'ghost'" @click="() => { activeSheet = sheet.id }" />
         </div>
         <div class="border-t border-default px-4 py-3 text-sm text-muted">
           {{ presentationMode === 'charts' && activeSheet === 'summary' ? 'Comparación general de indicadores por empresa.' : `Área: ${reportSheets.find(sheet => sheet.id === activeSheet)?.label}. Consultá y filtrá sus registros.` }}

@@ -3,11 +3,13 @@ import type { Product, ProductType } from '~/modulos/logistica/master-data/produ
 import ProductTagsSelect from '~/modulos/logistica/master-data/product-tags/components/ProductTagSelect.vue'
 import ProductCategorySelect from '~/modulos/logistica/master-data/product-categories/components/ProductCategorySelect.vue'
 import { PRODUCT_TYPE_LABELS } from '~/modulos/logistica/master-data/product/composable/product-labels'
+import { usePhotosService } from '~/modulos/logistica/media/photos/photos.service'
 
 import { useProductTagsStore } from '~/modulos/logistica/master-data/product-tags/store/product-tags.store'
 import { useProductCategoriesStore } from '~/modulos/logistica/master-data/product-categories/store/product-categories.store'
 
 const toast = useToast()
+const photosService = usePhotosService()
 const productTagsStore = useProductTagsStore()
 const productCategoriesStore = useProductCategoriesStore()
 const addingTag = ref(false)
@@ -26,9 +28,7 @@ const props = defineProps<{
 async function loadPhotos() {
   if (!props.product?.id) return
   try {
-    const url = `/api/media/photos/product/${props.product.id}`
-    console.log('[GALLERY] Fetching photos from:', url)
-    const data = await $fetch<any[]>(url)
+    const data = await photosService.findMediaByEntity('product', props.product.id)
 
     // Filtrar eliminados en frontend
     const active = data.filter((p: any) => !p.deleted_at)
@@ -125,7 +125,7 @@ async function handleUpload(file: File) {
     formData.append('photo_type', 'frontal')
 
     console.log('[UPLOAD] Posting to /api/media/upload...')
-    const result = await $fetch<any>('/api/media/upload', { method: 'POST', body: formData })
+    const result = await photosService.uploadMedia(formData)
     console.log('[UPLOAD] Result:', JSON.stringify(result))
 
     toast.add({ title: 'Imagen subida', color: 'success' })
@@ -157,7 +157,7 @@ async function deletePhoto(photoId: string) {
   console.log('[DELETE] photoId:', photoId)
   console.log('[DELETE] photos before:', photos.value.map(p => p.id))
   try {
-    const result = await $fetch(`/api/media/photos/${photoId}`, { method: 'DELETE' })
+    const result = await photosService.remove(photoId)
     console.log('[DELETE] result:', result)
     photos.value = photos.value.filter((p) => p.id !== photoId)
     console.log('[DELETE] photos after:', photos.value.map(p => p.id))

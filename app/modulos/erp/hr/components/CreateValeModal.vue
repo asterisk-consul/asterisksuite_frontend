@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { useHrStore } from '~/modulos/erp/hr/stores/hr.store'
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
+import { useEmployeesService } from '~/modulos/erp/employees/service/employees.service'
+import { usePartnersService } from '~/modulos/erp/partners/service/partners.service'
+import { useCashBoxesService } from '~/modulos/erp/cash-boxes/service/cash-boxes.service'
+import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
+import { HrService } from '~/modulos/erp/hr/services/hr.service'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -9,6 +14,10 @@ const emit = defineEmits<{
 }>()
 
 const hrStore = useHrStore()
+const employeesService = useEmployeesService()
+const partnersService = usePartnersService()
+const cashBoxesService = useCashBoxesService()
+const bankAccountsService = useBankAccountsService()
 const toast = useToast()
 const {
   autoResolve: resolveExchangeRate,
@@ -24,7 +33,7 @@ const treasuryTargetId = ref('')
 const cashBoxes = ref<any[]>([])
 const bankAccounts = ref<any[]>([])
 const pendingCreatedValeId = ref<string | null>(null)
-const partnerFunds = ref<{ contributions: number; withdrawals: number; balance: number; available: number; remuneration_pending: number } | null>(null)
+const partnerFunds = ref<{ contributions: number; withdrawals: number; balance: number; planned_withdrawals: number; available: number; remuneration_pending: number } | null>(null)
 const loadingFunds = ref(false)
 const fundsError = ref(false)
 let fundsRequest = 0
@@ -40,11 +49,11 @@ const createForm = ref({
   description: ''
 })
 
-const people = ref<Array<{ id: string; name: string; type: string }>>([])
+const people = ref<Array<{ id: string; name: string; type: string; partner_kind?: 'PARTNER' | 'INVESTOR' }>>([])
 
 const partyTypeOptions = [
   { label: 'Empleado', value: 'EMPLOYEE' },
-  { label: 'Socio', value: 'PARTNER' }
+  { label: 'Socio / inversionista', value: 'PARTNER' }
 ]
 
 const valeTypeOptions: Record<string, { label: string; value: string; icon: string; description: string }[]> = {
@@ -67,15 +76,29 @@ const currencyOptions = [
   { label: 'Dólar (USD)', value: 'USD' }
 ]
 
-const availableTypeOptions = computed(() =>
-  valeTypeOptions[createForm.value.party_type] || []
-)
-
 const filteredPeople = computed(() =>
   people.value
     .filter(p => p.type === createForm.value.party_type)
     .map(p => ({ label: p.name, value: p.id }))
 )
+
+const selectedPerson = computed(() => people.value.find(person => person.id === createForm.value.party_id))
+const isInvestor = computed(() => selectedPerson.value?.partner_kind === 'INVESTOR')
+const availableTypeOptions = computed(() => {
+  const options = valeTypeOptions[createForm.value.party_type] || []
+  return isInvestor.value
+    ? options
+        .filter(option => ['APORTE', 'RETIRO'].includes(option.value))
+        .map(option => option.value === 'RETIRO'
+          ? { ...option, label: 'Devolver inversión', description: 'Retirar una cuota del capital aportado, hasta el saldo disponible' }
+          : option)
+    : options
+})
+
+watch(availableTypeOptions, (options) => {
+  const firstOption = options[0]
+  if (firstOption && !options.some(option => option.value === createForm.value.type)) createForm.value.type = firstOption.value
+})
 
 const alertTitle = computed(() =>
   confirmAutomatically.value
@@ -125,7 +148,7 @@ async function loadLatestExchangeRate() {
   if (rate) createForm.value.exchange_rate = Number(rate)
 }
 
-function markExchangeRateAsManual(value: number | string) {
+function markExchangeRateAsManual(value: number | string | null) {
   const rate = Number(value)
   if (rate > 0) setManualRate(rate)
 }
@@ -133,8 +156,8 @@ function markExchangeRateAsManual(value: number | string) {
 async function loadPeople() {
   try {
     const [employees, partners] = await Promise.all([
-      $fetch<any[]>('/api/backend/employees'),
-      $fetch<any[]>('/api/backend/partners')
+      employeesService.findAll(),
+      partnersService.findAll()
     ])
     people.value = [
       ...employees.map((e: any) => ({
@@ -145,7 +168,8 @@ async function loadPeople() {
       ...partners.map((p: any) => ({
         id: p.party_id ?? p.id,
         name: `${p.first_name} ${p.last_name}`,
-        type: 'PARTNER'
+        type: 'PARTNER',
+        partner_kind: p.partner_kind ?? 'PARTNER'
       }))
     ]
   } catch (e) {
@@ -156,8 +180,8 @@ async function loadPeople() {
 async function loadTreasuryTargets() {
   try {
     const [boxes, banks] = await Promise.all([
-      $fetch<any[]>('/api/backend/cash-boxes'),
-      $fetch<any[]>('/api/backend/bank-accounts')
+      cashBoxesService.findAll(),
+      bankAccountsService.findAll()
     ])
     cashBoxes.value = boxes
     bankAccounts.value = banks
@@ -180,7 +204,7 @@ watch([open, () => createForm.value.party_id, () => createForm.value.party_type,
   if (!open.value || !isPartner.value || !createForm.value.party_id) return
   loadingFunds.value = true
   try {
-    const funds = await $fetch<NonNullable<typeof partnerFunds.value>>(`/api/backend/hr/partners/${createForm.value.party_id}/funds`, { query: { currency_code: createForm.value.currency_code } })
+    const funds = await HrService.getPartnerFunds(createForm.value.party_id, createForm.value.currency_code)
     if (request === fundsRequest) partnerFunds.value = funds
   } catch {
     if (request === fundsRequest) fundsError.value = true
@@ -231,6 +255,7 @@ async function handleCreate() {
       ? { id: pendingCreatedValeId.value }
       : await hrStore.createVale({
           ...createForm.value,
+          exchange_rate: createForm.value.exchange_rate ?? 1,
           rate_type: 'OFFICIAL',
           converted_amount: convertedAmount.value ?? createForm.value.amount,
         })
@@ -348,6 +373,15 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           />
         </UFormField>
 
+        <UAlert
+          v-if="isInvestor"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-landmark"
+          title="Movimientos de inversión"
+          description="Este perfil solo admite aportes de fondos y retiros del capital aportado. Los retiros disponibles descuentan las cuotas que ya estén programadas."
+        />
+
         <!-- Tipo de vale (cards) -->
         <UFormField label="Tipo de vale" required>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -398,6 +432,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           <template v-else-if="partnerFunds">
             <div class="flex justify-between text-sm"><span>Aportes confirmados</span><span>{{ formatFunds(partnerFunds.contributions) }}</span></div>
             <div class="flex justify-between text-sm"><span>Retiros confirmados</span><span>{{ formatFunds(partnerFunds.withdrawals) }}</span></div>
+            <div v-if="partnerFunds.planned_withdrawals > 0" class="flex justify-between text-sm"><span>Reservado en cuotas</span><span>{{ formatFunds(partnerFunds.planned_withdrawals) }}</span></div>
             <div class="flex justify-between font-semibold"><span>Disponible para retirar</span><span>{{ formatFunds(partnerFunds.available) }}</span></div>
             <div class="flex justify-between text-sm"><span>Remuneraciones pendientes de pago</span><span>{{ formatFunds(partnerFunds.remuneration_pending) }}</span></div>
             <div v-if="isWithdrawal" class="flex justify-between text-sm" :class="withdrawalBlocked ? 'text-error' : 'text-muted'"><span>Saldo después del retiro</span><span>{{ formatFunds(partnerFunds.balance - Number(createForm.amount || 0)) }}</span></div>
@@ -520,7 +555,7 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           {{ requiresDirectTreasury && confirmAutomatically ? `${isOutflow ? 'Se debitará' : 'Se acreditará'} en ${treasuryTargetType === 'CASH_BOX' ? 'caja' : 'banco'}.` : isPartner && createForm.type === 'SUELDO' ? 'La remuneración queda pendiente de pago en Tesorería.' : 'Revisá los datos antes de guardar.' }}
         </p>
         <div class="flex justify-end gap-2">
-        <UButton label="Cancelar" variant="ghost" :disabled="saving" @click="open = false" />
+        <UButton label="Cancelar" variant="ghost" :disabled="saving" @click="() => { open = false }" />
         <UButton
           v-if="!confirmAutomatically"
           label="Crear borrador"

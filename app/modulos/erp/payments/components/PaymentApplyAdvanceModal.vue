@@ -118,6 +118,7 @@ const formatCurrency = (value: number) => {
         <UFormField :label="docLabel" name="document_id" required>
           <USelectMenu
             v-model="selectedDocId"
+            value-key="value"
             :items="filteredDocs.map(d => ({
               label: `${d.document_type_code || ''} ${d.number} — ${d.party_name || ''} (pendiente: ${formatCurrency(d.pending_amount)})`,
               value: d.id

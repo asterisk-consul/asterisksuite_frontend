@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useCommercialSummaryService } from '~/modulos/erp/dashboard/services/commercial-summary.service'
 type CategorySummary = { count: number; amountByCurrency: Record<string, number>; byStatus: Record<string, number> }
 type SummaryData = {
   period: { from: string; to: string; days: number }
@@ -20,6 +21,7 @@ const props = defineProps<{
   showQuotes?: boolean
   showRemitos?: boolean
 }>()
+const summaryService = useCommercialSummaryService()
 
 const days = ref(30)
 const loading = ref(false)
@@ -126,7 +128,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    data.value = await $fetch<SummaryData>(props.endpoint, { query: { days: days.value } })
+    data.value = await summaryService.find<SummaryData>(props.endpoint, days.value)
   } catch {
     error.value = 'No se pudo cargar el resumen. Revisá tus permisos o intentá nuevamente.'
   } finally {

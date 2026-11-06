@@ -1,6 +1,9 @@
 ﻿import type { DashboardData, DashboardPersonal } from '../types/dashboard.types'
 
+import { useDashboardDataService } from '../services/dashboard-data.service'
+
 export function useDashboardData() {
+  const service = useDashboardDataService()
   const data = ref<DashboardData | null>(null)
   const personal = ref<DashboardPersonal | null>(null)
   const loading = ref(false)
@@ -10,9 +13,7 @@ export function useDashboardData() {
     const request = ++dataRequest
     loading.value = true
     try {
-      const result = await $fetch<DashboardData>('/api/backend/dashboard/data', {
-        query: { days: days ?? undefined },
-      })
+      const result = await service.find(days)
       if (request === dataRequest) data.value = result
     } catch {
     } finally {
@@ -22,7 +23,7 @@ export function useDashboardData() {
 
   const fetchPersonal = async () => {
     try {
-      personal.value = await $fetch<DashboardPersonal>('/api/backend/dashboard/personal')
+      personal.value = await service.findPersonal()
     } catch {
     }
   }

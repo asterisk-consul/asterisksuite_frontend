@@ -1,5 +1,7 @@
 ﻿import type { DashboardWidget, WidgetConfig, DashboardConfig, DashboardData, WidgetSize } from '../types/dashboard.types'
 
+import { useDashboardConfigService } from '../services/dashboard-config.service'
+
 export interface GridLayout {
   gridColumn: string
   gridRow: string
@@ -50,6 +52,7 @@ export function buildLayout(widgets: WidgetConfig[]): Map<string, GridLayout> {
 const SIZE_CYCLE: WidgetSize[] = ['sm', 'md', 'lg']
 
 export function useDashboardConfig() {
+  const service = useDashboardConfigService()
   const config = ref<WidgetConfig[]>([...DEFAULT_WIDGETS])
   const loading = ref(false)
 
@@ -62,9 +65,7 @@ export function useDashboardConfig() {
   const fetchConfig = async () => {
     loading.value = true
     try {
-      const data = await $fetch<DashboardConfig | null>('/api/backend/dashboard/config', {
-        params: { dashboard_key: 'home' },
-      })
+      const data = await service.find('home')
       if (data?.widgets && data.widgets.length > 0) {
         const saved = data.widgets.map((w) => ({
           ...w,
@@ -90,10 +91,7 @@ export function useDashboardConfig() {
   const saveConfig = async () => {
     loading.value = true
     try {
-      await $fetch('/api/backend/dashboard/config', {
-        method: 'POST',
-        body: { dashboard_key: 'home', widgets: config.value },
-      })
+      await service.save('home', config.value)
       return true
     } catch {
       return false

@@ -37,8 +37,8 @@ const customTransitions = computed(() => {
   if (!factura.value) return []
   if (factura.value.status === 0) {
     return [
-      { label: 'Pendiente', status: 1, color: 'warning' },
-      { label: 'Confirmado', status: 2, color: 'success' },
+      { label: 'Pendiente', status: 1, color: 'warning' as const },
+      { label: 'Confirmado', status: 2, color: 'success' as const },
     ]
   }
   return []
@@ -66,10 +66,12 @@ const {
   processing,
   isDraft,
   isConfirmed,
+  canTrashOrphanNote,
   handleConfirm,
   handleCancel,
   handleRemove,
   handleStatus,
+  validTransitions,
 } = useDocumentActions({
   doc: factura as any,
   category,
@@ -97,7 +99,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
     <template #header>
       <UDashboardNavbar :title="factura ? `${factura.document_types?.description} #${factura.number}` : 'Documento'">
         <template #leading>
-          <UButton icon="i-lucide-panel-left-close" variant="ghost" color="neutral" @click="mainCollapsed = !mainCollapsed" />
+          <UButton icon="i-lucide-panel-left-close" variant="ghost" color="neutral" @click="() => { mainCollapsed = !mainCollapsed }" />
         </template>
       </UDashboardNavbar>
     </template>
@@ -116,9 +118,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
                 :action="action"
                 :shortcut-keys="shortcutKeys(action.label)"
               />
-              <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
-                <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
-              </UDropdownMenu>
+              <ShortcutDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions" />
             </div>
           </template>
         </UPageHeader>
@@ -149,7 +149,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
         <UButton v-for="t in validTransitions" :key="t.status" :label="t.label" :color="t.color" variant="outline" class="justify-start" :loading="processing" @click="handleStatus(t.status)" />
       </div>
       <div class="flex justify-end pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="statusModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { statusModalOpen = false }" />
       </div>
     </template>
   </UModal>
@@ -167,7 +167,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
         description="Al confirmar, el costo de cada producto se actualizará con el precio unitario de esta compra. Los precios de venta no se modificarán."
       />
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />
         <UButton label="Confirmar" color="success" :loading="processing" @click="handleConfirm" />
       </div>
     </template>
@@ -178,19 +178,25 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
       <p>¿Estás seguro de que deseas anular la factura <strong>#{{ factura?.number }}</strong>?</p>
       <p class="text-sm text-muted mt-2">Esta acción no se puede deshacer.</p>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="cancelModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { cancelModalOpen = false }" />
         <UButton label="Anular" color="error" :loading="processing" @click="handleCancel" />
       </div>
     </template>
   </UModal>
 
-  <UModal v-model:open="deleteModalOpen" title="Enviar factura a la papelera">
+  <UModal v-model:open="deleteModalOpen" :title="canTrashOrphanNote ? 'Anular y enviar nota a la papelera' : 'Enviar factura a la papelera'">
     <template #body>
-      <p>La factura anulada <strong>#{{ factura?.number }}</strong> dejará de aparecer en el circuito habitual.</p>
-      <p class="text-sm text-muted mt-2">Se conserva su historial y podrá restaurarse desde la papelera.</p>
+      <template v-if="canTrashOrphanNote">
+        <p>La nota <strong>#{{ factura?.number }}</strong> se anulará y dejará de aparecer en el circuito habitual.</p>
+        <p class="text-sm text-muted mt-2">Su movimiento activo se quitará de la cuenta corriente. El comprobante y su historial quedarán conservados en la papelera y podrán restaurarse.</p>
+      </template>
+      <template v-else>
+        <p>La factura anulada <strong>#{{ factura?.number }}</strong> dejará de aparecer en el circuito habitual.</p>
+        <p class="text-sm text-muted mt-2">Se conserva su historial y podrá restaurarse desde la papelera.</p>
+      </template>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
-        <UButton label="Enviar a papelera" color="error" :loading="processing" @click="handleRemove" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
+        <UButton :label="canTrashOrphanNote ? 'Anular y enviar a papelera' : 'Enviar a papelera'" color="error" :loading="processing" @click="handleRemove" />
       </div>
     </template>
   </UModal>

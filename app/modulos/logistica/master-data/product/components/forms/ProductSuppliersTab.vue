@@ -126,7 +126,7 @@ async function togglePrimary(supplier: any) {
         <div class="flex items-center gap-3">
           <UButton
             :icon="supplier.is_primary ? 'i-lucide-star' : 'i-lucide-star-off'"
-            :color="supplier.is_primary ? 'amber' : 'neutral'"
+            :color="supplier.is_primary ? 'warning' : 'neutral'"
             variant="ghost"
             size="xs"
             :title="supplier.is_primary ? 'Proveedor principal' : 'Marcar como principal'"

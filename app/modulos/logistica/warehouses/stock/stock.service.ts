@@ -7,6 +7,8 @@ import type {
 } from '~/modulos/logistica/warehouses/stock/stock.types'
 
 export const useStockService = () => {
+  const replenishmentPoliciesBase = '/api/backend/warehouse/replenishment/policies'
+  const reservationsBase = '/api/backend/warehouse/stock-reservations'
   const getStock = (warehouseId: string) =>
     $fetch<WarehouseStockItem[]>(
       `/api/backend/warehouse/stock/${warehouseId}`
@@ -42,12 +44,47 @@ export const useStockService = () => {
       }
     )
 
+  const findReplenishmentPolicies = (productId: string) =>
+    $fetch<any[]>(`${replenishmentPoliciesBase}/product/${productId}`)
+
+  const saveReplenishmentPolicy = (id: string | null, body: Record<string, unknown>) =>
+    $fetch<any>(id ? `${replenishmentPoliciesBase}/${id}` : replenishmentPoliciesBase, {
+      method: id ? 'PATCH' : 'POST',
+      body,
+    })
+
+  const removeReplenishmentPolicy = (id: string) =>
+    $fetch<void>(`${replenishmentPoliciesBase}/${id}`, { method: 'DELETE' })
+
+  const findReservations = (warehouseId: string) =>
+    $fetch<any[]>(reservationsBase, { query: { warehouse_id: warehouseId } })
+
+  const createReservation = (body: Record<string, unknown>) =>
+    $fetch<any>(reservationsBase, { method: 'POST', body })
+
+  const releaseReservation = (id: string) =>
+    $fetch<any>(`${reservationsBase}/${id}/release`, { method: 'PATCH' })
+
+  const getReplenishmentReport = (query?: Record<string, unknown>) =>
+    $fetch<{ data: any[]; meta: any }>('/api/backend/warehouse/replenishment/report', { query })
+
+  const getAvailabilityReport = (query?: Record<string, unknown>) =>
+    $fetch<{ data: any[]; meta: any }>('/api/backend/warehouse/stock/reports/availability', { query })
+
   return {
     getStock,
     getStockByProduct,
     getMovements,
     createMovement,
     transferStock,
-    removeStock
+    removeStock,
+    findReplenishmentPolicies,
+    saveReplenishmentPolicy,
+    removeReplenishmentPolicy,
+    findReservations,
+    createReservation,
+    releaseReservation,
+    getReplenishmentReport,
+    getAvailabilityReport
   }
 }

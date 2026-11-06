@@ -17,10 +17,12 @@ import { useCompanyRole } from '~/composables/useCompanyRole'
 import { addDaysToDateKey, formatCheckDate, getArgentinaDateKey, getCheckDateKey } from '~/modulos/erp/checks/utils/check-dates'
 import type { CheckAlertCard, CheckAlertKind } from '~/modulos/erp/checks/types/check-alerts.types'
 import CheckAlertCards from '~/components/erp/CheckAlertCards.vue'
+import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 const toast = useToast()
+const intakeService = useIntakeRecordsService()
 const authStore = useAuthStore()
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
@@ -375,10 +377,7 @@ const handleDeposit = async () => {
     }
     completeDepositDraft()
     if (intakeId.value) {
-      await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
-        method: 'POST',
-        body: { target_type: 'CHECK_DEPOSIT', target_id: depositingCheck.value.id }
-      })
+      await intakeService.complete(intakeId.value, 'CHECK_DEPOSIT', depositingCheck.value.id)
     }
     toast.add({
       title: depositDestination.value === 'CASH'

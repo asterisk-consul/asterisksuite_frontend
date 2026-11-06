@@ -170,6 +170,7 @@ export interface DashboardPersonal {
     kind: 'DOCUMENT' | 'CAPTURE'
     title: string
     detail: string
+    reference?: string
     status: string
     date: string
     to: string

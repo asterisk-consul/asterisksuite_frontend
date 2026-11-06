@@ -5,6 +5,8 @@ export interface SettingsEntry {
   to: string
   permission?: string
   ownerOrAdminOnly?: boolean
+  platformAuditOnly?: boolean
+  moduleCode?: string
   advanced?: boolean
 }
 
@@ -43,7 +45,8 @@ export const settingsCatalog: SettingsGroup[] = [
     entries: [
       { label: 'Impuestos', description: 'IVA y otros impuestos disponibles.', icon: 'i-lucide-receipt-text', to: '/settings/taxes', permission: 'taxes.read' },
       { label: 'Reglas fiscales', description: 'Percepciones y retenciones por jurisdicción.', icon: 'i-lucide-list-checks', to: '/settings/fiscal-rules', permission: 'taxes.read' },
-      { label: 'Configuración fiscal', description: 'Inscripciones y parámetros fiscales de la empresa.', icon: 'i-lucide-landmark', to: '/settings/fiscal-config', permission: 'companies.read' }
+      { label: 'Configuración fiscal', description: 'Inscripciones y parámetros fiscales de la empresa.', icon: 'i-lucide-landmark', to: '/settings/fiscal-config', permission: 'companies.read' },
+      { label: 'Conexión con ARCA', description: 'Configurar credenciales y probar la conexión de homologación.', icon: 'i-lucide-badge-check', to: '/settings/arca', permission: 'companies.update', ownerOrAdminOnly: true, moduleCode: 'ARCA' }
     ]
   },
   {
@@ -79,6 +82,7 @@ export const settingsCatalog: SettingsGroup[] = [
       { label: 'Seguridad', description: 'Contraseña y seguridad de la cuenta.', icon: 'i-lucide-lock-keyhole', to: '/settings/security' },
       { label: 'Conexiones de IA', description: 'Revisar o revocar las conexiones externas autorizadas para cada empresa.', icon: 'i-lucide-plug-zap', to: '/settings/connected-apps' },
       { label: 'Notificaciones', description: 'Avisos de asignaciones y alertas de la empresa.', icon: 'i-lucide-bell-ring', to: '/settings/notifications' },
+      { label: 'Auditoría de cambios', description: 'Consultar quién creó, editó o eliminó registros de esta empresa.', icon: 'i-lucide-history', to: '/settings/audit', platformAuditOnly: true },
       { label: 'Papelera', description: 'Recuperación de registros eliminados.', icon: 'i-lucide-trash-2', to: '/settings/trash', permission: 'trash.read', advanced: true }
     ]
   },

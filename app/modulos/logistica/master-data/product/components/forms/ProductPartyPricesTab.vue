@@ -1,16 +1,20 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBusinessPartiesStore } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.store'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { usePartyPricesService } from '~/modulos/erp/pricing/services/party-prices.service'
+import { useProductSuppliersStore } from '~/modulos/erp/pricing/stores/product-suppliers.store'
 
 const props = defineProps<{ productId: string }>()
 const toast = useToast()
+const partyPricesService = usePartyPricesService()
+const suppliersStore = useProductSuppliersStore()
 const partiesStore = useBusinessPartiesStore()
 const { items: parties } = storeToRefs(partiesStore)
 const { init: initCurrencies, activeCurrencies } = useCurrencies()
 const prices = ref<any[]>([])
-const suppliers = ref<any[]>([])
+const { items: suppliers } = storeToRefs(suppliersStore)
 const history = ref<any[]>([])
 const loading = ref(false)
 const saving = ref(false)
@@ -65,25 +69,23 @@ function resetForm() {
 async function load() {
   loading.value = true
   try {
-    const [partyPrices, suppliersData, historyData] = await Promise.all([
-      $fetch<any[]>(`/api/backend/pricing/party-prices/product/${props.productId}`),
-      $fetch<any[]>(`/api/pricing/product-suppliers`, { query: { product_id: props.productId } }),
-      $fetch<any[]>(`/api/backend/pricing/party-prices/product/${props.productId}/history`)
+    const [partyPrices, , historyData] = await Promise.all([
+      partyPricesService.byProduct(props.productId),
+      suppliersStore.fetchAll(props.productId),
+      partyPricesService.productHistory(props.productId)
     ])
-    suppliers.value = suppliersData
-    prices.value = partyPrices.map((pp: any) => {
-      if (pp.operation_type === 'PURCHASE') {
-        const supplier = suppliersData.find((s: any) => s.supplier_id === pp.party_id)
-        return { ...pp, supplier_data: supplier || null }
+    prices.value = partyPrices.map((price) => {
+      if (price.operation_type === 'PURCHASE') {
+        const supplier = suppliers.value.find((item) => item.supplier_id === price.party_id)
+        return { ...price, supplier_data: supplier || null }
       }
-      return { ...pp, supplier_data: null }
+      return { ...price, supplier_data: null }
     })
     history.value = historyData
   } finally {
     loading.value = false
   }
 }
-
 async function edit(item: any) {
   editingId.value = item.id
   form.operation_type = item.operation_type
@@ -112,40 +114,29 @@ async function save() {
   if (!form.party_id || !form.currency_id) return
   saving.value = true
   try {
-    await $fetch('/api/backend/pricing/party-prices', {
-      method: 'POST',
-      body: {
-        product_id: props.productId,
-        party_id: form.party_id,
-        currency_id: form.currency_id,
-        operation_type: form.operation_type,
-        price: form.price
-      }
+    await partyPricesService.upsert({
+      product_id: props.productId,
+      party_id: form.party_id,
+      currency_id: form.currency_id,
+      operation_type: form.operation_type,
+      price: form.price
     })
 
     if (form.operation_type === 'PURCHASE') {
-      const existingSupplier = suppliers.value.find(
-        (s: any) => s.supplier_id === form.party_id
-      )
-      const supplierPayload: Record<string, any> = {
+      const existingSupplier = suppliers.value.find((supplier) => supplier.supplier_id === form.party_id)
+      const supplierPayload = {
         supplier_id: form.party_id,
         purchase_price: String(form.price),
         currency_id: form.currency_id,
-        is_primary: form.is_primary
+        is_primary: form.is_primary,
+        ...(form.lead_time_days != null ? { lead_time_days: form.lead_time_days } : {}),
+        ...(form.min_order_quantity ? { min_order_quantity: String(form.min_order_quantity) } : {})
       }
-      if (form.lead_time_days != null) supplierPayload.lead_time_days = form.lead_time_days
-      if (form.min_order_quantity) supplierPayload.min_order_quantity = String(form.min_order_quantity)
 
       if (existingSupplier) {
-        await $fetch(`/api/pricing/product-suppliers/${existingSupplier.id}`, {
-          method: 'PATCH',
-          body: supplierPayload
-        })
+        await suppliersStore.update(existingSupplier.id, supplierPayload)
       } else {
-        await $fetch('/api/pricing/product-suppliers', {
-          method: 'POST',
-          body: { ...supplierPayload, product_id: props.productId }
-        })
+        await suppliersStore.create({ ...supplierPayload, product_id: props.productId })
       }
     }
 
@@ -156,16 +147,14 @@ async function save() {
     saving.value = false
   }
 }
-
 async function remove(item: any) {
-  await $fetch(`/api/backend/pricing/party-prices/${item.id}`, { method: 'DELETE' })
+  await partyPricesService.remove(item.id)
   if (item.supplier_data) {
-    await $fetch(`/api/pricing/product-suppliers/${item.supplier_data.id}`, { method: 'DELETE' })
+    await suppliersStore.remove(item.supplier_data.id)
   }
   toast.add({ title: 'Relación desactivada', color: 'success' })
   await load()
 }
-
 function money(value: unknown, currency = 'ARS') {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(Number(value ?? 0))
 }
@@ -245,7 +234,7 @@ onMounted(async () => {
               <span v-else class="text-muted">—</span>
             </td>
             <td v-if="hasSuppliersData" class="p-3">
-              <UBadge v-if="item.supplier_data?.is_primary" label="Principal" color="amber" variant="subtle" size="xs" />
+              <UBadge v-if="item.supplier_data?.is_primary" label="Principal" color="warning" variant="subtle" size="xs" />
               <span v-else class="text-muted">—</span>
             </td>
             <td class="p-3 text-muted">{{ new Date(item.effective_from).toLocaleDateString('es-AR') }}</td>

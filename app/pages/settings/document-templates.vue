@@ -1,5 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
+import { useSalesFlowService } from '~/modulos/erp/sales/services/sales-flow.service'
 
 type Category = 'QUOTE' | 'ORDER'
 interface PrintTemplate {
@@ -13,6 +14,7 @@ interface PrintTemplate {
 }
 
 const toast = useToast()
+const salesFlowService = useSalesFlowService()
 const loading = ref(false)
 const saving = ref(false)
 const templates = ref<PrintTemplate[]>([])
@@ -76,14 +78,18 @@ function moveBlock(index: number, direction: -1 | 1) {
   const target = index + direction
   if (target < 0 || target >= form.config.blocks.length) return
   const next = [...form.config.blocks]
-  ;[next[index], next[target]] = [next[target], next[index]]
+  const currentBlock = next[index]
+  const targetBlock = next[target]
+  if (!currentBlock || !targetBlock) return
+  next[index] = targetBlock
+  next[target] = currentBlock
   form.config.blocks = next
 }
 
 async function load() {
   loading.value = true
   try {
-    templates.value = await $fetch('/api/backend/sales-flow/print-templates')
+    templates.value = await salesFlowService.findPrintTemplates() as PrintTemplate[]
   } finally {
     loading.value = false
   }
@@ -93,13 +99,7 @@ async function save() {
   if (!form.name.trim() || !form.title.trim()) return
   saving.value = true
   try {
-    const url = selectedId.value
-      ? `/api/backend/sales-flow/print-templates/${selectedId.value}`
-      : '/api/backend/sales-flow/print-templates'
-    await $fetch(url, {
-      method: selectedId.value ? 'PATCH' : 'POST',
-      body: JSON.parse(JSON.stringify(form))
-    })
+    await salesFlowService.savePrintTemplate(selectedId.value, JSON.parse(JSON.stringify(form)))
     toast.add({ title: 'Plantilla guardada', description: 'Ya está disponible para imprimir documentos.', color: 'success' })
     await load()
     reset()
@@ -112,7 +112,7 @@ async function save() {
 
 async function remove(template: PrintTemplate) {
   try {
-    await $fetch(`/api/backend/sales-flow/print-templates/${template.id}`, { method: 'DELETE' })
+    await salesFlowService.removePrintTemplate(template.id)
     toast.add({ title: 'Plantilla eliminada', color: 'success' })
     if (selectedId.value === template.id) reset()
     await load()

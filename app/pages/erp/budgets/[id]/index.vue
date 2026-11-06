@@ -78,9 +78,7 @@ const {
       <template #links>
         <div class="flex gap-2 items-center flex-wrap">
           <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />
-          <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
-            <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
-          </UDropdownMenu>
+          <ShortcutDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions" />
           <DocumentHelpPopover :category="category || 'QUOTE'" :actions="[...primaryActions, ...secondaryActions.flat()]" />
         </div>
       </template>
@@ -93,7 +91,7 @@ const {
       <div v-if="doc && company" id="printable-document" class="print-only">
         <DocumentPrintSelector :document="doc" :company="company" />
       </div>
-      <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code" />
+      <DocumentItemsTable v-if="doc" :items="doc.document_items ?? []" :currency="doc.currency_code ?? 'ARS'" />
       <DocumentTotals v-if="doc" :document="doc" />
     </div>
   </UPage>
@@ -103,7 +101,7 @@ const {
       <p>¿Confirmar el presupuesto <strong>#{{ doc?.number }}</strong>?</p>
       <p class="text-sm text-muted mt-2">Una vez confirmado, no podrá ser editado.</p>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />
         <UButton label="Confirmar" color="success" :loading="processing" @click="handleConfirm" />
       </div>
     </template>
@@ -113,7 +111,7 @@ const {
     <template #body>
       <p>¿Anular el presupuesto <strong>#{{ doc?.number }}</strong>?</p>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="cancelModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { cancelModalOpen = false }" />
         <UButton label="Anular" color="error" :loading="processing" @click="handleCancel" />
       </div>
     </template>
@@ -125,7 +123,7 @@ const {
         <UButton v-for="t in validTransitions" :key="t.status" :label="t.label" :color="t.color" variant="outline" class="w-full justify-start" :loading="processing" @click="handleStatus(t.status)" />
       </div>
       <div class="flex justify-end pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="statusModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { statusModalOpen = false }" />
       </div>
     </template>
   </UModal>
@@ -135,7 +133,7 @@ const {
       <p>¿Aceptar y crear Orden de Venta?</p>
       <p class="text-sm text-muted mt-2">Se creará una OV con los mismos ítems y precios del presupuesto.</p>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="acceptModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { acceptModalOpen = false }" />
         <UButton label="Aceptar y crear OV" color="success" :loading="processing" @click="handleAccept" />
       </div>
     </template>

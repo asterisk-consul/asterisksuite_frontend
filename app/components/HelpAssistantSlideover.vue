@@ -1,17 +1,6 @@
 <script setup lang="ts">
 import { getHelpPageContext } from '~/modulos/help/help-page-context'
-
-interface HelpArticleSection {
-  heading: string
-  text: string
-}
-
-interface HelpArticle {
-  slug: string
-  title: string
-  description: string
-  sections: HelpArticleSection[]
-}
+import { useHelpDocumentsIndexService, type HelpArticle } from '~/modulos/help/help-documents-index.service'
 
 interface HelpMessageSource {
   slug: string
@@ -37,6 +26,7 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
+const helpDocumentsIndexService = useHelpDocumentsIndexService()
 const articles = ref<HelpArticle[]>([])
 const messages = ref<HelpMessage[]>([])
 const question = ref('')
@@ -157,7 +147,7 @@ function loadIndex() {
   if (indexLoadPromise) return indexLoadPromise.then(addWelcomeMessage)
   loadingIndex.value = true
   indexError.value = false
-  indexLoadPromise = $fetch<{ articles: HelpArticle[] }>('/help-documents-index.json')
+  indexLoadPromise = helpDocumentsIndexService.findAll()
     .then((index) => {
       articles.value = index.articles ?? []
       if (!articles.value.length) throw new Error('Índice documental vacío')

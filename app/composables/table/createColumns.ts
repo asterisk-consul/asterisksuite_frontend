@@ -4,6 +4,9 @@ import { UButton, UBadge } from '#components'
 
 import type { TableColumn } from '@nuxt/ui'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
+import { BADGE_COLORS } from '~/types/colors.types'
+import type { BadgeColor } from '~/types/colors.types'
+export type { BadgeColor } from '~/types/colors.types'
 
 import { useInlineEdit } from '@/composables/table/useInlineEdit'
 import { useDateColumn } from '@/composables/table/useDateColumn'
@@ -12,12 +15,8 @@ import { useDateColumn } from '@/composables/table/useDateColumn'
    Badge Colors
 ======================== */
 
-export type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
-
-const VALID_COLORS = ['error', 'primary', 'warning', 'secondary', 'success', 'info', 'neutral'] as const
-
 function isBadgeColor(v: any): v is BadgeColor {
-  return VALID_COLORS.includes(v)
+  return BADGE_COLORS.includes(v)
 }
 
 /* ========================
@@ -101,10 +100,10 @@ type ColumnConfig<T, K extends keyof T = keyof T> = {
    Builder
 ======================== */
 
-export function createTableBuilder<T extends { id: string }, K extends keyof T = keyof T>(
+export function createTableBuilder<T, K extends keyof T = keyof T>(
   config?: BuilderConfig<T, K>
 ) {
-  const { editableCell } = useInlineEdit<T, any>()
+  const { editableCell } = useInlineEdit<T & { id: string }, any>()
 
   const dateCol = useDateColumn(config?.locale || 'es-AR')
 
@@ -149,7 +148,7 @@ export function createTableBuilder<T extends { id: string }, K extends keyof T =
 
       if (!cell && col.editable && col.editField) {
         cell = ({ row }) =>
-          editableCell(col.editField as any, row.original, {
+          editableCell(col.editField as any, row.original as T & { id: string }, {
             onInlineSave: config?.onInlineSave
           })
       }

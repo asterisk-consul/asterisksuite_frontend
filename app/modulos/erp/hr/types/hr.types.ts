@@ -2,11 +2,43 @@ export type HrValeType = 'SUELDO' | 'ADELANTO' | 'EXTRAS' | 'COMISION' | 'RETIRO
 
 export type HrValeStatus = 'DRAFT' | 'CONFIRMED' | 'PAID' | 'CANCELLED'
 
+export interface PartnerFunds {
+  currency_code: string
+  contributions: number
+  withdrawals: number
+  balance: number
+  planned_withdrawals: number
+  available: number
+  remuneration_pending: number
+}
+
+export interface PartnerInvestmentPlanInstallment {
+  id: string
+  installment_number: number
+  amount: number
+  due_date: string
+  vale_id: string
+  vale: Pick<HrVale, 'id' | 'number' | 'amount' | 'date' | 'status' | 'description'>
+}
+
+export interface PartnerInvestmentPlan {
+  id: string
+  partner_id: string
+  currency_code: string
+  total_amount: number
+  pending_amount: number
+  description: string | null
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  created_at: string
+  installments: PartnerInvestmentPlanInstallment[]
+}
+
 export interface HrVale {
   id: string
   number: number
   party_id: string
   party_type: string
+  partner_kind?: 'PARTNER' | 'INVESTOR' | null
   type: HrValeType
   amount: number
   currency_code: string
@@ -25,6 +57,9 @@ export interface HrVale {
     label: string
   } | null
   payment_document?: { id: string; pending: number } | null
+  document_needs_reconciliation?: boolean
+  document_reconciliation_blocked?: boolean
+  treasury_needs_reconciliation?: boolean
   party?: { id: string; name: string; tax_id: string | null }
   commission_details?: {
     id: string
@@ -33,6 +68,17 @@ export interface HrVale {
     subtotal: number
     commission_rate: number
     commission_amount: number
+    date: string
+    document?: { id: string; number: number; date: string }
+  }[]
+  partner_share_details?: {
+    id: string
+    document_id: string
+    partner_id: string
+    base_amount: number
+    share_percentage: number
+    share_amount: number
+    calculation_basis: 'ORDER' | 'INVOICED'
     date: string
     document?: { id: string; number: number; date: string }
   }[]
@@ -98,7 +144,7 @@ export const HR_VALE_STATUS_LABELS: Record<HrValeStatus, string> = {
   CANCELLED: 'Anulado',
 }
 
-export const HR_VALE_STATUS_COLORS: Record<HrValeStatus, string> = {
+export const HR_VALE_STATUS_COLORS: Record<HrValeStatus, 'neutral' | 'warning' | 'success' | 'error'> = {
   DRAFT: 'neutral',
   CONFIRMED: 'warning',
   PAID: 'success',
@@ -113,6 +159,7 @@ export interface PartnerReport {
   partner: {
     id: string
     name: string
+    partner_kind?: 'PARTNER' | 'INVESTOR'
     document_type: string | null
     document_number: string | null
     share_percentage: number | null

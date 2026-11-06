@@ -2,7 +2,7 @@
 import { reactive, watch, computed, onMounted, nextTick } from 'vue'
 import type { SelectMenuItem } from '@nuxt/ui'
 
-import type { BusinessPartyForm } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
+import type { BusinessPartyForm, BusinessPartyType } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import type { Location } from '~/modulos/logistica/master-data/locations/types/locations.types'
 
 import { mapBusinessPartyToForm } from '~/modulos/logistica/master-data/bussiness-parties/mapper/mapFormToBusines'
@@ -24,6 +24,7 @@ const props = defineProps<{
   errors?: Record<string, string>
   extraTabs?: ExtraTab[]
   headerTitle?: string
+  allowedTypes?: BusinessPartyType[]
 }>()
 
 const emit = defineEmits<{
@@ -55,6 +56,7 @@ const form = reactive<BusinessPartyForm & { createUser?: boolean; user_name?: st
   default_commission_rate: 0,
   is_salesperson: false,
   commission_base: 'INVOICED',
+  partner_kind: 'PARTNER',
   customer_enabled: false,
   share_percentage: '',
   capital_contributed: '',
@@ -73,6 +75,16 @@ watch(() => props.loading, (loading) => {
 // (provide/inject doesn't work parent→child, only ancestor→descendant)
 
 const isPerson = computed(() => form.type === 'EMPLOYEE' || form.type === 'PARTNER')
+const isInvestor = computed(() => form.type === 'PARTNER' && form.partner_kind === 'INVESTOR')
+
+watch(() => form.partner_kind, (kind) => {
+  if (kind === 'INVESTOR') {
+    form.share_percentage = ''
+    form.capital_contributed = ''
+    form.is_salesperson = false
+    form.default_commission_rate = 0
+  }
+})
 
 // Sync name ↔ first_name/last_name for person types
 watch(() => form.type, (newType, oldType) => {
@@ -119,6 +131,9 @@ watch(
     } else {
       Object.assign(form, mapBusinessPartyToForm(val))
     }
+    if (props.allowedTypes?.length && !props.allowedTypes.includes(form.type)) {
+      form.type = props.allowedTypes[0]!
+    }
     // If loading a person type, split name into first/last
     if (isPerson.value && form.name && !form.first_name) {
       const parts = form.name.split(' ')
@@ -129,7 +144,9 @@ watch(
   { immediate: true }
 )
 
-const typeOptions: SelectMenuItem[] = [
+type BusinessPartyTypeOption = { label: string; value: BusinessPartyType }
+
+const typeOptions: BusinessPartyTypeOption[] = [
   { label: 'Cliente', value: 'CUSTOMER' },
   { label: 'Proveedor', value: 'SUPPLIER' },
   { label: 'Empleado', value: 'EMPLOYEE' },
@@ -139,6 +156,26 @@ const typeOptions: SelectMenuItem[] = [
   { label: 'Entidad Financiera', value: 'FINANCIAL' },
   { label: 'Proveedor de Servicios', value: 'SERVICE_PROVIDER' }
 ]
+
+const availableTypeOptions = computed(() => props.allowedTypes?.length
+  ? typeOptions.filter(option => props.allowedTypes!.includes(option.value))
+  : typeOptions)
+
+const typeLabels: Record<BusinessPartyType, string> = {
+  CUSTOMER: 'Cliente',
+  SUPPLIER: 'Proveedor',
+  EMPLOYEE: 'Empleado',
+  PARTNER: 'Socio',
+  TAX_AUTHORITY: 'Ente impositivo',
+  UTILITY: 'Servicio público',
+  FINANCIAL: 'Entidad financiera',
+  SERVICE_PROVIDER: 'Proveedor de servicios'
+}
+
+watch(availableTypeOptions, (options) => {
+  const allowed = options.map(option => option.value)
+  if (allowed.length && !allowed.includes(form.type)) form.type = allowed[0]!
+}, { immediate: true })
 
 const documentTypeOptions: SelectMenuItem[] = [
   { label: 'CUIT', value: 'CUIT' },
@@ -162,12 +199,12 @@ const documentPattern: Record<string, { regex: RegExp; length: string; placehold
 }
 
 const docPlaceholder = computed(() => {
-  const rule = documentPattern[form.document_type]
+  const rule = documentPattern[form.document_type ?? '']
   return rule?.placeholder || '20123456789'
 })
 
 const docMaxLength = computed(() => {
-  const rule = documentPattern[form.document_type]
+  const rule = documentPattern[form.document_type ?? '']
   if (!rule) return 20
   if (rule.length.includes('11')) return 11
   if (rule.length.includes('8')) return 8
@@ -356,11 +393,15 @@ const displayTitle = computed(() => {
         <div class="grid grid-cols-2 gap-4">
           <UFormField label="Tipo" name="type">
             <USelectMenu
+              v-if="availableTypeOptions.length > 1"
               v-model="form.type"
-              :items="typeOptions"
+              :items="availableTypeOptions"
               value-key="value"
               class="w-full"
             />
+            <div v-else class="flex min-h-9 items-center">
+              <UBadge color="primary" variant="subtle">{{ typeLabels[form.type] }}</UBadge>
+            </div>
           </UFormField>
 
           <!-- Person type: Nombre + Apellido -->
@@ -438,7 +479,7 @@ const displayTitle = computed(() => {
                 <UButton size="sm" icon="i-heroicons-plus" @click="addLocation">
                   Agregar
                 </UButton>
-                <UButton size="sm" icon="i-lucide-map-pin-plus" variant="outline" @click="showLocationModal = true">
+                <UButton size="sm" icon="i-lucide-map-pin-plus" variant="outline" @click="() => { showLocationModal = true }">
                   Crear nueva
                 </UButton>
               </div>
@@ -626,15 +667,58 @@ const displayTitle = computed(() => {
       <template v-if="form.type === 'PARTNER'" #partnerData>
         <UCard>
           <template #header>
-            <h3 class="font-semibold">Participación</h3>
+            <h3 class="font-semibold">Socio o inversionista</h3>
           </template>
           <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <UFormField label="% Participación" name="share_percentage">
-                <UInput v-model="form.share_percentage" placeholder="0.00" type="number" class="w-full" />
+            <UFormField label="Perfil" name="partner_kind">
+              <USelectMenu
+                v-model="form.partner_kind"
+                :items="[
+                  { label: 'Socio', value: 'PARTNER' },
+                  { label: 'Inversionista', value: 'INVESTOR' }
+                ]"
+                value-key="value"
+                class="w-full"
+              />
+            </UFormField>
+            <UAlert
+              v-if="isInvestor"
+              color="info"
+              variant="subtle"
+              icon="i-lucide-landmark"
+              title="Aporte de capital"
+              description="Los ingresos se registran como Aporte en RRHH → Vales. Podés devolverlos con retiros parciales o programar cuotas; el sistema no asigna participación en ventas ni comisiones a este perfil."
+            />
+            <div v-else class="grid grid-cols-2 gap-4">
+              <UFormField label="% Participación societaria" name="share_percentage">
+                <UInput v-model="form.share_percentage" placeholder="0.00" type="number" min="0" max="100" step="0.01" class="w-full" />
               </UFormField>
               <UFormField label="Capital Aportado" name="capital_contributed">
                 <UInput v-model="form.capital_contributed" placeholder="0.00" type="number" class="w-full" />
+              </UFormField>
+            </div>
+            <USeparator />
+            <div v-if="!isInvestor" class="flex items-start justify-between gap-4">
+              <div>
+                <p class="font-medium">Habilitar como vendedor</p>
+                <p class="mt-1 text-sm text-muted">Permite asignar al socio a órdenes de venta y definir una comisión independiente de su participación societaria.</p>
+              </div>
+              <USwitch v-model="form.is_salesperson" aria-label="Habilitar socio como vendedor" />
+            </div>
+            <div v-if="!isInvestor && form.is_salesperson" class="grid gap-4 sm:grid-cols-2">
+              <UFormField label="Comisión por defecto (%)" name="default_commission_rate">
+                <UInput v-model.number="form.default_commission_rate" type="number" min="0" max="100" step="0.01" class="w-full" />
+              </UFormField>
+              <UFormField label="Calcular comisión sobre" name="commission_base">
+                <USelectMenu
+                  v-model="form.commission_base"
+                  :items="[
+                    { label: 'Facturar', value: 'INVOICED' },
+                    { label: 'Cobrar', value: 'PAID' }
+                  ]"
+                  value-key="value"
+                  class="w-full"
+                />
               </UFormField>
             </div>
           </div>

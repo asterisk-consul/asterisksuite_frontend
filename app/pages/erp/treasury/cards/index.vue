@@ -255,7 +255,9 @@ onMounted(() => {
   <UPage class="space-y-5">
     <AppPageHeader title="Tarjetas" description="Consultá resúmenes corporativos, administrá tarjetas y configurá canales de cobro.">
       <template #links>
-        <UButton v-if="tab !== 'SUMMARIES' && canManageCards" label="Nueva configuración" icon="i-lucide-plus" :disabled="savingCard" @click="openCreate" />
+        <UButton v-if="tab !== 'SUMMARIES' && canManageCards" data-global-create-shortcut class="group/create" label="Nueva configuración" icon="i-lucide-plus" aria-keyshortcuts="Alt+N" :disabled="savingCard" @click="openCreate">
+          <template #trailing><KeyboardShortcutHint :keys="['Alt', 'N']" size="2xs" reveal-on-hover /></template>
+        </UButton>
         <UButton v-else-if="tab === 'SUMMARIES' && canPaySummary" label="Generar resúmenes pendientes" icon="i-lucide-refresh-cw" variant="soft" :loading="generating" :disabled="generating || payingSummary" @click="generateSummaries" />
       </template>
     </AppPageHeader>

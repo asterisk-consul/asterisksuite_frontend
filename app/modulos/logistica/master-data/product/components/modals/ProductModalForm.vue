@@ -35,7 +35,7 @@ const openCreate = () => {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Nuevo Producto" :ui="{ width: 'max-w-lg' }">
+  <UModal v-model:open="open" title="Nuevo Producto" :ui="{ content: 'max-w-lg' }">
     <template #body>
       <div class="space-y-3">
         <UFormField label="Nombre" required>

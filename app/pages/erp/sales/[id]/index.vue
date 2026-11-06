@@ -17,6 +17,8 @@ import OrdenVentaView from '~/modulos/erp/documents/orden-venta/OrdenVentaView.v
 import OrderStockAvailability from '~/modulos/erp/documents/orden-venta/OrderStockAvailability.vue'
 import RemitoView from '~/modulos/erp/documents/remito/RemitoView.vue'
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
+import { useSalesFlowService } from '~/modulos/erp/sales/services/sales-flow.service'
+import { useUsersService } from '~/modulos/access-control/services/users.service'
 import DocumentHelpPopover from '~/components/shared/DocumentHelpPopover.vue'
 import { getOrderFlowPresentation } from '~/modulos/erp/documents/orden-venta/order-flow-status'
 
@@ -26,6 +28,8 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const { printElement } = usePrint()
+const salesFlowService = useSalesFlowService()
+const usersService = useUsersService()
 
 const loading = ref(true)
 const creatingDispatch = ref(false)
@@ -35,13 +39,17 @@ const stockAvailability = ref<any>(null)
 const stockWarningShown = ref(false)
 const NO_ASSIGNEE = '__NO_ASSIGNEE__'
 const assignmentContextLoading = ref(false)
-const confirmationAssigneeId = ref<string | null>(null)
+const confirmationAssigneeId = ref<string | undefined>(undefined)
 const assignmentSettings = ref({
   prompt_order_assignee_on_confirmation: true,
   require_order_assignee_on_confirmation: false,
-  default_order_assignee_id: null as string | null
+  default_order_assignee_id: null as string | null,
+  require_order_delivery_address: false,
+  warn_when_order_delivery_data_empty: true,
 })
 const companyUsers = ref<Array<{ id: string, name: string, email: string }>>([])
+const emptyDeliveryConfirmOpen = ref(false)
+const deliveryWarningAcknowledged = ref(false)
 const assigneeOptions = computed(() => [
   ...(assignmentSettings.value.require_order_assignee_on_confirmation || orderHasAssignee.value
     ? []
@@ -54,7 +62,7 @@ const assigneeOptions = computed(() => [
 ])
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
-const category = computed(() => doc.value?.document_types?.category)
+const category = computed(() => doc.value?.document_types?.category ?? undefined)
 const isSalesOrder = computed(() => category.value === 'ORDER' || doc.value?.document_types?.code === 'OV')
 const orderHasAssignee = computed(() => !!doc.value?.assigned_to)
 const showAssigneePrompt = computed(() => isSalesOrder.value
@@ -64,6 +72,20 @@ const showAssigneePrompt = computed(() => isSalesOrder.value
 const effectiveConfirmationAssigneeId = computed(() => confirmationAssigneeId.value === NO_ASSIGNEE
   ? null
   : confirmationAssigneeId.value)
+const orderDeliveryDataIsEmpty = computed(() => {
+  const delivery = doc.value?.orden_venta_doc
+  return ![
+    delivery?.delivery_address,
+    delivery?.delivery_contact,
+    delivery?.delivery_phone,
+    delivery?.delivery_time,
+    delivery?.delivery_instructions,
+    delivery?.transport_provider,
+    delivery?.confirmed_delivery_date,
+  ].some(value => String(value ?? '').trim() !== '')
+})
+const requiredOrderDeliveryAddressMissing = computed(() => assignmentSettings.value.require_order_delivery_address
+  && !String(doc.value?.orden_venta_doc?.delivery_address ?? '').trim())
 const amountsVisible = computed(() => doc.value?.amounts_visible !== false)
 const orderFlowStatus = computed(() => getOrderFlowPresentation(doc.value))
 const canCreateDispatchOrder = computed(() => {
@@ -138,6 +160,15 @@ async function openStockAvailability() {
 }
 
 async function confirmWithAvailability() {
+  if (isSalesOrder.value && requiredOrderDeliveryAddressMissing.value) {
+    useToast().add({
+      title: 'Falta la dirección de entrega',
+      description: 'La configuración exige una dirección para confirmar esta OV. Completala desde Editar.',
+      color: 'warning',
+    })
+    return
+  }
+
   if (isSalesOrder.value) {
     const loaded = await loadStockAvailability()
     if (!loaded) return
@@ -150,6 +181,15 @@ async function confirmWithAvailability() {
     useToast().add({ title: 'Falta asignar un responsable', description: 'Seleccioná quién continuará esta Orden de Venta.', color: 'warning' })
     return
   }
+  if (isSalesOrder.value
+    && !assignmentSettings.value.require_order_delivery_address
+    && assignmentSettings.value.warn_when_order_delivery_data_empty
+    && orderDeliveryDataIsEmpty.value
+    && !deliveryWarningAcknowledged.value) {
+    confirmModalOpen.value = false
+    emptyDeliveryConfirmOpen.value = true
+    return
+  }
   await handleConfirm()
 }
 
@@ -157,18 +197,18 @@ async function loadAssignmentContext() {
   if (!isSalesOrder.value) return
   assignmentContextLoading.value = true
   try {
-    const [settings, users] = await Promise.all([
-      $fetch<typeof assignmentSettings.value>('/api/backend/sales-flow/settings'),
-      $fetch<Array<{ id: string, name: string, email: string }>>('/api/access-control/users/all')
-    ])
+    const settings = await salesFlowService.getSettings()
     assignmentSettings.value = {
       prompt_order_assignee_on_confirmation: settings.prompt_order_assignee_on_confirmation ?? true,
       require_order_assignee_on_confirmation: settings.require_order_assignee_on_confirmation ?? false,
-      default_order_assignee_id: settings.default_order_assignee_id ?? null
+      default_order_assignee_id: settings.default_order_assignee_id ?? null,
+      require_order_delivery_address: settings.require_order_delivery_address ?? false,
+      warn_when_order_delivery_data_empty: settings.warn_when_order_delivery_data_empty ?? true,
     }
+    const users = await usersService.findAll()
     companyUsers.value = users
     confirmationAssigneeId.value = doc.value?.assigned_to
-      || (users.some(user => user.id === settings.default_order_assignee_id) ? settings.default_order_assignee_id : NO_ASSIGNEE)
+      || (users.some(user => user.id === settings.default_order_assignee_id) ? settings.default_order_assignee_id ?? NO_ASSIGNEE : NO_ASSIGNEE)
   } catch (error: any) {
     useToast().add({ title: 'No se pudo cargar la asignación sugerida', description: error?.data?.message, color: 'warning' })
   } finally {
@@ -180,7 +220,7 @@ async function createDispatchOrder() {
   if (creatingDispatch.value || !doc.value) return
   creatingDispatch.value = true
   try {
-    const dispatch = await $fetch<any>(`/api/backend/documents/sales/${doc.value.id}/create-dispatch`, { method: 'POST' })
+    const dispatch = await DocumentsSalesService.createDispatch(doc.value.id)
     useToast().add({ title: 'Orden de Despacho creada', description: 'Ya puede planificarse en un viaje y generar su remito.', color: 'success' })
     await router.push(`/logistica/viajes/dispatch-orders/${dispatch.id}/edit`)
   } catch (error: any) {
@@ -203,6 +243,7 @@ const {
   processing,
   validTransitions,
   invoiceState,
+  canTrashOrphanNote,
   handleConfirm,
   handleCancel,
   handleRemove,
@@ -217,9 +258,14 @@ const {
   module: 'sales',
   printElement,
   store: {
-    confirm: (id) => store.confirm(id, isSalesOrder.value && (showAssigneePrompt.value || orderHasAssignee.value)
-      ? { assigned_to: effectiveConfirmationAssigneeId.value }
-      : undefined),
+    confirm: (id) => {
+      const options: { assigned_to?: string | null; confirm_empty_delivery_data?: boolean } = {}
+      if (isSalesOrder.value && (showAssigneePrompt.value || orderHasAssignee.value)) {
+        options.assigned_to = effectiveConfirmationAssigneeId.value
+      }
+      if (deliveryWarningAcknowledged.value) options.confirm_empty_delivery_data = true
+      return store.confirm(id, Object.keys(options).length ? options : undefined)
+    },
     cancel: (id) => store.cancel(id),
     changeStatus: (id, status) => store.changeStatus(id, status),
     fetchOne: (id) => store.fetchOne(id),
@@ -231,8 +277,25 @@ const {
 
 const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
   confirmModalOpen, cancelModalOpen, deleteModalOpen, statusModalOpen,
-  acceptModalOpen, deliverModalOpen, stockAvailabilityOpen,
+  acceptModalOpen, deliverModalOpen, stockAvailabilityOpen, emptyDeliveryConfirmOpen,
 ])
+
+async function editOrderDelivery() {
+  emptyDeliveryConfirmOpen.value = false
+  confirmModalOpen.value = false
+  if (doc.value) await router.push(`/erp/sales/${doc.value.id}/edit`)
+}
+
+async function confirmWithoutDeliveryData() {
+  if (processing.value) return
+  deliveryWarningAcknowledged.value = true
+  emptyDeliveryConfirmOpen.value = false
+  try {
+    await confirmWithAvailability()
+  } finally {
+    deliveryWarningAcknowledged.value = false
+  }
+}
 
 watch(confirmModalOpen, async (open) => {
   if (open && isSalesOrder.value && doc.value) {
@@ -276,9 +339,7 @@ watch(confirmModalOpen, async (open) => {
               :action="action"
               :shortcut-keys="shortcutKeys(action.label)"
             />
-            <UDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions">
-              <UButton label="Más" icon="i-lucide-ellipsis" variant="ghost" size="sm" trailingIcon="i-lucide-chevron-down" />
-            </UDropdownMenu>
+            <ShortcutDropdownMenu v-if="secondaryActions.length > 0" :items="secondaryActions" />
             <DocumentHelpPopover :category="category || 'INVOICE'" :actions="[...primaryActions, ...secondaryActions.flat()]" />
           </div>
         </div>
@@ -309,7 +370,7 @@ watch(confirmModalOpen, async (open) => {
         <DocumentItemsTable
           v-if="doc"
           :items="doc.document_items ?? []"
-          :currency="doc.currency_code"
+          :currency="doc.currency_code ?? undefined"
           :document-subtotal="doc.subtotal"
           :show-tracking="category === 'ORDER'"
           :show-amounts="category !== 'REMITO' && amountsVisible"
@@ -373,16 +434,54 @@ watch(confirmModalOpen, async (open) => {
           title="La configuración actual no permite confirmar esta OV"
           description="Falta stock reservable y no están permitidas las reservas parciales ni la venta sin stock."
         />
+        <UAlert
+          v-if="isSalesOrder && requiredOrderDeliveryAddressMissing"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-map-pin"
+          title="Falta la dirección obligatoria"
+          description="Completá la dirección de entrega antes de confirmar esta OV."
+        />
       </div>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="confirmModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />
+        <UButton
+          v-if="isSalesOrder && requiredOrderDeliveryAddressMissing"
+          label="Editar OV"
+          icon="i-lucide-pencil"
+          variant="outline"
+          @click="router.push(`/erp/sales/${doc?.id}/edit`)"
+        />
         <UButton
           :label="isSalesOrder && (showAssigneePrompt || orderHasAssignee) && effectiveConfirmationAssigneeId && effectiveConfirmationAssigneeId !== doc?.assigned_to ? 'Asignar y confirmar' : (isSalesOrder && stockAvailability?.summary?.with_shortage ? 'Confirmar OV con faltante' : (isSalesOrder && !orderHasAssignee ? 'Confirmar sin asignar' : 'Confirmar'))"
           color="success"
           :loading="processing || stockAvailabilityLoading"
-          :disabled="stockAvailabilityLoading || assignmentContextLoading || stockAvailability?.policy?.blocks_confirmation || (isSalesOrder && assignmentSettings.require_order_assignee_on_confirmation && !orderHasAssignee && !effectiveConfirmationAssigneeId)"
+          :disabled="stockAvailabilityLoading || assignmentContextLoading || stockAvailability?.policy?.blocks_confirmation || (isSalesOrder && requiredOrderDeliveryAddressMissing) || (isSalesOrder && assignmentSettings.require_order_assignee_on_confirmation && !orderHasAssignee && !effectiveConfirmationAssigneeId)"
           @click="confirmWithAvailability"
         />
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="emptyDeliveryConfirmOpen"
+    title="¿Confirmar la OV sin datos de entrega?"
+    description="La sección de entrega está vacía. Confirmá si querés continuar."
+    :ui="{ content: 'sm:max-w-lg' }"
+  >
+    <template #body>
+      <div class="flex flex-col gap-4">
+        <UAlert
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          title="No se cargó información de entrega"
+          description="Podés volver a la OV para completar dirección, contacto, teléfono, fecha, horario, transporte e instrucciones, o confirmar igualmente."
+        />
+        <div class="flex justify-end gap-2">
+          <UButton label="Completar datos" variant="ghost" @click="editOrderDelivery" />
+          <UButton label="Confirmar igualmente" icon="i-lucide-check" @click="confirmWithoutDeliveryData" />
+        </div>
       </div>
     </template>
   </UModal>
@@ -393,7 +492,7 @@ watch(confirmModalOpen, async (open) => {
     </template>
     <template #footer>
       <div class="flex w-full justify-end">
-        <UButton label="Cerrar" variant="outline" @click="stockAvailabilityOpen = false" />
+        <UButton label="Cerrar" variant="outline" @click="() => { stockAvailabilityOpen = false }" />
       </div>
     </template>
   </UModal>
@@ -402,19 +501,25 @@ watch(confirmModalOpen, async (open) => {
     <template #body>
       <p>¿Anular el documento <strong>#{{ doc?.number }}</strong>?</p>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="cancelModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { cancelModalOpen = false }" />
         <UButton label="Anular" color="error" :loading="processing" @click="handleCancel" />
       </div>
     </template>
   </UModal>
 
-  <UModal v-model:open="deleteModalOpen" title="Enviar factura a la papelera">
+  <UModal v-model:open="deleteModalOpen" :title="canTrashOrphanNote ? 'Anular y enviar nota a la papelera' : 'Enviar factura a la papelera'">
     <template #body>
-      <p>La factura anulada <strong>#{{ doc?.number }}</strong> dejará de aparecer en el circuito habitual.</p>
-      <p class="text-sm text-muted mt-2">Se conserva su historial y podrá restaurarse desde la papelera.</p>
+      <template v-if="canTrashOrphanNote">
+        <p>La nota <strong>#{{ doc?.number }}</strong> se anulará y dejará de aparecer en el circuito habitual.</p>
+        <p class="text-sm text-muted mt-2">Su movimiento activo se quitará de la cuenta corriente. El comprobante y su historial quedarán conservados en la papelera y podrán restaurarse.</p>
+      </template>
+      <template v-else>
+        <p>La factura anulada <strong>#{{ doc?.number }}</strong> dejará de aparecer en el circuito habitual.</p>
+        <p class="text-sm text-muted mt-2">Se conserva su historial y podrá restaurarse desde la papelera.</p>
+      </template>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="deleteModalOpen = false" />
-        <UButton label="Enviar a papelera" color="error" :loading="processing" @click="handleRemove" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
+        <UButton :label="canTrashOrphanNote ? 'Anular y enviar a papelera' : 'Enviar a papelera'" color="error" :loading="processing" @click="handleRemove" />
       </div>
     </template>
   </UModal>
@@ -425,7 +530,7 @@ watch(confirmModalOpen, async (open) => {
         <UButton v-for="t in validTransitions" :key="t.status" :label="t.label" :color="t.color" variant="outline" class="w-full justify-start" :loading="processing" @click="handleStatus(t.status)" />
       </div>
       <div class="flex justify-end pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="statusModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { statusModalOpen = false }" />
       </div>
     </template>
   </UModal>
@@ -434,7 +539,7 @@ watch(confirmModalOpen, async (open) => {
     <template #body>
       <p>¿Aceptar y crear Orden de Venta?</p>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="acceptModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { acceptModalOpen = false }" />
         <UButton label="Aceptar y crear OV" color="success" :loading="processing" @click="handleAccept" />
       </div>
     </template>
@@ -445,7 +550,7 @@ watch(confirmModalOpen, async (open) => {
       <p>Se copiarán el cliente y todos los productos pendientes de esta Orden de Venta.</p>
       <p class="text-sm text-muted mt-2">El remito se creará en borrador para que puedas revisarlo antes de confirmarlo.</p>
       <div class="flex justify-end gap-2 pt-4">
-        <UButton label="Cancelar" variant="ghost" @click="deliverModalOpen = false" />
+        <UButton label="Cancelar" variant="ghost" @click="() => { deliverModalOpen = false }" />
         <UButton label="Crear Remito" color="success" :loading="processing" @click="handleDeliver" />
       </div>
     </template>

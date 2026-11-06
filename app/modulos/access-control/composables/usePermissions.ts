@@ -145,7 +145,7 @@ const MODULE_META: Record<string, { label: string; icon: string; order: number; 
 }
 
 function extractModule(code: string): string {
-  const prefix = code.split('.')[0]
+  const prefix = code.split('.')[0] ?? ''
   for (const [groupKey, meta] of Object.entries(MODULE_META)) {
     if (meta.modules.includes(prefix)) return groupKey
   }
@@ -212,8 +212,8 @@ export function usePermissions() {
     }
 
     groups.sort((a, b) => {
-      const aOrder = getModuleMeta(extractModule(a.permissions[0]?.code)).order
-      const bOrder = getModuleMeta(extractModule(b.permissions[0]?.code)).order
+      const aOrder = getModuleMeta(extractModule(a.permissions[0]?.code ?? '')).order
+      const bOrder = getModuleMeta(extractModule(b.permissions[0]?.code ?? '')).order
       return aOrder - bOrder
     })
 

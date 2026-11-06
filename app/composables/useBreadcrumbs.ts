@@ -1,4 +1,5 @@
-import { useRoute } from 'vue-router'
+import { useRoute, type RouteLocationRaw } from 'vue-router'
+import type { BreadcrumbItem } from '@nuxt/ui'
 
 const NON_CLICKABLE_GROUP_PATHS = new Set([
   '/logistica/configuraciones',
@@ -9,18 +10,20 @@ export const useBreadcrumbs = () => {
   const route = useRoute()
   const router = useRouter()
   const entityLabels = useBreadcrumbEntityLabels()
-  const isNavigable = (to: string) =>
-    !NON_CLICKABLE_GROUP_PATHS.has(to.replace(/\/$/, ''))
-    && router.resolve(to).matched.length > 0
+  const isNavigable = (to: RouteLocationRaw) => {
+    const resolved = router.resolve(to)
+    return !NON_CLICKABLE_GROUP_PATHS.has(resolved.path.replace(/\/$/, ''))
+      && resolved.matched.length > 0
+  }
 
-  const homeItem = { icon: 'i-lucide-house', to: '/' }
+  const homeItem: BreadcrumbItem = { icon: 'i-lucide-house', to: '/' }
 
-  const items = computed(() => {
+  const items = computed<BreadcrumbItem[]>(() => {
     const base = [homeItem]
 
     // 👉 override manual desde páginas (edit, create, etc.)
     if (route.meta.breadcrumb) {
-      const manualItems = route.meta.breadcrumb as Array<Record<string, any>>
+      const manualItems = route.meta.breadcrumb as BreadcrumbItem[]
       const safeItems = manualItems.map((item, index) => {
         if (!item.to || index === manualItems.length - 1) {
           const labelOnly = { ...item }
@@ -35,7 +38,7 @@ export const useBreadcrumbs = () => {
     const segments = route.path.split('/').filter(Boolean)
 
     const dynamic = segments
-      .map((segment, index) => {
+      .map((segment, index): BreadcrumbItem | null => {
         const config = breadcrumbMap[segment]
 
         // 👉 label base
@@ -52,7 +55,7 @@ export const useBreadcrumbs = () => {
 
         return isClickable ? { label, to: candidate } : { label }
       })
-      .filter(Boolean)
+      .filter((item): item is BreadcrumbItem => item !== null)
 
     return [...base, ...dynamic]
   })

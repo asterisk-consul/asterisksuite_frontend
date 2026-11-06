@@ -160,9 +160,10 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
     currentSession.value = session
 
     const index = items.value.findIndex((i) => i.id === id)
-    if (index !== -1) {
-      items.value[index].current_session_id = session.id
-      items.value[index].status = 'OPEN'
+    const cashBox = items.value[index]
+    if (cashBox) {
+      cashBox.current_session_id = session.id
+      cashBox.status = 'OPEN'
     }
 
     return session
@@ -173,9 +174,10 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
     currentSession.value = null
 
     const index = items.value.findIndex((i) => i.id === id)
-    if (index !== -1) {
-      items.value[index].current_session_id = null
-      items.value[index].status = 'CLOSED'
+    const cashBox = items.value[index]
+    if (cashBox) {
+      cashBox.current_session_id = null
+      cashBox.status = 'CLOSED'
     }
 
     return session
@@ -186,9 +188,10 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
     currentSession.value = null
 
     const index = items.value.findIndex((i) => i.id === id)
-    if (index !== -1) {
-      items.value[index].current_session_id = null
-      items.value[index].status = 'CLOSED'
+    const cashBox = items.value[index]
+    if (cashBox) {
+      cashBox.current_session_id = null
+      cashBox.status = 'CLOSED'
     }
 
     return session
@@ -225,7 +228,8 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
     }
 
     const index = items.value.findIndex((i) => i.id === id)
-    if (index !== -1) {
+    const existingCashBox = items.value[index]
+    if (existingCashBox) {
       items.value[index] = updated
     }
 
@@ -257,13 +261,14 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
     const userRole = await service.addUserRole(cashBoxId, userId, role)
 
     const index = items.value.findIndex((i) => i.id === cashBoxId)
-    if (index !== -1) {
-      const existing = items.value[index].user_roles?.find(r => r.user_id === userId)
+    const cashBox = items.value[index]
+    if (cashBox) {
+      const existing = cashBox.user_roles?.find(r => r.user_id === userId)
       if (existing) {
         existing.role = userRole.role as any
       } else {
-        if (!items.value[index].user_roles) items.value[index].user_roles = []
-        items.value[index].user_roles.push(userRole)
+        if (!cashBox.user_roles) cashBox.user_roles = []
+        cashBox.user_roles.push(userRole)
       }
     }
 
@@ -284,8 +289,9 @@ export const useCashBoxesStore = defineStore('cash-boxes', () => {
     await service.removeUserRole(cashBoxId, userId)
 
     const index = items.value.findIndex((i) => i.id === cashBoxId)
-    if (index !== -1 && items.value[index].user_roles) {
-      items.value[index].user_roles = items.value[index].user_roles!.filter(r => r.user_id !== userId)
+    const cashBox = items.value[index]
+    if (cashBox?.user_roles) {
+      cashBox.user_roles = cashBox.user_roles.filter(r => r.user_id !== userId)
     }
 
     if (current.value?.id === cashBoxId && current.value.user_roles) {

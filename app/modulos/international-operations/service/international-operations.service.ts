@@ -79,10 +79,10 @@ export const useInternationalOperationsService = () => {
       method: 'DELETE'
     })
 
-  const associatePayment = (operationId: string, paymentId: string) =>
+  const associatePayment = (operationId: string, paymentId: string, containerId?: string) =>
     $fetch<void>(`${baseUrl}/${operationId}/payments`, {
       method: 'POST',
-      body: { payment_id: paymentId }
+      body: { payment_id: paymentId, container_id: containerId || undefined }
     })
 
   const disassociatePayment = (operationId: string, paymentId: string) =>

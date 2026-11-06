@@ -36,7 +36,7 @@ export function usePayments() {
 
   const update = async (id: string, payload: UpdatePaymentInput) => store.update(id, payload)
 
-  const updateFinalizedFinancialDetails = (id: string, payload: { account_id: string | null; party_id?: string | null; withholdings: NonNullable<UpdatePaymentInput['withholdings']> }) => store.updateFinalizedFinancialDetails(id, payload)
+  const updateFinalizedFinancialDetails = (id: string, payload: { rate_only?: boolean; account_id?: string | null; party_id?: string | null; withholdings?: NonNullable<UpdatePaymentInput['withholdings']>; exchange_rate?: number | null; rate_type?: string | null }) => store.updateFinalizedFinancialDetails(id, payload)
 
   const remove = async (id: string) => store.remove(id)
 

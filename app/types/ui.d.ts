@@ -3,7 +3,6 @@ import type { AvatarProps } from '@nuxt/ui'
 
 declare global {
   type UserStatus = 'subscribed' | 'unsubscribed' | 'bounced'
-  type SaleStatus = 'paid' | 'failed' | 'refunded'
 
   interface User {
     id: number
@@ -21,29 +20,6 @@ declare global {
     subject: string
     body: string
     date: string
-  }
-
-  interface Member {
-    name: string
-    username: string
-    role: 'member' | 'owner'
-    avatar: AvatarProps
-  }
-
-  interface Stat {
-    title: string
-    icon: string
-    value: number | string
-    variation: number
-    formatter?: (value: number) => string
-  }
-
-  interface Sale {
-    id: string
-    date: string
-    status: SaleStatus
-    email: string
-    amount: number
   }
 
   interface UserNotification {
@@ -65,12 +41,6 @@ declare global {
     total_count: number
   }
 
-  type Period = 'daily' | 'weekly' | 'monthly'
-
-  interface DateRange {
-    start: Date
-    end: Date
-  }
 }
 
 export {}

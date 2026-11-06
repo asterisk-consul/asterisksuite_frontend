@@ -41,11 +41,18 @@ export const useCurrencyRatesService = () => {
     })
   }
 
+  const convert = (from: string, to: string, amount = 1, rateType = 'OFFICIAL') =>
+    $fetch<{ amount?: number; rate: number; convertedAmount?: number; converted_amount?: number }>(
+      '/api/backend/pricing/exchange/convert',
+      { query: { from, to, amount, rateType } }
+    )
+
   return {
     findAll,
     findOne,
     create,
     update,
-    remove
+    remove,
+    convert
   }
 }

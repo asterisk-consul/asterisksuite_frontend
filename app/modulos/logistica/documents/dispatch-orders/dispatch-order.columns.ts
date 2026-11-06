@@ -3,6 +3,7 @@ import type {
   DispatchOrder,
   DispatchStatus
 } from '~/modulos/logistica/documents/dispatch-orders/types/dispatch-orders.types'
+import type { BadgeColor } from '~/types/colors.types'
 
 import StatusToggle from '@/components/ui/PopoverTableActive.vue'
 
@@ -11,8 +12,6 @@ import { useSelectColumn } from '@/composables/table/useSelectColumn'
 import { useIdColumn } from '@/composables/table/useIdColumn'
 type Row = DispatchOrder
 import type { EditableValue } from '~/composables/table/useInlineEdit'
-
-type BadgeColor = 'error' | 'primary' | 'warning' | 'secondary' | 'success' | 'info' | 'neutral'
 
 export type EditableField = 'order_number'
 

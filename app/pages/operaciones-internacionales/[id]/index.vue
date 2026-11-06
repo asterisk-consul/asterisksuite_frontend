@@ -180,7 +180,7 @@ const canContinueInvoiceCreation = computed(() => {
 
 function openCreateInvoiceModal() {
   const containers = operation.value?.containers ?? []
-  invoiceContainerId.value = containers.length === 1 ? containers[0].id : ''
+  invoiceContainerId.value = containers.length === 1 ? containers[0]?.id ?? '' : ''
   invoiceExpenseType.value = 'MERCHANDISE'
   invoiceCustomExpenseDescription.value = ''
   showCreateInvoiceModal.value = true
@@ -525,16 +525,37 @@ const dualCurrencyMissingCount = (kind: 'total' | 'paid', currency: 'USD' | 'ARS
 }
 
 const dualCurrencyLabel = (kind: 'total' | 'paid' | 'pending', currency: 'USD' | 'ARS') => {
+  const values = summary.value?.financialDualCurrency?.[currency]
   const amount = dualCurrencyAmount(kind, currency)
-  if (amount == null) return 'Sin cotización'
+  if (amount == null) {
+    if (kind === 'pending' && (values?.totalMissing || values?.paidMissing)) return 'Saldo incompleto'
+    return 'Sin cotización'
+  }
   const missingCount = kind === 'pending' ? 0 : dualCurrencyMissingCount(kind, currency)
   const formatted = formatCurrency(amount, currency)
-  return missingCount > 0 ? `Parcial · ${formatted}` : formatted
+  if (!missingCount) return formatted
+  return amount > 0 ? `Parcial · ${formatted}` : `Sin conversión a ${currency}`
 }
 
-const operationFinancialLabel = (amount: number) => {
+const operationFinancialLabel = (kind: 'total' | 'paid' | 'pending', amount: number) => {
+  const currency = String(summary.value?.financial.currency ?? operation.value?.currency_code ?? 'USD').toUpperCase()
+  const currencyTotals = ['USD', 'ARS'].includes(currency)
+    ? summary.value?.financialDualCurrency?.[currency as 'USD' | 'ARS']
+    : undefined
+  const totalMissing = Number(currencyTotals?.totalMissing ?? 0)
+  const paidMissing = Number(currencyTotals?.paidMissing ?? 0)
   const formatted = fmtMoney(amount, summary.value?.financial.currency ?? operation.value?.currency_code)
-  return (summary.value?.financial.unconverted?.count ?? 0) > 0 ? `Parcial · ${formatted}` : formatted
+
+  if (kind === 'total' && totalMissing > 0) {
+    return amount > 0 ? `Parcial · ${formatted}` : `Sin conversión a ${currency}`
+  }
+  if (kind === 'paid' && paidMissing > 0) {
+    return amount > 0 ? `Parcial · ${formatted}` : `Sin conversión a ${currency}`
+  }
+  if (kind === 'pending' && (totalMissing > 0 || paidMissing > 0)) {
+    return `Saldo incompleto en ${currency}`
+  }
+  return formatted
 }
 
 const operationBaseCurrency = computed(() =>
@@ -705,6 +726,8 @@ type PaymentCurrencyBreakdown = {
   ars: number
   usdMissing: number
   arsMissing: number
+  usdMissingOriginal: number
+  arsMissingOriginal: number
 }
 
 const operationPaymentCurrencyBreakdown = computed<PaymentCurrencyBreakdown[]>(() => {
@@ -742,16 +765,24 @@ const operationPaymentCurrencyBreakdown = computed<PaymentCurrencyBreakdown[]>((
       usd: 0,
       ars: 0,
       usdMissing: 0,
-      arsMissing: 0
+      arsMissing: 0,
+      usdMissingOriginal: 0,
+      arsMissingOriginal: 0
     }
     row.original += amount
 
     const allocation = { amount_applied: amount, payment }
     const usd = paymentAppliedInCurrency(allocation, 'USD')
     const ars = paymentAppliedInCurrency(allocation, 'ARS')
-    if (usd == null) row.usdMissing += 1
+    if (usd == null) {
+      row.usdMissing += 1
+      row.usdMissingOriginal += amount
+    }
     else row.usd += usd
-    if (ars == null) row.arsMissing += 1
+    if (ars == null) {
+      row.arsMissing += 1
+      row.arsMissingOriginal += amount
+    }
     else row.ars += ars
     grouped.set(currency, row)
   }
@@ -759,10 +790,48 @@ const operationPaymentCurrencyBreakdown = computed<PaymentCurrencyBreakdown[]>((
   return [...grouped.values()].sort((a, b) => a.currency.localeCompare(b.currency))
 })
 
+const financialConversionNotice = computed(() => {
+  const financial = summary.value?.financial
+  const targetCurrency = operationBaseCurrency.value
+  const currencyTotals = summary.value?.financialDualCurrency?.[targetCurrency as 'USD' | 'ARS']
+  const totalMissing = Number(currencyTotals?.totalMissing ?? 0)
+  const paidMissing = Number(currencyTotals?.paidMissing ?? 0)
+  if (!financial?.unconverted?.count) return null
+
+  if (paidMissing > 0 && totalMissing === 0) {
+    const missingPayments = operationPaymentCurrencyBreakdown.value
+      .filter((row) => targetCurrency === 'USD' ? row.usdMissing > 0 : row.arsMissing > 0)
+      .map((row) => {
+        const count = targetCurrency === 'USD' ? row.usdMissing : row.arsMissing
+        const amount = targetCurrency === 'USD' ? row.usdMissingOriginal : row.arsMissingOriginal
+        return `${count} ${count === 1 ? 'pago' : 'pagos'} en ${row.currency}: ${formatCurrency(amount, row.currency)}`
+      })
+    const detail = missingPayments.length
+      ? missingPayments.join('; ')
+      : `${paidMissing} ${paidMissing === 1 ? 'pago' : 'pagos'}`
+    return {
+      title: 'Falta la cotización propia del pago',
+      description: `Falta una cotización propia para ${detail}. El importe sigue registrado en su moneda original, pero no se puede calcular su equivalente ni el saldo completo en ${targetCurrency}. Aunque la factura tenga un TC de compra guardado, no se reutiliza para el pago porque sus cotizaciones pueden ser distintas.`
+    }
+  }
+
+  if (totalMissing > 0 && paidMissing === 0) {
+    return {
+      title: 'Falta la cotización de un comprobante',
+      description: `Hay ${totalMissing} comprobante(s) sin cotización compatible para convertirlos a ${targetCurrency}. Los pagos no son el origen de esta diferencia; revisá la cotización guardada al asociar cada comprobante.`
+    }
+  }
+
+  return {
+    title: `${financial.unconverted.count} comprobante(s) o pago(s) sin conversión disponible`,
+    description: `${fmtMoney(financial.unconverted.amount, '—')} no se incluyen en el equivalente consolidado. Revisá por separado la cotización guardada en cada comprobante y en cada pago.`
+  }
+})
+
 const paymentCurrencyEquivalentLabel = (row: PaymentCurrencyBreakdown, currency: 'USD' | 'ARS') => {
   const amount = currency === 'USD' ? row.usd : row.ars
   const missing = currency === 'USD' ? row.usdMissing : row.arsMissing
-  if (missing > 0) return amount > 0 ? `Parcial · ${formatCurrency(amount, currency)}` : 'Sin cotización'
+  if (missing > 0) return amount > 0 ? `Parcial · ${formatCurrency(amount, currency)}` : `Sin conversión a ${currency}`
   return formatCurrency(amount, currency)
 }
 
@@ -1109,7 +1178,7 @@ const scrollTo = (sectionId: string) => {
                     Total operación
                   </p>
                   <p class="text-xl font-bold sm:text-2xl">
-                    {{ operationFinancialLabel(summary.financial.total.amount) }}
+                    {{ operationFinancialLabel('total', summary.financial.total.amount) }}
                   </p>
                   <div class="mt-2 grid gap-2 border-t border-primary/15 pt-1.5 text-xs" :class="operationBaseCurrency === 'USD' || operationBaseCurrency === 'ARS' ? 'grid-cols-1' : 'grid-cols-2'">
                     <span v-if="operationBaseCurrency !== 'USD'"><span class="text-muted">Equiv. USD</span> · {{ dualCurrencyLabel('total', 'USD') }}</span>
@@ -1119,7 +1188,7 @@ const scrollTo = (sectionId: string) => {
                 <div class="rounded-xl border border-success/30 bg-success/5 p-4 sm:p-5">
                   <p class="text-[10px] text-muted font-medium uppercase tracking-wide">Pagado</p>
                   <p class="text-xl font-bold text-success-500 sm:text-2xl">
-                    {{ operationFinancialLabel(summary.financial.paid.amount) }}
+                    {{ operationFinancialLabel('paid', summary.financial.paid.amount) }}
                   </p>
                   <div class="mt-2 grid gap-2 border-t border-success/15 pt-1.5 text-xs" :class="operationBaseCurrency === 'USD' || operationBaseCurrency === 'ARS' ? 'grid-cols-1' : 'grid-cols-2'">
                     <span v-if="operationBaseCurrency !== 'USD'"><span class="text-muted">Equiv. USD</span> · {{ dualCurrencyLabel('paid', 'USD') }}</span>
@@ -1129,7 +1198,7 @@ const scrollTo = (sectionId: string) => {
                 <div class="rounded-xl border border-warning/30 bg-warning/5 p-4 sm:p-5">
                   <p class="text-[10px] text-muted font-medium uppercase tracking-wide">Pendiente</p>
                   <p class="text-xl font-bold text-warning-500 sm:text-2xl">
-                    {{ operationFinancialLabel(summary.financial.pending.amount) }}
+                    {{ operationFinancialLabel('pending', summary.financial.pending.amount) }}
                   </p>
                   <div class="mt-2 grid gap-2 border-t border-warning/15 pt-1.5 text-xs" :class="operationBaseCurrency === 'USD' || operationBaseCurrency === 'ARS' ? 'grid-cols-1' : 'grid-cols-2'">
                     <span v-if="operationBaseCurrency !== 'USD'"><span class="text-muted">Equiv. USD</span> · {{ dualCurrencyLabel('pending', 'USD') }}</span>
@@ -1146,13 +1215,13 @@ const scrollTo = (sectionId: string) => {
               </p>
 
               <UAlert
-                v-if="(summary.financial.unconverted?.count ?? 0) > 0"
+                v-if="financialConversionNotice"
                 color="warning"
                 variant="soft"
                 icon="i-lucide-alert-triangle"
                 class="text-xs"
-                :title="`${summary.financial.unconverted!.count} comprobante(s) o pago(s) sin conversión disponible`"
-                :description="`${fmtMoney(summary.financial.unconverted!.amount, '—')} no se incluyen en el equivalente consolidado. Revisá la cotización guardada en cada movimiento.`"
+                :title="financialConversionNotice.title"
+                :description="financialConversionNotice.description"
               />
 
               <div class="rounded-xl border border-default p-4">
@@ -1502,7 +1571,7 @@ const scrollTo = (sectionId: string) => {
                         <p class="text-[10px] text-muted">
                           TC {{ docCurrencyInfo(rel)!.rate ?? '—' }} · =
                           <span v-if="docCurrencyInfo(rel)!.converted != null">
-                            {{ fmtMoney(docCurrencyInfo(rel)!.converted, docCurrencyInfo(rel)!.opCurrency) }}
+                            {{ fmtMoney(Number(docCurrencyInfo(rel)!.converted), docCurrencyInfo(rel)!.opCurrency ?? 'ARS') }}
                           </span>
                           <span v-else class="text-warning-500">sin TC</span>
                         </p>
@@ -1529,7 +1598,7 @@ const scrollTo = (sectionId: string) => {
                               </p>
                             </div>
                             <div class="grid gap-1">
-                              <UButton label="Editar documento" icon="i-lucide-pencil" variant="ghost" block @click="editAssociatedDocument(rel.document)" />
+                              <UButton label="Editar documento" icon="i-lucide-pencil" variant="ghost" block @click="() => { void (editAssociatedDocument(rel.document)) }" />
                               <UButton label="Registrar pago" icon="i-lucide-hand-coins" block @click="payAssociatedDocument(rel.document)" />
                             </div>
                           </div>
@@ -1937,7 +2006,7 @@ const scrollTo = (sectionId: string) => {
                       <p class="text-[10px] text-muted">
                         TC operación {{ docCurrencyInfo(rel)!.rate ?? '—' }} · =
                         <span v-if="docCurrencyInfo(rel)!.converted != null">
-                          {{ fmtMoney(docCurrencyInfo(rel)!.converted, docCurrencyInfo(rel)!.opCurrency) }}
+                          {{ fmtMoney(Number(docCurrencyInfo(rel)!.converted), docCurrencyInfo(rel)!.opCurrency ?? 'ARS') }}
                         </span>
                         <span v-else class="text-warning-500">sin TC</span>
                       </p>
@@ -1973,7 +2042,7 @@ const scrollTo = (sectionId: string) => {
                             </p>
                           </div>
                           <div class="grid gap-1">
-                            <UButton label="Editar documento" icon="i-lucide-pencil" variant="ghost" block @click="editAssociatedDocument(rel.document)" />
+                            <UButton label="Editar documento" icon="i-lucide-pencil" variant="ghost" block @click="() => { void (editAssociatedDocument(rel.document)) }" />
                             <UButton label="Registrar pago" icon="i-lucide-hand-coins" block @click="payAssociatedDocument(rel.document)" />
                           </div>
                         </div>
@@ -2132,7 +2201,7 @@ const scrollTo = (sectionId: string) => {
               color="neutral"
               variant="ghost"
               :disabled="statusChangeSaving"
-              @click="showStatusChangeModal = false"
+              @click="() => { showStatusChangeModal = false }"
             />
             <UButton
               label="Confirmar cambio"
@@ -2237,11 +2306,11 @@ const scrollTo = (sectionId: string) => {
               label="Crear contenedor"
               icon="i-lucide-container"
               :to="`/operaciones-internacionales/${id}/containers/create`"
-              @click="showCreateInvoiceModal = false"
+              @click="() => { showCreateInvoiceModal = false }"
             />
             <span v-else />
             <div class="flex justify-end gap-2">
-              <UButton label="Cancelar" color="neutral" variant="ghost" @click="showCreateInvoiceModal = false" />
+              <UButton label="Cancelar" color="neutral" variant="ghost" @click="() => { showCreateInvoiceModal = false }" />
               <UButton
                 v-if="invoiceContainerOptions.length"
                 label="Continuar con la factura"

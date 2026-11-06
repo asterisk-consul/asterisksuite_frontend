@@ -11,6 +11,9 @@ import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBank
 import { bankMovementColumns, getMovementSignedAmount, getMovementTypeBadge } from '~/modulos/erp/bank-accounts/movement-columns'
 import RegisterBankMovementModal from '~/modulos/erp/bank-accounts/components/RegisterBankMovementModal.vue'
 import BankChargeRulesPanel from '~/modulos/erp/bank-accounts/components/BankChargeRulesPanel.vue'
+import BankStatementImportModal from '~/modulos/erp/bank-accounts/components/BankStatementImportModal.vue'
+import { exportBankMovementsWorkbook } from '~/modulos/erp/bank-accounts/movement-spreadsheet'
+import { partitionCancelledTreasuryMovements } from '~/utils/treasuryMovementVisibility'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -26,6 +29,8 @@ const transferring = ref(false)
 const movementDetailsOpen = ref(false)
 const movementDetailsLoading = ref(false)
 const selectedMovementDetails = ref<BankAccountMovementDetails | null>(null)
+const statementImportOpen = ref(false)
+const exportingMovements = ref(false)
 const toast = useToast()
 const transferDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
 const transferForm = reactive({ destination_bank_account_id: '', amount: 0, date: transferDate(), reference: '', notes: '' })
@@ -75,9 +80,14 @@ const getCurrencyConfig = (code: string) =>
   CURRENCY_CONFIG[code] ?? { label: code, color: 'text-muted', icon: '💰', bg: 'bg-muted/10' }
 const getAccountTypeConfig = (type: string) => ACCOUNT_TYPE_CONFIG[type] ?? { label: type, icon: 'i-lucide-circle-dot' }
 const isInternalTransfer = (movement: any) => movement.reference_type === 'bank_account_transfer'
+const showCancelledMovements = ref(false)
+const movementVisibility = computed(() => partitionCancelledTreasuryMovements(movements.value))
+const cancelledMovements = computed(() => movementVisibility.value.cancelled)
+const activeMovements = computed(() => movementVisibility.value.active)
+const visibleMovements = computed(() => showCancelledMovements.value ? movements.value : activeMovements.value)
 
 const totalIn = computed(() =>
-  movements.value
+  activeMovements.value
     .filter(movement => !isInternalTransfer(movement))
     .map(getMovementSignedAmount)
     .filter(amount => amount > 0)
@@ -85,7 +95,7 @@ const totalIn = computed(() =>
 )
 
 const totalOut = computed(() =>
-  movements.value
+  activeMovements.value
     .filter(movement => !isInternalTransfer(movement))
     .map(getMovementSignedAmount)
     .filter(amount => amount < 0)
@@ -95,11 +105,11 @@ const totalOut = computed(() =>
 const realBalance = computed(() => Number(account.value?.balance ?? 0))
 
 const incomeMovementCount = computed(() =>
-  movements.value.filter(movement => !isInternalTransfer(movement) && getMovementSignedAmount(movement) > 0).length
+  activeMovements.value.filter(movement => !isInternalTransfer(movement) && getMovementSignedAmount(movement) > 0).length
 )
 
 const expenseMovementCount = computed(() =>
-  movements.value.filter(movement => !isInternalTransfer(movement) && getMovementSignedAmount(movement) < 0).length
+  activeMovements.value.filter(movement => !isInternalTransfer(movement) && getMovementSignedAmount(movement) < 0).length
 )
 
 const detailsButton = resolveComponent('UButton')
@@ -134,6 +144,10 @@ async function openMovementDetails(movement: BankAccountMovement) {
   } finally {
     movementDetailsLoading.value = false
   }
+}
+
+async function refreshAfterStatementImport() {
+  await Promise.all([fetchOne(accountId), fetchMovements(accountId)])
 }
 
 const movementChecks = computed(() => {
@@ -172,13 +186,13 @@ const selectedMovementBadge = computed(() => selectedMovementDetails.value
   : null)
 
 const filterFields: FilterField[] = [
-  { id: 'type', label: 'Filtrar por tipo...', class: 'w-40' },
+  { id: 'movement_type_label', label: 'Filtrar por tipo...', class: 'w-40' },
   { id: 'description', label: 'Filtrar por descripción...', class: 'w-56' }
 ]
 
 const sortFields: SortField[] = [
   { label: 'Fecha', value: 'date' },
-  { label: 'Tipo', value: 'type' },
+  { label: 'Tipo', value: 'movement_type_label' },
   { label: 'Monto', value: 'amount' },
   { label: 'Saldo', value: 'balance_after' }
 ]
@@ -239,6 +253,18 @@ const handleMovementSaved = async () => {
   await fetchOne(accountId)
   await fetchMovements(accountId)
 }
+
+async function exportMovements() {
+  if (!account.value || exportingMovements.value) return
+  exportingMovements.value = true
+  try {
+    await exportBankMovementsWorkbook(account.value, visibleMovements.value)
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo exportar el historial', description: error?.message || 'Intentá nuevamente.', color: 'error' })
+  } finally {
+    exportingMovements.value = false
+  }
+}
 </script>
 
 <template>
@@ -248,6 +274,25 @@ const handleMovementSaved = async () => {
       :description="`${account.bank_name} · ${getAccountTypeConfig(account.account_type).label} · ${account.currency_code}`"
       :links="links"
     />
+
+    <div class="flex flex-wrap justify-end gap-2">
+      <UButton
+        label="Importar y conciliar extracto"
+        icon="i-lucide-upload"
+        color="neutral"
+        variant="outline"
+        @click="statementImportOpen = true"
+      />
+      <UButton
+        label="Exportar movimientos"
+        icon="i-lucide-file-spreadsheet"
+        color="neutral"
+        variant="outline"
+        :loading="exportingMovements"
+        :disabled="exportingMovements || !visibleMovements.length"
+        @click="exportMovements"
+      />
+    </div>
 
     <!-- ACCOUNT INFO -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4">
@@ -307,12 +352,30 @@ const handleMovementSaved = async () => {
     <!-- MOVEMENTS TABLE -->
     <UPageCard variant="subtle">
       <template #header>
-        <h3 class="text-sm font-semibold">Historial de movimientos</h3>
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-sm font-semibold">Historial de movimientos</h3>
+          <UBadge :label="`${visibleMovements.length}`" color="neutral" variant="soft" size="xs" />
+          <div class="ml-auto flex flex-wrap items-center gap-2">
+          <UButton
+            v-if="cancelledMovements.length"
+            :label="showCancelledMovements ? 'Ocultar anulados' : `Mostrar anulados (${cancelledMovements.length})`"
+            :icon="showCancelledMovements ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            @click="() => { showCancelledMovements = !showCancelledMovements }"
+          />
+          </div>
+        </div>
       </template>
-      <div class="overflow-x-auto">
+      <div v-if="visibleMovements.length === 0" class="py-8 text-center text-sm text-muted">
+        <UIcon name="i-lucide-inbox" class="mx-auto mb-2 size-8 opacity-30" />
+        {{ cancelledMovements.length ? 'No hay movimientos vigentes. Los anulados están ocultos.' : 'No hay movimientos registrados' }}
+      </div>
+      <div v-else class="overflow-x-auto">
         <LogisticaTable
           :loading="loading"
-          :data="movements"
+          :data="visibleMovements"
           :columns="columns"
           :filter-fields="filterFields"
           :sort-fields="sortFields"
@@ -329,7 +392,7 @@ const handleMovementSaved = async () => {
         </div>
         <div v-else-if="selectedMovementDetails" class="space-y-5">
           <section class="grid gap-3 rounded-xl border border-default bg-elevated/40 p-4 sm:grid-cols-3">
-            <div><p class="text-xs text-muted">Movimiento</p><UBadge v-if="selectedMovementBadge" :color="selectedMovementBadge.color as any" variant="subtle">{{ selectedMovementBadge.label }}</UBadge></div>
+            <div><p class="text-xs text-muted">Movimiento</p><div class="flex flex-wrap items-center gap-2"><UBadge v-if="selectedMovementBadge" :color="selectedMovementBadge.color as any" variant="subtle">{{ selectedMovementBadge.label }}</UBadge><UBadge v-if="selectedMovementDetails.deleted_at" color="error" variant="subtle">Anulado</UBadge></div></div>
             <div><p class="text-xs text-muted">Fecha de operación</p><p class="font-medium">{{ formatDate(selectedMovementDetails.date) }}</p></div>
             <div><p class="text-xs text-muted">Importe</p><p class="font-semibold" :class="getMovementSignedAmount(selectedMovementDetails) >= 0 ? 'text-success' : 'text-error'">{{ formatCurrency(Math.abs(getMovementSignedAmount(selectedMovementDetails)), selectedMovementDetails.currency_code) }}</p></div>
             <div><p class="text-xs text-muted">Referencia</p><p class="font-medium break-all">{{ selectedMovementDetails.reference || '—' }}</p></div>
@@ -376,6 +439,37 @@ const handleMovementSaved = async () => {
             </div>
           </section>
 
+          <section v-if="selectedMovementDetails.accounting_entry" class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h4 class="font-semibold">Asiento contable</h4>
+              <UBadge :color="selectedMovementDetails.accounting_entry.reversed_at ? 'warning' : 'success'" variant="subtle">
+                {{ selectedMovementDetails.accounting_entry.reversed_at ? 'Revertido' : 'Activo' }}
+              </UBadge>
+            </div>
+            <p class="text-sm text-muted">
+              {{ formatDate(selectedMovementDetails.accounting_entry.entry_date) }} ·
+              {{ selectedMovementDetails.accounting_entry.description }}
+              <span v-if="selectedMovementDetails.accounting_entry.exchange_rate && Number(selectedMovementDetails.accounting_entry.exchange_rate) !== 1">
+                · Cotización {{ selectedMovementDetails.accounting_entry.exchange_rate }} {{ selectedMovementDetails.accounting_entry.currency_code }} / moneda base
+              </span>
+            </p>
+            <div class="space-y-2">
+              <div v-for="line in selectedMovementDetails.accounting_entry.lines" :key="line.id" class="grid gap-2 rounded-lg border border-default px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_9rem_9rem] sm:items-center">
+                <span class="min-w-0"><strong>{{ line.account.code }}</strong> · {{ line.account.name }}</span>
+                <span class="text-muted">Debe {{ formatCurrency(line.debit, line.currency_code) }}</span>
+                <span class="text-muted">Haber {{ formatCurrency(line.credit, line.currency_code) }}</span>
+              </div>
+            </div>
+            <div v-if="selectedMovementDetails.accounting_entry.reversal" class="rounded-lg border border-warning/25 bg-warning/5 p-3">
+              <p class="mb-2 text-sm font-medium">Asiento inverso · {{ formatDate(selectedMovementDetails.accounting_entry.reversal.entry_date) }}</p>
+              <div v-for="line in selectedMovementDetails.accounting_entry.reversal.lines" :key="line.id" class="grid gap-2 py-1 text-sm sm:grid-cols-[minmax(0,1fr)_9rem_9rem]">
+                <span><strong>{{ line.account.code }}</strong> · {{ line.account.name }}</span>
+                <span class="text-muted">Debe {{ formatCurrency(line.debit, line.currency_code) }}</span>
+                <span class="text-muted">Haber {{ formatCurrency(line.credit, line.currency_code) }}</span>
+              </div>
+            </div>
+          </section>
+
           <section v-if="!selectedMovementDetails.payment && movementChecks.length" class="space-y-2">
             <h4 class="font-semibold">Cheque asociado</h4>
             <article v-for="item in movementChecks" :key="item.check.id" class="grid gap-3 rounded-xl border border-info/25 bg-info/5 p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -408,6 +502,16 @@ const handleMovementSaved = async () => {
     </UModal>
 
     <BankChargeRulesPanel :account-id="accountId" :currency-code="account.currency_code" />
+
+    <BankStatementImportModal
+      v-model:open="statementImportOpen"
+      :account-id="accountId"
+      :account-name="`${account.bank_name} · ${account.name}`"
+      :currency-code="account.currency_code"
+      :bank-account-accounting-id="account.accounting_account_id"
+      :movements="visibleMovements"
+      @imported="refreshAfterStatementImport"
+    />
 
     <RegisterBankMovementModal
       v-model:open="movementModalOpen"

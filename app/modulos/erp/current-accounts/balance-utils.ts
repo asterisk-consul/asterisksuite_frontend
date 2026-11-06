@@ -137,7 +137,7 @@ type BalancePriority = 'primary' | 'secondary' | 'none'
 
 export function getBalanceInfo(balance: number, partyType?: string): {
   label: string
-  color: string
+  color: 'neutral' | 'success' | 'error'
   priority: BalancePriority
 } {
   if (balance === 0) return { label: 'Saldo cero', color: 'neutral', priority: 'none' }

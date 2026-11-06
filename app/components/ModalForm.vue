@@ -160,7 +160,7 @@ function handleSubmit() {
           icon="i-heroicons-x-mark"
           color="neutral"
           variant="ghost"
-          @click="modalOpen = false"
+          @click="() => { modalOpen = false }"
         />
       </div>
     </template>
@@ -255,7 +255,7 @@ function handleSubmit() {
 
           <!-- FOOTER -->
           <div class="flex justify-end gap-3 pt-6 border-t mt-6">
-            <UButton color="neutral" variant="soft" @click="modalOpen = false">
+            <UButton color="neutral" variant="soft" @click="() => { modalOpen = false }">
               Cancelar
             </UButton>
             <UButton type="submit" color="primary" size="lg">Guardar</UButton>

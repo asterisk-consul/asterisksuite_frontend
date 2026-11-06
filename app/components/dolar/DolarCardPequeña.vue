@@ -10,14 +10,14 @@
         <div class="flex flex-col items-center">
           <span class="text-gray-600 dark:text-slate-400 text-sm">COMPRA</span>
           <span class="text-lg font-bold text-gray-800 dark:text-white">
-            ${{ compra }}
+            {{ compra == null ? '—' : `$ ${compra}` }}
           </span>
         </div>
 
         <div class="flex flex-col items-center">
           <span class="text-gray-600 dark:text-slate-400 text-sm">VENTA</span>
           <span class="text-lg font-bold text-gray-800 dark:text-white">
-            ${{ venta }}
+            {{ venta == null ? '—' : `$ ${venta}` }}
           </span>
         </div>
       </div>
@@ -28,7 +28,7 @@
 <script setup lang="ts">
 defineProps<{
   title: string
-  compra: number
-  venta: number
+  compra: number | null
+  venta: number | null
 }>()
 </script>

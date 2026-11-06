@@ -3,10 +3,11 @@ import type { TableColumn } from '@nuxt/ui'
 import { h } from 'vue'
 import { UButton } from '#components'
 import { createTableBuilder } from '@/composables/table/createColumns'
+import type { BadgeColor } from '@/composables/table/createColumns'
 
 type Row = CashBoxMovement
 
-export const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; color: string; side: 'in' | 'out' }> = {
+export const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; color: BadgeColor; side: 'in' | 'out' }> = {
   PAYMENT: { label: 'Pago', color: 'error', side: 'out' },
   COLLECTION: { label: 'Cobro', color: 'success', side: 'in' },
   ADVANCE: { label: 'Anticipo', color: 'info', side: 'in' },

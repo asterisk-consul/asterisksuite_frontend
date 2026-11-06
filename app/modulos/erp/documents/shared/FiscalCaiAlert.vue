@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useFiscalAuthorizationsService } from '~/modulos/erp/fiscal/service/fiscal-authorizations.service'
 
 // Alerta fiscal de CAI para remitos de venta.
 // Evalúa la autorización contra la fecha de emisión del remito (no contra hoy)
@@ -10,6 +11,7 @@ const emit = defineEmits<{ (e: 'replaced'): void, (e: 'evaluated', status: any):
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 const toast = useToast()
+const authorizationsService = useFiscalAuthorizationsService()
 
 const status = ref<any>(null)
 const loading = ref(false)
@@ -61,7 +63,7 @@ function validityLabel(a: any) {
 async function fetchStatus() {
   if (!props.document?.id || !isSalesRemito.value) return
   loading.value = true
-  status.value = await $fetch(`/api/backend/fiscal-authorizations/documents/${props.document.id}/status`).catch(() => null)
+  status.value = await authorizationsService.getDocumentStatus(props.document.id).catch(() => null)
   if (status.value) emit('evaluated', { ...status.value, expiringSoon: isExpiringSoon.value })
   loading.value = false
 }
@@ -69,10 +71,7 @@ async function fetchStatus() {
 async function doReplace(body: Record<string, any>) {
   replacing.value = true
   try {
-    const res: any = await $fetch(`/api/backend/fiscal-authorizations/documents/${props.document.id}/replace`, {
-      method: 'PATCH',
-      body,
-    })
+    const res: any = await authorizationsService.replaceForDocument(props.document.id, body)
     toast.add({
       title: 'Autorización actualizada',
       description: res?.warning || res?.message,

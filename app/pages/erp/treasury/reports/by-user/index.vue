@@ -11,7 +11,7 @@ import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
 const { byUser, loading, fetchByUser } = usePaymentReports()
 
-const users = computed(() => byUser.value?.users ?? [])
+const users = computed(() => byUser.value ?? [])
 
 const sorting = ref<SortingState>([])
 const error = ref<string | null>(null)

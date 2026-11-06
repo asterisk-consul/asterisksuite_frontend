@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { DashboardPersonal } from '~/modulos/erp/dashboard/types/dashboard.types'
+import { useDashboardDataService } from '~/modulos/erp/dashboard/services/dashboard-data.service'
 
 definePageMeta({ middleware: ['auth'] })
 
 const loading = ref(true)
 const loadError = ref('')
 const data = ref<DashboardPersonal | null>(null)
+const dashboardDataService = useDashboardDataService()
 const search = ref('')
 const selectedType = ref<'ALL' | 'DOCUMENT' | 'CAPTURE'>('ALL')
 
@@ -15,12 +17,30 @@ const typeOptions = [
   { label: 'Capturas', value: 'CAPTURE' },
 ]
 
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function normalizeSearch(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-AR').replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
 const filteredItems = computed(() => {
-  const normalizedSearch = search.value.trim().toLocaleLowerCase('es-AR')
+  const searchTerms = normalizeSearch(search.value).split(/\s+/).filter(Boolean)
   return (data.value?.pendingItems ?? []).filter((item) => {
     if (selectedType.value !== 'ALL' && item.kind !== selectedType.value) return false
-    if (!normalizedSearch) return true
-    return `${item.title} ${item.detail} ${item.status}`.toLocaleLowerCase('es-AR').includes(normalizedSearch)
+    if (!searchTerms.length) return true
+    const searchableFields = [
+      item.title,
+      item.detail,
+      item.reference,
+      item.status,
+      item.kind === 'DOCUMENT' ? 'documento' : 'captura',
+      item.date,
+      formatDate(item.date),
+    ]
+    const normalizedItem = normalizeSearch(searchableFields.filter(Boolean).join(' '))
+    return searchTerms.every(term => normalizedItem.includes(term))
   })
 })
 
@@ -28,7 +48,7 @@ const load = async () => {
   loading.value = true
   loadError.value = ''
   try {
-    data.value = await $fetch<DashboardPersonal>('/api/backend/dashboard/personal')
+    data.value = await dashboardDataService.findPersonal()
   } catch {
     loadError.value = 'No pudimos cargar tus pendientes. Revisá la conexión e intentá nuevamente.'
   } finally {
@@ -36,7 +56,6 @@ const load = async () => {
   }
 }
 
-const formatDate = (value: string) => new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium' }).format(new Date(value))
 const statusColor = (status: string) => status === 'Borrador' ? 'neutral' : status === 'En proceso' ? 'info' : 'warning'
 
 onMounted(load)
@@ -100,7 +119,8 @@ onMounted(load)
               <UBadge :label="item.status" :color="statusColor(item.status)" variant="subtle" size="xs" />
               <UBadge :label="item.kind === 'CAPTURE' ? 'Captura' : 'Documento'" color="neutral" variant="outline" size="xs" />
             </div>
-            <p class="mt-1 truncate text-sm text-muted">{{ item.detail || 'Sin detalle adicional' }}</p>
+            <p class="mt-1 truncate text-sm text-muted">{{ item.detail || 'Sin contraparte' }}</p>
+            <p v-if="item.reference" class="mt-0.5 truncate text-xs text-muted">Referencia: {{ item.reference }}</p>
           </div>
           <time class="hidden shrink-0 text-xs text-muted sm:block">{{ formatDate(item.date) }}</time>
           <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted transition-transform group-hover:translate-x-0.5" />

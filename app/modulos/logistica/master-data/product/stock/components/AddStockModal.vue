@@ -75,7 +75,7 @@ watch([open, () => props.loading], ([isOpen, isLoading]) => {
         <UButton
           variant="outline"
           :disabled="loading"
-          @click="open = false"
+          @click="() => { open = false }"
         >
           Cancelar
         </UButton>

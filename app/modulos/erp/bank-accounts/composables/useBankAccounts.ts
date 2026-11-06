@@ -8,7 +8,8 @@ import type {
   CreateBankAccountInput,
   CreateBankMovementInput,
   UpdateBankAccountInput,
-  DeleteBankAccountInput
+  DeleteBankAccountInput,
+  ImportBankStatementInput
 } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
 
 export interface SelectItem {
@@ -45,6 +46,9 @@ export function useBankAccounts() {
 
   const createMovement = async (id: string, payload: CreateBankMovementInput) =>
     store.createMovement(id, payload)
+
+  const importStatementMovements = async (id: string, payload: ImportBankStatementInput) =>
+    service.importStatementMovements(id, payload)
 
   const createTransfer = async (id: string, payload: { destination_bank_account_id: string; amount: number; date: string; reference?: string; notes?: string }) =>
     service.createTransfer(id, payload)
@@ -118,6 +122,7 @@ export function useBankAccounts() {
     fetchMovements,
     fetchMovementDetails,
     createMovement,
+    importStatementMovements,
     createTransfer,
     cancelMovement,
     fetchOne: store.fetchOne,

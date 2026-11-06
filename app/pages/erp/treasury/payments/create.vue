@@ -6,6 +6,8 @@ import PaymentForm from '~/modulos/erp/payments/components/PaymentForm.vue'
 import type { PaymentFormData } from '~/modulos/erp/payments/components/PaymentForm.vue'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
+import { useUsersService } from '~/modulos/access-control/services/users.service'
 
 const route = useRoute()
 const { hasPermission } = useRoles()
@@ -36,6 +38,8 @@ const {
 
 const router = useRouter()
 const toast = useToast()
+const intakeService = useIntakeRecordsService()
+const usersService = useUsersService()
 const creatingPayment = ref(false)
 const intakeId = ref<string | undefined>(route.query.intakeId as string | undefined)
 const quickCaptureLoading = ref(false)
@@ -68,6 +72,9 @@ const initialValues = ref<PaymentFormData | undefined>(
         payment_method: withholdingRemittanceId.value ? 'BANK_TRANSFER' : checkId.value ? 'CHECK' : 'CASH',
         amount: obligationAmount.value,
         currency_code: obligationCurrency.value,
+        exchange_rate: null,
+        rate_type: 'OFFICIAL',
+        converted_amount: null,
         description: obligationDescription.value,
         reference: '',
         party_id: partyId.value,
@@ -89,7 +96,7 @@ onMounted(async () => {
     fetchPendingPurchaseDocuments(),
     fetchAvailableOwnChecks(),
     fetchAvailableCustomerChecks(),
-    $fetch<Array<{ id: string; name: string; email: string }>>('/api/access-control/users/all')
+    usersService.findAll()
   ])
   users.value = companyUsers
 
@@ -118,6 +125,8 @@ onMounted(async () => {
         party_id: doc.party_id ?? partyId.value ?? '',
         party_type: doc.party_type ?? 'CUSTOMER',
         currency_code: doc.currency_code ?? 'ARS',
+        exchange_rate: doc.exchange_rate == null ? null : Number(doc.exchange_rate),
+        rate_type: doc.rate_type ?? 'OFFICIAL',
         amount: doc.pending_amount,
         documents: [{ document_id: documentId.value, amount_applied: doc.pending_amount }]
       }
@@ -138,10 +147,7 @@ const enableQuickCapture = async () => {
   }
   quickCaptureLoading.value = true
   try {
-    const capture = await $fetch<{ id: string }>('/api/intake-records', {
-      method: 'POST',
-      body: { title: 'Comprobante de pago pendiente de carga', suggested_type: 'PAYMENT' }
-    })
+    const capture = await intakeService.create({ title: 'Comprobante de pago pendiente de carga', suggested_type: 'PAYMENT' })
     intakeId.value = capture.id
     quickCaptureActive.value = true
   } catch (error: any) {
@@ -155,9 +161,7 @@ const sendQuickCapture = async () => {
   if (!intakeId.value || !assignedTo.value) return
   sendingCapture.value = true
   try {
-    await $fetch(`/api/intake-records/${intakeId.value}/send`, {
-      method: 'POST', body: { assigned_to: assignedTo.value }
-    })
+    await intakeService.send(intakeId.value, assignedTo.value)
     toast.add({ title: 'Comprobante enviado', description: 'El usuario lo encontrará en Capturas pendientes.', color: 'success' })
     await router.push('/erp/treasury/intake')
   } catch (error: any) {
@@ -189,6 +193,9 @@ const handleSubmit = async (formData: PaymentFormData) => {
         formData.payment_method === 'CREDIT_CARD' ? formData.expected_clearing_date || undefined : undefined,
       amount: formData.amount,
       currency_code: formData.currency_code,
+      exchange_rate: formData.exchange_rate ?? undefined,
+      rate_type: formData.rate_type ?? undefined,
+      converted_amount: formData.converted_amount ?? undefined,
       description: formData.description || undefined,
       reference: formData.reference || undefined,
       party_id: formData.party_id || undefined,
@@ -207,9 +214,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
     if (created?.id) {
       paymentFormRef.value?.completeDraft()
       if (intakeId.value) {
-        await $fetch(`/api/intake-records/${intakeId.value}/complete`, {
-          method: 'POST', body: { target_type: 'PAYMENT', target_id: created.id }
-        })
+        await intakeService.complete(intakeId.value, 'PAYMENT', created.id)
       }
       await router.push(`/erp/treasury/payments/${created.id}`)
     } else {

@@ -1,7 +1,14 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'default', middleware: ['auth'] })
 
+import { useFiscalAuthorizationsService } from '~/modulos/erp/fiscal/service/fiscal-authorizations.service'
+import { useDocumentsTypesService } from '~/modulos/erp/documents/documents-types/services/documents-types.service'
+import { useDocumentSequencesService } from '~/modulos/erp/document-sequences/service/document-sequences.service'
+
 const toast = useToast()
+const service = useFiscalAuthorizationsService()
+const documentsTypesService = useDocumentsTypesService()
+const sequencesService = useDocumentSequencesService()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(true)
@@ -85,10 +92,10 @@ async function load() {
   loading.value = true
   try {
     const [authorizations, types, sequenceRows, currentSettings] = await Promise.all([
-      $fetch<any[]>('/api/backend/fiscal-authorizations'),
-      $fetch<any[]>('/api/backend/documents/documents-types'),
-      $fetch<any[]>('/api/backend/document-sequences'),
-      $fetch<any>('/api/backend/fiscal-authorizations/settings/current')
+      service.findAll(),
+      documentsTypesService.findAll(),
+      sequencesService.findAll(),
+      service.getSettings()
     ])
     rows.value = authorizations
     documentTypes.value = types
@@ -141,9 +148,8 @@ async function save() {
   try {
     const body: any = { ...form.value, replacement_date: form.value.replacement_date || undefined }
     if (!editingId.value) delete body.status
-    await $fetch(editingId.value ? `/api/backend/fiscal-authorizations/${editingId.value}` : '/api/backend/fiscal-authorizations', {
-      method: editingId.value ? 'PUT' : 'POST', body
-    })
+    if (editingId.value) await service.update(editingId.value, body)
+    else await service.create(body)
     toast.add({ title: editingId.value ? 'Autorización actualizada' : 'Autorización creada', color: 'success' })
     modalOpen.value = false
     await load()
@@ -154,15 +160,13 @@ async function save() {
 }
 async function remove(row: any) {
   if (!confirm(`¿Eliminar la autorización ${row.code}?`)) return
-  try { await $fetch(`/api/backend/fiscal-authorizations/${row.id}`, { method: 'DELETE' }); await load() }
+  try { await service.remove(row.id); await load() }
   catch (error: any) { toast.add({ title: 'No se puede eliminar', description: error?.data?.message, color: 'error' }) }
 }
 async function saveSettings() {
   saving.value = true
   try {
-    await $fetch('/api/backend/fiscal-authorizations/settings/current', {
-      method: 'PUT',
-      body: {
+    await service.saveSettings({
         alerts_enabled: settings.value.alerts_enabled,
         day_thresholds: settings.value.day_thresholds,
         number_thresholds: settings.value.number_thresholds,
@@ -170,7 +174,6 @@ async function saveSettings() {
         missing_policy: settings.value.missing_policy,
         daily_after_expiration: settings.value.daily_after_expiration,
         notify_roles: settings.value.notify_roles ?? []
-      }
     })
     toast.add({ title: 'Alertas actualizadas', color: 'success' }); settingsOpen.value = false
   } catch (error: any) { toast.add({ title: 'No se pudo guardar', description: error?.data?.message, color: 'error' }) }
@@ -202,7 +205,7 @@ onMounted(async () => {
   <UPage>
     <AppPageHeader title="Autorizaciones fiscales" description="Administrá CAI por tipo de remito, punto de venta, vigencia y rango de numeración.">
       <template #actions>
-        <UButton label="Configurar alertas" icon="i-lucide-bell-ring" variant="outline" @click="settingsOpen = true" />
+        <UButton label="Configurar alertas" icon="i-lucide-bell-ring" variant="outline" @click="() => { settingsOpen = true }" />
         <UButton label="Nueva autorización" icon="i-lucide-plus" @click="createNew" />
       </template>
     </AppPageHeader>
@@ -219,7 +222,7 @@ onMounted(async () => {
         <div class="space-y-4 border-b border-default p-4">
           <UFormField label="Buscar autorizaciones" description="Buscá por CAI, remito, punto de venta, serie o estado.">
             <UInput v-model="search" icon="i-lucide-search" placeholder="Ej.: CAI, 0003 o Remito R" size="lg" class="w-full">
-              <template v-if="search" #trailing><UButton icon="i-lucide-x" color="neutral" variant="link" size="xs" aria-label="Limpiar búsqueda" @click="search = ''" /></template>
+              <template v-if="search" #trailing><UButton icon="i-lucide-x" color="neutral" variant="link" size="xs" aria-label="Limpiar búsqueda" @click="() => { search = '' }" /></template>
             </UInput>
           </UFormField>
           <div class="overflow-x-auto"><UTabs v-model="activeDocumentType" :items="documentTypeTabs" :content="false" variant="link" class="min-w-max" /></div>
@@ -283,7 +286,7 @@ onMounted(async () => {
         <UFormField label="Observaciones" class="sm:col-span-2"><UTextarea v-model="form.observations" :rows="3" class="w-full" /></UFormField>
         </div>
       </div></template>
-      <template #footer><div class="flex justify-end gap-2 w-full"><UButton label="Cancelar" variant="ghost" @click="modalOpen=false" /><UButton label="Guardar" :loading="saving" :disabled="!form.code || !form.document_type_id || !form.document_sequence_id || !form.valid_to" @click="save" /></div></template>
+      <template #footer><div class="flex justify-end gap-2 w-full"><UButton label="Cancelar" variant="ghost" @click="() => { modalOpen=false }" /><UButton label="Guardar" :loading="saving" :disabled="!form.code || !form.document_type_id || !form.document_sequence_id || !form.valid_to" @click="save" /></div></template>
     </UModal>
 
     <UModal v-model:open="settingsOpen" title="Alertas y control al confirmar" description="Definí cuándo avisar y qué hacer si falta una autorización válida.">
@@ -294,7 +297,7 @@ onMounted(async () => {
         <div class="grid sm:grid-cols-2 gap-4"><UFormField label="Si está vencida"><USelect v-model="settings.expired_policy" :items="policyOptions" value-key="value" class="w-full" /></UFormField><UFormField label="Si no existe"><USelect v-model="settings.missing_policy" :items="policyOptions" value-key="value" class="w-full" /></UFormField></div>
         <div class="flex items-center justify-between gap-4"><div><p class="font-medium">Recordatorio diario vencido</p><p class="text-sm text-muted">Continúa avisando hasta registrar la renovación.</p></div><USwitch v-model="settings.daily_after_expiration" /></div>
       </div></template>
-      <template #footer><div class="flex justify-end gap-2 w-full"><UButton label="Cancelar" variant="ghost" @click="settingsOpen=false" /><UButton label="Guardar configuración" :loading="saving" @click="saveSettings" /></div></template>
+      <template #footer><div class="flex justify-end gap-2 w-full"><UButton label="Cancelar" variant="ghost" @click="() => { settingsOpen=false }" /><UButton label="Guardar configuración" :loading="saving" @click="saveSettings" /></div></template>
     </UModal>
   </UPage>
 </template>

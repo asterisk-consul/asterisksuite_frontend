@@ -24,11 +24,17 @@ export const useTrashService = () => {
       body: { ids }
     })
 
-  const hardDeleteMany = (table: string, ids: string[]) =>
+  const hardDeleteMany = (table: string, ids: string[], confirmAccidentalDocuments = false) =>
     $fetch(`${base}/hard/${table}`, {
       method: 'DELETE',
-      body: { ids }
+      body: { ids, confirmAccidentalDocuments }
     })
+
+  const reconcileValeDocument = (documentId: string) =>
+    $fetch(`${base}/documents/${documentId}/reconcile-vale`, { method: 'PATCH' })
+
+  const getValeTreasuryImpacts = (documentId: string) =>
+    $fetch<{ impacts: NonNullable<TrashItem['hrValeTreasuryImpacts']> }>(`${base}/documents/${documentId}/vale-treasury`)
 
   return {
     getAll,
@@ -36,6 +42,8 @@ export const useTrashService = () => {
     restore,
     softDeleteMany,
     restoreMany,
-    hardDeleteMany
+    hardDeleteMany,
+    reconcileValeDocument,
+    getValeTreasuryImpacts
   }
 }

@@ -1,15 +1,17 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 useHead({ title: 'Historial de fabricación' })
+import { useWarehouseProductionService } from '~/modulos/logistica/warehouses/warehouse/production.service'
 
-const { data: productions, status, refresh } = await useFetch<any[]>('/api/backend/warehouse/stock/production/history', { query: { limit: 50 }, default: () => [] })
+const productionService = useWarehouseProductionService()
+const { data: productions, status, refresh } = await useAsyncData('production-history', () => productionService.history(50), { default: () => [] })
 const dateFormatter = new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium', timeStyle: 'short' })
 </script>
 
 <template>
   <div class="flex h-full flex-col">
     <AppPageHeader title="Historial de fabricación" description="Productos ingresados y referencias de cada fabricación" show-module-toggle class="sticky top-0 z-20 border-b border-default bg-default px-4">
-      <template #right><UButton label="Actualizar" icon="i-lucide-refresh-cw" color="neutral" variant="ghost" :loading="status === 'pending'" @click="refresh" /></template>
+      <template #right><UButton label="Actualizar" icon="i-lucide-refresh-cw" color="neutral" variant="ghost" :loading="status === 'pending'" @click="() => { void refresh() }" /></template>
     </AppPageHeader>
     <UPage><UPageBody class="mx-auto w-full max-w-6xl">
       <UCard>

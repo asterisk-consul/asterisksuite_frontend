@@ -21,12 +21,12 @@ export function usePrint() {
       2: ['DUPLICADO', 'ORIGINAL'],
       3: ['TRIPLICADO', 'DUPLICADO', 'ORIGINAL'],
     }
-    const labels = copyLabels[copies] || copyLabels[1]
+    const labels = copyLabels[copies] ?? copyLabels[1] ?? ['']
 
     // Build copies HTML
     let copiesHTML = ''
     for (let i = 0; i < labels.length; i++) {
-      const label = labels[i]
+      const label = labels[i] ?? ''
       copiesHTML += `
         <div class="print-page">
           ${label ? `<div class="copy-label">${label}</div>` : ''}

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { h, resolveComponent, ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { h, resolveComponent, ref, watch, computed } from 'vue'
 
 import type { FacturaItem } from '../types/factura.types'
+import ProductPickerField from '~/components/erp/products/ProductPickerField.vue'
 import { useProductVariants } from '~/modulos/logistica/master-data/product-variants/composable/useVariants'
 
 interface Props {
@@ -33,6 +34,7 @@ interface Props {
   canRegularizeStock?: boolean
   isPurchaseDocument?: boolean
   lockPurchaseAdjustments?: boolean
+  allowItemInstructions?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -50,57 +52,8 @@ const emit = defineEmits<{
 }>()
 
 const selectedProduct = ref<any>(null)
-const productPickerRoot = ref<HTMLElement | null>(null)
-const productPickerOpen = ref(false)
 const productSearch = ref('')
-function focusProductPicker() {
-  productPickerOpen.value = true
-  void nextTick(() => {
-    const trigger = productPickerRoot.value?.querySelector<HTMLElement>('button, [role="combobox"]')
-    trigger?.scrollIntoView({ block: 'nearest' })
-    trigger?.focus()
-
-    // USelectMenu monta la búsqueda en un popover teletransportado al body.
-    // Esperamos un tick adicional para que exista antes de enfocarla.
-    void nextTick(() => {
-      const searchInput = document.querySelector<HTMLInputElement>(
-        '[cmdk-input], input[role="combobox"], input[aria-autocomplete="list"]'
-      )
-      searchInput?.focus()
-    })
-  })
-}
-
-function handleProductShortcut(event: KeyboardEvent) {
-  if (event.defaultPrevented || event.isComposing) return
-
-  if (event.key === 'F2' && !event.altKey && !event.ctrlKey && !event.metaKey) {
-    event.preventDefault()
-    focusProductPicker()
-    return
-  }
-
-  if (event.key === 'Enter' && event.ctrlKey && !event.altKey && !event.metaKey) {
-    event.preventDefault()
-    event.stopPropagation()
-    handleAdd()
-  }
-}
-
-onMounted(() => window.addEventListener('keydown', handleProductShortcut, true))
-onBeforeUnmount(() => window.removeEventListener('keydown', handleProductShortcut, true))
 watch(productSearch, query => emit('search-products', query))
-const visibleProductOptions = computed(() => {
-  const query = productSearch.value.trim().toLocaleLowerCase('es-AR')
-  const matches = query
-    ? props.productOptions.filter(option => option.label.toLocaleLowerCase('es-AR').includes(query))
-    : props.productOptions
-  const selected = props.productOptions.find(option => option.value === selectedProduct.value)
-  const options = selected && !matches.some(option => option.value === selected.value)
-    ? [selected, ...matches]
-    : matches
-  return options.slice(0, 100)
-})
 const selectedVariant = ref<string | null>(null)
 const variantOptions = ref<any[]>([])
 const variantLoading = ref(false)
@@ -249,10 +202,10 @@ function handleAdd() {
   selectedProduct.value = null
   selectedVariant.value = null
   productSearch.value = ''
-  focusProductPicker()
 }
 
 const UInput = resolveComponent('UInput')
+const UTextarea = resolveComponent('UTextarea')
 
 const UButton = resolveComponent('UButton')
 const USelect = resolveComponent('USelect')
@@ -261,7 +214,49 @@ const UTooltip = resolveComponent('UTooltip')
 const columns = computed(() => [
   {
     accessorKey: 'product_name',
-    header: 'Producto'
+    header: 'Producto',
+    cell: ({ row }: any) => {
+      const item = row.original as FacturaItem
+      const instructions = String(item.item_instructions ?? '').trim()
+      const expanded = item.instructions_expanded === true
+
+      return h('div', { class: 'min-w-52 py-1' }, [
+        h('p', { class: 'font-medium' }, item.product_name || 'Producto'),
+        ...(props.allowItemInstructions
+          ? [
+              h(UButton, {
+                type: 'button',
+                size: 'xs',
+                variant: 'ghost',
+                color: 'primary',
+                icon: expanded ? 'i-lucide-chevron-up' : instructions ? 'i-lucide-pencil' : 'i-lucide-ruler',
+                class: 'mt-1 -ml-2',
+                'aria-expanded': expanded,
+                'aria-label': `${expanded ? 'Ocultar' : instructions ? 'Editar' : 'Agregar'} medidas e indicaciones de ${item.product_name || 'producto'}`,
+                onClick: () => { item.instructions_expanded = !expanded }
+              }, () => expanded
+                ? 'Ocultar medidas e indicaciones'
+                : instructions
+                  ? 'Editar medidas e indicaciones'
+                  : 'Agregar medidas e indicaciones'),
+              ...(expanded
+                ? [h(UTextarea, {
+                    modelValue: item.item_instructions ?? '',
+                    rows: 2,
+                    maxlength: 1000,
+                    autoresize: true,
+                    placeholder: 'Largo 120 cm, ancho 80 cm; perforaciones a 10 cm',
+                    class: 'mt-1 min-w-64',
+                    'aria-label': `Medidas e indicaciones de ${item.product_name || 'producto'}`,
+                    'onUpdate:modelValue': (value: string) => { item.item_instructions = value }
+                  })]
+                : instructions
+                  ? [h('p', { class: 'mt-1 whitespace-pre-wrap text-xs text-muted' }, instructions)]
+                  : [])
+            ]
+          : [])
+      ])
+    }
   },
   {
     accessorKey: 'variant_id',
@@ -537,39 +532,18 @@ const columns = computed(() => [
 
 <template>
   <div class="flex flex-col gap-4">
-    <div class="rounded-xl border border-default bg-muted/30 p-4">
-      <div class="mb-4 flex items-start gap-3">
-        <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <UIcon name="i-lucide-package-plus" class="size-5" />
-        </div>
-        <div>
-          <p class="font-medium">Agregar productos</p>
-          <p class="text-sm text-muted">Buscá un artículo, elegí su variante si corresponde y agregalo al comprobante.</p>
-        </div>
-      </div>
-
-      <div
-        class="grid grid-cols-1 gap-3 lg:items-end"
-        :class="hasVariants
-          ? 'lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.55fr)_auto]'
-          : 'lg:grid-cols-[minmax(0,1fr)_auto]'"
-      >
-        <UFormField label="Producto" class="min-w-0">
-          <div ref="productPickerRoot">
-          <USelectMenu
-            v-model:open="productPickerOpen"
-            v-model="selectedProduct"
-            :items="visibleProductOptions"
-            value-key="value"
-            label-key="label"
-            placeholder="Buscar por código o nombre..."
-            searchable
-            v-model:search-term="productSearch"
-            class="w-full min-w-0"
-          />
-          </div>
-        </UFormField>
-
+    <ProductPickerField
+      v-model="selectedProduct"
+      v-model:search-term="productSearch"
+      :items="props.productOptions"
+      value-key="value"
+      title="Agregar productos"
+      description="Buscá un artículo, elegí su variante si corresponde y agregalo al comprobante."
+      :has-details="hasVariants"
+      :add-disabled="!selectedProduct || variantLoading || (hasVariants && (!selectedVariant || !!variantLoadError))"
+      @add="handleAdd"
+    >
+      <template #details>
         <UFormField v-if="hasVariants" label="Variante" required class="min-w-0">
           <USelectMenu
             v-model="selectedVariant"
@@ -582,26 +556,8 @@ const columns = computed(() => [
           />
           <p v-if="variantLoadError" class="mt-1 text-xs text-error">{{ variantLoadError }}</p>
         </UFormField>
-
-        <UButton
-          icon="i-lucide-plus"
-          label="Agregar producto"
-          size="lg"
-          class="w-full justify-center lg:w-auto"
-          :disabled="!selectedProduct || variantLoading || (hasVariants && (!selectedVariant || !!variantLoadError))"
-          @click="handleAdd"
-        >
-          <template #trailing>
-            <KeyboardShortcutHint :keys="['Ctrl', '↵']" />
-          </template>
-        </UButton>
-      </div>
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-        <span class="inline-flex items-center gap-1.5"><KeyboardShortcutHint :keys="['F2']" /> abre el selector</span>
-        <span class="inline-flex items-center gap-1.5"><KeyboardShortcutHint :keys="['Tab']" /> recorre los campos</span>
-        <span class="inline-flex items-center gap-1.5"><KeyboardShortcutHint :keys="['Ctrl', '↵']" /> agrega el producto</span>
-      </div>
-    </div>
+      </template>
+    </ProductPickerField>
 
     <div class="w-full overflow-x-auto rounded-lg border border-default">
       <UTable :data="props.items" :columns="columns" class="min-w-[1080px]" />
