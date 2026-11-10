@@ -221,6 +221,11 @@ function askDeleteCompany(company: PlatformCompanySubscription) {
   deleteCompanyDialogOpen.value = true
 }
 
+function closeDeleteCompanyDialog() {
+  if (deletingCompany.value) return
+  deleteCompanyDialogOpen.value = false
+}
+
 async function deleteCompany() {
   const company = companyToDelete.value
   if (!company || !canDeleteCompany.value) return
@@ -1031,7 +1036,7 @@ onMounted(load)
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton label="Cancelar" variant="ghost" :disabled="deletingCompany" @click="deleteCompanyDialogOpen = false" />
+          <UButton label="Cancelar" variant="ghost" :disabled="deletingCompany" @click="closeDeleteCompanyDialog" />
           <UButton
             label="Eliminar definitivamente"
             icon="i-lucide-trash-2"

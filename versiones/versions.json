@@ -1,16 +1,5 @@
 [
  {
-  "version": "0.143.1-alpha",
-  "date": "2026-11-10",
-  "stage": "alpha",
-  "notes": "Al revelar el control de completado en una tarjeta de tarea, se desplaza solo el título y queda más espacio junto al círculo. La descripción, etiquetas y datos inferiores mantienen su posición.",
-  "changes": [
-   { "type": "style", "scope": "tasks", "title": "Mover solo el título al mostrar el control de completado" }
-  ],
-  "contributors": ["agustin"],
-  "message": "Ajustar la animación del título en las tareas"
- },
- {
   "version": "0.144.0-alpha",
   "date": "2026-11-10",
   "stage": "alpha",
@@ -21,6 +10,17 @@
   ],
   "contributors": ["agustin"],
   "message": "Habilitar la eliminación de empresas desde plataforma"
+ },
+ {
+  "version": "0.143.1-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "Al revelar el control de completado en una tarjeta de tarea, se desplaza solo el título y queda más espacio junto al círculo. La descripción, etiquetas y datos inferiores mantienen su posición.",
+  "changes": [
+   { "type": "style", "scope": "tasks", "title": "Mover solo el título al mostrar el control de completado" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ajustar la animación del título en las tareas"
  },
  {
   "version": "0.143.0-alpha",
