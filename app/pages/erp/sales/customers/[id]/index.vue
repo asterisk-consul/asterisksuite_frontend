@@ -14,6 +14,7 @@ import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussi
 import { DocumentsSalesService } from '~/modulos/erp/sales/services/sales.service'
 import { usePaymentsService } from '~/modulos/erp/payments/service/payments.service'
 import { useCurrentAccountsService } from '~/modulos/erp/current-accounts/service/current-accounts.service'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,6 +32,7 @@ const sorting = ref<SortingState>([])
 const partiesService = useBusinessPartiesService()
 const paymentsService = usePaymentsService()
 const currentAccountsService = useCurrentAccountsService()
+const { hasPermission } = useRoles()
 
 onMounted(async () => {
   loadingData.value = true
@@ -296,12 +298,22 @@ const paymentTableColumns = buildDocs([
             </div>
           </div>
         </div>
-        <UButton
-          label="Editar"
-          icon="i-lucide-pencil"
-          variant="outline"
-          @click="() => { void (router.push(`/erp/sales/customers/${id}/edit`)) }"
-        />
+        <div class="flex flex-wrap justify-end gap-2">
+          <UButton
+            v-if="hasPermission('tasks.read')"
+            label="Tareas"
+            icon="i-lucide-kanban-square"
+            color="neutral"
+            variant="outline"
+            :to="`/erp/tasks?party_id=${id}`"
+          />
+          <UButton
+            label="Editar"
+            icon="i-lucide-pencil"
+            variant="outline"
+            @click="() => { void (router.push(`/erp/sales/customers/${id}/edit`)) }"
+          />
+        </div>
       </div>
 
       <!-- Info del cliente -->

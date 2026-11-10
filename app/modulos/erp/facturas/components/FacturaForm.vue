@@ -510,10 +510,15 @@ function handleReferenceResolved(invoice: any) {
   setReferencePartyFallback(invoice.businessParty)
   const invoicePartyId = invoice.partyId ?? invoice.businessParty?.id
   if (!invoicePartyId) return
-  referenceDocumentInfo.value = invoice
+  // The picker already retains its resolved option locally. Keep the parent's
+  // selected-invoice prop stable once this ID is loaded, otherwise replacing
+  // it with an equivalent object can cause the picker's resolver to emit again.
+  if (referenceDocumentInfo.value?.id !== invoice.id) {
+    referenceDocumentInfo.value = invoice
+  }
   referencePartyId.value = invoicePartyId
   notifyReferencePartyChange(form.party_id, invoicePartyId)
-  form.party_id = invoicePartyId
+  if (form.party_id !== invoicePartyId) form.party_id = invoicePartyId
 }
 
 function handleReferenceClear() {
@@ -1018,6 +1023,8 @@ function debouncedFetchPreview() {
 const subtotal = computed(() => lastPreview.value?.document?.subtotal ?? 0)
 const originalSubtotal = computed(() => lastPreview.value?.document?.originalSubtotal ?? subtotal.value)
 const appliedCommercialAdjustments = computed(() => lastPreview.value?.document?.commercial_adjustments ?? [])
+const hasSalesItemDiscounts = computed(() => moduleCode.value === 'SALES'
+  && items.value.some((item) => Number(item.discount_percentage ?? 0) > 0))
 const automaticTaxesSummary = computed(() => lastPreview.value?.document?.documentTaxes ?? [])
 const automaticIibbTax = computed(() => automaticTaxesSummary.value.find((tax: any) =>
   String(tax.code ?? '').includes('IIBB')
@@ -2116,6 +2123,15 @@ defineExpose({ submit, completeDraft })
         title="Bonificación por renglón calculada automáticamente"
         description="Las bonificaciones y los netos manuales por producto se conservan y se aplican antes de estos conceptos. Mientras haya conceptos, quedan bloqueados para evitar cambios accidentales. Quitalos para volver a editarlos."
       />
+      <UAlert
+        v-if="moduleCode === 'SALES' && commercialAdjustments.length && hasSalesItemDiscounts"
+        class="mb-4"
+        color="info"
+        variant="subtle"
+        icon="i-lucide-info"
+        title="Bonificación por artículo y descuento global"
+        description="El descuento por artículo se aplica primero; después se calcula este concepto global sobre el neto o el total con impuestos. Pueden coexistir: revisá el total para no cargar dos veces la misma bonificación."
+      />
       <FacturaItemsTable
         :items="items"
         :allow-item-instructions="canAddItemInstructions"
@@ -2151,7 +2167,7 @@ defineExpose({ submit, completeDraft })
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-base font-semibold">Descuentos y bonificaciones</h2>
-            <p class="mt-1 text-sm text-muted">Elegí una plantilla o agregá un concepto puntual. Podés ajustar cada dato antes de guardar.</p>
+            <p class="mt-1 text-sm text-muted">Aplicá una bonificación al comprobante completo: por porcentaje o importe fijo, sobre el neto o el total con impuestos. También puede convivir con descuentos por artículo.</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <USelectMenu

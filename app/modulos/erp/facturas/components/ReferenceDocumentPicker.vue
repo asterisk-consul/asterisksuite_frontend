@@ -125,6 +125,27 @@ function toInvoiceOption(doc: any): InvoiceOption {
 }
 
 const invoiceOptions = computed(() => documents.value.map(toInvoiceOption))
+// Watch only the selected invoice's identifying/display fields. Watching the
+// selectedInvoice object itself retriggers whenever the parent passes an
+// equivalent clone; emitting `resolved` then updates that prop again and can
+// create an unbounded parent/child update loop.
+const selectedInvoiceKey = computed(() => {
+  const invoice = props.selectedInvoice
+  if (!invoice) return ''
+  return JSON.stringify({
+    id: invoice.id,
+    number: invoice.number,
+    label: invoice.label,
+    description: invoice.description,
+    partyId: invoice.partyId,
+    party_id: (invoice as any).party_id,
+    partyName: invoice.partyName,
+    total: invoice.total,
+    date: invoice.date,
+    businessPartyId: invoice.businessParty?.id ?? (invoice as any).business_parties?.id,
+    businessPartyName: invoice.businessParty?.name ?? (invoice as any).business_parties?.name,
+  })
+})
 const pickerOptions = computed(() => {
   const options = invoiceOptions.value
   if (menuOpen.value) return options
@@ -135,7 +156,9 @@ const pickerOptions = computed(() => {
 })
 
 // Keep a linked invoice visible from its own data, without loading the invoice catalog.
-watch(() => [props.selectedInvoice?.id, props.selectedInvoice?.number, invoiceOptions.value] as const, ([selectedId, selectedNumber, options]) => {
+watch([selectedInvoiceKey, invoiceOptions] as const, ([, options]) => {
+  const selectedId = props.selectedInvoice?.id
+  const selectedNumber = props.selectedInvoice?.number
   if (!selectedId) {
     selectedOption.value = null
     return

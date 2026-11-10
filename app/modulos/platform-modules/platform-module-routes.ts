@@ -1,4 +1,5 @@
 const moduleRoutes: Array<{ moduleCode: string; patterns: RegExp[] }> = [
+  { moduleCode: 'CRM', patterns: [/^\/erp\/tasks(?:\/|$)/] },
   { moduleCode: 'MAINTENANCE', patterns: [/^\/logistica\/mantenimiento(?:\/|$)/] },
   { moduleCode: 'INTERNATIONAL_OPERATIONS', patterns: [/^\/operaciones-internacionales(?:\/|$)/] },
   { moduleCode: 'REPORTS', patterns: [/^\/erp\/reports(?:\/|$)/] },

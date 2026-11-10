@@ -4,6 +4,7 @@ definePageMeta({ middleware: ['auth'] })
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocumentActions'
 import { useDocumentDetailShortcuts } from '~/modulos/erp/documents/composables/useDocumentDetailShortcuts'
 import DocumentHeader from '~/modulos/erp/documents/shared/DocumentHeader.vue'
@@ -27,6 +28,7 @@ import { getOrderFlowPresentation } from '~/modulos/erp/documents/orden-venta/or
 const store = useDocumentsSalesStore()
 const companiesStore = useCompaniesStore()
 const auth = useAuthStore()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const route = useRoute()
 const router = useRouter()
 const { printElement } = usePrint()
@@ -34,6 +36,7 @@ const salesFlowService = useSalesFlowService()
 const usersService = useUsersService()
 
 const loading = ref(true)
+const updateSalePricesFromInvoice = ref(false)
 const creatingDispatch = ref(false)
 const stockAvailabilityOpen = ref(false)
 const stockAvailabilityLoading = ref(false)
@@ -66,6 +69,11 @@ const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category ?? undefined)
 const isSalesOrder = computed(() => category.value === 'ORDER' || doc.value?.document_types?.code === 'OV')
+const isSalesInvoice = computed(() => category.value === 'INVOICE')
+const canUpdateGeneralSalePrices = computed(() =>
+  ['OWNER', 'ADMIN'].includes(String(auth.selectedCompany?.role ?? ''))
+  || hasPermission('product-prices.update')
+)
 const orderHasAssignee = computed(() => !!doc.value?.assigned_to)
 const showAssigneePrompt = computed(() => isSalesOrder.value
   && !orderHasAssignee.value
@@ -112,9 +120,13 @@ useBreadcrumbEntityLabel(
 onMounted(async () => {
   try {
     const companyId = auth.selectedCompany?.id
+    const permissionsPromise = companyId
+      ? fetchMyPermissionsIfNeeded(companyId, auth.user?.id).catch(() => null)
+      : Promise.resolve(null)
     await Promise.all([
       store.fetchOne(route.params.id as string),
       companyId && companiesStore.fetchOne(companyId),
+      permissionsPromise,
     ])
 
     if (store.current?.document_types?.category === 'REMITO') {
@@ -245,7 +257,7 @@ const {
   processing,
   validTransitions,
   invoiceState,
-  canTrashOrphanNote,
+  canTrashCancelledNote,
   handleConfirm,
   handleCancel,
   handleRemove,
@@ -261,11 +273,18 @@ const {
   printElement,
   store: {
     confirm: (id) => {
-      const options: { assigned_to?: string | null; confirm_empty_delivery_data?: boolean } = {}
+      const options: {
+        assigned_to?: string | null
+        confirm_empty_delivery_data?: boolean
+        update_sale_prices_from_invoice?: boolean
+      } = {}
       if (isSalesOrder.value && (showAssigneePrompt.value || orderHasAssignee.value)) {
         options.assigned_to = effectiveConfirmationAssigneeId.value
       }
       if (deliveryWarningAcknowledged.value) options.confirm_empty_delivery_data = true
+      if (isSalesInvoice.value && updateSalePricesFromInvoice.value) {
+        options.update_sale_prices_from_invoice = true
+      }
       return store.confirm(id, Object.keys(options).length ? options : undefined)
     },
     cancel: (id) => store.cancel(id),
@@ -300,6 +319,9 @@ async function confirmWithoutDeliveryData() {
 }
 
 watch(confirmModalOpen, async (open) => {
+  if (open) updateSalePricesFromInvoice.value = false
+  if (!open) return
+
   if (open && isSalesOrder.value && doc.value) {
     // A direct reassignment is saved inside DocumentAssignment. Refresh before
     // opening the selector so confirmation uses the persisted responsible user.
@@ -358,6 +380,13 @@ watch(confirmModalOpen, async (open) => {
           :status-description="orderFlowStatus?.description"
           :show-title="false"
           :show-reference="false"
+        />
+        <UAlert
+          v-if="doc && category === 'INVOICE' && Number(doc.status) === 3 && Number(doc._count?.child_documents ?? doc.child_documents?.length ?? 0) > 0"
+          color="warning"
+          variant="subtle"
+          title="La factura conserva comprobantes relacionados"
+          description="La factura sigue protegida mientras tenga comprobantes relacionados, incluso si ya están en la papelera. Resolvé cada nota o remito por separado; no se borra la cadena en bloque y los documentos fiscales deben conservarse."
         />
         <DocumentChain v-if="doc" :document="doc" />
 
@@ -428,6 +457,18 @@ watch(confirmModalOpen, async (open) => {
         <div>
           <p>¿Confirmar el documento <strong>#{{ doc?.number }}</strong>?</p>
           <p class="text-sm text-muted mt-2">Una vez confirmado, no podrá ser editado.</p>
+        </div>
+        <div v-if="isSalesInvoice" class="rounded-xl border border-primary/25 bg-primary/5 p-4">
+          <div class="mb-3">
+            <p class="font-medium">Precio general de venta</p>
+            <p class="text-sm text-muted">Podés actualizar el precio general de cada producto con el precio unitario y la moneda de esta factura. No modifica el costo ni el precio acordado que se guarda para este cliente.</p>
+          </div>
+          <UCheckbox
+            v-if="canUpdateGeneralSalePrices"
+            v-model="updateSalePricesFromInvoice"
+            label="Actualizar los precios generales al confirmar"
+          />
+          <p v-else class="text-xs text-muted">Necesitás el permiso de actualización de precios de producto para cambiar la lista general.</p>
         </div>
         <OrderStockAvailability v-if="isSalesOrder" :availability="stockAvailability" :loading="stockAvailabilityLoading" />
         <UAlert
@@ -501,9 +542,15 @@ watch(confirmModalOpen, async (open) => {
     </template>
   </UModal>
 
-  <UModal v-model:open="cancelModalOpen" title="Anular documento">
+  <UModal v-model:open="cancelModalOpen" :title="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category ?? '') ? 'Anular nota de crédito/débito' : 'Anular documento'">
     <template #body>
-      <p>¿Anular el documento <strong>#{{ doc?.number }}</strong>?</p>
+      <template v-if="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category ?? '')">
+        <p>¿Anular la nota <strong>#{{ doc?.number }}</strong>?</p>
+        <p class="text-sm text-muted mt-2">Una nota confirmada no se edita: si el importe es incorrecto, anulala y creá otra. La anulación revierte su efecto en la cuenta corriente y conserva la relación documental; si tiene cobros activos, primero hay que anularlos.</p>
+      </template>
+      <template v-else>
+        <p>¿Anular el documento <strong>#{{ doc?.number }}</strong>?</p>
+      </template>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="() => { cancelModalOpen = false }" />
         <UButton label="Anular" color="error" :loading="processing" @click="handleCancel" />
@@ -511,11 +558,11 @@ watch(confirmModalOpen, async (open) => {
     </template>
   </UModal>
 
-  <UModal v-model:open="deleteModalOpen" :title="canTrashOrphanNote ? 'Anular y enviar nota a la papelera' : 'Enviar factura a la papelera'">
+  <UModal v-model:open="deleteModalOpen" :title="canTrashCancelledNote ? 'Enviar nota anulada a la papelera' : 'Enviar factura a la papelera'">
     <template #body>
-      <template v-if="canTrashOrphanNote">
-        <p>La nota <strong>#{{ doc?.number }}</strong> se anulará y dejará de aparecer en el circuito habitual.</p>
-        <p class="text-sm text-muted mt-2">Su movimiento activo se quitará de la cuenta corriente. El comprobante y su historial quedarán conservados en la papelera y podrán restaurarse.</p>
+      <template v-if="canTrashCancelledNote">
+        <p>La nota anulada <strong>#{{ doc?.number }}</strong> dejará de aparecer en la cadena activa de la factura.</p>
+        <p class="text-sm text-muted mt-2">Se conserva en la papelera y puede restaurarse. La eliminación definitiva solo estará disponible si es una nota manual sin autorización fiscal, cobros ni efectos activos.</p>
       </template>
       <template v-else>
         <p>La factura anulada <strong>#{{ doc?.number }}</strong> dejará de aparecer en el circuito habitual.</p>
@@ -523,7 +570,7 @@ watch(confirmModalOpen, async (open) => {
       </template>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
-        <UButton :label="canTrashOrphanNote ? 'Anular y enviar a papelera' : 'Enviar a papelera'" color="error" :loading="processing" @click="handleRemove" />
+        <UButton :label="canTrashCancelledNote ? 'Enviar nota a papelera' : 'Enviar a papelera'" color="error" :loading="processing" @click="handleRemove" />
       </div>
     </template>
   </UModal>

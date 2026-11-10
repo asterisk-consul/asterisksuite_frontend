@@ -31,11 +31,6 @@ export const useCompaniesService = () => {
       body: payload
     })
 
-  const deactivate = (id: string) =>
-    $fetch<void>(`${baseUrl}/${id}`, {
-      method: 'DELETE'
-    })
-
   // =========================
   // COMPANY USERS
   // =========================
@@ -66,7 +61,6 @@ export const useCompaniesService = () => {
     checkSubdomain,
     create,
     update,
-    deactivate,
     listUsers,
     addUser,
     createUser,

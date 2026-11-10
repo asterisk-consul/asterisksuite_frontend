@@ -74,6 +74,8 @@ const defaultForm: DocumentTypeFormData = {
 
 const form = reactive<DocumentTypeFormData>({ ...defaultForm })
 const pendingSequenceDrafts = ref<NonNullable<DocumentTypeFormData['pending_sequence_drafts']>>([])
+const acceptsCommercialAdjustmentsByDefault = (category = form.category, direction = form.direction) =>
+  category === 'INVOICE' || (Number(direction) === 1 && ['QUOTE', 'ORDER'].includes(category))
 const selectValue = (value: unknown): string => {
   if (typeof value === 'string') return value
   const selected = (value as { value?: unknown } | null)?.value
@@ -117,7 +119,7 @@ const handleSubmit = () => {
     affects_tax_book: form.affects_tax_book,
     affects_payment: form.affects_payment,
     calculates_taxes: form.calculates_taxes ?? true,
-    accepts_commercial_adjustments: form.accepts_commercial_adjustments ?? form.category === 'INVOICE',
+    accepts_commercial_adjustments: form.accepts_commercial_adjustments ?? acceptsCommercialAdjustmentsByDefault(),
     active: form.active,
     category: form.category,
     letter_type: selectValue(form.letter_type),
@@ -437,10 +439,10 @@ const selectedLetterType = computed({
           <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3 col-span-2">
             <div>
               <p class="text-sm font-medium">Acepta conceptos comerciales</p>
-              <p class="text-xs text-muted">Permite cargar descuentos o bonificaciones y heredarlos al generar otro documento compatible.</p>
+              <p class="text-xs text-muted">Permite descuentos por artículo o globales (porcentaje o importe fijo) y transferirlos a otro documento compatible.</p>
             </div>
             <USwitch
-              :model-value="form.accepts_commercial_adjustments ?? form.category === 'INVOICE'"
+              :model-value="form.accepts_commercial_adjustments ?? acceptsCommercialAdjustmentsByDefault()"
               @update:model-value="(value: boolean | 'indeterminate') => form.accepts_commercial_adjustments = value === true"
             />
           </div>

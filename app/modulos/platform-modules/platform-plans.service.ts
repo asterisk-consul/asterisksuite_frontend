@@ -76,6 +76,11 @@ export const usePlatformPlansService = () => {
         owner: PlatformOwnerAccount
         plan: PlatformPlan
       }>(`${base}/companies`, { method: 'POST', body }),
+    deleteCompany: (companyId: string, confirmSubdomain: string) =>
+      fetcher<{ success: boolean; companyId: string; subdomain: string; tenantDatabaseRemoved: boolean }>(
+        `${base}/companies/${companyId}`,
+        { method: 'DELETE', body: { confirmSubdomain } }
+      ),
     metrics: () =>
       fetcher<{ auditedViolations: number; auditWindowDays: number; violationsByModule: Record<string, number> }>(
         `${base}/metrics`

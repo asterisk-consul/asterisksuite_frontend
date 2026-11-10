@@ -33,6 +33,7 @@ const savingNotifications = ref(false)
 const notificationSettings = reactive<WhatsAppOperationalNotificationSettings>({
   enabled: false,
   assignments_enabled: true,
+  tasks_enabled: false,
   customer_balances_enabled: false,
   customer_balance_recipient_ids: [],
   supplier_balances_enabled: false,
@@ -280,7 +281,7 @@ onMounted(loadPage)
         <p class="mt-3 text-xs text-muted">Se usa el mismo alcance para ambos informes. La empresa actual debe permanecer seleccionada.</p>
       </UPageCard>
 
-      <UPageCard title="Avisos operativos" description="Asignaciones de OV, saldos antiguos y cheques. Los avisos se agrupan por destinatario y se envían de a uno." variant="subtle">
+      <UPageCard title="Avisos operativos" description="Asignaciones de OV y tareas, saldos antiguos y cheques. Los avisos se agrupan por destinatario y se envían de a uno." variant="subtle">
         <UAlert v-if="notificationError" class="mb-4" color="warning" variant="subtle" title="Configuración operativa pendiente" :description="notificationError" />
         <div class="space-y-5">
           <div class="flex flex-col gap-3 rounded-lg border border-default p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -295,6 +296,11 @@ onMounted(loadPage)
             <section class="space-y-3 rounded-lg border border-default p-4">
               <label class="flex items-center gap-3 font-medium"><USwitch v-model="notificationSettings.assignments_enabled" :disabled="!isOwnerOrAdmin || !notificationSettings.enabled" />Asignaciones y disponibilidad de órdenes de venta</label>
               <p class="text-sm text-muted">Se avisa cuando asignás una OV y cuando queda lista para entregar. Solo se entrega si la persona activó su número.</p>
+            </section>
+
+            <section class="space-y-3 rounded-lg border border-default p-4">
+              <label class="flex items-center gap-3 font-medium"><USwitch v-model="notificationSettings.tasks_enabled" :disabled="!isOwnerOrAdmin || !notificationSettings.enabled" />Asignaciones, miembros, comentarios y menciones de tareas</label>
+              <p class="text-sm text-muted">Envía al responsable, a los miembros asociados o mencionados. Cada usuario debe tener su número activo y haber aceptado recibir mensajes. La opción independiente de campanita se configura en Tareas.</p>
             </section>
 
             <section class="space-y-3 rounded-lg border border-default p-4">

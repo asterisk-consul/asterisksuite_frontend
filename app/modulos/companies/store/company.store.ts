@@ -93,25 +93,6 @@ export const useCompaniesStore = defineStore('companies', () => {
     }
   }
 
-  const deactivate = async (id: string) => {
-    try {
-      loading.value = true
-      error.value = null
-      await service.deactivate(id)
-
-      items.value = items.value.filter((i) => i.id !== id)
-
-      if (current.value?.id === id) {
-        current.value = null
-      }
-    } catch (err: any) {
-      error.value = err?.data?.message || 'Error al desactivar company'
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
   // =========================
   // COMPANY USERS
   // =========================
@@ -184,7 +165,6 @@ export const useCompaniesStore = defineStore('companies', () => {
     fetchOne,
     create,
     update,
-    deactivate,
     fetchUsers,
     addUser,
     createUser,

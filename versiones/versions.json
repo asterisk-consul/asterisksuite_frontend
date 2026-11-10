@@ -1,5 +1,120 @@
 [
  {
+  "version": "0.143.1-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "Al revelar el control de completado en una tarjeta de tarea, se desplaza solo el título y queda más espacio junto al círculo. La descripción, etiquetas y datos inferiores mantienen su posición.",
+  "changes": [
+   { "type": "style", "scope": "tasks", "title": "Mover solo el título al mostrar el control de completado" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ajustar la animación del título en las tareas"
+ },
+ {
+  "version": "0.144.0-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "El propietario de plataforma puede eliminar definitivamente una empresa desde Planes y módulos. La baja borra la base tenant y sus relaciones con usuarios, y conserva las cuentas globales que puedan seguir usando otras empresas.",
+  "changes": [
+   { "type": "feat", "scope": "platform-admin", "title": "Eliminar empresas y sus bases tenant desde la plataforma" },
+   { "type": "docs", "scope": "platform-admin", "title": "Documentar la eliminación definitiva de una empresa" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Habilitar la eliminación de empresas desde plataforma"
+ },
+ {
+  "version": "0.143.0-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "Las tareas conservan un responsable principal y permiten asociar varias personas como colaboradoras, auditoras u observadoras. Los nuevos miembros reciben avisos en la campanita y, si está habilitado, por WhatsApp.",
+  "changes": [
+   { "type": "feat", "scope": "tasks", "title": "Asociar varios miembros con roles a una tarea" },
+   { "type": "feat", "scope": "notifications", "title": "Avisar cuando agregan una persona a una tarea" },
+   { "type": "docs", "scope": "tasks", "title": "Documentar miembros, roles y migración tenant" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Asociar varios miembros a las tareas"
+ },
+ {
+  "version": "0.142.0-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "Las tareas notifican asignaciones, comentarios y menciones en la campanita. WhatsApp queda disponible como canal opcional, con consentimiento individual, agrupación de mensajes y controles independientes. CRM y Tareas se puede habilitar o deshabilitar por empresa y protege tanto la navegación como la API. El tablero permanece visible y la configuración de avisos se abre desde un botón junto a Nuevo tablero, con el acceso a WhatsApp según el módulo activo.",
+  "changes": [
+   { "type": "feat", "scope": "tasks", "title": "Notificar asignaciones, comentarios y menciones de tareas" },
+   { "type": "feat", "scope": "whatsapp", "title": "Agregar avisos opcionales de tareas con consentimiento y cola agrupada" },
+   { "type": "feat", "scope": "platform-modules", "title": "Agregar CRM y Tareas al catálogo y proteger rutas por empresa" },
+   { "type": "fix", "scope": "tasks", "title": "Mantener visible el tablero y abrir la configuración de avisos desde el encabezado" },
+   { "type": "docs", "scope": "tasks", "title": "Documentar notificaciones y activación del módulo CRM" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Notificar tareas y habilitar CRM por empresa"
+ },
+ {
+  "version": "0.141.0-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "La descripción de tareas ofrece menús agrupados para títulos, estilos, listas, enlaces, imágenes, menciones, emojis, bloques de código y citas. El editor indica cuándo negrita o una lista están activas; el círculo de completado queda centrado junto al título con una interacción más sutil.",
+  "changes": [
+   { "type": "feat", "scope": "tasks", "title": "Ampliar la barra de formato de las descripciones con menús de inserción" },
+   { "type": "style", "scope": "tasks", "title": "Indicar los formatos activos y alinear el control de completado con el título" },
+   { "type": "docs", "scope": "tasks", "title": "Documentar el editor de descripción y aclarar que las menciones no notifican" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar el editor de descripción de tareas"
+ },
+ {
+  "version": "0.140.2-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "Mejorar el detalle de tareas: la descripción se presenta de forma compacta y se edita al abrirla; cliente, etiquetas, fechas, checklist y miembros se configuran en ventanas, y el círculo del título permite completar o reabrir la tarea.",
+  "changes": [
+   { "type": "style", "scope": "tasks", "title": "Organizar las acciones de tarea en ventanas y mostrar el cliente como acción" },
+   { "type": "fix", "scope": "tasks", "title": "Habilitar completar o reabrir desde el detalle y mostrar la descripción" },
+   { "type": "docs", "scope": "tasks", "title": "Documentar las acciones, el cliente y el control de completado" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la edición de descripciones en tareas"
+ },
+ {
+  "version": "0.140.1-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "Corregir el ciclo reactivo al cargar facturas de referencia en NC/ND y declarar explícitamente los permisos usados en el detalle de ventas.",
+  "changes": [
+   { "type": "fix", "scope": "sales-purchases", "title": "Evitar el bloqueo al cargar la factura de referencia en NC y ND" },
+   { "type": "fix", "scope": "sales", "title": "Importar el composable de permisos en el detalle de venta" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir errores del detalle de ventas y referencias de NC/ND"
+ },
+ {
+  "version": "0.140.0-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "Las órdenes y presupuestos de venta pueden combinar bonificaciones por ítem con conceptos globales porcentuales o fijos. Al confirmar una factura de venta, también se puede elegir actualizar los precios generales de los productos con los valores unitarios del comprobante.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Agregar bonificaciones globales porcentuales o fijas a órdenes y presupuestos" },
+   { "type": "feat", "scope": "pricing", "title": "Elegir actualizar precios generales al confirmar facturas de venta" },
+   { "type": "docs", "scope": "sales", "title": "Documentar bonificaciones por ítem y globales en ventas" },
+   { "type": "docs", "scope": "pricing", "title": "Documentar la actualización opcional de precios desde facturas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Habilitar bonificaciones globales en ventas"
+ },
+ {
+  "version": "0.139.0-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "Las notas de crédito y débito confirmadas pueden anularse aunque estén vinculadas a una factura. La anulación revierte su efecto en cuenta corriente y mantiene la relación; las notas manuales sin efectos pueden retirarse de forma segura, y la factura queda protegida mientras tenga comprobantes relacionados.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Anular NC/ND confirmadas vinculadas a facturas" },
+   { "type": "fix", "scope": "trash", "title": "Proteger la factura relacionada y purgar solo notas manuales seguras" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Anular notas vinculadas y proteger la cadena documental"
+ },
+ {
   "version": "0.138.3-alpha",
   "date": "2026-11-06",
   "stage": "alpha",

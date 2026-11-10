@@ -33,8 +33,6 @@ export function useCompanies() {
 
   const update = async (id: string, payload: UpdateCompanyInput) => store.update(id, payload)
 
-  const deactivate = async (id: string) => store.deactivate(id)
-
   // =========================
   // USER ACTIONS
   // =========================
@@ -96,7 +94,6 @@ export function useCompanies() {
     init,
     create,
     update,
-    deactivate,
 
     // user actions
     listUsers,

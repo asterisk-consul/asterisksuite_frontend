@@ -280,6 +280,19 @@ export const useAuthStore = defineStore('auth', () => {
     persistSelectedCompany(company)
   }
 
+  function removeCompany(companyId: string) {
+    const selectedWasRemoved = selectedCompany.value?.id === companyId
+    companies.value = companies.value.filter((company) => company.id !== companyId)
+
+    if (selectedWasRemoved) {
+      resetEmployeeCache()
+      selectedCompany.value = companies.value[0] ?? null
+      persistSelectedCompany(selectedCompany.value)
+    }
+
+    return { selectedWasRemoved, nextCompany: selectedCompany.value }
+  }
+
   return {
     user,
     companies,
@@ -297,6 +310,7 @@ export const useAuthStore = defineStore('auth', () => {
     init,
     logout,
     selectCompany,
+    removeCompany,
     autoSelectByHostname,
     getCurrentTenantSubdomain
   }

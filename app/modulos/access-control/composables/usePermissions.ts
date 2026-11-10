@@ -23,6 +23,7 @@ export interface PermissionModuleGroup {
 // Agrupación lógica por módulo de negocio
 const MODULE_META: Record<string, { label: string; icon: string; order: number; modules: string[]; subgroups?: Record<string, string> }> = {
   access: { label: 'Acceso', icon: 'i-lucide-shield', order: 0, modules: ['roles', 'users', 'permissions'] },
+  tasks: { label: 'Tareas', icon: 'i-lucide-kanban-square', order: 45, modules: ['tasks'] },
   documents: {
     label: 'Documentos', icon: 'i-lucide-file-text', order: 10, modules: ['sales', 'purchases', 'documents', 'document_types', 'document_sequences', 'fiscal-authorizations'],
     subgroups: {

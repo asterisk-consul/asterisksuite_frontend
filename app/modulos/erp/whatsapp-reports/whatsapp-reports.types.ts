@@ -19,6 +19,7 @@ export interface WhatsAppReportSettings {
 export interface WhatsAppOperationalNotificationSettings {
   enabled: boolean
   assignments_enabled: boolean
+  tasks_enabled: boolean
   customer_balances_enabled: boolean
   customer_balance_recipient_ids: string[]
   supplier_balances_enabled: boolean

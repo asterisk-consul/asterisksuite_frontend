@@ -68,7 +68,7 @@ const {
   processing,
   isDraft,
   isConfirmed,
-  canTrashOrphanNote,
+  canTrashCancelledNote,
   handleConfirm,
   handleCancel,
   handleRemove,
@@ -127,6 +127,14 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
         </UPageHeader>
 
         <UPageBody>
+          <UAlert
+            v-if="factura && category === 'INVOICE' && Number(factura.status) === 3 && Number(factura._count?.child_documents ?? factura.child_documents?.length ?? 0) > 0"
+            class="mb-4"
+            color="warning"
+            variant="subtle"
+            title="La factura conserva comprobantes relacionados"
+            description="La factura sigue protegida mientras tenga comprobantes relacionados, incluso si ya están en la papelera. Resolvé cada nota o remito por separado; no se borra la cadena en bloque y los documentos fiscales deben conservarse."
+          />
           <DocumentChain v-if="factura" :document="factura" class="mb-4" />
           <div v-if="factura" id="printable-document">
             <DocumentAssignment :key="factura.id" :document-id="factura.id" />
@@ -177,10 +185,16 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
     </template>
   </UModal>
 
-  <UModal v-model:open="cancelModalOpen" title="Anular factura">
+  <UModal v-model:open="cancelModalOpen" :title="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category ?? '') ? 'Anular nota de crédito/débito' : 'Anular factura'">
     <template #body>
-      <p>¿Estás seguro de que deseas anular la factura <strong>#{{ factura?.number }}</strong>?</p>
-      <p class="text-sm text-muted mt-2">Esta acción no se puede deshacer.</p>
+      <template v-if="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category ?? '')">
+        <p>¿Anular la nota <strong>#{{ factura?.number }}</strong>?</p>
+        <p class="text-sm text-muted mt-2">Una nota confirmada no se edita: si el importe es incorrecto, anulala y creá otra. La anulación revierte su efecto en la cuenta corriente y conserva la relación documental; si tiene pagos activos, primero hay que anularlos.</p>
+      </template>
+      <template v-else>
+        <p>¿Estás seguro de que deseas anular la factura <strong>#{{ factura?.number }}</strong>?</p>
+        <p class="text-sm text-muted mt-2">Esta acción no se puede deshacer.</p>
+      </template>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="() => { cancelModalOpen = false }" />
         <UButton label="Anular" color="error" :loading="processing" @click="handleCancel" />
@@ -188,11 +202,11 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
     </template>
   </UModal>
 
-  <UModal v-model:open="deleteModalOpen" :title="canTrashOrphanNote ? 'Anular y enviar nota a la papelera' : 'Enviar factura a la papelera'">
+  <UModal v-model:open="deleteModalOpen" :title="canTrashCancelledNote ? 'Enviar nota anulada a la papelera' : 'Enviar factura a la papelera'">
     <template #body>
-      <template v-if="canTrashOrphanNote">
-        <p>La nota <strong>#{{ factura?.number }}</strong> se anulará y dejará de aparecer en el circuito habitual.</p>
-        <p class="text-sm text-muted mt-2">Su movimiento activo se quitará de la cuenta corriente. El comprobante y su historial quedarán conservados en la papelera y podrán restaurarse.</p>
+      <template v-if="canTrashCancelledNote">
+        <p>La nota anulada <strong>#{{ factura?.number }}</strong> dejará de aparecer en la cadena activa de la factura.</p>
+        <p class="text-sm text-muted mt-2">Se conserva en la papelera y puede restaurarse. La eliminación definitiva solo estará disponible si es una nota manual sin autorización fiscal, pagos ni efectos activos.</p>
       </template>
       <template v-else>
         <p>La factura anulada <strong>#{{ factura?.number }}</strong> dejará de aparecer en el circuito habitual.</p>
@@ -200,7 +214,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
       </template>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="() => { deleteModalOpen = false }" />
-        <UButton :label="canTrashOrphanNote ? 'Anular y enviar a papelera' : 'Enviar a papelera'" color="error" :loading="processing" @click="handleRemove" />
+        <UButton :label="canTrashCancelledNote ? 'Enviar nota a papelera' : 'Enviar a papelera'" color="error" :loading="processing" @click="handleRemove" />
       </div>
     </template>
   </UModal>

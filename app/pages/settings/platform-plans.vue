@@ -69,6 +69,10 @@ const savingAdministrator = ref(false)
 const administratorToRevoke = ref<PlatformAdministrator | null>(null)
 const revokeAdministratorDialogOpen = ref(false)
 const revokingAdministrator = ref(false)
+const companyToDelete = ref<PlatformCompanySubscription | null>(null)
+const deleteCompanyDialogOpen = ref(false)
+const deletingCompany = ref(false)
+const deleteSubdomainConfirmation = ref('')
 
 const planOptions = computed(() =>
   plans.value.filter((plan) => plan.active).map((plan) => ({ label: plan.name, value: plan.id }))
@@ -118,6 +122,12 @@ const canSaveAdministrator = computed(() =>
   !!administratorCandidate.value &&
   administratorCompanyIds.value.length > 0 &&
   !savingAdministrator.value
+)
+const canDeleteCompany = computed(() =>
+  isPlatformOwner.value &&
+  !!companyToDelete.value?.subdomain &&
+  deleteSubdomainConfirmation.value.trim().toLowerCase() === companyToDelete.value.subdomain.toLowerCase() &&
+  !deletingCompany.value
 )
 
 function hydrate() {
@@ -202,6 +212,60 @@ async function saveCompany(company: PlatformCompanySubscription) {
   companies.value = await api.companies()
   hydrate()
   toast.add({ title: `Plan actualizado para ${company.name}`, color: 'success' })
+}
+
+function askDeleteCompany(company: PlatformCompanySubscription) {
+  if (!isPlatformOwner.value) return
+  companyToDelete.value = company
+  deleteSubdomainConfirmation.value = ''
+  deleteCompanyDialogOpen.value = true
+}
+
+async function deleteCompany() {
+  const company = companyToDelete.value
+  if (!company || !canDeleteCompany.value) return
+
+  deletingCompany.value = true
+  try {
+    await api.deleteCompany(company.id, deleteSubdomainConfirmation.value.trim())
+    companies.value = companies.value.filter((item) => item.id !== company.id)
+    delete companyDrafts[company.id]
+    if (selectedCompanyId.value === company.id) selectedCompanyId.value = companies.value[0]?.id
+    hydrate()
+
+    const selection = auth.removeCompany(company.id)
+    toast.add({
+      title: 'Empresa eliminada',
+      description: `Se eliminó ${company.name} y sus accesos. Las cuentas de usuario se conservaron.`,
+      color: 'success'
+    })
+    deleteCompanyDialogOpen.value = false
+    companyToDelete.value = null
+
+    if (selection.selectedWasRemoved) {
+      const currentHost = window.location.hostname.toLowerCase()
+      const baseDomain = companyBaseDomain.replace(/^\.+|\.+$/g, '').toLowerCase()
+      const deletedCompanyHost = `${company.subdomain}.${baseDomain}`
+      const portSuffix = window.location.port ? `:${window.location.port}` : ''
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+
+      if (currentHost === deletedCompanyHost && selection.nextCompany) {
+        window.location.href = `${window.location.protocol}//${selection.nextCompany.subdomain}.${baseDomain}${portSuffix}${currentPath}`
+      } else if (currentHost === deletedCompanyHost) {
+        window.location.href = `${window.location.protocol}//admin.${baseDomain}${portSuffix}/settings/platform-plans`
+      } else {
+        window.location.reload()
+      }
+    }
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo completar la eliminación',
+      description: error?.data?.message || error?.message || 'La empresa sigue disponible. Revisá el estado e intentá nuevamente.',
+      color: 'error'
+    })
+  } finally {
+    deletingCompany.value = false
+  }
 }
 
 function overrideState(moduleCode: string) {
@@ -685,7 +749,17 @@ onMounted(load)
                     @update:model-value="(value) => updateCompanyDraft(company.id, 'status', String(value))"
                   />
                 </UFormField>
-                <UButton label="Guardar" variant="outline" @click="saveCompany(company)" />
+                <div class="flex flex-wrap justify-end gap-2">
+                  <UButton label="Guardar" variant="outline" @click="saveCompany(company)" />
+                  <UButton
+                    v-if="isPlatformOwner"
+                    label="Eliminar"
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="outline"
+                    @click="askDeleteCompany(company)"
+                  />
+                </div>
               </div>
             </div>
           </UCard>
@@ -922,6 +996,50 @@ onMounted(load)
         <div class="flex w-full justify-end gap-2">
           <UButton label="Cancelar" variant="ghost" @click="closeRevokeAdministratorDialog" />
           <UButton label="Revocar acceso" color="error" :loading="revokingAdministrator" @click="revokeAdministrator" />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-if="isPlatformOwner"
+      v-model:open="deleteCompanyDialogOpen"
+      title="Eliminar empresa definitivamente"
+      description="Esta acción elimina los datos y no se puede deshacer."
+    >
+      <template #body>
+        <div v-if="companyToDelete" class="space-y-4">
+          <UAlert
+            icon="i-lucide-triangle-alert"
+            color="error"
+            title="Se eliminará la base de datos de la empresa"
+            :description="`Se borrarán todos los datos de ${companyToDelete.name}, la suscripción y las relaciones con sus usuarios. Las cuentas globales de esas personas se conservarán y podrán seguir usando otras empresas.`"
+          />
+          <UFormField
+            label="Escribí el subdominio para confirmar"
+            :description="`Ingresá exactamente ${companyToDelete.subdomain}`"
+            required
+          >
+            <UInput
+              v-model="deleteSubdomainConfirmation"
+              class="w-full"
+              :placeholder="companyToDelete.subdomain"
+              autocomplete="off"
+              @keyup.enter="deleteCompany"
+            />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton label="Cancelar" variant="ghost" :disabled="deletingCompany" @click="deleteCompanyDialogOpen = false" />
+          <UButton
+            label="Eliminar definitivamente"
+            icon="i-lucide-trash-2"
+            color="error"
+            :loading="deletingCompany"
+            :disabled="!canDeleteCompany"
+            @click="deleteCompany"
+          />
         </div>
       </template>
     </UModal>

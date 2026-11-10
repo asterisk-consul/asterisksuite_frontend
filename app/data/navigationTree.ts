@@ -104,6 +104,14 @@ export const navigationTree: DrilldownNode[] = [
     ]
   },
 
+  {
+    label: 'Tareas',
+    moduleCode: 'CRM',
+    icon: 'i-lucide-kanban-square',
+    to: '/erp/tasks',
+    permission: 'tasks.read'
+  },
+
   // ─── ERP: COMPRAS ──────────────────────────────────────────────
   {
     label: 'Compras',

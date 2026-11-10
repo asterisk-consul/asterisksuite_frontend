@@ -1,7 +1,7 @@
 import type { Ref, ComputedRef } from 'vue'
 import { getStatusLabel, getStatusColor, getValidTransitions, type BadgeColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from './useDocumentPermissions'
-import { isOrphanNoteTrashCandidate } from '../utils/trash-eligibility'
+import { canSendDocumentToTrash, isCancelledNoteTrashCandidate } from '../utils/trash-eligibility'
 
 type Doc = Record<string, any> | null
 
@@ -57,7 +57,10 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const isDraft = computed(() => doc.value?.status === 0)
   const isPending = computed(() => doc.value?.status === 1)
   const isConfirmed = computed(() => doc.value?.status === 2)
-  const canTrashOrphanNote = computed(() => isOrphanNoteTrashCandidate(doc.value))
+  const canTrashCancelledNote = computed(() => isCancelledNoteTrashCandidate(doc.value))
+  const canTrashCancelledInvoice = computed(() => category.value === 'INVOICE'
+    && Number(doc.value?.status) === 3
+    && canSendDocumentToTrash(doc.value))
 
   const operationAccountingApplies = computed(() => {
     const basis = doc.value?.commercial_operation?.accounting_basis
@@ -225,19 +228,19 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     const canCancelCurrent = isDraft.value
       || (category.value === 'ORDER' && Number(doc.value?.status) >= 2 && Number(doc.value?.status) < 7)
       || (category.value === 'INVOICE' && (isPending.value || isConfirmed.value))
+      || (['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category.value ?? '') && (isPending.value || isConfirmed.value))
     if (canCancelCurrent && canDocument(module, category.value ?? undefined, 'cancel')) {
       items.push([{ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onClick: () => { cancelModalOpen.value = true } }])
     }
 
-    if (((category.value === 'INVOICE' && doc.value?.status === 3) || canTrashOrphanNote.value) && store.remove
-      && canDocument(module, category.value, 'delete')
-      && (!canTrashOrphanNote.value || doc.value?.status !== 2 || canDocument(module, category.value, 'cancel'))) {
+    if ((canTrashCancelledInvoice.value || canTrashCancelledNote.value) && store.remove
+      && canDocument(module, category.value, 'delete')) {
       items.push([{
-        label: canTrashOrphanNote.value ? 'Anular y enviar a papelera' : 'Enviar a papelera',
+        label: canTrashCancelledNote.value ? 'Enviar nota a papelera' : 'Enviar a papelera',
         icon: 'i-lucide-trash-2',
         color: 'error',
-        help: canTrashOrphanNote.value
-          ? 'Anula la NC/ND huérfana, quita su movimiento de cuenta corriente y la conserva en la papelera con su historial.'
+        help: canTrashCancelledNote.value
+          ? 'La nota ya está anulada. Se conserva en la papelera y solo se podrá purgar si es manual y no tiene efectos fiscales, pagos ni movimientos activos.'
           : undefined,
         onClick: () => { deleteModalOpen.value = true }
       }])
@@ -442,7 +445,8 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     isDraft,
     isPending,
     isConfirmed,
-    canTrashOrphanNote,
+    canTrashCancelledNote,
+    canTrashCancelledInvoice,
     validTransitions,
     invoiceState,
 
