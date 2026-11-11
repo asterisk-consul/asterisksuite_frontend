@@ -1,19 +1,60 @@
 [
  {
-  "version": "0.145.0-alpha",
-  "date": "2026-11-10",
+  "version": "0.147.1-alpha",
+  "date": "2026-11-11",
   "stage": "alpha",
-  "notes": "Las empresas configuran por separado si las facturas de venta y compra actualizan precios por contraparte y valores globales. Al confirmar, un toast resume el resultado y ofrece acceso a la configuración. Las NC y ND no cambian precios ni generan avisos; las NC permiten ingresar importes con IVA incluido y las NC de compra descuentan el saldo pendiente.",
+  "notes": "El aviso de edición limitada de pagos y cobros confirmados ahora ocupa menos espacio y permite desplegar la explicación cuando se necesita.",
+  "changes": [
+   { "type": "style", "scope": "payments", "title": "Compactar el aviso de edición limitada en el detalle de pagos y cobros" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Hacer más discreto el aviso de pagos confirmados"
+ },
+ {
+  "version": "0.147.0-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Al cargar una retención manual en un pago o cobro, la base toma el total de los comprobantes seleccionados y se convierte a la moneda del movimiento. La base sigue editable; la alícuota calcula el importe y también se puede ingresar directamente el importe retenido.",
+  "changes": [
+   { "type": "feat", "scope": "payments", "title": "Precargar la base imponible de retenciones manuales con el total de los comprobantes seleccionados" },
+   { "type": "docs", "scope": "payments", "title": "Documentar la precarga de la base y las opciones para calcular el importe retenido" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Precargar la base de las retenciones manuales"
+ },
+ {
+  "version": "0.146.0-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Los anticipos confirmados impactan en la cuenta corriente como saldo disponible. Al aplicarlos a una o varias facturas u órdenes de venta, el disponible se reduce y las imputaciones actualizan los comprobantes sin duplicar el saldo; al quitar una aplicación, el importe vuelve a estar disponible.",
+  "changes": [
+   { "type": "feat", "scope": "payments", "title": "Mostrar anticipos confirmados en la cuenta corriente de clientes y proveedores" },
+   { "type": "fix", "scope": "payments", "title": "Descontar aplicaciones del saldo disponible sin duplicar movimientos" },
+   { "type": "fix", "scope": "payments", "title": "Restituir el saldo del anticipo al quitar una aplicación" },
+   { "type": "compat", "scope": "payments", "title": "Incorporar anticipos existentes con un backfill idempotente por empresa" },
+   { "type": "docs", "scope": "payments", "title": "Documentar el impacto de anticipos en cuentas corrientes" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Reflejar anticipos y aplicaciones en cuentas corrientes"
+ },
+ {
+  "version": "0.145.0-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Las empresas configuran por separado si las facturas de venta y compra actualizan precios por contraparte y valores globales. Al confirmar, un toast resume el resultado y ofrece acceso a la configuración. Los anticipos muestran los documentos pendientes elegibles del circuito de ventas o las facturas de compra y permiten aplicar entre ARS y USD con una cotización válida, sin mezclar terceros. El detalle identifica al cliente o proveedor y enlaza las facturas aplicadas. Las NC y ND no cambian precios ni generan avisos; las NC permiten ingresar importes con IVA incluido y las NC de compra descuentan el saldo pendiente.",
   "changes": [
    { "type": "feat", "scope": "product-pricing", "title": "Configurar actualizaciones automáticas de precios por contraparte y globales" },
    { "type": "feat", "scope": "credit-notes", "title": "Ingresar precios de NC con IVA incluido y recalcular la base" },
    { "type": "fix", "scope": "purchase-invoices", "title": "Descontar NC aplicadas del saldo y marcar la factura saldada" },
    { "type": "fix", "scope": "credit-notes", "title": "Evitar que las NC y ND actualicen precios o costos" },
    { "type": "feat", "scope": "product-pricing", "title": "Mostrar el resultado en un toast con acceso directo a la configuración" },
-   { "type": "docs", "scope": "product-pricing", "title": "Documentar los cuatro controles y el aviso posterior a la confirmación" }
+   { "type": "fix", "scope": "payments", "title": "Aplicar anticipos entre ARS y USD con cotización y respetar el mismo tercero" },
+   { "type": "feat", "scope": "payments", "title": "Mostrar cliente o proveedor en el detalle y enlazar comprobantes aplicados" },
+   { "type": "docs", "scope": "product-pricing", "title": "Documentar los cuatro controles y el aviso posterior a la confirmación" },
+   { "type": "docs", "scope": "payments", "title": "Documentar cómo aplicar un anticipo a una factura pendiente" }
   ],
   "contributors": ["agustin"],
-  "message": "Configurar la actualización automática de precios por factura"
+  "message": "Mejorar precios de facturas y aplicación de anticipos"
  },
  {
   "version": "0.144.1-alpha",

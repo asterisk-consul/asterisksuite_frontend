@@ -87,6 +87,11 @@ const canEditFinalizedExchangeRate = computed(() =>
 )
 const isAdvance = computed(() => currentPayment.value?.payment_mode === 'ADVANCE')
 const hasUnsavedDateChange = computed(() => isDraft.value && editingDate.value !== savedDate.value)
+const counterpartyLabel = computed(() => currentPayment.value?.type === 'COLLECTION'
+  ? 'Cliente'
+  : currentPayment.value?.type === 'PAYMENT'
+    ? 'Proveedor'
+    : 'Tercero')
 
 const availableBalance = computed(() => {
   if (!currentPayment.value) return 0
@@ -381,7 +386,19 @@ const handleAction = async () => {
 
 const handleAdvanceSuccess = async () => {
   const updated = await fetchOne(paymentId)
-  if (updated) currentPayment.value = updated as Payment
+  if (updated) {
+    currentPayment.value = updated as Payment
+    if (paymentData.value) {
+      paymentData.value = {
+        ...paymentData.value,
+        documents: (updated.documents ?? []).map(document => ({
+          document_id: document.document_id,
+          amount_applied: Number(document.amount_applied),
+          document: document.document,
+        })),
+      }
+    }
+  }
   toast.add({ title: 'Anticipo aplicado correctamente', color: 'success' })
 }
 </script>
@@ -415,7 +432,7 @@ const handleAdvanceSuccess = async () => {
             <UBadge v-if="isAdvance && availableBalance <= 0 && (isConfirmed || isPaid)" label="Saldado" color="success" variant="subtle" />
             <UButton
               v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)"
-              label="Aplicar a factura"
+              label="Aplicar anticipo"
               icon="i-lucide-link"
               size="sm"
               color="info"
@@ -473,6 +490,16 @@ const handleAdvanceSuccess = async () => {
       </template>
     </AppPageHeader>
 
+    <div v-if="currentPayment" class="flex min-w-0 items-center gap-3 rounded-xl border border-default bg-elevated/40 px-4 py-3">
+      <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <UIcon :name="currentPayment.type === 'COLLECTION' ? 'i-lucide-user-round' : 'i-lucide-building-2'" class="size-5" />
+      </div>
+      <div class="min-w-0">
+        <p class="text-xs font-medium uppercase tracking-wide text-muted">{{ counterpartyLabel }}</p>
+        <p class="break-words font-semibold">{{ currentPayment.party?.name || 'Sin tercero asignado' }}</p>
+      </div>
+    </div>
+
     <div v-if="isInitialLoading" class="flex justify-center py-8">
       <ULoader />
     </div>
@@ -488,14 +515,20 @@ const handleAdvanceSuccess = async () => {
           description="La fecha todavía no se aplicó al pago o cobro. Hacé clic en “Guardar borrador” al inicio del formulario; después vas a poder confirmarlo."
         />
 
-        <UAlert
-          v-if="!isDraft"
-          color="warning"
-          variant="subtle"
-          icon="i-lucide-lock-keyhole"
-          title="Operación de solo lectura"
-          description="La fecha, el medio y las facturas aplicadas se bloquean al confirmar. Con permiso, podés ajustar retenciones y cuenta contable; el importe del pago y el saldo de caja o banco se recalculan sobre el movimiento original."
-        />
+        <details v-if="!isDraft" class="group rounded-lg border border-warning/20 bg-warning/5">
+          <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm [&::-webkit-details-marker]:hidden">
+            <UIcon name="i-lucide-lock-keyhole" class="size-4 shrink-0 text-warning" />
+            <span class="font-medium">Edición limitada</span>
+            <span class="text-muted">· Ver qué se puede modificar</span>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="ml-auto size-4 shrink-0 text-muted transition-transform group-open:rotate-180"
+            />
+          </summary>
+          <p class="border-t border-warning/15 px-3 py-2 pl-9 text-sm leading-relaxed text-muted">
+            La fecha, el medio y las facturas aplicadas se bloquean al confirmar. Con permiso, podés ajustar retenciones y cuenta contable; el importe del pago y el saldo de caja o banco se recalculan sobre el movimiento original.
+          </p>
+        </details>
 
         <!-- FORM (readonly when not DRAFT) -->
         <div class="flex w-full min-w-0 flex-col gap-4">
@@ -587,7 +620,9 @@ const handleAdvanceSuccess = async () => {
       :payment-type="currentPayment.type"
       :available-balance="availableBalance"
       :currency-code="currentPayment.currency_code || 'ARS'"
+      :exchange-rate="currentPayment.exchange_rate"
       :party-id="currentPayment.party_id || undefined"
+      :party-name="currentPayment.party?.name"
       @success="handleAdvanceSuccess"
     />
   </UPage>

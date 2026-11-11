@@ -32,6 +32,9 @@ const checklists = ref<TaskChecklist[]>([])
 const attachments = ref<any[]>([])
 const checklistTitle = ref('')
 const checklistItemDrafts = ref<Record<string, string>>({})
+const checklistDateOpen = reactive<Record<string, boolean>>({})
+const checklistMemberOpen = reactive<Record<string, boolean>>({})
+const convertingChecklistItemId = ref('')
 const activeActionPanel = ref<'add' | 'labels' | 'dates' | 'checklist' | 'members' | 'client' | null>(null)
 const actionModalOpen = ref(false)
 const attachmentInput = ref<HTMLInputElement | null>(null)
@@ -149,6 +152,7 @@ const actionPanelTitle = computed(() => {
   }
 })
 const canEditTask = computed(() => selectedTask.value ? hasTaskPermission('tasks.update') : hasTaskPermission('tasks.create'))
+const canConvertChecklistItem = computed(() => hasTaskPermission('tasks.create') && hasTaskPermission('tasks.update'))
 const checklistSummary = (checklist: TaskChecklist) => `${checklist.items.filter(item => item.completed).length}/${checklist.items.length}`
 const attachmentAccept = 'image/*,.pdf'
 const priorityOptions = [
@@ -711,6 +715,32 @@ async function deleteChecklistItem(checklist: TaskChecklist, itemId: string) {
   } catch (error: any) { toast.add({ title: 'No se pudo quitar el elemento', description: error?.data?.message ?? error.message, color: 'error' }) }
 }
 
+async function convertChecklistItemToTask(checklist: TaskChecklist, item: TaskChecklist['items'][number]) {
+  if (!canConvertChecklistItem.value || convertingChecklistItemId.value) return
+  convertingChecklistItemId.value = item.id
+  try {
+    await service.convertChecklistItemToTask(item.id)
+    checklist.items = checklist.items.filter(row => row.id !== item.id)
+    await loadBoard()
+    toast.add({ title: 'Tarea creada', description: 'El elemento se movió a la lista actual del tablero.', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo convertir el elemento', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    convertingChecklistItemId.value = ''
+  }
+}
+
+function checklistItemMenuItems(checklist: TaskChecklist, item: TaskChecklist['items'][number]) {
+  const actions: Array<Array<Record<string, any>>> = []
+  if (canConvertChecklistItem.value) {
+    actions.push([{ label: 'Convertir a tarea', icon: 'i-lucide-square-arrow-out-up-right', onSelect: () => void convertChecklistItemToTask(checklist, item) }])
+  }
+  if (canEditTask.value) {
+    actions.push([{ label: 'Eliminar', icon: 'i-lucide-trash-2', color: 'error', onSelect: () => void deleteChecklistItem(checklist, item.id) }])
+  }
+  return actions.length ? actions : [[{ label: 'Tu rol solo puede consultar este elemento', icon: 'i-lucide-lock-keyhole', disabled: true }]]
+}
+
 function onChecklistDueChange(item: TaskChecklist['items'][number], event: Event) {
   const value = (event.target as HTMLInputElement).value
   void updateChecklistItem(item, { due_at: value ? new Date(`${value}T12:00:00`).toISOString() : null })
@@ -1205,12 +1235,33 @@ onBeforeUnmount(() => {
             <article v-for="checklist in checklists" :key="checklist.id" class="space-y-3 rounded-lg border border-default p-3">
               <header class="flex items-center gap-2"><h4 class="min-w-0 flex-1 font-medium">{{ checklist.title }}</h4><span class="text-xs text-muted">{{ checklistSummary(checklist) }}</span><UButton v-if="canEditTask" icon="i-lucide-trash-2" color="neutral" variant="ghost" size="xs" aria-label="Eliminar checklist" @click="deleteChecklist(checklist)"/></header>
               <div v-if="checklist.items.length" class="h-1.5 overflow-hidden rounded-full bg-elevated"><div class="h-full rounded-full bg-success transition-all" :style="{ width: `${checklist.items.length ? checklist.items.filter(item => item.completed).length / checklist.items.length * 100 : 0}%` }"/></div>
-              <div v-for="item in checklist.items" :key="item.id" class="grid items-center gap-2 sm:grid-cols-[auto_minmax(0,1fr)_10rem_9rem_auto]">
+              <div v-for="item in checklist.items" :key="item.id" class="group flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-elevated/70 focus-within:bg-elevated/70">
                 <UCheckbox :model-value="item.completed" :disabled="!canEditTask" @update:model-value="updateChecklistItem(item, { completed: !!$event })" />
-                <span class="text-sm" :class="item.completed ? 'text-muted line-through' : ''">{{ item.content }}</span>
-                <USelectMenu :model-value="item.assigned_to ?? 'NONE'" :items="memberOptions" value-key="value" size="xs" :disabled="!canEditTask" aria-label="Asignar elemento" @update:model-value="updateChecklistItem(item, { assigned_to: $event === 'NONE' ? null : $event })" />
-                <UInput :model-value="item.due_at?.slice(0, 10) ?? ''" type="date" size="xs" :disabled="!canEditTask" aria-label="Vencimiento del elemento" @change="onChecklistDueChange(item, $event)" />
-                <UButton v-if="canEditTask" icon="i-lucide-x" color="neutral" variant="ghost" size="xs" aria-label="Quitar elemento" @click="deleteChecklistItem(checklist, item.id)" />
+                <span class="min-w-0 flex-1 text-sm" :class="item.completed ? 'text-muted line-through' : ''">{{ item.content }}</span>
+                <UBadge v-if="item.assigned_to" color="neutral" variant="subtle" size="xs" class="hidden max-w-28 truncate sm:inline-flex">{{ members.find(member => member.id === item.assigned_to)?.name ?? 'Asignado' }}</UBadge>
+                <UBadge v-if="item.due_at" color="neutral" variant="subtle" size="xs" class="hidden sm:inline-flex">{{ new Date(item.due_at).toLocaleDateString('es-AR') }}</UBadge>
+                <div v-if="canEditTask || canConvertChecklistItem" class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100">
+                  <UPopover v-if="canEditTask" v-model:open="checklistDateOpen[item.id]" :content="{ align: 'end', sideOffset: 6 }">
+                    <UButton icon="i-lucide-clock-3" color="neutral" variant="ghost" size="xs" :aria-label="item.due_at ? 'Cambiar vencimiento' : 'Definir vencimiento'" title="Fecha de vencimiento" />
+                    <template #content>
+                      <div class="flex items-center gap-2 p-3">
+                        <UInput :model-value="item.due_at?.slice(0, 10) ?? ''" type="date" size="sm" aria-label="Vencimiento del elemento" @change="onChecklistDueChange(item, $event); checklistDateOpen[item.id] = false" />
+                        <UButton v-if="item.due_at" icon="i-lucide-x" color="neutral" variant="ghost" size="sm" aria-label="Quitar vencimiento" @click="updateChecklistItem(item, { due_at: null }); checklistDateOpen[item.id] = false" />
+                      </div>
+                    </template>
+                  </UPopover>
+                  <UPopover v-if="canEditTask" v-model:open="checklistMemberOpen[item.id]" :content="{ align: 'end', sideOffset: 6 }">
+                    <UButton icon="i-lucide-user-round-plus" color="neutral" variant="ghost" size="xs" :aria-label="item.assigned_to ? 'Cambiar responsable' : 'Asignar responsable'" title="Responsable" />
+                    <template #content>
+                      <div class="w-64 p-3">
+                        <USelectMenu :model-value="item.assigned_to ?? 'NONE'" :items="memberOptions" value-key="value" searchable size="sm" class="w-full" aria-label="Responsable del elemento" @update:model-value="updateChecklistItem(item, { assigned_to: $event === 'NONE' ? null : $event }); checklistMemberOpen[item.id] = false" />
+                      </div>
+                    </template>
+                  </UPopover>
+                  <UDropdownMenu :items="checklistItemMenuItems(checklist, item)" :content="{ align: 'end' }">
+                    <UButton icon="i-lucide-ellipsis" color="neutral" variant="ghost" size="xs" aria-label="Acciones del elemento" title="Acciones del elemento" :loading="convertingChecklistItemId === item.id" />
+                  </UDropdownMenu>
+                </div>
               </div>
               <form v-if="canEditTask" class="flex gap-2" @submit.prevent="addChecklistItem(checklist)"><UInput v-model="checklistItemDrafts[checklist.id]" placeholder="Añadir un elemento" class="min-w-0 flex-1" maxlength="500"/><UButton type="submit" label="Añadir" size="sm" :disabled="!checklistItemDrafts[checklist.id]?.trim()"/></form>
               <p v-else-if="!checklist.items.length" class="text-sm text-muted">Esta checklist todavía no tiene elementos.</p>

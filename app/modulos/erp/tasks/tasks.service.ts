@@ -144,6 +144,7 @@ export const useTasksService = () => ({
   createChecklistItem: (id: string, content: string) => $fetch<TaskChecklistItem>(`/api/backend/erp/tasks/checklists/${id}/items`, { method: 'POST', body: { content } }),
   updateChecklistItem: (id: string, body: Partial<Pick<TaskChecklistItem, 'content' | 'completed' | 'assigned_to' | 'due_at'>>) => $fetch<TaskChecklistItem>(`/api/backend/erp/tasks/checklist-items/${id}`, { method: 'PATCH', body }),
   deleteChecklistItem: (id: string) => $fetch<{ success: boolean }>(`/api/backend/erp/tasks/checklist-items/${id}`, { method: 'DELETE' }),
+  convertChecklistItemToTask: (id: string) => $fetch<{ id: string }>(`/api/backend/erp/tasks/checklist-items/${id}/convert-to-task`, { method: 'POST' }),
   getByParty: (partyId: string, limit = 100) => $fetch<TaskRecord[]>(`/api/backend/erp/tasks/by-party/${partyId}`, { query: { limit } }),
   createTask: (boardId: string, body: SaveTaskInput & { title: string; column_id: string }) => $fetch<{ id: string }>(`/api/backend/erp/tasks/boards/${boardId}/tasks`, { method: 'POST', body }),
   updateTask: (id: string, body: SaveTaskInput) => $fetch<{ id: string }>(`/api/backend/erp/tasks/${id}`, { method: 'PATCH', body }),

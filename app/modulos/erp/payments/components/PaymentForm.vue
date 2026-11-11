@@ -126,7 +126,12 @@ const { isOwnerOrAdmin } = useCompanyRole()
 const cardOptions = ref<any[]>([])
 
 // ═══ Retenciones (motor fiscal) ═══
-const withholdings = ref<WithholdingProposal[]>([])
+type PaymentWithholdingForm = WithholdingProposal & {
+  base_amount_is_auto?: boolean
+  calculation_mode?: 'RATE' | 'AMOUNT'
+}
+
+const withholdings = ref<PaymentWithholdingForm[]>([])
 const withholdingSkipped = ref<{ tax_type: string; reason: string }[]>([])
 const retentionLoading = ref(false)
 
@@ -149,22 +154,20 @@ const recalculateManualWithholding = (withholding: WithholdingProposal) => {
   withholding.withheld_amount = Math.round((base * rate / 100 + Number.EPSILON) * 100) / 100
 }
 
-const addManualWithholding = () => {
-  withholdings.value.push({
-    is_manual: true,
-    tax_type: 'GANANCIAS',
-    jurisdiction_id: null,
-    jurisdiction_name: null,
-    withholding_concept_id: null,
-    tax_rule_id: null,
-    rule_name: 'Manual',
-    base_amount: 0,
-    prorrate_percentage: null,
-    rate: 0,
-    withheld_amount: 0,
-    automatic_amount: 0,
-    reason: 'Carga manual'
-  })
+const updateManualWithholdingBase = (withholding: PaymentWithholdingForm) => {
+  if (!withholding.is_manual) return
+  withholding.base_amount_is_auto = false
+  if (withholding.calculation_mode !== 'AMOUNT') recalculateManualWithholding(withholding)
+}
+
+const updateManualWithholdingRate = (withholding: PaymentWithholdingForm) => {
+  if (!withholding.is_manual) return
+  withholding.calculation_mode = 'RATE'
+  recalculateManualWithholding(withholding)
+}
+
+const updateManualWithholdingAmount = (withholding: PaymentWithholdingForm) => {
+  if (withholding.is_manual) withholding.calculation_mode = 'AMOUNT'
 }
 
 // ═══ Gastos y descuentos bancarios ═══
@@ -449,7 +452,7 @@ type PaymentDraft = {
   form: PaymentFormData
   selectedDocs: Array<[string, { doc: PendingDocument; amount: number }]>
   selectedChecks: Array<[string, AvailableCheck]>
-  withholdings: WithholdingProposal[]
+  withholdings: PaymentWithholdingForm[]
   bankCharges: PaymentBankChargeForm[]
 }
 
@@ -978,13 +981,20 @@ const readonlyDocsList = computed(() => {
   if (!props.modelValue?.documents?.length) return []
   return props.modelValue.documents.map(d => {
     const doc = (d as any).document
+    const moduleCode = doc?.document_types?.system_modules?.code
     return {
+      document_id: d.document_id,
       number: doc?.number ?? d.document_id.slice(0, 8),
       party_name: doc?.business_parties?.name ?? '-',
       type_code: doc?.document_types?.code ?? '-',
       type_description: doc?.document_types?.description ?? '',
       date: doc?.date?.split('T')[0] ?? '-',
-      amount_applied: d.amount_applied
+      amount_applied: d.amount_applied,
+      path: moduleCode === 'SALES'
+        ? `/erp/sales/${doc.id}`
+        : moduleCode === 'PURCHASES'
+          ? `/erp/purchases/purchases-documents/${doc.id}`
+          : null,
     }
   })
 })
@@ -1268,6 +1278,59 @@ const getDocumentAmountFactor = (document: PendingDocument, currencyCode: string
   if (targetCurrency === 'ARS') return rate
   if (documentCurrency === 'ARS') return 1 / rate
   return null
+}
+
+const manualWithholdingBase = computed(() => {
+  const selectedInvoices = Array.from(selectedDocs.value.values())
+    .filter(entry => entry.doc.source_type !== 'TREASURY_OBLIGATION')
+  const linkedInvoices = selectedInvoices.length > 0
+    ? selectedInvoices.map(entry => entry.doc)
+    : (props.modelValue?.documents ?? [])
+        .map(row => row.document as PendingDocument | undefined)
+        .filter((document): document is PendingDocument => Boolean(document?.total != null))
+
+  if (linkedInvoices.length > 0) {
+    let total = 0
+    for (const document of linkedInvoices) {
+      const factor = getDocumentAmountFactor(document, form.currency_code)
+      if (factor == null) return 0
+      total += Number(document.total || 0) * factor
+    }
+    return Math.round((total + Number.EPSILON) * 100) / 100
+  }
+
+  // Si no hay facturas asociadas, conservar una base útil para pagos por cheque
+  // u obligaciones; en esos casos no existe un total de factura que precargar.
+  if (totalApplied.value > 0) return totalApplied.value
+  if (totalChecksAmount.value > 0) return totalChecksAmount.value
+  return Number(form.amount || 0)
+})
+
+watch(manualWithholdingBase, (baseAmount) => {
+  for (const withholding of withholdings.value) {
+    if (!withholding.is_manual || !withholding.base_amount_is_auto) continue
+    withholding.base_amount = baseAmount
+    if (withholding.calculation_mode === 'RATE') recalculateManualWithholding(withholding)
+  }
+})
+
+const addManualWithholding = () => {
+  withholdings.value.push({
+    is_manual: true,
+    tax_type: 'GANANCIAS',
+    jurisdiction_id: null,
+    jurisdiction_name: null,
+    withholding_concept_id: null,
+    tax_rule_id: null,
+    rule_name: 'Manual',
+    base_amount: manualWithholdingBase.value,
+    base_amount_is_auto: true,
+    prorrate_percentage: null,
+    rate: 0,
+    withheld_amount: 0,
+    automatic_amount: 0,
+    reason: 'Carga manual'
+  })
 }
 
 const repriceSelectedDocumentsForCurrencyChange = (previousCurrency: string, nextCurrency: string, previousRate?: number | null) => {
@@ -1947,11 +2010,23 @@ defineExpose({ completeDraft: completePaymentDraft })
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(doc, i) in readonlyDocsList" :key="i" class="border-t border-default">
+            <tr v-for="doc in readonlyDocsList" :key="doc.document_id" class="border-t border-default">
               <td class="px-4 py-2">
                 <span class="text-xs font-medium text-muted" :title="doc.type_description">{{ doc.type_description || doc.type_code }}</span>
               </td>
-              <td class="px-4 py-2 font-mono text-xs">{{ String(doc.number).padStart(8, '0') }}</td>
+              <td class="px-4 py-2 font-mono text-xs">
+                <UButton
+                  v-if="doc.path"
+                  :to="doc.path"
+                  :label="String(doc.number).padStart(8, '0')"
+                  color="primary"
+                  variant="link"
+                  size="xs"
+                  class="px-0 font-mono"
+                  trailing-icon="i-lucide-arrow-up-right"
+                />
+                <span v-else>{{ String(doc.number).padStart(8, '0') }}</span>
+              </td>
               <td class="px-4 py-2 text-xs">{{ doc.date }}</td>
               <td class="px-4 py-2">{{ doc.party_name }}</td>
               <td class="px-4 py-2 text-right font-medium">{{ formatCurrency(doc.amount_applied, form.currency_code) }}</td>
@@ -2045,15 +2120,15 @@ defineExpose({ completeDraft: completePaymentDraft })
                 <p v-else class="text-sm">{{ wh.tax_type }}</p>
               </UFormField>
               <UFormField label="Base" class="sm:col-span-2">
-                <UInput v-if="canEditFinalizedRetentions" v-model.number="wh.base_amount" type="number" min="0" class="w-full" @update:model-value="recalculateManualWithholding(wh)" />
+                <UInput v-if="canEditFinalizedRetentions" v-model.number="wh.base_amount" type="number" min="0" class="w-full" title="La base inicial toma el total de los comprobantes seleccionados; podés modificarla." @update:model-value="updateManualWithholdingBase(wh)" />
                 <p v-else>{{ formatCurrency(Number(wh.base_amount), form.currency_code) }}</p>
               </UFormField>
               <UFormField label="Alícuota %" class="sm:col-span-2">
-                <UInput v-if="canEditFinalizedRetentions" v-model.number="wh.rate" type="number" min="0" class="w-full" @update:model-value="recalculateManualWithholding(wh)" />
+                <UInput v-if="canEditFinalizedRetentions" v-model.number="wh.rate" type="number" min="0" class="w-full" @update:model-value="updateManualWithholdingRate(wh)" />
                 <p v-else>{{ wh.rate ?? '—' }}</p>
               </UFormField>
               <UFormField label="Importe retenido" class="sm:col-span-3">
-                <UInput v-if="canEditFinalizedRetentions" v-model.number="wh.withheld_amount" type="number" min="0" step="0.01" class="w-full" />
+                <UInput v-if="canEditFinalizedRetentions" v-model.number="wh.withheld_amount" type="number" min="0" step="0.01" class="w-full" @update:model-value="updateManualWithholdingAmount(wh)" />
                 <p v-else class="font-medium">{{ formatCurrency(Number(wh.withheld_amount), form.currency_code) }}</p>
               </UFormField>
               <div class="sm:col-span-2 flex items-center justify-between gap-2">
@@ -2761,7 +2836,7 @@ defineExpose({ completeDraft: completePaymentDraft })
       <div v-else class="space-y-2">
         <div class="grid grid-cols-12 gap-2 px-2 text-[10px] font-medium text-muted uppercase tracking-wide">
           <span class="col-span-3">Impuesto</span>
-          <span class="col-span-2">Base</span>
+          <span class="col-span-2">Base (total docs.)</span>
           <span class="col-span-2">Alícuota %</span>
           <span class="col-span-3">Importe</span>
           <span class="col-span-1">Jurisd.</span>
@@ -2781,13 +2856,13 @@ defineExpose({ completeDraft: completePaymentDraft })
             />
           </div>
           <div class="col-span-2">
-            <UInput v-model.number="wh.base_amount" type="number" size="xs" title="Monto base sobre el que se calcula la retención" placeholder="Base" @update:model-value="recalculateManualWithholding(wh)" />
+            <UInput v-model.number="wh.base_amount" type="number" size="xs" title="La base inicial toma el total de los comprobantes seleccionados; podés modificarla." placeholder="Base" @update:model-value="updateManualWithholdingBase(wh)" />
           </div>
           <div class="col-span-2">
-            <UInput v-model.number="wh.rate" type="number" size="xs" title="Porcentaje de alícuota" placeholder="Alícuota %" @update:model-value="recalculateManualWithholding(wh)" />
+            <UInput v-model.number="wh.rate" type="number" size="xs" title="Porcentaje de alícuota" placeholder="Alícuota %" @update:model-value="updateManualWithholdingRate(wh)" />
           </div>
           <div class="col-span-3">
-            <UInput v-model.number="wh.withheld_amount" type="number" size="xs" :placeholder="suggestedWithheld(wh) ? `≈ ${suggestedWithheld(wh)}` : 'Importe'" title="Importe total retenido" />
+            <UInput v-model.number="wh.withheld_amount" type="number" size="xs" :placeholder="suggestedWithheld(wh) ? `≈ ${suggestedWithheld(wh)}` : 'Importe'" title="Importe total retenido" @update:model-value="updateManualWithholdingAmount(wh)" />
           </div>
           <div class="col-span-1">
             <UBadge v-if="wh.jurisdiction_name" :label="wh.jurisdiction_name" size="xs" variant="soft" />
