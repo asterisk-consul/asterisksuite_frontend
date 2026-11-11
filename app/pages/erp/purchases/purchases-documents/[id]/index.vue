@@ -29,6 +29,11 @@ const loading = ref(true)
 const factura = computed(() => documentsPurchasesStore.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => factura.value?.document_types?.category)
+const confirmationDocumentLabel = computed(() => category.value === 'CREDIT_NOTE'
+  ? 'nota de crédito'
+  : category.value === 'DEBIT_NOTE'
+    ? 'nota de débito'
+    : 'factura')
 useBreadcrumbEntityLabel(
   computed(() => `/erp/purchases/purchases-documents/${route.params.id as string}`),
   computed(() => formatDocumentBreadcrumbLabel(factura.value))
@@ -83,7 +88,7 @@ const {
   printElement,
   customTransitions: customTransitions.value,
   store: {
-    confirm: (id, options) => documentsPurchasesStore.confirm(id, options),
+    confirm: (id) => documentsPurchasesStore.confirm(id),
     cancel: (id) => documentsPurchasesStore.cancel(id),
     changeStatus: (id, status) => documentsPurchasesStore.update(id, { status }),
     fetchOne: (id) => documentsPurchasesStore.fetchOne(id),
@@ -166,18 +171,10 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
     </template>
   </UModal>
 
-  <UModal v-model:open="confirmModalOpen" title="Confirmar factura">
+  <UModal v-model:open="confirmModalOpen" :title="`Confirmar ${confirmationDocumentLabel}`">
     <template #body>
-      <p>¿Estás seguro de que deseas confirmar la factura <strong>#{{ factura?.number }}</strong>?</p>
+      <p>¿Estás seguro de que deseas confirmar {{ confirmationDocumentLabel }} <strong>#{{ factura?.number }}</strong>?</p>
       <p class="text-sm text-muted mt-2">Una vez confirmada, no podrá ser editada.</p>
-      <UAlert
-        class="mt-4"
-        color="info"
-        variant="soft"
-        icon="i-lucide-calculator"
-        title="Actualización de costos"
-        description="Al confirmar, el costo de cada producto se actualizará con el precio unitario de esta compra. Los precios de venta no se modificarán."
-      />
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />
         <UButton label="Confirmar" color="success" :loading="processing" @click="handleConfirm" />

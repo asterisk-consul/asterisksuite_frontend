@@ -60,9 +60,10 @@ export const settingsCatalog: SettingsGroup[] = [
     ]
   },
   {
-    id: 'inventory', label: 'Productos y stock', description: 'Catálogos, depósitos y estructura de productos.', icon: 'i-lucide-package-open', order: 50,
+    id: 'inventory', label: 'Productos, stock y precios', description: 'Catálogos, depósitos, costos y precios de venta y compra.', icon: 'i-lucide-package-open', order: 50,
     entries: [
       { label: 'Configuración de productos', description: 'Categorías, unidades, atributos y etiquetas.', icon: 'i-lucide-package-cog', to: '/productos/settings', permission: 'products.read' },
+      { label: 'Actualización de precios', description: 'Configurá precios automáticos de venta y compra, valores por cliente o proveedor y costos de productos.', icon: 'i-lucide-tags', to: '/settings/pricing-updates', permission: 'product-prices.read' },
       { label: 'Depósitos', description: 'Depósitos habilitados y existencias.', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' }
     ]
   },

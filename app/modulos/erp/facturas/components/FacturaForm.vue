@@ -451,24 +451,48 @@ function applyReferenceDocument(doc: any) {
   form.descrip = doc.descrip ?? ''
   form.ref = doc.ref ?? ''
 
+  const selectedType = documentsTypes.value.find((type) => type.id === form.document_type_id)
+  // La factura de referencia puede cargarse antes de resolver asincrónicamente el tipo de documento.
+  const shouldPrefillRemainingBalance = (moduleCode.value === 'SALES' || moduleCode.value === 'PURCHASES')
+    && (props.category === 'CREDIT_NOTE' || selectedType?.category === 'CREDIT_NOTE')
+    && !props.initialValues?.id
+  const pendingAmount = Math.max(0, Number(doc.pending_amount
+    ?? (Number(doc.total ?? 0) - Number(doc.paid_amount ?? 0) - Number(doc.credited_amount ?? 0))))
+  const transferredDiscounts = Array.isArray(doc.commercial_adjustments)
+    ? doc.commercial_adjustments.reduce((sum: number, adjustment: any) =>
+      sum + Number(adjustment.total_reduction ?? adjustment.calculated_amount ?? adjustment.net_discount ?? 0), 0)
+    : 0
+  const sourceTotalBeforeDiscounts = Number(doc.total ?? 0) + transferredDiscounts
+  const creditScale = shouldPrefillRemainingBalance && sourceTotalBeforeDiscounts > 0
+    ? Math.min(1, pendingAmount / sourceTotalBeforeDiscounts)
+    : 1
+
   // Mapear ítems del documento padre (quantity - quantity_invoiced)
   items.value = (doc.document_items ?? []).map((item: any) => {
     const remainingQty = Number(item.quantity ?? 0) - Number(item.quantity_invoiced ?? 0)
-    const subtotal = remainingQty * Number(item.unit_price ?? 0)
+    const unitPrice = Number(item.original_unit_price ?? item.unit_price ?? 0) * creditScale
+    const discountPercentage = Number(item.discount_percentage ?? 0)
+    const subtotal = remainingQty * unitPrice * (1 - discountPercentage / 100)
     return {
       product_id: item.product_id,
       variant_id: item.variant_id ?? null,
       variant_name: item.product_variants?.name ?? null,
       product_name: item.products?.name || item.products?.description || 'Producto',
       quantity: remainingQty,
-      unit_price: Number(item.unit_price ?? 0),
+      unit_price: unitPrice,
+      discount_percentage: discountPercentage,
       price: subtotal,
       subtotal,
       taxes: [],
       total_taxes: 0,
-      total: subtotal
+      total: subtotal,
+      tax_preview_ready: false
     }
   }).filter((i: any) => i.quantity > 0)
+
+  if (shouldPrefillRemainingBalance) {
+    referenceDocumentInfo.value = { ...doc, pending_amount: pendingAmount }
+  }
 }
 
 function handleReferenceSelect(documentId: string, partyId?: string, invoiceOption?: any) {
@@ -550,6 +574,9 @@ const isInvoiceReferenceNote = computed(() => {
   const selected = documentsTypes.value.find(d => d.id === form.document_type_id)
   return selected?.category === 'CREDIT_NOTE' || selected?.category === 'DEBIT_NOTE'
 })
+const preservesReferencedNotePrices = computed(() =>
+  Boolean(referenceDocumentId.value && isInvoiceReferenceNote.value)
+)
 
 watch(() => [showReferencePicker.value, props.parentDocumentId] as const, ([isVisible, parentId]) => {
   if (!isVisible || !parentId || (referenceDocumentId.value === parentId && referencePartyId.value)) return
@@ -1001,6 +1028,7 @@ async function fetchPreview() {
         items.value[idx].total_taxes = previewItem.totalTaxes ?? 0
         items.value[idx].subtotal = previewItem.price ?? items.value[idx].subtotal
         items.value[idx].total = previewItem.total ?? items.value[idx].total
+        items.value[idx].tax_preview_ready = true
       }
     })
   } catch (e) {
@@ -1115,6 +1143,8 @@ watch(
   async (newCurrency, oldCurrency) => {
     if (!newCurrency || !oldCurrency || newCurrency === oldCurrency) return
     if (!items.value.length) return
+    // Los renglones de una NC/ND vinculada deben conservar los precios de la factura origen.
+    if (preservesReferencedNotePrices.value) return
 
     await Promise.all(items.value.map(async (item) => {
       const productId = item.product_id
@@ -1570,6 +1600,10 @@ watch(
     }
     manualIibbAmount.value = null
     manualIibbReason.value = ''
+    if (preservesReferencedNotePrices.value) {
+      if (items.value.length) await fetchPreview()
+      return
+    }
     if (!newParty || !oldParty || newParty === oldParty || !items.value.length) {
       if (items.value.length) await fetchPreview()
       return
@@ -1634,7 +1668,8 @@ async function addItem(prod: any) {
     subtotal: quantity * unitPrice,
     taxes: [],
     total_taxes: 0,
-    total: quantity * unitPrice
+    total: quantity * unitPrice,
+    tax_preview_ready: false
   })
 
   // Recalcular con el backend
@@ -2066,9 +2101,18 @@ defineExpose({ submit, completeDraft })
           :module-code="moduleCode"
           :selection-locked="isInvoiceReferenceNote && Boolean(referenceDocumentId) && !props.initialValues?.id"
           :selected-invoice="referenceDocumentInfo?.id === referenceDocumentId ? referenceDocumentInfo : (referenceDocumentId ? { id: referenceDocumentId } : null)"
+          :pending-amount="selectedDocumentCategory === 'CREDIT_NOTE' && !initialValues?.id ? referenceDocumentInfo?.pending_amount : null"
           @select="handleReferenceSelect"
           @resolved="handleReferenceResolved"
           @clear="handleReferenceClear"
+        />
+        <UAlert
+          v-if="(moduleCode === 'SALES' || moduleCode === 'PURCHASES') && selectedDocumentCategory === 'CREDIT_NOTE' && referenceDocumentId && !initialValues?.id"
+          class="mt-3"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-wallet"
+          :description="`La nota se precargó por el saldo pendiente de la factura: ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: form.currency_code || 'ARS' }).format(Number(referenceDocumentInfo?.pending_amount ?? 0))}. Ingresá los precios unitarios con IVA incluido; el sistema separa la base y recalcula los impuestos. Esperá a que termine el cálculo antes de editar.`"
         />
       </div>
     </UCard>
@@ -2142,6 +2186,7 @@ defineExpose({ submit, completeDraft })
         :show-warehouse-column="moduleCode === 'SALES' ? operationalMode && affectsStock : affectsStock && advancedWarehouseAssignment"
         :default-warehouse-id="form.warehouse_id"
         :show-amounts="!operationalMode"
+        :price-input-includes-taxes="selectedDocumentCategory === 'CREDIT_NOTE'"
         :is-purchase-document="moduleCode === 'PURCHASES' && !operationalMode"
         :lock-purchase-adjustments="moduleCode === 'PURCHASES' && commercialAdjustments.length > 0"
         :can-regularize-stock="canRegularizeStock"

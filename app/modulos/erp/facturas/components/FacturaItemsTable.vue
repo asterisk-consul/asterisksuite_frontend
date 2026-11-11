@@ -34,6 +34,7 @@ interface Props {
   canRegularizeStock?: boolean
   isPurchaseDocument?: boolean
   lockPurchaseAdjustments?: boolean
+  priceInputIncludesTaxes?: boolean
   allowItemInstructions?: boolean
 }
 
@@ -136,6 +137,18 @@ function recalculateItem(item: FacturaItem) {
   )
 
   item.total = Number((item.subtotal + item.total_taxes).toFixed(2))
+}
+
+function grossPriceFactor(item: FacturaItem) {
+  const additionalTaxRate = (item.taxes ?? [])
+    .filter(tax => !tax.is_included_in_price)
+    .reduce((sum, tax) => sum + Number(tax.tax_rate || 0), 0)
+  return Math.max(1, 1 + additionalTaxRate / 100)
+}
+
+function displayedUnitPrice(item: FacturaItem) {
+  const amount = Number(item.unit_price || 0) * (props.priceInputIncludesTaxes ? grossPriceFactor(item) : 1)
+  return Number(amount.toFixed(2))
 }
 
 function originalLineAmount(item: FacturaItem) {
@@ -363,7 +376,7 @@ const columns = computed(() => [
   }] : []),
   ...(props.showAmounts === false ? [] : [{
     accessorKey: 'unit_price',
-    header: 'Precio unitario',
+    header: props.priceInputIncludesTaxes ? 'Precio unitario con IVA' : 'Precio unitario',
     size: 190,
     meta: {
       class: {
@@ -373,16 +386,20 @@ const columns = computed(() => [
     },
     cell: ({ row }: any) =>
       h(UInput, {
-        modelValue: row.original.unit_price,
+        modelValue: displayedUnitPrice(row.original),
         type: 'number',
         min: 0,
         step: '0.01',
         size: 'lg',
         class: 'ml-auto w-40 text-right font-semibold tabular-nums',
-        'aria-label': `Precio unitario de ${row.original.product_name || 'producto'}`,
+        disabled: props.priceInputIncludesTaxes && row.original.tax_preview_ready !== true,
+        'aria-label': `${props.priceInputIncludesTaxes ? 'Precio unitario con IVA' : 'Precio unitario'} de ${row.original.product_name || 'producto'}`,
         'onUpdate:modelValue': (val: number) => {
           const savedDiscountAmount = row.original.discount_amount_override
-          row.original.unit_price = Number(val || 0)
+          const enteredPrice = Number(val || 0)
+          row.original.unit_price = props.priceInputIncludesTaxes
+            ? Number((enteredPrice / grossPriceFactor(row.original)).toFixed(2))
+            : enteredPrice
           row.original.original_unit_price = row.original.unit_price
           if (props.lockPurchaseAdjustments && savedDiscountAmount != null) {
             setPurchaseDiscountAmount(row.original, savedDiscountAmount)

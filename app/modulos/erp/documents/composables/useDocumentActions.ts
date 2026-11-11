@@ -2,6 +2,7 @@ import type { Ref, ComputedRef } from 'vue'
 import { getStatusLabel, getStatusColor, getValidTransitions, type BadgeColor } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from './useDocumentPermissions'
 import { canSendDocumentToTrash, isCancelledNoteTrashCandidate } from '../utils/trash-eligibility'
+import { getDocumentPaymentSummary } from '../utils/document-payment-status'
 
 type Doc = Record<string, any> | null
 
@@ -10,7 +11,7 @@ type DocumentActionsConfig = {
   category: ComputedRef<string | null | undefined>
   router: ReturnType<typeof useRouter>
   store: {
-    confirm: (id: string, options?: { updateProductPrices?: boolean; assigned_to?: string | null; confirm_empty_delivery_data?: boolean }) => Promise<any>
+    confirm: (id: string) => Promise<any>
     cancel: (id: string) => Promise<any>
     changeStatus: (id: string, status: number) => Promise<any>
     fetchOne: (id: string) => Promise<any>
@@ -51,7 +52,6 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const statusModalOpen = ref(false)
   const acceptModalOpen = ref(false)
   const deliverModalOpen = ref(false)
-  const updateProductPrices = ref(false)
 
   // ─── Derived ────────────────────────────────────────────
   const isDraft = computed(() => doc.value?.status === 0)
@@ -71,6 +71,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   })
 
   const operationPaymentApplies = computed(() => {
+    if (category.value === 'CREDIT_NOTE') return false
     const basis = doc.value?.commercial_operation?.payment_document_basis
     if (!basis) return Boolean(doc.value?.document_types?.affects_payment)
     if (basis === 'BOTH') return ['ORDER', 'INVOICE'].includes(category.value ?? '')
@@ -78,10 +79,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   })
 
   const hasPendingBalance = computed(() => {
-    const operation = doc.value?.commercial_operation
-    const total = Number(operation?.ordered_total ?? doc.value?.total ?? 0)
-    const paid = Number(operation?.paid_total ?? doc.value?.paid_amount ?? 0)
-    return total - paid > 0.01
+    return getDocumentPaymentSummary(doc.value).pending > 0.01
   })
 
   const settlementDocumentId = computed(() => {
@@ -234,7 +232,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     }
 
     if ((canTrashCancelledInvoice.value || canTrashCancelledNote.value) && store.remove
-      && canDocument(module, category.value, 'delete')) {
+      && canDocument(module, category.value ?? undefined, 'delete')) {
       items.push([{
         label: canTrashCancelledNote.value ? 'Enviar nota a papelera' : 'Enviar a papelera',
         icon: 'i-lucide-trash-2',
@@ -342,12 +340,43 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     if (processing.value) return
     try {
       processing.value = true
-      const options = updateProductPrices.value ? { updateProductPrices: true } : undefined
-      await store.confirm(id.value, options)
+      const result = await store.confirm(id.value)
       await store.fetchOne(id.value)
-      toast.add({ title: 'Documento confirmado', color: 'success' })
+      const priceSummary = result?.price_update_summary
+      if (category.value === 'INVOICE' && priceSummary) {
+        const partyLabel = module === 'sales' ? 'cliente' : 'proveedor'
+        const globalLabel = module === 'sales' ? 'Precio general de venta' : 'Costo global de compra'
+        const partyMessage = !priceSummary.party?.enabled
+          ? `Precio por ${partyLabel}: desactivado en configuración.`
+          : priceSummary.party?.failed
+            ? `No se pudo actualizar el precio para ${partyLabel}.`
+            : !priceSummary.party?.name
+              ? `No hay ${partyLabel} asociado para guardar un precio particular.`
+              : priceSummary.party.updated_products > 0
+                ? `${priceSummary.party.name}: precio actualizado para ${priceSummary.party.updated_products} ${priceSummary.party.updated_products === 1 ? 'producto' : 'productos'}.`
+                : `${priceSummary.party.name}: no había precios particulares para cambiar.`
+        const globalMessage = !priceSummary.global?.enabled
+          ? `${globalLabel}: desactivado en configuración.`
+          : priceSummary.global?.skipped_reason === 'PERMISSION'
+            ? `${globalLabel}: no se actualizó porque falta el permiso de actualización de precios.`
+            : priceSummary.global.updated_products > 0
+              ? `${globalLabel}: actualizado para ${priceSummary.global.updated_products} ${priceSummary.global.updated_products === 1 ? 'producto' : 'productos'}.`
+              : `${globalLabel}: no había cambios para aplicar.`
+        toast.add({
+          title: 'Documento confirmado',
+          description: `${partyMessage} ${globalMessage}`,
+          color: 'success',
+          actions: [{
+            label: 'Cambiar configuración',
+            color: 'neutral',
+            variant: 'outline',
+            onClick: () => { void router.push('/settings/pricing-updates') }
+          }]
+        })
+      } else {
+        toast.add({ title: 'Documento confirmado', color: 'success' })
+      }
       confirmModalOpen.value = false
-      updateProductPrices.value = false
     } catch (e: any) {
       toast.add({ title: 'No se pudo confirmar el documento', description: getErrorMessage(e, 'Revisá los datos del documento.'), color: 'error' })
     } finally { processing.value = false }
@@ -439,7 +468,6 @@ export function useDocumentActions(config: DocumentActionsConfig) {
     statusModalOpen,
     acceptModalOpen,
     deliverModalOpen,
-    updateProductPrices,
 
     // Derived
     isDraft,

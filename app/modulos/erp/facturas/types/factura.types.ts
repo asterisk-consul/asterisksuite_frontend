@@ -163,6 +163,7 @@ export interface Document {
     payment_document_basis?: 'ORDER' | 'INVOICE' | 'BOTH' | null
     ordered_total?: number | null
     paid_total?: number | null
+    credited_total?: number | null
     delivery_status?: string | null
     delivery_note_id?: string | null
   } | null
@@ -206,6 +207,8 @@ export interface InvoiceReferenceItem {
   quantity: number | string
   quantity_invoiced: number | string | null
   unit_price: number | string
+  original_unit_price?: number | string | null
+  discount_percentage?: number | string | null
   products: { name: string } | null
   product_variants: { name: string | null } | null
 }
@@ -216,12 +219,22 @@ export interface InvoiceReferenceDocument {
   number: number
   date: string
   total: number | string
+  paid_amount?: number | string | null
+  credited_amount?: number | string | null
+  pending_amount?: number | string | null
   party_id: string | null
   currency_code: string | null
   ref: string | null
   descrip: string | null
   document_types: { code: string } | null
   business_parties: InvoiceReferenceParty | null
+  commercial_adjustments?: CommercialAdjustment[] | null
+  commercial_operation?: {
+    id: string
+    payment_document_basis?: 'ORDER' | 'INVOICE' | 'BOTH' | null
+    ordered_total?: number | string | null
+    paid_total?: number | string | null
+  } | null
   document_items?: InvoiceReferenceItem[]
 }
 
@@ -285,6 +298,9 @@ export interface FacturaItem {
 
   /** Manual discount amount entered for supplier lines. */
   discount_amount_override?: number | null
+
+  /** Indica que el preview fiscal ya resolvió los impuestos para el precio ingresado. */
+  tax_preview_ready?: boolean
 
   price: number
 

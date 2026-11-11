@@ -206,7 +206,8 @@ const printTotals = computed(() => {
     taxes: allTaxes.value.map((t: { name: string; amount: number }) => ({ name: t.name, amount: t.amount })),
     total,
     paid_amount: paidAmount,
-    pending_amount: Math.max(0, total - paidAmount)
+    credited_amount: Number(props.document.credited_amount ?? 0),
+    pending_amount: Math.max(0, total - paidAmount - Number(props.document.credited_amount ?? 0))
   }
 })
 </script>
@@ -222,7 +223,10 @@ const printTotals = computed(() => {
               <div class="text-xl font-bold">{{ document.document_types?.description || 'Documento' }} #{{ document.number }}</div>
               <div class="text-sm text-gray-500">{{ document.document_types?.description }}</div>
             </div>
-            <UBadge :color="statusInfo.color as any">{{ statusInfo.label }}</UBadge>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <UBadge :color="statusInfo.color as any">{{ statusInfo.label }}</UBadge>
+              <DocumentPaymentStatusBadge :document="document" />
+            </div>
           </div>
         </template>
         <DocumentReference :reference="document.ref" />

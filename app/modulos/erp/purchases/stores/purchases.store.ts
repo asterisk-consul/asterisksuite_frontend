@@ -156,13 +156,13 @@ export const useDocumentsPurchasesStore = defineStore(
     // ─────────────────────────────────────
     // Confirm
     // ─────────────────────────────────────
-    const confirm = async (id: string, options?: { updateProductPrices?: boolean }) => {
+    const confirm = async (id: string) => {
       loading.value = true
 
       error.value = null
 
       try {
-        const response = await DocumentsPurchasesService.confirm(id, options)
+        const response = await DocumentsPurchasesService.confirm(id)
 
         const index = items.value.findIndex((i) => i.id === id)
 

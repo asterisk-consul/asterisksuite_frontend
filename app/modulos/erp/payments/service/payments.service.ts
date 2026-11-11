@@ -18,6 +18,7 @@ export interface PendingDocument {
   date: string
   total: number
   paid_amount: number
+  credited_amount?: number
   pending_amount: number
   currency_code: string
   exchange_rate?: number | null

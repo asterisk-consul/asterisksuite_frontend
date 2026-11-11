@@ -16,6 +16,9 @@ const status = computed(() => {
   if (summary.state === 'PAID') {
     return { label: isSale ? 'Cobrado' : 'Pagada', color: 'success' as const }
   }
+  if (summary.state === 'SETTLED_BY_CREDIT_NOTE') {
+    return { label: 'Saldada por NC', color: 'success' as const }
+  }
   if (summary.state === 'PARTIAL') {
     return { label: isSale ? 'Cobro parcial' : 'Pago parcial', color: 'warning' as const }
   }

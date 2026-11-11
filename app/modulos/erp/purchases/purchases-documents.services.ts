@@ -58,10 +58,9 @@ export const DocumentsPurchasesService = {
       body: dto
     })
   },
-  async confirm(id: string, options?: { updateProductPrices?: boolean }): Promise<Document> {
+  async confirm(id: string): Promise<Document> {
     return apiFetch<Document>(`/api/backend/documents/purchases/${id}/confirm`, {
-      method: 'PATCH' as any,
-      query: options
+      method: 'PATCH' as any
     })
   },
 

@@ -28,7 +28,7 @@ import { getOrderFlowPresentation } from '~/modulos/erp/documents/orden-venta/or
 const store = useDocumentsSalesStore()
 const companiesStore = useCompaniesStore()
 const auth = useAuthStore()
-const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
+const { fetchMyPermissionsIfNeeded } = useRoles()
 const route = useRoute()
 const router = useRouter()
 const { printElement } = usePrint()
@@ -36,7 +36,6 @@ const salesFlowService = useSalesFlowService()
 const usersService = useUsersService()
 
 const loading = ref(true)
-const updateSalePricesFromInvoice = ref(false)
 const creatingDispatch = ref(false)
 const stockAvailabilityOpen = ref(false)
 const stockAvailabilityLoading = ref(false)
@@ -70,10 +69,6 @@ const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category ?? undefined)
 const isSalesOrder = computed(() => category.value === 'ORDER' || doc.value?.document_types?.code === 'OV')
 const isSalesInvoice = computed(() => category.value === 'INVOICE')
-const canUpdateGeneralSalePrices = computed(() =>
-  ['OWNER', 'ADMIN'].includes(String(auth.selectedCompany?.role ?? ''))
-  || hasPermission('product-prices.update')
-)
 const orderHasAssignee = computed(() => !!doc.value?.assigned_to)
 const showAssigneePrompt = computed(() => isSalesOrder.value
   && !orderHasAssignee.value
@@ -276,15 +271,11 @@ const {
       const options: {
         assigned_to?: string | null
         confirm_empty_delivery_data?: boolean
-        update_sale_prices_from_invoice?: boolean
       } = {}
       if (isSalesOrder.value && (showAssigneePrompt.value || orderHasAssignee.value)) {
         options.assigned_to = effectiveConfirmationAssigneeId.value
       }
       if (deliveryWarningAcknowledged.value) options.confirm_empty_delivery_data = true
-      if (isSalesInvoice.value && updateSalePricesFromInvoice.value) {
-        options.update_sale_prices_from_invoice = true
-      }
       return store.confirm(id, Object.keys(options).length ? options : undefined)
     },
     cancel: (id) => store.cancel(id),
@@ -319,7 +310,6 @@ async function confirmWithoutDeliveryData() {
 }
 
 watch(confirmModalOpen, async (open) => {
-  if (open) updateSalePricesFromInvoice.value = false
   if (!open) return
 
   if (open && isSalesOrder.value && doc.value) {
@@ -458,18 +448,6 @@ watch(confirmModalOpen, async (open) => {
           <p>¿Confirmar el documento <strong>#{{ doc?.number }}</strong>?</p>
           <p class="text-sm text-muted mt-2">Una vez confirmado, no podrá ser editado.</p>
         </div>
-        <div v-if="isSalesInvoice" class="rounded-xl border border-primary/25 bg-primary/5 p-4">
-          <div class="mb-3">
-            <p class="font-medium">Precio general de venta</p>
-            <p class="text-sm text-muted">Podés actualizar el precio general de cada producto con el precio unitario y la moneda de esta factura. No modifica el costo ni el precio acordado que se guarda para este cliente.</p>
-          </div>
-          <UCheckbox
-            v-if="canUpdateGeneralSalePrices"
-            v-model="updateSalePricesFromInvoice"
-            label="Actualizar los precios generales al confirmar"
-          />
-          <p v-else class="text-xs text-muted">Necesitás el permiso de actualización de precios de producto para cambiar la lista general.</p>
-        </div>
         <OrderStockAvailability v-if="isSalesOrder" :availability="stockAvailability" :loading="stockAvailabilityLoading" />
         <UAlert
           v-if="isSalesOrder && stockAvailability?.policy?.blocks_confirmation"
@@ -495,7 +473,7 @@ watch(confirmModalOpen, async (open) => {
           label="Editar OV"
           icon="i-lucide-pencil"
           variant="outline"
-          @click="router.push(`/erp/sales/${doc?.id}/edit`)"
+          @click="() => { void router.push(`/erp/sales/${doc?.id}/edit`) }"
         />
         <UButton
           :label="isSalesOrder && (showAssigneePrompt || orderHasAssignee) && effectiveConfirmationAssigneeId && effectiveConfirmationAssigneeId !== doc?.assigned_to ? 'Asignar y confirmar' : (isSalesOrder && stockAvailability?.summary?.with_shortage ? 'Confirmar OV con faltante' : (isSalesOrder && !orderHasAssignee ? 'Confirmar sin asignar' : 'Confirmar'))"

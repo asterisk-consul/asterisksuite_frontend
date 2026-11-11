@@ -86,7 +86,6 @@ export const DocumentsSalesService = {
   async confirm(id: string, options?: {
     assigned_to?: string | null
     confirm_empty_delivery_data?: boolean
-    update_sale_prices_from_invoice?: boolean
   }): Promise<Document> {
     return apiFetch<Document>(`/api/backend/documents/sales/${id}/confirm`, {
       method: 'PATCH' as any,

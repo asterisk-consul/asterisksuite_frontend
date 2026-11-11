@@ -62,6 +62,14 @@ const convertedSupplierTotalDifference = computed(() => convertedTotal.value != 
 const convertedPaidAmount = computed(() =>
   props.document?.converted_paid_amount != null ? Number(props.document.converted_paid_amount) : null
 )
+const creditedAmount = computed(() => Math.max(0, Number(props.document?.credited_amount ?? 0)))
+const convertedCreditedAmount = computed(() => convertedTotal.value != null
+  ? creditedAmount.value * Number(props.document?.exchange_rate ?? 1)
+  : null)
+const pendingAmount = computed(() => Math.max(
+  0,
+  Number(props.document?.total ?? 0) - Number(props.document?.paid_amount ?? 0) - creditedAmount.value,
+))
 const commercialAdjustments = computed(() => Array.isArray(props.document?.commercial_adjustments)
   ? props.document.commercial_adjustments
   : [])
@@ -88,8 +96,8 @@ const convertedOriginalSubtotal = computed(() => convertedSubtotal.value != null
   )
   : null)
 const convertedPending = computed(() =>
-  convertedTotal.value != null && convertedPaidAmount.value != null
-    ? convertedTotal.value - convertedPaidAmount.value
+  convertedTotal.value != null
+    ? Math.max(0, convertedTotal.value - Number(convertedPaidAmount.value ?? 0) - Number(convertedCreditedAmount.value ?? 0))
     : null
 )
 </script>
@@ -199,13 +207,19 @@ const convertedPending = computed(() =>
           <span v-if="convertedPaidAmount != null" class="text-right min-w-[120px] text-success-500 text-xs">{{ fmtBase(convertedPaidAmount) }}</span>
           <span v-else class="min-w-[120px]"></span>
         </div>
-        <div v-if="Number(document.total) - Number(document.paid_amount) > 0.01" class="grid grid-cols-[1fr_auto_auto] gap-x-6 py-1 text-sm">
-          <span class="text-muted">Pendiente</span>
-          <span class="text-right min-w-[120px] text-warning-500 font-medium">{{ fmt(Number(document.total) - Number(document.paid_amount)) }}</span>
-          <span v-if="convertedPending != null && convertedPending > 0.01" class="text-right min-w-[120px] text-warning-500 text-xs">{{ fmtBase(convertedPending) }}</span>
-          <span v-else class="min-w-[120px]"></span>
-        </div>
       </template>
+      <div v-if="creditedAmount > 0.01" class="grid grid-cols-[1fr_auto_auto] gap-x-6 py-1 text-sm">
+        <span class="text-muted">Cubierto por notas de crédito</span>
+        <span class="text-right min-w-[120px] text-success-500 font-medium">{{ fmt(creditedAmount) }}</span>
+        <span v-if="convertedCreditedAmount != null" class="text-right min-w-[120px] text-success-500 text-xs">{{ fmtBase(convertedCreditedAmount) }}</span>
+        <span v-else class="min-w-[120px]"></span>
+      </div>
+      <div v-if="pendingAmount > 0.01" class="grid grid-cols-[1fr_auto_auto] gap-x-6 py-1 text-sm">
+        <span class="text-muted">Pendiente</span>
+        <span class="text-right min-w-[120px] text-warning-500 font-medium">{{ fmt(pendingAmount) }}</span>
+        <span v-if="convertedPending != null && convertedPending > 0.01" class="text-right min-w-[120px] text-warning-500 text-xs">{{ fmtBase(convertedPending) }}</span>
+        <span v-else class="min-w-[120px]"></span>
+      </div>
     </div>
 
     <!-- SIMPLE MODE: single column (base currency or no exchange rate) -->
@@ -264,9 +278,14 @@ const convertedPending = computed(() =>
         <span class="text-success-500 font-medium">{{ fmt(Number(document.paid_amount)) }}</span>
       </div>
 
-      <div v-if="Number(document.total) - Number(document.paid_amount) > 0.01" class="flex justify-between text-sm">
+      <div v-if="creditedAmount > 0.01" class="flex justify-between text-sm">
+        <span class="text-muted">Cubierto por notas de crédito</span>
+        <span class="text-success-500 font-medium">{{ fmt(creditedAmount) }}</span>
+      </div>
+
+      <div v-if="pendingAmount > 0.01" class="flex justify-between text-sm">
         <span class="text-muted">Pendiente</span>
-        <span class="text-warning-500 font-medium">{{ fmt(Number(document.total) - Number(document.paid_amount)) }}</span>
+        <span class="text-warning-500 font-medium">{{ fmt(pendingAmount) }}</span>
       </div>
     </div>
   </UCard>

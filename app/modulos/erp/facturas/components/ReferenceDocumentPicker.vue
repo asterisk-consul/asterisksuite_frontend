@@ -20,6 +20,7 @@ type InvoiceOption = {
 const props = defineProps<{
   moduleCode: 'SALES' | 'PURCHASES'
   selectedInvoice?: (Partial<InvoiceOption> & { id: string; total?: number | string }) | null
+  pendingAmount?: number | string | null
   selectionLocked?: boolean
 }>()
 
@@ -154,6 +155,12 @@ const pickerOptions = computed(() => {
   }
   return options
 })
+const pendingAmountLabel = computed(() => {
+  if (props.pendingAmount == null || !Number.isFinite(Number(props.pendingAmount))) return null
+  const currency = selectedOption.value?.currencyCode || 'ARS'
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency })
+    .format(Number(props.pendingAmount))
+})
 
 // Keep a linked invoice visible from its own data, without loading the invoice catalog.
 watch([selectedInvoiceKey, invoiceOptions] as const, ([, options]) => {
@@ -258,7 +265,7 @@ function clearSelection() {
     <p v-if="selectionLocked" class="text-xs text-muted">
       La factura de origen queda fija para conservar la trazabilidad. Si necesitás otra, iniciá la nota desde la factura correcta.
     </p>
-    <div v-if="selectedOption" class="grid grid-cols-2 gap-3 rounded-lg border border-default bg-elevated/40 p-3 text-sm sm:grid-cols-4">
+    <div v-if="selectedOption" class="grid grid-cols-2 gap-3 rounded-lg border border-default bg-elevated/40 p-3 text-sm sm:grid-cols-5">
       <div class="min-w-0">
         <p class="text-xs text-muted">Comprobante</p>
         <p class="truncate font-medium">{{ selectedOption.label }}</p>
@@ -274,6 +281,10 @@ function clearSelection() {
       <div>
         <p class="text-xs text-muted">Total de factura</p>
         <p class="font-medium">{{ selectedOption.total }}</p>
+      </div>
+      <div v-if="pendingAmountLabel">
+        <p class="text-xs text-muted">Saldo que se precarga</p>
+        <p class="font-medium text-primary">{{ pendingAmountLabel }}</p>
       </div>
     </div>
   </div>

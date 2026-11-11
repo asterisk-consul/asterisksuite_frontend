@@ -1,5 +1,36 @@
 [
  {
+  "version": "0.145.0-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "Las empresas configuran por separado si las facturas de venta y compra actualizan precios por contraparte y valores globales. Al confirmar, un toast resume el resultado y ofrece acceso a la configuración. Las NC y ND no cambian precios ni generan avisos; las NC permiten ingresar importes con IVA incluido y las NC de compra descuentan el saldo pendiente.",
+  "changes": [
+   { "type": "feat", "scope": "product-pricing", "title": "Configurar actualizaciones automáticas de precios por contraparte y globales" },
+   { "type": "feat", "scope": "credit-notes", "title": "Ingresar precios de NC con IVA incluido y recalcular la base" },
+   { "type": "fix", "scope": "purchase-invoices", "title": "Descontar NC aplicadas del saldo y marcar la factura saldada" },
+   { "type": "fix", "scope": "credit-notes", "title": "Evitar que las NC y ND actualicen precios o costos" },
+   { "type": "feat", "scope": "product-pricing", "title": "Mostrar el resultado en un toast con acceso directo a la configuración" },
+   { "type": "docs", "scope": "product-pricing", "title": "Documentar los cuatro controles y el aviso posterior a la confirmación" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Configurar la actualización automática de precios por factura"
+ },
+ {
+  "version": "0.144.1-alpha",
+  "date": "2026-11-10",
+  "stage": "alpha",
+  "notes": "Las notas de crédito de ventas y compras descuentan del saldo pendiente de sus facturas. Al crear una NC desde una factura, los ítems se precargan según el saldo restante, considerando pagos y NC confirmadas vigentes.",
+  "changes": [
+   { "type": "fix", "scope": "sales-invoices", "title": "Descontar notas de crédito del saldo pendiente y precargar ese saldo en nuevas NC" },
+   { "type": "fix", "scope": "purchase-invoices", "title": "Calcular el saldo pendiente de compras y precargarlo en nuevas NC" },
+   { "type": "fix", "scope": "payments", "title": "Impedir cobros por encima del saldo después de notas de crédito" },
+   { "type": "docs", "scope": "sales-invoices", "title": "Explicar la diferencia entre cobrada y saldada por NC" },
+   { "type": "docs", "scope": "purchase-invoices", "title": "Documentar la precarga de NC de compra según saldo pendiente" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Precargar el saldo pendiente en nuevas notas de crédito"
+ },
+ {
   "version": "0.144.0-alpha",
   "date": "2026-11-10",
   "stage": "alpha",

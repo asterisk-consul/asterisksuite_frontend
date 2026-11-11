@@ -199,7 +199,10 @@ function documentTypeBadgeClass(doc: PendingDocument) {
           <div class="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted">
             <span>{{ formatDate(doc.date) }}</span>
             <span>{{ doc.source_type === 'TREASURY_OBLIGATION' ? `Período ${doc.number}` : doc.document_type_code }}</span>
-            <span>Total {{ formatCurrency(doc.total, doc.currency_code) }} · Pagado {{ formatCurrency(doc.paid_amount, doc.currency_code) }}</span>
+            <span>
+              Total {{ formatCurrency(doc.total, doc.currency_code) }} · Pagado {{ formatCurrency(doc.paid_amount, doc.currency_code) }}
+              <template v-if="Number(doc.credited_amount ?? 0) > 0.01"> · NC {{ formatCurrency(Number(doc.credited_amount ?? 0), doc.currency_code) }}</template>
+            </span>
           </div>
         </div>
 

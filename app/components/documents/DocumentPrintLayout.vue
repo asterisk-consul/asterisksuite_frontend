@@ -38,6 +38,7 @@ interface DocumentTotals {
   taxes: { name: string; amount: number }[]
   total: number
   paid_amount?: number
+  credited_amount?: number
   pending_amount?: number
 }
 
@@ -717,6 +718,10 @@ watch(qrValue, generateQr, { immediate: true })
                 <tr v-if="Number(totals.paid_amount ?? 0) > 0">
                   <td style="padding: 7px 16px; font-size: 11px; color: #333333; border-bottom: 1px solid #e5e5e5">Pagado</td>
                   <td style="padding: 7px 16px; font-size: 11px; color: #217a3c; text-align: right; border-bottom: 1px solid #e5e5e5">{{ fmt(totals.paid_amount) }}</td>
+                </tr>
+                <tr v-if="Number(totals.credited_amount ?? 0) > 0.01">
+                  <td style="padding: 7px 16px; font-size: 11px; color: #217a3c; border-bottom: 1px solid #e5e5e5">Cubierto por notas de crédito</td>
+                  <td style="padding: 7px 16px; font-size: 11px; color: #217a3c; text-align: right; border-bottom: 1px solid #e5e5e5">{{ fmt(totals.credited_amount) }}</td>
                 </tr>
                 <tr v-if="Number(totals.pending_amount ?? 0) > 0.01">
                   <td style="padding: 7px 16px; font-size: 11px; color: #333333; border-bottom: 1px solid #e5e5e5">Pendiente</td>

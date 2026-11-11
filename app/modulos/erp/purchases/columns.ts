@@ -85,6 +85,8 @@ export const createPurchasesColumns = (actions: {
           const config =
             summary.state === 'PAID'
               ? { label: 'Pagado', color: 'success' }
+              : summary.state === 'SETTLED_BY_CREDIT_NOTE'
+                ? { label: 'Saldada por NC', color: 'success' }
               : summary.state === 'PARTIAL'
                 ? { label: 'Pago parcial', color: 'warning' }
                 : { label: 'Pendiente', color: 'error' }
@@ -93,7 +95,9 @@ export const createPurchasesColumns = (actions: {
           return h('div', { class: 'min-w-[170px] space-y-1.5' }, [
             h('div', { class: 'flex items-center justify-between gap-2' }, [
               h(UBadge, { label: config.label, color: config.color as any, variant: 'subtle', size: 'xs' }),
-              summary.state !== 'PAID' ? h('span', { class: 'text-xs text-muted' }, `${amount} pend.`) : null
+              !['PAID', 'SETTLED_BY_CREDIT_NOTE'].includes(summary.state)
+                ? h('span', { class: 'text-xs text-muted' }, `${amount} pend.`)
+                : null
             ]),
             h(UProgress, { modelValue: summary.percentage, color: config.color as any, size: 'xs' }),
             canSettleDocument(row.original) && actions.onPay
