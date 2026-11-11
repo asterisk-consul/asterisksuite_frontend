@@ -198,6 +198,10 @@ export const usePaymentsService = () => {
     })
   }
 
+  const reopenAsDraft = (id: string) => {
+    return $fetch<Payment>(`${urlBase}/${id}/reopen-as-draft`, { method: 'POST' })
+  }
+
   const confirm = (id: string) => {
     return $fetch<Payment>(`${urlBase}/${id}/confirm`, {
       method: 'POST'
@@ -251,6 +255,7 @@ export const usePaymentsService = () => {
     updateFinalizedFinancialDetails,
     remove,
     reverse,
+    reopenAsDraft,
     confirm,
     markAsPaid,
     reject,

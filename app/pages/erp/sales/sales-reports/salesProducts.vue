@@ -15,6 +15,16 @@ import type { ButtonProps } from '@nuxt/ui'
 
 Chart.register(...registerables)
 const { canExport } = useDataTransferPermissions()
+const route = useRoute()
+
+function routeDate(value: unknown): string | undefined {
+  const candidate = Array.isArray(value) ? value[0] : value
+  if (typeof candidate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return undefined
+  const parsed = new Date(`${candidate}T00:00:00.000Z`)
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === candidate
+    ? candidate
+    : undefined
+}
 
 // --- Estado ---
 const loading = ref(false)
@@ -22,8 +32,8 @@ const error = ref<string | null>(null)
 const data = ref<SalesSummaryResponse | null>(null)
 
 const filters = ref<SummaryFilters>({
-  startDate: '2026-01-01',
-  endDate: '2026-12-31',
+  startDate: routeDate(route.query.startDate) ?? '2026-01-01',
+  endDate: routeDate(route.query.endDate) ?? '2026-12-31',
   supplierId: undefined
 })
 

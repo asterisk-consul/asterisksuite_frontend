@@ -8,6 +8,7 @@ import type { SortingState } from '@tanstack/vue-table'
 import { h, resolveComponent } from 'vue'
 import { reportTableFilter } from '~/modulos/erp/management-reports/report-table-filter'
 import { PAYMENT_METHOD_UNKNOWN_LABEL, paymentDestinationDisplay, paymentDestinationLabel, paymentMethodFilterOptions, paymentMethodLabel } from '~/modulos/erp/management-reports/payment-methods'
+import { getCategoryStatuses } from '~/modulos/erp/documents/types/document-statuses'
 
 definePageMeta({ middleware: ['auth', 'management-reports'] })
 
@@ -47,6 +48,7 @@ const filters = reactive({
   date_to: isoDate(currentDate),
   group_by: 'MONTH' as ReportGroupBy,
   payment_state: 'ALL' as PaymentState,
+  document_status: 'ALL' as number | 'ALL',
   currency_code: 'ALL',
   party_id: 'ALL',
   seller_id: 'ALL',
@@ -55,11 +57,12 @@ const filters = reactive({
   invoicing_state: 'ALL' as ProgressState,
   delivery_state: 'ALL' as ProgressState,
 })
+const showAdvancedFilters = ref(false)
 
 const basisOptions = [
-  { label: 'Órdenes de venta', value: 'SALES_ORDER', description: 'Actividad comercial comprometida', icon: 'i-lucide-shopping-cart' },
-  { label: 'Facturas', value: 'INVOICE', description: 'Venta fiscal confirmada', icon: 'i-lucide-receipt' },
-  { label: 'Cobros', value: 'COLLECTION', description: 'Dinero efectivamente recibido', icon: 'i-lucide-hand-coins' },
+  { label: 'Órdenes de venta', shortLabel: 'OV', value: 'SALES_ORDER', icon: 'i-lucide-shopping-cart' },
+  { label: 'Presupuestos', shortLabel: 'Presup.', value: 'QUOTE', icon: 'i-lucide-file-text' },
+  { label: 'Facturas', shortLabel: 'Facturas', value: 'INVOICE', icon: 'i-lucide-receipt' },
 ]
 const groupOptions = [
   { label: 'Por mes', value: 'MONTH' }, { label: 'Por día', value: 'DAY' },
@@ -73,6 +76,13 @@ const paymentOptions = [
   { label: 'Todos', value: 'ALL' }, { label: 'Sin cobrar', value: 'UNPAID' },
   { label: 'Cobro parcial', value: 'PARTIAL' }, { label: 'Totalmente cobrados', value: 'PAID' },
 ]
+const documentStatusOptions = computed(() => {
+  const category = filters.basis === 'SALES_ORDER' ? 'ORDER' : filters.basis === 'QUOTE' ? 'QUOTE' : 'INVOICE'
+  return [
+    { label: 'Todos los estados', value: 'ALL' as const },
+    ...getCategoryStatuses(category).map(({ value, label }) => ({ label, value })),
+  ]
+})
 const currencyOptions = [
   { label: 'Todas las monedas', value: 'ALL' }, { label: 'ARS', value: 'ARS' }, { label: 'USD', value: 'USD' },
 ]
@@ -98,14 +108,26 @@ const pointOfSaleOptions = computed(() => [
 ])
 
 const selectedBasis = computed(() => basisOptions.find(item => item.value === filters.basis))
+const advancedFiltersCount = computed(() => [
+  filters.group_by !== 'MONTH',
+  filters.currency_code !== 'ALL',
+  filters.party_id !== 'ALL',
+  filters.basis === 'SALES_ORDER' && filters.seller_id !== 'ALL',
+  filters.basis !== 'COLLECTION' && filters.product_id !== 'ALL',
+  filters.basis !== 'COLLECTION' && filters.point_of_sale_id !== 'ALL',
+  filters.basis !== 'QUOTE' && filters.basis !== 'COLLECTION' && filters.payment_state !== 'ALL',
+  filters.basis === 'SALES_ORDER' && filters.invoicing_state !== 'ALL',
+  filters.basis === 'SALES_ORDER' && filters.delivery_state !== 'ALL',
+].filter(Boolean).length)
+const hasActiveFilters = computed(() => advancedFiltersCount.value > 0 || filters.document_status !== 'ALL')
+const salesProductsReportLink = computed(() => ({
+  path: '/erp/sales/sales-reports/salesProducts',
+  query: { startDate: filters.date_from, endDate: filters.date_to },
+}))
 const formatCurrency = (value: number, currency = 'ARS') => new Intl.NumberFormat('es-AR', {
   style: 'currency', currency, maximumFractionDigits: 2,
 }).format(Number(value) || 0)
 
-const revenueProductColumns: ExtendedColumn<ManagementTableRow>[] = [
-  textColumn('product_display', 'Producto'), numberColumn('quantity', 'Unidades'), numberColumn('document_count', 'Documentos'),
-  textColumn('revenue_display', 'Venta neta'),
-]
 const sellerColumns: ExtendedColumn<ManagementTableRow>[] = [
   textColumn('name', 'Vendedor'), numberColumn('document_count', 'Documentos'), numberColumn('quantity', 'Unidades'),
   textColumn('revenue_display', 'Venta'), textColumn('paid_display', 'Cobrado'),
@@ -145,19 +167,19 @@ const reportRowColumns = computed<ExtendedColumn<ManagementTableRow>[]>(() => [
   reportRowDateColumn(),
   { ...textColumn('label', 'Documento'), cell: ({ row }: any) => h(ULinkComponent, { to: documentRoute(row.original), class: 'text-primary hover:underline' }, () => row.original.label) },
   textColumn('party_name', 'Cliente'),
+  ...(filters.basis !== 'COLLECTION' ? [{
+    ...selectColumn('status_label', 'Estado del documento', documentStatusOptions.value.filter(item => item.value !== 'ALL').map(item => item.label)),
+    cell: ({ row }: any) => h(UBadgeComponent, { label: row.original.status_label, variant: 'subtle' }),
+  }] : []),
   ...(filters.basis === 'COLLECTION' ? [reportRowPaymentMethodColumn(), reportRowDestinationColumn()] : []),
   selectColumn('currency_code', 'Moneda', ['ARS', 'USD']),
   reportRowCurrencyColumn('amount', 'Total'),
-  reportRowCurrencyColumn('paid_amount', 'Cobrado'),
-  reportRowCurrencyColumn('pending_amount', 'Pendiente'),
-  { ...selectColumn('payment_state_label', 'Estado', ['Cobrado', 'Parcial', 'Pendiente']), cell: ({ row }: any) => h(UBadgeComponent, { label: row.original.payment_state_label, variant: 'subtle' }) },
+  ...(filters.basis === 'QUOTE' ? [] : [
+    reportRowCurrencyColumn('paid_amount', 'Cobrado'),
+    reportRowCurrencyColumn('pending_amount', 'Pendiente'),
+    { ...selectColumn('payment_state_label', 'Estado de cobro', ['Cobrado', 'Parcial', 'Pendiente']), cell: ({ row }: any) => h(UBadgeComponent, { label: row.original.payment_state_label, variant: 'subtle' }) },
+  ]),
 ])
-const revenueProductRows = computed(() => (report.value?.commercial_performance?.products_by_revenue ?? []).map(product => ({
-  ...product,
-  id: product.product_id,
-  product_display: product.sku ? `${product.name} · ${product.sku}` : product.name,
-  revenue_display: formatCurrency(product.revenue),
-})))
 const sellerRows = computed(() => (report.value?.commercial_performance?.sellers ?? []).map((seller, index) => ({
   ...seller,
   id: seller.seller_id ?? `seller-${index}`,
@@ -172,6 +194,7 @@ const reportTableRows = computed(() => (report.value?.rows ?? []).map(row => ({
 })))
 const reportDetailFilterFields = computed(() => {
   const fields: Array<[string, string]> = [['label', 'Documento'], ['party_name', 'Cliente']]
+  if (filters.basis !== 'COLLECTION') fields.push(['status_label', 'Estado del documento'])
   if (filters.basis === 'COLLECTION') fields.push(['payment_method_display', 'Medio de pago'], ['payment_destination_display', 'Banco / Caja'])
   return quickFilters(...fields)
 })
@@ -180,35 +203,6 @@ const reportDetailSortFields = computed(() => {
   if (filters.basis === 'COLLECTION') fields.push(['Medio de pago', 'payment_method_display'], ['Banco / Caja', 'payment_destination_display'])
   return sortOptions(...fields)
 })
-
-const chartOption = computed(() => ({
-  tooltip: { trigger: 'axis' },
-  legend: { bottom: 0 },
-  grid: { left: 60, right: 20, top: 20, bottom: 50 },
-  xAxis: { type: 'category', data: report.value?.grouped.map(item => item.label) ?? [] },
-  yAxis: { type: 'value' },
-  series: [
-    { name: 'Total', type: 'bar', data: report.value?.grouped.map(item => item.total) ?? [], itemStyle: { borderRadius: [6, 6, 0, 0] } },
-    { name: 'Cobrado', type: 'line', smooth: true, data: report.value?.grouped.map(item => item.paid) ?? [] },
-  ],
-}))
-
-const productChartOption = computed(() => ({
-  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-  grid: { left: 130, right: 28, top: 10, bottom: 30 },
-  xAxis: { type: 'value' },
-  yAxis: {
-    type: 'category',
-    data: [...(report.value?.commercial_performance?.products_by_quantity ?? [])].reverse().map(item => item.name),
-    axisLabel: { width: 110, overflow: 'truncate' },
-  },
-  series: [{
-    name: 'Unidades',
-    type: 'bar',
-    data: [...(report.value?.commercial_performance?.products_by_quantity ?? [])].reverse().map(item => item.quantity),
-    itemStyle: { borderRadius: [0, 6, 6, 0] },
-  }],
-}))
 
 async function loadReport() {
   if (reloadTimer) {
@@ -221,7 +215,8 @@ async function loadReport() {
     const response = await service.getReport({
       ...filters,
       currency_code: filters.currency_code && filters.currency_code !== 'ALL' ? filters.currency_code : undefined,
-      payment_state: filters.basis === 'COLLECTION' ? 'ALL' : filters.payment_state,
+      payment_state: filters.basis === 'COLLECTION' || filters.basis === 'QUOTE' ? 'ALL' : filters.payment_state,
+      document_status: filters.document_status === 'ALL' || filters.basis === 'COLLECTION' ? undefined : filters.document_status,
       party_id: filters.party_id !== 'ALL' ? filters.party_id : undefined,
       seller_id: filters.basis === 'SALES_ORDER' && filters.seller_id !== 'ALL' ? filters.seller_id : undefined,
       product_id: filters.basis !== 'COLLECTION' && filters.product_id !== 'ALL' ? filters.product_id : undefined,
@@ -251,13 +246,17 @@ function documentRoute(row: ManagementReportResponse['rows'][number]) {
   return filters.basis === 'COLLECTION' ? `/erp/treasury/payments/${row.id}` : `/erp/sales/${row.id}`
 }
 
-function clearCommercialFilters() {
+function clearAllFilters() {
+  filters.group_by = 'MONTH'
+  filters.payment_state = 'ALL'
+  filters.currency_code = 'ALL'
   filters.party_id = 'ALL'
   filters.seller_id = 'ALL'
   filters.product_id = 'ALL'
   filters.point_of_sale_id = 'ALL'
   filters.invoicing_state = 'ALL'
   filters.delivery_state = 'ALL'
+  filters.document_status = 'ALL'
 }
 
 function scheduleReload() {
@@ -266,8 +265,14 @@ function scheduleReload() {
 }
 
 watch(() => filters.basis, (basis) => {
-  if (basis === 'COLLECTION') filters.payment_state = 'ALL'
+  if (basis === 'COLLECTION' || basis === 'QUOTE') filters.payment_state = 'ALL'
+  filters.document_status = 'ALL'
   if (basis !== 'SALES_ORDER' && filters.group_by === 'SELLER') filters.group_by = 'MONTH'
+  if (basis !== 'SALES_ORDER') {
+    filters.seller_id = 'ALL'
+    filters.invoicing_state = 'ALL'
+    filters.delivery_state = 'ALL'
+  }
   // Estas columnas solo existen en Cobros: se limpia su estado al salir de esa base.
   if (basis !== 'COLLECTION') {
     reportDetailSorting.value = reportDetailSorting.value.filter(sort => !COLLECTION_ONLY_DETAIL_COLUMNS.includes(sort.id))
@@ -291,80 +296,99 @@ onMounted(loadMetadata)
 <template>
   <UPage class="mx-auto w-full max-w-[1600px] px-4 pb-10 sm:px-6">
     <div class="flex flex-col gap-8">
-    <AppPageHeader title="Reporte gerencial" description="Analizá una fuente por vez para evitar duplicar OV, facturas y cobros">
+    <AppPageHeader title="Reporte gerencial" description="Analizá OV, presupuestos o facturas; los cobros se reflejan en la OV o factura asociada">
       <template #links>
         <UButton label="Actualizar reporte" icon="i-lucide-refresh-cw" :loading="loading" @click="loadReport" />
       </template>
     </AppPageHeader>
 
-    <UPageCard variant="subtle" class="relative overflow-hidden">
+    <section class="relative overflow-hidden rounded-xl border border-default bg-elevated/20 p-4 sm:p-5">
       <div v-if="loading" class="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-primary/15">
         <div class="h-full w-1/3 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-primary" />
       </div>
-      <div class="flex flex-col gap-6">
-      <div>
-        <p class="font-semibold">1. Elegí la base del reporte</p>
-        <p class="text-sm text-muted">La base es excluyente: los resultados nunca suman OV y facturas entre sí.</p>
-      </div>
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <button
-          v-for="option in basisOptions"
-          :key="option.value"
-          type="button"
-          class="rounded-xl border p-4 text-left transition"
-          :class="filters.basis === option.value ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-default hover:bg-elevated/50'"
-          @click="filters.basis = option.value as ReportBasis"
-        >
-          <div class="flex items-center gap-3">
-            <div class="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><UIcon :name="option.icon" class="size-5" /></div>
-            <div><p class="font-medium">{{ option.label }}</p><p class="text-xs text-muted">{{ option.description }}</p></div>
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-xs font-semibold uppercase tracking-wide text-muted">Tipo de reporte</p>
+          <div role="group" aria-label="Tipo de reporte" class="grid grid-cols-3 gap-1 rounded-xl border border-default bg-default/50 p-1 sm:inline-flex">
+            <button
+              v-for="option in basisOptions"
+              :key="option.value"
+              type="button"
+              class="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition"
+              :class="filters.basis === option.value ? 'bg-primary text-inverted shadow-sm' : 'text-muted hover:bg-elevated hover:text-default'"
+              :aria-label="option.label"
+              :aria-pressed="filters.basis === option.value"
+              @click="filters.basis = option.value as ReportBasis"
+            >
+              <UIcon :name="option.icon" class="size-4 shrink-0" />
+              <span class="truncate sm:hidden">{{ option.shortLabel }}</span>
+              <span class="hidden truncate sm:inline">{{ option.label }}</span>
+            </button>
           </div>
-        </button>
-      </div>
+        </div>
 
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <UFormField label="Desde"><UInput v-model="filters.date_from" type="date" class="w-full" /></UFormField>
-        <UFormField label="Hasta"><UInput v-model="filters.date_to" type="date" class="w-full" /></UFormField>
-        <UFormField label="Agrupar"><USelect v-model="filters.group_by" :items="availableGroupOptions" class="w-full" /></UFormField>
-        <UFormField v-if="filters.basis !== 'COLLECTION'" label="Estado de cobro"><USelect v-model="filters.payment_state" :items="paymentOptions" class="w-full" /></UFormField>
-        <UFormField label="Moneda"><USelect v-model="filters.currency_code" :items="currencyOptions" class="w-full" /></UFormField>
-      </div>
-      <div class="border-t border-default pt-5">
-        <div class="mb-3 flex items-center justify-between gap-3">
-          <div><p class="font-medium">Filtros comerciales</p><p class="text-xs text-muted">Acotá el resultado sin cambiar la base elegida.</p></div>
-          <UButton label="Limpiar" icon="i-lucide-rotate-ccw" color="neutral" variant="ghost" size="sm" @click="clearCommercialFilters" />
+        <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(140px,1fr)_minmax(140px,1fr)_minmax(210px,1.25fr)_auto]">
+          <UFormField label="Desde"><UInput v-model="filters.date_from" type="date" class="w-full" /></UFormField>
+          <UFormField label="Hasta"><UInput v-model="filters.date_to" type="date" class="w-full" /></UFormField>
+          <UFormField v-if="filters.basis !== 'COLLECTION'" label="Estado del documento"><USelect v-model="filters.document_status" :items="documentStatusOptions" value-key="value" class="w-full" /></UFormField>
+          <div class="flex items-center justify-start gap-2 sm:col-span-2 xl:col-span-1 xl:justify-end">
+            <UButton
+              :icon="showAdvancedFilters ? 'i-lucide-chevron-up' : 'i-lucide-sliders-horizontal'"
+              color="neutral"
+              variant="outline"
+              :aria-expanded="showAdvancedFilters"
+              @click="showAdvancedFilters = !showAdvancedFilters"
+            >
+              <span>{{ showAdvancedFilters ? 'Menos filtros' : 'Más filtros' }}</span>
+              <UBadge v-if="advancedFiltersCount" :label="String(advancedFiltersCount)" color="primary" variant="subtle" size="xs" />
+            </UButton>
+            <UButton
+              v-if="hasActiveFilters"
+              label="Limpiar"
+              icon="i-lucide-rotate-ccw"
+              color="neutral"
+              variant="ghost"
+              @click="clearAllFilters"
+            />
+          </div>
         </div>
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <UFormField label="Cliente">
-            <USelectMenu v-model="filters.party_id" :items="partyOptions" value-key="value" searchable placeholder="Todos los clientes" class="w-full" />
-          </UFormField>
-          <UFormField v-if="filters.basis === 'SALES_ORDER'" label="Vendedor">
-            <USelectMenu v-model="filters.seller_id" :items="sellerOptions" value-key="value" searchable placeholder="Todos los vendedores" class="w-full" />
-          </UFormField>
-          <UFormField v-if="filters.basis !== 'COLLECTION'" label="Producto">
-            <USelectMenu v-model="filters.product_id" :items="productOptions" value-key="value" searchable placeholder="Todos los productos" class="w-full" />
-          </UFormField>
-          <UFormField v-if="filters.basis !== 'COLLECTION'" label="Punto de venta">
-            <USelectMenu v-model="filters.point_of_sale_id" :items="pointOfSaleOptions" value-key="value" searchable placeholder="Todos los puntos de venta" class="w-full" />
-          </UFormField>
-          <UFormField v-if="filters.basis === 'SALES_ORDER'" label="Facturación de la OV">
-            <USelect v-model="filters.invoicing_state" :items="progressOptions" class="w-full" />
-          </UFormField>
-          <UFormField v-if="filters.basis === 'SALES_ORDER'" label="Entrega de la OV">
-            <USelect v-model="filters.delivery_state" :items="progressOptions" class="w-full" />
-          </UFormField>
+
+        <div v-if="showAdvancedFilters" class="flex flex-col gap-4 border-t border-default pt-4">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <UFormField label="Agrupar"><USelect v-model="filters.group_by" :items="availableGroupOptions" class="w-full" /></UFormField>
+            <UFormField v-if="filters.basis !== 'COLLECTION' && filters.basis !== 'QUOTE'" label="Estado de cobro"><USelect v-model="filters.payment_state" :items="paymentOptions" class="w-full" /></UFormField>
+            <UFormField label="Moneda"><USelect v-model="filters.currency_code" :items="currencyOptions" class="w-full" /></UFormField>
+          </div>
+          <div class="border-t border-default pt-4">
+            <p class="mb-3 text-sm font-medium">Filtros comerciales</p>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <UFormField label="Cliente">
+                <USelectMenu v-model="filters.party_id" :items="partyOptions" value-key="value" searchable placeholder="Todos los clientes" class="w-full" />
+              </UFormField>
+              <UFormField v-if="filters.basis === 'SALES_ORDER'" label="Vendedor">
+                <USelectMenu v-model="filters.seller_id" :items="sellerOptions" value-key="value" searchable placeholder="Todos los vendedores" class="w-full" />
+              </UFormField>
+              <UFormField v-if="filters.basis !== 'COLLECTION'" label="Producto">
+                <USelectMenu v-model="filters.product_id" :items="productOptions" value-key="value" searchable placeholder="Todos los productos" class="w-full" />
+              </UFormField>
+              <UFormField v-if="filters.basis !== 'COLLECTION'" label="Punto de venta">
+                <USelectMenu v-model="filters.point_of_sale_id" :items="pointOfSaleOptions" value-key="value" searchable placeholder="Todos los puntos de venta" class="w-full" />
+              </UFormField>
+              <UFormField v-if="filters.basis === 'SALES_ORDER'" label="Facturación de la OV">
+                <USelect v-model="filters.invoicing_state" :items="progressOptions" class="w-full" />
+              </UFormField>
+              <UFormField v-if="filters.basis === 'SALES_ORDER'" label="Entrega de la OV">
+                <USelect v-model="filters.delivery_state" :items="progressOptions" class="w-full" />
+              </UFormField>
+            </div>
+          </div>
         </div>
       </div>
-      </div>
-    </UPageCard>
+    </section>
 
     <div v-if="!report && loading" class="flex flex-col gap-6" aria-label="Generando reporte">
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <USkeleton v-for="item in 4" :key="item" class="h-32 rounded-xl" />
-      </div>
-      <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
-        <USkeleton class="h-96 rounded-xl" />
-        <USkeleton class="h-96 rounded-xl" />
       </div>
     </div>
 
@@ -380,53 +404,33 @@ onMounted(loadMetadata)
           Actualizando reporte
         </div>
       </div>
-      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <UPageCard variant="subtle"><p class="text-xs font-semibold uppercase text-muted">{{ selectedBasis?.label }}</p><p class="mt-2 text-2xl font-bold">{{ formatCurrency(report.summary.converted_total) }}</p><p class="text-xs text-muted">{{ report.summary.count }} documentos o movimientos</p></UPageCard>
-        <UPageCard variant="subtle"><p class="text-xs font-semibold uppercase text-muted">Cobrado</p><p class="mt-2 text-2xl font-bold text-success">{{ formatCurrency(report.summary.converted_paid) }}</p></UPageCard>
-        <UPageCard variant="subtle"><p class="text-xs font-semibold uppercase text-muted">Pendiente</p><p class="mt-2 text-2xl font-bold text-warning">{{ formatCurrency(report.summary.converted_pending) }}</p></UPageCard>
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2" :class="filters.basis === 'QUOTE' ? 'xl:grid-cols-2' : 'xl:grid-cols-4'">
+        <UPageCard variant="subtle"><p class="text-xs font-semibold uppercase text-muted">{{ selectedBasis?.label }}</p><p class="mt-2 text-2xl font-bold">{{ formatCurrency(report.summary.converted_total) }}</p><p class="text-xs text-muted">{{ report.summary.count }} documentos</p></UPageCard>
+        <UPageCard v-if="filters.basis !== 'QUOTE'" variant="subtle"><p class="text-xs font-semibold uppercase text-muted">Cobrado</p><p class="mt-2 text-2xl font-bold text-success">{{ formatCurrency(report.summary.converted_paid) }}</p></UPageCard>
+        <UPageCard v-if="filters.basis !== 'QUOTE'" variant="subtle"><p class="text-xs font-semibold uppercase text-muted">Pendiente</p><p class="mt-2 text-2xl font-bold text-warning">{{ formatCurrency(report.summary.converted_pending) }}</p></UPageCard>
         <UPageCard variant="subtle"><p class="text-xs font-semibold uppercase text-muted">Monedas</p><div class="mt-2 space-y-1"><p v-for="(values, currency) in report.summary.by_currency" :key="currency" class="flex justify-between text-sm"><span>{{ currency }}</span><strong>{{ formatCurrency(values.total, currency) }}</strong></p></div></UPageCard>
       </div>
 
       <UAlert v-if="report.summary.missing_exchange_rate_count" color="warning" icon="i-lucide-triangle-alert" title="Consolidado incompleto" :description="`${report.summary.missing_exchange_rate_count} movimientos no tienen cotización histórica.`" />
 
-      <div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
-        <UPageCard variant="subtle"><template #header><div><p class="font-semibold">Evolución</p><p class="text-xs text-muted">Total y cobrado según la agrupación seleccionada</p></div></template><div class="h-80"><ClientOnly><VChart :option="chartOption" autoresize /></ClientOnly></div></UPageCard>
-        <UPageCard variant="subtle"><template #header><p class="font-semibold">Composición por moneda</p></template><div class="space-y-3"><div v-for="(values, currency) in report.summary.by_currency" :key="currency" class="rounded-xl border border-default p-3"><div class="flex justify-between"><strong>{{ currency }}</strong><span class="text-sm">{{ values.count }} movimientos</span></div><p class="mt-2 text-lg font-semibold">{{ formatCurrency(values.total, currency) }}</p><p class="text-xs text-muted">Cobrado {{ formatCurrency(values.paid, currency) }} · Pendiente {{ formatCurrency(values.pending, currency) }}</p></div></div></UPageCard>
-      </div>
-
-      <div v-if="report.commercial_performance" class="flex flex-col gap-6">
-        <div>
-          <p class="text-lg font-semibold">Rendimiento comercial</p>
-          <p class="text-sm text-muted">Los rankings usan únicamente {{ selectedBasis?.label.toLowerCase() }} del período y filtros seleccionados.</p>
+      <div v-if="report.commercial_performance && filters.basis !== 'QUOTE'" class="flex flex-col gap-6">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-lg font-semibold">Rendimiento comercial</p>
+            <p class="text-sm text-muted">Consultá las ventas por vendedor o abrí el reporte de productos para analizar artículos.</p>
+          </div>
+          <UButton
+            label="Ver reporte de productos"
+            icon="i-lucide-chart-no-axes-combined"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :to="salesProductsReportLink"
+          />
         </div>
-        <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <UPageCard variant="subtle">
-            <template #header>
-              <div><p class="font-semibold">Productos más vendidos</p><p class="text-xs text-muted">Ranking por unidades netas, descontando notas de crédito</p></div>
-            </template>
-            <div v-if="report.commercial_performance.products_by_quantity.length" class="h-80"><ClientOnly><VChart :option="productChartOption" autoresize /></ClientOnly></div>
-            <div v-else class="flex h-80 items-center justify-center text-sm text-muted">No hay productos para los filtros seleccionados.</div>
-          </UPageCard>
-
-          <UPageCard variant="subtle" class="overflow-hidden">
-            <template #header>
-              <div><p class="font-semibold">Productos con mayor facturación</p><p class="text-xs text-muted">Importe neto convertido a ARS con la cotización histórica</p></div>
-            </template>
-            <AsteriskTable
-              compact
-              storage-key="management-report-revenue-products"
-              :data="revenueProductRows"
-              :columns="revenueProductColumns"
-              :filter-fields="quickFilters(['product_display', 'Producto'])"
-              :sort-fields="sortOptions(['Producto', 'product_display'], ['Venta neta', 'revenue_display'])"
-              search-placeholder="Buscar producto..."
-            />
-          </UPageCard>
-        </div>
-
         <UPageCard v-if="report.commercial_performance.sellers.length" variant="subtle" class="overflow-hidden">
           <template #header>
-            <div><p class="font-semibold">Desempeño por vendedor</p><p class="text-xs text-muted">Filtrá un vendedor arriba para descubrir sus productos estrella</p></div>
+            <div><p class="font-semibold">Desempeño por vendedor</p><p class="text-xs text-muted">Ventas, cobros y unidades por vendedor en el período seleccionado</p></div>
           </template>
           <AsteriskTable
             compact

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, resolveComponent, ref, watch, computed } from 'vue'
+import { h, resolveComponent, ref, watch, computed, reactive } from 'vue'
 
 import type { FacturaItem } from '../types/factura.types'
 import ProductPickerField from '~/components/erp/products/ProductPickerField.vue'
@@ -23,6 +23,8 @@ interface Props {
     variants?: { id: string, name?: string | null, sku?: string | null, active?: boolean }[]
     purchase_unit_id?: string | null
     purchase_to_stock_factor?: number
+    categories?: { id: string, name: string }[]
+    tags?: { id: string, name: string }[]
   }[]
 
   currencyCode?: string
@@ -36,73 +38,80 @@ interface Props {
   lockPurchaseAdjustments?: boolean
   priceInputIncludesTaxes?: boolean
   allowItemInstructions?: boolean
+  addingProducts?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  currencyCode: 'ARS'
+  currencyCode: 'ARS',
+  addingProducts: false
 })
 
 const emit = defineEmits<{
   remove: [index: number]
 
-  add: [product: any]
+  'add-many': [products: any[]]
 
   'update:warehouse': [index: number, warehouseId: string | null]
   'regularize-stock': [index: number, item: FacturaItem]
   'search-products': [query: string]
 }>()
 
-const selectedProduct = ref<any>(null)
+const selectedProductIds = ref<string[]>([])
 const productSearch = ref('')
 watch(productSearch, query => emit('search-products', query))
-const selectedVariant = ref<string | null>(null)
-const variantOptions = ref<any[]>([])
-const variantLoading = ref(false)
-const variantLoadError = ref<string | null>(null)
-const variantLabels = ref<Record<string, string>>({})
+const selectedVariants = ref<Record<string, string>>({})
+const variantOptionsByProduct = ref<Record<string, any[]>>({})
+const variantLoadingIds = reactive(new Set<string>())
+const variantErrors = ref<Record<string, string>>({})
 const { loadByProduct: loadVariants } = useProductVariants()
 
-const selectedProductData = computed(() => {
-  if (!selectedProduct.value) return null
-  return props.productOptions.find(p => p.value === selectedProduct.value)
-})
+const selectedProductsData = computed(() => selectedProductIds.value
+  .map(productId => props.productOptions.find(product => product.value === productId))
+  .filter((product): product is NonNullable<typeof product> => Boolean(product)))
 
-const hasVariants = computed(() => {
-  const product = selectedProductData.value
-  return product?.has_variants === true
-})
+const selectedVariantProducts = computed(() => selectedProductsData.value.filter(product => product.has_variants))
+const hasVariants = computed(() => selectedVariantProducts.value.length > 0)
+const variantLoading = computed(() => selectedVariantProducts.value.some(product => variantLoadingIds.has(product.value)))
+const hasVariantSelectionError = computed(() => selectedVariantProducts.value.some(product =>
+  !selectedVariants.value[product.value] || Boolean(variantErrors.value[product.value])
+))
 
-watch(selectedProduct, async (productId) => {
-  selectedVariant.value = null
-  variantOptions.value = []
-  variantLoadError.value = null
+watch(selectedProductIds, async (productIds) => {
+  const activeIds = new Set(productIds)
+  selectedVariants.value = Object.fromEntries(Object.entries(selectedVariants.value).filter(([id]) => activeIds.has(id)))
+  variantErrors.value = Object.fromEntries(Object.entries(variantErrors.value).filter(([id]) => activeIds.has(id)))
 
-  if (!productId) return
-
-  const product = selectedProductData.value
-  if (product?.has_variants) {
-    variantLoading.value = true
+  const productsToLoad = selectedProductsData.value.filter(product =>
+    product.has_variants && !variantOptionsByProduct.value[product.value]?.length && !variantLoadingIds.has(product.value)
+  )
+  await Promise.all(productsToLoad.map(async (product) => {
+    const productId = product.value
+    variantLoadingIds.add(productId)
     try {
       const variants = product.variants?.length ? product.variants : await loadVariants(productId)
-      variantOptions.value = variants
+      const options = variants
         .filter(variant => variant.active !== false && typeof variant.name === 'string' && variant.name.trim())
         .map(variant => ({
           label: variant.sku ? `${variant.sku} - ${variant.name}` : variant.name!,
           value: variant.id
         }))
-      for (const option of variantOptions.value) variantLabels.value[option.value] = option.label
-      if (variantOptions.value.length === 1) selectedVariant.value = variantOptions.value[0].value
-      if (variantOptions.value.length === 0) {
-        variantLoadError.value = 'El producto está configurado con variantes, pero no tiene ninguna variante activa.'
+      variantOptionsByProduct.value = { ...variantOptionsByProduct.value, [productId]: options }
+      if (options.length === 1) selectedVariants.value = { ...selectedVariants.value, [productId]: options[0].value }
+      if (options.length === 0) variantErrors.value = {
+        ...variantErrors.value,
+        [productId]: 'El producto está configurado con variantes, pero no tiene ninguna variante activa.'
       }
     } catch (error: any) {
-      variantOptions.value = []
-      variantLoadError.value = error?.data?.message || 'No se pudieron cargar las variantes del producto.'
-    } finally {
-      variantLoading.value = false
+      variantOptionsByProduct.value = { ...variantOptionsByProduct.value, [productId]: [] }
+      variantErrors.value = { ...variantErrors.value, [productId]: error?.data?.message || 'No se pudieron cargar las variantes del producto.' }
     }
-  }
-})
+    finally { variantLoadingIds.delete(productId) }
+  }))
+}, { deep: true })
+
+function variantOptionsFor(productId: string) {
+  return variantOptionsByProduct.value[productId] ?? []
+}
 
 function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -195,25 +204,26 @@ function setPurchaseDiscountAmount(item: FacturaItem, value: unknown) {
 }
 
 function handleAdd() {
-  if (!selectedProduct.value || (hasVariants.value && !selectedVariant.value)) {
-    return
-  }
+  if (!selectedProductIds.value.length || hasVariantSelectionError.value || variantLoading.value) return
 
-  const product = selectedProductData.value
-  const variantName = selectedVariant.value
-    ? variantOptions.value.find(option => option.value === selectedVariant.value)?.label ?? null
-    : null
-  emit('add', {
-    ...product,
-    product_id: selectedProduct.value,
-    variant_id: selectedVariant.value || null,
-    variant_name: variantName,
-    product_name: product?.label,
-    has_variants: product?.has_variants
+  const products = selectedProductsData.value.map((product) => {
+    const variantId = selectedVariants.value[product.value] ?? null
+    const variantName = variantId
+      ? variantOptionsFor(product.value).find(option => option.value === variantId)?.label ?? null
+      : null
+    return {
+      ...product,
+      product_id: product.value,
+      variant_id: variantId,
+      variant_name: variantName,
+      product_name: product.label,
+      has_variants: product.has_variants
+    }
   })
 
-  selectedProduct.value = null
-  selectedVariant.value = null
+  emit('add-many', products)
+  selectedProductIds.value = []
+  selectedVariants.value = {}
   productSearch.value = ''
 }
 
@@ -550,29 +560,43 @@ const columns = computed(() => [
 <template>
   <div class="flex flex-col gap-4">
     <ProductPickerField
-      v-model="selectedProduct"
+      v-model="selectedProductIds"
       v-model:search-term="productSearch"
       :items="props.productOptions"
       value-key="value"
+      multiple
+      show-taxonomy-filters
       title="Agregar productos"
-      description="Buscá un artículo, elegí su variante si corresponde y agregalo al comprobante."
+      description="Filtrá por categoría o etiqueta, buscá y seleccioná varios artículos para agregarlos juntos."
+      :add-label="props.addingProducts ? 'Agregando productos...' : 'Agregar productos'"
+      :loading="props.addingProducts"
+      :disabled="props.addingProducts"
       :has-details="hasVariants"
-      :add-disabled="!selectedProduct || variantLoading || (hasVariants && (!selectedVariant || !!variantLoadError))"
+      :add-disabled="!selectedProductIds.length || variantLoading || hasVariantSelectionError"
       @add="handleAdd"
     >
       <template #details>
-        <UFormField v-if="hasVariants" label="Variante" required class="min-w-0">
-          <USelectMenu
-            v-model="selectedVariant"
-            :items="variantOptions"
-            value-key="value"
-            :placeholder="variantLoading ? 'Cargando variantes...' : 'Seleccionar variante...'"
-            :loading="variantLoading"
-            :disabled="variantLoading || !!variantLoadError"
-            class="w-full min-w-0"
-          />
-          <p v-if="variantLoadError" class="mt-1 text-xs text-error">{{ variantLoadError }}</p>
-        </UFormField>
+        <div v-if="selectedVariantProducts.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <UFormField
+            v-for="product in selectedVariantProducts"
+            :key="product.value"
+            :label="`Variante · ${product.label}`"
+            required
+            class="min-w-0"
+          >
+            <USelectMenu
+              :model-value="selectedVariants[product.value]"
+              :items="variantOptionsFor(product.value)"
+              value-key="value"
+              :placeholder="variantLoadingIds.has(product.value) ? 'Cargando variantes...' : 'Seleccionar variante...'"
+              :loading="variantLoadingIds.has(product.value)"
+              :disabled="variantLoadingIds.has(product.value) || !!variantErrors[product.value]"
+              class="w-full min-w-0"
+              @update:model-value="value => { selectedVariants[product.value] = value }"
+            />
+            <p v-if="variantErrors[product.value]" class="mt-1 text-xs text-error">{{ variantErrors[product.value] }}</p>
+          </UFormField>
+        </div>
       </template>
     </ProductPickerField>
 

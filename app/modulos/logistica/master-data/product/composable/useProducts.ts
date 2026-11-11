@@ -25,6 +25,8 @@ export interface ProductSelectItem {
   unit_id?: string | null
   purchase_unit_id?: string | null
   purchase_to_stock_factor?: number
+  categories?: { id: string, name: string }[]
+  tags?: { id: string, name: string }[]
   tax?: {
     id: string
     rate: number
@@ -99,6 +101,14 @@ export function useProducts(usageFilter?: 'sale' | 'purchase' | null) {
         unit_id: product.unit_id,
         purchase_unit_id: product.purchase_unit_id,
         purchase_to_stock_factor: Number(product.purchase_to_stock_factor ?? 1),
+        categories: (product.product_categories ?? [])
+          .filter((relation: any) => !relation.deleted_at && !relation.categories?.deleted_at)
+          .map((relation: any) => ({ id: relation.category_id, name: relation.categories?.name ?? '' }))
+          .filter((category: { id: string, name: string }) => category.id && category.name),
+        tags: (product.product_tags ?? [])
+          .filter((relation: any) => !relation.deleted_at && !relation.tags?.deleted_at)
+          .map((relation: any) => ({ id: relation.tag_id, name: relation.tags?.name ?? '' }))
+          .filter((tag: { id: string, name: string }) => tag.id && tag.name),
         tax: tax
           ? {
               id: tax.id,

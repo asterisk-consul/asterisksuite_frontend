@@ -43,6 +43,7 @@ const purchaseCategorySet = new Set<string>(PURCHASE_CATEGORIES)
 const readablePurchaseCategories = computed(() =>
   PURCHASE_CATEGORIES.filter((category) => canDocument('purchases', category, 'read'))
 )
+const ALL_FILTER_VALUE = '__ALL__'
 
 // El endpoint también abastece otros circuitos internos con dirección de compra
 // (por ejemplo, vales de RRHH y saldos iniciales). Este listado muestra sólo
@@ -80,6 +81,14 @@ const initialCategory = typeof route.query.category === 'string'
   : undefined
 const categoryFilter = ref<string | undefined>(initialCategory)
 const statusFilter = ref<number | undefined>(undefined)
+const selectedCategoryFilter = computed({
+  get: () => categoryFilter.value ?? ALL_FILTER_VALUE,
+  set: (value: string) => { categoryFilter.value = value === ALL_FILTER_VALUE ? undefined : value }
+})
+const selectedStatusFilter = computed({
+  get: () => statusFilter.value ?? ALL_FILTER_VALUE,
+  set: (value: number | string) => { statusFilter.value = value === ALL_FILTER_VALUE ? undefined : Number(value) }
+})
 const showFullyPaid = ref(true)
 const showCancelled = ref(false)
 
@@ -134,7 +143,7 @@ watch(showFullyPaid, () => { page.value = 1 })
 
 // ─── Filtros de categoría ─────────────────────────────────────────────────────
 const categoryOptions = computed(() => [
-  { label: 'Todos', value: undefined },
+  { label: 'Todos los comprobantes', value: ALL_FILTER_VALUE },
   ...PURCHASE_CATEGORIES.filter((cat) => canDocument('purchases', cat, 'read')).map((cat) => ({
     label: CATEGORY_LABELS[cat] ?? cat,
     value: cat
@@ -147,6 +156,11 @@ const statusOptions = computed(() =>
     ? getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
     : []
 )
+
+const categoryStatusFilterOptions = computed(() => [
+  { label: categoryFilter.value ? 'Todos los estados' : 'Elegí un comprobante', value: ALL_FILTER_VALUE },
+  ...statusOptions.value
+])
 
 const visibleDocuments = computed(() => {
   let rows = documents.value ?? []
@@ -331,94 +345,71 @@ const sortFields = [
       />
 
       <!-- Resumen operativo -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <UPageCard variant="subtle">
-          <div class="flex items-center gap-3">
-            <div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-files" class="size-5" /></div>
+      <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="flex items-center gap-2">
+            <div class="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><UIcon name="i-lucide-files" class="size-4" /></div>
             <div>
-              <p class="text-xs text-muted">Documentos visibles</p>
-              <p class="text-2xl font-semibold">{{ financialStats.visible }}</p>
+              <p class="text-xs leading-4 text-muted">Documentos visibles</p>
+              <p class="text-xl font-semibold leading-6">{{ financialStats.visible }}</p>
             </div>
           </div>
         </UPageCard>
-        <UPageCard variant="subtle">
-          <div class="flex items-center gap-3">
-            <div class="rounded-lg bg-error/10 p-2 text-error">
-              <UIcon name="i-lucide-circle-dollar-sign" class="size-5" />
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="flex items-center gap-2">
+            <div class="grid size-8 shrink-0 place-items-center rounded-lg bg-error/10 text-error">
+              <UIcon name="i-lucide-circle-dollar-sign" class="size-4" />
             </div>
             <div>
-              <p class="text-xs text-muted">Sin pagos</p>
-              <p class="text-2xl font-semibold text-error">{{ financialStats.pending }}</p>
+              <p class="text-xs leading-4 text-muted">Sin pagos</p>
+              <p class="text-xl font-semibold leading-6 text-error">{{ financialStats.pending }}</p>
             </div>
           </div>
         </UPageCard>
-        <UPageCard variant="subtle">
-          <div class="flex items-center gap-3">
-            <div class="rounded-lg bg-warning/10 p-2 text-warning">
-              <UIcon name="i-lucide-chart-no-axes-column-increasing" class="size-5" />
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="flex items-center gap-2">
+            <div class="grid size-8 shrink-0 place-items-center rounded-lg bg-warning/10 text-warning">
+              <UIcon name="i-lucide-chart-no-axes-column-increasing" class="size-4" />
             </div>
             <div>
-              <p class="text-xs text-muted">Pago parcial</p>
-              <p class="text-2xl font-semibold text-warning">{{ financialStats.partial }}</p>
+              <p class="text-xs leading-4 text-muted">Pago parcial</p>
+              <p class="text-xl font-semibold leading-6 text-warning">{{ financialStats.partial }}</p>
             </div>
           </div>
         </UPageCard>
-        <UPageCard variant="subtle">
-          <div class="flex items-center gap-3">
-            <div class="rounded-lg bg-success/10 p-2 text-success">
-              <UIcon name="i-lucide-circle-check" class="size-5" />
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="flex items-center gap-2">
+            <div class="grid size-8 shrink-0 place-items-center rounded-lg bg-success/10 text-success">
+              <UIcon name="i-lucide-circle-check" class="size-4" />
             </div>
             <div>
-              <p class="text-xs text-muted">Pagados</p>
-              <p class="text-2xl font-semibold text-success">{{ financialStats.paid }}</p>
+              <p class="text-xs leading-4 text-muted">Pagados</p>
+              <p class="text-xl font-semibold leading-6 text-success">{{ financialStats.paid }}</p>
             </div>
           </div>
         </UPageCard>
       </div>
 
-      <!-- Filtro por categoría -->
-      <div class="flex gap-2 flex-wrap">
-        <UButton
-          v-for="opt in categoryOptions"
-          :key="opt.label"
-          :variant="categoryFilter === opt.value ? 'solid' : 'ghost'"
-          color="primary"
-          size="sm"
-          :label="opt.label"
-          @click="
-            () => {
-              categoryFilter = opt.value
-            }
-          "
-        />
-      </div>
-
-      <!-- Filtro por estado (solo con categoría seleccionada) -->
-      <div v-if="categoryFilter" class="flex gap-2 flex-wrap">
-        <UButton
-          :variant="statusFilter === undefined ? 'solid' : 'ghost'"
-          color="neutral"
-          size="sm"
-          label="Todos los estados"
-          @click="
-            () => {
-              statusFilter = undefined
-            }
-          "
-        />
-        <UButton
-          v-for="opt in statusOptions"
-          :key="opt.value"
-          :variant="statusFilter === opt.value ? 'solid' : 'ghost'"
-          color="neutral"
-          size="sm"
-          :label="opt.label"
-          @click="
-            () => {
-              statusFilter = opt.value
-            }
-          "
-        />
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <UFormField label="Tipo de documento" class="min-w-0">
+          <USelect
+            v-model="selectedCategoryFilter"
+            :items="categoryOptions"
+            value-key="value"
+            class="w-full min-w-0"
+            aria-label="Filtrar por tipo de comprobante"
+          />
+        </UFormField>
+        <UFormField label="Estado" class="min-w-0">
+          <USelect
+            v-model="selectedStatusFilter"
+            :items="categoryStatusFilterOptions"
+            value-key="value"
+            :disabled="!categoryFilter"
+            class="w-full min-w-0"
+            aria-label="Filtrar por estado"
+          />
+        </UFormField>
       </div>
 
       <div

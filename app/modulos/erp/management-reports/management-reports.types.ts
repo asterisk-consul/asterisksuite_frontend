@@ -1,4 +1,4 @@
-export type ReportBasis = 'SALES_ORDER' | 'INVOICE' | 'COLLECTION'
+export type ReportBasis = 'SALES_ORDER' | 'QUOTE' | 'INVOICE' | 'COLLECTION'
 export type ReportGroupBy = 'DAY' | 'MONTH' | 'PARTY' | 'SELLER' | 'CURRENCY'
 export type PaymentState = 'ALL' | 'UNPAID' | 'PARTIAL' | 'PAID'
 export type ProgressState = 'ALL' | 'NONE' | 'PARTIAL' | 'COMPLETE'
@@ -16,6 +16,8 @@ export interface ManagementReportRow {
   label: string
   party_id: string | null
   party_name: string
+  status?: number
+  status_label?: string
   seller_id?: string | null
   seller_name?: string
   currency_code: string
@@ -52,21 +54,9 @@ export interface ManagementReportResponse {
   grouped: Array<{ key: string; label: string; total: number; paid: number; pending: number; count: number }>
   grouped_by_currency?: Array<{ key: string; label: string; currency_code: string; total: number; paid: number; pending: number; count: number }>
   commercial_performance: null | {
-    products_by_quantity: ProductPerformance[]
-    products_by_revenue: ProductPerformance[]
     sellers: SellerPerformance[]
   }
   rows: ManagementReportRow[]
-}
-
-export interface ProductPerformance {
-  product_id: string
-  name: string
-  sku: string | null
-  quantity: number
-  revenue: number
-  document_count: number
-  missing_exchange_rate_count: number
 }
 
 export interface SellerPerformance {

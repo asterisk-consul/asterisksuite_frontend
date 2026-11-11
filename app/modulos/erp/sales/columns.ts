@@ -18,6 +18,7 @@ export const createSalesColumns = (actions: {
   showCreator?: boolean
   showSeller?: boolean
   statusFilterOptions?: { label: string; value: number | string }[] | null
+  sellerFilterOptions?: { label: string; value: string }[] | null
 }): ExtendedColumn<Row>[] => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
   const fmtNumber = (row: Row) => {
@@ -154,9 +155,13 @@ export const createSalesColumns = (actions: {
         ? [{
             id: 'seller',
             label: 'Vendedor',
-            meta: { filter: false as const },
+            meta: {
+              filter: actions.sellerFilterOptions
+                ? { type: 'select', operators: ['equals'], options: actions.sellerFilterOptions }
+                : false as const
+            },
             accessorFn: (row: Row) => {
-              const seller = (row as any).orden_venta_doc?.seller
+              const seller = (row as any).orden_venta_doc?.seller_partner ?? (row as any).orden_venta_doc?.seller
               return seller ? `${seller.first_name} ${seller.last_name}`.trim() : 'Sin vendedor'
             }
           }]

@@ -7,6 +7,7 @@ export interface ManagementReportQuery {
   date_to: string
   group_by: ReportGroupBy
   payment_state: PaymentState
+  document_status?: number
   currency_code?: string
   party_id?: string
   seller_id?: string

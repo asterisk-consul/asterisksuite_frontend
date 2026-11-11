@@ -27,6 +27,7 @@ const {
   markAsPaid,
   reject,
   reverse,
+  reopenAsDraft,
   applyAdvance,
   removeAdvanceApplication,
   fetchPendingSalesDocuments,
@@ -48,8 +49,10 @@ const initialWithholdings = ref<any[]>([])
 const isProcessing = ref(false)
 const isSaving = ref(false)
 const actionModalOpen = ref(false)
-const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse'>('confirm')
+const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse' | 'reopen'>('confirm')
 const checkAction = ref<'RETURN_TO_PORTFOLIO' | 'CANCEL'>('RETURN_TO_PORTFOLIO')
+const unsavedChangeSections = ref<string[]>([])
+const saveRevision = ref(0)
 
 useBreadcrumbEntityLabel(
   `/erp/treasury/payments/${paymentId}`,
@@ -60,7 +63,8 @@ const actionLabels: Record<string, { title: string; button: string; color: strin
   confirm: { title: 'Confirmar pago', button: 'Confirmar', color: 'info', description: 'Se aplicarán los datos guardados: documentos, caja/banco y cuenta corriente. Si cambiaste la fecha, primero guardá el borrador.' },
   pay: { title: 'Marcar como pagado', button: 'Marcar pagado', color: 'success', description: 'El pago pasará a estado Pagado.' },
   reject: { title: 'Rechazar pago', button: 'Rechazar', color: 'warning', description: 'Se revertirán todos los efectos (documentos, caja/banco, cuenta corriente).' },
-  reverse: { title: 'Anular pago', button: 'Anular', color: 'error', description: 'Se revertirán todos los efectos y el pago quedará anulado.' }
+  reverse: { title: 'Anular pago', button: 'Anular', color: 'error', description: 'Se revertirán todos los efectos y el pago quedará anulado.' },
+  reopen: { title: 'Volver a borrador', button: 'Volver a borrador', color: 'warning', description: 'El pago o cobro volverá a ser editable. Se conservarán las reversiones de caja o banco y cuenta corriente; no volverá a impactar hasta que lo confirmes otra vez. Se recalculará el saldo de los comprobantes con los demás pagos vigentes.' }
 }
 
 const isDraft = computed(() => currentPayment.value?.status === 'DRAFT')
@@ -71,6 +75,12 @@ const canConfirmPayment = computed(() => can('payments.confirm'))
 const canMarkAsPaid = computed(() => can('payments.mark_as_paid'))
 const canRejectPayment = computed(() => can('payments.reject'))
 const canReversePayment = computed(() => can('payments.reverse'))
+const canReopenAsDraft = computed(() =>
+  currentPayment.value?.status === 'CANCELLED'
+  && ['PAYMENT', 'COLLECTION'].includes(String(currentPayment.value?.type))
+  && ['CASH', 'BANK_TRANSFER'].includes(String(currentPayment.value?.payment_method))
+  && can('payments.update')
+)
 const canEditFinalizedFinancialDetails = computed(() =>
   (isConfirmed.value || isPaid.value)
   && (['OWNER', 'ADMIN'].includes(String(authStore.selectedCompany?.role)) || hasPermission('payments.update'))
@@ -87,6 +97,16 @@ const canEditFinalizedExchangeRate = computed(() =>
 )
 const isAdvance = computed(() => currentPayment.value?.payment_mode === 'ADVANCE')
 const hasUnsavedDateChange = computed(() => isDraft.value && editingDate.value !== savedDate.value)
+const hasUnsavedChanges = computed(() =>
+  isDraft.value && (unsavedChangeSections.value.length > 0 || hasUnsavedDateChange.value)
+)
+const unsavedChangesDescription = computed(() => {
+  const sections = [...unsavedChangeSections.value]
+  if (hasUnsavedDateChange.value && !sections.includes('Datos del pago/cobro')) sections.unshift('Fecha')
+  return sections.length
+    ? `Cambios pendientes: ${sections.join(', ')}. Guardá el borrador antes de confirmar.`
+    : 'Hay cambios pendientes. Guardá el borrador antes de confirmar.'
+})
 const counterpartyLabel = computed(() => currentPayment.value?.type === 'COLLECTION'
   ? 'Cliente'
   : currentPayment.value?.type === 'PAYMENT'
@@ -236,6 +256,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
     })
     currentPayment.value = updated as Payment
     savedDate.value = updated.date?.split('T')[0] ?? formData.date
+    saveRevision.value += 1
     toast.add({ title: 'Pago actualizado', color: 'success' })
   } catch (error: any) {
     toast.add({
@@ -293,10 +314,10 @@ const handleFinalizedDetailsSave = async (payload: { rate_only?: boolean; accoun
 }
 
 const openAction = (type: typeof actionType.value) => {
-  if (type === 'confirm' && (isSaving.value || hasUnsavedDateChange.value)) {
+  if (type === 'confirm' && (isSaving.value || hasUnsavedChanges.value)) {
     toast.add({
-      title: 'Primero guardá el borrador',
-      description: 'Esperá a que termine el guardado y guardá los cambios antes de confirmar el pago o cobro.',
+      title: 'Hay cambios sin guardar',
+      description: unsavedChangesDescription.value,
       color: 'warning',
       icon: 'i-lucide-save'
     })
@@ -309,10 +330,10 @@ const openAction = (type: typeof actionType.value) => {
 
 const paymentShortcutActions = computed(() => {
   const actions: Array<{ label: string; disabled?: boolean; onClick: () => void }> = []
-  if (isDraft.value && canConfirmPayment.value) {
+  if (isDraft.value && canConfirmPayment.value && !hasUnsavedChanges.value) {
     actions.push({
       label: 'Confirmar',
-      disabled: isProcessing.value || isSaving.value || hasUnsavedDateChange.value,
+      disabled: isProcessing.value || isSaving.value,
       onClick: () => openAction('confirm'),
     })
   }
@@ -334,13 +355,17 @@ const handleFormModelUpdate = (value: PaymentFormData) => {
   editingDate.value = value.date ?? ''
 }
 
+const handleDraftDirtyChange = (sections: string[]) => {
+  unsavedChangeSections.value = sections
+}
+
 const handleAction = async () => {
   if (isProcessing.value) return
   if (!currentPayment.value) return
-  if (actionType.value === 'confirm' && (isSaving.value || hasUnsavedDateChange.value)) {
+  if (actionType.value === 'confirm' && (isSaving.value || hasUnsavedChanges.value)) {
     toast.add({
-      title: 'Primero guardá el borrador',
-      description: 'Esperá a que termine el guardado y guardá los cambios antes de confirmar el pago o cobro.',
+      title: 'Hay cambios sin guardar',
+      description: unsavedChangesDescription.value,
       color: 'warning',
       icon: 'i-lucide-save'
     })
@@ -362,14 +387,58 @@ const handleAction = async () => {
       case 'reverse':
         await reverse(paymentId, currentPayment.value.payment_method === 'CHECK' ? checkAction.value : undefined)
         break
+      case 'reopen':
+        await reopenAsDraft(paymentId)
+        await Promise.all([
+          fetchPendingSalesDocuments(),
+          fetchPendingPurchaseDocuments(),
+          fetchAvailableOwnChecks(),
+          fetchAvailableCustomerChecks()
+        ])
+        break
     }
 
     const updated = await fetchOne(paymentId)
-    if (updated) currentPayment.value = updated as Payment
+    if (updated) {
+      currentPayment.value = updated as Payment
+      if (actionType.value === 'reopen' && paymentData.value) {
+        paymentData.value = {
+          ...paymentData.value,
+          date: updated.date?.split('T')[0] ?? paymentData.value.date,
+          amount: Number(updated.amount),
+          currency_code: updated.currency_code ?? paymentData.value.currency_code,
+          documents: (updated as any).documents?.map((document: any) => ({
+            document_id: document.document_id,
+            amount_applied: Number(document.amount_applied),
+            document: document.document,
+          })) ?? [],
+        }
+        const rows = (updated as any).withholdings ?? []
+        initialWithholdings.value = rows.map((withholding: any) => ({
+          is_manual: !withholding.tax_rule_id && !withholding.withholding_concept_id,
+          tax_type: withholding.tax_type,
+          jurisdiction_id: withholding.jurisdiction_id ?? null,
+          jurisdiction_name: withholding.jurisdiction?.name ?? null,
+          withholding_concept_id: withholding.withholding_concept_id ?? null,
+          tax_rule_id: withholding.tax_rule_id ?? null,
+          rule_name: withholding.rule_name ?? 'Guardada',
+          base_amount: Number(withholding.base_amount),
+          prorrate_percentage: withholding.prorrate_percentage == null ? null : Number(withholding.prorrate_percentage),
+          rate: withholding.rate == null ? 0 : Number(withholding.rate),
+          withheld_amount: Number(withholding.withheld_amount),
+          automatic_amount: withholding.automatic_amount == null ? null : Number(withholding.automatic_amount),
+          reason: withholding.observations ?? 'Carga guardada',
+          certificate_number: withholding.certificate_number ?? undefined,
+          certificate_date: withholding.certificate_date?.split('T')[0] ?? undefined,
+          is_locked: Boolean(withholding.certificate_number || withholding.remittance_id),
+        }))
+      }
+    }
     actionModalOpen.value = false
 
     toast.add({
-      title: actionLabels[actionType.value]?.title ?? 'Acción completada',
+      title: actionType.value === 'reopen' ? 'Pago o cobro recuperado como borrador' : actionLabels[actionType.value]?.title ?? 'Acción completada',
+      ...(actionType.value === 'reopen' ? { description: 'Revisá los comprobantes y las retenciones antes de volver a confirmar.' } : {}),
       color: 'success'
     })
   } catch (e: any) {
@@ -450,6 +519,17 @@ const handleAdvanceSuccess = async () => {
             />
           </div>
           <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+            <UButton
+              v-if="canReopenAsDraft"
+              label="Volver a borrador"
+              icon="i-lucide-file-pen-line"
+              size="sm"
+              color="warning"
+              variant="outline"
+              :loading="isProcessing"
+              :disabled="isProcessing"
+              @click="openAction('reopen')"
+            />
             <ShortcutButton
               v-if="isConfirmed && canMarkAsPaid"
               label="Marcar pagado"
@@ -507,12 +587,12 @@ const handleAdvanceSuccess = async () => {
     <template v-else-if="paymentData && currentPayment">
       <div class="flex w-full min-w-0 flex-col gap-4">
         <UAlert
-          v-if="isDraft && hasUnsavedDateChange"
+          v-if="isDraft && hasUnsavedChanges"
           color="warning"
           variant="subtle"
           icon="i-lucide-save"
-          title="Tenés una fecha sin guardar"
-          description="La fecha todavía no se aplicó al pago o cobro. Hacé clic en “Guardar borrador” al inicio del formulario; después vas a poder confirmarlo."
+          title="Hay cambios sin guardar"
+          :description="unsavedChangesDescription"
         />
 
         <details v-if="!isDraft" class="group rounded-lg border border-warning/20 bg-warning/5">
@@ -545,23 +625,26 @@ const handleAdvanceSuccess = async () => {
             :allow-finalized-rate-edit="canEditFinalizedExchangeRate"
             :saving-financial-details="isSaving"
             :local-draft-enabled="false"
+            :save-only-when-dirty="true"
+            :save-revision="saveRevision"
             :loading="isSaving"
             submit-label="Guardar borrador"
             @update:model-value="handleFormModelUpdate"
+            @dirty-change="handleDraftDirtyChange"
             @submit="handleSubmit"
             @save-finalized-details="handleFinalizedDetailsSave"
             @cancel="router.push('/erp/treasury/payments')"
           >
             <template #action-bar-actions>
               <ShortcutButton
-                v-if="isDraft && canConfirmPayment"
+                v-if="isDraft && canConfirmPayment && !hasUnsavedChanges"
                 label="Confirmar"
                 :shortcut-keys="paymentShortcutKeys('Confirmar') ?? []"
                 icon="i-lucide-check-circle"
                 size="sm"
                 color="info"
                 :loading="isProcessing"
-                :disabled="isProcessing || isSaving || hasUnsavedDateChange"
+                :disabled="isProcessing || isSaving"
                 @click="openAction('confirm')"
               />
             </template>
@@ -580,13 +663,13 @@ const handleAdvanceSuccess = async () => {
       <template #body>
         <p>{{ actionLabels[actionType]?.description }}</p>
         <UAlert
-          v-if="actionType === 'confirm' && hasUnsavedDateChange"
+          v-if="actionType === 'confirm' && hasUnsavedChanges"
           class="mt-3"
           color="warning"
           variant="subtle"
           icon="i-lucide-save"
-          title="La fecha todavía no está guardada"
-          description="Cerrá este cuadro y usá “Guardar borrador” antes de confirmar."
+          title="Hay cambios sin guardar"
+          :description="unsavedChangesDescription"
         />
         <div v-if="actionType === 'reverse' && currentPayment?.payment_method === 'CHECK'" class="mt-4 space-y-2">
           <p class="text-sm font-medium">¿Qué debe ocurrir con el cheque?</p>
@@ -605,7 +688,7 @@ const handleAdvanceSuccess = async () => {
             :label="actionLabels[actionType]?.button"
             :color="(actionLabels[actionType]?.color as any)"
             :loading="isProcessing"
-            :disabled="isProcessing || (actionType === 'confirm' && hasUnsavedDateChange)"
+            :disabled="isProcessing || (actionType === 'confirm' && hasUnsavedChanges)"
             @click="handleAction"
           />
         </div>

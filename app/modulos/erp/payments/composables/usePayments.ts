@@ -42,6 +42,8 @@ export function usePayments() {
 
   const reverse = async (id: string, checkAction?: 'RETURN_TO_PORTFOLIO' | 'CANCEL') => store.reverse(id, checkAction)
 
+  const reopenAsDraft = async (id: string) => store.reopenAsDraft(id)
+
   const confirm = async (id: string) => store.confirm(id)
 
   const markAsPaid = async (id: string) => store.markAsPaid(id)
@@ -125,6 +127,7 @@ export function usePayments() {
     updateFinalizedFinancialDetails,
     remove,
     reverse,
+    reopenAsDraft,
     confirm,
     markAsPaid,
     reject,

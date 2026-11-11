@@ -15,11 +15,8 @@ const router = useRouter()
 const store = useDocumentsSalesStore()
 const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
-const allSellersOption = '__ALL_SELLERS__'
 useDocumentFormPreload('/erp/sales/new?category=ORDER')
 
-const statusFilter = ref<number | string | undefined>(undefined)
-const selectedSellerId = ref(allSellersOption)
 const salespeople = ref<SalespersonOption[]>([])
 const showCancelled = ref(false)
 const documents = computed(() => store.items ?? [])
@@ -27,12 +24,12 @@ const visibleDocuments = computed(() => showCancelled.value
   ? documents.value
   : documents.value.filter(document => !isDocumentCancelled('ORDER', document.status)))
 const loading = computed(() => store.loading)
-const sellerOptions = computed(() => [
-  { id: allSellersOption, name: 'Todos los vendedores' },
+const sellerFilterOptions = computed(() => [
+  { value: '__NO_SELLER__', label: 'Sin vendedor' },
   ...salespeople.value.map(seller => ({
-    id: seller.id,
-    name: `${seller.first_name} ${seller.last_name}`.trim(),
-  })),
+    value: `${seller.seller_type}:${seller.id}`,
+    label: `${seller.first_name} ${seller.last_name}`.trim() + (seller.seller_type === 'PARTNER' ? ' · Socio' : ' · Empleado')
+  }))
 ])
 
 onMounted(async () => {
@@ -44,39 +41,27 @@ onMounted(async () => {
 })
 
 const serverTable = useServerTable((query) => {
-  const deliveryStatus = typeof statusFilter.value === 'string'
-    ? statusFilter.value.replace('order-flow:', '') as 'PENDING' | 'ELIGIBLE' | 'DRAFT_CREATED'
-    : undefined
   return store.fetchPage({
     ...query,
-    status: typeof statusFilter.value === 'number' ? statusFilter.value : undefined,
-    deliveryStatus,
     category: 'ORDER',
-    seller_id: selectedSellerId.value === allSellersOption ? undefined : selectedSellerId.value,
     excludeCancelled: !showCancelled.value
   })
 })
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
-watch(statusFilter, (status) => {
-  if (status === 8 && !showCancelled.value) {
-    showCancelled.value = true
-    return
-  }
-  page.value = 1
-  refresh()
-})
-watch(selectedSellerId, () => {
-  page.value = 1
-  refresh()
-})
+const cancelledStatusFilterActive = computed(() => filters.value.some((filter) =>
+  filter.column === 'status' && Number(filter.value) === 8
+))
 watch(showCancelled, (show) => {
-  if (!show && statusFilter.value === 8) {
-    statusFilter.value = undefined
+  if (!show && cancelledStatusFilterActive.value) {
+    filters.value = filters.value.filter((filter) => !(filter.column === 'status' && Number(filter.value) === 8))
     return
   }
   page.value = 1
   refresh()
 })
+watch(cancelledStatusFilterActive, (active) => {
+  if (active && !showCancelled.value) showCancelled.value = true
+}, { immediate: true })
 
 const stats = computed(() => {
   const docs = documents.value
@@ -132,6 +117,7 @@ const columns = computed(() =>
     onDuplicate: duplicateDocument,
     canDuplicate: () => canDocument('sales', 'ORDER', 'create'),
     showSeller: true,
+    sellerFilterOptions: sellerFilterOptions.value,
     showCreator: isOwnerOrAdmin.value,
     statusFilterOptions: statusOptions
   })
@@ -150,7 +136,6 @@ const sortFields = [
   { label: 'Estado', value: 'status' }
 ]
 
-const statusButtons = [{ label: 'Todos', value: undefined }, ...statusOptions]
 </script>
 
 <template>
@@ -162,43 +147,31 @@ const statusButtons = [{ label: 'Todos', value: undefined }, ...statusOptions]
     </AppPageHeader>
 
     <div class="p-4 space-y-5">
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <UPageCard variant="subtle">
-          <div class="space-y-1">
+      <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="space-y-0.5">
             <p class="text-xs text-muted">Borradores</p>
-            <p class="text-2xl font-semibold text-neutral-500">{{ stats.borrador }}</p>
+            <p class="text-xl font-semibold leading-6 text-neutral-500">{{ stats.borrador }}</p>
           </div>
         </UPageCard>
-        <UPageCard variant="subtle">
-          <div class="space-y-1">
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="space-y-0.5">
             <p class="text-xs text-muted">En preparación</p>
-            <p class="text-2xl font-semibold text-warning-500">{{ stats.preparacion }}</p>
+            <p class="text-xl font-semibold leading-6 text-warning-500">{{ stats.preparacion }}</p>
           </div>
         </UPageCard>
-        <UPageCard variant="subtle">
-          <div class="space-y-1">
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="space-y-0.5">
             <p class="text-xs text-muted">Listas para despacho</p>
-            <p class="text-2xl font-semibold text-success-500">{{ stats.listas }}</p>
+            <p class="text-xl font-semibold leading-6 text-success-500">{{ stats.listas }}</p>
           </div>
         </UPageCard>
-        <UPageCard variant="subtle">
-          <div class="space-y-1">
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="space-y-0.5">
             <p class="text-xs text-muted">Remitos pendientes</p>
-            <p class="text-2xl font-semibold text-info-500">{{ stats.remitosPendientes }}</p>
+            <p class="text-xl font-semibold leading-6 text-info-500">{{ stats.remitosPendientes }}</p>
           </div>
         </UPageCard>
-      </div>
-
-      <div class="flex gap-2 flex-wrap">
-        <UButton
-          v-for="opt in statusButtons"
-          :key="String(opt.value)"
-          :variant="statusFilter === opt.value ? 'solid' : 'ghost'"
-          color="neutral"
-          size="sm"
-          :label="opt.label"
-          @click="() => { statusFilter = opt.value }"
-        />
       </div>
 
       <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
@@ -210,20 +183,6 @@ const statusButtons = [{ label: 'Todos', value: undefined }, ...statusOptions]
           <span>Mostrar canceladas</span>
           <USwitch v-model="showCancelled" aria-label="Mostrar órdenes de venta canceladas" />
         </label>
-      </div>
-
-      <div v-if="salespeople.length" class="flex justify-end">
-        <UFormField label="Filtrar por vendedor" class="w-full sm:max-w-sm">
-          <USelectMenu
-            v-model="selectedSellerId"
-            :items="sellerOptions"
-            label-key="name"
-            value-key="id"
-            searchable
-            class="w-full"
-            aria-label="Filtrar órdenes de venta por vendedor"
-          />
-        </UFormField>
       </div>
 
       <LogisticaTable

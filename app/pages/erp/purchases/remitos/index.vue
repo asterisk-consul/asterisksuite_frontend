@@ -12,31 +12,28 @@ const router = useRouter()
 const store = useDocumentsPurchasesStore()
 const { isOwnerOrAdmin } = useCompanyRole()
 
-const statusFilter = ref<number | undefined>(undefined)
 const showCancelled = ref(false)
 const documents = computed(() => store.items ?? [])
 const visibleDocuments = computed(() => showCancelled.value
   ? documents.value
   : documents.value.filter(document => !isDocumentCancelled('REMITO', document.status, -1)))
 const loading = computed(() => store.loading)
-const serverTable = useServerTable((query) => store.fetchPage({ ...query, status: statusFilter.value, category: 'REMITO', direction: -1, excludeCancelled: !showCancelled.value }))
+const serverTable = useServerTable((query) => store.fetchPage({ ...query, category: 'REMITO', direction: -1, excludeCancelled: !showCancelled.value }))
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
-watch(statusFilter, (status) => {
-  if (status === 3 && !showCancelled.value) {
-    showCancelled.value = true
-    return
-  }
-  page.value = 1
-  refresh()
-})
+const cancelledStatusFilterActive = computed(() => filters.value.some((filter) =>
+  filter.column === 'status' && Number(filter.value) === 3
+))
 watch(showCancelled, (show) => {
-  if (!show && statusFilter.value === 3) {
-    statusFilter.value = undefined
+  if (!show && cancelledStatusFilterActive.value) {
+    filters.value = filters.value.filter((filter) => !(filter.column === 'status' && Number(filter.value) === 3))
     return
   }
   page.value = 1
   refresh()
 })
+watch(cancelledStatusFilterActive, (active) => {
+  if (active && !showCancelled.value) showCancelled.value = true
+}, { immediate: true })
 
 const stats = computed(() => {
   const docs = documents.value
@@ -82,7 +79,6 @@ const sortFields = [
   { label: 'Total', value: 'total' }
 ]
 
-const statusOptions = [{ label: 'Todos', value: undefined }, ...statusFilterOptions]
 </script>
 
 <template>
@@ -94,44 +90,32 @@ const statusOptions = [{ label: 'Todos', value: undefined }, ...statusFilterOpti
     </AppPageHeader>
 
     <div class="p-4 space-y-5">
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <UPageCard variant="subtle">
-          <div class="space-y-1">
+      <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="space-y-0.5">
             <p class="text-xs text-muted">Borradores</p>
-            <p class="text-2xl font-semibold text-neutral-500">{{ stats.borrador }}</p>
+            <p class="text-xl font-semibold leading-6 text-neutral-500">{{ stats.borrador }}</p>
           </div>
         </UPageCard>
-        <UPageCard variant="subtle">
-          <div class="space-y-1">
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="space-y-0.5">
             <p class="text-xs text-muted">Pendientes</p>
-            <p class="text-2xl font-semibold text-warning-500">{{ stats.pendiente }}</p>
+            <p class="text-xl font-semibold leading-6 text-warning-500">{{ stats.pendiente }}</p>
           </div>
         </UPageCard>
-        <UPageCard variant="subtle">
-          <div class="space-y-1">
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="space-y-0.5">
             <p class="text-xs text-muted">Confirmados</p>
-            <p class="text-2xl font-semibold text-success-500">{{ stats.confirmado }}</p>
+            <p class="text-xl font-semibold leading-6 text-success-500">{{ stats.confirmado }}</p>
             <p class="text-xs text-muted">{{ fmt(stats.totalConfirmado) }}</p>
           </div>
         </UPageCard>
-        <UPageCard variant="subtle">
-          <div class="space-y-1">
+        <UPageCard variant="subtle" :ui="{ container: 'gap-0 p-2.5 sm:p-2.5' }">
+          <div class="space-y-0.5">
             <p class="text-xs text-muted">Total</p>
-            <p class="text-2xl font-semibold">{{ stats.total }}</p>
+            <p class="text-xl font-semibold leading-6">{{ stats.total }}</p>
           </div>
         </UPageCard>
-      </div>
-
-      <div class="flex gap-2 flex-wrap">
-        <UButton
-          v-for="opt in statusOptions"
-          :key="String(opt.value)"
-          :variant="statusFilter === opt.value ? 'solid' : 'ghost'"
-          color="neutral"
-          size="sm"
-          :label="opt.label"
-          @click="() => { statusFilter = opt.value }"
-        />
       </div>
 
       <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">

@@ -201,6 +201,7 @@ const usageFilter = computed(() => {
   return null
 })
 const { items: productOptions } = useProducts(usageFilter.value)
+const addingProducts = ref(false)
 let productSearchTimer: ReturnType<typeof setTimeout> | undefined
 let productSearchController: AbortController | undefined
 
@@ -1625,55 +1626,66 @@ watch(
   { immediate: true }
 )
 
-async function addItem(prod: any) {
-  if (!prod.product_id) return
-  const quantity = 1
+async function addItems(products: any[]) {
+  if (addingProducts.value) return
+  addingProducts.value = true
+  try {
+    const additions = await Promise.all(products
+      .filter(prod => prod?.product_id)
+      .map(async (prod) => {
+        const quantity = 1
+        const matchingPrice = prod.prices?.find((price: any) => price.code === form.currency_code)
+        const partyPrice = await resolvePartyPrice(prod.product_id)
+        const unitPrice = partyPrice ?? matchingPrice?.amount ?? 0
+        const lacksCurrencyPrice = partyPrice === null && !matchingPrice && prod.prices?.length > 0
 
-  // La currency del documento es la fuente de verdad
-  // Buscar precio que coincida con la currency del documento
-  const matchingPrice = prod.prices?.find(
-    (p: any) => p.code === form.currency_code
-  )
+        return {
+          lacksCurrencyPrice,
+          productName: prod.product_name,
+          item: {
+            product_id: prod.product_id,
+            warehouse_id: singleWarehouseForProduct(prod.product_id),
+            variant_id: prod.variant_id ?? null,
+            variant_name: prod.variant_name ?? null,
+            product_name: prod.product_name,
+            item_instructions: '',
+            instructions_expanded: false,
+            quantity,
+            purchase_unit_id: props.moduleCode === 'PURCHASES' ? (prod.purchase_unit_id ?? null) : null,
+            unit_conversion_factor: props.moduleCode === 'PURCHASES' ? Number(prod.purchase_to_stock_factor ?? 1) : 1,
+            stock_quantity: props.moduleCode === 'PURCHASES' ? quantity * Number(prod.purchase_to_stock_factor ?? 1) : quantity,
+            unit_price: unitPrice,
+            discount_percentage: 0,
+            net_subtotal_override: null,
+            subtotal_override: null,
+            discount_amount_override: null,
+            price: quantity * unitPrice,
+            subtotal: quantity * unitPrice,
+            taxes: [],
+            total_taxes: 0,
+            total: quantity * unitPrice,
+            tax_preview_ready: false
+          }
+        }
+      }))
 
-  const partyPrice = await resolvePartyPrice(prod.product_id)
-  const unitPrice = partyPrice ?? matchingPrice?.amount ?? 0
+    if (!additions.length) return
 
-  // Warning si no hay precio para esa currency
-  if (partyPrice === null && !matchingPrice && prod.prices?.length > 0) {
-    toast.add({
-      title: 'Precio no disponible',
-      description: `El producto no tiene precio en ${form.currency_code}. Ingresá el precio manualmente.`,
-      color: 'warning'
-    })
+    items.value.push(...additions.map(addition => addition.item))
+    const productsWithoutCurrencyPrice = additions.filter(addition => addition.lacksCurrencyPrice)
+    if (productsWithoutCurrencyPrice.length) {
+      const productNames = productsWithoutCurrencyPrice.map(product => product.productName).filter(Boolean)
+      toast.add({
+        title: 'Precio no disponible',
+        description: `${productNames.slice(0, 3).join(', ')}${productNames.length > 3 ? ` y ${productNames.length - 3} más` : ''} no ${productNames.length === 1 ? 'tiene' : 'tienen'} precio en ${form.currency_code}. Ingresalo manualmente.`,
+        color: 'warning'
+      })
+    }
+
+    await fetchPreview()
+  } finally {
+    addingProducts.value = false
   }
-
-  items.value.push({
-    product_id: prod.product_id,
-    warehouse_id: singleWarehouseForProduct(prod.product_id),
-    variant_id: prod.variant_id ?? null,
-    variant_name: prod.variant_name ?? null,
-    product_name: prod.product_name,
-    item_instructions: '',
-    instructions_expanded: false,
-    quantity,
-    purchase_unit_id: props.moduleCode === 'PURCHASES' ? (prod.purchase_unit_id ?? null) : null,
-    unit_conversion_factor: props.moduleCode === 'PURCHASES' ? Number(prod.purchase_to_stock_factor ?? 1) : 1,
-    stock_quantity: props.moduleCode === 'PURCHASES' ? quantity * Number(prod.purchase_to_stock_factor ?? 1) : quantity,
-    unit_price: unitPrice,
-    discount_percentage: 0,
-    net_subtotal_override: null,
-    subtotal_override: null,
-    discount_amount_override: null,
-    price: quantity * unitPrice,
-    subtotal: quantity * unitPrice,
-    taxes: [],
-    total_taxes: 0,
-    total: quantity * unitPrice,
-    tax_preview_ready: false
-  })
-
-  // Recalcular con el backend
-  fetchPreview()
 }
 
 function removeItem(index: number) {
@@ -1687,6 +1699,10 @@ function updateItemWarehouse(index: number, warehouseId: string | null) {
 }
 
 function submit() {
+  if (addingProducts.value) {
+    toast.add({ title: 'Agregando productos', description: 'Esperá a que terminen de cargarse antes de guardar.', color: 'info' })
+    return
+  }
   const errors: Record<string, string> = {}
   if (!form.document_type_id) errors.document_type_id = 'Seleccioná el tipo de comprobante.'
   if (!form.party_id) errors.party_id = moduleCode.value === 'SALES' ? 'Seleccioná un cliente.' : 'Seleccioná un proveedor o entidad.'
@@ -2178,6 +2194,7 @@ defineExpose({ submit, completeDraft })
       />
       <FacturaItemsTable
         :items="items"
+        :adding-products="addingProducts"
         :allow-item-instructions="canAddItemInstructions"
         :product-options="productOptions"
         :currency-code="form.currency_code"
@@ -2191,7 +2208,7 @@ defineExpose({ submit, completeDraft })
         :lock-purchase-adjustments="moduleCode === 'PURCHASES' && commercialAdjustments.length > 0"
         :can-regularize-stock="canRegularizeStock"
         @remove="removeItem"
-        @add="addItem"
+        @add-many="addItems"
         @update:warehouse="updateItemWarehouse"
         @regularize-stock="openStockRegularization"
         @search-products="searchProducts"

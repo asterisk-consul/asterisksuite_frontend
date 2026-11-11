@@ -96,11 +96,14 @@ const props = defineProps<{
   localDraftEnabled?: boolean
   submitLabel?: string
   actionBarTarget?: string
+  saveOnlyWhenDirty?: boolean
+  saveRevision?: number
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [PaymentFormData]
   submit: [PaymentFormData]
+  'dirty-change': [string[]]
   'save-finalized-details': [{ rate_only?: boolean; account_id?: string | null; party_id?: string | null; withholdings?: PaymentWithholdingPayload[]; exchange_rate?: number | null; rate_type?: string | null }]
   cancel: []
 }>()
@@ -448,6 +451,102 @@ const focusMissingUsdRateAfterSelection = ref(false)
 const selectedChecks = ref<Map<string, AvailableCheck>>(new Map())
 const checkSearch = ref('')
 
+type PaymentDraftSnapshot = {
+  details: string
+  documents: string
+  method: string
+  withholdings: string
+  bankCharges: string
+}
+
+const buildPaymentDraftSnapshot = (): PaymentDraftSnapshot => ({
+  details: JSON.stringify({
+    type: form.type,
+    payment_mode: form.payment_mode,
+    date: form.date,
+    amount: Number(form.amount || 0),
+    currency_code: form.currency_code,
+    exchange_rate: form.exchange_rate == null ? null : Number(form.exchange_rate),
+    rate_type: form.rate_type,
+    converted_amount: form.converted_amount == null ? null : Number(form.converted_amount),
+    description: form.description,
+    reference: form.reference,
+    party_id: form.party_id,
+    party_type: form.party_type,
+    account_id: form.account_id,
+    withholding_remittance_id: form.withholding_remittance_id,
+  }),
+  documents: JSON.stringify(Array.from(selectedDocs.value.entries())
+    .map(([id, entry]) => ({ id, amount: Number(entry.amount || 0) }))
+    .sort((left, right) => left.id.localeCompare(right.id))),
+  method: JSON.stringify({
+    payment_method: form.payment_method,
+    cash_box_id: form.cash_box_id,
+    bank_account_id: form.bank_account_id,
+    credit_card_id: form.credit_card_id,
+    installments_total: form.installments_total,
+    card_authorization: form.card_authorization,
+    expected_clearing_date: form.expected_clearing_date,
+    tenders: form.tenders ?? [],
+    check_ids: Array.from(selectedChecks.value.keys()).sort(),
+    form_check_ids: [...(form.check_ids ?? [])].sort(),
+    checks: form.checks ?? [],
+  }),
+  withholdings: JSON.stringify(withholdings.value.map((item) => ({
+    is_manual: item.is_manual,
+    tax_type: item.tax_type,
+    jurisdiction_id: item.jurisdiction_id,
+    withholding_concept_id: item.withholding_concept_id,
+    tax_rule_id: item.tax_rule_id,
+    base_amount: Number(item.base_amount || 0),
+    prorrate_percentage: item.prorrate_percentage == null ? null : Number(item.prorrate_percentage),
+    rate: item.rate == null ? null : Number(item.rate),
+    withheld_amount: Number(item.withheld_amount || 0),
+    automatic_amount: item.automatic_amount == null ? null : Number(item.automatic_amount),
+    reason: item.reason,
+    certificate_number: (item as any).certificate_number,
+    certificate_date: (item as any).certificate_date,
+  }))),
+  bankCharges: JSON.stringify(bankCharges.value.map((charge) => ({
+    rule_id: charge.rule_id,
+    bank_concept_id: charge.bank_concept_id,
+    nature: charge.nature,
+    base_amount: charge.base_amount == null ? null : Number(charge.base_amount),
+    percentage: charge.percentage == null ? null : Number(charge.percentage),
+    tax_amount: charge.tax_amount == null ? null : Number(charge.tax_amount),
+    total_amount: Number(charge.total_amount || 0),
+    reference: charge.reference,
+    retention: charge.retention,
+  }))),
+})
+
+const savedPaymentDraftSnapshot = ref<PaymentDraftSnapshot | null>(null)
+const dirtySectionLabels: Array<[keyof PaymentDraftSnapshot, string]> = [
+  ['details', 'Datos del pago/cobro'],
+  ['documents', 'Comprobantes aplicados'],
+  ['method', 'Medio de pago'],
+  ['withholdings', 'Retenciones'],
+  ['bankCharges', 'Gastos bancarios'],
+]
+const dirtySections = computed(() => {
+  if (!savedPaymentDraftSnapshot.value) return []
+  const current = buildPaymentDraftSnapshot()
+  return dirtySectionLabels
+    .filter(([key]) => current[key] !== savedPaymentDraftSnapshot.value?.[key])
+    .map(([, label]) => label)
+})
+
+const resetPaymentDraftSnapshot = () => {
+  savedPaymentDraftSnapshot.value = buildPaymentDraftSnapshot()
+  emit('dirty-change', [])
+}
+
+watch(dirtySections, (sections) => emit('dirty-change', sections), { immediate: true })
+
+watch(() => props.saveRevision, (revision, previousRevision) => {
+  if (revision !== previousRevision) void nextTick(resetPaymentDraftSnapshot)
+})
+
 type PaymentDraft = {
   form: PaymentFormData
   selectedDocs: Array<[string, { doc: PendingDocument; amount: number }]>
@@ -571,9 +670,11 @@ onMounted(async () => {
 watch(
   [() => props.modelValue, () => props.pendingPurchaseDocuments, () => props.pendingSalesDocuments, () => props.initialWithholdings],
   ([val], oldValues) => {
+    const shouldResetSnapshot = val !== oldValues?.[0] || props.initialWithholdings !== oldValues?.[3]
     if (!val) {
       Object.assign(form, { ...defaultForm })
       selectedDocs.value.clear()
+      if (props.saveOnlyWhenDirty && shouldResetSnapshot) void nextTick(resetPaymentDraftSnapshot)
       return
     }
 
@@ -598,7 +699,7 @@ watch(
     }
 
     // Poblar selectedDocs desde comprobantes y obligaciones de Tesorería.
-    if (val.documents?.length || val.obligations?.length) {
+    if ((val.documents?.length || val.obligations?.length) && (val !== oldValues?.[0] || !props.saveOnlyWhenDirty)) {
       const allPending = [...(props.pendingPurchaseDocuments ?? []), ...(props.pendingSalesDocuments ?? [])]
       selectedDocs.value.clear()
       for (const docData of val.documents ?? []) {
@@ -646,7 +747,10 @@ watch(
     }
 
     // Precargar retenciones guardadas (modo edición)
-    withholdings.value = [...(props.initialWithholdings ?? [])]
+    if (shouldResetSnapshot) {
+      withholdings.value = [...(props.initialWithholdings ?? [])]
+      if (props.saveOnlyWhenDirty) void nextTick(resetPaymentDraftSnapshot)
+    }
   },
   { immediate: true }
 )
@@ -1703,6 +1807,7 @@ function handlePaymentFormShortcut(event: KeyboardEvent) {
   if (isSaveShortcut) {
     event.preventDefault()
     event.stopPropagation()
+    if (props.saveOnlyWhenDirty && dirtySections.value.length === 0) return
     void handleSubmit()
     return
   }
@@ -1720,6 +1825,7 @@ function handlePaymentFormShortcut(event: KeyboardEvent) {
 }
 
 const handleSubmit = async () => {
+  if (props.saveOnlyWhenDirty && dirtySections.value.length === 0) return
   instrumentValidationAttempted.value = true
   if (requiresExchangeRate.value && (!form.exchange_rate || Number(form.exchange_rate) <= 0)) {
     await focusExchangeRateField()
@@ -2140,7 +2246,7 @@ defineExpose({ completeDraft: completePaymentDraft })
           <p v-else class="text-sm text-muted">Sin retenciones.</p>
           <div class="flex flex-wrap justify-between gap-2 border-t border-default pt-3 text-sm">
             <span>Retenciones: <strong>{{ formatCurrency(totalWithheld, form.currency_code) }}</strong></span>
-            <span>Neto caja/banco: <strong>{{ formatCurrency(Math.max(0, finalizedGrossApplied - totalWithheld), form.currency_code) }}</strong></span>
+            <span>{{ form.payment_method === 'BANK_TRANSFER' ? 'Neto bancario' : 'Neto de caja' }}: <strong>{{ formatCurrency(Math.max(0, finalizedGrossApplied - totalWithheld), form.currency_code) }}</strong></span>
           </div>
         </div>
         <UAlert v-else-if="form.type === 'EXPENSE'" color="warning" variant="subtle" title="Falta asociar un proveedor o entidad" description="Las retenciones deben quedar vinculadas a una parte interesada. Seleccionala arriba para habilitar su carga; la cuenta contable puede editarse sin ese dato." />
@@ -2191,6 +2297,7 @@ defineExpose({ completeDraft: completePaymentDraft })
             @click="emit('cancel')"
           />
           <ShortcutButton
+            v-if="!props.saveOnlyWhenDirty || dirtySections.length > 0"
             :label="props.loading ? 'Guardando…' : (props.submitLabel ?? 'Guardar')"
             :shortcut-keys="props.actionBarTarget ? ['Ctrl', 'S'] : []"
             type="button"
@@ -2874,19 +2981,24 @@ defineExpose({ completeDraft: completePaymentDraft })
         </div>
         <div class="flex justify-between text-sm pt-1 border-t border-default">
           <span class="text-muted">
-            Aplicado a facturas: {{ formatCurrency(totalApplied > 0 ? totalApplied : totalChecksAmount, form.currency_code) }}
+            Bruto aplicado a comprobantes: {{ formatCurrency(totalApplied > 0 ? totalApplied : totalChecksAmount, form.currency_code) }}
           </span>
           <span class="font-medium">
             <template v-if="isMixedPayment">
               Medios combinados: {{ formatCurrency(mixedTenderTotal, form.currency_code) }} ·
-              Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }}
+              Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
+              Neto a entregar: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
             </template>
             <template v-else>
               Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
-              Efectivo: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
+              {{ form.payment_method === 'BANK_TRANSFER' ? 'Neto bancario' : form.payment_method === 'CASH' ? 'Neto de caja' : 'Neto a entregar' }}:
+              {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
             </template>
           </span>
         </div>
+        <p v-if="totalWithheld > 0" class="text-xs leading-relaxed text-muted">
+          El importe aplicado es el bruto del comprobante. Las retenciones cubren una parte y se descuentan una sola vez para calcular el neto de caja o banco; no vuelven a reducir el saldo del comprobante.
+        </p>
       </div>
 
       <div v-if="withholdingSkipped.length > 0" class="text-xs text-muted space-y-0.5">

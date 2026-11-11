@@ -130,6 +130,16 @@ export const usePaymentsStore = defineStore('payments', () => {
     return reversed
   }
 
+  const reopenAsDraft = async (id: string) => {
+    const reopened = await service.reopenAsDraft(id)
+
+    const index = items.value.findIndex((item) => item.id === id)
+    if (index !== -1) items.value[index] = reopened
+    if (current.value?.id === id) current.value = reopened
+
+    return reopened
+  }
+
   // =========================
   // CONFIRM
   // =========================
@@ -316,6 +326,7 @@ export const usePaymentsStore = defineStore('payments', () => {
     update,
     updateFinalizedFinancialDetails,
     reverse,
+    reopenAsDraft,
     remove,
     confirm,
     markAsPaid,

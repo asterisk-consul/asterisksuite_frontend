@@ -1,5 +1,155 @@
 [
  {
+  "version": "0.151.3-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "En el detalle de pagos y cobros en borrador se indican las secciones modificadas. Guardar aparece cuando hay cambios pendientes y Confirmar cuando el borrador está guardado.",
+  "changes": [
+   { "type": "fix", "scope": "treasury", "title": "Alternar Guardar borrador y Confirmar según los cambios pendientes" },
+   { "type": "feat", "scope": "treasury", "title": "Mostrar qué secciones del pago o cobro fueron editadas" },
+   { "type": "fix", "scope": "treasury", "title": "Evitar guardar un borrador limpio desde el atajo Ctrl + S" },
+   { "type": "docs", "scope": "treasury", "title": "Documentar el guardado previo a confirmar pagos y cobros" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Indicar cambios pendientes antes de confirmar pagos y cobros"
+ },
+ {
+  "version": "0.151.2-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "El filtro por estado del reporte acepta correctamente el valor numérico recibido en la URL y ya no devuelve un error de validación.",
+  "changes": [
+   { "type": "fix", "scope": "management-reports", "title": "Convertir el estado documental antes de validarlo en la consulta" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir el filtro por estado del reporte"
+ },
+ {
+  "version": "0.151.1-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Los filtros del reporte gerencial ocupan menos espacio: el tipo, el período y el estado documental quedan a mano, y los criterios adicionales se despliegan cuando hacen falta.",
+  "changes": [
+   { "type": "style", "scope": "management-reports", "title": "Compactar los filtros para dar prioridad a los datos del reporte" },
+   { "type": "feat", "scope": "management-reports", "title": "Mostrar filtros adicionales solo cuando se despliegan e indicar los activos" },
+   { "type": "docs", "scope": "management-reports", "title": "Documentar la organización de filtros del reporte" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Simplificar los filtros del reporte gerencial"
+ },
+ {
+  "version": "0.151.0-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Los pagos y cobros anulados en efectivo o por transferencia se pueden recuperar como borrador con sus reversiones conservadas y saldos de comprobantes recalculados. El formulario distingue el importe bruto aplicado del neto luego de retenciones.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Recuperar pagos y cobros anulados como borrador" },
+   { "type": "fix", "scope": "payments", "title": "Recalcular saldos de comprobantes con pagos vigentes al reabrir" },
+   { "type": "fix", "scope": "payments", "title": "Mostrar las retenciones como descuento único del importe bruto aplicado" },
+   { "type": "docs", "scope": "treasury", "title": "Documentar la recuperación de pagos y cobros anulados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Recuperar pagos anulados como borrador"
+ },
+ {
+  "version": "0.150.0-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "El reporte gerencial permite filtrar cada tipo de documento por sus estados propios. Los rankings de productos se retiraron y ya no se consultan sus datos detallados por ítem.",
+  "changes": [
+   { "type": "style", "scope": "management-reports", "title": "Retirar los rankings de productos del reporte gerencial" },
+   { "type": "perf", "scope": "management-reports", "title": "Reducir los datos de productos consultados por el reporte" },
+   { "type": "feat", "scope": "management-reports", "title": "Filtrar OV, presupuestos y facturas por su estado documental" },
+   { "type": "docs", "scope": "management-reports", "title": "Documentar estados disponibles por tipo de documento" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Filtrar el reporte gerencial por estado documental"
+ },
+ {
+  "version": "0.148.5-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "El filtro de vendedor de las órdenes de venta ahora está integrado en Filtros de la tabla y permite distinguir empleados, socios y órdenes sin vendedor.",
+  "changes": [
+   { "type": "fix", "scope": "sales", "title": "Integrar el filtro de vendedor en los filtros de la tabla de OV" },
+   { "type": "docs", "scope": "sales", "title": "Documentar el filtro de vendedor de órdenes de venta" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Filtrar órdenes de venta por vendedor desde la tabla"
+ },
+ {
+  "version": "0.148.4-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "En el historial de la cuenta bancaria, cuando un cheque se revierte y luego se vuelve a depositar, se muestra solo el último movimiento. El intento revertido y su reversión siguen disponibles en Mostrar anulados.",
+  "changes": [
+   { "type": "fix", "scope": "treasury", "title": "Mostrar solo el último movimiento de un cheque redepositado" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mostrar el último depósito del cheque en el historial"
+ },
+ {
+  "version": "0.148.3-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Los filtros de comprobantes ya no usan opciones vacías que rompan los selectores. En presupuestos, órdenes de venta y compra y remitos, el estado se filtra desde la tabla y contempla los anulados.",
+  "changes": [
+   { "type": "fix", "scope": "documents", "title": "Corregir selectores y unificar el filtro de estado en las tablas" },
+   { "type": "docs", "scope": "documents", "title": "Documentar los filtros de estado en los listados de ventas y compras" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir y unificar los filtros de comprobantes"
+ },
+ {
+  "version": "0.149.0-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "El reporte gerencial permite consultar por separado OV, presupuestos o facturas. Los cobros se muestran en la OV o factura asociada. La evolución y composición por moneda quedan ocultas; el rendimiento comercial enlaza al reporte de productos con el mismo período.",
+  "changes": [
+   { "type": "feat", "scope": "management-reports", "title": "Agregar presupuestos como base y reflejar cobros en OV o facturas" },
+   { "type": "style", "scope": "management-reports", "title": "Ocultar temporalmente evolución y composición por moneda" },
+   { "type": "feat", "scope": "management-reports", "title": "Abrir el reporte de productos conservando las fechas del período" },
+   { "type": "docs", "scope": "management-reports", "title": "Documentar categorías y navegación del reporte gerencial" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Consultar presupuestos y productos desde el reporte gerencial"
+ },
+ {
+  "version": "0.148.2-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Los filtros de comprobantes muestran rótulos claros para tipo y estado. Las tarjetas de resumen se compactan también en presupuestos, órdenes de venta y remitos de compra y venta.",
+  "changes": [
+   { "type": "style", "scope": "documents", "title": "Etiquetar filtros y compactar tarjetas en las listas de comprobantes" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ajustar filtros y tarjetas de ventas y compras"
+ },
+ {
+  "version": "0.148.1-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Los resúmenes de ventas y compras ocupan menos espacio, y el tipo de comprobante y su estado se eligen en una sola fila de filtros.",
+  "changes": [
+   { "type": "style", "scope": "documents", "title": "Compactar las tarjetas y unificar los filtros de comprobantes" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Compactar los resúmenes y filtros de comprobantes"
+ },
+ {
+  "version": "0.148.0-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "En ventas y compras, el selector de productos permite filtrar por categorías y etiquetas, seleccionar varios artículos y agregarlos juntos. Los artículos con variantes conservan su selección individual.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Filtrar productos por categorías y etiquetas al cargar comprobantes" },
+   { "type": "feat", "scope": "documents", "title": "Seleccionar y agregar varios productos en ventas y compras" },
+   { "type": "docs", "scope": "documents", "title": "Documentar filtros y selección múltiple en los circuitos de ventas y compras" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Filtrar y agregar varios productos en comprobantes"
+ },
+ {
   "version": "0.147.1-alpha",
   "date": "2026-11-11",
   "stage": "alpha",
