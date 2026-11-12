@@ -3,6 +3,9 @@ export interface SalesSummaryItem {
   productCode: string
   productName: string
   productCategory: string
+  unitLabel: string
+  currencyCode: string
+  totalQuantity: number
   totalSales: number
   totalTaxes: number
   totalExempt: number
@@ -12,8 +15,6 @@ export interface SalesSummaryItem {
   firstSalesDate: string | null
   lastSalesDate: string | null
   avgPurchaseValue: number
-  /** @deprecated Kept while older product-summary consumers migrate. */
-  totalQuantity?: number
   /** @deprecated Kept while older product-summary consumers migrate. */
   totalCost?: number
   /** @deprecated Kept while older product-summary consumers migrate. */
@@ -70,4 +71,5 @@ export interface SummaryFilters {
   startDate?: string
   endDate?: string
   supplierId?: string
+  documentTypeFilter?: string
 }

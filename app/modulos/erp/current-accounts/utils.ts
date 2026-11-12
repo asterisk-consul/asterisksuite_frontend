@@ -57,7 +57,7 @@ const ENTRY_TYPE_LABELS: Record<string, string> = {
   PAYMENT: 'Pago',
   VALE_DEBIT: 'Vale · egreso',
   VALE_CREDIT: 'Vale · ingreso',
-  WITHHOLDING: 'Retención practicada',
+  WITHHOLDING: 'Retención',
   COLLECTION: 'Cobro',
   ADVANCE: 'Anticipo',
   OPENING_BALANCE: 'Saldo inicial',

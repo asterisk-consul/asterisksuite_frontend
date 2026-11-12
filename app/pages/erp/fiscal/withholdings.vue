@@ -153,7 +153,7 @@ const toDetailRow = (item: WithholdingRow): WithholdingTableRow => ({
   rate_display: item.rate == null ? '—' : `${Number(item.rate)}%`,
   amount_display: formatCurrency(item.withheld_amount, item.currency_code),
   certificate_number: item.certificate_number ?? '—',
-  payment_display: item.payment ? `Pago #${item.payment.number}` : '—',
+  payment_display: item.payment ? `Pago/cobro #${item.payment.number}` : 'Cuenta corriente',
   status_display: item.status === 'CERTIFIED' ? 'Certificada' : 'Aplicada',
   period_display: periodLabel(periodKey(item.date)),
   count: 1,
@@ -215,7 +215,7 @@ const detailColumns: ExtendedColumn<WithholdingTableRow>[] = [
   { accessorKey: 'rate_display', header: 'Alícuota', meta: { label: 'Alícuota', filter: false } },
   { accessorKey: 'amount_display', header: 'Retención', meta: { label: 'Retención', filter: false } },
   { accessorKey: 'certificate_number', header: 'Certificado', meta: { label: 'Certificado', filter: { type: 'text', operators: ['contains', 'equals'] } } },
-  { accessorKey: 'payment_display', header: 'Pago / cobro', meta: { label: 'Pago / cobro', filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { accessorKey: 'payment_display', header: 'Origen', meta: { label: 'Origen', filter: { type: 'text', operators: ['contains', 'equals'] } } },
   {
     accessorKey: 'status_display', header: 'Estado', meta: { label: 'Estado', filter: { type: 'select', options: ['Aplicada', 'Certificada'].map(value => ({ label: value, value })) } },
     cell: ({ row }) => h(UBadgeComponent, { label: row.original.status_display, color: row.original.status_display === 'Certificada' ? 'success' : 'neutral', variant: 'subtle', size: 'xs' }),
@@ -252,7 +252,7 @@ const detailFilterFields: FilterField[] = [
   { id: 'party_display', label: 'Tercero' },
   { id: 'tax_type', label: 'Impuesto' },
   { id: 'jurisdiction_display', label: 'Jurisdicción' },
-  { id: 'payment_display', label: 'Pago o cobro' },
+  { id: 'payment_display', label: 'Origen de la retención' },
 ]
 const detailSortFields: SortField[] = [
   { label: 'Fecha', value: 'date' },

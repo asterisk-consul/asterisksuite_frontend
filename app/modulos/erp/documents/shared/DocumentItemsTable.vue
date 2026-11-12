@@ -26,6 +26,16 @@ function fmt(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: props.currency ?? 'ARS' }).format(n ?? 0)
 }
 
+function productId(item: any): string | null {
+  const id = item?.product_id ?? item?.products?.id ?? item?.product?.id
+  if (id === null || id === undefined || String(id).trim() === '') return null
+  return String(id)
+}
+
+function productPath(item: any): string {
+  return `/productos/${encodeURIComponent(productId(item) ?? '')}`
+}
+
 const hasDiscounts = computed(() => props.items.some(item => {
   return getItemDiscountPercentage(item) > 0
 }))
@@ -100,7 +110,16 @@ function discountAmount(item: any) {
     <UTable :data="items" :columns="columns">
       <template #product-cell="{ row }">
         <div>
-          <p class="font-medium">{{ row.original.products?.name ?? 'Producto libre' }}</p>
+          <UButton
+            v-if="productId(row.original)"
+            :to="productPath(row.original)"
+            :label="row.original.products?.name ?? row.original.product?.name ?? row.original.product_name ?? 'Producto'"
+            variant="link"
+            color="primary"
+            size="sm"
+            class="h-auto justify-start whitespace-normal px-0 py-0 text-left font-medium"
+          />
+          <p v-else class="font-medium">{{ row.original.products?.name ?? row.original.product?.name ?? row.original.product_name ?? 'Producto libre' }}</p>
           <p v-if="row.original.item_instructions" class="mt-1 whitespace-pre-wrap text-xs text-muted">
             <span class="font-medium text-default">Medidas e indicaciones:</span> {{ row.original.item_instructions }}
           </p>

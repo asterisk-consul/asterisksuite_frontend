@@ -12,7 +12,7 @@ export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; 
   PAYMENT: { label: 'Pago', color: 'error', side: 'debit' },
   VALE_DEBIT: { label: 'Vale · egreso', color: 'error', side: 'debit' },
   VALE_CREDIT: { label: 'Vale · ingreso', color: 'success', side: 'credit' },
-  WITHHOLDING: { label: 'Retención practicada', color: 'warning', side: 'debit' },
+  WITHHOLDING: { label: 'Retención', color: 'warning', side: 'debit' },
   COLLECTION: { label: 'Cobro', color: 'success', side: 'credit' },
   ADVANCE: { label: 'Anticipo', color: 'info', side: 'credit' },
   LOAN: { label: 'Préstamo', color: 'primary', side: 'credit' },
@@ -34,6 +34,9 @@ export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; 
 }
 
 function resolveReferenceLink(entry: CurrentAccountEntry, partyType?: string): { to: string; label: string } | null {
+  if (entry.reference_type === 'withholding') {
+    return { to: '/erp/fiscal/withholdings', label: 'Retención fiscal' }
+  }
   if (entry.payment_id || entry.reference_type === 'payment') {
     const id = entry.payment_id ?? entry.reference_id
     if (id) return { to: `/erp/treasury/payments/${id}`, label: 'Pago' }

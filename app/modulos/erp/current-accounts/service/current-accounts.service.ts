@@ -15,6 +15,13 @@ export const useCurrentAccountsService = () => {
     })
   }
 
+  const registerWithholdings = (partyId: string, data: Record<string, any>) => {
+    return $fetch(`${urlBase}/party/${partyId}/withholdings`, {
+      method: 'POST',
+      body: data
+    })
+  }
+
   const findByParty = (partyId: string) => {
     return $fetch<CurrentAccount[]>(`${urlBase}/party/${partyId}`)
   }
@@ -58,6 +65,7 @@ export const useCurrentAccountsService = () => {
 
   return {
     addEntry,
+    registerWithholdings,
     findByParty,
     getEntries,
     getStatement,

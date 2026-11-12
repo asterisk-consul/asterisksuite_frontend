@@ -18,6 +18,7 @@ export type AccountEntryType =
   | 'DEBIT'
   | 'CREDIT'
   | 'OPENING_BALANCE'
+  | 'WITHHOLDING'
 
 export interface CurrentAccountEntryLast {
   type: string

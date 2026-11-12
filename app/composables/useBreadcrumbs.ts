@@ -220,6 +220,7 @@ const routeSegmentLabels: Record<string, string> = {
   profile: 'Mi perfil',
   'price-lists': 'Listas de precios',
   productdash: 'Productos comprados',
+  purchasesProducts: 'Productos comprados',
   register: 'Registrarse',
   'purchases-documents': 'Comprobantes de compra',
   'regulatory-payments': 'Pagos regulatorios',

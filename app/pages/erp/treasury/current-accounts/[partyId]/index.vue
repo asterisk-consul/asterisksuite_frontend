@@ -11,6 +11,7 @@ import CurrentAccountChart from '~/components/current-account/CurrentAccountChar
 import CurrentAccountEntryTable from '~/components/current-account/CurrentAccountEntryTable.vue'
 import CurrentAccountExport from '~/components/current-account/CurrentAccountExport.vue'
 import AdjustBalanceModal from '~/components/current-account/AdjustBalanceModal.vue'
+import CurrentAccountWithholdingModal from '~/components/current-account/CurrentAccountWithholdingModal.vue'
 import { useCurrentAccountsService } from '~/modulos/erp/current-accounts/service/current-accounts.service'
 
 const route = useRoute()
@@ -34,6 +35,7 @@ useBreadcrumbEntityLabel(
   computed(() => account.value?.party?.name)
 )
 const showAdjustBalance = ref(false)
+const showWithholdingModal = ref(false)
 const showDeleteConfirmation = ref(false)
 const deletingOpeningBalance = ref(false)
 const pendingManualAdjustment = ref<any | null>(null)
@@ -203,6 +205,14 @@ const nuevoMovimientoItems = computed(() => {
 
 const accountActionItems = computed(() => [
   [
+    ...(account.value && ['CUSTOMER', 'SUPPLIER', 'SERVICE_PROVIDER', 'UTILITY', 'FINANCIAL', 'TAX_AUTHORITY'].includes(account.value.party_type)
+      ? [{
+          label: 'Registrar retención',
+          description: 'Impacta la cuenta corriente y el registro fiscal, sin crear un pago',
+          icon: 'i-lucide-hand-coins',
+          onSelect: () => { showWithholdingModal.value = true },
+        }]
+      : []),
     {
       label: 'Registrar ajuste de saldo',
       description: 'Agrega un movimiento sin modificar el historial',
@@ -317,6 +327,14 @@ const accountActionItems = computed(() => [
     <AdjustBalanceModal
       v-if="account"
       v-model:open="showAdjustBalance"
+      :account="account"
+      :balance="balance"
+      @saved="reloadAccount"
+    />
+
+    <CurrentAccountWithholdingModal
+      v-if="account && ['CUSTOMER', 'SUPPLIER', 'SERVICE_PROVIDER', 'UTILITY', 'FINANCIAL', 'TAX_AUTHORITY'].includes(account.party_type)"
+      v-model:open="showWithholdingModal"
       :account="account"
       :balance="balance"
       @saved="reloadAccount"

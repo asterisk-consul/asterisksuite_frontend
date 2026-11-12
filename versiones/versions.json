@@ -1,5 +1,72 @@
 [
  {
+  "version": "0.153.3-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Desde los renglones de los comprobantes de ventas y compras se puede abrir la ficha del producto asociado.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Abrir la ficha del producto desde los renglones de los comprobantes" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Abrir productos desde los comprobantes"
+ },
+ {
+  "version": "0.153.2-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Desde el reporte se puede abrir la ficha del producto y navegar al comprobante que originó cada renglón; el control del sidebar queda en el encabezado global.",
+  "changes": [
+   { "type": "feat", "scope": "product-reports", "title": "Abrir la ficha del producto desde el nombre en la tabla" },
+   { "type": "feat", "scope": "product-reports", "title": "Navegar desde cada renglón al comprobante de ventas o compras correspondiente" },
+   { "type": "fix", "scope": "navigation", "title": "Mantener el control del sidebar en el encabezado global del reporte" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Abrir productos y comprobantes desde el reporte"
+ },
+ {
+  "version": "0.153.1-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Se corrige el cálculo de importes de los reportes de productos y se agregan vistas separadas de tabla y gráficos, con OV como selección inicial.",
+  "changes": [
+   { "type": "fix", "scope": "product-reports", "title": "Calcular cada importe con el subtotal del renglón sin volver a multiplicarlo por la cantidad" },
+   { "type": "feat", "scope": "product-reports", "title": "Agregar una pestaña de gráficos para cantidades y distribución por artículo" },
+   { "type": "style", "scope": "product-reports", "title": "Mostrar comprobantes expandidos debajo del producto correspondiente" },
+   { "type": "fix", "scope": "navigation", "title": "Incluir el control para plegar el sidebar en el encabezado global" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Consultar cantidades y comprobantes desde el reporte de productos"
+ },
+ {
+  "version": "0.153.0-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Se pueden registrar retenciones desde la cuenta corriente con cálculo sugerido o carga manual, sin crear pagos ni movimientos de caja o banco. También se pueden imputar al saldo inicial para reducir su pendiente con el tipo de cambio correspondiente.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Registrar retenciones desde la cuenta corriente sin generar un pago o cobro" },
+   { "type": "feat", "scope": "fiscal", "title": "Imputar retenciones al saldo inicial y descontar su pendiente en la moneda del documento" },
+   { "type": "fix", "scope": "fiscal", "title": "Permitir incluir en un VEP las retenciones practicadas registradas desde la cuenta corriente" },
+   { "type": "docs", "scope": "treasury", "title": "Documentar el registro y la imputación de retenciones en cuentas corrientes" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Registrar retenciones desde la cuenta corriente"
+ },
+ {
+  "version": "0.152.0-alpha",
+  "date": "2026-11-11",
+  "stage": "alpha",
+  "notes": "Los reportes de productos vendidos y comprados agrupan por categoría, moneda y unidad. Se puede filtrar por tipo de comprobante y abrir cada producto para consultar sus renglones, con paginación.",
+  "changes": [
+   { "type": "feat", "scope": "sales-reports", "title": "Agrupar productos vendidos por categoría y filtrar por comprobante" },
+   { "type": "feat", "scope": "purchase-reports", "title": "Incorporar el reporte agrupado de productos comprados" },
+   { "type": "feat", "scope": "product-reports", "title": "Abrir los renglones documentales de cada producto con paginación" },
+   { "type": "fix", "scope": "product-reports", "title": "Separar importes por moneda y agrupar cantidades por unidad" },
+   { "type": "docs", "scope": "product-reports", "title": "Documentar los reportes de productos de ventas y compras" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agrupar los reportes de productos y consultar sus comprobantes"
+ },
+ {
   "version": "0.151.3-alpha",
   "date": "2026-11-11",
   "stage": "alpha",

@@ -164,7 +164,7 @@ export const navigationTree: DrilldownNode[] = [
       {
         label: 'Resumen de productos comprados',
         icon: 'i-lucide-bar-chart-3',
-        to: '/productdash',
+        to: '/erp/purchases/purchases-reports/purchasesProducts',
         permissions: ['purchases.read', 'documents-purchases.read', 'documents.read']
       }
     ]

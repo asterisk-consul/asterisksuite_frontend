@@ -40,6 +40,7 @@ const props = defineProps<{
   hideToolbar?: boolean
   hideFooter?: boolean
   tableMinWidth?: number
+  expandedOptions?: Record<string, unknown>
 }>()
 const sorting = defineModel<SortingState>('sorting', {
   default: () => []
@@ -50,6 +51,7 @@ const columnFilters = defineModel<ColumnFiltersState>('columnFilters', {
 const page = defineModel<number>('page', { default: 1 })
 const search = defineModel<string>('search', { default: '' })
 const filters = defineModel<TableFilter[]>('filters', { default: () => [] })
+const expanded = defineModel<Record<string, boolean> | true>('expanded', { default: () => ({}) })
 
 const emit = defineEmits<{
   'delete:rows': [rows: T[]]
@@ -240,11 +242,13 @@ async function confirmDelete(): Promise<void> {
       v-model:column-order="columnOrder"
       v-model:column-filters="columnFilters"
       v-model:sorting="sorting"
+      v-model:expanded="expanded"
       sticky
       :get-row-id="(row: T, index: number) => props.getRowId?.(row, index) ?? String((row as any).id ?? index)"
       :data="props.data"
       :columns="tableColumns"
       :loading="props.loading"
+      :expanded-options="props.expandedOptions"
       :on-select="props.onRowClick ? handleRowSelect : undefined"
       :pagination-options="serverSide
         ? { manualPagination: true, rowCount: totalCount, autoResetPageIndex: false }
@@ -261,7 +265,11 @@ async function confirmDelete(): Promise<void> {
       }"
       :class="['w-full min-w-0 max-w-full max-h-[75vh] overflow-x-auto overflow-y-auto', tableMinWidth ? 'table-with-min-width' : '', selectedCount > 0 ? 'rounded-b-lg rounded-t-none' : 'rounded-lg']"
       :style="tableMinWidth ? { '--table-min-width': `${tableMinWidth}px` } : undefined"
-    />
+    >
+      <template #expanded="{ row }">
+        <slot name="expanded" :row="row" />
+      </template>
+    </UTable>
     </div>
 
     <!-- ========================

@@ -139,6 +139,9 @@ onBeforeUnmount(() => {
     <UDashboardPanel>
       <template #header>
         <UDashboardNavbar>
+          <template #leading>
+            <UDashboardSidebarCollapse />
+          </template>
           <template #title>
             <UBreadcrumb :items="breadcrumbs" />
           </template>
@@ -159,7 +162,7 @@ onBeforeUnmount(() => {
                 title="Cantidad de avisos y alertas"
                 class="absolute -right-1 -top-1 min-w-4 rounded-full bg-error px-1 text-center text-[10px] leading-4 text-white"
               >
-                {{ notificationBadgeCount > 99 ? '99+' : notificationBadgeCount }}
+                {{ notificationBadgeCount > 9 ? '9+' : notificationBadgeCount }}
               </span>
             </div>
             <UButton
