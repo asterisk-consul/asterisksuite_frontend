@@ -209,15 +209,25 @@ interface PaymentBankChargeForm {
 
 const bankCharges = ref<PaymentBankChargeForm[]>([])
 const bankConcepts = useBankConcepts()
+const bankConceptsLoadFailed = ref(false)
 const bankChargesOpen = ref(false)
 const bankChargeSuggestionsLoading = ref(false)
 const bankAccountService = useBankAccountsService()
 
 const paymentBankConcepts = computed(() =>
   bankConcepts.activeConcepts.value
-    .filter(c => c.available_payments !== false)
+    .filter(c => c.available_payments === true)
     .map(c => ({ label: `${c.code} - ${c.name}`, value: c.id }))
 )
+
+const reloadBankConcepts = async () => {
+  bankConceptsLoadFailed.value = false
+  try {
+    await bankConcepts.init()
+  } catch {
+    bankConceptsLoadFailed.value = true
+  }
+}
 
 const findBankConcept = (id: string) => bankConcepts.activeConcepts.value.find(c => c.id === id)
 
@@ -684,7 +694,7 @@ onMounted(async () => {
   if (props.actionBarTarget) window.addEventListener('keydown', handlePaymentFormShortcut, true)
   initCurrencies()
   accountsStore.fetchAll()
-  bankConcepts.init()
+  void reloadBankConcepts()
   // Efectivo es el medio inicial en pagos nuevos. Cargar las cajas al montar
   // evita depender de que el usuario cambie de medio y vuelva a seleccionarlo.
   void initCashBoxes().catch((error) => {
@@ -2985,11 +2995,23 @@ defineExpose({ completeDraft: completePaymentDraft })
           variant="outline"
           icon="i-lucide-plus"
           class="shrink-0 self-start sm:self-auto"
+          :disabled="bankConcepts.loading.value || paymentBankConcepts.length === 0"
           @click="addBankCharge"
         />
       </div>
+      <div v-if="!bankConcepts.loading.value && paymentBankConcepts.length === 0" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm">
+        <p class="min-w-0 flex-1 text-muted">
+          {{ bankConceptsLoadFailed ? 'No se pudieron cargar los conceptos bancarios.' : 'No hay conceptos bancarios activos habilitados para pagos y cobros. En Conceptos bancarios, activá “Pagos y cobros” en los que quieras usar.' }}
+          <span v-if="!isOwnerOrAdmin && !bankConceptsLoadFailed">Pedile a un administrador que los habilite.</span>
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <UButton v-if="isOwnerOrAdmin" label="Configurar conceptos" icon="i-lucide-external-link" size="xs" variant="outline" to="/erp/treasury/bank-concepts" target="_blank" />
+          <UButton label="Actualizar lista" icon="i-lucide-refresh-cw" size="xs" variant="soft" @click="reloadBankConcepts" />
+        </div>
+      </div>
+      <p v-else-if="bankConcepts.loading.value" class="text-xs text-muted">Cargando conceptos bancarios…</p>
       <div v-if="bankCharges.length === 0" class="rounded-lg border border-dashed border-default bg-elevated/40 p-4 text-sm text-muted">
-        Este pago no tiene gastos bancarios asociados.
+        Este {{ isCollection ? 'cobro' : 'pago' }} no tiene gastos bancarios asociados.
       </div>
       <div v-for="(charge, index) in bankCharges" :key="index" class="min-w-0 space-y-4 rounded-lg border border-default bg-elevated/30 p-4">
         <div v-if="charge.suggested" class="flex items-center justify-between gap-2">

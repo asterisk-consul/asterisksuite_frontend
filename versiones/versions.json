@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.157.0-alpha",
+  "date": "2026-11-12",
+  "stage": "alpha",
+  "notes": "Las órdenes de venta permiten usar direcciones y contactos sin guardarlos en la ficha del cliente. Los conceptos bancarios muestran si están disponibles para pagos y cobros, y la anulación de transferencias verifica el saldo del destino antes de retirar movimientos.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Usar direcciones y contactos solo en la OV y conservar el texto ingresado al abrir la búsqueda" },
+   { "type": "fix", "scope": "treasury", "title": "Comprobar el saldo del destino antes de anular una transferencia y conservarla completada si no alcanza" },
+   { "type": "fix", "scope": "treasury", "title": "Mostrar solo conceptos bancarios habilitados en pagos y cobros y explicar cómo activarlos" },
+   { "type": "feat", "scope": "treasury", "title": "Habilitar o quitar conceptos bancarios para pagos y cobros desde sus tarjetas" },
+   { "type": "docs", "scope": "erp", "title": "Actualizar las guías de entrega en OV, transferencias y conceptos bancarios" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Facilitar la entrega en OV y ajustar transferencias y conceptos bancarios"
+ },
+ {
   "version": "0.156.0-alpha",
   "date": "2026-11-12",
   "stage": "alpha",

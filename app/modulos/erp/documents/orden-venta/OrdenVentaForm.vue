@@ -133,7 +133,7 @@ const deliveryItemValidationErrors = computed(() => {
   }
   return {
     first_name: !contactDraft.first_name.trim() ? 'Ingresá el nombre.' : contactDraft.first_name.length > 100 ? 'El nombre admite hasta 100 caracteres.' : '',
-    last_name: !contactDraft.last_name.trim() ? 'Ingresá el apellido.' : contactDraft.last_name.length > 100 ? 'El apellido admite hasta 100 caracteres.' : '',
+    last_name: contactDraft.last_name.length > 100 ? 'El apellido admite hasta 100 caracteres.' : '',
     role: contactDraft.role.length > 100 ? 'El cargo admite hasta 100 caracteres.' : '',
     phone: contactDraft.phone.length > 50 ? 'El teléfono admite hasta 50 caracteres.' : '',
     email: contactDraft.email.length > 150 ? 'El email admite hasta 150 caracteres.' : contactDraft.email && !/^\S+@\S+\.\S+$/.test(contactDraft.email) ? 'Ingresá un email válido.' : '',
@@ -215,10 +215,10 @@ const deliveryPickerOptions = computed<any[]>(() => {
     .some(value => String(value).toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(query)))
 })
 const deliveryPickerEmptyMessage = computed(() => {
-  if (deliveryPickerKind.value === 'location' && !canSearchDeliveryLocations.value) return 'No tenés permiso para buscar en el catálogo de ubicaciones. Podés usar las direcciones asociadas al cliente o completar esta OV manualmente.'
+  if (deliveryPickerKind.value === 'location' && !canSearchDeliveryLocations.value) return 'No tenés permiso para buscar en el catálogo de ubicaciones. Podés elegir una dirección asociada al cliente o agregar una solo para esta OV.'
   if (deliveryPickerKind.value === 'location' && locationsSearchFailed.value) return 'No se pudo consultar el catálogo de ubicaciones. Revisá tu conexión o completá la dirección manualmente.'
   if (savedPartyDetailsFailed.value) return 'No se pudieron cargar los datos guardados del cliente. Podés completar el campo manualmente o agregar un dato a su ficha si tenés permiso.'
-  if (!props.partyId) return 'Seleccioná un cliente en el documento para buscar sus datos guardados.'
+  if (!props.partyId) return 'Seleccioná un cliente para buscar sus datos guardados o agregá un dato solo para esta OV.'
   if (deliveryPickerSearch.value.trim()) return 'No hay coincidencias. Probá con otro texto, agregá un dato a la ficha o completalo manualmente.'
   return deliveryPickerKind.value === 'location'
     ? 'Este cliente no tiene direcciones guardadas. Podés agregar una a su ficha o escribirla manualmente para esta OV.'
@@ -329,7 +329,7 @@ function applySavedDeliveryContact(contactId: string) {
 
 function openDeliveryPicker(kind: 'location' | 'contact') {
   deliveryPickerKind.value = kind
-  deliveryPickerSearch.value = ''
+  deliveryPickerSearch.value = (kind === 'location' ? form.delivery_address : form.delivery_contact).trim()
   deliveryPickerAddingNew.value = false
   deliveryItemError.value = ''
   deliveryItemSubmitted.value = false
@@ -343,28 +343,32 @@ function closeDeliveryPicker() {
 
 function startAddingDeliveryItem() {
   deliveryItemError.value = ''
-  if (!props.partyId) {
-    deliveryItemError.value = 'Seleccioná un cliente antes de agregar datos a su ficha.'
-    return
-  }
-  if (permissionCheckPending.value) {
-    deliveryItemError.value = 'Esperá a que se verifiquen los permisos para agregar datos.'
-    return
-  }
-  if (permissionCheckFailed.value) {
-    deliveryItemError.value = 'No se pudieron verificar los permisos. Recargá la página y volvé a intentarlo.'
-    return
-  }
-  if (!deliveryItemCanBeAdded.value) {
-    deliveryItemError.value = deliveryPickerKind.value === 'location'
-      ? 'Para agregar una dirección necesitás business_parties.update y locations.create.'
-      : 'Para agregar un contacto necesitás contacts.create.'
-    return
-  }
   deliveryItemSubmitted.value = false
-  Object.assign(locationDraft, { label: '', address: '', city: '', province: '', country: '', postalCode: '' })
-  Object.assign(contactDraft, { first_name: '', last_name: '', role: '', phone: '', email: '' })
+  const typed = deliveryPickerSearch.value.trim()
+  const [firstName = '', ...lastName] = typed.split(/\s+/)
+  Object.assign(locationDraft, { label: '', address: typed, city: '', province: '', country: '', postalCode: '' })
+  Object.assign(contactDraft, { first_name: firstName, last_name: lastName.join(' '), role: '', phone: form.delivery_phones.find(phone => phone.trim())?.trim() ?? '', email: '' })
   deliveryPickerAddingNew.value = true
+}
+
+function useDeliveryItemForOrder() {
+  deliveryItemSubmitted.value = true
+  deliveryItemError.value = ''
+  if (deliveryItemHasValidationErrors.value) return
+
+  if (deliveryPickerKind.value === 'location') {
+    form.delivery_address = [locationDraft.address, locationDraft.postalCode, locationDraft.city, locationDraft.province, locationDraft.country]
+      .map(value => value.trim()).filter(Boolean).join(', ')
+    deliveryTouched.address = true
+  } else {
+    form.delivery_contact = [contactDraft.first_name, contactDraft.last_name].map(value => value.trim()).filter(Boolean).join(' ')
+    deliveryTouched.contact = true
+    if (contactDraft.phone.trim()) {
+      form.delivery_phones = [contactDraft.phone.trim()]
+      phoneTouched.value = { 0: true }
+    }
+  }
+  closeDeliveryPicker()
 }
 
 async function saveDeliveryItem() {
@@ -745,7 +749,7 @@ defineExpose({ getFormData, validateDeliveryInfo, getDeliveryValidationMessage, 
                 color="neutral"
                 variant="outline"
                 class="shrink-0"
-                :title="props.partyId ? 'Buscar o agregar una dirección del cliente' : 'Seleccioná un cliente para buscar sus direcciones'"
+                :title="props.partyId ? 'Buscar o agregar una dirección del cliente' : 'Agregar una dirección para esta OV'"
                 @click="openDeliveryPicker('location')"
               />
             </div>
@@ -786,7 +790,7 @@ defineExpose({ getFormData, validateDeliveryInfo, getDeliveryValidationMessage, 
                 color="neutral"
                 variant="outline"
                 class="shrink-0"
-                :title="props.partyId ? 'Buscar o agregar un contacto del cliente' : 'Seleccioná un cliente para buscar sus contactos'"
+                :title="props.partyId ? 'Buscar o agregar un contacto del cliente' : 'Agregar un contacto para esta OV'"
                 @click="openDeliveryPicker('contact')"
               />
             </div>
@@ -837,7 +841,6 @@ defineExpose({ getFormData, validateDeliveryInfo, getDeliveryValidationMessage, 
           <div class="flex flex-col gap-2 sm:flex-row">
             <UInput v-model="deliveryPickerSearch" icon="i-lucide-search" :placeholder="deliveryPickerKind === 'location' ? 'Buscar por dirección, localidad o etiqueta…' : 'Buscar por nombre, teléfono o email…'" autofocus class="min-w-0 flex-1" />
             <UButton
-              v-if="props.partyId"
               :label="deliveryPickerAddingNew ? 'Volver a buscar' : (deliveryPickerKind === 'location' ? 'Agregar dirección' : 'Agregar contacto')"
               :icon="deliveryPickerAddingNew ? 'i-lucide-search' : 'i-lucide-plus'"
               color="primary"
@@ -847,17 +850,17 @@ defineExpose({ getFormData, validateDeliveryInfo, getDeliveryValidationMessage, 
             />
           </div>
           <p v-if="props.partyId && !isOwnerOrAdmin && permissionCheckPending" class="text-xs text-muted">Verificando permisos para guardar datos en la ficha del cliente…</p>
-          <p v-else-if="props.partyId && permissionCheckFailed" class="text-xs text-warning">No se pudieron verificar los permisos; podés seguir buscando y completar los datos manualmente.</p>
+          <p v-else-if="props.partyId && permissionCheckFailed" class="text-xs text-warning">No se pudieron verificar los permisos; podés seguir buscando y usar un dato solo en esta OV.</p>
           <p v-else-if="props.partyId && myPermissions && !deliveryItemCanBeAdded" class="text-xs text-muted">
-            {{ deliveryPickerKind === 'location' ? 'Tu usuario puede buscar direcciones, pero necesita business_parties.update y locations.create para agregar una a la ficha.' : 'Tu usuario puede buscar contactos, pero necesita contacts.create para agregar uno a la ficha.' }}
+            {{ deliveryPickerKind === 'location' ? 'Para guardar una dirección en la ficha necesitás business_parties.update y locations.create. Podés usarla solo en esta OV.' : 'Para guardar un contacto en la ficha necesitás contacts.create. Podés usarlo solo en esta OV.' }}
           </p>
           <p v-if="props.partyId && deliveryPickerKind === 'location' && canSearchDeliveryLocations && !canLinkExistingDeliveryLocation" class="text-xs text-muted">Las direcciones del catálogo se pueden usar en esta OV; para asociarlas a la ficha necesitás business_parties.update.</p>
           <UAlert v-if="deliveryItemError && !deliveryPickerAddingNew" color="warning" variant="subtle" icon="i-lucide-circle-alert" :description="deliveryItemError" />
 
-          <form v-if="deliveryPickerAddingNew" novalidate class="flex max-h-[min(60vh,34rem)] flex-col gap-3 overflow-y-auto rounded-xl border border-default bg-elevated/30 p-4" @submit.prevent="saveDeliveryItem">
+          <form v-if="deliveryPickerAddingNew" novalidate class="flex max-h-[min(60vh,34rem)] flex-col gap-3 overflow-y-auto rounded-xl border border-default bg-elevated/30 p-4" @submit.prevent="props.partyId && deliveryItemCanBeAdded ? saveDeliveryItem() : useDeliveryItemForOrder()">
             <div>
-              <h4 class="font-semibold">{{ deliveryPickerKind === 'location' ? 'Nueva dirección del cliente' : 'Nuevo contacto del cliente' }}</h4>
-              <p class="mt-1 text-xs text-muted">Se guardará en la ficha y quedará disponible para próximas órdenes.</p>
+              <h4 class="font-semibold">{{ deliveryPickerKind === 'location' ? 'Nueva dirección' : 'Nuevo contacto' }}</h4>
+              <p class="mt-1 text-xs text-muted">Podés usar este dato solo en la OV o guardarlo en la ficha del cliente si tenés permiso.</p>
             </div>
             <template v-if="deliveryPickerKind === 'location'">
               <UFormField label="Etiqueta" :error="deliveryItemFieldError('label') || undefined">
@@ -876,7 +879,7 @@ defineExpose({ getFormData, validateDeliveryInfo, getDeliveryValidationMessage, 
             <template v-else>
               <div class="grid gap-3 sm:grid-cols-2">
                 <UFormField label="Nombre" required :error="deliveryItemFieldError('first_name') || undefined"><UInput v-model="contactDraft.first_name" maxlength="100" class="w-full" /></UFormField>
-                <UFormField label="Apellido" required :error="deliveryItemFieldError('last_name') || undefined"><UInput v-model="contactDraft.last_name" maxlength="100" class="w-full" /></UFormField>
+                <UFormField label="Apellido" :error="deliveryItemFieldError('last_name') || undefined"><UInput v-model="contactDraft.last_name" maxlength="100" class="w-full" /></UFormField>
                 <UFormField label="Cargo" :error="deliveryItemFieldError('role') || undefined"><UInput v-model="contactDraft.role" maxlength="100" class="w-full" /></UFormField>
                 <UFormField label="Teléfono" :error="deliveryItemFieldError('phone') || undefined"><UInput v-model="contactDraft.phone" maxlength="50" class="w-full" /></UFormField>
                 <UFormField label="Email" :error="deliveryItemFieldError('email') || undefined" class="sm:col-span-2"><UInput v-model="contactDraft.email" type="email" maxlength="150" class="w-full" /></UFormField>
@@ -884,8 +887,9 @@ defineExpose({ getFormData, validateDeliveryInfo, getDeliveryValidationMessage, 
             </template>
             <UAlert v-if="deliveryItemError" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="deliveryItemError" />
             <div class="flex justify-end gap-2">
-              <UButton label="Cancelar" color="neutral" variant="ghost" :disabled="deliveryItemSaving" @click="deliveryPickerAddingNew = false" />
-              <UButton :label="deliveryPickerKind === 'location' ? 'Guardar dirección' : 'Guardar contacto'" icon="i-lucide-save" type="submit" :loading="deliveryItemSaving" />
+              <UButton label="Cancelar" color="neutral" variant="ghost" type="button" :disabled="deliveryItemSaving" @click="deliveryPickerAddingNew = false" />
+              <UButton label="Usar en esta OV" icon="i-lucide-check" color="neutral" variant="soft" type="button" :disabled="deliveryItemSaving" @click="useDeliveryItemForOrder" />
+              <UButton v-if="props.partyId && deliveryItemCanBeAdded" :label="deliveryPickerKind === 'location' ? 'Guardar dirección en ficha' : 'Guardar contacto en ficha'" icon="i-lucide-save" type="submit" :loading="deliveryItemSaving" />
             </div>
           </form>
 
@@ -918,7 +922,7 @@ defineExpose({ getFormData, validateDeliveryInfo, getDeliveryValidationMessage, 
         </div>
       </template>
       <template #footer>
-        <p class="mr-auto text-xs text-muted">Elegir copia los datos a esta OV. Agregar los guarda en la ficha del cliente.</p>
+        <p class="mr-auto text-xs text-muted">Elegir o usar un dato lo copia a esta OV. Guardarlo en la ficha permite reutilizarlo.</p>
         <UButton label="Cerrar" color="neutral" variant="ghost" @click="closeDeliveryPicker" />
       </template>
     </UModal>

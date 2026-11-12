@@ -18,6 +18,7 @@ const editingConcept = ref<any>(null)
 const deleteModalOpen = ref(false)
 const deletingConcept = ref<any>(null)
 const saving = ref(false)
+const updatingPaymentConceptId = ref<string | null>(null)
 
 const searchQuery = ref('')
 const filterType = ref('')
@@ -35,6 +36,25 @@ const filteredConcepts = computed(() => {
   }
   return list
 })
+const availableForPaymentsCount = computed(() => bankConcepts.activeConcepts.value.filter(concept => concept.available_payments === true).length)
+
+const togglePaymentAvailability = async (concept: any) => {
+  if (updatingPaymentConceptId.value) return
+  updatingPaymentConceptId.value = concept.id
+  try {
+    const enable = concept.available_payments !== true
+    await bankConcepts.update(concept.id, { available_payments: enable })
+    toast.add({
+      title: enable ? 'Concepto habilitado para pagos y cobros' : 'Concepto quitado de pagos y cobros',
+      description: enable && !concept.is_active ? 'Activá también el concepto para poder seleccionarlo.' : undefined,
+      color: 'success'
+    })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo actualizar el concepto', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    updatingPaymentConceptId.value = null
+  }
+}
 
 const form = reactive({
   code: '',
@@ -167,6 +187,9 @@ const conceptTypeIcon = (type: string) => ({
       <UInput v-model="searchQuery" placeholder="Buscar por código o nombre..." icon="i-lucide-search" class="flex-1 max-w-md" />
       <USelectMenu v-model="filterType" :items="[{ label: 'Todos', value: '' }, ...conceptTypeOptions]" value-key="value" placeholder="Tipo" class="w-48" />
     </div>
+    <p v-if="!bankConcepts.loading.value" class="text-sm text-muted">
+      {{ availableForPaymentsCount }} de {{ bankConcepts.activeConcepts.value.length }} conceptos activos disponibles para pagos y cobros.
+    </p>
 
     <div v-if="bankConcepts.loading.value" class="flex justify-center py-8"><ULoader /></div>
 
@@ -196,6 +219,10 @@ const conceptTypeIcon = (type: string) => ({
         </div>
 
         <div class="space-y-1.5 text-xs text-muted">
+          <div class="flex flex-wrap gap-1.5">
+            <UBadge :label="concept.is_active ? 'Activo' : 'Inactivo'" :color="concept.is_active ? 'success' : 'neutral'" variant="subtle" size="xs" />
+            <UBadge :label="concept.available_payments && concept.is_active ? 'Disponible en pagos y cobros' : concept.available_payments ? 'Inactivo para pagos y cobros' : 'No disponible en pagos y cobros'" :color="concept.available_payments && concept.is_active ? 'success' : 'neutral'" variant="subtle" size="xs" />
+          </div>
           <div v-if="concept.accounting_account" class="flex items-center gap-1">
             <UIcon name="i-lucide-book" class="size-3" />
             <span>Cuenta: {{ concept.accounting_account }}</span>
@@ -212,6 +239,16 @@ const conceptTypeIcon = (type: string) => ({
 
         <div class="flex items-center gap-1 mt-3 pt-2 border-t border-default">
           <UButton icon="i-lucide-pencil" variant="ghost" size="xs" @click.stop="openEdit(concept)" />
+          <UButton
+            :label="concept.available_payments ? 'Quitar de pagos y cobros' : 'Habilitar en pagos y cobros'"
+            :icon="concept.available_payments ? 'i-lucide-eye-off' : 'i-lucide-circle-check'"
+            :color="concept.available_payments ? 'neutral' : 'primary'"
+            variant="ghost"
+            size="xs"
+            :loading="updatingPaymentConceptId === concept.id"
+            :disabled="Boolean(updatingPaymentConceptId)"
+            @click.stop="togglePaymentAvailability(concept)"
+          />
           <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="xs" @click.stop="confirmDelete(concept)" />
         </div>
       </div>
