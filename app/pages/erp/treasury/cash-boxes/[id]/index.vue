@@ -17,6 +17,7 @@ import { partitionCancelledTreasuryMovements } from '~/utils/treasuryMovementVis
 import type { BadgeColor } from '~/types/colors.types'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import IntercompanyTreasuryShareButton from '~/components/erp/IntercompanyTreasuryShareButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -522,6 +523,10 @@ const links = computed(() => [
       :description="`${box.type === 'MAIN' ? 'Principal' : box.type === 'FIXED' ? 'Fija' : 'Registradora'} · ${box.status === 'OPEN' ? 'Abierta' : 'Cerrada'}`"
       :links="links"
     />
+
+    <div class="flex justify-end">
+      <IntercompanyTreasuryShareButton fund-type="CASH_BOX" :fund-id="box.id" :fund-name="box.name" />
+    </div>
 
     <UAlert
       v-if="box.can_set_initial_balance"

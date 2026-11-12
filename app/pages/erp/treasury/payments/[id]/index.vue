@@ -64,7 +64,7 @@ const actionLabels: Record<string, { title: string; button: string; color: strin
   pay: { title: 'Marcar como pagado', button: 'Marcar pagado', color: 'success', description: 'El pago pasará a estado Pagado.' },
   reject: { title: 'Rechazar pago', button: 'Rechazar', color: 'warning', description: 'Se revertirán todos los efectos (documentos, caja/banco, cuenta corriente).' },
   reverse: { title: 'Anular pago', button: 'Anular', color: 'error', description: 'Se revertirán todos los efectos y el pago quedará anulado.' },
-  reopen: { title: 'Volver a borrador', button: 'Volver a borrador', color: 'warning', description: 'El pago o cobro volverá a ser editable. Se conservarán las reversiones de caja o banco y cuenta corriente; no volverá a impactar hasta que lo confirmes otra vez. Se recalculará el saldo de los comprobantes con los demás pagos vigentes.' }
+  reopen: { title: 'Volver a borrador', button: 'Volver a borrador', color: 'warning', description: 'El pago o cobro volverá a ser editable. Se conservarán las reversiones de caja, banco y cuenta corriente; los cheques asociados se liberarán para que puedas seleccionarlos de nuevo. Los cheques cancelados seguirán cancelados. No habrá nuevos efectos hasta que confirmes el borrador.' }
 }
 
 const isDraft = computed(() => currentPayment.value?.status === 'DRAFT')
@@ -78,7 +78,11 @@ const canReversePayment = computed(() => can('payments.reverse'))
 const canReopenAsDraft = computed(() =>
   currentPayment.value?.status === 'CANCELLED'
   && ['PAYMENT', 'COLLECTION'].includes(String(currentPayment.value?.type))
-  && ['CASH', 'BANK_TRANSFER'].includes(String(currentPayment.value?.payment_method))
+  && (
+    ['CASH', 'BANK_TRANSFER', 'CHECK'].includes(String(currentPayment.value?.payment_method))
+    || currentPayment.value?.payment_method === 'MIXED'
+      && currentPayment.value?.tenders?.some((tender: any) => tender.method === 'CHECK')
+  )
   && can('payments.update')
 )
 const canEditFinalizedFinancialDetails = computed(() =>
@@ -142,6 +146,10 @@ onMounted(async () => {
           amount: Number(tender.amount),
           cash_box_id: tender.cash_box_id ?? tender.cash_box?.id ?? undefined,
           bank_account_id: tender.bank_account_id ?? tender.bank_account?.id ?? undefined,
+          cash_box_company_id: tender.cash_box_company_id ?? undefined,
+          cash_box_external_id: tender.cash_box_external_id ?? undefined,
+          bank_account_company_id: tender.bank_account_company_id ?? undefined,
+          bank_account_external_id: tender.bank_account_external_id ?? undefined,
         })),
         amount: Number(payment.amount),
         currency_code: payment.currency_code ?? 'ARS',
@@ -153,6 +161,10 @@ onMounted(async () => {
         party_id: payment.party_id ?? '',
         bank_account_id: payment.bank_account_id ?? '',
         cash_box_id: payment.cash_box_id ?? '',
+        bank_account_company_id: payment.bank_account_company_id ?? undefined,
+        bank_account_external_id: payment.bank_account_external_id ?? undefined,
+        cash_box_company_id: payment.cash_box_company_id ?? undefined,
+        cash_box_external_id: payment.cash_box_external_id ?? undefined,
         account_id: payment.account_id ?? '',
         credit_card_id: (payment as any).credit_card_transactions?.[0]?.credit_card_id ?? '',
         installments_total: (payment as any).credit_card_transactions?.[0]?.installments_total ?? 1,
@@ -247,6 +259,10 @@ const handleSubmit = async (formData: PaymentFormData) => {
       party_id: formData.party_id || undefined,
       bank_account_id: formData.payment_method === 'MIXED' ? undefined : formData.bank_account_id || undefined,
       cash_box_id: formData.payment_method === 'MIXED' ? undefined : formData.cash_box_id || undefined,
+      bank_account_company_id: formData.payment_method === 'MIXED' ? undefined : formData.bank_account_company_id || undefined,
+      bank_account_external_id: formData.payment_method === 'MIXED' ? undefined : formData.bank_account_external_id || undefined,
+      cash_box_company_id: formData.payment_method === 'MIXED' ? undefined : formData.cash_box_company_id || undefined,
+      cash_box_external_id: formData.payment_method === 'MIXED' ? undefined : formData.cash_box_external_id || undefined,
       account_id: formData.account_id || undefined,
       check_ids: formData.check_ids?.length ? formData.check_ids : undefined,
       checks: formData.checks ?? [],
@@ -407,6 +423,9 @@ const handleAction = async () => {
           date: updated.date?.split('T')[0] ?? paymentData.value.date,
           amount: Number(updated.amount),
           currency_code: updated.currency_code ?? paymentData.value.currency_code,
+          check_ids: [],
+          checks: [],
+          payment_allocations: [],
           documents: (updated as any).documents?.map((document: any) => ({
             document_id: document.document_id,
             amount_applied: Number(document.amount_applied),
@@ -438,7 +457,7 @@ const handleAction = async () => {
 
     toast.add({
       title: actionType.value === 'reopen' ? 'Pago o cobro recuperado como borrador' : actionLabels[actionType.value]?.title ?? 'Acción completada',
-      ...(actionType.value === 'reopen' ? { description: 'Revisá los comprobantes y las retenciones antes de volver a confirmar.' } : {}),
+      ...(actionType.value === 'reopen' ? { description: 'Revisá los comprobantes y las retenciones, y volvé a seleccionar los cheques que correspondan antes de confirmar.' } : {}),
       color: 'success'
     })
   } catch (e: any) {

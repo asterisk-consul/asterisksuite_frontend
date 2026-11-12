@@ -69,6 +69,7 @@ const pageTitle = computed(() => {
 // Cargar datos de la OV si viene de "Crear Factura"
 const orderData = ref<any>(null)
 const duplicateData = ref<any>(null)
+const selectedDeliveryPartyId = ref('')
 
 onMounted(async () => {
   if (isOrder.value) {
@@ -158,7 +159,7 @@ const initialValues = computed(() => {
 async function handleSubmit(payload: any) {
   if (saving.value || emptyDeliveryConfirmOpen.value) return
   if (isOrder.value && ordenVentaRef.value && !ordenVentaRef.value.validateDeliveryInfo()) {
-    toast.add({ title: 'Falta la dirección de entrega', description: 'Completá la dirección para guardar esta OV.', color: 'warning' })
+    toast.add({ title: 'Revisá la información de entrega', description: ordenVentaRef.value.getDeliveryValidationMessage(), color: 'warning' })
     return
   }
   // Combinar payload base con campos de extensión.
@@ -280,10 +281,11 @@ async function confirmEmptyDeliverySave() {
             :draft-extension="extensionDraft"
             @submit="handleSubmit"
             @restore-extension="extensionDraft = $event"
+            @party-change="selectedDeliveryPartyId = $event"
           >
             <template #document-details>
               <PresupuestoForm v-if="isQuote" ref="presupuestoRef" v-model="extensionDraft" />
-              <OrdenVentaForm v-else-if="isOrder" ref="ordenVentaRef" v-model="extensionDraft" :require-delivery-address="requireDeliveryAddress" default-seller-to-current />
+              <OrdenVentaForm v-else-if="isOrder" ref="ordenVentaRef" v-model="extensionDraft" :require-delivery-address="requireDeliveryAddress" :party-id="selectedDeliveryPartyId" default-seller-to-current />
             </template>
           </SalesDocumentForm>
         </UPageBody>

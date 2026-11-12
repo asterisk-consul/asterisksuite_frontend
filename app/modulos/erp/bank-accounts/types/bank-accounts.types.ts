@@ -66,6 +66,7 @@ export interface BankAccountMovement {
     net_amount: number
   } | null
   payment?: { status: string } | null
+  intercompany_source_company?: { id: string; name: string } | null
 
   created_at?: string
   updated_at?: string

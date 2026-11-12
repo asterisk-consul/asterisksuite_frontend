@@ -1,6 +1,6 @@
 export type TransferType = 'CASH_TO_CASH' | 'CASH_TO_BANK' | 'BANK_TO_CASH' | 'BANK_TO_BANK'
 export type TransferSourceType = 'cash_box' | 'bank_account'
-export type TransferStatus = 'pending' | 'processing' | 'debit_applied' | 'failed' | 'completed' | 'cancelled'
+export type TransferStatus = 'pending' | 'processing' | 'debit_applied' | 'failed' | 'completed' | 'reversing' | 'reversed' | 'cancelled'
 
 export interface TransferDestinationOptions {
   company: { id: string; name: string }

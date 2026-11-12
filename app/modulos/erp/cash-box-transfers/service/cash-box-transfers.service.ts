@@ -49,6 +49,12 @@ export const useCashBoxTransfersService = () => {
     })
   }
 
+  const reverse = (id: string) => {
+    return $fetch<CashBoxTransfer>(`${urlBase}/${id}/reverse`, {
+      method: 'PATCH'
+    })
+  }
+
   const remove = (id: string) => {
     return $fetch<void>(`${urlBase}/${id}`, {
       method: 'DELETE'
@@ -62,6 +68,7 @@ export const useCashBoxTransfersService = () => {
     destinationOptions,
     confirm,
     cancel,
+    reverse,
     remove
   }
 }

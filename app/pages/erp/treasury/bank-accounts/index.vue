@@ -14,6 +14,7 @@ import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencie
 import { useUsersService } from '~/modulos/access-control/services/users.service'
 import { useAccountsService } from '~/modulos/contabilidad/service/accounts.service'
 import type { Account } from '~/modulos/contabilidad/types/accounts.types'
+import IntercompanyTreasuryShareButton from '~/components/erp/IntercompanyTreasuryShareButton.vue'
 
 const { bankAccounts, loading, init, create, update, remove, getUserRoles, addUserRole, removeUserRole } =
   useBankAccounts()
@@ -221,11 +222,13 @@ const handleSubmit = async () => {
       ...form,
       balance: Number(form.balance) || 0
     }
+    let createdAccountId: string | undefined
     if (editingAccount.value) {
       await update(editingAccount.value.id, payload)
       toast.add({ title: 'Cuenta actualizada', color: 'success' })
     } else {
       const created = await create(payload)
+      createdAccountId = created?.id
       if (created?.id && pendingUsers.value.length > 0) {
         for (const p of pendingUsers.value) {
           await addUserRole(created.id, p.userId, p.role)
@@ -234,6 +237,10 @@ const handleSubmit = async () => {
       toast.add({ title: 'Cuenta creada', color: 'success' })
     }
     modalOpen.value = false
+    if (createdAccountId) {
+      toast.add({ title: 'Configurá el uso entre empresas', description: 'La cuenta quedó creada. Desde su ficha podés habilitarla para otras empresas.', color: 'info' })
+      await router.push(`/erp/treasury/bank-accounts/${createdAccountId}`)
+    }
   } catch (error) {
     console.error(error)
     toast.add({ title: 'Error al guardar', color: 'error', icon: 'i-lucide-alert-circle' })
@@ -673,6 +680,22 @@ const selectedAccountType = computed({
               </div>
             </div>
           </UPageCard>
+
+          <div v-if="editingAccount" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default bg-elevated/30 p-3">
+            <div>
+              <p class="text-sm font-medium">Uso entre empresas</p>
+              <p class="text-xs text-muted">Elegí qué empresas pueden usar esta cuenta para pagos, cobros o vales.</p>
+            </div>
+            <IntercompanyTreasuryShareButton fund-type="BANK_ACCOUNT" :fund-id="editingAccount.id" :fund-name="editingAccount.name" />
+          </div>
+          <UAlert
+            v-else
+            color="info"
+            variant="subtle"
+            icon="i-lucide-info"
+            title="Compartir después de crear"
+            description="Guardá la cuenta; al terminar vas a poder habilitar su uso desde la ficha bancaria."
+          />
 
           <!-- USER ROLES -->
           <UPageCard>

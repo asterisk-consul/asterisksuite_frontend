@@ -31,7 +31,12 @@ const handleSubmit = async (formData: CashBoxFormData) => {
       }
     }
 
-    router.push('/erp/treasury/cash-boxes')
+    if (created?.id) {
+      toast.add({ title: 'Caja creada', description: 'Ahora podés configurar su uso entre empresas desde la ficha.', color: 'success' })
+      router.push(`/erp/treasury/cash-boxes/${created.id}`)
+    } else {
+      router.push('/erp/treasury/cash-boxes')
+    }
   } catch (error: any) {
     toast.add({
       title: 'No se pudo crear la caja',

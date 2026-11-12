@@ -100,7 +100,12 @@ export const useHrStore = defineStore('hr', () => {
 
   const confirmVale = async (
     id: string,
-    treasury?: { treasury_target_type: 'CASH_BOX' | 'BANK_ACCOUNT'; treasury_target_id: string }
+    treasury?: {
+      treasury_target_type: 'CASH_BOX' | 'BANK_ACCOUNT'
+      treasury_target_id?: string
+      treasury_target_company_id?: string
+      treasury_target_external_id?: string
+    }
   ) => {
     loading.value = true
     error.value = null

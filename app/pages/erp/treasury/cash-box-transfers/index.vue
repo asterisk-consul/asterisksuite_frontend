@@ -24,7 +24,7 @@ const authStore = useAuthStore()
 const { isOwner } = useCompanyRole()
 const { hasPermission } = useRoles()
 const transfersService = useCashBoxTransfersService()
-const { transfers, loading, init, create, confirm, cancel, remove } = useCashBoxTransfers()
+const { transfers, loading, init, create, confirm, cancel, reverse, remove } = useCashBoxTransfers()
 const { selectItems: cashBoxItems, findById: findCashBox, init: initCashBoxes } = useCashBoxes()
 const { selectItems: bankAccountItems, findById: findBankAccount, init: initBankAccounts } = useBankAccounts()
 const { codeSelectItems: currencyItems, baseCurrency, init: initCurrencies } = useCurrencies()
@@ -33,7 +33,9 @@ const { autoResolve, convertAmount, isBaseCurrency } = useExchangeRate()
 const sorting = ref<SortingState>([])
 const modalOpen = ref(false)
 const detailModalOpen = ref(false)
+const reverseModalOpen = ref(false)
 const selectedTransfer = ref<CashBoxTransfer | null>(null)
+const returnToDetailAfterReverse = ref(false)
 const expandAttachmentsOnOpen = ref(false)
 const loadingRate = ref(false)
 const loadingDestinations = ref(false)
@@ -48,6 +50,8 @@ const canUploadTransferAttachments = computed(() => isOwner.value || (
   && hasPermission('media.upload')
   && hasPermission('cash_box_transfers.create')
 ))
+const canReverseTransfers = computed(() => isOwner.value || hasPermission('cash_box_transfers.cancel'))
+const canDeleteTransfers = computed(() => isOwner.value || hasPermission('cash_box_transfers.delete'))
 const remoteDestinations = ref<TransferDestinationOptions | null>(null)
 const destinationCompanyId = ref('')
 
@@ -115,6 +119,8 @@ const statusMap: Record<string, { label: string; color: 'warning' | 'success' | 
   debit_applied: { label: 'Débito aplicado', color: 'warning' },
   failed: { label: 'Requiere reintento', color: 'error' },
   completed: { label: 'Completada', color: 'success' },
+  reversing: { label: 'Anulación en curso', color: 'warning' },
+  reversed: { label: 'Anulada', color: 'error' },
   cancelled: { label: 'Cancelada', color: 'error' }
 }
 
@@ -194,6 +200,10 @@ const showConvertedAmount = computed(() => {
 function formatMoney(amount: number, currencyCode?: string | null) {
   const formatted = amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   return currencyCode ? `${currencyCode} ${formatted}` : `$ ${formatted}`
+}
+
+function formatAmount(amount: number) {
+  return amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function onTransferTypeChange(type: TransferType) {
@@ -324,13 +334,55 @@ async function handleCancel(row: CashBoxTransfer) {
   }
 }
 
+function requestReverse(row: CashBoxTransfer, fromDetail = false) {
+  selectedTransfer.value = row
+  returnToDetailAfterReverse.value = fromDetail
+  if (fromDetail) detailModalOpen.value = false
+  reverseModalOpen.value = true
+}
+
+function closeReverseModal() {
+  if (processingTransferAction.value) return
+  reverseModalOpen.value = false
+  if (returnToDetailAfterReverse.value) detailModalOpen.value = true
+  returnToDetailAfterReverse.value = false
+}
+
+async function handleReverse() {
+  const row = selectedTransfer.value
+  if (!row || processingTransferAction.value || !canReverseTransfers.value) return
+  processingTransferAction.value = true
+  try {
+    const updated = await reverse(row.id)
+    selectedTransfer.value = updated
+    reverseModalOpen.value = false
+    if (returnToDetailAfterReverse.value) detailModalOpen.value = true
+    returnToDetailAfterReverse.value = false
+    toast.add({
+      title: 'Transferencia anulada',
+      description: 'Se quitaron los movimientos originales de caja o banco y se recalcularon los saldos.',
+      color: 'success'
+    })
+  } catch (e: any) {
+    try {
+      await init()
+      selectedTransfer.value = transfers.value.find(transfer => transfer.id === row.id) ?? row
+    } catch {
+      // Preserve the current detail if the refresh also fails.
+    }
+    toast.add({ title: e?.data?.message ?? 'No se pudo anular la transferencia', color: 'error' })
+  } finally {
+    processingTransferAction.value = false
+  }
+}
+
 async function handleDelete(row: CashBoxTransfer) {
   if (processingTransferAction.value) return
   processingTransferAction.value = true
   try {
     await remove(row.id)
     if (selectedTransfer.value?.id === row.id) detailModalOpen.value = false
-    toast.add({ title: 'Transferencia eliminada', color: 'error' })
+    toast.add({ title: 'Transferencia eliminada', color: 'neutral' })
   } catch (e: any) {
     toast.add({ title: e?.data?.message ?? 'Error al eliminar', color: 'error' })
   } finally {
@@ -366,6 +418,11 @@ const columns = cashBoxTransferColumns({
   onSortFieldSelect,
   onConfirm: handleConfirm,
   onCancel: handleCancel,
+  canReverse: () => canReverseTransfers.value,
+  canDelete: () => canDeleteTransfers.value,
+  onReverse: row => {
+    if (canReverseTransfers.value) requestReverse(row)
+  },
   onDelete: handleDelete
 })
 
@@ -580,10 +637,27 @@ const sortFields: SortField[] = [
           <div class="flex items-center justify-between">
             <span class="text-sm text-muted">Estado</span>
             <UBadge
-              :label="statusMap[selectedTransfer.status]?.label ?? selectedTransfer.status"
-              :color="statusMap[selectedTransfer.status]?.color ?? 'neutral'"
+              :label="selectedTransfer.status === 'reversing' && selectedTransfer.execution_error ? 'Requiere reintento de anulación' : (statusMap[selectedTransfer.status]?.label ?? selectedTransfer.status)"
+              :color="selectedTransfer.status === 'reversing' && selectedTransfer.execution_error ? 'error' : (statusMap[selectedTransfer.status]?.color ?? 'neutral')"
             />
           </div>
+
+          <UAlert
+            v-if="selectedTransfer.status === 'reversed'"
+            icon="i-lucide-circle-check"
+            color="error"
+            variant="subtle"
+            title="Transferencia anulada"
+            description="Los movimientos originales de caja o banco se quitaron y sus saldos se recalcularon. La transferencia queda anulada en este listado hasta que elimines el registro."
+          />
+          <UAlert
+            v-else-if="selectedTransfer.status === 'reversing' && selectedTransfer.record_side === 'destination'"
+            icon="i-lucide-info"
+            color="info"
+            variant="subtle"
+            title="Anulación iniciada desde la empresa de origen"
+            description="El estado se sincroniza desde la transferencia original. Si requiere un reintento, iniciá la acción desde la empresa que envió los fondos."
+          />
 
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
@@ -636,9 +710,21 @@ const sortFields: SortField[] = [
             <p class="font-medium">{{ selectedTransfer.description }}</p>
           </div>
 
-          <div v-if="selectedTransfer.execution_error" class="text-sm rounded-md bg-error/10 p-3 text-error">
-            {{ selectedTransfer.execution_error }}
-          </div>
+          <UAlert
+            v-if="selectedTransfer.status === 'reversing' && selectedTransfer.execution_error"
+            icon="i-lucide-triangle-alert"
+            color="error"
+            variant="subtle"
+            title="La anulación quedó incompleta"
+            :description="`${selectedTransfer.execution_error} Podés corregir la causa y reintentar; los movimientos que ya se eliminaron no se volverán a procesar.`"
+          />
+          <UAlert
+            v-else-if="selectedTransfer.execution_error"
+            icon="i-lucide-triangle-alert"
+            color="error"
+            variant="subtle"
+            :description="selectedTransfer.execution_error"
+          />
 
           <div v-if="selectedTransfer.reference" class="text-sm">
             <span class="text-muted">Referencia</span>
@@ -710,6 +796,24 @@ const sortFields: SortField[] = [
             @click="handleConfirm(selectedTransfer)"
           />
           <UButton
+            v-if="selectedTransfer?.status === 'completed' && selectedTransfer.record_side !== 'destination' && canReverseTransfers"
+            label="Anular transferencia"
+            icon="i-lucide-undo-2"
+            color="error"
+            variant="outline"
+            :disabled="processingTransferAction"
+            @click="requestReverse(selectedTransfer, true)"
+          />
+          <UButton
+            v-if="selectedTransfer?.status === 'reversing' && selectedTransfer.execution_error && selectedTransfer.record_side !== 'destination' && canReverseTransfers"
+            label="Reintentar anulación"
+            icon="i-lucide-rotate-ccw"
+            color="warning"
+            variant="outline"
+            :disabled="processingTransferAction"
+            @click="requestReverse(selectedTransfer, true)"
+          />
+          <UButton
             v-if="selectedTransfer?.status === 'pending'"
             label="Cancelar transferencia"
             icon="i-lucide-x-circle"
@@ -719,7 +823,61 @@ const sortFields: SortField[] = [
             :disabled="processingTransferAction"
             @click="handleCancel(selectedTransfer!)"
           />
+          <UButton
+            v-if="selectedTransfer?.status === 'reversed' && selectedTransfer.record_side !== 'destination' && canDeleteTransfers"
+            label="Eliminar transferencia anulada"
+            icon="i-lucide-trash-2"
+            color="error"
+            variant="outline"
+            :loading="processingTransferAction"
+            :disabled="processingTransferAction"
+            @click="handleDelete(selectedTransfer!)"
+          />
           <UButton label="Cerrar" color="neutral" variant="outline" :disabled="processingTransferAction" @click="() => { detailModalOpen = false }" />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="reverseModalOpen" title="Anular transferencia" :ui="{ content: 'w-full sm:max-w-xl' }">
+      <template #body>
+        <div v-if="selectedTransfer" class="space-y-4">
+          <UAlert
+            icon="i-lucide-triangle-alert"
+            color="warning"
+            variant="subtle"
+            title="Se quitarán los movimientos originales y la transferencia quedará anulada"
+            description="Se eliminarán los movimientos de caja o banco del origen y del destino, y se recalcularán sus saldos. Si el destino está en otra empresa, también se actualizará allí. El registro de la transferencia seguirá disponible como anulado hasta que lo elimines."
+          />
+
+          <div class="rounded-lg border border-default p-4 text-sm">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p class="text-muted">Se devolverá al origen al quitar el movimiento</p>
+                <p class="font-medium text-highlighted">{{ selectedTransfer.source_company_name ? `${selectedTransfer.source_company_name} · ` : '' }}{{ detailSourceName }}</p>
+                <p class="font-semibold text-success">{{ formatMoney(Number(selectedTransfer.amount), selectedTransfer.currency_code) }}</p>
+              </div>
+              <div>
+                <p class="text-muted">Se quitará del destino · moneda del fondo destino</p>
+                <p class="font-medium text-highlighted">{{ selectedTransfer.dest_company_name ? `${selectedTransfer.dest_company_name} · ` : '' }}{{ detailDestName }}</p>
+                <p class="font-semibold text-error">{{ formatAmount(Number(selectedTransfer.converted_amount ?? selectedTransfer.amount)) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-xs text-muted">Si el destino ya usó parte de ese saldo, primero tendrás que reponerlo para poder anular la transferencia.</p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton label="Volver" color="neutral" variant="outline" :disabled="processingTransferAction" @click="closeReverseModal" />
+          <UButton
+            :label="selectedTransfer?.status === 'reversing' ? 'Reintentar anulación' : 'Confirmar anulación'"
+            icon="i-lucide-undo-2"
+            color="error"
+            :loading="processingTransferAction"
+            :disabled="processingTransferAction || !canReverseTransfers"
+            @click="handleReverse"
+          />
         </div>
       </template>
     </UModal>

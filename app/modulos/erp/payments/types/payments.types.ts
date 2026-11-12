@@ -75,6 +75,11 @@ export interface Payment {
   reference?: string | null
   bank_account_id?: string | null
   cash_box_id?: string | null
+  bank_account_company_id?: string | null
+  bank_account_external_id?: string | null
+  cash_box_company_id?: string | null
+  cash_box_external_id?: string | null
+  intercompany_companies?: Array<{ id: string; name: string }>
   account_id?: string | null
   credit_card_id?: string | null
   installments_total?: number
@@ -162,6 +167,10 @@ export interface PaymentTenderInput {
   amount: number
   cash_box_id?: string
   bank_account_id?: string
+  cash_box_company_id?: string
+  cash_box_external_id?: string
+  bank_account_company_id?: string
+  bank_account_external_id?: string
 }
 
 export interface CreatePaymentInput {
@@ -183,6 +192,10 @@ export interface CreatePaymentInput {
   reference?: string
   bank_account_id?: string
   cash_box_id?: string
+  bank_account_company_id?: string
+  bank_account_external_id?: string
+  cash_box_company_id?: string
+  cash_box_external_id?: string
   account_id?: string
   credit_card_id?: string
   installments_total?: number

@@ -26,6 +26,12 @@ const formattedNumber = computed(() => {
 })
 
 const ov = computed(() => props.document?.orden_venta_doc || props.document?.orden_compra_doc)
+const deliveryPhones = computed<string[]>(() => {
+  const phones = Array.isArray(ov.value?.delivery_phones)
+    ? ov.value.delivery_phones.filter((phone: unknown): phone is string => typeof phone === 'string' && phone.trim() !== '')
+    : []
+  return phones.length ? phones : ov.value?.delivery_phone ? [ov.value.delivery_phone] : []
+})
 const config = computed(() => props.printTemplate?.config ?? {})
 const title = computed(() => props.printTemplate?.title || (isPurchase.value ? 'ORDEN DE COMPRA' : 'ORDEN DE VENTA'))
 const showCode = computed(() => config.value.show_code !== false)
@@ -100,11 +106,14 @@ const headerRight = computed(() => {
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Dirección entrega</td>
         <td colspan="3" style="padding: 6px 10px; font-size: 11px;">{{ ov.delivery_address }}</td>
       </tr>
-      <tr v-if="ov?.delivery_contact">
+      <tr v-if="ov?.delivery_contact || deliveryPhones.length">
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Contacto</td>
-        <td style="padding: 6px 10px; font-size: 11px;">{{ ov.delivery_contact }}</td>
-        <td style="padding: 6px 10px; font-size: 11px; color: #555;">Teléfono</td>
-        <td style="padding: 6px 10px; font-size: 11px;">{{ ov.delivery_phone || '—' }}</td>
+        <td style="padding: 6px 10px; font-size: 11px;">{{ ov.delivery_contact || '—' }}</td>
+        <td style="padding: 6px 10px; font-size: 11px; color: #555;">{{ deliveryPhones.length === 1 ? 'Teléfono' : 'Teléfonos' }}</td>
+        <td style="padding: 6px 10px; font-size: 11px;">
+          <div v-for="(phone, index) in deliveryPhones" :key="`${index}-${phone}`">{{ phone }}</div>
+          <span v-if="!deliveryPhones.length">—</span>
+        </td>
       </tr>
       <tr v-if="ov?.confirmed_delivery_date">
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Fecha comprometida</td>

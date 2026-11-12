@@ -228,13 +228,19 @@ export const paymentColumns = (actions: {
         key: 'payment_method',
         label: 'Método',
         sortable: true,
-        badge: {
+        multiBadge: {
           resolve: (row) => {
             const config = methodConfig[row.payment_method]
-            return {
-              label: config?.label ?? row.payment_method,
-              color: (config?.color as any) ?? 'neutral'
-            }
+            return [
+              {
+                label: config?.label ?? row.payment_method,
+                color: (config?.color as any) ?? 'neutral'
+              },
+              ...(row.intercompany_companies ?? []).map(company => ({
+                label: company.name,
+                color: 'info' as const
+              }))
+            ]
           }
         },
         meta: {

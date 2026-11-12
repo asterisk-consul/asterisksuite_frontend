@@ -98,6 +98,17 @@ export const useCashBoxTransfersStore = defineStore('cash-box-transfers', () => 
     return updated
   }
 
+  const reverse = async (id: string) => {
+    const updated = await service.reverse(id)
+
+    const index = items.value.findIndex((i) => i.id === id)
+    if (index !== -1) items.value[index] = { ...items.value[index], ...updated, creator: updated.creator ?? items.value[index]?.creator }
+
+    if (current.value?.id === id) current.value = { ...current.value, ...updated, creator: updated.creator ?? current.value.creator }
+
+    return updated
+  }
+
   // =========================
   // DELETE
   // =========================
@@ -123,6 +134,7 @@ export const useCashBoxTransfersStore = defineStore('cash-box-transfers', () => 
     create,
     confirm,
     cancel,
+    reverse,
     remove
   }
 })

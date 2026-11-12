@@ -20,6 +20,13 @@ const sellerName = computed(() => {
   if (!seller) return null
   return `${seller.first_name} ${seller.last_name}`
 })
+const deliveryPhones = computed<string[]>(() => {
+  const extension = props.document?.orden_venta_doc
+  const phones = Array.isArray(extension?.delivery_phones)
+    ? extension.delivery_phones.filter((phone: unknown): phone is string => typeof phone === 'string' && phone.trim() !== '')
+    : []
+  return phones.length ? phones : extension?.delivery_phone ? [extension.delivery_phone] : []
+})
 
 const operation = computed(() => props.document?.commercial_operation)
 const deliveryStatus = computed(() => operation.value?.delivery_status)
@@ -132,9 +139,9 @@ const deliveryFlow = computed(() => {
           <p class="text-muted">Contacto</p>
           <p class="font-medium">{{ document.orden_venta_doc.delivery_contact }}</p>
         </div>
-        <div v-if="document.orden_venta_doc.delivery_phone">
-          <p class="text-muted">Teléfono</p>
-          <p class="font-medium">{{ document.orden_venta_doc.delivery_phone }}</p>
+        <div v-if="deliveryPhones.length">
+          <p class="text-muted">{{ deliveryPhones.length === 1 ? 'Teléfono' : 'Teléfonos' }}</p>
+          <p v-for="(phone, index) in deliveryPhones" :key="`${index}-${phone}`" class="font-medium">{{ phone }}</p>
         </div>
         <div v-if="document.orden_venta_doc.delivery_time">
           <p class="text-muted">Tiempo de entrega</p>

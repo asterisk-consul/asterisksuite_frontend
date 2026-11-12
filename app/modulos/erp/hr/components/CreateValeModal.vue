@@ -6,6 +6,7 @@ import { usePartnersService } from '~/modulos/erp/partners/service/partners.serv
 import { useCashBoxesService } from '~/modulos/erp/cash-boxes/service/cash-boxes.service'
 import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
 import { HrService } from '~/modulos/erp/hr/services/hr.service'
+import { useIntercompanyTreasuryService, type IntercompanyFundOption } from '~/modulos/erp/treasury/intercompany-treasury.service'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -18,6 +19,7 @@ const employeesService = useEmployeesService()
 const partnersService = usePartnersService()
 const cashBoxesService = useCashBoxesService()
 const bankAccountsService = useBankAccountsService()
+const intercompanyTreasuryService = useIntercompanyTreasuryService()
 const toast = useToast()
 const {
   autoResolve: resolveExchangeRate,
@@ -32,11 +34,13 @@ const treasuryTargetType = ref<'CASH_BOX' | 'BANK_ACCOUNT'>('CASH_BOX')
 const treasuryTargetId = ref('')
 const cashBoxes = ref<any[]>([])
 const bankAccounts = ref<any[]>([])
+const sharedTreasuryFunds = ref<IntercompanyFundOption[]>([])
 const pendingCreatedValeId = ref<string | null>(null)
 const partnerFunds = ref<{ contributions: number; withdrawals: number; balance: number; planned_withdrawals: number; available: number; remuneration_pending: number } | null>(null)
 const loadingFunds = ref(false)
 const fundsError = ref(false)
 let fundsRequest = 0
+let treasuryTargetsRequest = 0
 
 const createForm = ref({
   party_id: '',
@@ -178,13 +182,17 @@ async function loadPeople() {
 }
 
 async function loadTreasuryTargets() {
+  const request = ++treasuryTargetsRequest
   try {
-    const [boxes, banks] = await Promise.all([
+    const [boxes, banks, shared] = await Promise.all([
       cashBoxesService.findAll(),
-      bankAccountsService.findAll()
+      bankAccountsService.findAll(),
+      intercompanyTreasuryService.findAvailable('HR', createForm.value.currency_code).catch(() => [])
     ])
+    if (request !== treasuryTargetsRequest) return
     cashBoxes.value = boxes
     bankAccounts.value = banks
+    sharedTreasuryFunds.value = shared
   } catch (e) {
     console.error(e)
   }
@@ -215,18 +223,31 @@ watch([open, () => createForm.value.party_id, () => createForm.value.party_type,
 const treasuryTargetOptions = computed(() => {
   const currency = createForm.value.currency_code
   if (treasuryTargetType.value === 'CASH_BOX') {
-    return cashBoxes.value
+    const local = cashBoxes.value
       .filter(box => box.active && box.currency_code === currency && box.current_session_id)
-      .map(box => ({ label: `${box.name} · ${currency} · caja abierta`, value: box.id }))
+      .map(box => ({ label: `${box.name} · ${currency} · caja abierta`, value: `local:${box.id}` }))
+    const shared = sharedTreasuryFunds.value
+      .filter(fund => fund.fund_type === 'CASH_BOX' && fund.currency_code === currency && fund.status === 'OPEN' && fund.current_session_id)
+      .map(fund => ({ label: `${fund.name} · ${fund.company_name} · ${currency}`, value: `shared:${fund.company_id}:CASH_BOX:${fund.fund_id}` }))
+    return [...local, ...shared]
   }
-  return bankAccounts.value
+  const local = bankAccounts.value
     .filter(account => account.active && account.currency_code === currency)
-    .map(account => ({ label: `${account.name} · ${account.bank_name} · ${currency}`, value: account.id }))
+    .map(account => ({ label: `${account.name} · ${account.bank_name} · ${currency}`, value: `local:${account.id}` }))
+  const shared = sharedTreasuryFunds.value
+    .filter(fund => fund.fund_type === 'BANK_ACCOUNT' && fund.currency_code === currency)
+    .map(fund => ({ label: `${fund.name} · ${fund.bank_name} · ${fund.company_name} · ${currency}`, value: `shared:${fund.company_id}:BANK_ACCOUNT:${fund.fund_id}` }))
+  return [...local, ...shared]
 })
 
 const selectedTarget = computed(() => {
+  if (treasuryTargetId.value.startsWith('shared:')) {
+    const [, companyId, fundType, fundId] = treasuryTargetId.value.split(':')
+    return sharedTreasuryFunds.value.find(item => item.company_id === companyId && item.fund_type === fundType && item.fund_id === fundId)
+  }
+  const localId = treasuryTargetId.value.startsWith('local:') ? treasuryTargetId.value.slice(6) : treasuryTargetId.value
   const source = treasuryTargetType.value === 'CASH_BOX' ? cashBoxes.value : bankAccounts.value
-  return source.find(item => item.id === treasuryTargetId.value)
+  return source.find(item => item.id === localId)
 })
 
 const isOutflow = computed(() => ['RETIRO', 'REEMBOLSO', 'PRESTAMO'].includes(createForm.value.type))
@@ -261,9 +282,15 @@ async function handleCreate() {
         })
     pendingCreatedValeId.value = vale.id
     if (confirmAutomatically.value) {
+      const sharedTarget = selectedTarget.value && 'is_intercompany' in selectedTarget.value && selectedTarget.value.is_intercompany
       await hrStore.confirmVale(vale.id, requiresDirectTreasury.value ? {
         treasury_target_type: treasuryTargetType.value,
-        treasury_target_id: treasuryTargetId.value
+        ...(sharedTarget
+          ? {
+              treasury_target_company_id: (selectedTarget.value as IntercompanyFundOption).company_id,
+              treasury_target_external_id: (selectedTarget.value as IntercompanyFundOption).fund_id,
+            }
+          : { treasury_target_id: treasuryTargetId.value.replace(/^local:/, '') }),
       } : undefined)
       toast.add({ title: 'Vale creado y confirmado', color: 'success' })
     } else {
@@ -301,6 +328,10 @@ watch(open, (val) => {
 
 watch([treasuryTargetType, () => createForm.value.currency_code], () => {
   treasuryTargetId.value = ''
+})
+
+watch(() => createForm.value.currency_code, () => {
+  if (open.value) void loadTreasuryTargets()
 })
 </script>
 
@@ -524,7 +555,10 @@ watch([treasuryTargetType, () => createForm.value.currency_code], () => {
           </div>
 
           <div v-if="selectedTarget" class="flex items-center justify-between rounded-md border border-default bg-default px-3 py-2 text-sm">
-            <span class="text-muted">Saldo actual</span>
+            <span class="text-muted">
+              Saldo actual
+              <span v-if="'is_intercompany' in selectedTarget && selectedTarget.is_intercompany" class="block text-xs">Titular: {{ selectedTarget.company_name }}</span>
+            </span>
             <span class="font-semibold">
               {{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: createForm.currency_code }).format(Number(selectedTarget.balance ?? selectedTarget.balances?.find((b: any) => b.currency_code === createForm.currency_code)?.balance ?? 0)) }}
             </span>

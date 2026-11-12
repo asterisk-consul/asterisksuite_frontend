@@ -1,5 +1,64 @@
 [
  {
+  "version": "0.156.0-alpha",
+  "date": "2026-11-12",
+  "stage": "alpha",
+  "notes": "Las órdenes de venta pueden buscar ubicaciones del catálogo, asociarlas al cliente y guardar direcciones y contactos reutilizables desde la sección de entrega.",
+  "changes": [
+   { "type": "feat", "scope": "sales", "title": "Buscar y reutilizar ubicaciones del catálogo desde una orden de venta" },
+   { "type": "feat", "scope": "sales", "title": "Asociar ubicaciones existentes a la ficha del cliente con el permiso correspondiente" },
+   { "type": "feat", "scope": "sales", "title": "Guardar direcciones y contactos reutilizables desde el modal de entrega" },
+   { "type": "fix", "scope": "sales", "title": "Conservar los teléfonos agregados al sincronizar el formulario de entrega" },
+   { "type": "fix", "scope": "locations", "title": "Excluir ubicaciones dadas de baja del buscador" },
+   { "type": "docs", "scope": "sales", "title": "Documentar búsqueda, asociación y permisos de datos de entrega" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Reutilizar ubicaciones y contactos en las órdenes de venta"
+ },
+ {
+  "version": "0.155.1-alpha",
+  "date": "2026-11-12",
+  "stage": "alpha",
+  "notes": "El reporte de resultado permite elegir los estados de OV, muestra total, cobrado y pendiente, y desplaza la vista al subreporte al abrir un importe.",
+  "changes": [
+   { "type": "fix", "scope": "management-reports", "title": "Incluir OV aprobadas y posteriores en ventas y saldo por cobrar" },
+   { "type": "feat", "scope": "management-reports", "title": "Mostrar cobros completos, parciales y pendientes en el resumen y detalle" },
+   { "type": "feat", "scope": "management-reports", "title": "Filtrar el resumen y los subreportes por uno o varios estados de OV" },
+   { "type": "style", "scope": "management-reports", "title": "Presentar los estados de OV en un selector múltiple junto a Moneda" },
+   { "type": "fix", "scope": "management-reports", "title": "Desplazar la vista al subreporte al abrir un importe" },
+   { "type": "docs", "scope": "management-reports", "title": "Actualizar los criterios de lectura de OV del reporte" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Aclarar cobros y saldos de OV en el reporte de resultado"
+ },
+ {
+  "version": "0.155.0-alpha",
+  "date": "2026-11-12",
+  "stage": "alpha",
+  "notes": "Las cajas y cuentas bancarias pueden compartirse con empresas vinculadas para pagar, cobrar y registrar vales de socios, manteniendo los movimientos en la empresa titular.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Configurar qué empresas pueden usar cada caja o cuenta bancaria" },
+   { "type": "feat", "scope": "payments", "title": "Usar fondos compartidos en pagos y cobros simples o mixtos" },
+   { "type": "feat", "scope": "hr", "title": "Registrar vales de socios desde fondos compartidos" },
+   { "type": "docs", "scope": "treasury", "title": "Documentar configuración, uso y reversión de fondos compartidos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Compartir fondos de Tesorería entre empresas"
+ },
+ {
+  "version": "0.154.0-alpha",
+  "date": "2026-11-12",
+  "stage": "alpha",
+  "notes": "Se incorpora un reporte multiempresa de resultado y composición: los importes se mantienen separados por moneda y se pueden abrir por cuenta contable, documento y partidas.",
+  "changes": [
+   { "type": "feat", "scope": "management-reports", "title": "Agregar el reporte multiempresa de resultado y composición por cuenta contable" },
+   { "type": "feat", "scope": "management-reports", "title": "Abrir la composición y los documentos desde cada importe del resumen" },
+   { "type": "docs", "scope": "management-reports", "title": "Documentar los criterios y el alcance del reporte de resultado" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agregar reporte multiempresa de resultado y composición"
+ },
+ {
   "version": "0.153.3-alpha",
   "date": "2026-11-11",
   "stage": "alpha",

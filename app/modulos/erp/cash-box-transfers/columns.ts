@@ -20,6 +20,8 @@ const statusConfig: Record<string, { label: string; color?: string }> = {
   debit_applied: { label: 'Débito aplicado', color: 'warning' },
   failed: { label: 'Requiere reintento', color: 'error' },
   completed: { label: 'Completada', color: 'success' },
+  reversing: { label: 'Anulación en curso', color: 'warning' },
+  reversed: { label: 'Anulada', color: 'error' },
   cancelled: { label: 'Cancelada', color: 'error' }
 }
 
@@ -28,6 +30,9 @@ export const cashBoxTransferColumns = (actions: {
   onSortFieldSelect?: (columnId: string) => void
   onConfirm?: (row: Row) => void
   onCancel?: (row: Row) => void
+  canReverse?: (row: Row) => boolean
+  onReverse?: (row: Row) => void
+  canDelete?: (row: Row) => boolean
   onDelete?: (row: Row) => void
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({
@@ -111,8 +116,10 @@ export const cashBoxTransferColumns = (actions: {
           resolve: (row) => {
             const config = statusConfig[row.status]
             return {
-              label: config?.label ?? row.status,
-              color: (config?.color as any) ?? 'neutral'
+              label: row.status === 'reversing' && row.execution_error
+                ? 'Requiere reintento de anulación'
+                : (config?.label ?? row.status),
+              color: ((row.status === 'reversing' && row.execution_error ? 'error' : config?.color) as any) ?? 'neutral'
             }
           }
         },
@@ -137,12 +144,12 @@ export const cashBoxTransferColumns = (actions: {
         label: '',
         cell: ({ row }) => {
           const status = row.original.status
-          const buttons: Array<{ icon: string; color: string; onClick: () => void }> = []
+          const buttons: Array<{ icon: string; color: string; onClick: () => void; label?: string }> = []
 
           if (status === 'pending') {
             buttons.push({ icon: 'i-lucide-check-circle', color: 'success', onClick: () => actions.onConfirm?.(row.original) })
             buttons.push({ icon: 'i-lucide-x-circle', color: 'warning', onClick: () => actions.onCancel?.(row.original) })
-            buttons.push({ icon: 'i-lucide-trash-2', color: 'error', onClick: () => actions.onDelete?.(row.original) })
+            if (actions.canDelete?.(row.original)) buttons.push({ icon: 'i-lucide-trash-2', color: 'error', label: 'Eliminar transferencia', onClick: () => actions.onDelete?.(row.original) })
           } else if (['processing', 'debit_applied', 'failed'].includes(status)) {
             buttons.push({ icon: 'i-lucide-refresh-cw', color: 'warning', onClick: () => actions.onConfirm?.(row.original) })
             buttons.push({ icon: 'i-lucide-eye', color: 'neutral', onClick: () => actions.onDetail?.(row.original) })
@@ -150,11 +157,24 @@ export const cashBoxTransferColumns = (actions: {
             if (row.original.record_side !== 'destination' && row.original.dest_company_id) {
               buttons.push({ icon: 'i-lucide-refresh-cw', color: 'warning', onClick: () => actions.onConfirm?.(row.original) })
             }
+            if (row.original.record_side !== 'destination' && actions.canReverse?.(row.original)) {
+              buttons.push({ icon: 'i-lucide-undo-2', color: 'error', label: 'Anular transferencia', onClick: () => actions.onReverse?.(row.original) })
+            }
+            buttons.push({ icon: 'i-lucide-eye', color: 'neutral', onClick: () => actions.onDetail?.(row.original) })
+          } else if (status === 'reversing') {
+            if (row.original.execution_error && row.original.record_side !== 'destination' && actions.canReverse?.(row.original)) {
+              buttons.push({ icon: 'i-lucide-rotate-ccw', color: 'warning', label: 'Reintentar anulación', onClick: () => actions.onReverse?.(row.original) })
+            }
+            buttons.push({ icon: 'i-lucide-eye', color: 'neutral', onClick: () => actions.onDetail?.(row.original) })
+          } else if (status === 'reversed') {
+            if (row.original.record_side !== 'destination' && actions.canDelete?.(row.original)) {
+              buttons.push({ icon: 'i-lucide-trash-2', color: 'error', label: 'Eliminar transferencia anulada', onClick: () => actions.onDelete?.(row.original) })
+            }
             buttons.push({ icon: 'i-lucide-eye', color: 'neutral', onClick: () => actions.onDetail?.(row.original) })
           }
 
           return h('div', { class: 'flex gap-1' }, buttons.map((btn) =>
-            h(UButton, { icon: btn.icon, size: 'xs', variant: 'ghost', color: btn.color as any, onClick: btn.onClick })
+            h(UButton, { icon: btn.icon, size: 'xs', variant: 'ghost', color: btn.color as any, 'aria-label': btn.label, title: btn.label, onClick: btn.onClick })
           ))
         }
       }

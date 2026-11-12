@@ -361,6 +361,12 @@ export const navigationTree: DrilldownNode[] = [
         permission: 'management_reports.read'
       },
       {
+        label: 'Resultado y composición',
+        icon: 'i-lucide-chart-no-axes-combined',
+        to: '/erp/reports/financial-results',
+        permission: 'management_reports.read'
+      },
+      {
         label: 'Clientes',
         icon: 'i-lucide-users',
         to: '/erp/reports/consolidated?view=customers',

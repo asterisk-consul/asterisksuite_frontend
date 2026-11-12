@@ -39,10 +39,31 @@ export const useBusinessPartiesService = () => {
     })
   }
 
+  const addLocation = (id: string, data: {
+    label?: string
+    address: string
+    city?: string
+    province?: string
+    country?: string
+    postalCode?: string
+  }) => {
+    return $fetch<any>(`${urlBase}/${id}/locations`, {
+      method: 'POST',
+      body: data
+    })
+  }
+
+  const linkLocation = (id: string, data: { location_id: string; label?: string }) => {
+    return $fetch<any>(`${urlBase}/${id}/locations/link`, {
+      method: 'POST',
+      body: data
+    })
+  }
+
   const remove = (id: string) => {
     return $fetch<void>(`${urlBase}/${id}`, {
       method: 'DELETE'
     })
   }
-  return { findAll, search, findOne, create, update, remove }
+  return { findAll, search, findOne, create, update, addLocation, linkLocation, remove }
 }

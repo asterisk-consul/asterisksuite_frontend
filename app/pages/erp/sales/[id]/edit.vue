@@ -46,6 +46,7 @@ const pageTitle = computed(() => {
 })
 const orderDetails = computed(() => documentsSalesStore.current?.orden_venta_doc ?? undefined)
 const extensionDraft = ref<Record<string, any>>({})
+const selectedDeliveryPartyId = ref('')
 const requireDeliveryAddress = ref(false)
 const warnWhenDeliveryDataEmpty = ref(true)
 const deliverySettingsLoading = ref(false)
@@ -87,6 +88,7 @@ onMounted(async () => {
   try {
     await documentsSalesStore.fetchOne(route.params.id as string)
     if (isOrder.value) {
+      selectedDeliveryPartyId.value = documentsSalesStore.current?.party_id ?? ''
       deliverySettingsLoading.value = true
       try {
         const settings = await salesFlowService.getSettings()
@@ -106,7 +108,7 @@ onMounted(async () => {
 async function handleSubmit(payload: any) {
   if (saving.value || clearDeliveryConfirmOpen.value || emptyDeliveryConfirmOpen.value) return
   if (isOrder.value && ordenVentaRef.value && !ordenVentaRef.value.validateDeliveryInfo()) {
-    toast.add({ title: 'Falta la dirección de entrega', description: 'Completá la dirección para guardar esta OV.', color: 'warning' })
+    toast.add({ title: 'Revisá la información de entrega', description: ordenVentaRef.value.getDeliveryValidationMessage(), color: 'warning' })
     return
   }
 
@@ -236,6 +238,7 @@ async function confirmEmptyDeliverySave() {
             :draft-extension="extensionDraft"
             @submit="handleSubmit"
             @restore-extension="extensionDraft = $event"
+            @party-change="selectedDeliveryPartyId = $event"
           >
             <template #document-details>
               <OrdenVentaForm
@@ -244,6 +247,7 @@ async function confirmEmptyDeliverySave() {
                 v-model="extensionDraft"
                 :loading="saving"
                 :require-delivery-address="requireDeliveryAddress"
+                :party-id="selectedDeliveryPartyId"
               />
             </template>
           </FacturaForm>

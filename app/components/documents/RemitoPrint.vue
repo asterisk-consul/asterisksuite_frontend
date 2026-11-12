@@ -12,6 +12,13 @@ const props = defineProps<{
 }>()
 
 const isPurchase = computed(() => props.type === 'purchase')
+const deliveryPhones = computed<string[]>(() => {
+  const extension = props.document?.orden_venta_doc
+  const phones = Array.isArray(extension?.delivery_phones)
+    ? extension.delivery_phones.filter((phone: unknown): phone is string => typeof phone === 'string' && phone.trim() !== '')
+    : []
+  return phones.length ? phones : extension?.delivery_phone ? [extension.delivery_phone] : []
+})
 
 const formattedNumber = computed(() => {
   const pv = String(props.point_of_sale ?? '0001').padStart(4, '0')
@@ -106,11 +113,14 @@ const headerRight = computed(() => {
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Fecha comprometida</td>
         <td colspan="3" style="padding: 6px 10px; font-size: 11px;">{{ formatDeliveryDate(document.orden_venta_doc.confirmed_delivery_date) }}</td>
       </tr>
-      <tr v-if="document?.orden_venta_doc?.delivery_contact || document?.orden_venta_doc?.delivery_phone">
+      <tr v-if="document?.orden_venta_doc?.delivery_contact || deliveryPhones.length">
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Contacto</td>
         <td style="padding: 6px 10px; font-size: 11px;">{{ document.orden_venta_doc.delivery_contact || '—' }}</td>
-        <td style="padding: 6px 10px; font-size: 11px; color: #555;">Teléfono</td>
-        <td style="padding: 6px 10px; font-size: 11px;">{{ document.orden_venta_doc.delivery_phone || '—' }}</td>
+        <td style="padding: 6px 10px; font-size: 11px; color: #555;">{{ deliveryPhones.length === 1 ? 'Teléfono' : 'Teléfonos' }}</td>
+        <td style="padding: 6px 10px; font-size: 11px;">
+          <div v-for="(phone, index) in deliveryPhones" :key="`${index}-${phone}`">{{ phone }}</div>
+          <span v-if="!deliveryPhones.length">—</span>
+        </td>
       </tr>
       <tr v-if="document?.orden_venta_doc?.delivery_time">
         <td style="padding: 6px 10px; font-size: 11px; color: #555;">Horario / tiempo</td>

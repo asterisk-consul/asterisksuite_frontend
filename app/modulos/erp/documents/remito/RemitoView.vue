@@ -6,6 +6,13 @@ const props = defineProps<{
 
 const warehouseLabel = computed(() => props.mode === 'purchase' ? 'Depósito de ingreso' : 'Depósito de salida')
 const sourceOrderDelivery = computed(() => props.document?.orden_venta_doc ?? null)
+const sourceDeliveryPhones = computed<string[]>(() => {
+  const delivery = sourceOrderDelivery.value
+  const phones = Array.isArray(delivery?.delivery_phones)
+    ? delivery.delivery_phones.filter((phone: unknown): phone is string => typeof phone === 'string' && phone.trim() !== '')
+    : []
+  return phones.length ? phones : delivery?.delivery_phone ? [delivery.delivery_phone] : []
+})
 const hasSourceOrderDelivery = computed(() => {
   const delivery = sourceOrderDelivery.value
   return Boolean(delivery && [
@@ -13,7 +20,7 @@ const hasSourceOrderDelivery = computed(() => {
     delivery.confirmed_delivery_date,
     delivery.delivery_address,
     delivery.delivery_contact,
-    delivery.delivery_phone,
+    ...sourceDeliveryPhones.value,
     delivery.delivery_time,
     delivery.transport_provider,
     delivery.delivery_instructions,
@@ -92,9 +99,9 @@ function fmtDate(d?: string) {
           <p class="text-muted">Contacto</p>
           <p class="font-medium">{{ sourceOrderDelivery.delivery_contact }}</p>
         </div>
-        <div v-if="sourceOrderDelivery.delivery_phone">
-          <p class="text-muted">Teléfono</p>
-          <p class="font-medium">{{ sourceOrderDelivery.delivery_phone }}</p>
+        <div v-if="sourceDeliveryPhones.length">
+          <p class="text-muted">{{ sourceDeliveryPhones.length === 1 ? 'Teléfono' : 'Teléfonos' }}</p>
+          <p v-for="(phone, index) in sourceDeliveryPhones" :key="`${index}-${phone}`" class="font-medium">{{ phone }}</p>
         </div>
         <div v-if="sourceOrderDelivery.delivery_time">
           <p class="text-muted">Horario / tiempo</p>

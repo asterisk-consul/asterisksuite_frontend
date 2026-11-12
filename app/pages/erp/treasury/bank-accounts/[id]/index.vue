@@ -16,6 +16,7 @@ import { exportBankMovementsWorkbook } from '~/modulos/erp/bank-accounts/movemen
 import { partitionCancelledTreasuryMovements } from '~/utils/treasuryMovementVisibility'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import IntercompanyTreasuryShareButton from '~/components/erp/IntercompanyTreasuryShareButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,6 +31,10 @@ const movementDetailsOpen = ref(false)
 const movementDetailsLoading = ref(false)
 const selectedMovementDetails = ref<BankAccountMovementDetails | null>(null)
 const statementImportOpen = ref(false)
+
+function openStatementImport() {
+  statementImportOpen.value = true
+}
 const exportingMovements = ref(false)
 const toast = useToast()
 const transferDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
@@ -276,12 +281,13 @@ async function exportMovements() {
     />
 
     <div class="flex flex-wrap justify-end gap-2">
+      <IntercompanyTreasuryShareButton fund-type="BANK_ACCOUNT" :fund-id="account.id" :fund-name="account.name" />
       <UButton
         label="Importar y conciliar extracto"
         icon="i-lucide-upload"
         color="neutral"
         variant="outline"
-        @click="statementImportOpen = true"
+        @click="openStatementImport"
       />
       <UButton
         label="Exportar movimientos"
@@ -392,7 +398,7 @@ async function exportMovements() {
         </div>
         <div v-else-if="selectedMovementDetails" class="space-y-5">
           <section class="grid gap-3 rounded-xl border border-default bg-elevated/40 p-4 sm:grid-cols-3">
-            <div><p class="text-xs text-muted">Movimiento</p><div class="flex flex-wrap items-center gap-2"><UBadge v-if="selectedMovementBadge" :color="selectedMovementBadge.color as any" variant="subtle">{{ selectedMovementBadge.label }}</UBadge><UBadge v-if="selectedMovementDetails.deleted_at" color="error" variant="subtle">Anulado</UBadge></div></div>
+            <div><p class="text-xs text-muted">Movimiento</p><div class="flex flex-wrap items-center gap-2"><UBadge v-if="selectedMovementBadge" :color="selectedMovementBadge.color as any" variant="subtle">{{ selectedMovementBadge.label }}</UBadge><UBadge v-if="selectedMovementDetails.intercompany_source_company" color="info" variant="soft" :title="`Empresa que originó el movimiento: ${selectedMovementDetails.intercompany_source_company.name}`">{{ selectedMovementDetails.intercompany_source_company.name }}</UBadge><UBadge v-if="selectedMovementDetails.deleted_at" color="error" variant="subtle">Anulado</UBadge></div></div>
             <div><p class="text-xs text-muted">Fecha de operación</p><p class="font-medium">{{ formatDate(selectedMovementDetails.date) }}</p></div>
             <div><p class="text-xs text-muted">Importe</p><p class="font-semibold" :class="getMovementSignedAmount(selectedMovementDetails) >= 0 ? 'text-success' : 'text-error'">{{ formatCurrency(Math.abs(getMovementSignedAmount(selectedMovementDetails)), selectedMovementDetails.currency_code) }}</p></div>
             <div><p class="text-xs text-muted">Referencia</p><p class="font-medium break-all">{{ selectedMovementDetails.reference || '—' }}</p></div>

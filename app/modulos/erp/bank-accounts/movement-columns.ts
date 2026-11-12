@@ -112,8 +112,13 @@ export const bankMovementColumns = (actions: {
         accessorFn: row => getMovementTypeBadge(row).label,
         label: 'Tipo',
         sortable: true,
-        badge: {
-          resolve: getMovementTypeBadge
+        multiBadge: {
+          resolve: (row) => [
+            getMovementTypeBadge(row),
+            ...(row.intercompany_source_company
+              ? [{ label: row.intercompany_source_company.name, color: 'info' as const }]
+              : [])
+          ]
         },
         meta: {
           filter: {

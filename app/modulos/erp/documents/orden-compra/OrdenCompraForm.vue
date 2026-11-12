@@ -69,23 +69,23 @@ defineExpose({ getFormData })
           <UInput v-model="form.confirmed_delivery_date" type="date" class="w-full" />
         </UFormField>
       </div>
-      <UFormField label="Dirección de recepción" name="delivery_address">
-        <UInput v-model="form.delivery_address" placeholder="Dirección donde recibir la mercadería" class="w-full" />
+      <UFormField label="Dirección de recepción" name="delivery_address" :description="`${form.delivery_address.length}/300 caracteres`">
+        <UInput v-model="form.delivery_address" maxlength="300" placeholder="Dirección donde recibir la mercadería" class="w-full" />
       </UFormField>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <UFormField label="Contacto" name="delivery_contact">
-          <UInput v-model="form.delivery_contact" placeholder="Nombre del contacto" class="w-full" />
+        <UFormField label="Contacto" name="delivery_contact" :description="`${form.delivery_contact.length}/100 caracteres`">
+          <UInput v-model="form.delivery_contact" maxlength="100" placeholder="Nombre del contacto" class="w-full" />
         </UFormField>
-        <UFormField label="Teléfono" name="delivery_phone">
-          <UInput v-model="form.delivery_phone" placeholder="11-1234-5678" class="w-full" />
+        <UFormField label="Teléfono" name="delivery_phone" :description="`${form.delivery_phone.length}/30 caracteres`">
+          <UInput v-model="form.delivery_phone" maxlength="30" placeholder="11-1234-5678" class="w-full" />
         </UFormField>
-        <UFormField label="Tiempo de entrega" name="delivery_time">
-          <UInput v-model="form.delivery_time" placeholder="Ej: 7-10 días" class="w-full" />
+        <UFormField label="Tiempo de entrega" name="delivery_time" :description="`${form.delivery_time.length}/100 caracteres`">
+          <UInput v-model="form.delivery_time" maxlength="100" placeholder="Ej: 7-10 días" class="w-full" />
         </UFormField>
       </div>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <UFormField label="Transporte" name="transport_provider">
-          <UInput v-model="form.transport_provider" placeholder="Nombre del transporte" class="w-full" />
+        <UFormField label="Transporte" name="transport_provider" :description="`${form.transport_provider.length}/100 caracteres`">
+          <UInput v-model="form.transport_provider" maxlength="100" placeholder="Nombre del transporte" class="w-full" />
         </UFormField>
       </div>
       <UFormField label="Instrucciones de recepción" name="delivery_instructions">

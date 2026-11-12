@@ -25,6 +25,8 @@ export function useCashBoxTransfers() {
 
   const cancel = async (id: string) => store.cancel(id)
 
+  const reverse = async (id: string) => store.reverse(id)
+
   const remove = async (id: string) => store.remove(id)
 
   const pendingTransfers = computed(() =>
@@ -50,6 +52,7 @@ export function useCashBoxTransfers() {
     create,
     confirm,
     cancel,
+    reverse,
     remove,
     fetchOne: store.fetchOne
   }

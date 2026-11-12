@@ -3,6 +3,7 @@ import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { useUsersService } from '~/modulos/access-control/services/users.service'
 import type { CreateCashBoxInput, CashBoxUserRole } from '~/modulos/erp/cash-boxes/types/cash-boxes.types'
+import IntercompanyTreasuryShareButton from '~/components/erp/IntercompanyTreasuryShareButton.vue'
 
 export interface CashBoxFormData {
   name: string
@@ -262,6 +263,22 @@ const handleSubmit = () => {
             <p class="mt-0.5 text-sm text-muted">Información general y saldo con el que comienza a operar.</p>
           </div>
         </div>
+
+        <div v-if="isEdit && boxId" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default bg-elevated/30 p-3">
+          <div>
+            <p class="text-sm font-medium">Uso entre empresas</p>
+            <p class="text-xs text-muted">Configurá qué empresas pueden usar esta caja para pagos, cobros o vales.</p>
+          </div>
+          <IntercompanyTreasuryShareButton fund-type="CASH_BOX" :fund-id="boxId" :fund-name="form.name" />
+        </div>
+        <UAlert
+          v-else
+          color="info"
+          variant="subtle"
+          icon="i-lucide-info"
+          title="Compartir después de crear"
+          description="Guardá la caja; al terminar vas a poder habilitar su uso desde la ficha de la caja."
+        />
 
         <div class="grid gap-5 sm:grid-cols-2">
           <UFormField label="Nombre" name="name" required description="Usá un nombre fácil de reconocer.">

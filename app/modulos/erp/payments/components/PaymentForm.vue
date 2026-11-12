@@ -22,6 +22,7 @@ import { useCompanyRole } from '~/composables/useCompanyRole'
 import type { WithholdingProposal, PaymentWithholdingPayload } from '~/modulos/erp/fiscal/types/fiscal.types'
 import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useIntercompanyTreasuryService, type IntercompanyFundOption } from '~/modulos/erp/treasury/intercompany-treasury.service'
 
 export interface PaymentFormData {
   type: 'PAYMENT' | 'COLLECTION' | 'EXPENSE'
@@ -33,6 +34,10 @@ export interface PaymentFormData {
     amount: number
     cash_box_id?: string
     bank_account_id?: string
+    cash_box_company_id?: string
+    cash_box_external_id?: string
+    bank_account_company_id?: string
+    bank_account_external_id?: string
   }>
   amount: number
   withholding_remittance_id?: string
@@ -47,6 +52,10 @@ export interface PaymentFormData {
   party_type?: string
   bank_account_id: string
   cash_box_id: string
+  bank_account_company_id?: string
+  bank_account_external_id?: string
+  cash_box_company_id?: string
+  cash_box_external_id?: string
   account_id: string
   credit_card_id: string
   installments_total?: number
@@ -123,10 +132,14 @@ const partiesService = useBusinessPartiesService()
 const fiscalService = useFiscalService()
 const toast = useToast()
 const authStore = useAuthStore()
+const intercompanyTreasuryService = useIntercompanyTreasuryService()
 const cardService = useCreditCardsService()
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 const cardOptions = ref<any[]>([])
+const intercompanyFunds = ref<IntercompanyFundOption[]>([])
+const intercompanyFundsLoading = ref(false)
+let intercompanyFundsRequest = 0
 
 // ═══ Retenciones (motor fiscal) ═══
 type PaymentWithholdingForm = WithholdingProposal & {
@@ -435,6 +448,10 @@ const defaultForm: PaymentFormData = {
   party_type: undefined,
   bank_account_id: '',
   cash_box_id: '',
+  bank_account_company_id: undefined,
+  bank_account_external_id: undefined,
+  cash_box_company_id: undefined,
+  cash_box_external_id: undefined,
   account_id: '',
   credit_card_id: '',
   installments_total: 1,
@@ -445,6 +462,20 @@ const defaultForm: PaymentFormData = {
 }
 
 const form = reactive<PaymentFormData>({ ...defaultForm })
+
+async function loadIntercompanyFunds() {
+  const request = ++intercompanyFundsRequest
+  const use = form.type === 'COLLECTION' ? 'COLLECTION' : 'PAYMENT'
+  intercompanyFundsLoading.value = true
+  try {
+    const funds = await intercompanyTreasuryService.findAvailable(use, form.currency_code)
+    if (request === intercompanyFundsRequest) intercompanyFunds.value = funds
+  } catch {
+    if (request === intercompanyFundsRequest) intercompanyFunds.value = []
+  } finally {
+    if (request === intercompanyFundsRequest) intercompanyFundsLoading.value = false
+  }
+}
 
 const selectedDocs = ref<Map<string, { doc: PendingDocument; amount: number }>>(new Map())
 const focusMissingUsdRateAfterSelection = ref(false)
@@ -483,6 +514,10 @@ const buildPaymentDraftSnapshot = (): PaymentDraftSnapshot => ({
     payment_method: form.payment_method,
     cash_box_id: form.cash_box_id,
     bank_account_id: form.bank_account_id,
+    cash_box_company_id: form.cash_box_company_id,
+    cash_box_external_id: form.cash_box_external_id,
+    bank_account_company_id: form.bank_account_company_id,
+    bank_account_external_id: form.bank_account_external_id,
     credit_card_id: form.credit_card_id,
     installments_total: form.installments_total,
     card_authorization: form.card_authorization,
@@ -655,6 +690,7 @@ onMounted(async () => {
   void initCashBoxes().catch((error) => {
     console.error('Error loading cash boxes:', error)
   })
+  void loadIntercompanyFunds()
   await fetchMyPermissionsIfNeeded()
   try { cardOptions.value = await cardService.findAll() } catch {}
   try {
@@ -689,10 +725,18 @@ watch(
           amount: Number(tender.amount),
           cash_box_id: tender.cash_box_id ?? tender.cash_box?.id ?? undefined,
           bank_account_id: tender.bank_account_id ?? tender.bank_account?.id ?? undefined,
+          cash_box_company_id: tender.cash_box_company_id ?? undefined,
+          cash_box_external_id: tender.cash_box_external_id ?? undefined,
+          bank_account_company_id: tender.bank_account_company_id ?? undefined,
+          bank_account_external_id: tender.bank_account_external_id ?? undefined,
         }))
         form.payment_method = form.tenders[0]?.method ?? 'CASH'
         form.cash_box_id = form.tenders.find(tender => tender.method === 'CASH')?.cash_box_id ?? ''
         form.bank_account_id = form.tenders.find(tender => tender.method === 'BANK_TRANSFER')?.bank_account_id ?? ''
+        form.cash_box_company_id = form.tenders.find(tender => tender.method === 'CASH')?.cash_box_company_id
+        form.cash_box_external_id = form.tenders.find(tender => tender.method === 'CASH')?.cash_box_external_id
+        form.bank_account_company_id = form.tenders.find(tender => tender.method === 'BANK_TRANSFER')?.bank_account_company_id
+        form.bank_account_external_id = form.tenders.find(tender => tender.method === 'BANK_TRANSFER')?.bank_account_external_id
       } else {
         form.tenders = []
       }
@@ -858,6 +902,12 @@ const selectedPaymentMethod = computed({
   set: (val: any) => {
     form.payment_method = val?.value ?? 'CASH'
     form.tenders = []
+    form.cash_box_id = ''
+    form.cash_box_company_id = undefined
+    form.cash_box_external_id = undefined
+    form.bank_account_id = ''
+    form.bank_account_company_id = undefined
+    form.bank_account_external_id = undefined
   }
 })
 
@@ -897,6 +947,10 @@ const addMixedTender = async () => {
       amount: form.payment_method === 'CHECK' ? totalChecksAmount.value : Math.max(0, Number((displayedPaymentAmount.value - totalWithheld.value).toFixed(2))),
       cash_box_id: form.cash_box_id || undefined,
       bank_account_id: form.bank_account_id || undefined,
+      cash_box_company_id: form.cash_box_company_id,
+      cash_box_external_id: form.cash_box_external_id,
+      bank_account_company_id: form.bank_account_company_id,
+      bank_account_external_id: form.bank_account_external_id,
     })
   }
   currentRows.push({ method, amount: 0 })
@@ -910,9 +964,15 @@ const addMixedTender = async () => {
 
 const removeMixedTender = (method: MixedTenderMethod) => {
   const remaining = (form.tenders ?? []).filter(tender => tender.method !== method)
-  if (method === 'CASH') form.cash_box_id = ''
+  if (method === 'CASH') {
+    form.cash_box_id = ''
+    form.cash_box_company_id = undefined
+    form.cash_box_external_id = undefined
+  }
   if (method === 'BANK_TRANSFER') {
     form.bank_account_id = ''
+    form.bank_account_company_id = undefined
+    form.bank_account_external_id = undefined
     bankCharges.value = []
   }
   if (method === 'CHECK') {
@@ -926,6 +986,10 @@ const removeMixedTender = (method: MixedTenderMethod) => {
     form.amount = remainingTender?.method === 'CHECK' ? totalChecksAmount.value : Number(remainingTender?.amount ?? form.amount)
     form.cash_box_id = remainingTender?.method === 'CASH' ? remainingTender.cash_box_id ?? '' : ''
     form.bank_account_id = remainingTender?.method === 'BANK_TRANSFER' ? remainingTender.bank_account_id ?? '' : ''
+    form.cash_box_company_id = remainingTender?.method === 'CASH' ? remainingTender.cash_box_company_id : undefined
+    form.cash_box_external_id = remainingTender?.method === 'CASH' ? remainingTender.cash_box_external_id : undefined
+    form.bank_account_company_id = remainingTender?.method === 'BANK_TRANSFER' ? remainingTender.bank_account_company_id : undefined
+    form.bank_account_external_id = remainingTender?.method === 'BANK_TRANSFER' ? remainingTender.bank_account_external_id : undefined
     form.tenders = []
     nextTick(() => { preserveInstrumentOnMethodChange.value = false })
   } else {
@@ -1000,6 +1064,9 @@ const suggestedWithheld = (wh: any) => {
 
 const isCollection = computed(() => form.type === 'COLLECTION')
 const isPayment = computed(() => form.type === 'PAYMENT' || form.type === 'EXPENSE')
+watch([() => form.type, () => form.currency_code], () => {
+  void loadIntercompanyFunds()
+})
 const isCheck = computed(() => hasTenderMethod('CHECK'))
 const isCreditCard = computed(() => form.payment_method === 'CREDIT_CARD')
 const availableCardOptions = computed(() => cardOptions.value
@@ -1014,8 +1081,8 @@ const instrumentValidationAttempted = ref(false)
 const preserveInstrumentOnMethodChange = ref(false)
 const instrumentValidationMessage = computed(() => {
   if (isMixedPayment.value) {
-    if (hasTenderMethod('CASH') && !form.cash_box_id) return 'Seleccioná la caja para el importe en efectivo.'
-    if (hasTenderMethod('BANK_TRANSFER') && !form.bank_account_id) return 'Seleccioná la cuenta para el importe por transferencia.'
+    if (hasTenderMethod('CASH') && !form.cash_box_id && !(form.cash_box_company_id && form.cash_box_external_id)) return 'Seleccioná la caja para el importe en efectivo.'
+    if (hasTenderMethod('BANK_TRANSFER') && !form.bank_account_id && !(form.bank_account_company_id && form.bank_account_external_id)) return 'Seleccioná la cuenta para el importe por transferencia.'
     if (hasTenderMethod('CHECK') && selectedChecks.value.size === 0) return 'Seleccioná al menos un cheque.'
     if (mixedTenderMethods.value.some(method => method !== 'CHECK' && mixedTenderAmount(method) <= 0)) {
       return 'Ingresá un importe mayor a cero para cada medio.'
@@ -1027,8 +1094,8 @@ const instrumentValidationMessage = computed(() => {
     }
     return ''
   }
-  if (form.payment_method === 'CASH' && !form.cash_box_id) return 'Seleccioná una caja para continuar.'
-  if (form.payment_method === 'BANK_TRANSFER' && !form.bank_account_id) return 'Seleccioná una cuenta bancaria para continuar.'
+  if (form.payment_method === 'CASH' && !form.cash_box_id && !(form.cash_box_company_id && form.cash_box_external_id)) return 'Seleccioná una caja para continuar.'
+  if (form.payment_method === 'BANK_TRANSFER' && !form.bank_account_id && !(form.bank_account_company_id && form.bank_account_external_id)) return 'Seleccioná una cuenta bancaria para continuar.'
   if (form.payment_method === 'CHECK' && form.check_ids.length === 0) return 'Seleccioná al menos un cheque para continuar.'
   if (form.payment_method === 'CREDIT_CARD' && !form.credit_card_id) return isCollection.value ? 'Seleccioná un canal de cobro para continuar.' : 'Seleccioná una tarjeta corporativa para continuar.'
   return ''
@@ -1054,8 +1121,31 @@ const readonlyMethodLabel = computed(() => isMixedPayment.value
   : paymentMethods.value.find(m => m.value === form.payment_method)?.label ?? form.payment_method
 )
 const readonlyTenders = computed(() => props.modelValue?.tenders ?? form.tenders ?? [])
+const readonlyTenderFundLabel = (tender: any) => {
+  if (tender.method === 'CASH') {
+    if (tender.cash_box_company_id && tender.cash_box_external_id) {
+      const shared = intercompanyFunds.value.find(item => item.company_id === tender.cash_box_company_id && item.fund_id === tender.cash_box_external_id && item.fund_type === 'CASH_BOX')
+      return shared ? `${shared.name} · ${shared.company_name}` : 'Caja compartida'
+    }
+    return tender.cash_box?.name ?? 'Caja'
+  }
+  if (tender.method === 'BANK_TRANSFER') {
+    if (tender.bank_account_company_id && tender.bank_account_external_id) {
+      const shared = intercompanyFunds.value.find(item => item.company_id === tender.bank_account_company_id && item.fund_id === tender.bank_account_external_id && item.fund_type === 'BANK_ACCOUNT')
+      return shared ? `${shared.bank_name ?? shared.name} · ${shared.company_name}` : 'Cuenta bancaria compartida'
+    }
+    return tender.bank_account?.bank_name
+      ? `${tender.bank_account.bank_name} · ${tender.bank_account.account_number || tender.bank_account.name || ''}`
+      : 'Cuenta bancaria'
+  }
+  return 'Cartera de cheques'
+}
 
 const readonlyCashBoxLabel = computed(() => {
+  if (form.cash_box_company_id && form.cash_box_external_id) {
+    const shared = intercompanyFunds.value.find(item => item.company_id === form.cash_box_company_id && item.fund_id === form.cash_box_external_id && item.fund_type === 'CASH_BOX')
+    return shared ? `${shared.name} · ${shared.company_name}` : 'Caja de otra empresa'
+  }
   if (!form.cash_box_id) return null
   const persisted = props.modelValue?.cash_box
   if (persisted?.name) return persisted.name
@@ -1064,6 +1154,10 @@ const readonlyCashBoxLabel = computed(() => {
 })
 
 const readonlyBankLabel = computed(() => {
+  if (form.bank_account_company_id && form.bank_account_external_id) {
+    const shared = intercompanyFunds.value.find(item => item.company_id === form.bank_account_company_id && item.fund_id === form.bank_account_external_id && item.fund_type === 'BANK_ACCOUNT')
+    return shared ? `${shared.bank_name ?? shared.name} · ${shared.company_name}` : 'Cuenta bancaria de otra empresa'
+  }
   if (!form.bank_account_id) return null
   const persisted = props.modelValue?.bank_account
   if (persisted) {
@@ -1156,47 +1250,64 @@ const visibleChecks = computed(() => {
   return visible.concat(selectedOutsideWindow)
 })
 
+const cashBoxSelectionKey = (box: any) => box.is_intercompany
+  ? `shared:${box.company_id}:CASH_BOX:${box.fund_id}`
+  : `local:${box.id}`
+const bankAccountSelectionKey = (account: any) => account.is_intercompany
+  ? `shared:${account.company_id}:BANK_ACCOUNT:${account.fund_id}`
+  : `local:${account.id}`
+const selectedCashBoxKey = computed(() => form.cash_box_company_id && form.cash_box_external_id
+  ? `shared:${form.cash_box_company_id}:CASH_BOX:${form.cash_box_external_id}`
+  : form.cash_box_id ? `local:${form.cash_box_id}` : '')
+const selectedBankAccountKey = computed(() => form.bank_account_company_id && form.bank_account_external_id
+  ? `shared:${form.bank_account_company_id}:BANK_ACCOUNT:${form.bank_account_external_id}`
+  : form.bank_account_id ? `local:${form.bank_account_id}` : '')
+
 const filteredCashBoxes = computed(() => {
-  let list = cashBoxes.value.filter(cb => cb.active)
+  const local: any[] = cashBoxes.value
+    .filter(cb => cb.active)
+    .map(cb => ({ ...cb, is_intercompany: false, selection_key: cashBoxSelectionKey(cb) }))
+  const shared: any[] = intercompanyFunds.value
+    .filter(fund => fund.fund_type === 'CASH_BOX' && fund.status === 'OPEN' && fund.current_session_id)
+    .map(fund => ({ ...fund, is_intercompany: true, selection_key: cashBoxSelectionKey(fund) }))
+  let list = [...local, ...shared]
   if (form.currency_code) {
-    list = list.filter(cb =>
-      cb.currency_code === form.currency_code || cb.balances?.some(b => b.currency_code === form.currency_code)
-    )
+    list = list.filter(cb => cb.currency_code === form.currency_code || cb.balances?.some((b: any) => b.currency_code === form.currency_code))
   }
   if (isPayment.value) {
     list = list.filter(cb => {
-      const balance = cb.balances?.find(b => b.currency_code === form.currency_code)
+      const balance = cb.balances?.find((b: any) => b.currency_code === form.currency_code)
       const available = Number(balance?.balance ?? 0)
-      const required = isMixedPayment.value ? mixedTenderAmount('CASH') : Number(form.amount || 0)
+      const required = isMixedPayment.value
+        ? mixedTenderAmount('CASH')
+        : Math.max(0, Number((totalApplied.value || Number(form.amount || 0)) - totalWithheld.value))
       return available > 0 && available >= required
     })
   }
   const q = cashBoxSearch.value.toLowerCase().trim()
-  if (q) {
-    list = list.filter(cb => cb.name.toLowerCase().includes(q))
-  }
+  if (q) list = list.filter(cb => `${cb.name} ${cb.company_name ?? ''}`.toLowerCase().includes(q))
   return list
 })
 
 const filteredBankAccounts = computed(() => {
-  let list = bankAccounts.value.filter(ba => ba.active)
-  if (form.currency_code) {
-    list = list.filter(ba => ba.currency_code === form.currency_code)
-  }
+  const local: any[] = bankAccounts.value
+    .filter(ba => ba.active)
+    .map(ba => ({ ...ba, is_intercompany: false, selection_key: bankAccountSelectionKey(ba) }))
+  const shared: any[] = intercompanyFunds.value
+    .filter(fund => fund.fund_type === 'BANK_ACCOUNT')
+    .map(fund => ({ ...fund, is_intercompany: true, selection_key: bankAccountSelectionKey(fund) }))
+  let list = [...local, ...shared]
+  if (form.currency_code) list = list.filter(ba => ba.currency_code === form.currency_code)
   if (isPayment.value) {
     list = list.filter(ba => {
-      const required = isMixedPayment.value ? mixedTenderAmount('BANK_TRANSFER') : Number(form.amount || 0)
+      const required = isMixedPayment.value
+        ? mixedTenderAmount('BANK_TRANSFER')
+        : Math.max(0, Number((totalApplied.value || Number(form.amount || 0)) - totalWithheld.value))
       return Number(ba.balance ?? 0) > 0 && Number(ba.balance ?? 0) >= required
     })
   }
   const q = bankAccountSearch.value.toLowerCase().trim()
-  if (q) {
-    list = list.filter(ba =>
-      ba.bank_name?.toLowerCase().includes(q) ||
-      ba.name?.toLowerCase().includes(q) ||
-      ba.account_number?.toLowerCase().includes(q)
-    )
-  }
+  if (q) list = list.filter(ba => `${ba.bank_name ?? ''} ${ba.name ?? ''} ${ba.account_number ?? ''} ${ba.company_name ?? ''}`.toLowerCase().includes(q))
   return list
 })
 
@@ -1243,39 +1354,30 @@ const totalChecksAmount = computed(() => {
   return Math.round(total * 100) / 100
 })
 
-// El cheque se registra siempre por su valor completo. La parte que exceda
-// los documentos queda a favor del proveedor en pagos o del cliente en cobros.
-const checkCreditBalance = computed(() => {
-  if (!isCheck.value || isMixedPayment.value || selectedDocs.value.size === 0) return 0
-  return Math.max(0, Math.round((totalChecksAmount.value - totalApplied.value) * 100) / 100)
-})
-
-const checkCreditPartyLabel = computed(() => isCollection.value ? 'cliente' : 'proveedor')
-
 const displayedPaymentAmount = computed(() => {
-  if (isMixedPayment.value) return totalApplied.value > 0 ? totalApplied.value : Number(form.amount || 0)
-  if (isCheck.value && totalChecksAmount.value > 0) return totalChecksAmount.value
   if (totalApplied.value > 0) return totalApplied.value
-  if (totalChecksAmount.value > 0) return totalChecksAmount.value
+  if (isMixedPayment.value) return Number(form.amount || 0)
+  if (isCheck.value && totalChecksAmount.value > 0) return totalChecksAmount.value
   return Number(form.amount || 0)
 })
 
-// Reparte el presupuesto de cheques entre los documentos seleccionados:
-// cada documento recibe lo aplicado (editable) pero sin exceder el saldo disponible
-const redistributeAppliedAmounts = () => {
-  if (isMixedPayment.value) return
-  if (!isCheck.value || selectedChecks.value.size === 0 || selectedDocs.value.size === 0) return
-  let budget = totalChecksAmount.value
-  for (const [, entry] of selectedDocs.value.entries()) {
-    const factor = getDocumentAmountFactor(entry.doc, form.currency_code) ?? 0
-    const maxAmount = Number(entry.doc.pending_amount) * factor
-    const capped = Math.min(entry.amount, budget, maxAmount)
-    entry.amount = Math.round(capped * 100) / 100
-    budget = Math.round((budget - entry.amount) * 100) / 100
-  }
-  selectedDocs.value = new Map(selectedDocs.value)
-  syncDocumentAllocationsToForm()
-}
+const netAppliedAmount = computed(() =>
+  Math.max(0, Math.round((displayedPaymentAmount.value - totalWithheld.value) * 100) / 100)
+)
+
+// El cheque representa el importe neto efectivamente recibido/entregado.
+// La retención cubre la diferencia hasta el bruto aplicado al comprobante.
+const checkCreditBalance = computed(() => {
+  if (!isCheck.value || isMixedPayment.value || selectedDocs.value.size === 0) return 0
+  return Math.max(0, Math.round((totalChecksAmount.value - netAppliedAmount.value) * 100) / 100)
+})
+
+const checkCoverageGap = computed(() => {
+  if (!isCheck.value || isMixedPayment.value || selectedDocs.value.size === 0) return 0
+  return Math.max(0, Math.round((netAppliedAmount.value - totalChecksAmount.value) * 100) / 100)
+})
+
+const checkCreditPartyLabel = computed(() => isCollection.value ? 'cliente' : 'proveedor')
 
 watch(selectedPaymentMethod, async (val) => {
   instrumentValidationAttempted.value = false
@@ -1301,12 +1403,20 @@ watch(selectedPaymentMethod, async (val) => {
   if (!preserveInstrumentOnMethodChange.value) {
     form.cash_box_id = ''
     form.bank_account_id = ''
+    form.cash_box_company_id = undefined
+    form.cash_box_external_id = undefined
+    form.bank_account_company_id = undefined
+    form.bank_account_external_id = undefined
   }
 })
 
 watch(() => form.currency_code, () => {
   form.cash_box_id = ''
   form.bank_account_id = ''
+  form.cash_box_company_id = undefined
+  form.cash_box_external_id = undefined
+  form.bank_account_company_id = undefined
+  form.bank_account_external_id = undefined
   selectedChecks.value.clear()
   form.check_ids = []
   form.credit_card_id = ''
@@ -1606,22 +1716,28 @@ const selectCheck = (check: AvailableCheck) => {
   const nextIds = Array.from(nextSelection.keys())
   if (!sameStringArray(form.check_ids, nextIds)) form.check_ids = nextIds
   instrumentValidationAttempted.value = false
-  redistributeAppliedAmounts()
   form.amount = selectedDocs.value.size > 0 ? totalApplied.value : totalChecksAmount.value
 }
 
 const isCheckSelected = (id: string) => selectedChecks.value.has(id)
 
-const syncTenderInstrument = (method: MixedTenderMethod, id: string) => {
+const syncTenderInstrument = (method: MixedTenderMethod, option: any) => {
   const tender = form.tenders?.find(item => item.method === method)
   if (!tender) return
-  if (method === 'CASH') tender.cash_box_id = id
-  if (method === 'BANK_TRANSFER') tender.bank_account_id = id
+  if (method === 'CASH') {
+    tender.cash_box_id = option.is_intercompany ? undefined : option.id
+    tender.cash_box_company_id = option.is_intercompany ? option.company_id : undefined
+    tender.cash_box_external_id = option.is_intercompany ? option.fund_id : undefined
+  }
+  if (method === 'BANK_TRANSFER') {
+    tender.bank_account_id = option.is_intercompany ? undefined : option.id
+    tender.bank_account_company_id = option.is_intercompany ? option.company_id : undefined
+    tender.bank_account_external_id = option.is_intercompany ? option.fund_id : undefined
+  }
 }
 
-const selectCashBox = (id: string) => {
-  const box = cashBoxes.value.find(b => b.id === id)
-  if (box?.status === 'CLOSED') {
+const selectCashBox = (box: any) => {
+  if (box.status === 'CLOSED') {
     toast.add({
       title: 'La caja está cerrada',
       description: 'Abrí una sesión de caja antes de seleccionarla para el pago o cobro.',
@@ -1630,8 +1746,10 @@ const selectCashBox = (id: string) => {
     })
     return
   }
-  form.cash_box_id = id
-  syncTenderInstrument('CASH', id)
+  form.cash_box_id = box.is_intercompany ? '' : box.id
+  form.cash_box_company_id = box.is_intercompany ? box.company_id : undefined
+  form.cash_box_external_id = box.is_intercompany ? box.fund_id : undefined
+  syncTenderInstrument('CASH', box)
   instrumentValidationAttempted.value = false
 }
 
@@ -1655,7 +1773,7 @@ const handleOpenSession = async () => {
     toast.add({ title: 'Sesión abierta', color: 'success' })
     await initCashBoxes()
     openSessionModalOpen.value = false
-    selectCashBox(openingBox.value.id)
+    selectCashBox(openingBox.value)
   } catch (e: any) {
     toast.add({
       title: 'Error al abrir sesión',
@@ -1683,9 +1801,15 @@ const getCurrencySymbol = (code: string): string => {
   return symbols[code] ?? code
 }
 
-const selectBankAccount = (id: string) => {
-  form.bank_account_id = id
-  syncTenderInstrument('BANK_TRANSFER', id)
+const selectBankAccount = (account: any) => {
+  if (account.is_intercompany) {
+    bankCharges.value = []
+    bankChargesOpen.value = false
+  }
+  form.bank_account_id = account.is_intercompany ? '' : account.id
+  form.bank_account_company_id = account.is_intercompany ? account.company_id : undefined
+  form.bank_account_external_id = account.is_intercompany ? account.fund_id : undefined
+  syncTenderInstrument('BANK_TRANSFER', account)
   instrumentValidationAttempted.value = false
 }
 
@@ -1746,7 +1870,6 @@ const toggleDoc = (doc: PendingDocument) => {
     form.party_id = ''
   }
 
-  redistributeAppliedAmounts()
   syncDocumentAllocationsToForm()
 }
 
@@ -1849,23 +1972,23 @@ const handleSubmit = async () => {
     return
   }
 
-  const paymentAmount = isMixedPayment.value
-    ? displayedPaymentAmount.value
-    : isPayment.value && isCheck.value && totalChecksAmount.value > 0
-      ? totalChecksAmount.value
-      : totalApplied.value > 0
-        ? totalApplied.value
-        : totalChecksAmount.value > 0
-          ? totalChecksAmount.value
-          : form.amount
+  const grossAppliedAmount = totalApplied.value > 0
+    ? totalApplied.value
+    : displayedPaymentAmount.value
 
   // Retenciones: usar las cargadas/confirmadas en el formulario
   const validWithholdings = withholdings.value.filter(w => Number(w.withheld_amount) > 0)
   const totalRetentions = validWithholdings.reduce((s, w) => s + Number(w.withheld_amount), 0)
-  // Dinero efectivo = aplicado a documentos − retenciones
+  // El cheque seleccionado ya representa el neto; no se vuelve a descontar
+  // la retención. En caja/banco el movimiento sí es bruto menos retenciones.
   const cashAmount = isMixedPayment.value
     ? mixedTenderTotal.value
-    : Math.max(0, Math.round((paymentAmount - totalRetentions) * 100) / 100)
+    : isCheck.value && totalChecksAmount.value > 0
+      ? totalChecksAmount.value
+      : Math.max(0, Math.round((grossAppliedAmount - totalRetentions) * 100) / 100)
+  const convertedPaymentAmount = isForeignCurrency.value && form.exchange_rate && Number(form.exchange_rate) > 0
+    ? convertAmount(cashAmount)
+    : null
 
   const documentsData = Array.from(selectedDocs.value.values())
     .filter(d => d.doc.source_type !== 'TREASURY_OBLIGATION')
@@ -1877,8 +2000,8 @@ const handleSubmit = async () => {
     .filter(d => d.doc.source_type === 'TREASURY_OBLIGATION')
     .map(d => ({ obligation_id: d.doc.id, amount_applied: d.amount }))
 
-  // Un cheque físico se recibe o se entrega por su valor completo. Los
-  // documentos conservan por separado el importe efectivamente aplicado.
+  // El cheque se registra por su valor completo (neto); documentos y retenciones
+  // conservan por separado el bruto aplicado y la parte cubierta por retención.
   const buildCheckAllocations = () => {
     if (!isCheck.value || selectedChecks.value.size === 0) return undefined
     return Array.from(selectedChecks.value.entries()).map(([id, check]) => ({
@@ -1890,9 +2013,10 @@ const handleSubmit = async () => {
   // Distribuir retenciones proporcionalmente entre documentos aplicados
   const withholdingsPayload: PaymentWithholdingPayload[] = validWithholdings.map(w => {
     let allocations: { document_id: string; allocated_amount: number }[] | undefined
-    if (documentsData.length > 0 && paymentAmount > 0) {
+    const documentsGrossTotal = documentsData.reduce((sum, document) => sum + Number(document.amount_applied), 0)
+    if (documentsData.length > 0 && documentsGrossTotal > 0) {
       const shares = documentsData.map(d =>
-        Math.round(((Number(w.withheld_amount) * d.amount_applied) / paymentAmount) * 100) / 100
+        Math.round(((Number(w.withheld_amount) * d.amount_applied) / documentsGrossTotal) * 100) / 100
       )
       // Ajustar la última para que la suma dé exactamente el importe retenido
       const allocated = shares.slice(0, -1).reduce((s, v) => s + v, 0)
@@ -1923,16 +2047,25 @@ const handleSubmit = async () => {
           amount: tender.method === 'CHECK' ? totalChecksAmount.value : Number(tender.amount),
           cash_box_id: tender.method === 'CASH' ? form.cash_box_id || undefined : undefined,
           bank_account_id: tender.method === 'BANK_TRANSFER' ? form.bank_account_id || undefined : undefined,
+          cash_box_company_id: tender.method === 'CASH' ? form.cash_box_company_id : undefined,
+          cash_box_external_id: tender.method === 'CASH' ? form.cash_box_external_id : undefined,
+          bank_account_company_id: tender.method === 'BANK_TRANSFER' ? form.bank_account_company_id : undefined,
+          bank_account_external_id: tender.method === 'BANK_TRANSFER' ? form.bank_account_external_id : undefined,
         }))
       : [],
     cash_box_id: isMixedPayment.value ? '' : form.cash_box_id,
     bank_account_id: isMixedPayment.value ? '' : form.bank_account_id,
+    cash_box_company_id: isMixedPayment.value ? undefined : form.cash_box_company_id,
+    cash_box_external_id: isMixedPayment.value ? undefined : form.cash_box_external_id,
+    bank_account_company_id: isMixedPayment.value ? undefined : form.bank_account_company_id,
+    bank_account_external_id: isMixedPayment.value ? undefined : form.bank_account_external_id,
     amount: cashAmount,
+    converted_amount: convertedPaymentAmount,
     account_id: form.account_id || undefined,
     check_ids: undefined,
     checks: buildCheckAllocations(),
     withholdings: withholdingsPayload.length > 0 ? withholdingsPayload : undefined,
-    bank_charges: !isMixedPayment.value && form.payment_method === 'BANK_TRANSFER' && bankCharges.value.length > 0
+    bank_charges: !isMixedPayment.value && form.payment_method === 'BANK_TRANSFER' && !form.bank_account_company_id && bankCharges.value.length > 0
       ? bankCharges.value
           .filter(c => c.bank_concept_id)
           .map(c => ({
@@ -2062,7 +2195,7 @@ defineExpose({ completeDraft: completePaymentDraft })
             <div class="min-w-0">
               <p class="font-medium">{{ tender.method === 'CASH' ? 'Efectivo' : tender.method === 'BANK_TRANSFER' ? 'Transferencia' : 'Cheques' }}</p>
               <p class="truncate text-xs text-muted">
-                {{ tender.method === 'CASH' ? readonlyCashBoxLabel || 'Caja' : tender.method === 'BANK_TRANSFER' ? readonlyBankLabel || 'Cuenta bancaria' : 'Cartera de cheques' }}
+                {{ readonlyTenderFundLabel(tender) }}
               </p>
             </div>
           </div>
@@ -2275,17 +2408,24 @@ defineExpose({ completeDraft: completePaymentDraft })
           <p class="text-xl font-bold text-highlighted">
             {{ formatCurrency(displayedPaymentAmount, form.currency_code) }}
           </p>
+          <p v-if="!isMixedPayment && isCheck && selectedChecks.size > 0 && totalApplied > 0" class="text-xs text-muted">
+            Cheques: {{ formatCurrency(totalChecksAmount, form.currency_code) }} ·
+            Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }}
+          </p>
           <p v-if="checkCreditBalance > 0" class="text-xs text-info">
-            Deuda aplicada: {{ formatCurrency(totalApplied, form.currency_code) }} ·
             Saldo a favor del {{ checkCreditPartyLabel }}: {{ formatCurrency(checkCreditBalance, form.currency_code) }}
+          </p>
+          <p v-if="checkCoverageGap > 0" class="text-xs text-warning">
+            Falta cubrir {{ formatCurrency(checkCoverageGap, form.currency_code) }} del neto con cheques.
           </p>
           <p v-if="isMixedPayment" class="text-xs text-muted">
             Medios combinados: {{ formatCurrency(mixedTenderTotal, form.currency_code) }}
             <span v-if="totalWithheld > 0"> · Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }}</span>
           </p>
-          <p v-else-if="totalWithheld > 0" class="text-xs text-muted">
+          <p v-else-if="totalWithheld > 0 && !isCheck" class="text-xs text-muted">
             Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
-            Efectivo: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
+            {{ form.payment_method === 'BANK_TRANSFER' ? 'Neto bancario' : 'Neto de caja' }}:
+            {{ formatCurrency(netAppliedAmount, form.currency_code) }}
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -2601,7 +2741,7 @@ defineExpose({ completeDraft: completePaymentDraft })
     <div v-if="hasTenderMethod('CASH')" class="border border-default rounded-lg p-4 space-y-3">
       <div class="flex items-center justify-between">
         <h4 class="text-sm font-medium">Seleccionar caja</h4>
-        <div v-if="form.cash_box_id" class="text-sm font-semibold text-primary">
+        <div v-if="selectedCashBoxKey" class="text-sm font-semibold text-primary">
           Seleccionada
         </div>
       </div>
@@ -2615,12 +2755,12 @@ defineExpose({ completeDraft: completePaymentDraft })
         Cargando cajas disponibles...
       </div>
       <div v-else-if="filteredCashBoxes.length === 0" class="text-center py-4 text-muted text-sm">
-        {{ isPayment ? `No hay cajas con saldo suficiente en ${form.currency_code}` : `No hay cajas activas en ${form.currency_code}` }}
+        {{ intercompanyFundsLoading ? 'Buscando cajas compartidas…' : isPayment ? `No hay cajas con saldo suficiente en ${form.currency_code}` : `No hay cajas activas en ${form.currency_code}` }}
       </div>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[180px] overflow-y-auto">
         <UTooltip
           v-for="cb in filteredCashBoxes"
-          :key="cb.id"
+          :key="cb.selection_key"
           :disabled="cb.status !== 'CLOSED'"
           text="Caja cerrada: abrí una sesión antes de seleccionarla"
           :content="{ side: 'top' }"
@@ -2628,17 +2768,18 @@ defineExpose({ completeDraft: completePaymentDraft })
           <div
             class="relative flex h-full flex-col rounded-lg border p-3 transition-colors"
             :class="[
-              form.cash_box_id === cb.id
+              selectedCashBoxKey === cb.selection_key
                 ? 'border-primary bg-primary/5 ring-1 ring-primary'
                 : 'border-default',
               cb.status === 'CLOSED'
                 ? 'cursor-not-allowed bg-muted/30 opacity-80'
                 : 'cursor-pointer hover:border-muted'
             ]"
-            @click="selectCashBox(cb.id)"
+            @click="selectCashBox(cb)"
           >
             <div class="flex items-center gap-2 mb-2">
               <span class="text-sm font-medium truncate">{{ cb.name }}</span>
+              <UBadge v-if="cb.is_intercompany" :label="cb.company_name" color="info" variant="soft" size="xs" />
               <UBadge
                 :label="cb.is_main ? 'Ppal' : 'Sec'"
                 :color="cb.is_main ? 'primary' : 'neutral'"
@@ -2674,7 +2815,7 @@ defineExpose({ completeDraft: completePaymentDraft })
                 @click.stop="openBoxSession(cb)"
               />
             </div>
-            <div v-if="form.cash_box_id === cb.id" class="absolute top-2 right-2 text-primary">
+            <div v-if="selectedCashBoxKey === cb.selection_key" class="absolute top-2 right-2 text-primary">
               <span class="i-heroicons-check-circle text-lg"></span>
             </div>
           </div>
@@ -2691,7 +2832,7 @@ defineExpose({ completeDraft: completePaymentDraft })
         <div class="flex items-center gap-2">
           <UButton label="Crear cheque" size="xs" variant="outline" :disabled="props.loading || checkSaving" @click="() => { checkModalOpen = true }" />
           <div v-if="selectedChecks.size > 0" class="text-sm font-semibold text-primary">
-            Total: {{ formatCurrency(totalChecksAmount, form.currency_code) }}
+            Cheques (neto): {{ formatCurrency(totalChecksAmount, form.currency_code) }}
           </div>
         </div>
       </div>
@@ -2752,11 +2893,19 @@ defineExpose({ completeDraft: completePaymentDraft })
         </div>
       </div>
       <UAlert
-        v-if="checkCreditBalance > 0"
+        v-if="checkCoverageGap > 0"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-circle-alert"
+        title="El neto aplicado todavía no está cubierto"
+        :description="`Faltan ${formatCurrency(checkCoverageGap, form.currency_code)} en cheques para cubrir el neto requerido después de retenciones.`"
+      />
+      <UAlert
+        v-else-if="checkCreditBalance > 0"
         color="info"
         variant="subtle"
         icon="i-lucide-circle-dollar-sign"
-        title="El cheque supera la deuda seleccionada"
+        title="El cheque supera el neto del comprobante"
         :description="`El cheque se registrará por su valor completo. ${formatCurrency(checkCreditBalance, form.currency_code)} quedarán como saldo a favor del ${checkCreditPartyLabel}.`"
       />
     </div>
@@ -2765,7 +2914,7 @@ defineExpose({ completeDraft: completePaymentDraft })
     <div v-if="hasTenderMethod('BANK_TRANSFER')" class="border border-default rounded-lg p-4 space-y-3">
       <div class="flex items-center justify-between">
         <h4 class="text-sm font-medium">Seleccionar cuenta bancaria</h4>
-        <div v-if="form.bank_account_id" class="text-sm font-semibold text-primary">
+        <div v-if="selectedBankAccountKey" class="text-sm font-semibold text-primary">
           Seleccionada
         </div>
       </div>
@@ -2776,18 +2925,19 @@ defineExpose({ completeDraft: completePaymentDraft })
         size="sm"
       />
       <div v-if="filteredBankAccounts.length === 0" class="text-center py-4 text-muted text-sm">
-        {{ isPayment ? `No hay cuentas bancarias con saldo suficiente en ${form.currency_code}` : `No hay cuentas bancarias activas en ${form.currency_code}` }}
+        {{ intercompanyFundsLoading ? 'Buscando cuentas compartidas…' : isPayment ? `No hay cuentas bancarias con saldo suficiente en ${form.currency_code}` : `No hay cuentas bancarias activas en ${form.currency_code}` }}
       </div>
       <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[130px] overflow-y-auto">
         <div
           v-for="ba in filteredBankAccounts"
-          :key="ba.id"
+          :key="ba.selection_key"
           class="relative flex flex-col p-3 rounded-lg border cursor-pointer transition-colors"
-          :class="form.bank_account_id === ba.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-default hover:border-muted'"
-          @click="selectBankAccount(ba.id)"
+          :class="selectedBankAccountKey === ba.selection_key ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-default hover:border-muted'"
+          @click="selectBankAccount(ba)"
         >
           <div class="flex items-center gap-2 mb-1">
             <span class="text-sm font-medium truncate">{{ ba.bank_name }}</span>
+            <UBadge v-if="ba.is_intercompany" :label="ba.company_name" color="info" variant="soft" size="xs" />
           </div>
           <span class="text-xs text-muted truncate">{{ ba.account_number || ba.name }}</span>
           <div class="text-xs text-muted mt-1">
@@ -2796,7 +2946,7 @@ defineExpose({ completeDraft: completePaymentDraft })
           <div class="text-xs font-semibold text-primary mt-1">
             {{ formatCurrency(Number(ba.balance), ba.currency_code) }}
           </div>
-          <div v-if="form.bank_account_id === ba.id" class="absolute top-2 right-2 text-primary">
+          <div v-if="selectedBankAccountKey === ba.selection_key" class="absolute top-2 right-2 text-primary">
             <span class="i-heroicons-check-circle text-lg"></span>
           </div>
         </div>
@@ -2804,7 +2954,15 @@ defineExpose({ completeDraft: completePaymentDraft })
     </div>
 
     <!-- GASTOS Y DESCUENTOS BANCARIOS -->
-    <div v-if="form.payment_method === 'BANK_TRANSFER' && !isMixedPayment" class="rounded-xl border border-default p-4 space-y-4 sm:p-5">
+    <UAlert
+      v-if="form.payment_method === 'BANK_TRANSFER' && form.bank_account_company_id"
+      color="info"
+      variant="soft"
+      icon="i-lucide-building-2"
+      title="Cuenta bancaria compartida"
+      description="El movimiento se registrará en la empresa titular. Las comisiones o cargos propios del extracto se cargan desde esa empresa."
+    />
+    <div v-if="form.payment_method === 'BANK_TRANSFER' && !isMixedPayment && !form.bank_account_company_id" class="rounded-xl border border-default p-4 space-y-4 sm:p-5">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 class="font-medium">Gastos y descuentos bancarios</h4>
@@ -2987,19 +3145,28 @@ defineExpose({ completeDraft: completePaymentDraft })
             <template v-if="isMixedPayment">
               Medios combinados: {{ formatCurrency(mixedTenderTotal, form.currency_code) }} ·
               Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
-              Neto a entregar: {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
+              Neto a cubrir: {{ formatCurrency(netAppliedAmount, form.currency_code) }}
             </template>
             <template v-else>
               Retenciones: {{ formatCurrency(totalWithheld, form.currency_code) }} ·
-              {{ form.payment_method === 'BANK_TRANSFER' ? 'Neto bancario' : form.payment_method === 'CASH' ? 'Neto de caja' : 'Neto a entregar' }}:
-              {{ formatCurrency(Math.max(0, (totalApplied > 0 ? totalApplied : totalChecksAmount) - totalWithheld), form.currency_code) }}
+              {{ isCheck ? 'Neto requerido' : form.payment_method === 'BANK_TRANSFER' ? 'Neto bancario' : form.payment_method === 'CASH' ? 'Neto de caja' : 'Neto a entregar' }}:
+              {{ formatCurrency(netAppliedAmount, form.currency_code) }}
             </template>
           </span>
         </div>
         <p v-if="totalWithheld > 0" class="text-xs leading-relaxed text-muted">
-          El importe aplicado es el bruto del comprobante. Las retenciones cubren una parte y se descuentan una sola vez para calcular el neto de caja o banco; no vuelven a reducir el saldo del comprobante.
+          El importe aplicado es el bruto del comprobante. Las retenciones cubren una parte y el cheque o el movimiento de caja/banco debe cubrir el neto restante; no vuelven a reducir el saldo del comprobante.
         </p>
       </div>
+
+      <UAlert
+        v-if="selectedDocs.size > 0 && totalWithheld > totalApplied + 0.01"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-circle-alert"
+        title="Las retenciones superan el bruto aplicado"
+        :description="`Reducí las retenciones a ${formatCurrency(totalApplied, form.currency_code)} o menos para poder confirmar.`"
+      />
 
       <div v-if="withholdingSkipped.length > 0" class="text-xs text-muted space-y-0.5">
         <div v-for="(s, i) in withholdingSkipped" :key="i">

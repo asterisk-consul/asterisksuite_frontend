@@ -65,6 +65,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   submit: [payload: any]
   restoreExtension: [payload: Record<string, any>]
+  'party-change': [partyId: string]
 }>()
 
 const toast = useToast()
@@ -255,6 +256,8 @@ const form = reactive({
   warehouse_id: '' as string,
   fiscal_jurisdiction_id: '' as string,
 })
+
+watch(() => form.party_id, (partyId) => emit('party-change', partyId || ''), { immediate: true })
 
 watch(() => form.party_id, async (partyId) => {
   const requestId = ++selectedPartyLoadId
