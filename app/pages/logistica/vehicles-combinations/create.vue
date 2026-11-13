@@ -55,7 +55,7 @@ function toggleModuleSidebar() {
           @click="toggleModuleSidebar"
         />
       </div>
-      <UPageHeader
+      <AppPageHeader
         title="Crear Unidad"
         description="Unidades"
         class="mb-4 w-full"

@@ -90,7 +90,7 @@ const link = computed<ButtonProps[]>(() => {
           @click="toggleModuleSidebar"
         />
       </div>
-      <UPageHeader
+      <AppPageHeader
         :title="corridor?.name || 'Corredor'"
         :description="`${originName} → ${destinationName}`"
         :links="link"

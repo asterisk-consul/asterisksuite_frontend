@@ -30,7 +30,7 @@ const submit = async (dto: CreateDispatchOrderDto) => {
           @click="toggleModuleSidebar"
         />
       </div>
-      <UPageHeader title="Crear Orden de Despacho" />
+      <AppPageHeader title="Crear Orden de Despacho" />
     </div>
     <DispatchOrderForm @submit="submit" @cancel="router.back()" />
   </UPage>

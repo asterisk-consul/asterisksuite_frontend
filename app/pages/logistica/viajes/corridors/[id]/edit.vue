@@ -49,7 +49,7 @@ function toggleModuleSidebar() {
           @click="toggleModuleSidebar"
         />
       </div>
-      <UPageHeader title="Editar corredor" />
+      <AppPageHeader title="Editar corredor" />
     </div>
     <UCard>
       <CorridorForm

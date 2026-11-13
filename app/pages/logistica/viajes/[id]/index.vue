@@ -90,7 +90,7 @@ const links = ref<ButtonProps[]>([
         label="Menu"
         @click="() => { moduleCollapsed = !moduleCollapsed }"
       />
-      <UPageHeader
+      <AppPageHeader
         :title="`Viaje ${trip.reference_number ?? id}`"
         :links="links"
       />

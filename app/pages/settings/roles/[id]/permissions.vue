@@ -111,7 +111,7 @@ const removeConflictingGeneralPermissions = (code: string) => {
 onMounted(async () => {
   try {
     await initPermissions()
-    collapsedModules.value = new Set(groupedByModule.value.map(group => group.label))
+    collapsedModules.value = new Set(groupedByModule.value.map(group => group.label).filter(label => label !== 'Reportes'))
     collapsedSubgroups.value = new Set(groupedByModule.value.flatMap(group =>
       (group.subgroups ?? []).map((_, index) => `${group.label}-${index}`),
     ))
@@ -412,6 +412,15 @@ const savePermissions = async () => {
         </button>
 
         <div v-if="!collapsedModules.has(group.label)" class="border-t border-default px-3 py-2">
+          <UAlert
+            v-if="group.label === 'Reportes'"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-chart-column-big"
+            title="Acceso independiente por reporte"
+            description="Activá o desactivá cada reporte para este rol. Si el permiso general heredado está activo, habilita todas las vistas; desmarcalo para aplicar los permisos individuales."
+            class="mb-3"
+          />
           <!-- Sin subgrupos -->
           <div v-if="!group.subgroups?.length" class="grid grid-cols-1 gap-1 sm:grid-cols-2">
             <label

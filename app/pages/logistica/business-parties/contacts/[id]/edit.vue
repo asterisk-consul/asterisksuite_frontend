@@ -72,7 +72,7 @@ function toggleModuleSidebar() {
         />
       </div>
 
-      <UPageHeader title="Editar contacto" />
+      <AppPageHeader title="Editar contacto" />
     </div>
 
     <UCard>

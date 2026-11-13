@@ -18,7 +18,8 @@ const loading = ref(false)
 const saving = ref(false)
 const companies = ref<Array<{ id: string; name: string; subdomain: string }>>([])
 const rows = ref<Array<{ company_id: string; name: string; active: boolean; allow_payments: boolean; allow_collections: boolean; allow_hr: boolean }>>([])
-const permission = computed(() => props.fundType === 'CASH_BOX' ? 'treasury.cash_boxes.update' : 'treasury.bank_accounts.update')
+// These permission codes must match the tenant RBAC catalog (seed-sql.ts).
+const permission = computed(() => props.fundType === 'CASH_BOX' ? 'cash_boxes.update' : 'bank_accounts.update')
 const canConfigure = computed(() => isOwnerOrAdmin.value || hasPermission(permission.value))
 
 watch(open, async (isOpen) => {

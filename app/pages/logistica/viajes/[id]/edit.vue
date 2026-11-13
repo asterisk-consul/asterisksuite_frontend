@@ -68,7 +68,7 @@ const handleOrdersSaved = () => {
         label="Menu"
         @click="() => { moduleCollapsed = !moduleCollapsed }"
       />
-      <UPageHeader title="Editar viaje" />
+      <AppPageHeader title="Editar viaje" />
     </div>
 
     <!-- Datos del viaje -->

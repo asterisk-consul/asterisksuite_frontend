@@ -90,8 +90,9 @@ function applyFilters() {
   <UDashboardPanel>
     <!-- HEADER -->
     <template #header>
-      <UDashboardNavbar :title="data?.productName || 'Detalle producto'">
+      <UDashboardNavbar :title="data?.productName || 'Detalle producto'" :toggle="false">
         <template #leading>
+          <AppSidebarToggle />
           <UButton
             icon="i-heroicons-arrow-left"
             variant="ghost"

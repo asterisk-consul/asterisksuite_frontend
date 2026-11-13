@@ -134,7 +134,7 @@ onMounted(async () => {
 
 <template>
   <UPage class="space-y-4">
-    <UPageHeader
+    <AppPageHeader
       title="Listas de Precio"
       description="Gestionar listas de precios de venta y compra"
     >
@@ -151,7 +151,7 @@ onMounted(async () => {
           @click="openCreate"
         />
       </template>
-    </UPageHeader>
+    </AppPageHeader>
 
     <div class="flex items-center gap-3">
       <USelect

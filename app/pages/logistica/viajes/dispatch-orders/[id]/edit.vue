@@ -60,11 +60,11 @@ async function createRemito() {
         @click="() => { moduleCollapsed = !moduleCollapsed }"
       />
 
-      <UPageHeader title="Editar Orden de Despacho">
+      <AppPageHeader title="Editar Orden de Despacho">
         <template #links>
           <UButton label="Crear / abrir remito" icon="i-lucide-file-output" color="success" :loading="creatingRemito" @click="createRemito" />
         </template>
-      </UPageHeader>
+      </AppPageHeader>
     </div>
 
     <DispatchOrderForm

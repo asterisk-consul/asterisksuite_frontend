@@ -79,7 +79,7 @@ export const settingsCatalog: SettingsGroup[] = [
     id: 'access', label: 'Usuarios y seguridad', description: 'Accesos, permisos y preferencias.', icon: 'i-lucide-shield-check', order: 70,
     entries: [
       { label: 'Usuarios', description: 'Altas, accesos y vinculaciones.', icon: 'i-lucide-users', to: '/settings/users', permission: 'roles.read' },
-      { label: 'Roles y permisos', description: 'Definir qué puede consultar y operar cada perfil.', icon: 'i-lucide-key-round', to: '/settings/roles', permission: 'roles.read' },
+      { label: 'Roles y permisos', description: 'Definí qué puede consultar y operar cada perfil, incluidos los reportes visibles en el menú.', icon: 'i-lucide-key-round', to: '/settings/roles', permission: 'roles.read' },
       { label: 'Seguridad', description: 'Contraseña y seguridad de la cuenta.', icon: 'i-lucide-lock-keyhole', to: '/settings/security' },
       { label: 'Conexiones de IA', description: 'Revisar o revocar las conexiones externas autorizadas para cada empresa.', icon: 'i-lucide-plug-zap', to: '/settings/connected-apps' },
       { label: 'Notificaciones', description: 'Avisos de asignaciones y alertas de la empresa.', icon: 'i-lucide-bell-ring', to: '/settings/notifications' },

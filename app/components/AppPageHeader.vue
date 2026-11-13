@@ -10,12 +10,6 @@ const props = defineProps<{
   collapseDisabled?: boolean
 }>()
 
-const { mainCollapsed } = useSidebarState()
-
-function toggleMain() {
-  mainCollapsed.value = !mainCollapsed.value
-}
-
 const isCompact = ref(false)
 const rootRef = ref<HTMLElement | null>(null)
 
@@ -106,9 +100,12 @@ const isCreateHeaderLink = (link: ButtonProps) =>
     <slot v-if="!isCompact" name="breadcrumb" />
     <div>
       <UPageHeader :description="description || undefined" :ui="headerUi">
+        <template v-if="$slots.headline && !isCompact" #headline>
+          <slot name="headline" />
+        </template>
         <template #title>
           <div class="flex items-center gap-2 min-w-0">
-            <AppSidebarToggle :collapsed="mainCollapsed" @click="toggleMain" />
+            <AppSidebarToggle />
             <span class="min-w-0 flex-1 truncate" :title="title">{{ title }}</span>
           </div>
         </template>

@@ -269,7 +269,7 @@ async function handleSell() {
   </div>
 
   <UPage v-else-if="tire">
-    <UPageHeader
+    <AppPageHeader
       :title="`Cubierta ${tire.serial_number}`"
       :description="tire.product?.name ?? ''"
     />

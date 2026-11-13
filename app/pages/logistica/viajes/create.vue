@@ -51,7 +51,7 @@ const handleOrdersSaved = () => {
           @click="toggleModuleSidebar"
         />
       </div>
-      <UPageHeader title="Crear Viaje" />
+      <AppPageHeader title="Crear Viaje" />
     </div>
 
     <!-- Paso 1: datos del viaje -->

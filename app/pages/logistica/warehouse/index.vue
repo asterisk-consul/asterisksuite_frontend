@@ -211,7 +211,7 @@ const links = ref<ButtonProps[]>([
           @click="toggleModuleSidebar"
         />
       </div>
-      <UPageHeader
+      <AppPageHeader
         title="Depositos"
         description="Listado de Depositos"
         :links="links"

@@ -1,5 +1,107 @@
 [
  {
+  "version": "0.163.0-alpha",
+  "date": "2026-11-13",
+  "stage": "alpha",
+  "notes": "Cada reporte se habilita por separado desde los permisos del rol y sus opciones aparecen automáticamente en empresas existentes.",
+  "changes": [
+   { "type": "feat", "scope": "management-reports", "title": "Controlar cada reporte con un permiso propio y validar el acceso también en el backend" },
+   { "type": "feat", "scope": "access-control", "title": "Agregar al catálogo tenant los permisos de reportes faltantes al abrir la configuración de roles" },
+   { "type": "style", "scope": "access-control", "title": "Expandir el grupo Reportes y explicar el permiso general heredado" },
+   { "type": "docs", "scope": "management-reports", "title": "Documentar la activación individual de reportes desde los roles" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Habilitar reportes de forma independiente por rol"
+ },
+ {
+  "version": "0.162.0-alpha",
+  "date": "2026-11-13",
+  "stage": "alpha",
+  "notes": "El reporte de resultado organiza los indicadores de cada empresa en Ventas y Compras/Gastos, con egresos unificados por defecto y opción de separarlos.",
+  "changes": [
+   { "type": "feat", "scope": "management-reports", "title": "Agrupar el resumen por empresa y período en Ventas y Compras/Gastos" },
+   { "type": "feat", "scope": "management-reports", "title": "Mostrar egresos realizados en una columna con opción para separar pagos, gastos, vales y obligaciones" },
+   { "type": "fix", "scope": "management-reports", "title": "Evitar duplicar egresos cuando vales u obligaciones ya tienen un movimiento de pago asociado" },
+   { "type": "feat", "scope": "management-reports", "title": "Actualizar la composición y los documentos al buscar en el detalle" },
+   { "type": "docs", "scope": "management-reports", "title": "Documentar el resumen agrupado y la presentación unificada o separada de egresos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Unificar egresos y conciliar resultados por empresa"
+ },
+ {
+  "version": "0.161.0-alpha",
+  "date": "2026-11-13",
+  "stage": "alpha",
+  "notes": "Resultado y composición separa pagos, gastos y cobros, y concilia facturas de compra y OVs con sus importes aplicados y saldos pendientes.",
+  "changes": [
+   { "type": "feat", "scope": "management-reports", "title": "Separar pagos PAYMENT, gastos EXPENSE y cobros COLLECTION en el resumen y sus detalles" },
+   { "type": "feat", "scope": "management-reports", "title": "Mostrar total, importe pagado, saldo y estado de cada factura de compra" },
+   { "type": "feat", "scope": "management-reports", "title": "Agregar filtros de facturas sin pagar, con pago parcial y pagadas" },
+   { "type": "feat", "scope": "management-reports", "title": "Conciliar el total de las OVs con cobros aplicados y saldo por cobrar" },
+   { "type": "fix", "scope": "management-reports", "title": "Calcular el neto como cobros menos pagos y gastos sin combinar sus columnas" },
+   { "type": "docs", "scope": "management-reports", "title": "Documentar criterios, filtros y conciliaciones del reporte financiero" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Separar pagos y conciliar saldos del reporte"
+ },
+ {
+  "version": "0.160.0-alpha",
+  "date": "2026-11-13",
+  "stage": "alpha",
+  "notes": "El desglose multiempresa de productos vendidos se organiza por categoría y artículo; cada artículo despliega sus OVs paginadas en la misma tabla.",
+  "changes": [
+   { "type": "feat", "scope": "management-reports", "title": "Agrupar los productos vendidos por categoría y artículo en el desglose multiempresa" },
+   { "type": "feat", "scope": "management-reports", "title": "Abrir las OVs de cada artículo debajo de su fila, con paginación y enlaces directos" },
+   { "type": "style", "scope": "management-reports", "title": "Separar la vista jerárquica de productos de la vista por punto de venta" },
+   { "type": "docs", "scope": "management-reports", "title": "Documentar la expansión de categorías, artículos y OVs en el reporte" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Desglosar productos vendidos por categoría y artículo"
+ },
+ {
+  "version": "0.159.0-alpha",
+  "date": "2026-11-13",
+  "stage": "alpha",
+  "notes": "El nuevo reporte multiempresa compara cantidades e importes de órdenes de venta por categoría y punto de venta, con acceso a sus renglones y exportación conciliable a Excel.",
+  "changes": [
+   { "type": "feat", "scope": "management-reports", "title": "Agregar el reporte de productos vendidos por empresa, moneda, categoría y punto de venta" },
+   { "type": "feat", "scope": "management-reports", "title": "Abrir los renglones paginados de cada grupo con enlaces a OV y productos" },
+   { "type": "feat", "scope": "management-reports", "title": "Exportar resumen, desgloses, movimientos y conciliación en siete hojas de Excel" },
+   { "type": "fix", "scope": "management-reports", "title": "Analizar solo órdenes de venta para no duplicar sus facturas y remitos" },
+   { "type": "docs", "scope": "management-reports", "title": "Documentar filtros, estados, cálculo de importes y exportación del reporte" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Incorporar el reporte de productos vendidos por empresa"
+ },
+ {
+  "version": "0.158.1-alpha",
+  "date": "2026-11-13",
+  "stage": "alpha",
+  "notes": "Productos vendidos y comprados muestran sus métricas en un resumen compacto y las categorías aparecen cerradas para abrir el detalle bajo demanda.",
+  "changes": [
+   { "type": "style", "scope": "sales-reports", "title": "Compactar y diferenciar por color los resúmenes de productos vendidos y comprados" },
+   { "type": "style", "scope": "sales-reports", "title": "Iniciar las categorías cerradas y reducir la altura de las filas de productos" },
+   { "type": "docs", "scope": "sales-reports", "title": "Documentar la apertura manual de categorías en el reporte de productos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Compactar el resumen y el detalle de productos"
+ },
+ {
+  "version": "0.158.0-alpha",
+  "date": "2026-11-13",
+  "stage": "alpha",
+  "notes": "El reporte por punto de venta permite elegir un tipo documental, abrir sus documentos y consultar los artículos y cantidades sin sumar distintas etapas de una misma operación.",
+  "changes": [
+   { "type": "feat", "scope": "sales-reports", "title": "Filtrar el reporte por punto de venta por tipo documental y período" },
+   { "type": "feat", "scope": "sales-reports", "title": "Abrir documentos y artículos con cantidades desde cada punto de venta" },
+   { "type": "fix", "scope": "sales-reports", "title": "Separar importes por moneda y descontar notas de crédito" },
+   { "type": "style", "scope": "sales-reports", "title": "Compactar el resumen y alinearlo con la estética del sistema" },
+   { "type": "docs", "scope": "sales-reports", "title": "Documentar el reporte de ventas por punto de venta" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Desglosar documentos y cantidades por punto de venta"
+ },
+ {
   "version": "0.157.0-alpha",
   "date": "2026-11-12",
   "stage": "alpha",

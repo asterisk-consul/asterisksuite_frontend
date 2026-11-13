@@ -338,69 +338,87 @@ export const navigationTree: DrilldownNode[] = [
     label: 'Reportes',
     moduleCode: 'REPORTS',
     icon: 'i-lucide-chart-column-big',
-    permission: 'management_reports.read',
+    permissions: [
+      'management_reports.read',
+      'management_reports.management.read',
+      'management_reports.consolidated.read',
+      'management_reports.financial_results.read',
+      'management_reports.sales_products.read',
+      'management_reports.customers.read',
+      'management_reports.suppliers.read',
+      'management_reports.hr.read',
+      'management_reports.treasury.read',
+      'management_reports.documents.read',
+      'management_reports.inventory.read',
+    ],
     children: [
       /* Diseñador oculto temporalmente hasta terminar su validación funcional.
       {
         label: 'Diseñador de reportes',
         icon: 'i-lucide-panels-top-left',
         to: '/erp/reports/builder',
-        permission: 'management_reports.read'
+        permissions: ['management_reports.read', 'management_reports.management.read']
       },
       */
       {
         label: 'Resumen gerencial',
         icon: 'i-lucide-chart-no-axes-combined',
         to: '/erp/reports/management',
-        permission: 'management_reports.read'
+        permissions: ['management_reports.read', 'management_reports.management.read']
       },
       {
         label: 'Consolidado de empresas',
         icon: 'i-lucide-building-2',
         to: '/erp/reports/consolidated',
-        permission: 'management_reports.read'
+        permissions: ['management_reports.read', 'management_reports.consolidated.read']
       },
       {
         label: 'Resultado y composición',
         icon: 'i-lucide-chart-no-axes-combined',
         to: '/erp/reports/financial-results',
-        permission: 'management_reports.read'
+        permissions: ['management_reports.read', 'management_reports.financial_results.read']
+      },
+      {
+        label: 'Productos vendidos por empresa',
+        icon: 'i-lucide-chart-no-axes-column-increasing',
+        to: '/erp/reports/sales-products',
+        permissions: ['management_reports.read', 'management_reports.sales_products.read']
       },
       {
         label: 'Clientes',
         icon: 'i-lucide-users',
         to: '/erp/reports/consolidated?view=customers',
-        permission: 'management_reports.read'
+        permissions: ['management_reports.read', 'management_reports.customers.read']
       },
       {
         label: 'Proveedores',
         icon: 'i-lucide-truck',
         to: '/erp/reports/consolidated?view=suppliers',
-        permission: 'management_reports.read'
+        permissions: ['management_reports.read', 'management_reports.suppliers.read']
       },
       {
         label: 'Empleados y socios',
         icon: 'i-lucide-user-round-cog',
         to: '/erp/reports/consolidated?view=hr',
-        permission: 'management_reports.read'
+        permissions: ['management_reports.read', 'management_reports.hr.read']
       },
       {
         label: 'Bancos, cajas y cheques',
         icon: 'i-lucide-landmark',
         to: '/erp/reports/consolidated?view=treasury',
-        permission: 'management_reports.read'
+        permissions: ['management_reports.read', 'management_reports.treasury.read']
       },
       {
         label: 'Documentos',
         icon: 'i-lucide-files',
         to: '/erp/reports/consolidated?view=documents',
-        permission: 'management_reports.read'
+        permissions: ['management_reports.read', 'management_reports.documents.read']
       },
       {
         label: 'Inventario y logística',
         icon: 'i-lucide-package-search',
         to: '/erp/reports/consolidated?view=inventory',
-        permission: 'management_reports.read'
+        permissions: ['management_reports.read', 'management_reports.inventory.read']
       }
     ]
   },

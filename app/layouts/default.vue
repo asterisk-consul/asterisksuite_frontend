@@ -13,7 +13,7 @@ const { isNotificationsSlideoverOpen } = useDashboard()
 const isHelpAssistantOpen = ref(false)
 const { totalCount, companyAlertCount, refresh: refreshNotifications } = useNotifications()
 const notificationBadgeCount = computed(() => totalCount.value + companyAlertCount.value)
-const open = ref(false)
+const open = useState('main-sidebar-open', () => false)
 const cookieConsent = useCookie('cookie-consent')
 
 const pageTitle = computed(() => {
@@ -138,10 +138,7 @@ onBeforeUnmount(() => {
 
     <UDashboardPanel>
       <template #header>
-        <UDashboardNavbar>
-          <template #leading>
-            <UDashboardSidebarCollapse />
-          </template>
+        <UDashboardNavbar :toggle="false">
           <template #title>
             <UBreadcrumb :items="breadcrumbs" />
           </template>

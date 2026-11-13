@@ -172,7 +172,7 @@ onMounted(async () => {
 
 <template>
   <UPage class="space-y-5">
-    <UPageHeader title="Precios por cliente y proveedor" description="Listas acordadas, comparación con el precio general e historial por producto" />
+    <AppPageHeader title="Precios por cliente y proveedor" description="Listas acordadas, comparación con el precio general e historial por producto" />
 
     <UCard>
       <div class="grid gap-4 md:grid-cols-[minmax(12rem,0.8fr)_minmax(18rem,2fr)_minmax(14rem,1fr)]">

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
 import { useSalesFlowService } from '~/modulos/erp/sales/services/sales-flow.service'
@@ -282,7 +282,7 @@ onMounted(load)
 
 <template>
   <div class="mx-auto w-full max-w-4xl space-y-6 pb-24">
-    <UPageHeader title="Circuito de ventas" description="Definí cuándo nace la deuda, dónde se registran los cobros y cuándo se habilita la entrega." />
+    <AppPageHeader title="Circuito de ventas" description="Definí cuándo nace la deuda, dónde se registran los cobros y cuándo se habilita la entrega." />
 
     <UAlert
       color="neutral"

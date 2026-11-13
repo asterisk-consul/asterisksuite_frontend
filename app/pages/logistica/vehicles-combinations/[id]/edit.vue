@@ -54,7 +54,7 @@ const submit = async (form: any) => {
         label="Menu"
         @click="() => { moduleCollapsed = !moduleCollapsed }"
       />
-      <UPageHeader title="Editar Unidad" />
+      <AppPageHeader title="Editar Unidad" />
     </div>
     <VehicleCombinationForm
       :vehicleCombination="unidad"

@@ -23,7 +23,7 @@ const submit = async (contacts: CreatePartyContactDto[]) => {
 
 <template>
   <UPage>
-    <UPageHeader title="Crear contactos" />
+    <AppPageHeader title="Crear contactos" />
 
     <UCard>
       <ContactsForm @submit="submit" @cancel="router.back()" />

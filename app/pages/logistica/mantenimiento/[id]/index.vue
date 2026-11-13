@@ -311,7 +311,7 @@ onMounted(async () => {
   </div>
 
   <UPage v-else-if="order">
-    <UPageHeader :title="`Orden ${order.number}`" :description="order.title" :links="links" />
+    <AppPageHeader :title="`Orden ${order.number}`" :description="order.title" :links="links" />
 
     <div class="space-y-6 mt-4">
       <div class="flex items-center gap-3">

@@ -24,6 +24,7 @@ export interface PermissionModuleGroup {
 const MODULE_META: Record<string, { label: string; icon: string; order: number; modules: string[]; subgroups?: Record<string, string> }> = {
   access: { label: 'Acceso', icon: 'i-lucide-shield', order: 0, modules: ['roles', 'users', 'permissions'] },
   tasks: { label: 'Tareas', icon: 'i-lucide-kanban-square', order: 45, modules: ['tasks'] },
+  reports: { label: 'Reportes', icon: 'i-lucide-chart-column-big', order: 46, modules: ['management_reports'] },
   documents: {
     label: 'Documentos', icon: 'i-lucide-file-text', order: 10, modules: ['sales', 'purchases', 'documents', 'document_types', 'document_sequences', 'fiscal-authorizations'],
     subgroups: {

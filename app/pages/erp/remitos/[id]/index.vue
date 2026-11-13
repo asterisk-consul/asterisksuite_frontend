@@ -92,7 +92,8 @@ const {
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar :title="doc ? `Remito #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Remito'">
+      <UDashboardNavbar :title="doc ? `Remito #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Remito'" :toggle="false">
+        <template #leading><AppSidebarToggle /></template>
         <template #trailing>
           <div class="flex gap-2 items-center flex-wrap">
             <UButton v-for="action in primaryActions" :key="action.label" v-bind="action" size="sm" />

@@ -391,7 +391,7 @@ function exportCSV() {
 <template>
   <UPage class="space-y-4">
     <!-- ✅ HEADER CORREGIDO -->
-    <UPageHeader
+    <AppPageHeader
       title="Comisiones de Choferes"
       description="Reporte de comisiones y viajes por chofer"
       :links="[...headerLinks, ...links]"

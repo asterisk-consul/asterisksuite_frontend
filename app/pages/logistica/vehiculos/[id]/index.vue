@@ -64,7 +64,7 @@ const typeBadgeColor = computed(() => vehicle.value?.type === 'CAMION' ? 'primar
   </div>
 
   <UPage v-else-if="vehicle">
-    <UPageHeader
+    <AppPageHeader
       :title="vehicle.plate"
       :description="`${vehicle.brand ?? ''} ${vehicle.model ?? ''} ${vehicle.year ?? ''}`"
     >
@@ -79,7 +79,7 @@ const typeBadgeColor = computed(() => vehicle.value?.type === 'CAMION' ? 'primar
           {{ vehicle.active ? 'Activo' : 'Inactivo' }}
         </UBadge>
       </template>
-    </UPageHeader>
+    </AppPageHeader>
 
     <div class="space-y-6 mt-4">
       <!-- ═══ VEHICLE INFO ═══ -->

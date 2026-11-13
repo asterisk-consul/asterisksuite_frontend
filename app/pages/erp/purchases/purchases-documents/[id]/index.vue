@@ -22,7 +22,6 @@ const companiesStore = useCompaniesStore()
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
-const { mainCollapsed } = useSidebarState()
 const { printElement } = usePrint()
 
 const loading = ref(true)
@@ -104,9 +103,9 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar :title="factura ? `${factura.document_types?.description} #${factura.number}` : 'Documento'">
+      <UDashboardNavbar :title="factura ? `${factura.document_types?.description} #${factura.number}` : 'Documento'" :toggle="false">
         <template #leading>
-          <UButton icon="i-lucide-panel-left-close" variant="ghost" color="neutral" @click="() => { mainCollapsed = !mainCollapsed }" />
+          <AppSidebarToggle />
         </template>
       </UDashboardNavbar>
     </template>

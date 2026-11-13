@@ -247,7 +247,7 @@ const sortFields: SortField[] = [
           @click="toggleModuleSidebar"
         />
       </div>
-      <UPageHeader title="Choferes" description="Listado de Choferes" :links="links" class="mb-4 w-full" />
+      <AppPageHeader title="Choferes" description="Listado de Choferes" :links="links" class="mb-4 w-full" />
     </div>
     <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
       <UCard>

@@ -527,7 +527,7 @@ const links = ref<ButtonProps[]>([
       </div>
 
       <div v-if="warehouse">
-        <UPageHeader
+        <AppPageHeader
           :title="''"
           :links="links"
         />

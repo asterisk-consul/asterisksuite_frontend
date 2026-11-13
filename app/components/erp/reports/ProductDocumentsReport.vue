@@ -89,7 +89,7 @@ const error = ref('')
 const search = ref('')
 const products = ref<ProductRow[]>([])
 const selectedProduct = ref<ProductRow | null>(null)
-const collapsedCategories = reactive<Record<string, boolean>>({})
+const expandedCategories = reactive<Record<string, boolean>>({})
 const lineRows = ref<ProductReportLine[]>([])
 const lineLoading = ref(false)
 const linePage = ref(1)
@@ -204,6 +204,7 @@ async function loadReport() {
   error.value = ''
   selectedProduct.value = null
   expandedRows.value = {}
+  for (const key of Object.keys(expandedCategories)) delete expandedCategories[key]
   lineRows.value = []
   lineTotal.value = 0
   try {
@@ -234,12 +235,12 @@ async function toggleProduct(product: ProductRow) {
 }
 
 function isCategoryExpanded(key: string) {
-  return collapsedCategories[key] !== true
+  return expandedCategories[key] === true
 }
 
 function toggleCategory(group: CategoryGroup) {
   if (isCategoryExpanded(group.key)) {
-    collapsedCategories[group.key] = true
+    delete expandedCategories[group.key]
     if (selectedProduct.value && group.products.some((product) => product.key === selectedProduct.value?.key)) {
       selectedProduct.value = null
       expandedRows.value = {}
@@ -248,7 +249,7 @@ function toggleCategory(group: CategoryGroup) {
     }
     return
   }
-  delete collapsedCategories[group.key]
+  expandedCategories[group.key] = true
 }
 
 async function loadProductLines(product: ProductRow, page: number) {
@@ -420,17 +421,17 @@ const productColumns = computed<ExtendedColumn<ProductRow>[]>(() => [
     accessorKey: 'productName',
     header: 'Producto',
     meta: { label: 'Producto', filter: false },
-    cell: ({ row }) => h('div', { class: 'min-w-40 py-1' }, [
+    cell: ({ row }) => h('div', { class: 'flex min-w-40 items-center gap-1.5' }, [
       h(UButton, {
         to: productPath(row.original),
-        label: row.original.productName,
+        title: row.original.productName,
         'aria-label': `Abrir producto ${row.original.productName}`,
         variant: 'link',
         color: 'primary',
         size: 'sm',
-        class: 'h-auto max-w-full justify-start whitespace-normal px-0 py-0 text-left font-medium'
-      }),
-      h('p', { class: 'text-xs text-muted' }, row.original.productCode ? `Código ${row.original.productCode}` : 'Sin código')
+        class: 'h-auto min-w-0 flex-1 justify-start overflow-hidden whitespace-nowrap px-0 py-0 text-left font-medium'
+      }, () => h('span', { class: 'truncate' }, row.original.productName)),
+      h('span', { class: 'shrink-0 text-[11px] text-muted' }, row.original.productCode ? `#${row.original.productCode}` : 'Sin código')
     ])
   },
   { accessorKey: 'quantity', header: 'Unidades', meta: { label: 'Unidades', filter: false }, cell: ({ row }) => h('span', { class: 'block text-right tabular-nums' }, `${formatQuantity(row.original.quantity)} ${row.original.unitLabel}`.trim()) },
@@ -514,18 +515,13 @@ onBeforeUnmount(destroyCharts)
 
 <template>
   <div class="flex min-h-full flex-col gap-4 p-4 sm:p-6">
+    <AppPageHeader :title="title" description="Analizá unidades e importes por categoría y producto.">
+      <template #links>
+        <UBadge color="primary" variant="subtle" class="capitalize">{{ flowLabel }} de la empresa activa</UBadge>
+        <UButton v-if="canDownload" label="Exportar CSV" icon="i-lucide-download" variant="outline" color="neutral" size="sm" @click="exportCsv" />
+      </template>
+    </AppPageHeader>
     <section class="rounded-xl border border-default bg-elevated/30 p-4 sm:p-5">
-      <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 class="text-xl font-semibold text-highlighted">{{ title }}</h1>
-          <p class="mt-1 text-sm text-muted">Analizá unidades e importes por categoría y producto.</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <UBadge color="primary" variant="subtle" class="capitalize">{{ flowLabel }} de la empresa activa</UBadge>
-          <UButton v-if="canDownload" label="Exportar CSV" icon="i-lucide-download" variant="outline" color="neutral" size="sm" @click="exportCsv" />
-        </div>
-      </div>
-
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_auto] xl:items-end">
         <UFormField label="Desde"><UInput v-model="filters.startDate" type="date" class="w-full" /></UFormField>
         <UFormField label="Hasta"><UInput v-model="filters.endDate" type="date" class="w-full" /></UFormField>
@@ -537,11 +533,24 @@ onBeforeUnmount(destroyCharts)
 
     <UAlert v-if="error" color="error" variant="soft" title="No se pudo cargar el reporte" :description="error" icon="i-lucide-triangle-alert" />
 
-    <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <UPageCard variant="subtle" class="min-w-0"><p class="text-xs text-muted">Productos</p><p class="mt-1 text-2xl font-semibold tabular-nums">{{ uniqueProductCount.toLocaleString('es-AR') }}</p><p class="text-xs text-muted">con movimientos en el período</p></UPageCard>
-      <UPageCard variant="subtle" class="min-w-0"><p class="text-xs text-muted">Categorías</p><p class="mt-1 text-2xl font-semibold tabular-nums">{{ uniqueCategoryCount.toLocaleString('es-AR') }}</p><p class="text-xs text-muted">según catálogo de productos</p></UPageCard>
-      <UPageCard variant="subtle" class="min-w-0"><p class="text-xs text-muted">Renglones</p><p class="mt-1 text-2xl font-semibold tabular-nums">{{ totalLines.toLocaleString('es-AR') }}</p><p class="text-xs text-muted">en {{ flowLabel }}</p></UPageCard>
-      <UPageCard variant="subtle" class="min-w-0"><p class="text-xs text-muted">Neto documental por moneda</p><div v-if="currencyTotals.length" class="mt-2 flex flex-wrap gap-2"><UBadge v-for="([currency, amount]) in currencyTotals" :key="currency" color="neutral" variant="subtle" class="tabular-nums">{{ formatCurrency(amount, currency) }}</UBadge></div><p v-else class="mt-2 text-sm text-muted">Sin importes para mostrar</p></UPageCard>
+    <section class="product-report-summary-grid">
+      <article class="flex min-w-0 items-center gap-2 rounded-lg border border-default border-l-2 border-l-primary bg-primary/5 px-2.5 py-2">
+        <span class="grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary"><UIcon name="i-lucide-package" class="size-4" /></span>
+        <div class="min-w-0"><p class="truncate text-xs font-medium text-primary">Productos</p><p class="text-xl font-semibold leading-5 tabular-nums text-highlighted">{{ uniqueProductCount.toLocaleString('es-AR') }}</p></div>
+      </article>
+      <article class="flex min-w-0 items-center gap-2 rounded-lg border border-default border-l-2 border-l-info bg-info/5 px-2.5 py-2">
+        <span class="grid size-7 shrink-0 place-items-center rounded-md bg-info/10 text-info"><UIcon name="i-lucide-folder-tree" class="size-4" /></span>
+        <div class="min-w-0"><p class="truncate text-xs font-medium text-info">Categorías</p><p class="text-xl font-semibold leading-5 tabular-nums text-highlighted">{{ uniqueCategoryCount.toLocaleString('es-AR') }}</p></div>
+      </article>
+      <article class="flex min-w-0 items-center gap-2 rounded-lg border border-default border-l-2 border-l-warning bg-warning/5 px-2.5 py-2">
+        <span class="grid size-7 shrink-0 place-items-center rounded-md bg-warning/10 text-warning"><UIcon name="i-lucide-list-checks" class="size-4" /></span>
+        <div class="min-w-0"><p class="truncate text-xs font-medium text-warning">Renglones</p><p class="text-xl font-semibold leading-5 tabular-nums text-highlighted">{{ totalLines.toLocaleString('es-AR') }}</p></div>
+      </article>
+      <article class="min-w-0 rounded-lg border border-default border-l-2 border-l-success bg-success/5 px-2.5 py-2">
+        <div class="flex min-w-0 items-center gap-2"><span class="grid size-7 shrink-0 place-items-center rounded-md bg-success/10 text-success"><UIcon name="i-lucide-coins" class="size-4" /></span><p class="text-xs font-medium text-success">Neto por moneda</p></div>
+        <div v-if="currencyTotals.length" class="mt-1 flex min-w-0 flex-wrap gap-x-2 gap-y-0.5"><span v-for="([currency, amount]) in currencyTotals" :key="currency" class="text-base font-semibold leading-tight tabular-nums text-highlighted">{{ formatCurrency(amount, currency) }}</span></div>
+        <p v-else class="mt-1 text-base font-semibold text-muted">—</p>
+      </article>
     </section>
 
     <UTabs v-model="activeView" :items="reportTabs" :content="false" variant="link" class="w-full" />
@@ -566,6 +575,7 @@ onBeforeUnmount(destroyCharts)
               compact
               hide-toolbar
               hide-footer
+              class="product-report-table"
               :expanded-options="productExpandedOptions"
               :storage-key="`product-report-${direction}-${group.key}`"
               :data="group.products"
@@ -626,3 +636,31 @@ onBeforeUnmount(destroyCharts)
     </section>
   </div>
 </template>
+
+<style scoped>
+.product-report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.7fr);
+  gap: 0.5rem;
+}
+
+.product-report-table :deep([data-slot="td"]) {
+  padding-block: 0.35rem;
+}
+
+.product-report-table :deep([data-slot="th"]) {
+  padding-block: 0.3rem;
+}
+
+@media (max-width: 640px) {
+  .product-report-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .product-report-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+</style>

@@ -74,7 +74,8 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [confirmModa
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar :title="doc ? `Remito de Compra #${String(doc.number).padStart(8, '0')}` : 'Remito de Compra'">
+      <UDashboardNavbar :title="doc ? `Remito de Compra #${String(doc.number).padStart(8, '0')}` : 'Remito de Compra'" :toggle="false">
+        <template #leading><AppSidebarToggle /></template>
         <template #trailing>
         <div class="flex gap-2 items-center flex-wrap">
           <DocumentActionButton

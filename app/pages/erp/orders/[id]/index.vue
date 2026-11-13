@@ -84,7 +84,8 @@ async function handlePartialInvoice() {
 <template>
   <UDashboardPanel>
     <template #header>
-      <UDashboardNavbar :title="doc ? `OV #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Orden de Venta'">
+      <UDashboardNavbar :title="doc ? `OV #${doc.document_types?.code}-${String(doc.number).padStart(8, '0')}` : 'Orden de Venta'" :toggle="false">
+        <template #leading><AppSidebarToggle /></template>
         <template #trailing>
           <div class="flex gap-2 items-center flex-wrap">
             <UBadge v-if="invoiceState === 'invoiced'" label="Facturada" color="success" variant="subtle" />

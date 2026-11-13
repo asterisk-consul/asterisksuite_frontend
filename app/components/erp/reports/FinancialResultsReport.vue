@@ -69,25 +69,34 @@ const expandedRows = ref<Record<string, boolean>>({})
 const expandedItems = ref<Record<string, FinancialResultsDocumentItems>>({})
 const expandedLoading = ref<Record<string, boolean>>({})
 const pageSize = 25
+const egresosSeparados = ref(false)
 
 const metricLabels: Record<FinancialResultsMetric, string> = {
-  sales_confirmed: 'Ventas · OV aprobadas',
-  purchase_invoices: 'Compras / gastos facturados',
-  sales_invoices: 'Facturas de venta',
+  sales_confirmed: 'OV confirmadas',
+  purchase_invoices: 'Compras facturadas',
+  purchase_invoices_pending: 'Saldo pendiente de facturas',
+  outflows: 'Egresos realizados',
   payments: 'Pagos realizados',
+  expenses: 'Gastos realizados',
+  other_outflows: 'Vales y obligaciones',
   collections: 'Cobros realizados',
   pending_orders: 'Saldo de OV por cobrar',
+  opening_balance_receivable: 'Saldo inicial por cobrar',
 }
 const metricIcons: Record<FinancialResultsMetric, string> = {
   sales_confirmed: 'i-lucide-trending-up',
   purchase_invoices: 'i-lucide-file-text',
-  sales_invoices: 'i-lucide-receipt',
+  purchase_invoices_pending: 'i-lucide-hourglass',
+  outflows: 'i-lucide-arrow-up-right',
   payments: 'i-lucide-credit-card',
+  expenses: 'i-lucide-receipt',
+  other_outflows: 'i-lucide-wallet-cards',
   collections: 'i-lucide-hand-coins',
   pending_orders: 'i-lucide-hourglass',
+  opening_balance_receivable: 'i-lucide-wallet',
 }
 const drillMetrics: FinancialResultsMetric[] = [
-  'sales_confirmed', 'purchase_invoices', 'sales_invoices', 'payments', 'collections', 'pending_orders',
+  'sales_confirmed', 'collections', 'pending_orders', 'purchase_invoices', 'purchase_invoices_pending', 'outflows', 'payments', 'expenses', 'other_outflows', 'opening_balance_receivable',
 ]
 const companyOptions = computed(() => companies.value.map(company => ({
   label: `${company.name} · ${company.subdomain}`,
@@ -145,6 +154,18 @@ const visibleComposition = computed(() => (detail.value?.composition ?? [])
   .filter(row => row.currency_code === detailCurrency.value))
 const selectedComposition = computed(() => visibleComposition.value.find(row => row.key === detailAccountKey.value) ?? null)
 const selectedCompanyCountLabel = computed(() => `${selectedCompanyIds.value.length} de ${companies.value.length} empresas`)
+const invoiceMetrics = ['purchase_invoices', 'purchase_invoices_pending']
+const paymentStateMetrics = ['sales_confirmed', 'pending_orders', ...invoiceMetrics]
+const hasPaymentStateFilter = computed(() => paymentStateMetrics.includes(activeDetail.value?.metric ?? ''))
+const detailPaymentStateLabel = computed(() => invoiceMetrics.includes(activeDetail.value?.metric ?? '') ? 'Estado de pago' : 'Estado de cobro')
+const detailPaymentStateOptions = computed(() => invoiceMetrics.includes(activeDetail.value?.metric ?? '')
+  ? [{ label: 'Todos', value: 'ALL' }, { label: 'Sin pagar', value: 'UNPAID' }, { label: 'Pago parcial', value: 'PARTIAL' }, { label: 'Pagadas', value: 'PAID' }]
+  : [{ label: 'Todos', value: 'ALL' }, { label: 'Sin cobrar', value: 'UNPAID' }, { label: 'Cobro parcial', value: 'PARTIAL' }, { label: 'Cobradas', value: 'PAID' }])
+const detailAmountLabel = computed(() => activeDetail.value?.metric === 'purchase_invoices_pending'
+  ? 'Saldo pendiente considerado'
+  : activeDetail.value?.metric === 'purchase_invoices'
+    ? detailAccountKey.value ? 'Importe en esta cuenta' : 'Importe contabilizado'
+    : 'Importe en esta cuenta')
 
 function toggleCompany(id: string, checked: boolean | 'indeterminate') {
   if (checked === true && !selectedCompanyIds.value.includes(id) && atCompanyLimit.value) {
@@ -238,6 +259,11 @@ function onGenerateSummary() {
   void generateSummary()
 }
 
+function toggleOutflowsGrouping() {
+  egresosSeparados.value = !egresosSeparados.value
+  if (activeDetail.value) closeDetail()
+}
+
 async function openDetail(row: SummaryRow, metric: FinancialResultsMetric) {
   if (!row.company_id || !row.counts[metric][row.currency_code]) return
   activeDetail.value = {
@@ -279,7 +305,7 @@ async function loadDetail(page = detailPage.value) {
       currency_code: detailCurrency.value,
       account_key: detailAccountKey.value ?? undefined,
       search: detailSearch.value.trim() || undefined,
-      payment_state: ['sales_confirmed', 'pending_orders'].includes(target.metric) ? detailPaymentState.value : undefined,
+      payment_state: paymentStateMetrics.includes(target.metric) ? detailPaymentState.value : undefined,
       page,
       page_size: pageSize,
     })
@@ -363,9 +389,14 @@ function formatGeneratedAt(value?: string) {
 }
 
 function metricRoute(row: FinancialResultsDetailRow) {
+  if (activeDetail.value?.metric === 'opening_balance_receivable' && row.party_id) {
+    return `/erp/treasury/current-accounts/${encodeURIComponent(row.party_id)}`
+  }
   if (['PAYMENT', 'EXPENSE', 'COLLECTION'].includes(row.document_category)) return `/erp/treasury/payments/${encodeURIComponent(row.document_id)}`
+  if (row.document_category === 'HR_VALE') return '/erp/rrhh/vales'
+  if (row.document_category === 'TREASURY_OBLIGATION') return '/erp/treasury/taxes-services?view=reports'
   if (row.document_category === 'ORDER') return `/erp/orders/${encodeURIComponent(row.document_id)}`
-  if (row.document_category === 'INVOICE' && activeDetail.value?.metric === 'purchase_invoices') {
+  if (row.document_category === 'INVOICE' && invoiceMetrics.includes(activeDetail.value?.metric ?? '')) {
     return `/erp/purchases/purchases-documents/${encodeURIComponent(row.document_id)}`
   }
   return `/erp/sales/${encodeURIComponent(row.document_id)}`
@@ -376,10 +407,11 @@ function statusLabel(row: FinancialResultsDetailRow) {
   return getStatusLabel(row.document_category, Number(row.status))
 }
 
-function orderPaymentState(row: FinancialResultsDetailRow) {
-  const total = Number(row.document_total_amount)
-  const paid = Number(row.paid_amount ?? 0)
-  return paid <= 0 ? 'Sin cobrar' : paid >= total ? 'Cobrada' : 'Cobro parcial'
+function paymentStateLabel(row: FinancialResultsDetailRow) {
+  const invoice = invoiceMetrics.includes(activeDetail.value?.metric ?? '')
+  if (row.payment_state === 'PAID') return invoice ? 'Pagada' : 'Cobrada'
+  if (row.payment_state === 'PARTIAL') return invoice ? 'Pago parcial' : 'Cobro parcial'
+  return invoice ? 'Sin pagar' : 'Sin cobrar'
 }
 
 async function toggleDocumentItems(row: FinancialResultsDetailRow) {
@@ -420,15 +452,14 @@ const summaryTableColumns = computed<ExtendedColumn<SummaryRow>[]>(() => {
       const original = row.original as SummaryRow
       const amount = original.metrics[key][original.currency_code] ?? '0'
       const count = original.counts[key][original.currency_code] ?? 0
-      const orderInfo = key === 'sales_confirmed'
-        ? h('div', { class: 'flex flex-col items-end gap-0.5 text-[11px] leading-4 text-muted' }, [
-            h('span', `Cobrado: ${formatMoney(original.metrics.sales_order_paid[original.currency_code] ?? '0', original.currency_code)}`),
-            h('span', `Pendiente: ${formatMoney(original.metrics.pending_orders[original.currency_code] ?? '0', original.currency_code)}`),
-            h('span', `${original.counts.orders_paid_full[original.currency_code] ?? 0} cobradas · ${original.counts.orders_paid_partial[original.currency_code] ?? 0} parciales · ${original.counts.orders_unpaid[original.currency_code] ?? 0} sin cobrar`),
-          ])
+      const paidInfo = key === 'purchase_invoices'
+        ? `Pagado aplicado: ${formatMoney(original.metrics.purchase_invoices_paid[original.currency_code] ?? '0', original.currency_code)}`
         : null
       if (!original.company_id || !count) {
-        return h('div', { class: 'flex min-w-44 flex-col items-end gap-1 text-right tabular-nums' }, [h('span', { class: 'text-muted' }, formatMoney(amount, original.currency_code)), orderInfo])
+        return h('div', { class: 'flex min-w-44 flex-col items-end gap-1 text-right tabular-nums' }, [
+          h('span', { class: 'text-muted' }, formatMoney(amount, original.currency_code)),
+          ...(paidInfo ? [h('span', { class: 'text-[10px] leading-4 text-muted' }, paidInfo)] : []),
+        ])
       }
       return h('div', { class: 'flex min-w-44 flex-col items-end gap-1' }, [
         h(UButton, {
@@ -441,24 +472,17 @@ const summaryTableColumns = computed<ExtendedColumn<SummaryRow>[]>(() => {
           onClick: () => void openDetail(original, key),
         }),
         h('span', { class: 'text-[10px] leading-4 text-muted' }, `${formatCount(count)} ${count === 1 ? 'documento' : 'documentos'}`),
-        orderInfo,
+        ...(paidInfo ? [h('span', { class: 'text-[10px] leading-4 text-muted' }, paidInfo)] : []),
       ])
     },
   })
-  const differenceColumn = (key: 'sales_invoice_difference' | 'collections_payment_difference', label: string): ExtendedColumn<SummaryRow> => ({
-    id: key,
-    header: label,
-    meta: { label, filter: false },
-    cell: ({ row }: any) => {
-      const original = row.original as SummaryRow
-      const amount = Number(original.metrics[key][original.currency_code] ?? 0)
-      return h('span', {
-        class: `block min-w-32 text-right font-medium tabular-nums ${amount < 0 ? 'text-error' : amount > 0 ? 'text-success' : 'text-muted'}`,
-      }, formatMoney(amount, original.currency_code))
-    },
-  })
-
-  return [
+  const paidOrdersColumn: ExtendedColumn<SummaryRow> = {
+    id: 'sales_order_paid',
+    header: 'Ventas · Cobrado aplicado en OV',
+    meta: { label: 'Ventas · Cobrado aplicado en OV', filter: false },
+    cell: ({ row }: any) => h('span', { class: 'block min-w-40 text-right font-medium tabular-nums text-success' }, formatMoney(row.original.metrics.sales_order_paid[row.original.currency_code] ?? '0', row.original.currency_code)),
+  }
+  const columns: ExtendedColumn<SummaryRow>[] = [
     {
       accessorKey: 'company_name',
       header: 'Empresa',
@@ -469,14 +493,23 @@ const summaryTableColumns = computed<ExtendedColumn<SummaryRow>[]>(() => {
       }, row.original.company_name),
     },
     { accessorKey: 'currency_code', header: 'Moneda', meta: { label: 'Moneda', filter: false }, cell: ({ row }: any) => h(UBadge, { color: 'neutral', variant: 'subtle', label: row.original.currency_code }) },
-    metricColumn('sales_confirmed', metricLabels.sales_confirmed),
-    metricColumn('purchase_invoices', metricLabels.purchase_invoices),
-    metricColumn('payments', 'Pagos realizados'),
-    differenceColumn('sales_invoice_difference', 'Ventas − facturas'),
-    metricColumn('collections', metricLabels.collections),
-    differenceColumn('collections_payment_difference', 'Cobros − pagos'),
-    metricColumn('pending_orders', metricLabels.pending_orders),
+    metricColumn('sales_confirmed', 'Ventas · OV aprobadas'),
+    metricColumn('collections', 'Ventas · Cobros realizados'),
+    paidOrdersColumn,
+    metricColumn('pending_orders', 'Ventas · Saldo de OV por cobrar'),
+    metricColumn('purchase_invoices', 'Compras/Gastos · Facturas de compra'),
+    metricColumn('purchase_invoices_pending', 'Compras/Gastos · Saldo de facturas por pagar'),
   ]
+  if (egresosSeparados.value) {
+    columns.push(
+      metricColumn('payments', 'Compras/Gastos · Pagos (PAYMENT)'),
+      metricColumn('expenses', 'Compras/Gastos · Gastos (EXPENSE)'),
+      metricColumn('other_outflows', 'Compras/Gastos · Vales y obligaciones'),
+    )
+  } else {
+    columns.push(metricColumn('outflows', 'Compras/Gastos · Egresos realizados'))
+  }
+  return columns
 })
 
 const compositionColumns: ExtendedColumn<FinancialResultsCompositionRow>[] = [
@@ -513,11 +546,24 @@ const compositionColumns: ExtendedColumn<FinancialResultsCompositionRow>[] = [
 ]
 
 const expandedDetailOptions = { getRowCanExpand: (row: any) => Boolean(row.original.expandable) }
-const orderPaymentColumns: ExtendedColumn<FinancialResultsDetailRow>[] = [
-  { accessorKey: 'paid_amount', header: 'Cobrado en OV', meta: { label: 'Cobrado en OV', filter: false }, cell: ({ row }: any) => h('span', { class: 'block text-right tabular-nums text-success' }, formatMoney(row.original.paid_amount ?? '0', row.original.currency_code)) },
-  { id: 'pending_amount', header: 'Pendiente OV', meta: { label: 'Pendiente OV', filter: false }, cell: ({ row }: any) => h('span', { class: 'block text-right tabular-nums text-warning' }, formatMoney(Math.max(0, Number(row.original.document_total_amount) - Number(row.original.paid_amount ?? 0)), row.original.currency_code)) },
-  { id: 'payment_state', header: 'Cobro', meta: { label: 'Cobro', filter: false }, cell: ({ row }: any) => h(UBadge, { label: orderPaymentState(row.original), color: orderPaymentState(row.original) === 'Cobrada' ? 'success' : orderPaymentState(row.original) === 'Cobro parcial' ? 'warning' : 'neutral', variant: 'subtle' }) },
-]
+function documentPaymentColumns(): ExtendedColumn<FinancialResultsDetailRow>[] {
+  const invoice = invoiceMetrics.includes(activeDetail.value?.metric ?? '')
+  const appliedLabel = invoice ? 'Importe pagado' : 'Cobrado aplicado'
+  const pendingLabel = invoice ? 'Saldo pendiente' : 'Saldo de OV por cobrar'
+  const stateLabel = invoice ? 'Estado de pago' : 'Estado de cobro'
+  return [
+    { accessorKey: 'paid_amount', header: appliedLabel, meta: { label: appliedLabel, filter: false }, cell: ({ row }: any) => h('span', { class: 'block min-w-32 text-right tabular-nums text-success' }, formatMoney(row.original.paid_amount ?? '0', row.original.currency_code)) },
+    { accessorKey: 'pending_amount', header: pendingLabel, meta: { label: pendingLabel, filter: false }, cell: ({ row }: any) => h('span', { class: 'block min-w-32 text-right tabular-nums text-warning' }, formatMoney(row.original.pending_amount ?? '0', row.original.currency_code)) },
+    { id: 'payment_state', header: stateLabel, meta: { label: stateLabel, filter: false }, cell: ({ row }: any) => {
+      const status = row.original.payment_state
+      return h(UBadge, {
+        label: paymentStateLabel(row.original),
+        color: status === 'PAID' ? 'success' : status === 'PARTIAL' ? 'warning' : 'neutral',
+        variant: 'subtle',
+      })
+    } },
+  ]
+}
 const detailColumns = computed<ExtendedColumn<FinancialResultsDetailRow>[]>(() => [
   { accessorKey: 'document_date', header: 'Fecha', meta: { label: 'Fecha', filter: false }, cell: ({ row }: any) => formatDate(row.original.document_date) },
   {
@@ -538,9 +584,9 @@ const detailColumns = computed<ExtendedColumn<FinancialResultsDetailRow>[]>(() =
   },
   { accessorKey: 'party_name', header: 'Tercero / referencia', meta: { label: 'Tercero / referencia', filter: false }, cell: ({ row }: any) => h('div', { class: 'min-w-32' }, [h('span', row.original.party_name), row.original.reference ? h('span', { class: 'block text-xs text-muted' }, row.original.reference) : null]) },
   { accessorKey: 'account_name', header: 'Cuenta / concepto / origen', meta: { label: 'Cuenta / concepto / origen', filter: false }, cell: ({ row }: any) => h('div', { class: 'min-w-44' }, [h('span', { class: 'font-medium' }, row.original.account_name), row.original.metric_type ? h(UBadge, { label: row.original.metric_type, color: 'neutral', variant: 'subtle', class: 'ml-1' }) : null, h('span', { class: 'block text-xs text-muted' }, row.original.origin)]) },
-  { accessorKey: 'amount', header: 'Importe en esta cuenta', meta: { label: 'Importe en esta cuenta', filter: false }, cell: ({ row }: any) => h('span', { class: 'block min-w-32 text-right font-medium tabular-nums' }, formatMoney(row.original.amount, row.original.currency_code)) },
-  { accessorKey: 'document_total_amount', header: 'Total documento', meta: { label: 'Total documento', filter: false }, cell: ({ row }: any) => h('span', { class: 'block min-w-32 text-right tabular-nums text-muted' }, formatMoney(row.original.document_total_amount, row.original.currency_code)) },
-  ...(['sales_confirmed', 'pending_orders'].includes(activeDetail.value?.metric ?? '') ? orderPaymentColumns : []),
+  { accessorKey: 'amount', header: detailAmountLabel.value, meta: { label: detailAmountLabel.value, filter: false }, cell: ({ row }: any) => h('span', { class: 'block min-w-32 text-right font-medium tabular-nums' }, formatMoney(row.original.amount, row.original.currency_code)) },
+  { accessorKey: 'document_total_amount', header: invoiceMetrics.includes(activeDetail.value?.metric ?? '') ? 'Total factura' : 'Total documento', meta: { label: 'Total documento', filter: false }, cell: ({ row }: any) => h('span', { class: 'block min-w-32 text-right tabular-nums text-muted' }, formatMoney(row.original.document_total_amount, row.original.currency_code)) },
+  ...(hasPaymentStateFilter.value ? documentPaymentColumns() : []),
   { accessorKey: 'status', header: 'Estado', meta: { label: 'Estado', filter: false }, cell: ({ row }: any) => h(UBadge, { label: statusLabel(row.original), color: row.original.status === 'PAID' || row.original.status === 5 || row.original.status === 2 ? 'success' : 'neutral', variant: 'subtle' }) },
   {
     id: 'items',
@@ -619,7 +665,7 @@ onBeforeUnmount(() => {
         <section class="rounded-xl border border-default bg-elevated/20 p-4 sm:p-5">
           <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <div class="flex flex-wrap items-center gap-2"><h2 class="text-lg font-semibold text-highlighted">Resultado por empresa y moneda</h2><UBadge color="primary" variant="subtle">{{ summary.companies.length }} empresas</UBadge></div>
+              <div class="flex flex-wrap items-center gap-2"><h2 class="text-lg font-semibold text-highlighted">Resumen por empresa y período</h2><UBadge color="primary" variant="subtle">{{ summary.companies.length }} empresas</UBadge></div>
               <p class="mt-1 text-sm text-muted">{{ summary.period.from }} al {{ summary.period.to }} · Actualizado {{ formatGeneratedAt(summary.generated_at) }}</p>
             </div>
             <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
@@ -634,30 +680,25 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <UAlert color="info" variant="subtle" icon="i-lucide-info" title="Cómo leer estos importes" class="mb-4">
-            <template #description><p>Las OV de ventas incluyen los estados Aprobada a Cerrada (1 a 7), por fecha de la orden. El cobrado y el pendiente reflejan el acumulado al generar el reporte, no solo cobros del período. Las compras son facturas confirmadas; pagos y cobros del período se presentan aparte. “Ventas − facturas” y “Cobros − pagos” son comparaciones, no una utilidad contable definitiva.</p><p class="mt-1">Las cuentas corresponden a la asignación actual del producto. La diferencia hasta el total queda visible como impuestos, ajustes o partidas sin imputación. No se incluyen devengamientos ni notas de crédito/débito.</p></template>
-          </UAlert>
-
-          <div class="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-            <span>Hacé clic en los importes subrayados para abrir su composición y los documentos.</span>
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs text-muted">Hacé clic en los importes para abrir la composición y todos sus documentos. Cada moneda se presenta por separado.</p>
+            <UButton :label="egresosSeparados ? 'Unificar egresos' : 'Separar egresos'" :icon="egresosSeparados ? 'i-lucide-combine' : 'i-lucide-columns-3'" color="neutral" variant="outline" size="sm" :aria-pressed="egresosSeparados" @click="toggleOutflowsGrouping" />
+          </div>
+          <div class="mb-3 flex flex-wrap items-center justify-end gap-2 text-xs text-muted">
             <span>Los importes de distintas monedas nunca se suman.</span>
           </div>
           <div class="min-w-0 overflow-x-auto">
             <AsteriskTable
               compact
+              :key="egresosSeparados ? 'split-outflows' : 'combined-outflows'"
               storage-key="financial-results-company-summary"
               :data="summaryRows"
               :columns="summaryTableColumns"
               :filter-fields="[{ id: 'company_name', label: 'Empresa' }]"
               :sort-fields="[{ label: 'Empresa', value: 'company_name' }]"
               search-placeholder="Buscar empresa..."
-              :table-min-width="1400"
+              :table-min-width="egresosSeparados ? 2200 : 1800"
             />
-          </div>
-          <div class="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-default pt-3 text-xs text-muted">
-            <span>Ventas: {{ summary.criteria.sales_confirmed }}</span>
-            <span>Pagos: {{ summary.criteria.payments }}</span>
-            <span>Pendientes: {{ summary.criteria.pending_orders }}</span>
           </div>
         </section>
       </template>
@@ -699,14 +740,14 @@ onBeforeUnmount(() => {
 
             <section class="min-w-0 rounded-lg border border-default bg-default/20 p-3 sm:p-4">
               <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div><h3 class="font-semibold text-highlighted">Documentos y partidas</h3><p class="mt-1 text-xs text-muted">El total documental puede repetirse cuando un documento tiene más de una cuenta; para conciliar, sumá “Importe en esta cuenta”.</p></div>
+                <div><h3 class="font-semibold text-highlighted">Documentos y partidas</h3><p class="mt-1 text-xs text-muted">Las facturas muestran total, pagado, saldo y estado. Los importes aplicados son acumulados actuales; para pagos y gastos, cada fila corresponde a un movimiento del tipo seleccionado.</p></div>
                 <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
-                  <UFormField v-if="['sales_confirmed', 'pending_orders'].includes(activeDetail.metric)" label="Estado de cobro" class="w-full sm:w-44"><USelect v-model="detailPaymentState" :items="[{ label: 'Todos', value: 'ALL' }, { label: 'Sin cobrar', value: 'UNPAID' }, { label: 'Cobro parcial', value: 'PARTIAL' }, { label: 'Cobradas', value: 'PAID' }]" value-key="value" class="w-full" /></UFormField>
+                  <UFormField v-if="hasPaymentStateFilter" :label="detailPaymentStateLabel" class="w-full sm:w-44"><USelect v-model="detailPaymentState" :items="detailPaymentStateOptions" value-key="value" class="w-full" /></UFormField>
                   <UInput v-model="detailSearch" icon="i-lucide-search" placeholder="Buscar número, UUID, tercero o concepto" class="w-full sm:w-80" />
                 </div>
               </div>
               <div v-if="selectedComposition" class="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm"><UBadge color="primary" variant="subtle">Cuenta</UBadge><span class="font-medium">{{ selectedComposition.label }}</span><span v-if="selectedComposition.metric_type" class="text-muted">· {{ selectedComposition.metric_type }}</span></div>
-              <UAlert v-if="activeDetail.metric === 'pending_orders' && !detailAccountKey" class="mb-3" color="warning" variant="subtle" icon="i-lucide-info" title="Saldo sin distribución por cuenta" description="El pendiente se calcula como total de la OV menos cobrado. No se reparte entre cuentas de ingreso." />
+              <UAlert v-if="['pending_orders', 'purchase_invoices_pending', 'opening_balance_receivable'].includes(activeDetail.metric) && !detailAccountKey" class="mb-3" color="warning" variant="subtle" icon="i-lucide-info" title="Saldo sin distribución por cuenta" :description="activeDetail.metric === 'opening_balance_receivable' ? 'El saldo inicial se muestra como importe pendiente del cliente y no se distribuye entre productos ni cuentas de ingreso.' : activeDetail.metric === 'purchase_invoices_pending' ? 'El saldo se calcula como total de factura menos importe pagado. No se distribuye entre las cuentas de gasto de las partidas.' : 'El pendiente se calcula como total de la OV menos cobrado. No se reparte entre cuentas de ingreso.'" />
               <div v-if="detailLoading && !detail.items.length" class="space-y-2"><USkeleton class="h-10 w-full" /><USkeleton class="h-10 w-full" /></div>
               <div v-else-if="!detail.items.length" class="rounded-md border border-dashed border-default px-3 py-8 text-center text-sm text-muted">No hay documentos para los filtros seleccionados.</div>
               <div v-else class="min-w-0 overflow-x-auto">
@@ -723,15 +764,15 @@ onBeforeUnmount(() => {
                   :page-size="pageSize"
                   :page="detailPage"
                   :total-rows="detail.total_rows"
-                  :table-min-width="['sales_confirmed', 'pending_orders'].includes(activeDetail.metric) ? 1650 : 1300"
+                  :table-min-width="hasPaymentStateFilter ? 1800 : 1300"
                   @update:page="onDetailPageChange"
                 >
                   <template #expanded="{ row }">
                     <div class="border-t border-default bg-muted/20 px-3 py-3 sm:px-4">
                       <div class="mb-2 flex flex-wrap items-center justify-between gap-2"><div><p class="text-sm font-semibold text-highlighted">Partidas de {{ row.original.document_label }} {{ row.original.document_reference }}</p><p class="text-xs text-muted">El detalle conserva las cuentas actuales del producto; los impuestos y ajustes sin imputación se muestran como diferencia.</p></div><UBadge color="neutral" variant="subtle">{{ expandedItems[row.original.id]?.items.length ?? 0 }} partidas</UBadge></div>
-                      <div v-if="expandedItems[row.original.id] && ['sales_confirmed', 'pending_orders'].includes(activeDetail.metric)" class="mb-3 flex flex-wrap gap-x-5 gap-y-1 rounded-md border border-default px-3 py-2 text-xs tabular-nums">
-                        <span>Total OV: <strong>{{ formatMoney(expandedItems[row.original.id]?.document_total_amount ?? '0', row.original.currency_code) }}</strong></span>
-                        <span>Cobrado: <strong class="text-success">{{ formatMoney(expandedItems[row.original.id]?.paid_amount ?? '0', row.original.currency_code) }}</strong></span>
+                      <div v-if="expandedItems[row.original.id] && ['sales_confirmed', 'pending_orders', 'purchase_invoices', 'purchase_invoices_pending', 'opening_balance_receivable'].includes(activeDetail.metric)" class="mb-3 flex flex-wrap gap-x-5 gap-y-1 rounded-md border border-default px-3 py-2 text-xs tabular-nums">
+                        <span>{{ activeDetail.metric === 'opening_balance_receivable' ? 'Saldo inicial' : invoiceMetrics.includes(activeDetail.metric) ? 'Total factura' : 'Total OV' }}: <strong>{{ formatMoney(expandedItems[row.original.id]?.document_total_amount ?? '0', row.original.currency_code) }}</strong></span>
+                        <span>{{ invoiceMetrics.includes(activeDetail.metric) ? 'Pagado' : 'Cobrado' }}: <strong class="text-success">{{ formatMoney(expandedItems[row.original.id]?.paid_amount ?? '0', row.original.currency_code) }}</strong></span>
                         <span>Pendiente: <strong class="text-warning">{{ formatMoney(expandedItems[row.original.id]?.pending_amount ?? '0', row.original.currency_code) }}</strong></span>
                       </div>
                       <div v-if="expandedLoading[row.original.id]" class="space-y-2"><USkeleton class="h-8 w-full" /><USkeleton class="h-8 w-full" /></div>

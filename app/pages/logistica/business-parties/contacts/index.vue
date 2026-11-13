@@ -139,7 +139,7 @@ const sortFields: SortField[] = [
           @click="toggleModuleSidebar"
         />
       </div>
-      <UPageHeader title="Contactos" description="Listado de Contactos" :links="links" class="mb-4 w-full" />
+      <AppPageHeader title="Contactos" description="Listado de Contactos" :links="links" class="mb-4 w-full" />
     </div>
 
     <LogisticaTable

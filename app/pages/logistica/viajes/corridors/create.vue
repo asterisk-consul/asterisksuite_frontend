@@ -16,7 +16,7 @@ const submit = async (dto: CreateCorridorDto) => {
 
 <template>
   <UPage>
-    <UPageHeader title="Crear corredor" />
+    <AppPageHeader title="Crear corredor" />
     <UCard>
       <CorridorForm @submit="submit" @cancel="router.back()" />
     </UCard>

@@ -205,7 +205,7 @@ async function handleSubmit(data: any) {
 
 <template>
   <UPage class="space-y-4">
-    <UPageHeader
+    <AppPageHeader
       title="Depósitos"
       description="Listado de depósitos"
       class="mb-4 w-full"
@@ -223,7 +223,7 @@ async function handleSubmit(data: any) {
           @click="openCreate"
         />
       </template>
-    </UPageHeader>
+    </AppPageHeader>
 
     <LogisticaTable :loading="loading" :data="warehouses" :columns="columns" :on-row-click="openEdit" :on-delete="handleBulkDelete" />
   </UPage>

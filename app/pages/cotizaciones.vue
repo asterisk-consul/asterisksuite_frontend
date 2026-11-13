@@ -25,9 +25,9 @@ const items = [
 <template>
   <UDashboardPanel id="cotizaciones">
     <template #header>
-      <UDashboardNavbar title="Cotizaciones" :ui="{ right: 'gap-3' }">
+      <UDashboardNavbar title="Cotizaciones" :toggle="false" :ui="{ right: 'gap-3' }">
         <template #leading>
-          <UDashboardSidebarCollapse />
+          <AppSidebarToggle />
         </template>
       </UDashboardNavbar>
     </template>

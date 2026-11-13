@@ -118,7 +118,7 @@ onMounted(load)
 
 <template>
   <div class="mx-auto w-full max-w-4xl space-y-6 pb-24">
-    <UPageHeader
+    <AppPageHeader
       title="Configuración de Operaciones Internacionales"
       description="Definí qué campos se cargan en contenedores y operaciones, y qué estados están habilitados."
     />
