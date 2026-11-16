@@ -24,6 +24,7 @@ interface CompanyUser {
   id: string
   name: string
   email: string
+  company_role: 'OWNER' | 'ADMIN' | 'USER'
 }
 
 interface UserRole {
@@ -66,7 +67,7 @@ const editing = ref(false)
 const loadingEditContact = ref(false)
 const editContactReady = ref(false)
 const editContactOptedIn = ref(false)
-const editUser = ref({ name: '', email: '', whatsapp_phone: '' })
+const editUser = ref({ name: '', email: '', whatsapp_phone: '', company_role: 'USER' as CompanyUser['company_role'] })
 
 // Password modal
 const showPasswordModal = ref(false)
@@ -164,7 +165,12 @@ const openEditModal = async (user: CompanyUser) => {
   const authStore = useAuthStore()
   const companyId = authStore.selectedCompany?.id
   selectedUser.value = user
-  editUser.value = { name: user.name || '', email: user.email || '', whatsapp_phone: '' }
+  editUser.value = {
+    name: user.name || '',
+    email: user.email || '',
+    whatsapp_phone: '',
+    company_role: user.company_role || 'USER',
+  }
   editContactReady.value = false
   editContactOptedIn.value = false
   showEditModal.value = true
@@ -200,6 +206,7 @@ const saveUser = async () => {
         company_id: companyId,
         name: editUser.value.name,
         email: editUser.value.email,
+        ...(editUser.value.company_role !== 'OWNER' ? { company_role: editUser.value.company_role } : {}),
         ...(editContactReady.value ? { whatsapp_phone: editUser.value.whatsapp_phone } : {}),
     })
     toast.add({ title: 'Usuario actualizado', color: 'success' })
@@ -744,12 +751,57 @@ onMounted(async () => {
           <UFormField label="Email" name="email">
             <UInput v-model="editUser.email" placeholder="usuario@empresa.com" type="email" />
           </UFormField>
+          <UFormField label="Tipo de usuario en esta empresa" name="company_role" description="El rol de empresa define el alcance administrativo; los roles de negocio se asignan por separado.">
+            <USelect
+              v-if="editUser.company_role !== 'OWNER'"
+              v-model="editUser.company_role"
+              :items="[
+                { label: 'Usuario', value: 'USER' },
+                { label: 'Administrador', value: 'ADMIN' },
+              ]"
+              placeholder="Seleccionar tipo de usuario"
+            />
+            <UAlert
+              v-else
+              color="primary"
+              variant="subtle"
+              title="Propietario de la empresa"
+              description="Este rol no se modifica desde la edición de usuario."
+            />
+          </UFormField>
           <UFormField
-            label="Teléfono de WhatsApp"
             name="whatsapp_phone"
-            :description="loadingEditContact ? 'Cargando teléfono…' : 'Formato internacional, por ejemplo +54911XXXXXXXX.'"
           >
+            <template #label>
+              <span class="flex items-center gap-1.5">
+                <span>Teléfono de WhatsApp</span>
+                <UPopover v-if="!loadingEditContact">
+                  <UButton
+                    :icon="!editContactReady || !editContactOptedIn ? 'i-lucide-triangle-alert' : 'i-lucide-circle-check'"
+                    :color="!editContactReady || !editContactOptedIn ? 'warning' : 'success'"
+                    variant="ghost"
+                    size="xs"
+                    :aria-label="editContactReady ? 'Estado del consentimiento de WhatsApp' : 'Información del teléfono de WhatsApp'"
+                  />
+                  <template #content>
+                    <div class="max-w-xs space-y-1 p-3">
+                      <p class="text-sm font-semibold">
+                        {{ !editContactReady ? 'Teléfono sin cargar' : editContactOptedIn ? 'Consentimiento aceptado' : 'Consentimiento pendiente' }}
+                      </p>
+                      <p class="text-sm text-muted">
+                        {{ !editContactReady
+                          ? 'No se modificará el teléfono al guardar los demás datos. Revisá la migración de WhatsApp si necesitás editarlo.'
+                          : editContactOptedIn
+                            ? 'El usuario aceptó recibir avisos. Si cambiás el número, deberá volver a aceptar desde Notificaciones.'
+                            : 'Cargar o cambiar el teléfono no activa el consentimiento. El usuario debe aceptar los avisos desde Notificaciones.' }}
+                      </p>
+                    </div>
+                  </template>
+                </UPopover>
+              </span>
+            </template>
             <UInput
+              id="edit-user-whatsapp"
               v-model="editUser.whatsapp_phone"
               type="tel"
               autocomplete="tel"
@@ -757,20 +809,6 @@ onMounted(async () => {
               :disabled="loadingEditContact || !editContactReady"
             />
           </UFormField>
-          <UAlert
-            v-if="editContactReady"
-            :color="editContactOptedIn ? 'success' : 'warning'"
-            variant="subtle"
-            :title="editContactOptedIn ? 'El usuario aceptó recibir avisos' : 'Consentimiento pendiente'"
-            description="Cargar o cambiar el teléfono desde aquí no activa el consentimiento. Si se cambia el número, el usuario deberá volver a aceptarlo."
-          />
-          <UAlert
-            v-else-if="!loadingEditContact"
-            color="warning"
-            variant="subtle"
-            title="Teléfono sin cargar"
-            description="No se modificará el teléfono al guardar los demás datos. Revisá la migración de WhatsApp si necesitás editarlo."
-          />
         </div>
       </template>
       <template #footer>

@@ -7,6 +7,9 @@ import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useChecks } from '~/modulos/erp/checks/composables/useChecks'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useIntercompanyTreasuryService } from '~/modulos/erp/treasury/intercompany-treasury.service'
+import type { IntercompanySummary } from '~/modulos/erp/treasury/intercompany-treasury.service'
 import CheckAlertCards from '~/components/erp/CheckAlertCards.vue'
 import type { CheckAlertCard, CheckAlertKind } from '~/modulos/erp/checks/types/check-alerts.types'
 import { addDaysToDateKey, differenceInDateKeys, formatCheckDate, getArgentinaDateKey, getCheckDateKey } from '~/modulos/erp/checks/utils/check-dates'
@@ -18,6 +21,18 @@ const { checks, init: fetchChecks } = useChecks()
 const { hasPermission } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 const router = useRouter()
+const { visible: showIntercompany } = useIntercompanyVisibility()
+const intercompanySummaries = ref<IntercompanySummary[]>([])
+const intercompanyBalances = computed(() => intercompanySummaries.value.filter(row => Math.abs(row.balance) >= 0.01).slice(0, 3))
+watch(showIntercompany, async visible => {
+  if (!visible) { intercompanySummaries.value = []; return }
+  const companyId = useAuthStore().selectedCompany?.id
+  try {
+    const result = await useIntercompanyTreasuryService().overview()
+    if (showIntercompany.value && companyId === useAuthStore().selectedCompany?.id) intercompanySummaries.value = result.summaries
+  }
+  catch { intercompanySummaries.value = [] }
+}, { immediate: true })
 
 const showBankAccounts = computed(() => isOwnerOrAdmin.value || hasPermission('bank_accounts.read'))
 const showCashBoxes = computed(() => isOwnerOrAdmin.value || hasPermission('cash_boxes.read'))
@@ -256,6 +271,19 @@ const quickActions = computed(() => {
   <UPage>
     <div class="flex flex-col gap-6 px-4">
     <AppPageHeader title="Dashboard Tesorería" description="Resumen general de la situación financiera" />
+    <NuxtLink v-if="showIntercompany && intercompanyBalances.length" to="/erp/treasury/intercompany" class="block">
+      <UPageCard variant="subtle" class="border-warning/30 hover:border-warning/60 transition-colors">
+        <div class="flex items-start gap-3"><UIcon name="i-lucide-building-2" class="mt-1 size-5 text-warning" />
+          <div class="flex flex-col gap-1"><h2 class="font-semibold">Entre empresas</h2>
+            <p v-for="row in intercompanyBalances" :key="`${row.company_id}:${row.currency_code}`" class="text-sm">
+              {{ row.balance > 0 ? 'Por rendir a' : 'A favor de esta empresa frente a' }} {{ row.company_name }}:
+              <strong>{{ formatCurrency(Math.abs(row.balance), row.currency_code) }}</strong>
+            </p>
+            <span class="text-xs text-primary">Ver movimientos y transferencias →</span>
+          </div>
+        </div>
+      </UPageCard>
+    </NuxtLink>
     <CheckAlertCards
       v-if="showChecks"
       :alerts="checkAlertCards"

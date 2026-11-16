@@ -1,16 +1,21 @@
 export type FinancialResultsMetric =
   | 'sales_confirmed'
   | 'purchase_invoices'
+  | 'purchase_invoices_paid'
+  | 'purchase_invoice_payments'
   | 'purchase_invoices_pending'
   | 'payments'
+  | 'invoice_payment_outflows'
+  | 'non_invoice_payments'
   | 'expenses'
   | 'other_outflows'
+  | 'non_invoice_outflows'
   | 'outflows'
   | 'collections'
   | 'pending_orders'
   | 'opening_balance_receivable'
 
-export type FinancialResultsMetricKey = FinancialResultsMetric | 'sales_order_paid' | 'purchase_invoices_paid'
+export type FinancialResultsMetricKey = FinancialResultsMetric | 'sales_order_paid'
 export type FinancialResultsMoneyMap = Record<string, string>
 export type FinancialResultsCountMap = Record<string, number>
 
@@ -19,10 +24,14 @@ export interface FinancialResultsMetrics {
   sales_order_paid: FinancialResultsMoneyMap
   purchase_invoices: FinancialResultsMoneyMap
   purchase_invoices_paid: FinancialResultsMoneyMap
+  purchase_invoice_payments: FinancialResultsMoneyMap
   purchase_invoices_pending: FinancialResultsMoneyMap
   payments: FinancialResultsMoneyMap
+  invoice_payment_outflows: FinancialResultsMoneyMap
+  non_invoice_payments: FinancialResultsMoneyMap
   expenses: FinancialResultsMoneyMap
   other_outflows: FinancialResultsMoneyMap
+  non_invoice_outflows: FinancialResultsMoneyMap
   outflows: FinancialResultsMoneyMap
   collections: FinancialResultsMoneyMap
   pending_orders: FinancialResultsMoneyMap
@@ -35,13 +44,18 @@ export interface FinancialResultsCounts {
   orders_paid_partial: FinancialResultsCountMap
   orders_unpaid: FinancialResultsCountMap
   purchase_invoices: FinancialResultsCountMap
+  purchase_invoices_paid: FinancialResultsCountMap
+  purchase_invoice_payments: FinancialResultsCountMap
   purchase_invoices_pending: FinancialResultsCountMap
   purchase_invoices_paid_full: FinancialResultsCountMap
   purchase_invoices_paid_partial: FinancialResultsCountMap
   purchase_invoices_unpaid: FinancialResultsCountMap
   payments: FinancialResultsCountMap
+  invoice_payment_outflows: FinancialResultsCountMap
+  non_invoice_payments: FinancialResultsCountMap
   expenses: FinancialResultsCountMap
   other_outflows: FinancialResultsCountMap
+  non_invoice_outflows: FinancialResultsCountMap
   outflows: FinancialResultsCountMap
   collections: FinancialResultsCountMap
   pending_orders: FinancialResultsCountMap
@@ -83,6 +97,8 @@ export interface FinancialResultsDetailRow {
   document_category: string
   document_label: string
   document_reference: string
+  related_document_id?: string
+  related_document_reference?: string
   document_date: string
   party_id: string | null
   party_name: string

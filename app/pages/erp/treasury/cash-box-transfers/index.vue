@@ -93,6 +93,7 @@ const form = reactive<CreateCashBoxTransferInput>({
   amount: 0,
   currency_code: 'ARS',
   transfer_type: 'CASH_TO_BANK',
+  intercompany_purpose: 'OTHER',
   exchange_rate: undefined,
   rate_type: 'OFFICIAL',
   converted_amount: undefined,
@@ -218,12 +219,14 @@ async function onDestinationCompanyChange(companyId: string) {
   remoteDestinations.value = null
   if (!companyId || companyId === authStore.selectedCompany?.id) {
     form.dest_company_id = undefined
+    form.intercompany_purpose = undefined
     return
   }
   loadingDestinations.value = true
   try {
     remoteDestinations.value = await transfersService.destinationOptions(companyId)
     form.dest_company_id = companyId
+    form.intercompany_purpose = 'OTHER'
   } catch (e: any) {
     destinationCompanyId.value = authStore.selectedCompany?.id ?? ''
     form.dest_company_id = undefined
@@ -293,6 +296,7 @@ const openCreate = () => {
   Object.assign(form, {
     source_type: 'cash_box', source_id: '', dest_type: 'bank_account',
     dest_id: '', dest_company_id: undefined, amount: 0, currency_code: 'ARS', transfer_type: 'CASH_TO_BANK',
+    intercompany_purpose: 'OTHER',
     exchange_rate: undefined, rate_type: 'OFFICIAL', converted_amount: undefined, description: ''
   })
   destinationCompanyId.value = authStore.selectedCompany?.id ?? ''
@@ -428,6 +432,13 @@ const columns = cashBoxTransferColumns({
 
 onMounted(async () => {
   await Promise.all([init(), initCashBoxes(), initBankAccounts(), initCurrencies()])
+  const requestedCompany = typeof route.query.dest_company_id === 'string' ? route.query.dest_company_id : ''
+  if (requestedCompany && requestedCompany !== authStore.selectedCompany?.id) {
+    openCreate()
+    destinationCompanyId.value = requestedCompany
+    await onDestinationCompanyChange(requestedCompany)
+    if (form.dest_company_id === requestedCompany && route.query.purpose === 'SETTLEMENT') form.intercompany_purpose = 'SETTLEMENT'
+  }
   const transferId = typeof route.query.transferId === 'string' ? route.query.transferId : ''
   const linkedTransfer = transferId ? transfers.value.find(transfer => transfer.id === transferId) : null
   if (linkedTransfer) openDetail(linkedTransfer)
@@ -553,6 +564,13 @@ const sortFields: SortField[] = [
               ? 'Al registrar queda pendiente. Al confirmar, se debita el fondo de origen y se acredita el destino; la recepción también quedará registrada en la otra empresa.'
               : 'Al registrar queda pendiente. Los saldos se actualizan recién cuando confirmás la transferencia.'"
           />
+
+          <UFormField v-if="isIntercompany" label="Motivo entre empresas" description="Solo las rendiciones reducen el saldo pendiente entre las empresas.">
+            <USelect v-model="form.intercompany_purpose" :items="[
+              { label: 'Rendición de fondos', value: 'SETTLEMENT' },
+              { label: 'Otra transferencia', value: 'OTHER' }
+            ]" class="w-full" />
+          </UFormField>
 
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_10rem]">
             <UFormField label="Monto a transferir" required>

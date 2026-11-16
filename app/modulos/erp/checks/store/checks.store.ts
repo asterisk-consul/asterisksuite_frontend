@@ -161,7 +161,7 @@ export const useChecksStore = defineStore('checks', () => {
     return updated
   }
 
-  const deposit = async (id: string, data: { bank_account_id: string; amount?: number; date?: string }) => {
+  const deposit = async (id: string, data: { bank_account_id?: string; bank_account_company_id?: string; bank_account_external_id?: string; amount?: number; date?: string }) => {
     const updated = await service.deposit(id, data)
 
     const index = items.value.findIndex((i) => i.id === id)

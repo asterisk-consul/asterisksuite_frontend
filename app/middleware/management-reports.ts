@@ -17,7 +17,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     documents: 'management_reports.documents.read',
     inventory: 'management_reports.inventory.read',
   }
-  const permission = to.path.endsWith('/financial-results')
+  const permission = (to.path.endsWith('/financial-results') || to.path.endsWith('/financial-results-preview'))
     ? 'management_reports.financial_results.read'
     : to.path.endsWith('/sales-products')
       ? 'management_reports.sales_products.read'

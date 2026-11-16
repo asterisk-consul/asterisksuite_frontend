@@ -55,6 +55,10 @@ export const useCashBoxTransfersService = () => {
     })
   }
 
+  const setIntercompanyPurpose = (id: string, purpose: 'SETTLEMENT' | 'OTHER') => $fetch<CashBoxTransfer>(`${urlBase}/${id}/intercompany-purpose`, {
+    method: 'PATCH', body: { purpose }
+  })
+
   const remove = (id: string) => {
     return $fetch<void>(`${urlBase}/${id}`, {
       method: 'DELETE'
@@ -69,6 +73,7 @@ export const useCashBoxTransfersService = () => {
     confirm,
     cancel,
     reverse,
+    setIntercompanyPurpose,
     remove
   }
 }

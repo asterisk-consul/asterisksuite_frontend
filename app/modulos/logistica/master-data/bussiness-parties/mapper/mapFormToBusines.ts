@@ -17,9 +17,9 @@ export const mapFormToBusinessPartyDto = (form: BusinessPartyForm): CreateBusine
     first_name: isPerson ? form.first_name || undefined : undefined,
     last_name: isPerson ? form.last_name || undefined : undefined,
     business_names: form.business_names || undefined,
-    document_type: form.document_type || undefined,
+    document_type: form.type === 'TAX_AUTHORITY' ? undefined : form.document_type || undefined,
     email: form.email || undefined,
-    tax_id: form.tax_id || undefined,
+    tax_id: form.type === 'TAX_AUTHORITY' ? undefined : form.tax_id || undefined,
     vat_condition: form.vat_condition || undefined,
     exemption_rate: Number(form.exemption_rate ?? 0),
 

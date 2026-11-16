@@ -4,6 +4,7 @@ export interface CompanyUserInput {
   email?: string
   password?: string
   role?: string
+  company_role?: 'ADMIN' | 'USER'
   whatsapp_phone?: string
   link_employee_id?: string
   link_partner_id?: string
@@ -14,7 +15,7 @@ export const useUsersService = () => {
   const baseUrl = '/api/access-control/users'
 
   return {
-    findAll: () => $fetch<any[]>(`${baseUrl}/all`),
+    findAll: () => $fetch<Array<{ id: string; name: string; email: string; company_role: 'OWNER' | 'ADMIN' | 'USER' }>>(`${baseUrl}/all`),
     search: (query: string) => $fetch<any[]>(`${baseUrl}/search`, { query: { q: query } }),
     findBatch: (ids: string[]) => $fetch<any[]>(`${baseUrl}/batch`, { query: { ids: ids.join(',') } }),
     create: (body: CompanyUserInput) => $fetch<any>(baseUrl, { method: 'POST', body }),

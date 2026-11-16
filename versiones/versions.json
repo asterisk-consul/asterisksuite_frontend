@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.164.1-alpha",
+  "date": "2026-11-16",
+  "stage": "alpha",
+  "notes": "El detalle de tareas muestra los adjuntos en una previsualización autenticada y facilita la carga de categoría y fechas desde el inicio.",
+  "changes": [
+   { "type": "fix", "scope": "tasks", "title": "Abrir imágenes y PDF adjuntos en una previsualización autenticada y permitir descargar otros formatos" },
+   { "type": "style", "scope": "tasks", "title": "Unificar el desplazamiento del detalle y mostrar categoría y fechas al inicio del formulario" },
+   { "type": "docs", "scope": "tasks", "title": "Actualizar la guía del CRM con la vista de adjuntos y el formulario de tareas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar el detalle de tareas y la vista de adjuntos"
+ },
+ {
+  "version": "0.164.0-alpha",
+  "date": "2026-11-13",
+  "stage": "alpha",
+  "notes": "La edición de usuarios permite cambiar su tipo en la empresa entre Usuario y Administrador. El formulario protege al propietario y muestra el estado del teléfono y del consentimiento de WhatsApp junto al campo.",
+  "changes": [
+   { "type": "feat", "scope": "access-control", "title": "Cambiar el tipo de usuario de una empresa desde la edición de usuarios" },
+   { "type": "fix", "scope": "access-control", "title": "Impedir cambios del propietario o del propio tipo de usuario" },
+   { "type": "style", "scope": "users", "title": "Mostrar el estado del teléfono y del consentimiento de WhatsApp junto al campo" },
+   { "type": "docs", "scope": "users", "title": "Documentar la edición y las restricciones del tipo de usuario" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Editar el tipo de usuario y aclarar el estado de WhatsApp"
+ },
+ {
   "version": "0.163.0-alpha",
   "date": "2026-11-13",
   "stage": "alpha",

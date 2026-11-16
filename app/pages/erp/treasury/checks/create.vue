@@ -7,6 +7,8 @@ import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencie
 import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
 import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
+import { useIntercompanyTreasuryService } from '~/modulos/erp/treasury/intercompany-treasury.service'
+import type { BankAccountItem } from '~/modulos/erp/checks/components/CheckForm.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -15,7 +17,9 @@ const intakeService = useIntakeRecordsService()
 const intakeId = computed(() => route.query.intakeId as string | undefined)
 
 const { create } = useChecks()
-const { selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
+const { selectItems: localBankAccountItems, init: initBankAccounts } = useBankAccounts()
+const sharedBankAccounts = ref<BankAccountItem[]>([])
+const bankAccountItems = computed(() => [...localBankAccountItems.value, ...sharedBankAccounts.value])
 const { codeSelectItems: currencyItems, init: initCurrencies } = useCurrencies()
 
 const saving = ref(false)
@@ -30,6 +34,8 @@ const handleSubmit = async (formData: CheckFormData) => {
       bank_branch: formData.bank_branch || undefined,
       account_number: formData.account_number || undefined,
       bank_account_id: formData.bank_account_id || undefined,
+      bank_account_company_id: formData.bank_account_company_id || undefined,
+      bank_account_external_id: formData.bank_account_external_id || undefined,
       issuer_name: formData.issuer_name,
       issuer_id: formData.issuer_id || undefined,
       amount: formData.amount,
@@ -54,6 +60,16 @@ const handleSubmit = async (formData: CheckFormData) => {
 onMounted(() => {
   initBankAccounts()
   initCurrencies()
+  useIntercompanyTreasuryService().findAvailable('PAYMENT').then(funds => {
+    sharedBankAccounts.value = funds.filter(fund => fund.fund_type === 'BANK_ACCOUNT').map(fund => ({
+      label: `${fund.bank_name || fund.name} - ${fund.name} · ${fund.company_name} (${fund.currency_code})`,
+      value: `shared:${fund.company_id}:${fund.fund_id}`,
+      companyId: fund.company_id,
+      externalId: fund.fund_id,
+      bankName: fund.bank_name || fund.name,
+      currencyCode: fund.currency_code,
+    }))
+  }).catch(() => { sharedBankAccounts.value = [] })
 })
 </script>
 

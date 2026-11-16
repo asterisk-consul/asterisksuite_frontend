@@ -138,6 +138,17 @@ const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
 const cardOptions = ref<any[]>([])
 const intercompanyFunds = ref<IntercompanyFundOption[]>([])
+const checkBankAccountItems = computed(() => [
+  ...bankAccountItems.value,
+  ...intercompanyFunds.value.filter(fund => fund.fund_type === 'BANK_ACCOUNT').map(fund => ({
+    label: `${fund.bank_name || fund.name} - ${fund.name} · ${fund.company_name} (${fund.currency_code})`,
+    value: `shared:${fund.company_id}:${fund.fund_id}`,
+    companyId: fund.company_id,
+    externalId: fund.fund_id,
+    bankName: fund.bank_name || fund.name,
+    currencyCode: fund.currency_code,
+  })),
+])
 const intercompanyFundsLoading = ref(false)
 let intercompanyFundsRequest = 0
 
@@ -1907,6 +1918,8 @@ const handleCheckCreated = async (checkData: CheckFormData) => {
       bank_branch: checkData.bank_branch || undefined,
       account_number: checkData.account_number || undefined,
       bank_account_id: checkData.bank_account_id || undefined,
+      bank_account_company_id: checkData.bank_account_company_id || undefined,
+      bank_account_external_id: checkData.bank_account_external_id || undefined,
       issuer_name: checkData.issuer_name,
       issuer_id: checkData.issuer_id || undefined,
       amount: checkData.amount,
@@ -3200,7 +3213,7 @@ defineExpose({ completeDraft: completePaymentDraft })
     <CheckModal
       v-model:open="checkModalOpen"
       :loading="checkSaving"
-      :bank-account-items="bankAccountItems"
+      :bank-account-items="checkBankAccountItems"
       :currency-items="currencyOptions"
       :forced-type="isPayment ? 'OWN' : 'THIRD_PARTY'"
       @success="handleCheckCreated"

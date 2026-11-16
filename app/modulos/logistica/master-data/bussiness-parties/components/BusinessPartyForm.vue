@@ -221,6 +221,7 @@ function sanitizeDocumentInput(e: Event) {
 }
 
 function validateDocument(): boolean {
+  if (form.type === 'TAX_AUTHORITY') return true
   if (!form.document_type) {
     toast.add({ title: 'Seleccioná un tipo de documento primero', color: 'warning', icon: 'i-lucide-alert-circle' })
     return false
@@ -290,6 +291,11 @@ const removeBankAccount = (i: number) => {
 const submit = () => {
   if (props.loading || submitting.value) return
   mergePersonName()
+  form.name = form.name.trim().replace(/\s+/g, ' ')
+  if (!form.name) {
+    toast.add({ title: 'Ingresá el nombre o la razón social', color: 'warning', icon: 'i-lucide-alert-circle' })
+    return
+  }
   if (!validateDocument()) return
 
   // Build submit data with create_user if enabled

@@ -35,6 +35,7 @@ export interface CashBoxTransfer {
   description?: string | null
   reference?: string | null
   transfer_type: TransferType
+  intercompany_purpose?: 'SETTLEMENT' | 'OTHER' | null
   status: TransferStatus
   record_side?: 'source' | 'destination'
   creator?: TransferUser | null
@@ -60,5 +61,6 @@ export interface CreateCashBoxTransferInput {
   description?: string
   reference?: string
   transfer_type: TransferType
+  intercompany_purpose?: 'SETTLEMENT' | 'OTHER'
   date?: string
 }

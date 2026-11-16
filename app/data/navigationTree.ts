@@ -6,7 +6,7 @@ export interface DrilldownNode {
   permission?: string
   permissions?: string[]
   moduleCode?: string
-  visibleIf?: 'is_salesperson' | 'is_platform_admin'
+  visibleIf?: 'is_salesperson' | 'is_platform_admin' | 'has_intercompany'
   children?: DrilldownNode[]
 }
 
@@ -195,6 +195,13 @@ export const navigationTree: DrilldownNode[] = [
             icon: 'i-lucide-arrow-left-right',
             to: '/erp/treasury/cash-box-transfers',
             permission: 'cash_box_transfers.read'
+          },
+          {
+            label: 'Entre empresas',
+            icon: 'i-lucide-building-2',
+            to: '/erp/treasury/intercompany',
+            permissions: ['payments.read', 'cash_box_transfers.read'],
+            visibleIf: 'has_intercompany'
           }
         ]
       },

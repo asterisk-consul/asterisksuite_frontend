@@ -86,7 +86,7 @@ export const useChecksService = () => {
     })
   }
 
-  const deposit = (id: string, data: { bank_account_id: string; amount?: number; date?: string }) => {
+  const deposit = (id: string, data: { bank_account_id?: string; bank_account_company_id?: string; bank_account_external_id?: string; amount?: number; date?: string }) => {
     return $fetch<Check>(`${urlBase}/${id}/deposit`, {
       method: 'PATCH',
       body: data

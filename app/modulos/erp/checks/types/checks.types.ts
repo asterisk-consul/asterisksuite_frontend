@@ -14,6 +14,8 @@ export interface Check {
   id: string
   payment_id?: string | null
   bank_account_id?: string | null
+  bank_account_company_id?: string | null
+  bank_account_external_id?: string | null
   check_number: string
   bank_name: string
   bank_branch?: string | null
@@ -78,6 +80,8 @@ export interface CheckNotificationAlerts {
 export interface CreateCheckInput {
   payment_id?: string
   bank_account_id?: string
+  bank_account_company_id?: string
+  bank_account_external_id?: string
   check_number: string
   bank_name: string
   bank_branch?: string
@@ -100,6 +104,8 @@ export interface UpdateCheckInput {
   issue_date?: string
   bank_name?: string
   bank_account_id?: string
+  bank_account_company_id?: string
+  bank_account_external_id?: string
   bank_branch?: string
   account_number?: string
   issuer_name?: string

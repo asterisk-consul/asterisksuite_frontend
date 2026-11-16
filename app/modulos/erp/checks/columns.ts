@@ -14,7 +14,7 @@ const statusConfig: Record<string, { label: string }> = {
 }
 
 function getAvailableStatuses(row: Check, permissions: { canDeposit?: boolean; canReject?: boolean }) {
-  const clearedLabel = row.is_own ? 'Debitado' : row.bank_account_id || row.deposit_date ? 'Depositado' : 'Cobrado / aplicado'
+  const clearedLabel = row.is_own ? 'Debitado' : row.bank_account_id || row.bank_account_external_id || row.deposit_date ? 'Depositado' : 'Cobrado / aplicado'
   const all = [
     { value: 'PENDING', label: 'Pendiente', color: 'warning' as const },
     { value: 'CONFIRMED', label: 'Confirmado', color: 'info' as const },
@@ -107,7 +107,7 @@ export const checkColumns = (actions: {
         ...(!row.original.is_own && ['PENDING', 'CONFIRMED'].includes(row.original.status)
           ? [h(UButton, { icon: 'i-lucide-list-checks', size: 'xs', variant: 'soft', color: 'primary', label: 'Resolver', onClick: () => actions.onResolve?.(row.original) }),
               h(UButton, { icon: 'i-lucide-building-2', size: 'xs', variant: 'ghost', color: 'success', label: 'Depositar', onClick: () => actions.onDeposit?.(row.original) })] : []),
-        ...(actions.canDeposit && row.original.status === 'CLEARED' && row.original.bank_account_id
+        ...(actions.canDeposit && row.original.status === 'CLEARED' && (row.original.bank_account_id || row.original.bank_account_external_id)
           ? [h(UButton, { icon: 'i-lucide-undo-2', size: 'xs', variant: 'ghost', color: 'warning', label: 'Revertir', onClick: () => actions.onRevert?.(row.original) })] : []),
         ...(row.original.status !== 'CLEARED'
           ? [h(UButton, { icon: 'i-lucide-pencil', size: 'xs', variant: 'ghost', color: 'neutral', label: 'Editar', onClick: () => actions.onEdit?.(row.original) }),
@@ -179,10 +179,13 @@ export const checkColumns = (actions: {
     { key: 'issuer_name', label: 'Emisor', sortable: true },
     {
       id: 'bank_account_info', label: 'Cuenta bancaria',
-      accessorFn: row => row.bank_account ? `${row.bank_account.bank_name} - ${row.bank_account.name}` : '—',
+      accessorFn: row => row.bank_account ? `${row.bank_account.bank_name} - ${row.bank_account.name}` : row.bank_account_external_id ? 'Cuenta compartida' : '—',
       cell: ({ row }) => {
         const account = row.original.bank_account
         if (!account) {
+          if (row.original.bank_account_external_id) {
+            return h('span', { class: 'text-xs text-primary', title: `Empresa titular: ${row.original.bank_account_company_id}` }, 'Cuenta compartida')
+          }
           const label = row.original.is_own ? 'Sin cuenta asignada' : row.original.status === 'CLEARED' ? '—' : 'Se define al depositar'
           return h('span', { class: 'text-xs text-muted' }, label)
         }

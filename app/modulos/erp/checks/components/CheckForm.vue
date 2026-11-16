@@ -8,6 +8,8 @@ export interface CheckFormData {
   bank_branch: string
   account_number: string
   bank_account_id: string
+  bank_account_company_id: string
+  bank_account_external_id: string
   issuer_name: string
   issuer_id: string
   amount: number
@@ -21,6 +23,10 @@ export interface CheckFormData {
 export interface BankAccountItem {
   label: string
   value: string
+  companyId?: string
+  externalId?: string
+  bankName?: string
+  currencyCode?: string
 }
 
 const props = withDefaults(defineProps<{
@@ -46,6 +52,8 @@ const defaultForm: CheckFormData = {
   bank_branch: '',
   account_number: '',
   bank_account_id: '',
+  bank_account_company_id: '',
+  bank_account_external_id: '',
   issuer_name: '',
   issuer_id: '',
   amount: 0,
@@ -87,7 +95,7 @@ const handleSubmit = () => {
   if (!form.amount || Number(form.amount) <= 0) missing.push('Monto')
   if (!form.issue_date) missing.push('Fecha emisión')
   if (!form.due_date) missing.push('Vencimiento')
-  if (form.is_own && !form.bank_account_id) missing.push('Cuenta bancaria a debitar')
+  if (form.is_own && !form.bank_account_id && !(form.bank_account_company_id && form.bank_account_external_id)) missing.push('Cuenta bancaria a debitar')
   if (missing.length > 0) {
     const toast = useToast()
     toast.add({
@@ -110,12 +118,18 @@ const handleSubmit = () => {
   emit('submit', { ...form })
 }
 
+const selectedBankAccount = computed(() => form.bank_account_company_id && form.bank_account_external_id
+  ? `shared:${form.bank_account_company_id}:${form.bank_account_external_id}`
+  : form.bank_account_id)
+const availableBankAccounts = computed(() => props.bankAccountItems.filter(item => !item.currencyCode || item.currencyCode === form.currency_code))
 const onBankAccountSelect = (bankId: string) => {
-  const item = props.bankAccountItems.find(b => b.value === bankId)
+  const item = availableBankAccounts.value.find(b => b.value === bankId)
   if (item) {
-    form.bank_account_id = bankId
+    form.bank_account_id = item.companyId ? '' : item.value
+    form.bank_account_company_id = item.companyId ?? ''
+    form.bank_account_external_id = item.externalId ?? ''
     if (form.is_own && !form.bank_name.trim()) {
-      form.bank_name = item.label.split(' - ')[0] ?? ''
+      form.bank_name = item.bankName ?? item.label.split(' - ')[0] ?? ''
     }
   }
 }
@@ -229,7 +243,7 @@ watch(
           description="El importe se descontará de esta cuenta cuando se cobre el cheque."
           required
         >
-          <USelect v-model="form.bank_account_id" class="w-full" :items="bankAccountItems" placeholder="Seleccionar cuenta de débito" @update:model-value="onBankAccountSelect" />
+          <USelect :model-value="selectedBankAccount" class="w-full" :items="availableBankAccounts" placeholder="Seleccionar cuenta de débito" @update:model-value="onBankAccountSelect" />
         </UFormField>
         <UAlert
           v-else

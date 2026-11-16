@@ -6,13 +6,17 @@ import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBank
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
+import type { BankAccountItem } from '~/modulos/erp/checks/components/CheckForm.vue'
+import { useIntercompanyTreasuryService } from '~/modulos/erp/treasury/intercompany-treasury.service'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
 const { getCheck, update } = useChecks()
-const { selectItems: bankAccountItems, init: initBankAccounts } = useBankAccounts()
+const { selectItems: localBankAccountItems, init: initBankAccounts } = useBankAccounts()
+const sharedBankAccounts = ref<BankAccountItem[]>([])
+const bankAccountItems = computed(() => [...localBankAccountItems.value, ...sharedBankAccounts.value])
 const { codeSelectItems: currencyItems, init: initCurrencies } = useCurrencies()
 
 const check = ref<CheckFormData | null>(null)
@@ -45,6 +49,8 @@ onMounted(async () => {
       bank_branch: data.bank_branch ?? '',
       account_number: data.account_number ?? '',
       bank_account_id: data.bank_account_id ?? '',
+      bank_account_company_id: data.bank_account_company_id ?? '',
+      bank_account_external_id: data.bank_account_external_id ?? '',
       issuer_name: data.issuer_name,
       issuer_id: data.issuer_id ?? '',
       amount: data.amount,
@@ -61,6 +67,17 @@ onMounted(async () => {
     loadingData.value = false
     await initBankAccounts()
     await initCurrencies()
+    try {
+      const funds = await useIntercompanyTreasuryService().findAvailable('PAYMENT')
+      sharedBankAccounts.value = funds.filter(fund => fund.fund_type === 'BANK_ACCOUNT').map(fund => ({
+        label: `${fund.bank_name || fund.name} - ${fund.name} · ${fund.company_name} (${fund.currency_code})`,
+        value: `shared:${fund.company_id}:${fund.fund_id}`,
+        companyId: fund.company_id,
+        externalId: fund.fund_id,
+        bankName: fund.bank_name || fund.name,
+        currencyCode: fund.currency_code,
+      }))
+    } catch { sharedBankAccounts.value = [] }
   }
 })
 
@@ -76,6 +93,8 @@ const handleSubmit = async (formData: CheckFormData) => {
       issue_date: formData.issue_date || undefined,
       bank_name: formData.bank_name,
       bank_account_id: formData.bank_account_id || undefined,
+      bank_account_company_id: formData.bank_account_company_id || undefined,
+      bank_account_external_id: formData.bank_account_external_id || undefined,
       bank_branch: formData.bank_branch || undefined,
       account_number: formData.account_number || undefined,
       issuer_name: formData.issuer_name,

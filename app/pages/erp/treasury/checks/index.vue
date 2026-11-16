@@ -18,6 +18,8 @@ import { addDaysToDateKey, formatCheckDate, getArgentinaDateKey, getCheckDateKey
 import type { CheckAlertCard, CheckAlertKind } from '~/modulos/erp/checks/types/check-alerts.types'
 import CheckAlertCards from '~/components/erp/CheckAlertCards.vue'
 import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
+import { useIntercompanyTreasuryService } from '~/modulos/erp/treasury/intercompany-treasury.service'
+import type { IntercompanyFundOption } from '~/modulos/erp/treasury/intercompany-treasury.service'
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
 
@@ -61,6 +63,7 @@ const depositCashBoxId = ref('')
 const depositAmount = ref(0)
 const depositDate = ref('')
 const bankAccounts = ref<BankAccount[]>([])
+const sharedBankAccounts = ref<IntercompanyFundOption[]>([])
 const depositing = ref(false)
 const depositDraftKey = computed(() => `asterisk:check-deposit-draft:${authStore.selectedCompany?.id || 'company'}:${authStore.user?.id || 'user'}:${depositingCheck.value?.id || 'none'}`)
 const {
@@ -112,7 +115,7 @@ const depositDestinationOptions = computed(() => [
 ])
 const debitSourceOptions = computed(() => [
   { label: 'Débito directo de la cuenta bancaria', value: 'BANK' },
-  ...(canSettleThroughCashBox.value
+  ...(canSettleThroughCashBox.value && Boolean(debitingCheck.value?.bank_account_id)
     ? [{ label: 'Efectivo de caja depositado para cubrir el cheque', value: 'CASH' }]
     : [])
 ])
@@ -319,7 +322,9 @@ const openDepositModal = async (check: Check) => {
   depositDestination.value = 'BANK'
   depositCashBoxId.value = ''
   depositAmount.value = Number(check.available_amount ?? check.amount)
-  depositBankAccountId.value = check.bank_account_id ?? ''
+  depositBankAccountId.value = check.bank_account_company_id && check.bank_account_external_id
+    ? `shared:${check.bank_account_company_id}:${check.bank_account_external_id}`
+    : check.bank_account_id ?? ''
   depositDate.value = todayInArgentina()
 
   if (bankAccounts.value.length === 0) {
@@ -329,6 +334,10 @@ const openDepositModal = async (check: Check) => {
       bankAccounts.value = []
     }
   }
+  try {
+    sharedBankAccounts.value = (await useIntercompanyTreasuryService().findAvailable('COLLECTION', check.currency_code))
+      .filter(fund => fund.fund_type === 'BANK_ACCOUNT')
+  } catch { sharedBankAccounts.value = [] }
   await initCashBoxes()
 
   depositModalOpen.value = true
@@ -338,6 +347,13 @@ const filteredBankAccounts = computed(() => {
   if (!depositingCheck.value) return []
   return bankAccounts.value.filter(ba => ba.currency_code === depositingCheck.value!.currency_code && ba.active)
 })
+const depositBankAccountItems = computed(() => [
+  ...filteredBankAccounts.value.map(ba => ({ label: `${ba.bank_name} - ${ba.name} ($${ba.balance})`, value: ba.id })),
+  ...sharedBankAccounts.value.map(fund => ({
+    label: `${fund.bank_name || fund.name} - ${fund.name} · ${fund.company_name} (${fund.currency_code})`,
+    value: `shared:${fund.company_id}:${fund.fund_id}`,
+  })),
+])
 
 const availableDepositCashBoxes = computed(() => {
   if (!depositingCheck.value) return []
@@ -355,6 +371,10 @@ const handleDeposit = async () => {
     toast.add({ title: 'Seleccioná una cuenta bancaria', color: 'error' })
     return
   }
+  if (depositDestination.value === 'BANK' && !depositBankAccountItems.value.some(item => item.value === depositBankAccountId.value)) {
+    toast.add({ title: 'La cuenta seleccionada ya no está disponible', color: 'error' })
+    return
+  }
   if (depositDestination.value === 'CASH' && !depositCashBoxId.value) {
     toast.add({ title: 'Seleccioná una caja abierta', color: 'error' })
     return
@@ -369,8 +389,12 @@ const handleDeposit = async () => {
     if (depositDestination.value === 'CASH') {
       await collectInCashBox(depositingCheck.value.id, depositCashBoxId.value, depositDate.value)
     } else {
+      const selectedShared = sharedBankAccounts.value.find(fund =>
+        depositBankAccountId.value === `shared:${fund.company_id}:${fund.fund_id}`)
       await deposit(depositingCheck.value.id, {
-        bank_account_id: depositBankAccountId.value,
+        bank_account_id: selectedShared ? undefined : depositBankAccountId.value,
+        bank_account_company_id: selectedShared?.company_id,
+        bank_account_external_id: selectedShared?.fund_id,
         amount: depositAmount.value,
         date: depositDate.value
       })
@@ -610,11 +634,11 @@ const sortFields: SortField[] = [
             <label class="text-sm font-medium">Cuenta bancaria destino</label>
             <USelect
               v-model="depositBankAccountId"
-              :items="filteredBankAccounts.map(ba => ({ label: `${ba.bank_name} - ${ba.name} ($${ba.balance})`, value: ba.id }))"
+              :items="depositBankAccountItems"
               class="w-full"
               placeholder="Seleccionar cuenta..."
             />
-            <p v-if="filteredBankAccounts.length === 0" class="text-xs text-muted">
+            <p v-if="depositBankAccountItems.length === 0" class="text-xs text-muted">
               No hay cuentas bancarias con la moneda {{ depositingCheck?.currency_code }}
             </p>
           </div>
@@ -743,7 +767,7 @@ const sortFields: SortField[] = [
             color="info"
             variant="soft"
             title="Cuenta bancaria del cheque"
-            :description="`${debitingCheck.bank_name}. Se registrará el débito cuando ya figure en el banco.`"
+            :description="`${debitingCheck.bank_account_external_id ? 'Cuenta compartida de otra empresa' : debitingCheck.bank_name}. Se registrará el débito cuando ya figure en el banco.`"
           />
 
           <div v-else class="space-y-2">

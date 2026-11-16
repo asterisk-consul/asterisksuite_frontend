@@ -27,6 +27,10 @@ export interface TaskLabel {
   color: string
 }
 
+export interface TaskCategory extends TaskLabel {
+  active: boolean
+}
+
 export interface TaskComment {
   id: string
   content: string
@@ -53,6 +57,8 @@ export interface TaskRecord {
   completed_at?: string | null
   party?: TaskParty | null
   labels?: TaskLabel[]
+  category?: TaskCategory | null
+  category_id?: string | null
   comments_count?: number
   checklist_count?: number
   board?: { name: string }
@@ -77,10 +83,26 @@ export interface TaskBoard {
   name: string
   description: string | null
   party_id?: string | null
+  category_id?: string | null
   party?: TaskParty | null
   is_default: boolean
+  require_work_log_on_transition?: boolean
   columns?: TaskColumn[]
   _count?: { columns: number; tasks: number }
+}
+
+export interface TaskWorkLog {
+  id: string
+  user_id: string
+  user_name: string
+  minutes: number
+  description: string | null
+  created_at: string
+}
+
+export interface TaskWorkLogInput {
+  minutes: number
+  description?: string
 }
 
 export interface SaveTaskInput {
@@ -95,6 +117,7 @@ export interface SaveTaskInput {
   position?: number
   label_ids?: string[]
   members?: TaskMemberInput[]
+  work_log?: TaskWorkLogInput
 }
 
 export interface TaskChecklistItem {
@@ -123,8 +146,9 @@ export const useTasksService = () => ({
   getBoards: () => $fetch<TaskBoard[]>('/api/backend/erp/tasks/boards'),
   createBoard: (body: { name: string; description?: string; party_id?: string | null; columns?: string[] }) =>
     $fetch<TaskBoard>('/api/backend/erp/tasks/boards', { method: 'POST', body }),
-  getBoard: (id: string, partyId?: string) => $fetch<TaskBoard & { columns: TaskColumn[] }>(`/api/backend/erp/tasks/boards/${id}`, {
-    query: partyId ? { party_id: partyId } : undefined,
+  updateBoardSettings: (id: string, body: { require_work_log_on_transition: boolean }) => $fetch<Pick<TaskBoard, 'id' | 'require_work_log_on_transition'>>(`/api/backend/erp/tasks/boards/${id}/settings`, { method: 'PATCH', body }),
+  getBoard: (id: string, query?: Record<string, string | undefined>) => $fetch<TaskBoard & { columns: TaskColumn[] }>(`/api/backend/erp/tasks/boards/${id}`, {
+    query,
   }),
   getTask: (id: string) => $fetch<TaskRecord>(`/api/backend/erp/tasks/${id}`),
   createColumn: (boardId: string, name: string) => $fetch<TaskColumn>(`/api/backend/erp/tasks/boards/${boardId}/columns`, { method: 'POST', body: { name } }),
@@ -135,7 +159,12 @@ export const useTasksService = () => ({
     $fetch<{ is_pinned: boolean; is_watching: boolean }>(`/api/backend/erp/tasks/columns/${id}/preferences`, { method: 'PATCH', body }),
   getMembers: () => $fetch<TaskMember[]>('/api/backend/erp/tasks/members'),
   getLabels: () => $fetch<TaskLabel[]>('/api/backend/erp/tasks/labels'),
+  getWorkLogs: (taskId: string) => $fetch<{ items: TaskWorkLog[]; total_minutes: number; limited: boolean }>(`/api/backend/erp/tasks/${taskId}/work-logs`),
+  addWorkLog: (taskId: string, body: TaskWorkLogInput) => $fetch<TaskWorkLog>(`/api/backend/erp/tasks/${taskId}/work-logs`, { method: 'POST', body }),
   createLabel: (body: { name: string; color: string }) => $fetch<TaskLabel>('/api/backend/erp/tasks/labels', { method: 'POST', body }),
+  getCategories: () => $fetch<TaskCategory[]>('/api/backend/erp/tasks/categories'),
+  createCategory: (body: { name: string; color: string }) => $fetch<TaskCategory>('/api/backend/erp/tasks/categories', { method: 'POST', body }),
+  updateCategory: (id: string, body: Partial<Pick<TaskCategory, 'name' | 'color' | 'active'>>) => $fetch<TaskCategory>(`/api/backend/erp/tasks/categories/${id}`, { method: 'PATCH', body }),
   getComments: (taskId: string) => $fetch<TaskComment[]>(`/api/backend/erp/tasks/${taskId}/comments`),
   createComment: (taskId: string, body: { content: string }) => $fetch<TaskComment>(`/api/backend/erp/tasks/${taskId}/comments`, { method: 'POST', body }),
   getChecklists: (taskId: string) => $fetch<TaskChecklist[]>(`/api/backend/erp/tasks/${taskId}/checklists`),
@@ -148,6 +177,6 @@ export const useTasksService = () => ({
   getByParty: (partyId: string, limit = 100) => $fetch<TaskRecord[]>(`/api/backend/erp/tasks/by-party/${partyId}`, { query: { limit } }),
   createTask: (boardId: string, body: SaveTaskInput & { title: string; column_id: string }) => $fetch<{ id: string }>(`/api/backend/erp/tasks/boards/${boardId}/tasks`, { method: 'POST', body }),
   updateTask: (id: string, body: SaveTaskInput) => $fetch<{ id: string }>(`/api/backend/erp/tasks/${id}`, { method: 'PATCH', body }),
-  setTaskCompletion: (id: string, completed: boolean) => $fetch<{ success: boolean; completed: boolean; column_id: string; position?: number; completed_at: string | null }>(`/api/backend/erp/tasks/${id}/completion`, { method: 'PATCH', body: { completed } }),
+  setTaskCompletion: (id: string, completed: boolean, work_log?: TaskWorkLogInput) => $fetch<{ success: boolean; completed: boolean; column_id: string; position?: number; completed_at: string | null }>(`/api/backend/erp/tasks/${id}/completion`, { method: 'PATCH', body: { completed, ...(work_log ? { work_log } : {}) } }),
   deleteTask: (id: string) => $fetch<{ success: boolean }>(`/api/backend/erp/tasks/${id}`, { method: 'DELETE' }),
 })
