@@ -71,9 +71,8 @@ const attachmentPreviewError = ref('')
 const attachmentPreviewRequestId = ref(0)
 const board = ref<(TaskBoard & { columns: TaskColumn[] }) | null>(null)
 const boardId = ref('')
-const partyFilter = ref('ALL')
 const filterOpen = ref(false)
-const taskFilters = reactive({ search: '', member_ids: [] as string[], label_ids: [] as string[], category_ids: [] as string[], completion: 'ALL', priority: 'ALL', due_status: 'ALL' })
+const taskFilters = reactive({ search: '', member_ids: [] as string[], label_ids: [] as string[], category_ids: [] as string[], party_ids: [] as string[], completion: 'ALL', priority: 'ALL', due_status: 'ALL' })
 const collapsedClosedColumnIds = ref<string[]>([])
 const hideCompletedColumns = ref(true)
 const showCategoriesModal = ref(false)
@@ -84,6 +83,7 @@ const updatingCategoryId = ref('')
 const categoryNameDrafts = reactive<Record<string, string>>({})
 const categoryColorDrafts = reactive<Record<string, string>>({})
 const partyOptions = ref<Array<{ label: string; value: string }>>([{ label: 'Todos los clientes', value: 'ALL' }])
+const clientFilterOptions = computed(() => partyOptions.value.filter(option => option.value !== 'ALL'))
 const customerSuggestions = ref<Array<{ label: string; value: string }>>([])
 const taskPartyOptions = ref<Array<{ label: string; value: string }>>([{ label: 'Sin cliente asociado', value: 'NONE' }])
 const partyFilterSearch = ref('')
@@ -169,7 +169,7 @@ const labelOptions = computed(() => labels.value.map(label => ({ label: label.na
 const categoryOptions = computed(() => categories.value.filter(category => category.active || taskForm.category_id === category.id).map(category => ({ label: category.name, value: category.id })))
 const categoryFilterOptions = computed(() => categories.value.filter(category => category.active).map(category => ({ label: category.name, value: category.id })))
 const boardFilterMemberOptions = computed(() => [{ label: 'Sin miembros', value: 'NONE' }, { label: 'Asignadas a mí', value: 'ME' }, ...members.value.map(member => ({ label: member.name, value: member.id }))])
-const activeBoardFilterCount = computed(() => Number(!!taskFilters.search.trim()) + Number(taskFilters.member_ids.length > 0) + Number(taskFilters.label_ids.length > 0) + Number(taskFilters.category_ids.length > 0) + Number(taskFilters.completion !== 'ALL') + Number(taskFilters.priority !== 'ALL') + Number(taskFilters.due_status !== 'ALL'))
+const activeBoardFilterCount = computed(() => Number(!!taskFilters.search.trim()) + Number(taskFilters.member_ids.length > 0) + Number(taskFilters.label_ids.length > 0) + Number(taskFilters.category_ids.length > 0) + Number(taskFilters.party_ids.length > 0) + Number(taskFilters.completion !== 'ALL') + Number(taskFilters.priority !== 'ALL') + Number(taskFilters.due_status !== 'ALL'))
 const visibleBoardColumns = computed(() => (board.value?.columns ?? []).filter(column => !hideCompletedColumns.value || !column.is_closed))
 const boardPeople = computed(() => {
   const ids = new Set((board.value?.columns ?? []).flatMap(column => column.tasks.flatMap(task => [task.assigned_to, ...(task.members ?? []).map(member => member.user_id)]).filter((id): id is string => !!id)))
@@ -490,7 +490,7 @@ function toggleClosedColumn(column: TaskColumn) {
 }
 
 function resetBoardFilters() {
-  Object.assign(taskFilters, { search: '', member_ids: [], label_ids: [], category_ids: [], completion: 'ALL', priority: 'ALL', due_status: 'ALL' })
+  Object.assign(taskFilters, { search: '', member_ids: [], label_ids: [], category_ids: [], party_ids: [], completion: 'ALL', priority: 'ALL', due_status: 'ALL' })
 }
 
 async function addCategory() {
@@ -559,7 +559,7 @@ async function loadBoard() {
     return
   }
   board.value = await service.getBoard(boardId.value, {
-    ...(partyFilter.value === 'ALL' ? {} : { party_id: partyFilter.value }),
+    ...(taskFilters.party_ids.length ? { party_ids: taskFilters.party_ids.join(',') } : {}),
     ...(taskFilters.search.trim() ? { search: taskFilters.search.trim() } : {}),
     ...(taskFilters.member_ids.length ? { member_ids: taskFilters.member_ids.join(',') } : {}),
     ...(taskFilters.label_ids.length ? { label_ids: taskFilters.label_ids.join(',') } : {}),
@@ -608,7 +608,7 @@ async function load() {
       if (!customerSuggestions.value.some(item => item.value === option.value)) customerSuggestions.value.unshift(option)
       partyOptions.value = [{ label: 'Todos los clientes', value: 'ALL' }, ...customerSuggestions.value]
       taskPartyOptions.value = [{ label: 'Sin cliente asociado', value: 'NONE' }, ...customerSuggestions.value]
-      partyFilter.value = party.id
+      taskFilters.party_ids = [party.id]
     }
     const results = await Promise.all([loadBoards(), service.getMembers(), service.getLabels(), service.getCategories()])
     members.value = results[1]
@@ -702,9 +702,11 @@ function searchCustomers(value: string, target: 'filter' | 'task') {
     try {
       const results = await partiesService.search(term, ['CUSTOMER'], nextController.signal)
       const next = results.map(party => ({ label: party.name, value: party.id }))
-      const selected = isFilter ? partyFilter.value : taskForm.party_id
-      if (selected !== 'ALL' && selected !== 'NONE' && !next.some(option => option.value === selected)) {
-        next.unshift(...customerSuggestions.value.filter(option => option.value === selected))
+      const selected = isFilter ? taskFilters.party_ids : [taskForm.party_id]
+      const selectedIds = selected.filter(id => id !== 'ALL' && id !== 'NONE')
+      const missingSelected = selectedIds.filter(id => !next.some(option => option.value === id))
+      if (missingSelected.length) {
+        next.unshift(...customerSuggestions.value.filter(option => missingSelected.includes(option.value)))
       }
       if (isFilter) partyOptions.value = [{ label: 'Todos los clientes', value: 'ALL' }, ...next]
       else taskPartyOptions.value = [{ label: 'Sin cliente asociado', value: 'NONE' }, ...next]
@@ -724,7 +726,7 @@ function searchCustomers(value: string, target: 'filter' | 'task') {
 watch(partyFilterSearch, value => searchCustomers(value, 'filter'))
 watch(taskPartySearch, value => searchCustomers(value, 'task'))
 
-watch([boardId, partyFilter], async () => {
+watch(boardId, async () => {
   if (loading.value || !boardId.value) return
   restoreCollapsedClosedColumns()
   try {
@@ -759,7 +761,7 @@ watch(() => route.query.task_id, async taskId => {
 
 function openBoardModal() {
   taskPartySearch.value = ''
-  Object.assign(boardForm, { name: '', description: '', party_id: partyFilter.value === 'ALL' ? 'NONE' : partyFilter.value, columns: 'Pendiente\nEn curso\nEn revisión\nFinalizada' })
+  Object.assign(boardForm, { name: '', description: '', party_id: taskFilters.party_ids.length === 1 ? taskFilters.party_ids[0] : 'NONE', columns: 'Pendiente\nEn curso\nEn revisión\nFinalizada' })
   showBoardModal.value = true
 }
 
@@ -871,7 +873,7 @@ async function saveQuickTask(column: TaskColumn) {
     await service.createTask(boardId.value, {
       title,
       column_id: column.id,
-      party_id: board.value?.party_id ?? (partyFilter.value === 'ALL' ? null : partyFilter.value),
+      party_id: board.value?.party_id ?? (taskFilters.party_ids.length === 1 ? taskFilters.party_ids[0] : null),
       priority: 'NORMAL',
     })
     quickTaskTitle.value = ''
@@ -989,7 +991,7 @@ function openNewTask(column: TaskColumn) {
   newLabelName.value = ''
   Object.assign(taskForm, {
     title: '', description: '', column_id: column.id,
-    party_id: board.value?.party_id ?? (partyFilter.value === 'ALL' ? 'NONE' : partyFilter.value),
+    party_id: board.value?.party_id ?? (taskFilters.party_ids.length === 1 ? taskFilters.party_ids[0] : 'NONE'),
     assigned_to: 'NONE', start_at: '', due_at: '', priority: 'NORMAL',
     category_id: 'NONE',
     label_ids: [],
@@ -1395,10 +1397,10 @@ onBeforeUnmount(() => {
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div class="flex flex-wrap items-end gap-3">
             <UFormField label="Tablero" class="w-full min-w-0 sm:w-64"><USelectMenu v-model="boardId" :items="boardOptions" value-key="value" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
-          <UFormField label="Cliente" class="w-72 max-w-full">
-            <USelectMenu v-model="partyFilter" :items="partyOptions" value-key="value" searchable v-model:search-term="partyFilterSearch" :loading="partySearchLoading" placeholder="Todos los clientes" class="w-full min-w-0 sm:w-64" :ui="selectMenuUi" />
+          <UFormField label="Clientes" class="w-72 max-w-full">
+            <USelectMenu v-model="taskFilters.party_ids" :items="clientFilterOptions" value-key="value" multiple searchable v-model:search-term="partyFilterSearch" :loading="partySearchLoading" placeholder="Todos los clientes" class="w-full min-w-0 sm:w-64" :ui="selectMenuUi" />
           </UFormField>
-          <UButton v-if="partyFilter !== 'ALL'" label="Ver ficha del cliente" icon="i-lucide-arrow-up-right" color="neutral" variant="outline" :to="`/erp/sales/customers/${partyFilter}`" />
+          <UButton v-if="taskFilters.party_ids.length === 1" label="Ver ficha del cliente" icon="i-lucide-arrow-up-right" color="neutral" variant="outline" :to="`/erp/sales/customers/${taskFilters.party_ids[0]}`" />
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div v-if="boardPeople.length" class="flex items-center -space-x-2" aria-label="Personas con tareas en este tablero">
@@ -1428,7 +1430,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <UAlert v-if="partyFilter !== 'ALL'" color="info" variant="subtle" icon="i-lucide-user-round" title="Vista de cliente" description="El tablero está filtrado para mostrar solo las tareas asociadas a este cliente. Las tareas generales siguen disponibles al quitar el filtro." />
+      <UAlert v-if="taskFilters.party_ids.length" color="info" variant="subtle" icon="i-lucide-building-2" title="Clientes filtrados" description="El tablero muestra tareas asociadas a los clientes seleccionados. Quitá la selección para volver a ver todas." />
       <UAlert v-if="activeBoardFilterCount" color="info" variant="subtle" icon="i-lucide-list-filter" title="Filtros activos" description="El arrastre de tareas se pausa mientras ves resultados filtrados. Limpiá los filtros para volver a moverlas entre listas." />
       <UAlert v-if="moving" color="neutral" variant="subtle" icon="i-lucide-loader-circle" title="Guardando el nuevo estado…" />
 
@@ -1446,7 +1448,7 @@ onBeforeUnmount(() => {
             </header>
             <div v-if="isColumnCollapsed(column)" class="px-3 py-3 text-xs text-muted">Lista oculta · {{ column.total_tasks ?? column.tasks.length }} tareas</div>
             <template v-else>
-            <VueDraggable v-model="column.tasks" group="company-tasks" item-key="id" :disabled="activeBoardFilterCount > 0 || partyFilter !== 'ALL' || !hasTaskPermission('tasks.update') || moving" :animation="240" :force-fallback="true" :fallback-on-body="true" :swap-threshold="0.65" filter=".task-completion" :prevent-on-filter="false" class="flex min-h-12 flex-col gap-2 p-2" ghost-class="task-card-ghost" chosen-class="task-card-chosen" drag-class="task-card-drag" fallback-class="task-card-fallback" @move="onDragMove" @end="onDragEnd">
+            <VueDraggable v-model="column.tasks" group="company-tasks" item-key="id" :disabled="activeBoardFilterCount > 0 || !hasTaskPermission('tasks.update') || moving" :animation="240" :force-fallback="true" :fallback-on-body="true" :swap-threshold="0.65" filter=".task-completion" :prevent-on-filter="false" class="flex min-h-12 flex-col gap-2 p-2" ghost-class="task-card-ghost" chosen-class="task-card-chosen" drag-class="task-card-drag" fallback-class="task-card-fallback" @move="onDragMove" @end="onDragEnd">
               <article v-for="task in column.tasks" :key="task.id" :data-task-id="task.id" class="task-card group relative w-full rounded-lg border border-default bg-default p-3 text-left shadow-sm" role="button" tabindex="0" @click="openEditTask(task, column.id)" @keydown.enter.self.prevent="openEditTask(task, column.id)" @keydown.space.self.prevent="openEditTask(task, column.id)">
                 <div class="task-completion-slot absolute left-3 top-3 z-10 flex size-5 items-center justify-center">
                     <button v-if="hasTaskPermission('tasks.update')" type="button" class="task-completion flex size-5 shrink-0 scale-75 items-center justify-center rounded-full border border-muted text-transparent opacity-0 transition-[opacity,transform,color,background-color,border-color] duration-200 ease-out hover:border-success hover:bg-success hover:text-white group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100 focus-visible:scale-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" :class="task.completed_at ? 'task-completion-done scale-100 border-success bg-success text-white opacity-100' : ''" :aria-label="task.completed_at ? `Reabrir ${task.title}` : `Marcar ${task.title} como completada`" :title="task.completed_at ? 'Reabrir tarea' : 'Marcar tarea como completada'" :aria-pressed="!!task.completed_at" :disabled="completionTaskId === task.id" @click.stop="toggleTaskCompletion(task)">
@@ -1471,7 +1473,7 @@ onBeforeUnmount(() => {
                 </div>
                 </div>
               </article>
-              <div v-if="!column.tasks.length" class="flex items-center justify-center rounded-lg border border-dashed border-default px-3 py-8 text-center text-xs text-muted">{{ activeBoardFilterCount || partyFilter !== 'ALL' ? 'No hay tareas que coincidan con estos filtros.' : 'Soltá una tarea acá o creá una nueva.' }}</div>
+              <div v-if="!column.tasks.length" class="flex items-center justify-center rounded-lg border border-dashed border-default px-3 py-8 text-center text-xs text-muted">{{ activeBoardFilterCount ? 'No hay tareas que coincidan con estos filtros.' : 'Soltá una tarea acá o creá una nueva.' }}</div>
             </VueDraggable>
               <form v-if="quickAddColumnId === column.id" class="mx-2 mb-2 space-y-2 rounded-lg bg-elevated p-2" @submit.prevent="saveQuickTask(column)">
               <UInput v-model="quickTaskTitle" autofocus maxlength="200" placeholder="Introduce un título para la tarjeta…" class="w-full" />

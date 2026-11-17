@@ -11,7 +11,6 @@ import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBank
 import { bankMovementColumns, getMovementSignedAmount, getMovementTypeBadge } from '~/modulos/erp/bank-accounts/movement-columns'
 import RegisterBankMovementModal from '~/modulos/erp/bank-accounts/components/RegisterBankMovementModal.vue'
 import BankChargeRulesPanel from '~/modulos/erp/bank-accounts/components/BankChargeRulesPanel.vue'
-import BankStatementImportModal from '~/modulos/erp/bank-accounts/components/BankStatementImportModal.vue'
 import { exportBankMovementsWorkbook } from '~/modulos/erp/bank-accounts/movement-spreadsheet'
 import { partitionCancelledTreasuryMovements } from '~/utils/treasuryMovementVisibility'
 
@@ -30,11 +29,6 @@ const transferring = ref(false)
 const movementDetailsOpen = ref(false)
 const movementDetailsLoading = ref(false)
 const selectedMovementDetails = ref<BankAccountMovementDetails | null>(null)
-const statementImportOpen = ref(false)
-
-function openStatementImport() {
-  statementImportOpen.value = true
-}
 const exportingMovements = ref(false)
 const toast = useToast()
 const transferDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
@@ -149,10 +143,6 @@ async function openMovementDetails(movement: BankAccountMovement) {
   } finally {
     movementDetailsLoading.value = false
   }
-}
-
-async function refreshAfterStatementImport() {
-  await Promise.all([fetchOne(accountId), fetchMovements(accountId)])
 }
 
 const movementChecks = computed(() => {
@@ -287,7 +277,7 @@ async function exportMovements() {
         icon="i-lucide-upload"
         color="neutral"
         variant="outline"
-        @click="openStatementImport"
+        @click="router.push(`/erp/treasury/bank-accounts/${accountId}/reconciliation`)"
       />
       <UButton
         label="Exportar movimientos"
@@ -508,17 +498,6 @@ async function exportMovements() {
     </UModal>
 
     <BankChargeRulesPanel :account-id="accountId" :currency-code="account.currency_code" />
-
-    <BankStatementImportModal
-      v-model:open="statementImportOpen"
-      :account-id="accountId"
-      :account-name="`${account.bank_name} · ${account.name}`"
-      :currency-code="account.currency_code"
-      :current-balance="realBalance"
-      :bank-accounting-account-id="account.accounting_account_id"
-      :movements="activeMovements"
-      @imported="refreshAfterStatementImport"
-    />
 
     <RegisterBankMovementModal
       v-model:open="movementModalOpen"

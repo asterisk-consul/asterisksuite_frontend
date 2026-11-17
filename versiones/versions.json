@@ -1,5 +1,30 @@
 [
  {
+  "version": "0.168.0-alpha",
+  "date": "2026-11-17",
+  "stage": "alpha",
+  "notes": "El tablero de tareas permite filtrar en conjunto las tareas asociadas a varios clientes de la misma empresa.",
+  "changes": [
+   { "type": "feat", "scope": "tasks", "title": "Filtrar un tablero por uno o varios clientes" },
+   { "type": "docs", "scope": "tasks", "title": "Documentar el filtro por varios clientes en el tablero" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Filtrar tareas por varios clientes"
+ },
+ {
+  "version": "0.167.0-alpha",
+  "date": "2026-11-17",
+  "stage": "alpha",
+  "notes": "La conciliación bancaria se abre en una pantalla completa, toma la fecha y el saldo final del archivo cuando están disponibles y compara saldos y totales del período entre extracto y sistema.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Abrir la conciliación de extractos en una página dedicada por cuenta bancaria" },
+   { "type": "feat", "scope": "treasury", "title": "Completar fecha y saldo final desde el extracto y comparar créditos, débitos y neto con el sistema" },
+   { "type": "docs", "scope": "treasury", "title": "Documentar la pantalla de conciliación, la carga automática del saldo y los totales comparados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Conciliar extractos bancarios en una pantalla dedicada"
+ },
+ {
   "version": "0.166.0-alpha",
   "date": "2026-11-17",
   "stage": "alpha",

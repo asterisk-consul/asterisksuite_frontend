@@ -17,6 +17,7 @@ interface Props {
   currentBalance: number
   bankAccountingAccountId?: string | null
   movements: BankAccountMovement[]
+  standalone?: boolean
 }
 
 interface ColumnMapping {
@@ -69,6 +70,7 @@ const NO_COLUMN = '__NO_COLUMN__'
 const props = defineProps<Props>()
 const emit = defineEmits<{ imported: [] }>()
 const open = defineModel<boolean>('open', { default: false })
+const modalTitle = computed(() => props.standalone ? `Conciliación bancaria · ${props.accountName}` : 'Importar y comparar extracto bancario')
 const toast = useToast()
 const { importStatementMovements, fetchMovementDetails } = useBankAccounts()
 const { activeConcepts, init: initConcepts } = useBankConcepts()
@@ -89,6 +91,8 @@ const movementDetailsLoading = ref(false)
 const selectedMovementDetails = ref<BankAccountMovementDetails | null>(null)
 const statementDate = ref('')
 const statementClosingBalanceInput = ref('')
+const statementDateManuallySet = ref(false)
+const statementBalanceManuallySet = ref(false)
 const comparisonFilter = ref<ComparisonFilter>('all')
 const importPage = ref(0)
 const selectedImportRows = ref<number[]>([])
@@ -170,6 +174,28 @@ const normalizedLines = computed<StatementLine[]>(() => sourceRows.value.map((ro
   return { rowNumber: headerRowNumber.value + index + 1, date, description, reference, amount, balance, issue }
 }).filter((line) => line.date || line.description || line.amount != null || line.reference))
 
+const latestStatementDate = computed(() => normalizedLines.value
+  .filter((line) => line.date && (line.amount != null || line.balance != null))
+  .map((line) => line.date)
+  .sort()
+  .at(-1) ?? '')
+const statementBalanceFromFile = computed(() => {
+  const rowsWithBalance = normalizedLines.value.filter((line) => line.date && line.balance != null && (!statementDate.value || line.date <= statementDate.value))
+  if (!rowsWithBalance.length) return null
+  const lastDate = rowsWithBalance.map((line) => line.date).sort().at(-1)!
+  const lastDateRows = rowsWithBalance.filter((line) => line.date === lastDate)
+  const datedRows = normalizedLines.value.filter((line) => line.date)
+  const isDescending = datedRows.length > 1 && datedRows[0]!.date > datedRows.at(-1)!.date
+  return (isDescending ? lastDateRows[0] : lastDateRows.at(-1))?.balance ?? null
+})
+
+watch(latestStatementDate, (date) => {
+  if (!statementDateManuallySet.value) statementDate.value = date
+})
+watch(statementBalanceFromFile, (balance) => {
+  if (!statementBalanceManuallySet.value) statementClosingBalanceInput.value = balance == null ? '' : String(balance)
+})
+
 const suggestions = computed<ReconciliationSuggestion[]>(() => {
   const usedMovementIds = new Set<string>()
   return normalizedLines.value.map((line) => {
@@ -233,6 +259,22 @@ const systemMovementsThroughDate = computed(() => props.movements
   .filter((movement) => !movement.deleted_at && (!statementDate.value || movement.date.slice(0, 10) <= statementDate.value))
   .sort((a, b) => a.date.localeCompare(b.date) || (a.created_at ?? '').localeCompare(b.created_at ?? '')))
 const systemMovementsInStatementPeriod = computed(() => systemMovementsThroughDate.value.filter((movement) => !statementPeriodStart.value || movement.date.slice(0, 10) >= statementPeriodStart.value))
+function movementTotals(amounts: number[]) {
+  return {
+    credits: roundMoney(amounts.filter((amount) => amount > 0).reduce((sum, amount) => sum + amount, 0)),
+    debits: roundMoney(amounts.filter((amount) => amount < 0).reduce((sum, amount) => sum + Math.abs(amount), 0)),
+    net: roundMoney(amounts.reduce((sum, amount) => sum + amount, 0)),
+    count: amounts.length
+  }
+}
+const statementMovementTotals = computed(() => movementTotals(relevantSuggestions.value
+  .flatMap(({ line }) => !line.date || line.amount == null ? [] : [line.amount])))
+const systemMovementTotals = computed(() => movementTotals(systemMovementsInStatementPeriod.value.map(getMovementSignedAmount)))
+const movementTotalDifferences = computed(() => ({
+  credits: roundMoney(statementMovementTotals.value.credits - systemMovementTotals.value.credits),
+  debits: roundMoney(statementMovementTotals.value.debits - systemMovementTotals.value.debits),
+  net: roundMoney(statementMovementTotals.value.net - systemMovementTotals.value.net)
+}))
 const systemOnlyMovements = computed(() => systemMovementsInStatementPeriod.value.filter((movement) => !matchedSystemMovementIds.value.has(movement.id)))
 const systemBalanceAtDate = computed<number | null>(() => {
   if (!statementDate.value) return null
@@ -410,7 +452,7 @@ watch(open, async (isOpen) => {
   } catch {
     // La comparación sigue disponible aunque no se puedan cargar conceptos.
   }
-})
+}, { immediate: true })
 
 function normalizeText(value: unknown) {
   return String(value ?? '').trim().toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ')
@@ -513,7 +555,13 @@ function mapColumns(allHeaders: string[]) {
   mapping.amount = mapping.debit || mapping.credit ? '' : firstMatchingHeader(allHeaders, ['importe', 'monto', 'amount', 'valor'])
   mapping.direction = firstMatchingHeader(allHeaders, ['naturaleza', 'sentido', 'debitcredit', 'creditdebit', 'tipo'])
   mapping.reference = firstMatchingHeader(allHeaders, ['referencia', 'reference', 'comprobante', 'operacionid', 'transactionid'])
-  mapping.balance = firstMatchingHeader(allHeaders, ['saldo', 'balance'])
+  mapping.balance = allHeaders.find((header) => ['saldofinal', 'saldoalcierre', 'closingbalance', 'endingbalance', 'balanceactual'].some((term) => normalizeHeader(header).includes(term)))
+    ?? allHeaders.find((header) => ['saldo', 'balance'].includes(normalizeHeader(header)))
+    ?? allHeaders.find((header) => {
+      const normalized = normalizeHeader(header)
+      return (normalized.includes('saldo') || normalized.includes('balance'))
+        && !['anterior', 'inicial', 'apertura', 'opening', 'previous', 'previo', 'inicio'].some((term) => normalized.includes(term))
+    })
   savedProfile.value = false
 }
 
@@ -528,6 +576,8 @@ async function handleFileSelection(event: Event) {
   sourceSheetName.value = ''
   statementDate.value = ''
   statementClosingBalanceInput.value = ''
+  statementDateManuallySet.value = false
+  statementBalanceManuallySet.value = false
   comparisonFilter.value = 'all'
   if (file.size > 10 * 1024 * 1024) {
     errorMessage.value = 'El archivo supera 10 MB. Exportá un período más corto para continuar.'
@@ -822,6 +872,14 @@ async function exportComparison() {
     ['Saldo del banco al cierre', closingBalance.value ?? 'No informado'],
     ['Saldo de Asterisk Suite al cierre', systemBalanceAtDate.value ?? 'No disponible'],
     ['Diferencia (banco menos sistema)', closingBalanceDifference.value ?? 'No disponible'],
+    ['Período de movimientos comparado', `${statementPeriodStart.value || 'No definido'} a ${statementDate.value || 'sin fecha de corte'}`],
+    ['Créditos del extracto', statementMovementTotals.value.credits],
+    ['Débitos del extracto', statementMovementTotals.value.debits],
+    ['Neto del extracto', statementMovementTotals.value.net],
+    ['Créditos registrados en el sistema', systemMovementTotals.value.credits],
+    ['Débitos registrados en el sistema', systemMovementTotals.value.debits],
+    ['Neto registrado en el sistema', systemMovementTotals.value.net],
+    ['Diferencia neta de movimientos (extracto menos sistema)', movementTotalDifferences.value.net],
     ['Hoja de datos', 'Comparación contiene las filas del extracto y el resultado sugerido. Movimientos del sistema contiene los registros ya cargados para esta cuenta.'],
     ['Lectura', 'Los importes positivos aumentan el saldo de esta cuenta y los negativos lo reducen. La naturaleza diferencia CREDIT de DEBIT.'],
     ['Resultado', 'Una coincidencia sugerida no modifica registros. Revisá manualmente los pendientes y ambiguos antes de conciliarlos fuera de este reporte.'],
@@ -891,6 +949,8 @@ function reset() {
   importing.value = false
   statementDate.value = ''
   statementClosingBalanceInput.value = ''
+  statementDateManuallySet.value = false
+  statementBalanceManuallySet.value = false
   comparisonFilter.value = 'all'
   importPage.value = 0
   selectedImportRows.value = []
@@ -904,9 +964,9 @@ function reset() {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Importar y comparar extracto bancario" :ui="{ content: 'w-[96vw] max-w-[96vw] sm:max-w-[96vw]' }">
+  <UModal v-model:open="open" :title="modalTitle" :fullscreen="props.standalone" :overlay="!props.standalone" :ui="props.standalone ? { body: 'min-h-0' } : { content: 'w-[96vw] max-w-[96vw] sm:max-w-[96vw]' }">
     <template #body>
-      <div class="max-h-[calc(100vh-9rem)] space-y-5 overflow-y-auto pr-1">
+      <div :class="props.standalone ? 'space-y-5 pr-1' : 'max-h-[calc(100vh-9rem)] space-y-5 overflow-y-auto pr-1'">
         <UAlert
           color="info"
           variant="subtle"
@@ -977,11 +1037,11 @@ function reset() {
           <section v-if="mappingIsValid" class="space-y-3 rounded-xl border border-default p-4">
             <div>
               <h3 class="font-semibold">Saldo del extracto al cierre</h3>
-              <p class="text-sm text-muted">Ingresá la fecha de corte y el saldo final que informa el banco para comparar contra el saldo registrado en Asterisk Suite.</p>
+              <p class="text-sm text-muted">La fecha y el saldo se completan desde la última fila del archivo cuando están disponibles. Si no mapeaste una columna de saldo, ingresá el saldo final que informa el banco.</p>
             </div>
             <div class="grid gap-3 sm:grid-cols-2">
-              <UFormField label="Fecha de cierre" required><UInput v-model="statementDate" type="date" class="w-full" /></UFormField>
-              <UFormField label="Saldo según el banco" required><UInput v-model="statementClosingBalanceInput" type="number" step="0.01" placeholder="0,00" class="w-full" /></UFormField>
+              <UFormField label="Fecha de cierre" required><UInput v-model="statementDate" type="date" class="w-full" @update:model-value="statementDateManuallySet = true" /></UFormField>
+              <UFormField label="Saldo final según el banco" required><UInput v-model="statementClosingBalanceInput" type="number" step="0.01" placeholder="0,00" class="w-full" @update:model-value="statementBalanceManuallySet = true" /></UFormField>
             </div>
             <div v-if="statementDate && closingBalance != null && systemBalanceAtDate != null" class="grid gap-3 sm:grid-cols-3">
               <UPageCard variant="subtle"><p class="text-xs text-muted">Saldo extracto · {{ statementDate }}</p><p class="text-xl font-semibold">{{ formatMoney(closingBalance) }}</p></UPageCard>
@@ -993,6 +1053,33 @@ function reset() {
               </UPageCard>
             </div>
             <UAlert v-else-if="statementDate && closingBalance != null" color="warning" variant="subtle" icon="i-lucide-circle-alert" description="No hay saldo histórico de la cuenta para la fecha elegida; revisá que la fecha y los movimientos cargados sean correctos." />
+          </section>
+
+          <section v-if="mappingIsValid && statementDate && normalizedLines.length" class="grid gap-3 xl:grid-cols-3">
+            <UPageCard variant="subtle">
+              <template #header><div><p class="font-semibold">Totales del extracto</p><p class="text-xs text-muted">{{ statementMovementTotals.count }} movimientos · {{ statementPeriodStart }} a {{ statementDate }}</p></div></template>
+              <div class="grid grid-cols-3 gap-2 text-sm">
+                <div><p class="text-xs text-muted">Créditos</p><p class="font-semibold text-success">{{ formatMoney(statementMovementTotals.credits) }}</p></div>
+                <div><p class="text-xs text-muted">Débitos</p><p class="font-semibold text-error">{{ formatMoney(statementMovementTotals.debits) }}</p></div>
+                <div><p class="text-xs text-muted">Neto</p><p class="font-semibold">{{ formatMoney(statementMovementTotals.net) }}</p></div>
+              </div>
+            </UPageCard>
+            <UPageCard variant="subtle">
+              <template #header><div><p class="font-semibold">Totales en el sistema</p><p class="text-xs text-muted">{{ systemMovementTotals.count }} movimientos · mismo período</p></div></template>
+              <div class="grid grid-cols-3 gap-2 text-sm">
+                <div><p class="text-xs text-muted">Créditos</p><p class="font-semibold text-success">{{ formatMoney(systemMovementTotals.credits) }}</p></div>
+                <div><p class="text-xs text-muted">Débitos</p><p class="font-semibold text-error">{{ formatMoney(systemMovementTotals.debits) }}</p></div>
+                <div><p class="text-xs text-muted">Neto</p><p class="font-semibold">{{ formatMoney(systemMovementTotals.net) }}</p></div>
+              </div>
+            </UPageCard>
+            <UPageCard variant="subtle" :class="Math.abs(movementTotalDifferences.net) < 0.01 ? 'border-success/40' : 'border-warning/50'">
+              <template #header><div><p class="font-semibold">Diferencia · extracto menos sistema</p><p class="text-xs text-muted">Los importes se comparan en la moneda de la cuenta</p></div></template>
+              <div class="grid grid-cols-3 gap-2 text-sm">
+                <div><p class="text-xs text-muted">Créditos</p><p class="font-semibold">{{ formatMoney(movementTotalDifferences.credits) }}</p></div>
+                <div><p class="text-xs text-muted">Débitos</p><p class="font-semibold">{{ formatMoney(movementTotalDifferences.debits) }}</p></div>
+                <div><p class="text-xs text-muted">Neto</p><p class="font-semibold" :class="Math.abs(movementTotalDifferences.net) < 0.01 ? 'text-success' : 'text-warning'">{{ formatMoney(movementTotalDifferences.net) }}</p></div>
+              </div>
+            </UPageCard>
           </section>
 
           <div v-if="mappingIsValid" class="grid gap-3 sm:grid-cols-4">
