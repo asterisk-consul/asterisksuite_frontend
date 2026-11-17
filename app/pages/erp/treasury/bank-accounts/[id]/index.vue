@@ -514,7 +514,8 @@ async function exportMovements() {
       :account-id="accountId"
       :account-name="`${account.bank_name} · ${account.name}`"
       :currency-code="account.currency_code"
-      :bank-account-accounting-id="account.accounting_account_id"
+      :current-balance="realBalance"
+      :bank-accounting-account-id="account.accounting_account_id"
       :movements="activeMovements"
       @imported="refreshAfterStatementImport"
     />

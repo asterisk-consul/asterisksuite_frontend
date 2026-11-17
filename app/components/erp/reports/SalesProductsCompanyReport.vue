@@ -35,6 +35,7 @@ interface ProductTreeRow {
 }
 
 const service = useManagementReportsService()
+const { openCompanyPathInNewTab } = useCompanyNavigation()
 const toast = useToast()
 const today = new Date()
 const localDate = (value: Date) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
@@ -50,7 +51,7 @@ const ovStatusOptions = [
   { value: 3, label: 'Lista para despacho' }, { value: 4, label: 'Entrega parcial' },
   { value: 5, label: 'Entregada' }, { value: 6, label: 'Facturada' }, { value: 7, label: 'Cerrada' },
 ]
-const selectedStatuses = ref([1, 4, 5, 7])
+const selectedStatuses = ref<number[]>(ovStatusOptions.map(option => option.value))
 const summary = ref<SalesProductsSummary | null>(null)
 const activeCompanyKey = ref('')
 const loadingCompanies = ref(false)
@@ -81,6 +82,14 @@ const summaryRows = computed<CompanyCurrencyRow[]>(() => (summary.value?.compani
   company.currencies.map(currency => ({ ...currency, company_id: company.company_id, company_name: company.company_name, subdomain: company.subdomain, id: `${company.company_id}:${currency.currency_code}` })),
 ))
 const activeCompanyRow = computed(() => summaryRows.value.find(row => row.id === activeCompanyKey.value) ?? null)
+
+function openSalesOrder(companyId: string, documentId: string) {
+  openCompanyPathInNewTab(companyId, `/erp/orders/${encodeURIComponent(documentId)}`)
+}
+
+function openCompanyProduct(companyId: string, productId: string) {
+  openCompanyPathInNewTab(companyId, `/productos/${encodeURIComponent(productId)}`)
+}
 
 const formatMoney = (value: string | number, currency: string) => {
   const amount = Number(value) || 0
@@ -389,13 +398,13 @@ const productTreeColumns = computed<ExtendedColumn<ProductTreeRow>[]>(() => [
       if (item.kind === 'PRODUCT' && item.category && item.product) {
         const expanded = activeProductKey.value === getProductKey(activeCompanyRow.value!, item.category, item.product)
         const children = [h(UButton, { icon: expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right', label: item.product.product_name, variant: 'link', color: 'neutral', size: 'xs', class: 'h-auto min-w-0 justify-start truncate px-0 text-left font-medium text-highlighted', onClick: () => void toggleProduct(item.category!, item.product!) })]
-        if (item.product.product_id) children.push(h(UButton, { icon: 'i-lucide-arrow-up-right', to: `/productos/${encodeURIComponent(item.product.product_id)}`, variant: 'ghost', color: 'primary', size: 'xs', class: 'shrink-0', title: 'Abrir ficha del artículo', 'aria-label': 'Abrir ficha del artículo' }))
+        if (item.product.product_id) children.push(h(UButton, { icon: 'i-lucide-arrow-up-right', variant: 'ghost', color: 'primary', size: 'xs', class: 'shrink-0', title: 'Abrir ficha del artículo', 'aria-label': 'Abrir ficha del artículo', onClick: () => { if (activeCompanyRow.value) openCompanyProduct(activeCompanyRow.value.company_id, item.product!.product_id!) } }))
         if (item.product.sku) children.push(h('span', { class: 'shrink-0 text-[10px] text-muted' }, `· ${item.product.sku}`))
         return h('div', { class: 'flex min-w-64 items-center gap-2 pl-8' }, children)
       }
       if (item.kind === 'MOVEMENT' && item.movement) {
         return h('div', { class: 'flex min-w-64 flex-col pl-16' }, [
-          h(UButton, { label: item.movement.document_reference, icon: 'i-lucide-file-text', to: `/erp/orders/${encodeURIComponent(item.movement.document_id)}`, variant: 'link', color: 'primary', size: 'xs', class: 'h-auto justify-start px-0 font-medium' }),
+          h(UButton, { label: item.movement.document_reference, icon: 'i-lucide-file-text', variant: 'link', color: 'primary', size: 'xs', class: 'h-auto justify-start px-0 font-medium', onClick: () => openSalesOrder(item.movement!.company_id, item.movement!.document_id) }),
           h('span', { class: 'text-[11px] text-muted' }, `${formatDate(item.movement.date)} · ${item.movement.party_name}`),
         ])
       }
@@ -461,11 +470,11 @@ const productTreeColumns = computed<ExtendedColumn<ProductTreeRow>[]>(() => [
 
 const movementColumns = computed<ExtendedColumn<SalesProductsMovement>[]>(() => [
   { accessorKey: 'date', header: 'Fecha OV', meta: { label: 'Fecha OV', filter: false }, cell: ({ row }: any) => formatDate(row.original.date) },
-  { accessorKey: 'document_reference', header: 'OV', meta: { label: 'OV', filter: false }, cell: ({ row }: any) => h(UButton, { label: row.original.document_reference, to: `/erp/orders/${encodeURIComponent(row.original.document_id)}`, variant: 'link', color: 'primary', size: 'xs', class: 'px-0 font-medium' }) },
+  { accessorKey: 'document_reference', header: 'OV', meta: { label: 'OV', filter: false }, cell: ({ row }: any) => h(UButton, { label: row.original.document_reference, variant: 'link', color: 'primary', size: 'xs', class: 'px-0 font-medium', onClick: () => openSalesOrder(row.original.company_id, row.original.document_id) }) },
   { accessorKey: 'document_id', header: 'UUID OV', meta: { label: 'UUID OV', filter: false }, cell: ({ row }: any) => h('span', { class: 'font-mono text-[10px] text-muted', title: row.original.document_id }, row.original.document_id) },
   { accessorKey: 'party_name', header: 'Cliente', meta: { label: 'Cliente', filter: false } },
   { accessorKey: 'document_status', header: 'Estado', meta: { label: 'Estado', filter: false }, cell: ({ row }: any) => getStatusLabel('ORDER', row.original.document_status) },
-  { accessorKey: 'product_name', header: 'Producto', meta: { label: 'Producto', filter: false }, cell: ({ row }: any) => row.original.product_id ? h(UButton, { label: row.original.product_name, to: `/productos/${encodeURIComponent(row.original.product_id)}`, variant: 'link', color: 'primary', size: 'xs', class: 'max-w-60 justify-start truncate px-0' }) : row.original.product_name },
+  { accessorKey: 'product_name', header: 'Producto', meta: { label: 'Producto', filter: false }, cell: ({ row }: any) => row.original.product_id ? h(UButton, { label: row.original.product_name, variant: 'link', color: 'primary', size: 'xs', class: 'max-w-60 justify-start truncate px-0', onClick: () => openCompanyProduct(row.original.company_id, row.original.product_id) }) : row.original.product_name },
   { accessorKey: 'sku', header: 'SKU', meta: { label: 'SKU', filter: false } },
   { accessorKey: 'id', header: 'UUID renglón', meta: { label: 'UUID renglón', filter: false }, cell: ({ row }: any) => h('span', { class: 'font-mono text-[10px] text-muted', title: row.original.id }, row.original.id) },
   { accessorKey: 'quantity', header: 'Cantidad', meta: { label: 'Cantidad', filter: false }, cell: ({ row }: any) => h('span', { class: 'block text-right tabular-nums' }, formatNumber(row.original.quantity, 3)) },

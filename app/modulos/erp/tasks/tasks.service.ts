@@ -87,6 +87,7 @@ export interface TaskBoard {
   party?: TaskParty | null
   is_default: boolean
   require_work_log_on_transition?: boolean
+  allow_task_timer?: boolean
   columns?: TaskColumn[]
   _count?: { columns: number; tasks: number }
 }
@@ -103,6 +104,17 @@ export interface TaskWorkLog {
 export interface TaskWorkLogInput {
   minutes: number
   description?: string
+}
+
+export interface TaskActiveTimer {
+  task_id: string
+  task_title: string
+  board_id: string
+  board_name: string
+  board_allows_timer: boolean
+  started_at: string | null
+  elapsed_seconds: number
+  paused: boolean
 }
 
 export interface SaveTaskInput {
@@ -131,6 +143,7 @@ export interface TaskChecklistItem {
 
 export interface TaskNotificationSettings {
   in_app_enabled: boolean
+  task_changes_enabled: boolean
 }
 
 export interface TaskChecklist {
@@ -146,7 +159,7 @@ export const useTasksService = () => ({
   getBoards: () => $fetch<TaskBoard[]>('/api/backend/erp/tasks/boards'),
   createBoard: (body: { name: string; description?: string; party_id?: string | null; columns?: string[] }) =>
     $fetch<TaskBoard>('/api/backend/erp/tasks/boards', { method: 'POST', body }),
-  updateBoardSettings: (id: string, body: { require_work_log_on_transition: boolean }) => $fetch<Pick<TaskBoard, 'id' | 'require_work_log_on_transition'>>(`/api/backend/erp/tasks/boards/${id}/settings`, { method: 'PATCH', body }),
+  updateBoardSettings: (id: string, body: { require_work_log_on_transition: boolean; allow_task_timer: boolean }) => $fetch<Pick<TaskBoard, 'id' | 'require_work_log_on_transition' | 'allow_task_timer'>>(`/api/backend/erp/tasks/boards/${id}/settings`, { method: 'PATCH', body }),
   getBoard: (id: string, query?: Record<string, string | undefined>) => $fetch<TaskBoard & { columns: TaskColumn[] }>(`/api/backend/erp/tasks/boards/${id}`, {
     query,
   }),
@@ -161,6 +174,11 @@ export const useTasksService = () => ({
   getLabels: () => $fetch<TaskLabel[]>('/api/backend/erp/tasks/labels'),
   getWorkLogs: (taskId: string) => $fetch<{ items: TaskWorkLog[]; total_minutes: number; limited: boolean }>(`/api/backend/erp/tasks/${taskId}/work-logs`),
   addWorkLog: (taskId: string, body: TaskWorkLogInput) => $fetch<TaskWorkLog>(`/api/backend/erp/tasks/${taskId}/work-logs`, { method: 'POST', body }),
+  getActiveTimer: () => $fetch<TaskActiveTimer | null>('/api/backend/erp/tasks/timer/active'),
+  startTimer: (taskId: string) => $fetch<TaskActiveTimer>(`/api/backend/erp/tasks/${taskId}/timer/start`, { method: 'POST' }),
+  pauseTimer: () => $fetch<TaskActiveTimer>('/api/backend/erp/tasks/timer/pause', { method: 'PATCH' }),
+  resumeTimer: () => $fetch<TaskActiveTimer>('/api/backend/erp/tasks/timer/resume', { method: 'PATCH' }),
+  finishTimer: (description?: string) => $fetch<{ success: boolean; work_log: { id: string; task_id: string; user_id: string; minutes: number; description: string | null; created_at: string } }>('/api/backend/erp/tasks/timer/finish', { method: 'POST', body: { description } }),
   createLabel: (body: { name: string; color: string }) => $fetch<TaskLabel>('/api/backend/erp/tasks/labels', { method: 'POST', body }),
   getCategories: () => $fetch<TaskCategory[]>('/api/backend/erp/tasks/categories'),
   createCategory: (body: { name: string; color: string }) => $fetch<TaskCategory>('/api/backend/erp/tasks/categories', { method: 'POST', body }),

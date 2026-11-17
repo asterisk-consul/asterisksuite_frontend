@@ -74,13 +74,14 @@ function filterNavigationTree(
   hasIntercompany: boolean
 ): DrilldownNode[] {
   return nodes.flatMap(node => {
+    const bypassPermissions = isOwnerOrAdmin && !node.strictPermissions
     if (node.to === '/settings/trash' && !isOwner && !hasPermission('trash.read')) {
       return []
     }
-    if (node.permission && !isOwnerOrAdmin && !hasPermission(node.permission)) {
+    if (node.permission && !bypassPermissions && !hasPermission(node.permission)) {
       return []
     }
-    if (node.permissions?.length && !isOwnerOrAdmin && !node.permissions.some(hasPermission)) {
+    if (node.permissions?.length && !bypassPermissions && !node.permissions.some(hasPermission)) {
       return []
     }
     if (node.visibleIf === 'is_salesperson' && !isSalesperson) {

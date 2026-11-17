@@ -6,6 +6,7 @@ defineProps<{ collapsed?: boolean }>()
 
 const auth = useAuthStore()
 const router = useRouter()
+const { navigateToCompanyPath } = useCompanyNavigation()
 
 const selectedCompany = computed(() => auth.selectedCompany)
 const hasMultipleCompanies = computed(() => auth.companies.length > 1)
@@ -54,23 +55,8 @@ async function redirectToSubdomain(company: (typeof auth.companies)[number]) {
 
   const currentPath = window.location.pathname
   const nextPath = getPathForCompanySwitch(currentPath)
-  auth.selectCompany(company)
-  // Esperar a que useCookie persista el tenant antes de navegar. Si la primera
-  // petición llega al nuevo host con la cookie anterior, el backend rechaza
-  // el acceso y la pantalla de comprobantes queda en 401.
-  await nextTick()
-
-  const config = useRuntimeConfig()
-  const baseDomain = config.public.baseDomain
-  if (baseDomain && company.subdomain) {
-    const { protocol, port } = window.location
-    const portSuffix = port ? `:${port}` : ''
-    window.location.href = `${protocol}//${company.subdomain}.${baseDomain}${portSuffix}${nextPath}`
-  } else {
-    // En desarrollo puede no haber subdominios; recargar limpia los stores
-    // del tenant previo y vuelve a pedir los datos con la cookie actualizada.
-    window.location.href = nextPath
-  }
+  const navigated = await navigateToCompanyPath(company.id, nextPath)
+  if (!navigated) loading.value = false
 }
 
 function getPathForCompanySwitch(path: string) {

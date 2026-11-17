@@ -300,7 +300,7 @@ onMounted(loadPage)
 
             <section class="space-y-3 rounded-lg border border-default p-4">
               <label class="flex items-center gap-3 font-medium"><USwitch v-model="notificationSettings.tasks_enabled" :disabled="!isOwnerOrAdmin || !notificationSettings.enabled" />Asignaciones, miembros, comentarios y menciones de tareas</label>
-              <p class="text-sm text-muted">Envía al responsable, a los miembros asociados o mencionados. Cada usuario debe tener su número activo y haber aceptado recibir mensajes. La opción independiente de campanita se configura en Tareas.</p>
+              <p class="text-sm text-muted">Envía asignaciones, comentarios y menciones; también avisa al creador cuando otra persona actualiza, mueve, completa o reabre su tarea. Cada destinatario debe tener su número activo y haber aceptado recibir mensajes. La opción independiente de campanita se configura en Tareas.</p>
             </section>
 
             <section class="space-y-3 rounded-lg border border-default p-4">

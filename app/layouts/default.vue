@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppVersionBanner from '~/components/AppVersionBanner/AppVersionBanner.vue'
 import DrilldownSidebar from '~/components/ui/DrilldownSidebar.vue'
+import TaskTimerDock from '~/components/erp/tasks/TaskTimerDock.vue'
 
 import { useAppVersion } from '~/composables/useAppVersion'
 import { useDrilldownNavigation } from '~/composables/useDrilldownNavigation'
@@ -134,6 +135,7 @@ onBeforeUnmount(() => {
       placeholder="Buscar páginas, módulos o configuración..."
     />
     <NotificationsSlideover />
+    <TaskTimerDock />
     <HelpAssistantSlideover v-model:open="isHelpAssistantOpen" :page-title="pageTitle" />
 
     <UDashboardPanel>

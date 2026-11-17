@@ -4,6 +4,10 @@ const loading = ref(true)
 const saving = ref(false)
 const pageError = ref('')
 const contact = reactive({ phone_e164: '', opted_in: false, consent_at: null as string | null })
+const argentinaMobileNeedsNine = computed(() => {
+  const normalized = contact.phone_e164.trim().replace(/[\s().-]/g, '')
+  return /^\+54(?!9)\d{10}$/.test(normalized)
+})
 const toast = useToast()
 const notificationsService = useNotificationsService()
 
@@ -69,9 +73,10 @@ onMounted(loadContact)
         <USkeleton class="h-10 w-full" />
       </div>
       <div v-else class="flex flex-col gap-4">
-        <UFormField label="Número de WhatsApp" description="Formato internacional, con + y código de país. Ejemplo: +54911XXXXXXXX." required>
+        <UFormField label="Número de WhatsApp" description="Formato internacional. Para celulares argentinos, agrega 9 después de +54; por ejemplo, +54 9 11 XXXX XXXX." required>
           <UInput v-model="contact.phone_e164" type="tel" autocomplete="tel" placeholder="+54911XXXXXXXX" class="w-full" />
         </UFormField>
+        <UAlert v-if="argentinaMobileNeedsNine" color="warning" variant="subtle" icon="i-lucide-circle-alert" title="Revisá el formato del celular" description="Los celulares argentinos se guardan con +54 9 antes del código de área. Agregá el 9 si este número es móvil." />
         <div class="flex flex-col gap-3 rounded-lg border border-default p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p class="font-medium">Acepto recibir avisos operativos</p>

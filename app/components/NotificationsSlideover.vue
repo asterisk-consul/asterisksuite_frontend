@@ -88,7 +88,15 @@ const stockAlertKey = (alert: any) => `STOCK_REPLENISHMENT:${alert.id}`
 const accountAlertKey = (alert: any) => `OLD_ACCOUNT_BALANCE:${alert.id}`
 
 function notificationIcon(type: string) {
-  if (type.startsWith('TASK_')) return type === 'TASK_MENTIONED' ? 'i-lucide-at-sign' : type === 'TASK_COMMENTED' ? 'i-lucide-message-circle' : 'i-lucide-list-todo'
+  if (type.startsWith('TASK_')) {
+    if (type === 'TASK_MENTIONED') return 'i-lucide-at-sign'
+    if (type === 'TASK_COMMENTED') return 'i-lucide-message-circle'
+    if (type === 'TASK_MOVED') return 'i-lucide-arrow-right-left'
+    if (type === 'TASK_UPDATED') return 'i-lucide-file-pen-line'
+    if (type === 'TASK_COMPLETED') return 'i-lucide-circle-check'
+    if (type === 'TASK_REOPENED') return 'i-lucide-rotate-ccw'
+    return 'i-lucide-list-todo'
+  }
   if (type === 'CHECK_DUE') return 'i-lucide-calendar-days'
   if (type === 'CHECK_OVERDUE') return 'i-lucide-calendar-clock'
   if (type === 'DOCUMENT_AUDIT') return 'i-lucide-eye'
@@ -97,7 +105,11 @@ function notificationIcon(type: string) {
 }
 
 function notificationIconTone(type: string) {
-  if (type.startsWith('TASK_')) return type === 'TASK_MENTIONED' ? 'primary' : type === 'TASK_COMMENTED' ? 'info' : 'success'
+  if (type.startsWith('TASK_')) {
+    if (type === 'TASK_MENTIONED') return 'primary'
+    if (type === 'TASK_COMMENTED' || type === 'TASK_UPDATED' || type === 'TASK_MOVED') return 'info'
+    return 'success'
+  }
   if (type === 'CHECK_DUE') return 'info'
   if (type === 'CHECK_OVERDUE') return 'warning'
   if (type === 'DOCUMENT_AUDIT' || type === 'INTAKE_UPDATE') return 'info'

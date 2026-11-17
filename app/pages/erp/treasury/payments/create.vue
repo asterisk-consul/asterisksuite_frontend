@@ -62,23 +62,29 @@ const obligationCurrency = computed(() => (route.query.currency as string) || 'A
 const obligationDescription = computed(() => (route.query.description as string) || '')
 const obligationAccountId = computed(() => (route.query.account_id as string) || '')
 const withholdingRemittanceId = computed(() => (route.query.withholding_remittance_id as string) || undefined)
+const statementReconciliation = computed(() => route.query.statement_reconciliation === '1')
+const statementBankAccountId = computed(() => (route.query.bank_account_id as string) || '')
+const statementReference = computed(() => (route.query.reference as string) || '')
+const statementPaymentMethod = computed(() => route.query.payment_method === 'CHECK' ? 'CHECK' : 'BANK_TRANSFER')
+const statementPaymentMode = computed(() => route.query.payment_mode === 'ADVANCE' ? 'ADVANCE' : 'NORMAL')
+const statementDate = computed(() => (route.query.date as string) || today())
 
 const initialValues = ref<PaymentFormData | undefined>(
-  partyId.value || checkId.value || obligationId.value || withholdingRemittanceId.value
+  partyId.value || checkId.value || obligationId.value || withholdingRemittanceId.value || statementReconciliation.value
     ? ({
         type: paymentType.value,
-        payment_mode: 'NORMAL',
-        date: today(),
-        payment_method: withholdingRemittanceId.value ? 'BANK_TRANSFER' : checkId.value ? 'CHECK' : 'CASH',
+        payment_mode: statementReconciliation.value ? statementPaymentMode.value : 'NORMAL',
+        date: statementReconciliation.value ? statementDate.value : today(),
+        payment_method: withholdingRemittanceId.value ? 'BANK_TRANSFER' : checkId.value ? 'CHECK' : statementReconciliation.value ? statementPaymentMethod.value : 'CASH',
         amount: obligationAmount.value,
         currency_code: obligationCurrency.value,
         exchange_rate: null,
         rate_type: 'OFFICIAL',
         converted_amount: null,
         description: obligationDescription.value,
-        reference: '',
+        reference: statementReconciliation.value ? statementReference.value : '',
         party_id: partyId.value,
-        bank_account_id: '',
+        bank_account_id: statementReconciliation.value ? statementBankAccountId.value : '',
         cash_box_id: '',
         bank_account_company_id: undefined,
         bank_account_external_id: undefined,
@@ -178,6 +184,20 @@ const sendQuickCapture = async () => {
 const handleSubmit = async (formData: PaymentFormData) => {
   // Evita que doble clic o doble submit cree dos borradores iguales.
   if (creatingPayment.value) return
+  if (statementReconciliation.value) {
+    if (!['BANK_TRANSFER', 'CHECK'].includes(formData.payment_method)) {
+      toast.add({ title: 'Medio incompatible con la conciliación', description: 'Elegí transferencia bancaria o cheque para que el pago/cobro pueda corresponder con el movimiento del extracto.', color: 'warning' })
+      return
+    }
+    if (formData.payment_method === 'BANK_TRANSFER' && formData.bank_account_id !== statementBankAccountId.value) {
+      toast.add({ title: 'Cuenta bancaria distinta', description: 'Seleccioná la misma cuenta bancaria que estás conciliando.', color: 'warning' })
+      return
+    }
+    if (formData.payment_mode === 'NORMAL' && !formData.documents?.some(document => document.document_id)) {
+      toast.add({ title: 'Falta asociar un comprobante', description: 'Asociá una factura pendiente o creá el comprobante desde el formulario. Si no corresponde una factura, cambiá explícitamente el modo a A cuenta (anticipo).', color: 'warning' })
+      return
+    }
+  }
   creatingPayment.value = true
   try {
     const apiPayload = {
@@ -250,6 +270,15 @@ const handleSubmit = async (formData: PaymentFormData) => {
         <div id="payment-form-actions" class="w-full pt-5 pb-3" />
       </template>
     </AppPageHeader>
+
+    <UAlert
+      v-if="statementReconciliation"
+      color="info"
+      variant="subtle"
+      icon="i-lucide-landmark"
+      title="Movimiento iniciado desde la conciliación bancaria"
+      description="El extracto indica el impacto neto. Asociá una factura o elegí A cuenta (anticipo); revisá retenciones y gastos porque pueden cambiar el importe que llega al banco. La transferencia impactará al confirmar el pago/cobro; con cheque, después tendrás que depositarlo o debitarlo para registrar el movimiento bancario."
+    />
 
     <UCard class="w-full min-w-0">
       <div v-if="!quickCaptureActive" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

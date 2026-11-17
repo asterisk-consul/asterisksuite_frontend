@@ -4,6 +4,7 @@ export interface CheckRelatedPayment {
   id: string
   number: number
   type: string
+  status: string
   amount: number
   party_id?: string | null
   party_type?: string | null

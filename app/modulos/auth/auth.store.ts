@@ -101,10 +101,10 @@ export const useAuthStore = defineStore('auth', () => {
       }
     }
 
-    // La empresa de la interfaz y el tenant que usa el proxy deben coincidir.
-    // Se sincroniza también durante SSR para corregir una cookie vieja al entrar
-    // directamente por el subdominio de otra empresa.
-    selectedTenantCookie.value = company?.subdomain ?? null
+    // En un subdominio de empresa, el host determina el tenant y prevalece
+    // sobre la cookie. No actualizar una cookie compartida entre subdominios:
+    // otra pestaña abierta en el host compartido podría cambiar de tenant.
+    if (!getCurrentSubdomain()) selectedTenantCookie.value = company?.subdomain ?? null
   }
 
   function restoreSelectedCompany() {

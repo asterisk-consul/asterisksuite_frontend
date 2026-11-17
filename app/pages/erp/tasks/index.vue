@@ -6,6 +6,7 @@ import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 import { usePlatformModulesStore } from '~/modulos/platform-modules/platform-modules.store'
+import { useTaskTimerStore } from '~/modulos/erp/tasks/task-timer.store'
 import { usePhotosService } from '~/modulos/logistica/media/photos/photos.service'
 import TaskDescriptionEditor from '~/components/erp/tasks/TaskDescriptionEditor.vue'
 
@@ -17,6 +18,7 @@ const router = useRouter()
 const toast = useToast()
 const auth = useAuthStore()
 const platformModules = usePlatformModulesStore()
+const taskTimer = useTaskTimerStore()
 const { isOwnerOrAdmin } = useCompanyRole()
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const hasTaskPermission = (permission: string) => auth.selectedCompany?.role === 'OWNER' || hasPermission(permission)
@@ -32,6 +34,8 @@ const comments = ref<TaskComment[]>([])
 const workLogs = ref<TaskWorkLog[]>([])
 const totalWorkMinutes = ref(0)
 const workLogsLimited = ref(false)
+const selectedTaskTimer = computed(() => !!selectedTask.value && taskTimer.timer?.task_id === selectedTask.value.id)
+const anotherTaskTimerRunning = computed(() => !!taskTimer.timer && !selectedTaskTimer.value)
 const workLogMinutes = ref('30')
 const workLogDescription = ref('')
 const addingWorkLog = ref(false)
@@ -41,6 +45,7 @@ const requiredWorkLogDescription = ref('')
 const submittingRequiredWorkLog = ref(false)
 const boardSettingsOpen = ref(false)
 const boardRequireWorkLogDraft = ref(false)
+const boardAllowTimerDraft = ref(false)
 const savingBoardSettings = ref(false)
 type PendingWorkLogAction =
   | { type: 'saveTask'; taskId: string; payload: SaveTaskInput }
@@ -68,8 +73,9 @@ const board = ref<(TaskBoard & { columns: TaskColumn[] }) | null>(null)
 const boardId = ref('')
 const partyFilter = ref('ALL')
 const filterOpen = ref(false)
-const taskFilters = reactive({ search: '', member_ids: [] as string[], label_ids: [] as string[], category_ids: [] as string[], completion: 'ALL', due_status: 'ALL' })
+const taskFilters = reactive({ search: '', member_ids: [] as string[], label_ids: [] as string[], category_ids: [] as string[], completion: 'ALL', priority: 'ALL', due_status: 'ALL' })
 const collapsedClosedColumnIds = ref<string[]>([])
+const hideCompletedColumns = ref(true)
 const showCategoriesModal = ref(false)
 const newCategoryName = ref('')
 const newCategoryColor = ref('neutral')
@@ -90,7 +96,9 @@ const savingTaskNotificationSettings = ref(false)
 const taskNotificationSettingsOpen = ref(false)
 const taskNotificationSettingsLoaded = ref(false)
 const taskNotificationSettingsError = ref('')
-const taskNotificationSettings = reactive<TaskNotificationSettings>({ in_app_enabled: true })
+const whatsappModuleRefreshError = ref('')
+const whatsappModuleRefreshing = ref(false)
+const taskNotificationSettings = reactive<TaskNotificationSettings>({ in_app_enabled: true, task_changes_enabled: true })
 const moving = ref(false)
 const completionTaskId = ref('')
 const dragOverColumnId = ref('')
@@ -154,13 +162,15 @@ const taskMemberRoleOptions = [
 const selectedBoardParty = computed(() => board.value?.party ?? null)
 const whatsappModule = computed(() => platformModules.modules.find(module => module.code === 'WHATSAPP') ?? null)
 const whatsappModuleEnabled = computed(() => whatsappModule.value?.enabled === true)
+const whatsappModuleChecking = computed(() => whatsappModuleRefreshing.value)
 const canManagePlatformModules = computed(() => ['PLATFORM_OWNER', 'PLATFORM_ADMIN'].includes(auth.user?.role ?? ''))
 const selectedTaskPartyOption = computed(() => taskPartyOptions.value.find(option => option.value === taskForm.party_id) ?? customerSuggestions.value.find(option => option.value === taskForm.party_id))
 const labelOptions = computed(() => labels.value.map(label => ({ label: label.name, value: label.id })))
 const categoryOptions = computed(() => categories.value.filter(category => category.active || taskForm.category_id === category.id).map(category => ({ label: category.name, value: category.id })))
 const categoryFilterOptions = computed(() => categories.value.filter(category => category.active).map(category => ({ label: category.name, value: category.id })))
 const boardFilterMemberOptions = computed(() => [{ label: 'Sin miembros', value: 'NONE' }, { label: 'Asignadas a mí', value: 'ME' }, ...members.value.map(member => ({ label: member.name, value: member.id }))])
-const activeBoardFilterCount = computed(() => Number(!!taskFilters.search.trim()) + Number(taskFilters.member_ids.length > 0) + Number(taskFilters.label_ids.length > 0) + Number(taskFilters.category_ids.length > 0) + Number(taskFilters.completion !== 'ALL') + Number(taskFilters.due_status !== 'ALL'))
+const activeBoardFilterCount = computed(() => Number(!!taskFilters.search.trim()) + Number(taskFilters.member_ids.length > 0) + Number(taskFilters.label_ids.length > 0) + Number(taskFilters.category_ids.length > 0) + Number(taskFilters.completion !== 'ALL') + Number(taskFilters.priority !== 'ALL') + Number(taskFilters.due_status !== 'ALL'))
+const visibleBoardColumns = computed(() => (board.value?.columns ?? []).filter(column => !hideCompletedColumns.value || !column.is_closed))
 const boardPeople = computed(() => {
   const ids = new Set((board.value?.columns ?? []).flatMap(column => column.tasks.flatMap(task => [task.assigned_to, ...(task.members ?? []).map(member => member.user_id)]).filter((id): id is string => !!id)))
   return members.value.filter(member => ids.has(member.id)).slice(0, 6)
@@ -170,6 +180,7 @@ const boardPeopleExtraCount = computed(() => {
   return Math.max(0, ids.size - boardPeople.value.length)
 })
 const currentBoardCollapseStorageKey = computed(() => `tasks:collapsed-final-columns:${auth.selectedCompany?.id ?? 'company'}:${auth.user?.id ?? 'user'}:${boardId.value || 'board'}`)
+const hideCompletedColumnsStorageKey = computed(() => `tasks:hide-final-columns:${auth.selectedCompany?.id ?? 'company'}:${auth.user?.id ?? 'user'}`)
 const columnMoveOptions = computed(() => {
   const columns = board.value?.columns ?? []
   const sourceId = moveColumnSource.value?.id
@@ -311,6 +322,13 @@ function formatWorkedTime(minutes: number) {
   return `${remainingMinutes} min`
 }
 
+function formatTimerDuration(seconds: number) {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = seconds % 60
+  return [hours, minutes, remainingSeconds].map(value => String(value).padStart(2, '0')).join(':')
+}
+
 function isWorkLogRequiredError(error: any) { return error?.data?.code === 'TASK_WORK_LOG_REQUIRED' }
 
 function requestRequiredWorkLog(action: PendingWorkLogAction) {
@@ -381,6 +399,7 @@ async function submitRequiredWorkLog() {
 
 function openBoardSettings() {
   boardRequireWorkLogDraft.value = !!board.value?.require_work_log_on_transition
+  boardAllowTimerDraft.value = !!board.value?.allow_task_timer
   boardSettingsOpen.value = true
 }
 
@@ -388,14 +407,51 @@ async function saveBoardSettings() {
   if (!board.value) return
   savingBoardSettings.value = true
   try {
-    const updated = await service.updateBoardSettings(board.value.id, { require_work_log_on_transition: boardRequireWorkLogDraft.value })
+    const updated = await service.updateBoardSettings(board.value.id, { require_work_log_on_transition: boardRequireWorkLogDraft.value, allow_task_timer: boardAllowTimerDraft.value })
     board.value.require_work_log_on_transition = updated.require_work_log_on_transition
+    board.value.allow_task_timer = updated.allow_task_timer
     boardSettingsOpen.value = false
     toast.add({ title: 'Configuración del tablero guardada', color: 'success' })
   } catch (error: any) {
     toast.add({ title: 'No se pudo guardar la configuración', description: error?.data?.message ?? error.message, color: 'error' })
   } finally { savingBoardSettings.value = false }
 }
+
+async function startSelectedTaskTimer() {
+  const task = selectedTask.value
+  if (!task || !canEditTask.value || !board.value?.allow_task_timer) return
+  try {
+    await taskTimer.start(task.id)
+    toast.add({ title: 'Temporizador iniciado', description: task.title, color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo iniciar el temporizador', description: error?.data?.message ?? error.message, color: 'error' })
+  }
+}
+
+async function toggleSelectedTaskTimer() {
+  try {
+    if (taskTimer.timer?.paused) await taskTimer.resume()
+    else await taskTimer.pause()
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo actualizar el temporizador', description: error?.data?.message ?? error.message, color: 'error' })
+  }
+}
+
+async function finishSelectedTaskTimer() {
+  const taskId = selectedTask.value?.id
+  if (!taskId || !selectedTaskTimer.value) return
+  try {
+    const workLog = await taskTimer.finish()
+    await loadWorkLogs(taskId)
+    toast.add({ title: 'Tiempo registrado', description: `${formatWorkedTime(workLog.minutes)} en esta tarea.`, color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo finalizar el temporizador', description: error?.data?.message ?? error.message, color: 'error' })
+  }
+}
+
+watch(() => taskTimer.timer, (current, previous) => {
+  if (!current && previous && selectedTask.value?.id === previous.task_id) void loadWorkLogs(previous.task_id)
+})
 
 function toggleBoardMemberFilter(memberId: string) {
   taskFilters.member_ids = taskFilters.member_ids.includes(memberId)
@@ -414,6 +470,17 @@ function restoreCollapsedClosedColumns() {
   }
 }
 
+function restoreHideCompletedColumns() {
+  if (!import.meta.client) return
+  const saved = localStorage.getItem(hideCompletedColumnsStorageKey.value)
+  hideCompletedColumns.value = saved === null ? true : saved !== 'false'
+}
+
+function persistHideCompletedColumns(value: boolean) {
+  hideCompletedColumns.value = value
+  if (import.meta.client) localStorage.setItem(hideCompletedColumnsStorageKey.value, String(value))
+}
+
 function toggleClosedColumn(column: TaskColumn) {
   const ids = new Set(collapsedClosedColumnIds.value)
   if (ids.has(column.id)) ids.delete(column.id)
@@ -423,7 +490,7 @@ function toggleClosedColumn(column: TaskColumn) {
 }
 
 function resetBoardFilters() {
-  Object.assign(taskFilters, { search: '', member_ids: [], label_ids: [], category_ids: [], completion: 'ALL', due_status: 'ALL' })
+  Object.assign(taskFilters, { search: '', member_ids: [], label_ids: [], category_ids: [], completion: 'ALL', priority: 'ALL', due_status: 'ALL' })
 }
 
 async function addCategory() {
@@ -498,6 +565,7 @@ async function loadBoard() {
     ...(taskFilters.label_ids.length ? { label_ids: taskFilters.label_ids.join(',') } : {}),
     ...(taskFilters.category_ids.length ? { category_ids: taskFilters.category_ids.join(',') } : {}),
     ...(taskFilters.completion !== 'ALL' ? { completion: taskFilters.completion } : {}),
+    ...(taskFilters.priority !== 'ALL' ? { priority: taskFilters.priority } : {}),
     ...(taskFilters.due_status !== 'ALL' ? { due_status: taskFilters.due_status } : {}),
   })
 }
@@ -522,6 +590,7 @@ async function openTaskFromRoute() {
 
 async function load() {
   loading.value = true
+  restoreHideCompletedColumns()
   try {
     try {
       await fetchMyPermissionsIfNeeded(auth.selectedCompany?.id, auth.user?.id)
@@ -552,6 +621,7 @@ async function load() {
     try {
       const notificationSettings = await service.getNotificationSettings()
       taskNotificationSettings.in_app_enabled = notificationSettings.in_app_enabled
+      taskNotificationSettings.task_changes_enabled = notificationSettings.task_changes_enabled
       taskNotificationSettingsLoaded.value = true
       taskNotificationSettingsError.value = ''
     } catch (error: any) {
@@ -575,13 +645,34 @@ async function saveTaskNotificationSettings() {
   try {
     const saved = await service.saveNotificationSettings({ ...taskNotificationSettings })
     taskNotificationSettings.in_app_enabled = saved.in_app_enabled
+    taskNotificationSettings.task_changes_enabled = saved.task_changes_enabled
     taskNotificationSettingsLoaded.value = true
     taskNotificationSettingsError.value = ''
-    toast.add({ title: 'Preferencia guardada', description: saved.in_app_enabled ? 'Los eventos de tareas llegarán a la campanita.' : 'Se pausaron los avisos internos de tareas para esta empresa.', color: 'success' })
+    toast.add({ title: 'Preferencias guardadas', description: saved.task_changes_enabled ? 'Los cambios se avisan a las personas relacionadas, excepto a quien los realiza.' : 'Se desactivaron los avisos de cambios para esta empresa.', color: 'success' })
   } catch (error: any) {
     toast.add({ title: 'No se pudo guardar', description: error?.data?.message ?? error.message, color: 'error' })
   } finally {
     savingTaskNotificationSettings.value = false
+  }
+}
+
+async function openTaskNotificationSettings() {
+  taskNotificationSettingsOpen.value = true
+  whatsappModuleRefreshError.value = ''
+  const companyId = auth.selectedCompany?.id
+  if (!companyId) {
+    whatsappModuleRefreshError.value = 'No se pudo identificar la empresa activa.'
+    return
+  }
+
+  whatsappModuleRefreshing.value = true
+  try {
+    // El módulo puede haberse habilitado desde otra pestaña después de cargar el tablero.
+    await platformModules.fetchEffective(companyId, true)
+  } catch {
+    whatsappModuleRefreshError.value = 'No se pudo verificar si WhatsApp está habilitado para esta empresa.'
+  } finally {
+    whatsappModuleRefreshing.value = false
   }
 }
 
@@ -1284,7 +1375,7 @@ onBeforeUnmount(() => {
         <UButton v-if="hasTaskPermission('tasks.create')" label="Nuevo tablero" icon="i-lucide-plus" variant="outline" @click="openBoardModal" />
         <UButton v-if="hasTaskPermission('tasks.update')" label="Categorías" icon="i-lucide-tags" color="neutral" variant="outline" @click="showCategoriesModal = true" />
         <UButton v-if="hasTaskPermission('tasks.update') && board" label="Regla de tiempo" icon="i-lucide-clock-3" color="neutral" variant="outline" @click="openBoardSettings" />
-        <UButton v-if="!loading && isOwnerOrAdmin" icon="i-lucide-settings-2" color="neutral" variant="outline" aria-label="Configurar avisos de tareas" title="Configurar avisos de tareas" @click="taskNotificationSettingsOpen = true" />
+        <UButton v-if="!loading && isOwnerOrAdmin" icon="i-lucide-settings-2" color="neutral" variant="outline" aria-label="Configurar avisos de tareas" title="Configurar avisos de tareas" @click="openTaskNotificationSettings" />
       </template>
     </AppPageHeader>
 
@@ -1317,17 +1408,22 @@ onBeforeUnmount(() => {
           <UPopover v-model:open="filterOpen" :content="{ align: 'end', sideOffset: 8 }">
             <UButton :label="activeBoardFilterCount ? `Filtrar · ${activeBoardFilterCount}` : 'Filtrar'" icon="i-lucide-list-filter" :color="activeBoardFilterCount ? 'primary' : 'neutral'" variant="outline" />
             <template #content>
-              <div class="flex max-h-[min(80vh,42rem)] w-[min(22rem,calc(100vw-2rem))] flex-col gap-4 overflow-y-auto p-4">
+              <div class="flex max-h-[min(60vh,42rem)] w-[min(22rem,calc(100vw-2rem))] flex-col gap-4 overflow-y-auto overscroll-contain p-4">
                 <div class="flex items-center justify-between"><h3 class="font-semibold">Filtrar tablero</h3><UButton label="Limpiar" color="neutral" variant="ghost" size="xs" :disabled="!activeBoardFilterCount" @click="resetBoardFilters" /></div>
                 <UFormField label="Palabra clave" description="Busca tareas, personas, clientes, categorías y etiquetas."><UInput v-model="taskFilters.search" icon="i-lucide-search" placeholder="Buscar en las tareas…" class="w-full" /></UFormField>
                 <UFormField label="Miembros"><USelectMenu v-model="taskFilters.member_ids" :items="boardFilterMemberOptions" value-key="value" multiple searchable placeholder="Todos los miembros" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
                 <UFormField label="Etiquetas"><USelectMenu v-model="taskFilters.label_ids" :items="labelOptions" value-key="value" multiple searchable placeholder="Todas las etiquetas" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
                 <UFormField label="Categorías"><USelectMenu v-model="taskFilters.category_ids" :items="categoryFilterOptions" value-key="value" multiple searchable placeholder="Todas las categorías" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
                 <UFormField label="Estado"><USelectMenu v-model="taskFilters.completion" :items="[{ label: 'Todas', value: 'ALL' }, { label: 'Pendientes', value: 'OPEN' }, { label: 'Completadas', value: 'COMPLETED' }]" value-key="value" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
+                <UFormField label="Prioridad"><USelectMenu v-model="taskFilters.priority" :items="[{ label: 'Todas', value: 'ALL' }, { label: 'Baja', value: 'LOW' }, { label: 'Normal', value: 'NORMAL' }, { label: 'Alta', value: 'HIGH' }, { label: 'Urgente', value: 'URGENT' }]" value-key="value" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
                 <UFormField label="Vencimiento"><USelectMenu v-model="taskFilters.due_status" :items="[{ label: 'Cualquier fecha', value: 'ALL' }, { label: 'Sin vencimiento', value: 'NO_DUE' }, { label: 'Vencidas', value: 'OVERDUE' }, { label: 'Vencen hoy', value: 'TODAY' }, { label: 'Vencen mañana', value: 'TOMORROW' }]" value-key="value" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
               </div>
             </template>
           </UPopover>
+          <label class="flex items-center gap-2 rounded-lg border border-default px-3 py-2 text-sm">
+            <USwitch :model-value="hideCompletedColumns" aria-label="Ocultar listas finalizadas" @update:model-value="persistHideCompletedColumns" />
+            <span>Ocultar finalizadas</span>
+          </label>
           <UButton v-if="hasTaskPermission('tasks.create')" label="Nueva tarea" icon="i-lucide-plus" :disabled="!board" @click="board?.columns[0] && openNewTask(board.columns[0])" />
         </div>
       </div>
@@ -1337,8 +1433,8 @@ onBeforeUnmount(() => {
       <UAlert v-if="moving" color="neutral" variant="subtle" icon="i-lucide-loader-circle" title="Guardando el nuevo estado…" />
 
       <div v-if="board" class="overflow-x-auto pb-2">
-        <div class="grid min-w-max items-start gap-3" :style="{ gridTemplateColumns: `repeat(${board.columns.length + 1}, minmax(275px, 1fr))` }">
-          <section v-for="column in board.columns" :key="column.id" :data-task-column="column.id" class="flex h-fit w-[min(82vw,340px)] self-start flex-col rounded-xl border border-default bg-elevated/25 transition-[background-color,border-color,box-shadow] duration-200" :class="dragOverColumnId === column.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''">
+        <div class="grid min-w-max items-start gap-3" :style="{ gridTemplateColumns: `repeat(${visibleBoardColumns.length + 1}, minmax(275px, 1fr))` }">
+          <section v-for="column in visibleBoardColumns" :key="column.id" :data-task-column="column.id" class="flex h-fit w-[min(82vw,340px)] self-start flex-col rounded-xl border border-default bg-elevated/25 transition-[background-color,border-color,box-shadow] duration-200" :class="dragOverColumnId === column.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''">
             <header class="flex items-center justify-between gap-2 border-b border-default px-3 py-3">
               <div class="flex min-w-0 items-center gap-2"><span class="size-2.5 shrink-0 rounded-full" :class="column.is_closed ? 'bg-success' : column.color === 'warning' ? 'bg-warning' : column.color === 'info' ? 'bg-info' : 'bg-neutral-400'"/><h2 class="truncate font-semibold">{{ column.name }}</h2><UBadge color="neutral" variant="subtle">{{ column.total_tasks ?? column.tasks.length }}</UBadge><UIcon v-if="column.is_pinned" name="i-lucide-pin" class="size-3.5 text-primary"/><UIcon v-if="column.is_watching" name="i-lucide-eye" class="size-3.5 text-primary"/></div>
               <div class="flex shrink-0 items-center gap-1">
@@ -1406,24 +1502,28 @@ onBeforeUnmount(() => {
     <template #body>
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-3 rounded-lg border border-default p-4 sm:flex-row sm:items-center sm:justify-between">
-          <label class="flex items-center gap-3"><USwitch v-model="taskNotificationSettings.in_app_enabled" :disabled="!taskNotificationSettingsLoaded" /><span><span class="block font-medium">Notificaciones en la campanita</span><span class="block text-sm text-muted">Asignaciones, miembros asociados, comentarios y nuevas menciones.</span></span></label>
+          <label class="flex items-center gap-3"><USwitch v-model="taskNotificationSettings.in_app_enabled" :disabled="!taskNotificationSettingsLoaded" /><span><span class="block font-medium">Notificaciones en la campanita</span><span class="block text-sm text-muted">Asignaciones, miembros asociados, comentarios, menciones y cambios realizados por otras personas.</span></span></label>
+        </div>
+        <div class="flex flex-col gap-3 rounded-lg border border-default p-4 sm:flex-row sm:items-center sm:justify-between">
+          <label class="flex items-center gap-3"><USwitch v-model="taskNotificationSettings.task_changes_enabled" :disabled="!taskNotificationSettingsLoaded" /><span><span class="block font-medium">Avisar cambios a las personas relacionadas</span><span class="block text-sm text-muted">Notifica al creador, responsable y miembros cuando se edita, mueve, completa o reabre una tarea. No avisa a quien realizó la acción. Aplica a campanita y WhatsApp.</span></span></label>
           <UButton label="Guardar" icon="i-lucide-save" :loading="savingTaskNotificationSettings" :disabled="!taskNotificationSettingsLoaded" @click="saveTaskNotificationSettings" />
         </div>
         <UAlert v-if="taskNotificationSettingsError" color="warning" variant="subtle" title="No se pudo cargar la preferencia" :description="taskNotificationSettingsError" />
+        <UAlert v-if="whatsappModuleRefreshError" color="warning" variant="subtle" title="No se pudo verificar WhatsApp" :description="whatsappModuleRefreshError" />
         <div class="flex flex-col gap-3 rounded-lg border border-default p-4 sm:flex-row sm:items-center sm:justify-between">
           <div class="flex items-start gap-3">
             <UIcon name="i-lucide-message-circle" class="mt-0.5 size-5 shrink-0" :class="whatsappModuleEnabled ? 'text-success' : 'text-muted'" />
             <div>
               <div class="flex flex-wrap items-center gap-2">
                 <p class="font-medium">Avisos por WhatsApp</p>
-                <UBadge :color="whatsappModuleEnabled ? 'success' : 'neutral'" variant="subtle">{{ whatsappModuleEnabled ? 'Módulo habilitado' : 'Módulo sin habilitar' }}</UBadge>
+                <UBadge :color="whatsappModuleChecking ? 'neutral' : whatsappModuleEnabled ? 'success' : 'neutral'" variant="subtle">{{ whatsappModuleChecking ? 'Verificando…' : whatsappModuleRefreshError ? 'Estado no disponible' : whatsappModuleEnabled ? 'Módulo habilitado' : 'Módulo sin habilitar' }}</UBadge>
               </div>
-              <p class="mt-1 text-sm text-muted">{{ whatsappModuleEnabled ? 'Configurá los avisos y cada usuario debe tener número y consentimiento activos.' : 'WhatsApp está disponible como módulo opcional para esta empresa.' }}</p>
+              <p class="mt-1 text-sm text-muted">{{ whatsappModuleChecking ? 'Consultando los módulos activos de la empresa…' : whatsappModuleRefreshError ? 'Volvé a abrir esta configuración para intentar consultar el estado.' : whatsappModuleEnabled ? 'Además del módulo, activá el canal y la categoría Tareas en Configuración de WhatsApp. El destinatario debe tener un celular en formato internacional y aceptar los avisos.' : 'WhatsApp está disponible como módulo opcional para esta empresa.' }}</p>
             </div>
           </div>
-          <UButton v-if="whatsappModuleEnabled" label="Configurar WhatsApp" icon="i-lucide-settings-2" color="neutral" variant="outline" to="/settings/whatsapp" />
-          <UButton v-else-if="canManagePlatformModules" label="Habilitar WhatsApp" icon="i-lucide-puzzle" color="neutral" variant="outline" to="/settings/platform-plans" />
-          <span v-else class="text-sm text-muted">Solicitá la activación al administrador de la plataforma.</span>
+          <UButton v-if="whatsappModuleEnabled && !whatsappModuleChecking" label="Configurar WhatsApp" icon="i-lucide-settings-2" color="neutral" variant="outline" to="/settings/whatsapp" />
+          <UButton v-else-if="!whatsappModuleChecking && !whatsappModuleRefreshError && canManagePlatformModules" label="Habilitar WhatsApp" icon="i-lucide-puzzle" color="neutral" variant="outline" to="/settings/platform-plans" />
+          <span v-else-if="!whatsappModuleChecking && !whatsappModuleRefreshError" class="text-sm text-muted">Solicitá la activación al administrador de la plataforma.</span>
         </div>
       </div>
     </template>
@@ -1457,10 +1557,16 @@ onBeforeUnmount(() => {
 
   <UModal v-model:open="boardSettingsOpen" title="Regla de registro de tiempo" description="La regla se aplica solo a este tablero." :ui="{ content: 'sm:max-w-xl' }">
     <template #body>
-      <label class="flex items-start gap-3 rounded-lg border border-default p-4">
-        <USwitch v-model="boardRequireWorkLogDraft" />
-        <span><span class="block font-medium">Exigir tiempo al cambiar de estado</span><span class="mt-1 block text-sm text-muted">Al mover, completar o reabrir una tarea, se deberá indicar cuánto tiempo llevó el trabajo. También se puede seguir registrando tiempo manualmente desde el detalle.</span></span>
-      </label>
+      <div class="flex flex-col gap-3">
+        <label class="flex items-start gap-3 rounded-lg border border-default p-4">
+          <USwitch v-model="boardAllowTimerDraft" />
+          <span><span class="block font-medium">Permitir temporizador en las tareas</span><span class="mt-1 block text-sm text-muted">Cada persona puede iniciar, pausar y finalizar el tiempo desde una tarea. Al finalizar, se suma al historial de tiempo insumido.</span></span>
+        </label>
+        <label class="flex items-start gap-3 rounded-lg border border-default p-4">
+          <USwitch v-model="boardRequireWorkLogDraft" />
+          <span><span class="block font-medium">Exigir tiempo al cambiar de estado</span><span class="mt-1 block text-sm text-muted">Al mover, completar o reabrir una tarea, se deberá indicar cuánto tiempo llevó el trabajo. También se puede seguir registrando tiempo manualmente desde el detalle.</span></span>
+        </label>
+      </div>
     </template>
     <template #footer><div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" @click="boardSettingsOpen = false"/><UButton label="Guardar regla" icon="i-lucide-save" :loading="savingBoardSettings" @click="saveBoardSettings" /></div></template>
   </UModal>
@@ -1595,6 +1701,20 @@ onBeforeUnmount(() => {
 
           <section v-if="selectedTask" class="flex flex-col gap-3 border-t border-default pt-4">
             <div class="flex flex-wrap items-center gap-2"><UIcon name="i-lucide-clock-3" class="size-5 text-muted"/><h3 class="font-semibold">Tiempo insumido</h3><UBadge color="neutral" variant="subtle">Total · {{ formatWorkedTime(totalWorkMinutes) }}</UBadge></div>
+            <div v-if="board?.allow_task_timer" class="flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated/30 p-3">
+              <template v-if="selectedTaskTimer">
+                <span class="font-mono text-lg font-semibold tabular-nums" :class="taskTimer.timer?.paused ? 'text-warning' : 'text-success'">{{ formatTimerDuration(taskTimer.elapsedSeconds) }}</span>
+                <UBadge :color="taskTimer.timer?.paused ? 'warning' : 'success'" variant="subtle">{{ taskTimer.timer?.paused ? 'Pausado' : 'Corriendo' }}</UBadge>
+                <div class="ml-auto flex items-center gap-2">
+                  <UButton :label="taskTimer.timer?.paused ? 'Reanudar' : 'Pausar'" :icon="taskTimer.timer?.paused ? 'i-lucide-play' : 'i-lucide-pause'" color="neutral" variant="outline" size="sm" :disabled="!canEditTask" @click="toggleSelectedTaskTimer" />
+                  <UButton label="Finalizar" icon="i-lucide-square" color="error" variant="outline" size="sm" :disabled="!canEditTask" @click="finishSelectedTaskTimer" />
+                </div>
+              </template>
+              <template v-else>
+                <span class="min-w-0 flex-1 text-sm text-muted">{{ anotherTaskTimerRunning ? `Ya tenés un temporizador abierto en “${taskTimer.timer?.task_title}”. Finalizalo desde el indicador para iniciar este.` : 'Iniciá el temporizador cuando empieces a trabajar.' }}</span>
+                <UButton label="Iniciar temporizador" icon="i-lucide-play" :disabled="anotherTaskTimerRunning || !canEditTask" @click="startSelectedTaskTimer" />
+              </template>
+            </div>
             <form v-if="canEditTask" class="grid gap-2 rounded-lg border border-default p-3 sm:grid-cols-[8rem_minmax(0,1fr)_auto]" @submit.prevent="addWorkLog">
               <UFormField label="Minutos" class="min-w-0"><UInput v-model="workLogMinutes" type="number" min="1" max="1440" step="1" class="w-full" /></UFormField>
               <UFormField label="Detalle (opcional)" class="min-w-0"><UInput v-model="workLogDescription" maxlength="500" placeholder="Análisis, reunión, desarrollo…" class="w-full" /></UFormField>

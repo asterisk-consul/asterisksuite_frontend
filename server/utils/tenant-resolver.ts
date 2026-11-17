@@ -21,6 +21,13 @@ export function resolveTenant(host: string | undefined, baseDomain: string | und
     if (hostTenant && !['www', 'app', 'api', 'dev'].includes(hostTenant)) return hostTenant
   }
 
+  // En desarrollo se puede abrir cada tenant en una pestaña aislada usando
+  // <empresa>.localhost, aunque no esté configurado public.baseDomain.
+  if (hostname.endsWith('.localhost')) {
+    const hostTenant = hostname.split('.')[0]
+    if (hostTenant && !['www', 'app', 'api', 'dev'].includes(hostTenant)) return hostTenant
+  }
+
   if (cookieTenant) return cookieTenant
   if (isLocalHost) return 'dev'
   if (!hostname) return 'dev'

@@ -35,6 +35,7 @@ interface ActiveDetail {
 }
 
 const service = useManagementReportsService()
+const { openCompanyPathInNewTab } = useCompanyNavigation()
 const toast = useToast()
 const today = new Date()
 const localDate = (value: Date) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
@@ -606,6 +607,19 @@ function metricRoute(row: FinancialResultsDetailRow) {
   return `/erp/sales/${encodeURIComponent(row.document_id)}`
 }
 
+function openSourceDocument(row: FinancialResultsDetailRow) {
+  if (!activeDetail.value) return
+  openCompanyPathInNewTab(activeDetail.value.company_id, metricRoute(row))
+}
+
+function openRelatedDocument(row: FinancialResultsDetailRow) {
+  if (!activeDetail.value || !row.related_document_id) return
+  openCompanyPathInNewTab(
+    activeDetail.value.company_id,
+    `/erp/purchases/purchases-documents/${encodeURIComponent(row.related_document_id)}`,
+  )
+}
+
 function statusLabel(row: FinancialResultsDetailRow) {
   if (row.status === 'PAID') return 'Pagado'
   return getStatusLabel(row.document_category, Number(row.status))
@@ -920,17 +934,17 @@ const detailColumns = computed<ExtendedColumn<FinancialResultsDetailRow>[]>(() =
     cell: ({ row }: any) => h('div', { class: 'flex min-w-40 flex-col items-start' }, [
       h(UButton, {
         label: `${row.original.document_label} ${row.original.document_reference}`,
-        to: metricRoute(row.original),
         variant: 'link',
         color: 'primary',
         size: 'xs',
         class: 'h-auto max-w-full justify-start whitespace-normal px-0 py-0 text-left font-semibold underline decoration-dotted underline-offset-4 hover:decoration-solid',
+        onClick: () => openSourceDocument(row.original),
       }),
       row.original.related_document_id ? h(UButton, {
         label: row.original.related_document_reference ?? 'Ver factura asociada',
-        to: `/erp/purchases/purchases-documents/${encodeURIComponent(row.original.related_document_id)}`,
         variant: 'link', color: 'neutral', size: 'xs',
         class: 'h-auto max-w-full justify-start whitespace-normal px-0 py-0 text-left text-[11px] underline decoration-dotted underline-offset-4 hover:decoration-solid',
+        onClick: () => openRelatedDocument(row.original),
       }) : null,
       h('span', { class: 'text-[10px] text-muted' }, row.original.document_id),
     ]),

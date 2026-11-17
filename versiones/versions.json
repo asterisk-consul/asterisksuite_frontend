@@ -1,5 +1,46 @@
 [
  {
+  "version": "0.166.0-alpha",
+  "date": "2026-11-17",
+  "stage": "alpha",
+  "notes": "El tablero permite ocultar las listas finalizadas, filtrar tareas por prioridad y llegar a todas las opciones del filtro en pantallas bajas. Los adjuntos pueden recuperarse cuando el archivo sigue presente en el almacenamiento de la empresa pero su ruta registrada quedó desactualizada.",
+  "changes": [
+   { "type": "feat", "scope": "tasks", "title": "Ocultar listas finalizadas con una preferencia activada por defecto y filtrarlas por prioridad" },
+   { "type": "fix", "scope": "tasks", "title": "Mantener accesibles todas las opciones del filtro en pantallas de menor altura" },
+   { "type": "fix", "scope": "tasks", "title": "Recuperar tamaño y contenido de adjuntos desde el almacenamiento de la empresa cuando la ruta registrada no está disponible" },
+   { "type": "docs", "scope": "tasks", "title": "Documentar la preferencia para ocultar listas finalizadas y el filtro de prioridad" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar filtros del tablero y recuperación de adjuntos"
+ },
+ {
+  "version": "0.165.1-alpha",
+  "date": "2026-11-17",
+  "stage": "alpha",
+  "notes": "La conciliación permite seleccionar conceptos bancarios aunque falte configurar la cuenta contable del banco y ofrece abrir su configuración sin perder las filas seleccionadas.",
+  "changes": [
+   { "type": "fix", "scope": "treasury", "title": "Permitir asignar conceptos a filas sin coincidencia aunque la cuenta contable del banco todavía no esté configurada" },
+   { "type": "style", "scope": "treasury", "title": "Explicar el requisito contable y abrir la configuración de bancos conservando la selección" },
+   { "type": "docs", "scope": "treasury", "title": "Aclarar la selección de conceptos y el requisito para registrar asientos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Facilitar la asignación de conceptos bancarios"
+ },
+ {
+  "version": "0.165.0-alpha",
+  "date": "2026-11-17",
+  "stage": "alpha",
+  "notes": "La conciliación bancaria permite resolver cada movimiento pendiente como pago o cobro con comprobante, anticipo, cheque o concepto bancario, usando los flujos que actualizan el saldo una sola vez.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Abrir el flujo de pago/cobro desde una fila sin coincidencia y precargar fecha, cuenta, moneda, importe y referencia" },
+   { "type": "feat", "scope": "treasury", "title": "Exigir comprobante en modo normal y ofrecer el anticipo como decisión explícita" },
+   { "type": "feat", "scope": "treasury", "title": "Vincular o crear cheques y registrar su impacto solo cuando el pago/cobro asociado está confirmado" },
+   { "type": "docs", "scope": "treasury", "title": "Documentar la resolución de pagos, anticipos, cheques y conceptos durante la conciliación" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Resolver movimientos bancarios desde la conciliación"
+ },
+ {
   "version": "0.164.1-alpha",
   "date": "2026-11-16",
   "stage": "alpha",
