@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.168.1-alpha",
+  "date": "2026-11-17",
+  "stage": "alpha",
+  "notes": "Al anular pagos y cobros, sus movimientos asociados se quitan de bancos y cajas y se recalculan los saldos. La anulación de una transferencia interna entre fondos de la misma empresa actualiza ambos lados en una sola transacción.",
+  "changes": [
+   { "type": "fix", "scope": "treasury", "title": "Retirar los movimientos de bancos y cajas al anular pagos o cobros y recalcular sus saldos" },
+   { "type": "fix", "scope": "treasury", "title": "Anular ambos lados de una transferencia interna entre fondos dentro de una única transacción" },
+   { "type": "docs", "scope": "treasury", "title": "Documentar la anulación de pagos, cobros y transferencias sin movimientos compensatorios" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir la anulación de movimientos de tesorería"
+ },
+ {
   "version": "0.168.0-alpha",
   "date": "2026-11-17",
   "stage": "alpha",
