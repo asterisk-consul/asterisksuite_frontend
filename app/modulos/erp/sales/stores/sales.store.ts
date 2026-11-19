@@ -32,6 +32,7 @@ export const useDocumentsSalesStore = defineStore(
       category?: string
       direction?: number
       excludeCancelled?: boolean
+      excludeStatuses?: string
     }) => {
       loading.value = true
 

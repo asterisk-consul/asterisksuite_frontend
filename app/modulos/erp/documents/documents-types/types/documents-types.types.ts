@@ -97,6 +97,8 @@ export interface DocumentsType {
 
   is_electronic?: boolean
 
+  requires_fiscal_authorization?: boolean | null
+
   custom_fields_config?: CustomFieldConfig[] | null
 
   system_modules?: {
@@ -166,6 +168,8 @@ export interface CreateDocumentsTypeDto {
   requires_cae?: boolean
 
   is_electronic?: boolean
+
+  requires_fiscal_authorization?: boolean | null
 
   custom_fields_config?: CustomFieldConfig[]
 }

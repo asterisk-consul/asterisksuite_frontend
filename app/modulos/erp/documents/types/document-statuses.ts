@@ -117,6 +117,24 @@ export function isDocumentCancelled(category: string | null | undefined, status:
   return status === getCancelledDocumentStatus(category, direction)
 }
 
+export function isDocumentStatusHiddenByDefault(
+  category: string | null | undefined,
+  status: number,
+  direction = 1,
+): boolean {
+  if (category === 'QUOTE') return [3, 4, 5, 6].includes(status)
+  if (category === 'ORDER') {
+    return direction === -1
+      ? [3, 5, 6, 7, 8].includes(status)
+      : [5, 6, 7, 8].includes(status)
+  }
+  if (category === 'REMITO') return [2, 3].includes(status)
+  if (['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'RECEIPT'].includes(category ?? '')) {
+    return status === 3
+  }
+  return false
+}
+
 const DESCRIPTION_MAPS: Record<string, Record<number, string>> = {
   QUOTE: QUOTE_STATUS_DESCRIPTIONS,
   ORDER: ORDER_STATUS_DESCRIPTIONS,

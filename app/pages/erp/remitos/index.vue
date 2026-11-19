@@ -2,11 +2,12 @@
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import DocumentStatusVisibilityPopover from '~/components/erp/documents/DocumentStatusVisibilityPopover.vue'
 import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import { useServerTable } from '~/composables/table/useServerTable'
-import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
+import { getCategoryStatuses } from '~/modulos/erp/documents/types/document-statuses'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 
 const router = useRouter()
@@ -16,31 +17,39 @@ const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=REMITO')
 
-const showCancelled = ref(false)
+const hiddenStatusKeys = ref<string[]>([])
+const statusVisibilityGroups = computed(() => [{
+  category: 'REMITO',
+  direction: 1 as const,
+  label: 'Remitos',
+  options: getCategoryStatuses('REMITO'),
+}])
 const cancelTarget = ref<any | null>(null)
 const cancelModalOpen = ref(false)
 const cancelProcessing = ref(false)
 const documents = computed(() => store.items ?? [])
-const visibleDocuments = computed(() => showCancelled.value
-  ? documents.value
-  : documents.value.filter(document => !isDocumentCancelled('REMITO', document.status)))
-const loading = computed(() => store.loading)
-const serverTable = useServerTable((query) => store.fetchPage({ ...query, category: 'REMITO', excludeCancelled: !showCancelled.value }))
-const { page, pageSize, search, sorting, filters, refresh } = serverTable
-const cancelledStatusFilterActive = computed(() => filters.value.some((filter) =>
-  filter.column === 'status' && Number(filter.value) === 3
+const visibleDocuments = computed(() => documents.value.filter(document =>
+  !hiddenStatusKeys.value.includes(`REMITO:${document.status}`),
 ))
-watch(showCancelled, (show) => {
-  if (!show && cancelledStatusFilterActive.value) {
-    filters.value = filters.value.filter((filter) => !(filter.column === 'status' && Number(filter.value) === 3))
-    return
-  }
+const loading = computed(() => store.loading)
+const serverTable = useServerTable((query) => store.fetchPage({
+  ...query,
+  category: 'REMITO',
+  excludeStatuses: hiddenStatusKeys.value.join(',') || undefined,
+}))
+const { page, pageSize, search, sorting, filters, refresh } = serverTable
+watch(hiddenStatusKeys, () => {
   page.value = 1
-  refresh()
-})
-watch(cancelledStatusFilterActive, (active) => {
-  if (active && !showCancelled.value) showCancelled.value = true
-}, { immediate: true })
+  void refresh()
+}, { deep: true })
+watch(filters, (currentFilters) => {
+  const selectedStatuses = currentFilters
+    .filter(filter => filter.column === 'status' && /^\d+$/.test(String(filter.value)))
+    .map(filter => `REMITO:${Number(filter.value)}`)
+  if (selectedStatuses.some(key => hiddenStatusKeys.value.includes(key))) {
+    hiddenStatusKeys.value = hiddenStatusKeys.value.filter(key => !selectedStatuses.includes(key))
+  }
+}, { deep: true })
 
 const stats = computed(() => {
   const docs = documents.value
@@ -174,15 +183,8 @@ const statusOptions = [
         </UPageCard>
       </div>
 
-      <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
-        <div>
-          <p class="text-sm font-medium">Visibilidad de remitos</p>
-          <p class="text-xs text-muted">Podés incluir los remitos cancelados en este listado.</p>
-        </div>
-        <label class="flex shrink-0 items-center gap-2 text-sm text-muted">
-          <span>Mostrar cancelados</span>
-          <USwitch v-model="showCancelled" aria-label="Mostrar remitos cancelados" />
-        </label>
+      <div class="flex justify-end">
+        <DocumentStatusVisibilityPopover v-model:hidden-status-keys="hiddenStatusKeys" :groups="statusVisibilityGroups" />
       </div>
 
       <LogisticaTable

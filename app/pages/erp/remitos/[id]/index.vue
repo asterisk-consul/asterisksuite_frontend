@@ -27,7 +27,7 @@ const { printElement } = usePrint()
 const loading = ref(true)
 const fiscalPreview = ref<any>(null)
 const caiStatus = ref<any>(null)
-const CAI_INVALID_STATUSES = ['MISSING', 'REPLACEMENT_AVAILABLE', 'EXPIRED_BEFORE_ISSUE', 'OUT_OF_RANGE']
+const CAI_INVALID_STATUSES = ['MISSING', 'REPLACEMENT_AVAILABLE', 'EXPIRED_BEFORE_ISSUE', 'OUT_OF_RANGE', 'NOT_REQUIRED_BY_TYPE']
 const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
@@ -36,7 +36,7 @@ useBreadcrumbEntityLabel(
   computed(() => formatDocumentBreadcrumbLabel(doc.value))
 )
 const printableDocument = computed(() => {
-  if (!doc.value || doc.value.fiscal_authorization_code) {
+  if (!doc.value || doc.value.fiscal_authorization_code || doc.value.document_types?.requires_fiscal_authorization === false) {
     return doc.value
   }
 
@@ -48,8 +48,16 @@ const printableDocument = computed(() => {
   }
 })
 const itemsWithoutWarehouse = computed(() =>
-  (doc.value?.document_items ?? []).filter((item: any) => !item.warehouse_id && !doc.value?.warehouse_id)
+  (doc.value?.document_items ?? []).filter((item: any) =>
+    item.products?.manages_stock !== false && !item.warehouse_id && !doc.value?.warehouse_id,
+  )
 )
+
+async function refreshFiscalAuthorization() {
+  if (!doc.value?.id) return
+  await store.fetchOne(doc.value.id)
+  fiscalPreview.value = await fiscalAuthorizationsService.getDocumentPreview(doc.value.id).catch(() => null)
+}
 
 onMounted(async () => {
   try {
@@ -109,7 +117,7 @@ const {
         <DocumentHeader :document="doc" :loading="loading" />
         <DocumentChain v-if="doc" :document="doc" />
         <RemitoView v-if="doc" :document="doc" />
-        <FiscalCaiAlert v-if="doc" :document="doc" @replaced="store.fetchOne(doc!.id)" @evaluated="(s: any) => (caiStatus = s)" />
+        <FiscalCaiAlert v-if="doc" :document="doc" @replaced="refreshFiscalAuthorization" @evaluated="(s: any) => (caiStatus = s)" />
         <UAlert
           v-if="doc?.status === 0 && fiscalPreview && !caiStatus?.expiringSoon && !(caiStatus && CAI_INVALID_STATUSES.includes(caiStatus.status))"
           :color="fiscalPreview.status === 'BLOCKED' ? 'error' : fiscalPreview.status === 'WARNING' ? 'warning' : 'success'"
@@ -149,7 +157,7 @@ const {
     <template #body>
       <p>¿Confirmar este remito y registrar la salida de mercadería?</p>
       <p class="text-sm text-muted mt-2">
-        Se descontará el stock de los depósitos seleccionados en cada producto.
+        Se descontará el stock de los depósitos seleccionados para los productos que manejan stock.
       </p>
       <div class="flex justify-end gap-2 pt-4">
         <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />

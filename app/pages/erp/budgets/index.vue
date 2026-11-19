@@ -2,39 +2,47 @@
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import DocumentStatusVisibilityPopover from '~/components/erp/documents/DocumentStatusVisibilityPopover.vue'
 import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
-import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
+import { getCategoryStatuses } from '~/modulos/erp/documents/types/document-statuses'
 
 const router = useRouter()
 const store = useDocumentsSalesStore()
 useDocumentFormPreload('/erp/sales/new?category=QUOTE')
 
 const filters = ref<any[]>([])
-const showCancelled = ref(false)
+const hiddenStatusKeys = ref<string[]>([])
+const statusVisibilityGroups = computed(() => [{
+  category: 'QUOTE',
+  direction: 1 as const,
+  label: 'Presupuestos',
+  options: getCategoryStatuses('QUOTE'),
+}])
 const documents = computed(() => store.items ?? [])
-const visibleDocuments = computed(() => showCancelled.value
-  ? documents.value
-  : documents.value.filter(document => !isDocumentCancelled('QUOTE', document.status)))
+const visibleDocuments = computed(() => documents.value.filter(document =>
+  !hiddenStatusKeys.value.includes(`QUOTE:${document.status}`),
+))
 const loading = computed(() => store.loading)
 
-const refresh = () => store.fetchAll({ category: 'QUOTE', excludeCancelled: !showCancelled.value })
+const refresh = () => store.fetchAll({
+  category: 'QUOTE',
+  excludeStatuses: hiddenStatusKeys.value.join(',') || undefined,
+})
 
 onMounted(() => refresh())
-const cancelledStatusFilterActive = computed(() => filters.value.some((filter) =>
-  filter.column === 'status' && Number(filter.value) === 6
-))
-watch(cancelledStatusFilterActive, (active) => {
-  if (active && !showCancelled.value) showCancelled.value = true
-})
-watch(showCancelled, (show) => {
-  if (!show && cancelledStatusFilterActive.value) {
-    filters.value = filters.value.filter((filter) => !(filter.column === 'status' && Number(filter.value) === 6))
-    return
-  }
+watch(hiddenStatusKeys, () => {
   void refresh()
-})
+}, { deep: true })
+watch(filters, (currentFilters) => {
+  const selectedStatuses = currentFilters
+    .filter(filter => filter.column === 'status' && /^\d+$/.test(String(filter.value)))
+    .map(filter => `QUOTE:${Number(filter.value)}`)
+  if (selectedStatuses.some(key => hiddenStatusKeys.value.includes(key))) {
+    hiddenStatusKeys.value = hiddenStatusKeys.value.filter(key => !selectedStatuses.includes(key))
+  }
+}, { deep: true })
 
 const stats = computed(() => {
   const docs = documents.value
@@ -123,15 +131,8 @@ const sortFields = [
         </UPageCard>
       </div>
 
-      <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
-        <div>
-          <p class="text-sm font-medium">Visibilidad de presupuestos</p>
-          <p class="text-xs text-muted">Podés incluir los presupuestos cancelados en este listado.</p>
-        </div>
-        <label class="flex shrink-0 items-center gap-2 text-sm text-muted">
-          <span>Mostrar cancelados</span>
-          <USwitch v-model="showCancelled" aria-label="Mostrar presupuestos cancelados" />
-        </label>
+      <div class="flex justify-end">
+        <DocumentStatusVisibilityPopover v-model:hidden-status-keys="hiddenStatusKeys" :groups="statusVisibilityGroups" />
       </div>
 
       <LogisticaTable

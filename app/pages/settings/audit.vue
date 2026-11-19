@@ -4,8 +4,10 @@ import type { TableColumn } from '@nuxt/ui'
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { useServerTable } from '~/composables/table/useServerTable'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 import { useAuthStore } from '~/modulos/auth/auth.store'
-import { useAuditService, type AuditAction, type AuditLogEntry } from '~/modulos/erp/audit/audit.service'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useAuditService, type AuditAction, type AuditAgendaResponse, type AuditLogEntry } from '~/modulos/erp/audit/audit.service'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -22,8 +24,14 @@ interface AuditDiffRow {
 
 const auth = useAuthStore()
 const platformRoles = ['PLATFORM_ADMIN', 'PLATFORM_OWNER']
-if (!platformRoles.includes(auth.user?.role ?? '')) {
-  throw createError({ statusCode: 403, statusMessage: 'La auditoría general está disponible para usuarios autorizados de la plataforma.' })
+const { isOwner } = useCompanyRole()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
+const isPlatformAuditUser = platformRoles.includes(auth.user?.role ?? '')
+if (!isPlatformAuditUser && !isOwner.value) {
+  await fetchMyPermissionsIfNeeded(auth.selectedCompany?.id, auth.user?.id).catch(() => undefined)
+  if (!hasPermission('audit.read')) {
+    throw createError({ statusCode: 403, statusMessage: 'Necesitás el permiso Auditoría de cambios para consultar esta pantalla.' })
+  }
 }
 
 const auditService = useAuditService()
@@ -33,8 +41,13 @@ const loading = ref(false)
 const loadError = ref('')
 const forbidden = ref(false)
 const selectedLog = ref<AuditLogRow | null>(null)
-const days = ref(0)
+const selectedDate = ref(getArgentinaToday())
+const selectedUserId = ref<string | null>(null)
+const agenda = ref<AuditAgendaResponse | null>(null)
+const agendaLoading = ref(false)
+const agendaError = ref('')
 let latestRequestId = 0
+let latestAgendaRequestId = 0
 
 const actionInfo: Record<AuditAction, { label: string; color: 'success' | 'info' | 'error' | 'warning' }> = {
   CREATE: { label: 'Alta', color: 'success' },
@@ -47,6 +60,13 @@ const actionFilterOptions = Object.entries(actionInfo).map(([value, item]) => ({
   label: item.label,
   value,
 }))
+
+const actionStats = computed(() => Object.entries(actionInfo).map(([action, item]) => ({
+  action: action as AuditAction,
+  label: item.label,
+  color: item.color,
+  count: agenda.value?.byAction[action as AuditAction] ?? 0,
+})))
 
 async function loadLogs(query: {
   page: number
@@ -68,7 +88,8 @@ async function loadLogs(query: {
       sort: query.sort,
       order: query.order,
       filters: query.filters,
-      days: days.value || undefined,
+      date: selectedDate.value,
+      user_id: selectedUserId.value ?? undefined,
     })
     if (requestId !== latestRequestId) return
     rows.value = response.data.map((log) => ({
@@ -91,13 +112,77 @@ async function loadLogs(query: {
   }
 }
 
-const serverTable = useServerTable(loadLogs, 'platform-audit-logs')
+const serverTable = useServerTable(loadLogs, 'audit-change-agenda')
 const { page, pageSize, search, sorting, filters } = serverTable
 
-watch(days, () => {
+async function loadAgenda() {
+  const requestId = ++latestAgendaRequestId
+  agendaLoading.value = true
+  agendaError.value = ''
+  try {
+    const result = await auditService.findAgenda(selectedDate.value)
+    if (requestId === latestAgendaRequestId) agenda.value = result
+  } catch (error: any) {
+    if (requestId !== latestAgendaRequestId) return
+    agenda.value = null
+    agendaError.value = error?.data?.message || 'No se pudo cargar el resumen de este día.'
+    if (error?.statusCode === 403 || error?.status === 403) forbidden.value = true
+  } finally {
+    if (requestId === latestAgendaRequestId) agendaLoading.value = false
+  }
+}
+
+watch([selectedDate, selectedUserId], () => {
+  const alreadyOnFirstPage = page.value === 1
   page.value = 1
-  void serverTable.refresh()
+  if (alreadyOnFirstPage) void serverTable.refresh()
 })
+watch(selectedDate, () => { void loadAgenda() })
+
+function getArgentinaToday() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date())
+  return `${parts.find(part => part.type === 'year')?.value}-${parts.find(part => part.type === 'month')?.value}-${parts.find(part => part.type === 'day')?.value}`
+}
+
+const isToday = computed(() => selectedDate.value === getArgentinaToday())
+const selectedDateLabel = computed(() => new Intl.DateTimeFormat('es-AR', {
+  dateStyle: 'full', timeZone: 'America/Argentina/Buenos_Aires',
+}).format(new Date(`${selectedDate.value}T12:00:00-03:00`)))
+const selectedUserLabel = computed(() => {
+  if (!selectedUserId.value) return ''
+  const group = agenda.value?.users.find(user => (user.user_id ?? '__system__') === selectedUserId.value)
+  if (selectedUserId.value === '__system__') return 'Sistema / sin usuario'
+  return group?.user?.name ?? 'Usuario seleccionado'
+})
+
+function moveDate(days: number) {
+  const [year = 0, month = 1, day = 1] = selectedDate.value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day + days))
+  setSelectedDate(`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`)
+}
+
+function setSelectedDate(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value) && value !== selectedDate.value) {
+    selectedUserId.value = null
+    selectedDate.value = value
+  }
+}
+
+function selectUser(userId: string | null) {
+  selectedUserId.value = selectedUserId.value === userId ? null : userId
+}
+
+function isSelectedUser(userId: string | null) {
+  return selectedUserId.value === (userId ?? '__system__')
+}
+
+async function refreshAll() {
+  await Promise.all([serverTable.refresh(), loadAgenda()])
+}
+
+void loadAgenda()
 
 function onSortFieldSelect(columnId: string) {
   const current = sorting.value[0]
@@ -175,14 +260,6 @@ const sortFields = [
   { label: 'Acción', value: 'action' },
 ]
 
-const daysOptions = [
-  { label: 'Todo el historial', value: 0 },
-  { label: 'Últimos 7 días', value: 7 },
-  { label: 'Últimos 30 días', value: 30 },
-  { label: 'Últimos 90 días', value: 90 },
-  { label: 'Último año', value: 365 },
-]
-
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
@@ -233,7 +310,7 @@ const countLabel = computed(() => `${totalRows.value.toLocaleString('es-AR')} ${
     >
       <template #actions>
         <UBadge v-if="auth.selectedCompany" :label="auth.selectedCompany.name" color="neutral" variant="subtle" />
-        <UButton label="Actualizar" icon="i-lucide-refresh-cw" color="neutral" variant="outline" :loading="loading" @click="serverTable.refresh" />
+        <UButton label="Actualizar" icon="i-lucide-refresh-cw" color="neutral" variant="outline" :loading="loading || agendaLoading" @click="refreshAll" />
       </template>
     </AppPageHeader>
 
@@ -243,45 +320,115 @@ const countLabel = computed(() => `${totalRows.value.toLocaleString('es-AR')} ${
       variant="subtle"
       icon="i-lucide-shield-alert"
       title="No tenés alcance de auditoría para esta empresa"
-      description="Tu usuario debe pertenecer a la empresa seleccionada y tener el alcance de plataforma correspondiente."
+      description="Tu usuario debe pertenecer a la empresa seleccionada y tener Auditoría de cambios en sus permisos, o contar con un alcance de plataforma válido."
     />
 
     <UAlert v-else-if="loadError" color="error" variant="subtle" :description="loadError">
       <template #actions>
-        <UButton label="Reintentar" icon="i-lucide-refresh-cw" size="xs" color="error" variant="soft" @click="serverTable.refresh" />
+        <UButton label="Reintentar" icon="i-lucide-refresh-cw" size="xs" color="error" variant="soft" @click="refreshAll" />
       </template>
     </UAlert>
 
-    <UPageCard v-else variant="subtle" class="min-w-0 overflow-hidden">
-      <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 class="font-semibold text-highlighted">Registro de actividad</h2>
-          <p class="text-sm text-muted">{{ countLabel }} · Seleccioná una fila para ver el detalle del cambio.</p>
-        </div>
-        <UFormField label="Período">
-          <USelect v-model="days" :items="daysOptions" value-key="value" class="w-48" />
-        </UFormField>
-      </div>
+    <template v-else>
+      <UPageCard variant="subtle" class="min-w-0 overflow-hidden">
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 class="font-semibold text-highlighted">Agenda diaria</h2>
+              <p class="text-sm text-muted">{{ selectedDateLabel }} · Consultá la actividad día por día.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <UButton icon="i-lucide-chevron-left" color="neutral" variant="outline" aria-label="Día anterior" @click="moveDate(-1)" />
+              <UInput :model-value="selectedDate" type="date" aria-label="Fecha de auditoría" class="w-40" @update:model-value="setSelectedDate" />
+              <UButton icon="i-lucide-chevron-right" color="neutral" variant="outline" aria-label="Día siguiente" @click="moveDate(1)" />
+              <UButton v-if="!isToday" label="Hoy" color="neutral" variant="soft" @click="setSelectedDate(getArgentinaToday())" />
+            </div>
+          </div>
 
-      <AsteriskTable
-        v-model:page="page"
-        v-model:search="search"
-        v-model:filters="filters"
-        v-model:sorting="sorting"
-        :data="rows"
-        :columns="columns"
-        :loading="loading"
-        :total-rows="totalRows"
-        :page-size="pageSize"
-        :sort-fields="sortFields"
-        :get-row-id="(row: AuditLogRow) => row.id"
-        :on-row-click="openDetail"
-        search-placeholder="Buscar por entidad, ID, acción o usuario..."
-        storage-key="platform-audit-logs"
-        server-side
-        compact
-      />
-    </UPageCard>
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <div class="rounded-lg border border-default bg-muted/10 px-3 py-2">
+              <p class="text-xs text-muted">Cambios del día</p>
+              <p class="mt-0.5 text-xl font-semibold tabular-nums">{{ (agenda?.total ?? 0).toLocaleString('es-AR') }}</p>
+            </div>
+            <div v-for="stat in actionStats" :key="stat.action" class="rounded-lg border border-default bg-muted/10 px-3 py-2">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs text-muted">{{ stat.label }}</p>
+                <UBadge :label="stat.action" :color="stat.color" variant="subtle" size="xs" />
+              </div>
+              <p class="mt-0.5 text-xl font-semibold tabular-nums">{{ stat.count.toLocaleString('es-AR') }}</p>
+            </div>
+          </div>
+          <UAlert v-if="agendaError" color="error" variant="subtle" :description="agendaError" />
+        </div>
+      </UPageCard>
+
+      <UPageCard variant="subtle" class="min-w-0 overflow-hidden">
+        <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 class="font-semibold text-highlighted">Actividad por usuario</h2>
+            <p class="text-sm text-muted">Elegí una persona para filtrar los movimientos del día. {{ agendaLoading ? 'Actualizando…' : '' }}</p>
+          </div>
+          <UButton
+            :label="selectedUserId ? 'Ver todos' : 'Todos los usuarios'"
+            icon="i-lucide-users"
+            color="neutral"
+            :variant="selectedUserId ? 'outline' : 'soft'"
+            :disabled="!selectedUserId"
+            @click="selectedUserId = null"
+          />
+        </div>
+        <div v-if="agenda?.users.length" class="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+          <button
+            v-for="group in agenda.users"
+            :key="group.user_id ?? 'system'"
+            type="button"
+            class="flex min-w-0 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary"
+            :class="isSelectedUser(group.user_id) ? 'border-primary bg-primary/10' : 'border-default bg-default'"
+            :aria-pressed="isSelectedUser(group.user_id)"
+            @click="selectUser(group.user_id ?? '__system__')"
+          >
+            <span class="flex min-w-0 items-center gap-2">
+              <UIcon :name="group.user_id ? 'i-lucide-user-round' : 'i-lucide-cog'" class="size-4 shrink-0 text-primary" />
+              <span class="min-w-0">
+                <span class="block truncate text-sm font-medium">{{ group.user?.name ?? (group.user_id ? 'Usuario no disponible' : 'Sistema / sin usuario') }}</span>
+                <span v-if="group.user?.email" class="block truncate text-xs text-muted">{{ group.user.email }}</span>
+              </span>
+            </span>
+            <UBadge :label="group.count.toLocaleString('es-AR')" color="neutral" variant="subtle" />
+          </button>
+        </div>
+        <p v-else-if="!agendaLoading" class="rounded-lg border border-dashed border-default px-4 py-8 text-center text-sm text-muted">No hay cambios registrados para este día.</p>
+        <p v-if="agenda?.usersTruncated" class="mt-2 text-xs text-muted">Se muestran los 100 usuarios con más movimientos. Usá la búsqueda de la grilla para localizar otros registros.</p>
+      </UPageCard>
+
+      <UPageCard variant="subtle" class="min-w-0 overflow-hidden">
+        <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 class="font-semibold text-highlighted">Movimientos del día</h2>
+            <p class="text-sm text-muted">{{ countLabel }}{{ selectedUserLabel ? ` · ${selectedUserLabel}` : '' }} · Seleccioná una fila para ver qué cambió.</p>
+          </div>
+        </div>
+
+        <AsteriskTable
+          v-model:page="page"
+          v-model:search="search"
+          v-model:filters="filters"
+          v-model:sorting="sorting"
+          :data="rows"
+          :columns="columns"
+          :loading="loading"
+          :total-rows="totalRows"
+          :page-size="pageSize"
+          :sort-fields="sortFields"
+          :get-row-id="(row: AuditLogRow) => row.id"
+          :on-row-click="openDetail"
+          search-placeholder="Buscar por entidad, ID, acción o usuario..."
+          storage-key="audit-change-agenda"
+          server-side
+          compact
+        />
+      </UPageCard>
+    </template>
 
     <UModal
       :open="Boolean(selectedLog)"

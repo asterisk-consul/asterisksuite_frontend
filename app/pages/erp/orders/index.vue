@@ -2,13 +2,14 @@
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import DocumentStatusVisibilityPopover from '~/components/erp/documents/DocumentStatusVisibilityPopover.vue'
 import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import { canSettleDocument } from '~/modulos/erp/documents/utils/document-payment-status'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 import { useServerTable } from '~/composables/table/useServerTable'
-import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
+import { getCategoryStatuses, isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
 import { DocumentsSalesService, type SalespersonOption } from '~/modulos/erp/sales/services/sales.service'
 
 const router = useRouter()
@@ -19,11 +20,17 @@ const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=ORDER')
 
 const salespeople = ref<SalespersonOption[]>([])
-const showCancelled = ref(false)
+const hiddenStatusKeys = ref<string[]>([])
+const statusVisibilityGroups = computed(() => [{
+  category: 'ORDER',
+  direction: 1 as const,
+  label: 'Órdenes de venta',
+  options: getCategoryStatuses('ORDER'),
+}])
 const documents = computed(() => store.items ?? [])
-const visibleDocuments = computed(() => showCancelled.value
-  ? documents.value
-  : documents.value.filter(document => !isDocumentCancelled('ORDER', document.status)))
+const visibleDocuments = computed(() => documents.value.filter(document =>
+  !hiddenStatusKeys.value.includes(`ORDER:${document.status}`),
+))
 const loading = computed(() => store.loading)
 const sellerFilterOptions = computed(() => [
   { value: '__NO_SELLER__', label: 'Sin vendedor' },
@@ -48,24 +55,22 @@ const serverTable = useServerTable((query) => {
   return store.fetchPage({
     ...query,
     category: 'ORDER',
-    excludeCancelled: !showCancelled.value
+    excludeStatuses: hiddenStatusKeys.value.join(',') || undefined
   })
 })
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
-const cancelledStatusFilterActive = computed(() => filters.value.some((filter) =>
-  filter.column === 'status' && Number(filter.value) === 8
-))
-watch(showCancelled, (show) => {
-  if (!show && cancelledStatusFilterActive.value) {
-    filters.value = filters.value.filter((filter) => !(filter.column === 'status' && Number(filter.value) === 8))
-    return
-  }
+watch(hiddenStatusKeys, () => {
   page.value = 1
-  refresh()
-})
-watch(cancelledStatusFilterActive, (active) => {
-  if (active && !showCancelled.value) showCancelled.value = true
-}, { immediate: true })
+  void refresh()
+}, { deep: true })
+watch(filters, (currentFilters) => {
+  const selectedStatuses = currentFilters
+    .filter(filter => filter.column === 'status' && /^\d+$/.test(String(filter.value)))
+    .map(filter => `ORDER:${Number(filter.value)}`)
+  if (selectedStatuses.some(key => hiddenStatusKeys.value.includes(key))) {
+    hiddenStatusKeys.value = hiddenStatusKeys.value.filter(key => !selectedStatuses.includes(key))
+  }
+}, { deep: true })
 
 const stats = computed(() => {
   const docs = documents.value
@@ -261,15 +266,8 @@ const sortFields = [
         </UPageCard>
       </div>
 
-      <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
-        <div>
-          <p class="text-sm font-medium">Visibilidad de órdenes</p>
-          <p class="text-xs text-muted">Podés incluir las órdenes de venta canceladas en este listado.</p>
-        </div>
-        <label class="flex shrink-0 items-center gap-2 text-sm text-muted">
-          <span>Mostrar canceladas</span>
-          <USwitch v-model="showCancelled" aria-label="Mostrar órdenes de venta canceladas" />
-        </label>
+      <div class="flex justify-end">
+        <DocumentStatusVisibilityPopover v-model:hidden-status-keys="hiddenStatusKeys" :groups="statusVisibilityGroups" />
       </div>
 
       <LogisticaTable

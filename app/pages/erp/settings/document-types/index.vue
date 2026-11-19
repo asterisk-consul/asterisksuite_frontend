@@ -427,6 +427,8 @@ const badgeForTab = (index: number) => {
               <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
               <span v-if="type.affects_tax_book">📋 IVA</span>
               <span v-if="type.affects_payment">💰 Pagos</span>
+              <span v-if="type.requires_fiscal_authorization === true">🧾 CAI obligatorio</span>
+              <span v-else-if="type.requires_fiscal_authorization === false">🧾 Sin CAI</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
@@ -485,6 +487,8 @@ const badgeForTab = (index: number) => {
               <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
               <span v-if="type.affects_tax_book">📋 IVA</span>
               <span v-if="type.affects_payment">💰 Pagos</span>
+              <span v-if="type.requires_fiscal_authorization === true">🧾 CAI obligatorio</span>
+              <span v-else-if="type.requires_fiscal_authorization === false">🧾 Sin CAI</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>
@@ -546,6 +550,8 @@ const badgeForTab = (index: number) => {
               <span v-if="type.affects_accounting">📊 Cta. Cte.</span>
               <span v-if="type.affects_tax_book">📋 IVA</span>
               <span v-if="type.affects_payment">💰 Pagos</span>
+              <span v-if="type.requires_fiscal_authorization === true">🧾 CAI obligatorio</span>
+              <span v-else-if="type.requires_fiscal_authorization === false">🧾 Sin CAI</span>
               <span v-if="type.requires_cae">🔐 CAE</span>
               <span v-if="type.is_electronic">⚡ Electrónico</span>
               <span v-if="type.afip_code">🏷️ {{ type.afip_code }}</span>

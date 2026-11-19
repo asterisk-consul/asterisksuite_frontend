@@ -2,13 +2,13 @@
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import DocumentStatusVisibilityPopover from '~/components/erp/documents/DocumentStatusVisibilityPopover.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { useDocumentsTypesService } from '~/modulos/erp/documents/documents-types/services/documents-types.service'
 import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
 import { useServerTable } from '~/composables/table/useServerTable'
 import {
   CATEGORY_LABELS,
-  getCancelledDocumentStatus,
   getCategoryStatuses,
   getDocumentStatusOptions,
   getStatusColor,
@@ -89,8 +89,16 @@ const selectedStatusFilter = computed({
   get: () => statusFilter.value ?? ALL_FILTER_VALUE,
   set: (value: number | string) => { statusFilter.value = value === ALL_FILTER_VALUE ? undefined : Number(value) }
 })
-const showFullyPaid = ref(true)
-const showCancelled = ref(false)
+const showFullyPaid = ref(false)
+const hiddenStatusKeys = ref<string[]>([])
+const statusVisibilityGroups = computed(() => PURCHASE_CATEGORIES
+  .filter(category => canDocument('purchases', category, 'read') && (!categoryFilter.value || categoryFilter.value === category))
+  .map(category => ({
+    category,
+    direction: -1 as const,
+    label: CATEGORY_LABELS[category] ?? category,
+    options: getDocumentStatusOptions(category, -1),
+  })))
 const cancelTarget = ref<any | null>(null)
 const cancelModalOpen = ref(false)
 const cancelProcessing = ref(false)
@@ -101,12 +109,30 @@ const serverTable = useServerTable(
     status: statusFilter.value,
     category: categoryFilter.value,
     categories: categoryFilter.value ? undefined : readablePurchaseCategories.value.join(','),
-    excludeCancelled: !showCancelled.value,
+    excludeStatuses: hiddenStatusKeys.value.join(',') || undefined,
     excludeOpeningBalances: true
   }),
   'purchases-comprobantes'
 )
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
+
+watch(hiddenStatusKeys, () => {
+  page.value = 1
+  void refresh()
+}, { deep: true })
+watch(filters, (currentFilters) => {
+  const selectedKeys = new Set<string>()
+  for (const filter of currentFilters) {
+    if (filter.column !== 'status') continue
+    const value = String(filter.value ?? '')
+    const scoped = /^document-status:([A-Z_]+):(\d+)$/.exec(value)
+    if (scoped) selectedKeys.add(`${scoped[1]}:${Number(scoped[2])}`)
+    else if (categoryFilter.value && /^\d+$/.test(value)) selectedKeys.add(`${categoryFilter.value}:${Number(value)}`)
+  }
+  if ([...selectedKeys].some(key => hiddenStatusKeys.value.includes(key))) {
+    hiddenStatusKeys.value = hiddenStatusKeys.value.filter(key => !selectedKeys.has(key))
+  }
+}, { deep: true })
 
 watch(readablePurchaseCategories, (allowedCategories) => {
   if (categoryFilter.value && !allowedCategories.includes(categoryFilter.value as typeof PURCHASE_CATEGORIES[number])) {
@@ -127,16 +153,9 @@ watch(categoryFilter, () => {
 })
 
 watch(statusFilter, (status) => {
-  if (categoryFilter.value && status === getCancelledDocumentStatus(categoryFilter.value, -1) && !showCancelled.value) {
-    showCancelled.value = true
-    return
-  }
-  if (page.value !== 1) page.value = 1
-  else void refresh().catch(() => undefined)
-})
-watch(showCancelled, (show) => {
-  if (!show && categoryFilter.value && statusFilter.value === getCancelledDocumentStatus(categoryFilter.value, -1)) {
-    statusFilter.value = undefined
+  const key = categoryFilter.value && status !== undefined ? `${categoryFilter.value}:${status}` : undefined
+  if (key && hiddenStatusKeys.value.includes(key)) {
+    hiddenStatusKeys.value = hiddenStatusKeys.value.filter(hiddenKey => hiddenKey !== key)
     return
   }
   if (page.value !== 1) page.value = 1
@@ -166,9 +185,9 @@ const categoryStatusFilterOptions = computed(() => [
 ])
 
 const visibleDocuments = computed(() => {
-  let rows = documents.value ?? []
-  if (!showCancelled.value)
-    rows = rows.filter((document) => !isDocumentCancelled(document.document_types?.category, document.status, -1))
+  let rows = (documents.value ?? []).filter((document) =>
+    !hiddenStatusKeys.value.includes(`${document.document_types?.category}:${document.status}`),
+  )
   if (!showFullyPaid.value) rows = rows.filter((document) => !isDocumentFullyPaid(document))
   return rows
 })
@@ -519,8 +538,7 @@ const sortFields = [
         <div class="flex flex-wrap items-center gap-5">
           <span class="text-sm text-muted">Mostrar pagados</span>
           <USwitch v-model="showFullyPaid" />
-          <span class="text-sm text-muted">Mostrar anulados</span>
-          <USwitch v-model="showCancelled" />
+          <DocumentStatusVisibilityPopover v-model:hidden-status-keys="hiddenStatusKeys" :groups="statusVisibilityGroups" />
         </div>
       </div>
 

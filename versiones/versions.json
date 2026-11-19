@@ -1,5 +1,47 @@
 [
  {
+  "version": "0.171.0-alpha",
+  "date": "2026-11-19",
+  "stage": "alpha",
+  "notes": "Auditoría de cambios ahora funciona como agenda diaria dentro de su ubicación actual. Resume altas, ediciones, bajas y restauraciones, permite revisar la actividad por usuario y asignar el acceso con audit.read.",
+  "changes": [
+   { "type": "feat", "scope": "audit", "title": "Navegar la auditoría por fecha y resumir movimientos por usuario y acción" },
+   { "type": "feat", "scope": "access-control", "title": "Asignar la consulta de auditoría mediante el permiso audit.read" },
+   { "type": "docs", "scope": "audit", "title": "Documentar la agenda diaria y la asignación de acceso a auditoría" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agregar agenda diaria a auditoría de cambios"
+ },
+ {
+  "version": "0.170.0-alpha",
+  "date": "2026-11-19",
+  "stage": "alpha",
+  "notes": "Los listados de documentos de ventas y compras permiten ocultar estados de cierre, comienzan con los estados terminales apagados y recuerdan las selecciones por usuario, empresa y listado. Mostrar cobrados y pagados inicia apagado.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Configurar la visibilidad de estados en comprobantes, presupuestos, OV, OC y remitos" },
+   { "type": "feat", "scope": "documents", "title": "Ocultar estados terminales por defecto y guardar la selección por empresa, usuario y listado" },
+   { "type": "fix", "scope": "documents", "title": "Mostrar Cancelada entre los estados disponibles de las órdenes de venta" },
+   { "type": "fix", "scope": "documents", "title": "Iniciar apagados los filtros Mostrar cobrados y Mostrar pagados" },
+   { "type": "docs", "scope": "documents", "title": "Documentar los filtros de estados y su preferencia guardada" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Personalizar la visibilidad de estados de documentos"
+ },
+ {
+  "version": "0.169.0-alpha",
+  "date": "2026-11-19",
+  "stage": "alpha",
+  "notes": "El widget Mi actividad muestra lo cargado hoy, las tareas que resolviste cuando CRM está habilitado y tus pendientes. La agenda permite revisar días anteriores, buscar registros y abrir directamente los comprobantes, pagos, cheques o tareas relacionados; las listas largas se desplazan dentro de sus tarjetas.",
+  "changes": [
+   { "type": "feat", "scope": "dashboard", "title": "Resumir actividad diaria, tareas resueltas y pendientes personales en el inicio" },
+   { "type": "feat", "scope": "dashboard", "title": "Convertir Mis pendientes en una agenda diaria con navegación por fecha y enlaces a los registros" },
+   { "type": "style", "scope": "dashboard", "title": "Evitar desbordes en los filtros y limitar el alto de las listas de actividad y pendientes con scroll interno" },
+   { "type": "docs", "scope": "dashboard", "title": "Documentar el widget Mi actividad y la agenda diaria personal" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Agregar agenda diaria de actividad personal"
+ },
+ {
   "version": "0.168.2-alpha",
   "date": "2026-11-19",
   "stage": "alpha",

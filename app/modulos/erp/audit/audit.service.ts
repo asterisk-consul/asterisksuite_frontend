@@ -23,11 +23,26 @@ export interface AuditLogQuery {
   record_id?: string
   action?: AuditAction
   user_id?: string
+  date?: string
   days?: number
   search?: string
   filters?: string | TableFilter[]
   sort?: string
   order?: 'asc' | 'desc'
+}
+
+export interface AuditAgendaUser {
+  user_id: string | null
+  user: { id: string; name: string; email: string } | null
+  count: number
+}
+
+export interface AuditAgendaResponse {
+  date: string
+  total: number
+  byAction: Partial<Record<AuditAction, number>>
+  users: AuditAgendaUser[]
+  usersTruncated: boolean
 }
 
 export interface AuditLogResponse {
@@ -43,6 +58,8 @@ export interface AuditLogResponse {
 const baseUrl = '/api/backend/erp/audit'
 
 export const useAuditService = () => ({
+  findAgenda: (date: string) =>
+    $fetch<AuditAgendaResponse>(`${baseUrl}/agenda`, { query: { date } }),
   findAll: (query: AuditLogQuery) =>
     $fetch<AuditLogResponse>(baseUrl, {
       query: {

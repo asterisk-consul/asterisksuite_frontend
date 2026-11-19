@@ -130,14 +130,14 @@ const overviewItems = computed(() => {
   }
   if (personalData.value) {
     items.push({
-      id: 'my_pending',
-      label: 'Mis pendientes',
-      value: String(personalData.value.pendingDocuments),
-      detail: 'Documentos y capturas por resolver',
-      icon: 'i-lucide-clipboard-list',
-      cardClass: personalData.value.pendingDocuments > 0 ? 'from-violet-600 to-indigo-600' : 'from-slate-500 to-slate-600',
+      id: 'my_activity',
+      label: 'Mi actividad',
+      value: String(personalData.value.activityCount),
+      detail: `${personalData.value.pendingDocuments} pendientes${personalData.value.tasksEnabled ? ` · ${personalData.value.completedTasksCount} tareas resueltas hoy` : ''}`,
+      icon: 'i-lucide-calendar-check-2',
+      cardClass: personalData.value.pendingDocuments > 0 || personalData.value.activityCount > 0 ? 'from-violet-600 to-indigo-600' : 'from-slate-500 to-slate-600',
       iconClass: 'bg-white/20',
-      to: '/erp/mis-pendientes',
+      to: `/erp/mis-pendientes?date=${encodeURIComponent(personalData.value.activityDate)}`,
     })
   }
   if ((isOwnerOrAdmin.value || hasPermission('documents.read')) && data?.orders) {
