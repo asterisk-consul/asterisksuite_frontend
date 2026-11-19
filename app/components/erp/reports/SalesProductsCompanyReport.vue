@@ -6,6 +6,7 @@ import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import { useManagementReportsService } from '~/modulos/erp/management-reports/management-reports.service'
 import type { SalesProductsCompanySummary, SalesProductsCurrencySummary, SalesProductsDetail, SalesProductsGroupRow, SalesProductsMovement, SalesProductsProductRow, SalesProductsSummary } from '~/modulos/erp/management-reports/sales-products-report.types'
 import { getStatusLabel } from '~/modulos/erp/documents/types/document-statuses'
+import { useCompanyNavigation } from '~/composables/useCompanyNavigation'
 
 interface CompanyCurrencyRow extends SalesProductsCurrencySummary {
   company_id: string

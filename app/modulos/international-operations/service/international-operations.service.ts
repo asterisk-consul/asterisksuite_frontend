@@ -75,7 +75,11 @@ export const useInternationalOperationsService = () => {
     })
 
   const disassociateDocument = (operationId: string, documentId: string) =>
-    $fetch<void>(`${baseUrl}/${operationId}/documents/${documentId}`, {
+    $fetch<{
+      operation_id: string
+      document_id: string
+      reversed_transit_movements: Array<{ id: string; product_id: string; quantity: number | string }>
+    }>(`${baseUrl}/${operationId}/documents/${documentId}`, {
       method: 'DELETE'
     })
 

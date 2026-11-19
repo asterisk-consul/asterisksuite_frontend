@@ -168,10 +168,11 @@ export const useInternationalOperationsStore = defineStore('international-operat
     try {
       loading.value = true
       error.value = null
-      await service.disassociateDocument(operationId, documentId)
+      const result = await service.disassociateDocument(operationId, documentId)
       if (current.value?.id === operationId) {
         await fetchOne(operationId)
       }
+      return result
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al desasociar documento'
       throw err

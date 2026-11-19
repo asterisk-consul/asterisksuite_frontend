@@ -10,12 +10,16 @@ import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-stat
 import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
 
 const router = useRouter()
+const toast = useToast()
 const store = useDocumentsPurchasesStore()
 const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/purchases/orders/new')
 
 const showCancelled = ref(false)
+const cancelTarget = ref<any | null>(null)
+const cancelModalOpen = ref(false)
+const cancelProcessing = ref(false)
 const documents = computed(() => store.items ?? [])
 const visibleDocuments = computed(() => showCancelled.value
   ? documents.value
@@ -62,6 +66,72 @@ function duplicateDocument(row: any) {
   router.push({ path: '/erp/purchases/orders/new', query: { duplicate_id: row.id } })
 }
 
+function editDocument(row: any) {
+  router.push(`/erp/purchases/orders/${row.id}/edit`)
+}
+
+function canCancelOrder(row: any) {
+  const status = Number(row.status)
+  const cancellable = status === 0 || (status >= 2 && status < 7 && !isDocumentCancelled('ORDER', status, -1))
+  return cancellable && canDocument('purchases', 'ORDER', 'cancel')
+}
+
+function openCancelModal(row: any) {
+  cancelTarget.value = row
+  cancelModalOpen.value = true
+}
+
+async function confirmCancelOrder() {
+  if (!cancelTarget.value || cancelProcessing.value) return
+  cancelProcessing.value = true
+  try {
+    await store.cancel(cancelTarget.value.id)
+    await refresh()
+    toast.add({ title: 'Orden de compra anulada', color: 'success' })
+    cancelModalOpen.value = false
+    cancelTarget.value = null
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo anular la orden',
+      description: error?.data?.message || error?.message || 'Revisá los pagos y efectos asociados.',
+      color: 'error'
+    })
+  } finally {
+    cancelProcessing.value = false
+  }
+}
+
+function getOrderRowActions(row: any) {
+  const status = Number(row.status)
+  const groups: any[][] = []
+
+  if (canDocument('purchases', 'ORDER', 'create')) {
+    groups.push([{
+      label: 'Duplicar como borrador',
+      icon: 'i-lucide-copy',
+      onSelect: () => duplicateDocument(row)
+    }])
+  }
+
+  const actions: any[] = []
+  if ([0, 1].includes(status) && row.amounts_visible !== false && canDocument('purchases', 'ORDER', 'update')) {
+    actions.push({ label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => editDocument(row) })
+  }
+  if (status === 2 && canDocument('purchases', 'INVOICE', 'create')) {
+    actions.push({
+      label: 'Crear factura',
+      icon: 'i-lucide-file-text',
+      onSelect: () => router.push(`/erp/purchases/purchases-documents/new?parent_order_id=${row.id}`)
+    })
+  }
+  if (canCancelOrder(row)) {
+    actions.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onSelect: () => openCancelModal(row) })
+  }
+  if (actions.length) groups.push(actions)
+  groups.push([{ label: 'Abrir orden', icon: 'i-lucide-arrow-up-right', onSelect: () => openDocument(row) }])
+  return groups
+}
+
 const statusFilterOptions = [
   { label: 'Borrador', value: 0 },
   { label: 'Pendiente', value: 1 },
@@ -72,6 +142,8 @@ const statusFilterOptions = [
 const columns = computed(() => createPurchasesColumns({
   onOpen: openDocument,
   onDuplicate: duplicateDocument,
+  getRowActions: getOrderRowActions,
+  actionsFirst: true,
   canDuplicate: () => canDocument('purchases', 'ORDER', 'create'),
   showCreator: isOwnerOrAdmin.value,
   statusFilterOptions
@@ -156,5 +228,16 @@ const sortFields = [
         :on-row-click="openDocument"
       />
     </div>
+
+    <UModal v-model:open="cancelModalOpen" title="Anular orden de compra" :dismissible="!cancelProcessing">
+      <template #body>
+        <p v-if="cancelTarget">¿Anular la orden de compra <strong>#{{ cancelTarget.number }}</strong>?</p>
+        <p class="mt-2 text-sm text-muted">Se validarán los pagos y efectos operativos asociados antes de anularla.</p>
+        <div class="flex justify-end gap-2 pt-4">
+          <UButton label="Cancelar" variant="ghost" :disabled="cancelProcessing" @click="cancelModalOpen = false" />
+          <UButton label="Anular" color="error" :loading="cancelProcessing" @click="confirmCancelOrder" />
+        </div>
+      </template>
+    </UModal>
   </UPage>
 </template>

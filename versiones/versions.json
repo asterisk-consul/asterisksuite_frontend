@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.168.2-alpha",
+  "date": "2026-11-19",
+  "stage": "alpha",
+  "notes": "Las tablas de comprobantes, OV, OC y remitos muestran al inicio un menú con las acciones disponibles según el documento, su estado y los permisos del usuario. Duplicar aparece primero cuando el tipo de documento lo permite.",
+  "changes": [
+   { "type": "feat", "scope": "documents", "title": "Acceder desde las tablas a edición, cobros o pagos, facturas, remitos, NC/ND y anulación según el estado" },
+   { "type": "style", "scope": "documents", "title": "Ubicar el menú de acciones al inicio de las tablas y priorizar Duplicar cuando está disponible" },
+   { "type": "docs", "scope": "documents", "title": "Documentar las acciones contextuales en las tablas de comprobantes, órdenes y remitos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Acceder a las acciones desde las tablas de documentos"
+ },
+ {
   "version": "0.168.1-alpha",
   "date": "2026-11-17",
   "stage": "alpha",

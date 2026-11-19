@@ -12,6 +12,7 @@ import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-stat
 import { DocumentsSalesService, type SalespersonOption } from '~/modulos/erp/sales/services/sales.service'
 
 const router = useRouter()
+const toast = useToast()
 const store = useDocumentsSalesStore()
 const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
@@ -31,6 +32,9 @@ const sellerFilterOptions = computed(() => [
     label: `${seller.first_name} ${seller.last_name}`.trim() + (seller.seller_type === 'PARTNER' ? ' · Socio' : ' · Empleado')
   }))
 ])
+const cancelTarget = ref<any | null>(null)
+const cancelModalOpen = ref(false)
+const cancelProcessing = ref(false)
 
 onMounted(async () => {
   try {
@@ -82,6 +86,87 @@ function duplicateDocument(row: any) {
   router.push({ path: '/erp/sales/new', query: { category: 'ORDER', duplicate_id: row.id } })
 }
 
+function editDocument(row: any) {
+  router.push(`/erp/sales/${row.id}/edit`)
+}
+
+function canCancelOrder(row: any) {
+  const status = Number(row.status)
+  const cancellable = status === 0 || (status >= 2 && status < 7 && !isDocumentCancelled('ORDER', status))
+  return cancellable && canDocument('sales', 'ORDER', 'cancel')
+}
+
+function openCancelModal(row: any) {
+  cancelTarget.value = row
+  cancelModalOpen.value = true
+}
+
+async function confirmCancelOrder() {
+  if (!cancelTarget.value || cancelProcessing.value) return
+  cancelProcessing.value = true
+  try {
+    await store.cancel(cancelTarget.value.id)
+    await refresh()
+    toast.add({ title: 'Orden de venta anulada', color: 'success' })
+    cancelModalOpen.value = false
+    cancelTarget.value = null
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo anular la orden',
+      description: error?.data?.message || error?.message || 'Revisá los efectos operativos asociados.',
+      color: 'error'
+    })
+  } finally {
+    cancelProcessing.value = false
+  }
+}
+
+function getOrderRowActions(row: any) {
+  const status = Number(row.status)
+  const groups: any[][] = []
+
+  if (canDocument('sales', 'ORDER', 'create')) {
+    groups.push([{
+      label: 'Duplicar como borrador',
+      icon: 'i-lucide-copy',
+      onSelect: () => duplicateDocument(row)
+    }])
+  }
+
+  const actions: any[] = []
+  if ([0, 1].includes(status) && row.amounts_visible !== false && canDocument('sales', 'ORDER', 'update')) {
+    actions.push({ label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => editDocument(row) })
+  }
+  if (status >= 2 && status < 7) {
+    const operation = row.commercial_operation
+    if (operation?.delivery_note_id) {
+      actions.push({
+        label: operation.delivery_status === 'DRAFT_CREATED' ? 'Completar remito' : 'Ver remito',
+        icon: 'i-lucide-truck',
+        onSelect: () => router.push(`/erp/remitos/${operation.delivery_note_id}`)
+      })
+    } else if ((!operation || operation.delivery_status === 'ELIGIBLE') && canDocument('sales', 'REMITO', 'create')) {
+      actions.push({ label: 'Abrir OV para crear remito', icon: 'i-lucide-truck', onSelect: () => openDocument(row) })
+    }
+    if (canDocument('sales', 'INVOICE', 'create')) {
+      actions.push({
+        label: 'Crear factura',
+        icon: 'i-lucide-file-text',
+        onSelect: () => router.push(`/erp/sales/new?category=INVOICE&parent_order_id=${row.id}`)
+      })
+    }
+    if (canSettleDocument(row) && row.party_id) {
+      actions.push({ label: 'Registrar cobro', icon: 'i-lucide-hand-coins', onSelect: () => collectDocument(row) })
+    }
+  }
+  if (canCancelOrder(row)) {
+    actions.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onSelect: () => openCancelModal(row) })
+  }
+  if (actions.length) groups.push(actions)
+  groups.push([{ label: 'Abrir orden', icon: 'i-lucide-arrow-up-right', onSelect: () => openDocument(row) }])
+  return groups
+}
+
 function collectDocument(row: any) {
   if (!canSettleDocument(row) || !row.party_id) {
     openDocument(row)
@@ -115,6 +200,8 @@ const columns = computed(() =>
     onOpen: openDocument,
     onCollect: collectDocument,
     onDuplicate: duplicateDocument,
+    getRowActions: getOrderRowActions,
+    actionsFirst: true,
     canDuplicate: () => canDocument('sales', 'ORDER', 'create'),
     showSeller: true,
     sellerFilterOptions: sellerFilterOptions.value,
@@ -201,5 +288,16 @@ const sortFields = [
         :on-row-click="openDocument"
       />
     </div>
+
+    <UModal v-model:open="cancelModalOpen" title="Anular orden de venta" :dismissible="!cancelProcessing">
+      <template #body>
+        <p v-if="cancelTarget">¿Anular la orden de venta <strong>#{{ cancelTarget.number }}</strong>?</p>
+        <p class="mt-2 text-sm text-muted">Se validarán los pagos y efectos operativos asociados antes de anularla.</p>
+        <div class="flex justify-end gap-2 pt-4">
+          <UButton label="Cancelar" variant="ghost" :disabled="cancelProcessing" @click="cancelModalOpen = false" />
+          <UButton label="Anular" color="error" :loading="cancelProcessing" @click="confirmCancelOrder" />
+        </div>
+      </template>
+    </UModal>
   </UPage>
 </template>

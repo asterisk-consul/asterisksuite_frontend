@@ -7,13 +7,19 @@ import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import { useServerTable } from '~/composables/table/useServerTable'
 import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
+import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 
 const router = useRouter()
+const toast = useToast()
 const store = useDocumentsSalesStore()
+const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=REMITO')
 
 const showCancelled = ref(false)
+const cancelTarget = ref<any | null>(null)
+const cancelModalOpen = ref(false)
+const cancelProcessing = ref(false)
 const documents = computed(() => store.items ?? [])
 const visibleDocuments = computed(() => showCancelled.value
   ? documents.value
@@ -57,9 +63,53 @@ function openDocument(row: any) {
   router.push(`/erp/remitos/${row.id}`)
 }
 
+function editDocument(row: any) {
+  router.push(`/erp/sales/${row.id}/edit`)
+}
+
+function openCancelModal(row: any) {
+  cancelTarget.value = row
+  cancelModalOpen.value = true
+}
+
+async function confirmCancelRemito() {
+  if (!cancelTarget.value || cancelProcessing.value) return
+  cancelProcessing.value = true
+  try {
+    await store.cancel(cancelTarget.value.id)
+    await refresh()
+    toast.add({ title: 'Remito anulado', color: 'success' })
+    cancelModalOpen.value = false
+    cancelTarget.value = null
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo anular el remito',
+      description: error?.data?.message || error?.message || 'Revisá los efectos operativos asociados.',
+      color: 'error'
+    })
+  } finally {
+    cancelProcessing.value = false
+  }
+}
+
+function getRemitoRowActions(row: any) {
+  const status = Number(row.status)
+  const actions: any[] = []
+  if ([0, 1].includes(status) && row.amounts_visible !== false && canDocument('sales', 'REMITO', 'update')) {
+    actions.push({ label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => editDocument(row) })
+  }
+  if (status === 0 && canDocument('sales', 'REMITO', 'cancel')) {
+    actions.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onSelect: () => openCancelModal(row) })
+  }
+  actions.push({ label: 'Abrir remito', icon: 'i-lucide-arrow-up-right', onSelect: () => openDocument(row) })
+  return [actions]
+}
+
 const columns = computed(() =>
   createSalesColumns({
     onOpen: openDocument,
+    getRowActions: getRemitoRowActions,
+    actionsFirst: true,
     showAmounts: false,
     showCreator: isOwnerOrAdmin.value,
     statusFilterOptions: statusOptions.filter((option): option is { label: string; value: number } => option.value !== undefined)
@@ -151,5 +201,16 @@ const statusOptions = [
         :on-row-click="openDocument"
       />
     </div>
+
+    <UModal v-model:open="cancelModalOpen" title="Anular remito" :dismissible="!cancelProcessing">
+      <template #body>
+        <p v-if="cancelTarget">¿Anular el remito <strong>#{{ cancelTarget.number }}</strong>?</p>
+        <p class="mt-2 text-sm text-muted">Se validarán los efectos operativos asociados antes de anularlo.</p>
+        <div class="flex justify-end gap-2 pt-4">
+          <UButton label="Cancelar" variant="ghost" :disabled="cancelProcessing" @click="cancelModalOpen = false" />
+          <UButton label="Anular" color="error" :loading="cancelProcessing" @click="confirmCancelRemito" />
+        </div>
+      </template>
+    </UModal>
   </UPage>
 </template>

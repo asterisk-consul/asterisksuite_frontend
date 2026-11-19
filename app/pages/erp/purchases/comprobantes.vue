@@ -91,6 +91,9 @@ const selectedStatusFilter = computed({
 })
 const showFullyPaid = ref(true)
 const showCancelled = ref(false)
+const cancelTarget = ref<any | null>(null)
+const cancelModalOpen = ref(false)
+const cancelProcessing = ref(false)
 
 const serverTable = useServerTable(
   (query) => documentsPurchasesStore.fetchPage({
@@ -248,6 +251,98 @@ function duplicateDocument(row: any) {
   router.push({ path, query: { category, duplicate_id: row.id } })
 }
 
+function editDocument(row: any) {
+  const category = row.document_types?.category
+  if (category === 'ORDER') {
+    router.push(`/erp/purchases/orders/${row.id}/edit`)
+    return
+  }
+  if (category === 'REMITO') {
+    router.push(`/erp/purchases/remitos/${row.id}/edit`)
+    return
+  }
+  router.push(`/erp/purchases/purchases-documents/${row.id}/edit`)
+}
+
+function canCancelDocument(row: any) {
+  const category = row.document_types?.category ?? ''
+  const status = Number(row.status)
+  const cancellable = status === 0
+    || (category === 'ORDER' && status >= 2 && status < 7)
+    || (category === 'INVOICE' && [1, 2].includes(status))
+    || (['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category) && [1, 2].includes(status))
+  return cancellable && canDocument('purchases', category, 'cancel')
+}
+
+function openCancelModal(row: any) {
+  cancelTarget.value = row
+  cancelModalOpen.value = true
+}
+
+async function confirmCancelDocument() {
+  if (!cancelTarget.value || cancelProcessing.value) return
+  cancelProcessing.value = true
+  try {
+    await documentsPurchasesStore.cancel(cancelTarget.value.id)
+    await refresh()
+    toast.add({ title: 'Documento anulado', color: 'success' })
+    cancelModalOpen.value = false
+    cancelTarget.value = null
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo anular el documento',
+      description: error?.data?.message || error?.message || 'Revisá los pagos y efectos operativos asociados.',
+      color: 'error'
+    })
+  } finally {
+    cancelProcessing.value = false
+  }
+}
+
+function getDocumentRowActions(row: any) {
+  const category = row.document_types?.category ?? ''
+  const status = Number(row.status)
+  const groups: any[][] = []
+
+  if (['ORDER', 'INVOICE'].includes(category) && canDocument('purchases', category, 'create')) {
+    groups.push([{
+      label: 'Duplicar como borrador',
+      icon: 'i-lucide-copy',
+      onSelect: () => duplicateDocument(row)
+    }])
+  }
+
+  const standardActions: any[] = []
+  if ([0, 1].includes(status) && canDocument('purchases', category, 'update')) {
+    standardActions.push({ label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => editDocument(row) })
+  }
+  if (status === 2 && canSettleDocument(row) && row.party_id) {
+    standardActions.push({ label: 'Pagar', icon: 'i-lucide-hand-coins', onSelect: () => payDocument(row) })
+  }
+  if (category === 'INVOICE' && status === 2) {
+    if (canDocument('purchases', 'CREDIT_NOTE', 'create')) {
+      standardActions.push({
+        label: 'Crear NC',
+        icon: 'i-lucide-file-minus',
+        onSelect: () => router.push(`/erp/purchases/purchases-documents/new?category=CREDIT_NOTE&parent_document_id=${row.id}`)
+      })
+    }
+    if (canDocument('purchases', 'DEBIT_NOTE', 'create')) {
+      standardActions.push({
+        label: 'Crear ND',
+        icon: 'i-lucide-file-plus',
+        onSelect: () => router.push(`/erp/purchases/purchases-documents/new?category=DEBIT_NOTE&parent_document_id=${row.id}`)
+      })
+    }
+  }
+  if (canCancelDocument(row)) {
+    standardActions.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onSelect: () => openCancelModal(row) })
+  }
+  if (standardActions.length) groups.push(standardActions)
+  groups.push([{ label: 'Abrir documento', icon: 'i-lucide-arrow-up-right', onSelect: () => openDocument(row) }])
+  return groups
+}
+
 function payDocument(row: any) {
   if (!canSettleDocument(row) || !row.party_id) {
     openDocument(row)
@@ -304,6 +399,8 @@ const columns = computed(() =>
     onOpen: openDocument,
     onPay: payDocument,
     onDuplicate: duplicateDocument,
+    getRowActions: getDocumentRowActions,
+    actionsFirst: true,
     canDuplicate: (row) => canDocument('purchases', row.document_types?.category ?? '', 'create'),
     showCreator: isOwnerOrAdmin.value,
     statusFilterOptions: categoryFilter.value
@@ -448,4 +545,26 @@ const sortFields = [
       />
     </div>
   </UPage>
+
+  <UModal
+    v-model:open="cancelModalOpen"
+    :title="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(cancelTarget?.document_types?.category ?? '') ? 'Anular nota de crédito/débito' : 'Anular documento'"
+    :dismissible="!cancelProcessing"
+  >
+    <template #body>
+      <div v-if="cancelTarget" class="space-y-3">
+        <p>¿Anular el documento <strong>#{{ cancelTarget.number }}</strong>?</p>
+        <p v-if="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(cancelTarget.document_types?.category ?? '')" class="text-sm text-muted">
+          La anulación revierte el efecto de la nota y conserva su relación con la factura. Si tiene pagos activos, primero hay que anularlos.
+        </p>
+        <p v-else class="text-sm text-muted">
+          Se aplicarán las validaciones de pagos y efectos operativos asociados antes de anularlo.
+        </p>
+      </div>
+      <div class="flex justify-end gap-2 pt-4">
+        <UButton label="Cancelar" variant="ghost" :disabled="cancelProcessing" @click="cancelModalOpen = false" />
+        <UButton label="Anular" color="error" :loading="cancelProcessing" @click="confirmCancelDocument" />
+      </div>
+    </template>
+  </UModal>
 </template>

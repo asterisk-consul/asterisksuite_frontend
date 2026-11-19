@@ -14,6 +14,8 @@ export const createSalesColumns = (actions: {
   onCollect?: (row: Row) => void
   onDuplicate?: (row: Row) => void
   canDuplicate?: (row: Row) => boolean
+  getRowActions?: (row: Row) => any[][]
+  actionsFirst?: boolean
   showAmounts?: boolean
   showCreator?: boolean
   showSeller?: boolean
@@ -31,7 +33,46 @@ export const createSalesColumns = (actions: {
     return pointOfSale ? `${code}-${pointOfSale}-${number}` : `${code}-${number}`
   }
 
+  const actionColumn = (actions.onDuplicate || actions.getRowActions)
+    ? {
+        id: 'document_actions',
+        header: '',
+        meta: { label: 'Acciones', filter: false as const, disableColumnVisibility: true },
+        enableHiding: false,
+        cell: ({ row }: any) => {
+          const document = row.original as Row
+          const category = document.document_types?.category
+          const fallbackItems = ['ORDER', 'INVOICE'].includes(category ?? '')
+            && actions.canDuplicate?.(document) !== false
+            ? [[{
+                label: 'Duplicar como borrador',
+                icon: 'i-lucide-copy',
+                onSelect: () => actions.onDuplicate?.(document)
+              }]]
+            : []
+          const items = actions.getRowActions?.(document) ?? fallbackItems
+          if (!items.length) return null
+
+          return h(UDropdownMenu, {
+            items,
+            content: { align: actions.actionsFirst ? 'start' : 'end' }
+          }, {
+            default: () => h(UButton, {
+              icon: 'i-lucide-ellipsis-vertical',
+              color: 'neutral',
+              variant: 'ghost',
+              size: 'sm',
+              'aria-label': `Acciones para ${CATEGORY_LABELS[category ?? ''] ?? 'documento'}`,
+              title: 'Más acciones',
+              onClick: (event: Event) => event.stopPropagation()
+            })
+          })
+        }
+      }
+    : null
+
   return [
+    ...(actions.actionsFirst && actionColumn ? [actionColumn] : []),
     ...build([
       {
         key: 'status',
@@ -224,35 +265,6 @@ export const createSalesColumns = (actions: {
           ]
         : [])
     ]),
-    ...(actions.onDuplicate
-      ? [{
-          id: 'document_actions',
-          header: '',
-          meta: { label: 'Acciones', filter: false as const, disableColumnVisibility: true },
-          enableHiding: false,
-          cell: ({ row }: any) => {
-            const document = row.original as Row
-            const category = document.document_types?.category
-            if (!['ORDER', 'INVOICE'].includes(category ?? '') || actions.canDuplicate?.(document) === false) return null
-            return h(UDropdownMenu, {
-              items: [[{
-                label: 'Duplicar como borrador',
-                icon: 'i-lucide-copy',
-                onSelect: () => actions.onDuplicate?.(document)
-              }]],
-              content: { align: 'end' }
-            }, {
-              default: () => h(UButton, {
-                icon: 'i-lucide-ellipsis-vertical',
-                color: 'neutral',
-                variant: 'ghost',
-                size: 'sm',
-                'aria-label': `Acciones para ${CATEGORY_LABELS[category ?? ''] ?? 'documento'}`,
-                title: 'Más acciones'
-              })
-            })
-          }
-        }]
-      : [])
+    ...(!actions.actionsFirst && actionColumn ? [actionColumn] : [])
   ]
 }

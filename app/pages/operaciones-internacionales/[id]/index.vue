@@ -157,6 +157,9 @@ const invoiceExpenseType = ref<InternationalExpenseType>('MERCHANDISE')
 const invoiceCustomExpenseDescription = ref('')
 const showStatusChangeModal = ref(false)
 const statusChangeSaving = ref(false)
+const pendingDocumentDisassociation = ref<any | null>(null)
+const showDocumentDisassociationModal = ref(false)
+const documentDisassociationSaving = ref(false)
 const pendingStatusChange = ref<{
   scope: 'operation' | 'container'
   current: OperationStatus | ContainerStatus
@@ -178,6 +181,16 @@ const invoiceContainerOptions = computed(() =>
 const selectedInvoiceContainer = computed(() =>
   (operation.value?.containers ?? []).find((container: any) => container.id === invoiceContainerId.value)
 )
+
+const pendingDocumentContainer = computed(() =>
+  (operation.value?.containers ?? []).find((container: any) => container.id === pendingDocumentDisassociation.value?.container_id)
+)
+
+const disassociationAfterShipment = computed(() => {
+  const transitStatuses = new Set(['SHIPPED', 'IN_TRANSIT', 'ARRIVED', 'CUSTOMS', 'RELEASED', 'RECEIVING', 'DELIVERED', 'CLOSED'])
+  return transitStatuses.has(String(pendingDocumentContainer.value?.status ?? '').toUpperCase())
+    || transitStatuses.has(String(operation.value?.status ?? '').toUpperCase())
+})
 
 const canContinueInvoiceCreation = computed(() => {
   if (!invoiceExpenseType.value) return false
@@ -362,11 +375,68 @@ const handleRemoveContainer = async (containerId: string) => {
   }
 }
 
-const handleDisassociateDocument = async (documentId: string) => {
-  if (confirm('¿Desasociar este documento de la operación?')) {
-    await disassociateDocument(id, documentId)
-    await fetchOne(id)
-    await fetchSummary(id)
+const openDocumentDisassociation = async (relation: any) => {
+  try {
+    const freshOperation = await fetchOne(id)
+    const freshRelation = freshOperation.operation_documents?.find((item: any) => item.document_id === relation.document_id)
+    if (!freshRelation) {
+      await fetchSummary(id).catch(() => undefined)
+      toast.add({
+        title: 'El documento ya estaba desasociado',
+        description: 'Actualicé la operación con el estado guardado en el servidor.',
+        color: 'info'
+      })
+      return
+    }
+    pendingDocumentDisassociation.value = freshRelation
+    showDocumentDisassociationModal.value = true
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo actualizar la operación',
+      description: error?.data?.message || error?.message || 'Volvé a intentarlo.',
+      color: 'error'
+    })
+  }
+}
+
+const confirmDocumentDisassociation = async () => {
+  const relation = pendingDocumentDisassociation.value
+  if (!relation || documentDisassociationSaving.value) return
+
+  documentDisassociationSaving.value = true
+  try {
+    const result = await disassociateDocument(id, relation.document_id)
+    await fetchSummary(id).catch(() => undefined)
+    const reversedCount = result?.reversed_transit_movements?.length ?? 0
+    toast.add({
+      title: 'Documento desasociado',
+      description: reversedCount
+        ? `Se retiraron ${reversedCount} ingreso${reversedCount === 1 ? '' : 's'} del stock en tránsito. El comprobante no se anuló ni modificó.`
+        : 'Se quitó el vínculo con la operación. El comprobante no se anuló ni modificó.',
+      color: 'success'
+    })
+    showDocumentDisassociationModal.value = false
+    pendingDocumentDisassociation.value = null
+  } catch (error: any) {
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status
+    await Promise.allSettled([fetchOne(id), fetchSummary(id)])
+    if (status === 404) {
+      showDocumentDisassociationModal.value = false
+      pendingDocumentDisassociation.value = null
+      toast.add({
+        title: 'El documento ya estaba desasociado',
+        description: 'Actualicé la operación con el estado guardado en el servidor.',
+        color: 'info'
+      })
+    } else {
+      toast.add({
+        title: 'No se pudo desasociar el documento',
+        description: error?.data?.message || error?.message || 'Revisá el stock y volvé a intentarlo.',
+        color: 'error'
+      })
+    }
+  } finally {
+    documentDisassociationSaving.value = false
   }
 }
 
@@ -2062,7 +2132,7 @@ const scrollTo = (sectionId: string) => {
                         {
                           label: 'Desasociar documento',
                           icon: 'i-lucide-unlink',
-                          onSelect: () => handleDisassociateDocument(rel.document_id)
+                          onSelect: () => { void openDocumentDisassociation(rel) }
                         }
                       ]"
                     >
@@ -2227,6 +2297,64 @@ const scrollTo = (sectionId: string) => {
               :color="pendingStatusMeta?.color as any"
               :loading="statusChangeSaving"
               @click="confirmStatusChange"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="showDocumentDisassociationModal"
+        title="Desasociar documento"
+        description="El comprobante seguirá vigente; solo se quitará su vínculo con esta operación."
+        :dismissible="!documentDisassociationSaving"
+      >
+        <template #body>
+          <div v-if="pendingDocumentDisassociation" class="space-y-4">
+            <div class="rounded-xl border border-default bg-muted/20 p-4">
+              <p class="text-xs font-medium uppercase tracking-wide text-muted">Documento</p>
+              <p class="mt-1 font-semibold">
+                {{ pendingDocumentDisassociation.document?.document_types?.description || 'Comprobante' }}
+                #{{ pendingDocumentDisassociation.document?.number }}
+              </p>
+              <p v-if="pendingDocumentContainer" class="mt-1 text-sm text-muted">
+                Contenedor {{ pendingDocumentContainer.container_number }} · {{ containerStatusLabel(pendingDocumentContainer.status) }}
+              </p>
+            </div>
+
+            <UAlert
+              v-if="disassociationAfterShipment && pendingDocumentDisassociation.expense_type === 'MERCHANDISE' && Number(pendingDocumentDisassociation.document?.document_types?.direction) === -1"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-triangle-alert"
+              title="El circuito ya está embarcado"
+              description="Si este documento generó stock en tránsito, se retirarán esas unidades del depósito virtual. La acción se bloqueará si el stock fue recibido, tuvo salidas posteriores o dejaría reservas sin cubrir."
+            />
+            <UAlert
+              v-else
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-info"
+              title="El comprobante no se anula ni se modifica"
+              description="Solo se quitará su asociación con esta operación y con el contenedor indicado."
+            />
+          </div>
+        </template>
+
+        <template #footer>
+          <div class="flex w-full justify-end gap-2">
+            <UButton
+              label="Cancelar"
+              color="neutral"
+              variant="ghost"
+              :disabled="documentDisassociationSaving"
+              @click="() => { showDocumentDisassociationModal = false }"
+            />
+            <UButton
+              label="Desasociar"
+              icon="i-lucide-unlink"
+              color="error"
+              :loading="documentDisassociationSaving"
+              @click="confirmDocumentDisassociation"
             />
           </div>
         </template>
