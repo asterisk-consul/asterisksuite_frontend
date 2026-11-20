@@ -238,6 +238,34 @@ const canEditQuoteDocument = (quote: OperationQuoteRelation) =>
   !quote.converted_document_id
   && [0, 1].includes(Number(quote.document?.status))
   && canDocument('purchases', 'QUOTE', 'update')
+const getQuoteActions = (quote: OperationQuoteRelation) => {
+  const actions: any[] = [
+    {
+      label: 'Ver detalle',
+      icon: 'i-lucide-eye',
+      onSelect: () => router.push(quoteDocumentRoute(quote)),
+    },
+  ]
+
+  if (canEditQuoteDocument(quote)) {
+    actions.push({
+      label: 'Editar',
+      icon: 'i-lucide-pencil',
+      onSelect: () => router.push(`${quoteDocumentRoute(quote)}/edit`),
+    })
+  }
+
+  if (!quote.converted_document_id) {
+    actions.push({
+      label: 'Desasociar',
+      icon: 'i-lucide-unlink',
+      color: 'error',
+      onSelect: () => { void handleDisassociateQuote(quote) },
+    })
+  }
+
+  return actions
+}
 
 const onResize = () => updateStickyOffsets()
 
@@ -1822,62 +1850,51 @@ const scrollTo = (sectionId: string) => {
             class="rounded-xl border bg-default p-4 shadow-sm transition-colors"
             :class="quote.status === 'ACCEPTED' ? 'border-success/50 bg-success/5' : 'border-default'"
           >
-            <div class="flex items-start justify-between gap-3 flex-wrap">
-              <div class="min-w-0">
-                <div class="flex items-center gap-2 flex-wrap mb-1">
-                  <NuxtLink :to="quoteDocumentRoute(quote)" class="font-mono font-bold text-sm hover:text-primary hover:underline">
-                    {{ quote.document?.document_types?.code }} Nº
-                    {{ String(quote.document?.number ?? '').padStart(8, '0') }}
-                  </NuxtLink>
-                  <UBadge
-                    :label="quoteStatusLabel(quote.status)"
-                    :color="quoteStatusColor(quote.status)"
-                    size="xs"
-                    variant="subtle"
-                  />
-                </div>
-                <div class="flex items-center gap-3 text-xs text-muted flex-wrap">
-                  <span class="font-medium text-default flex items-center gap-1">
-                    <UIcon name="i-lucide-building-2" class="size-3" />
-                    {{ quote.document?.business_parties?.name ?? '—' }}
-                  </span>
-                  <span>{{ formatDate(quote.document?.date) }}</span>
-                </div>
-              </div>
-              <span class="font-bold" :class="quote.status === 'ACCEPTED' ? 'text-success-500' : ''">
-                {{ formatCurrency(Number(quote.document?.total ?? 0), quote.document?.currency_code) }}
-              </span>
-            </div>
-
-            <div
-              v-if="quote.document?.document_items?.length"
-              class="mt-2.5 pt-2.5 border-t border-default flex flex-wrap gap-x-4 gap-y-1"
+            <NuxtLink
+              :to="quoteDocumentRoute(quote)"
+              class="group/quote -m-2 mb-0.5 block rounded-lg p-2 transition-colors hover:bg-muted/20 focus-visible:outline-2 focus-visible:outline-primary"
             >
-              <span v-for="(item, idx) in quote.document.document_items" :key="idx" class="text-xs text-muted">
-                {{ item.quantity }} × {{ item.products?.name ?? 'Producto' }}
-                <span class="font-medium text-default">
-                  {{ formatCurrency(Number(item.price), quote.document?.currency_code) }}
+              <div class="flex items-start justify-between gap-3 flex-wrap">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <span class="font-mono font-bold text-sm group-hover/quote:text-primary">
+                      {{ quote.document?.document_types?.code }} Nº
+                      {{ String(quote.document?.number ?? '').padStart(8, '0') }}
+                    </span>
+                    <UBadge
+                      :label="quoteStatusLabel(quote.status)"
+                      :color="quoteStatusColor(quote.status)"
+                      size="xs"
+                      variant="subtle"
+                    />
+                  </div>
+                  <div class="flex items-center gap-3 text-xs text-muted flex-wrap">
+                    <span class="font-medium text-default flex items-center gap-1">
+                      <UIcon name="i-lucide-building-2" class="size-3" />
+                      {{ quote.document?.business_parties?.name ?? '—' }}
+                    </span>
+                    <span>{{ formatDate(quote.document?.date) }}</span>
+                  </div>
+                </div>
+                <span class="font-bold group-hover/quote:text-primary" :class="quote.status === 'ACCEPTED' ? 'text-success-500' : ''">
+                  {{ formatCurrency(Number(quote.document?.total ?? 0), quote.document?.currency_code) }}
                 </span>
-              </span>
-            </div>
+              </div>
+
+              <div
+                v-if="quote.document?.document_items?.length"
+                class="mt-2.5 pt-2.5 border-t border-default flex flex-wrap gap-x-4 gap-y-1"
+              >
+                <span v-for="(item, idx) in quote.document.document_items" :key="idx" class="text-xs text-muted">
+                  {{ item.quantity }} × {{ item.products?.name ?? 'Producto' }}
+                  <span class="font-medium text-default">
+                    {{ formatCurrency(Number(item.price), quote.document?.currency_code) }}
+                  </span>
+                </span>
+              </div>
+            </NuxtLink>
 
             <div class="flex items-center justify-end gap-1 mt-2.5 pt-2.5 border-t border-default">
-              <UButton
-                v-if="quote.document"
-                label="Ver presupuesto"
-                icon="i-lucide-eye"
-                variant="ghost"
-                size="xs"
-                :to="quoteDocumentRoute(quote)"
-              />
-              <UButton
-                v-if="canEditQuoteDocument(quote)"
-                label="Editar"
-                icon="i-lucide-pencil"
-                variant="outline"
-                size="xs"
-                :to="`${quoteDocumentRoute(quote)}/edit`"
-              />
               <UButton
                 v-if="!quote.converted_document_id && quote.status !== 'REJECTED'"
                 label="Elegir y transformar"
@@ -1906,7 +1923,16 @@ const scrollTo = (sectionId: string) => {
                 @click="handleResetQuote(quote)"
               />
               <UButton v-if="quote.converted_document" :label="`${quote.converted_document.document_types?.code ?? 'Comprobante'} #${quote.converted_document.number} · ${quote.converted_document.status === 0 ? 'Borrador' : quote.converted_document.status === 2 ? 'Confirmado' : 'Ver estado'}`" icon="i-lucide-external-link" variant="soft" size="xs" :to="`/erp/purchases/purchases-documents/${quote.converted_document.id}`" />
-              <UButton v-if="!quote.converted_document_id" icon="i-lucide-unlink" variant="ghost" size="xs" @click="handleDisassociateQuote(quote)" />
+              <UDropdownMenu :items="getQuoteActions(quote)" :content="{ align: 'end' }">
+                <UButton
+                  icon="i-lucide-ellipsis"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Más acciones del presupuesto"
+                  title="Más acciones"
+                />
+              </UDropdownMenu>
             </div>
           </div>
               </div>

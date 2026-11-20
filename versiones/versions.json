@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.176.1-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "La tarjeta de cada propuesta abre el presupuesto asociado y concentra Ver detalle, Editar y Desasociar en el menú de tres puntos, manteniendo a mano las acciones del circuito.",
+  "changes": [
+   { "type": "style", "scope": "international-operations", "title": "Abrir el presupuesto desde su tarjeta y ordenar las acciones secundarias en un menú" },
+   { "type": "docs", "scope": "international-operations", "title": "Documentar la apertura de propuestas y sus acciones secundarias" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Simplificar las acciones de las propuestas internacionales"
+ },
+ {
   "version": "0.176.0-alpha",
   "date": "2026-11-20",
   "stage": "alpha",
