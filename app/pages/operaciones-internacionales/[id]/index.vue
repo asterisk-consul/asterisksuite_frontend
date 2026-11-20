@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 import AssociateDocumentModal from '~/components/international-operations/AssociateDocumentModal.vue'
 import AssociateQuoteModal from '~/components/international-operations/AssociateQuoteModal.vue'
 import CreateQuoteModal from '~/components/international-operations/CreateQuoteModal.vue'
@@ -24,6 +25,7 @@ const router = useRouter()
 const toast = useToast()
 const auth = useAuthStore()
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
+const { can: canDocument } = useDocumentPermissions()
 const id = route.params.id as string
 const canReadPaymentDetails = computed(() =>
   ['OWNER', 'ADMIN'].includes(String(auth.selectedCompany?.role ?? '').toUpperCase())
@@ -231,6 +233,11 @@ const quoteStatusColor = (status: string): any =>
   status === 'ACCEPTED' ? 'success' : status === 'REJECTED' ? 'error' : 'warning'
 const quoteStatusLabel = (status: string) =>
   status === 'ACCEPTED' ? 'Aceptado' : status === 'REJECTED' ? 'Rechazado' : 'Pendiente'
+const quoteDocumentRoute = (quote: OperationQuoteRelation) => `/erp/purchases/purchases-documents/${quote.document_id}`
+const canEditQuoteDocument = (quote: OperationQuoteRelation) =>
+  !quote.converted_document_id
+  && [0, 1].includes(Number(quote.document?.status))
+  && canDocument('purchases', 'QUOTE', 'update')
 
 const onResize = () => updateStickyOffsets()
 
@@ -1508,7 +1515,10 @@ const scrollTo = (sectionId: string) => {
             >
               <div class="flex items-center gap-3 min-w-0">
                 <UIcon name="i-lucide-container" class="size-4 text-muted shrink-0" />
-                <span class="font-mono font-bold">{{ container.container_number }}</span>
+                <div class="min-w-0">
+                  <span class="font-mono font-bold">{{ container.container_number }}</span>
+                  <p v-if="container.description" class="truncate text-xs text-muted">{{ container.description }}</p>
+                </div>
                 <UBadge
                   :label="containerStatusLabel(container.status)"
                   :color="containerStatusColor(container.status) as any"
@@ -1815,10 +1825,10 @@ const scrollTo = (sectionId: string) => {
             <div class="flex items-start justify-between gap-3 flex-wrap">
               <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap mb-1">
-                  <span class="font-mono font-bold text-sm">
+                  <NuxtLink :to="quoteDocumentRoute(quote)" class="font-mono font-bold text-sm hover:text-primary hover:underline">
                     {{ quote.document?.document_types?.code }} Nº
                     {{ String(quote.document?.number ?? '').padStart(8, '0') }}
-                  </span>
+                  </NuxtLink>
                   <UBadge
                     :label="quoteStatusLabel(quote.status)"
                     :color="quoteStatusColor(quote.status)"
@@ -1852,6 +1862,22 @@ const scrollTo = (sectionId: string) => {
             </div>
 
             <div class="flex items-center justify-end gap-1 mt-2.5 pt-2.5 border-t border-default">
+              <UButton
+                v-if="quote.document"
+                label="Ver presupuesto"
+                icon="i-lucide-eye"
+                variant="ghost"
+                size="xs"
+                :to="quoteDocumentRoute(quote)"
+              />
+              <UButton
+                v-if="canEditQuoteDocument(quote)"
+                label="Editar"
+                icon="i-lucide-pencil"
+                variant="outline"
+                size="xs"
+                :to="`${quoteDocumentRoute(quote)}/edit`"
+              />
               <UButton
                 v-if="!quote.converted_document_id && quote.status !== 'REJECTED'"
                 label="Elegir y transformar"

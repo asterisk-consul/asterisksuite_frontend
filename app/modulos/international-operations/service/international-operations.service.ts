@@ -2,7 +2,7 @@ import type {
   InternationalOperation,
   OperationListResponse,
   OperationSummary,
-  CreateOperationInput,
+  CreateOperationWithContainerInput,
   UpdateOperationInput,
   InternationalContainer,
   CreateContainerInput,
@@ -31,7 +31,7 @@ export const useInternationalOperationsService = () => {
   const findOne = (id: string) =>
     $fetch<InternationalOperation>(`${baseUrl}/${id}`)
 
-  const create = (payload: CreateOperationInput) =>
+  const create = (payload: CreateOperationWithContainerInput) =>
     $fetch<InternationalOperation>(`${baseUrl}`, {
       method: 'POST',
       body: payload

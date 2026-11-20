@@ -53,7 +53,7 @@ provide('switchToAdvancedTab', () => {
 })
 
 const tabs = [
-  { label: 'Variables', slot: 'variables', icon: 'i-lucide-settings-2' },
+  { label: 'Variantes', slot: 'variables', icon: 'i-lucide-layers-2' },
   {
     label: 'Productos relacionados',
     slot: 'relaciones',

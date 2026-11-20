@@ -192,7 +192,11 @@ const handleRemoveEvent = async (eventId: string) => {
 
 <template>
   <UPage class="space-y-6">
-    <AppPageHeader v-if="container" :title="container.container_number" :description="`Contenedor — ${container.operation?.number ?? ''}`">
+    <AppPageHeader
+      v-if="container"
+      :title="container.container_number"
+      :description="[container.description, `Contenedor — ${container.operation?.number ?? ''}`].filter(Boolean).join(' · ')"
+    >
       <template #links>
         <UButton label="Volver" variant="ghost" icon="i-lucide-arrow-left" :to="`/operaciones-internacionales/${container.operation?.id}`" />
         <UButton

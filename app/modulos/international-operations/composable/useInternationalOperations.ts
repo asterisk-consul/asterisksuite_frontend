@@ -6,7 +6,7 @@ import type {
   InternationalOperation,
   OperationStatus,
   ContainerStatus,
-  CreateOperationInput,
+  CreateOperationWithContainerInput,
   UpdateOperationInput,
   CreateContainerInput,
   UpdateContainerInput,
@@ -31,7 +31,7 @@ export function useInternationalOperations() {
     await store.fetchAll(params)
   }
 
-  const create = async (payload: CreateOperationInput) => store.create(payload)
+  const create = async (payload: CreateOperationWithContainerInput) => store.create(payload)
   const update = async (id: string, payload: UpdateOperationInput) => store.update(id, payload)
   const updateStatus = async (id: string, status: string) => store.updateStatus(id, status)
   const remove = async (id: string) => store.remove(id)

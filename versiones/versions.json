@@ -1,5 +1,123 @@
 [
  {
+  "version": "0.176.0-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "Los filtros de categorías y etiquetas comparten el mismo selector entre Productos y los documentos con búsqueda de artículos. En presupuestos de operaciones internacionales, las propuestas permiten abrir el comprobante asociado y editarlo cuando su estado y permisos lo permiten.",
+  "changes": [
+   { "type": "feat", "scope": "products", "title": "Unificar los filtros jerárquicos de categorías y etiquetas en listados y selectores" },
+   { "type": "feat", "scope": "international-operations", "title": "Filtrar productos del presupuesto por categoría y etiqueta" },
+   { "type": "feat", "scope": "international-operations", "title": "Abrir y editar el presupuesto desde la propuesta asociada" },
+   { "type": "docs", "scope": "international-operations", "title": "Documentar los filtros y accesos a presupuestos asociados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Unificar filtros de productos y accesos a presupuestos"
+ },
+ {
+  "version": "0.175.0-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "La configuración de Operaciones Internacionales permite definir el texto de las descripciones de contenedores y el próximo número. El sistema incrementa la secuencia automáticamente al crear cada contenedor.",
+  "changes": [
+   { "type": "feat", "scope": "international-operations", "title": "Configurar el prefijo y la secuencia numérica de contenedores" },
+   { "type": "docs", "scope": "international-operations", "title": "Documentar la configuración de descripciones y numeración" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Configurar la numeración de contenedores"
+ },
+ {
+  "version": "0.174.1-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "El formulario de operaciones internacionales agrupa los campos relacionados y reduce el espacio entre secciones, adaptándose mejor a pantallas chicas y grandes.",
+  "changes": [
+   { "type": "style", "scope": "international-operations", "title": "Compactar y adaptar la distribución del formulario de operación" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Compactar el formulario de operaciones internacionales"
+ },
+ {
+  "version": "0.174.0-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "Al crear una operación internacional se puede sumar el primer contenedor en el mismo formulario. Cada contenedor admite una descripción editable con una numeración sugerida consecutiva por operación; los datos logísticos adicionales quedan plegados para mantener una carga clara.",
+  "changes": [
+   { "type": "feat", "scope": "international-operations", "title": "Crear la operación y el primer contenedor en una sola acción" },
+   { "type": "feat", "scope": "international-operations", "title": "Guardar una descripción editable y sugerir la numeración consecutiva de contenedores" },
+   { "type": "style", "scope": "international-operations", "title": "Organizar los datos principales del contenedor y plegar los campos adicionales" },
+   { "type": "docs", "scope": "international-operations", "title": "Documentar la creación conjunta y la descripción de contenedores" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Crear una operación internacional con su contenedor"
+ },
+ {
+  "version": "0.173.3-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "La cadena de documentos muestra el estado real según el tipo de cada comprobante generado, incluidas las notas anuladas, en vez de presentarlas como borrador.",
+  "changes": [
+   { "type": "fix", "scope": "documents", "title": "Mostrar el estado específico de cada documento relacionado, incluidas las anulaciones" },
+   { "type": "docs", "scope": "documents", "title": "Aclarar que la cadena indica el estado propio de cada documento generado" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mostrar correctamente los estados en la cadena documental"
+ },
+ {
+  "version": "0.173.2-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "La ficha distribuye sus secciones en tarjetas que se ajustan al contenido, con rótulos más claros y legibles. En la edición del producto, la pestaña ahora se llama Variantes.",
+  "changes": [
+   { "type": "style", "scope": "products", "title": "Ajustar la distribución de la ficha al contenido y mejorar la lectura de sus datos" },
+   { "type": "fix", "scope": "products", "title": "Usar el nombre Variantes en la pestaña de edición del producto" },
+   { "type": "docs", "scope": "products", "title": "Actualizar el nombre de la pestaña en la guía de variantes" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Hacer más clara la ficha de producto"
+ },
+ {
+  "version": "0.173.1-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "La ficha de producto muestra la foto principal junto a los datos y permite ampliarla. Sus tarjetas usan una presentación más compacta para facilitar la lectura.",
+  "changes": [
+   { "type": "fix", "scope": "products", "title": "Cargar la foto principal del producto con alternativas de visualización si falla el enlace" },
+   { "type": "style", "scope": "products", "title": "Ampliar la foto desde la ficha y compactar las secciones de información" },
+   { "type": "docs", "scope": "products", "title": "Documentar la vista y ampliación de la foto en la ficha del producto" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar la foto y la lectura de la ficha de producto"
+ },
+ {
+  "version": "0.173.0-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "La ficha de producto organiza en General la identificación, el uso, el inventario, categorías, etiquetas, atributos, precios, impuestos, cuentas y variantes. Costos solo aparece cuando existe un costo registrado o vigente. Categorías, etiquetas y unidades de medida quedan dentro del submenú Productos.",
+  "changes": [
+   { "type": "feat", "scope": "products", "title": "Ampliar General con los datos comerciales, logísticos, fiscales y técnicos del producto" },
+   { "type": "fix", "scope": "products", "title": "Ocultar Costos cuando solo hay un template asignado y no existe costo registrado" },
+   { "type": "style", "scope": "products", "title": "Organizar la ficha general en secciones compactas y adaptables" },
+   { "type": "style", "scope": "navigation", "title": "Agrupar categorías, etiquetas y unidades de medida en el submenú Productos" },
+   { "type": "docs", "scope": "products", "title": "Documentar la información de la ficha general y la disponibilidad de Costos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ampliar la ficha general de productos"
+ },
+ {
+  "version": "0.172.0-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "El listado de productos muestra sus fotos, facilita abrir o editar cada producto y permite eliminar varios mediante selección. Los filtros de categoría presentan la jerarquía con más claridad y se agrega búsqueda por etiqueta.",
+  "changes": [
+   { "type": "feat", "scope": "products", "title": "Mostrar miniaturas y abrir la ficha o edición desde las acciones de cada producto" },
+   { "type": "feat", "scope": "products", "title": "Seleccionar productos para enviarlos a la papelera en lote" },
+   { "type": "style", "scope": "products", "title": "Ordenar el selector de categorías y agregar búsqueda rápida por etiqueta" },
+   { "type": "docs", "scope": "products", "title": "Actualizar la guía del catálogo y sus filtros" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mejorar el listado y los filtros de productos"
+ },
+ {
   "version": "0.171.0-alpha",
   "date": "2026-11-19",
   "stage": "alpha",

@@ -9,6 +9,10 @@ import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-doc
 import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import ProductPickerField from '~/components/erp/products/ProductPickerField.vue'
+import { useCategoriesStore } from '~/modulos/almacen/categories/store/categories.store'
+import { useTagsStore } from '~/modulos/almacen/tags/store/tags.store'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
 import QuoteAssignmentFields from './QuoteAssignmentFields.vue'
 import type { QuoteAssignmentInput } from '~/modulos/international-operations/types/international-operations.types'
 
@@ -31,6 +35,10 @@ const toast = useToast()
 const partiesService = useBusinessPartiesService()
 const operationsService = useInternationalOperationsService()
 const productsStore = useProductsStore()
+const categoriesStore = useCategoriesStore()
+const tagsStore = useTagsStore()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
 const docTypes = useDocumentTypes()
 const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
 const { items: allProductOptions } = useProducts('purchase')
@@ -48,6 +56,9 @@ const selectedProduct = ref<any>(undefined)
 const productSearch = ref('')
 const productSearching = ref(false)
 const remoteProductIds = ref<string[]>([])
+const productTaxonomyFilters = ref<{ categoryIds: string[], tagIds: string[] }>({ categoryIds: [], tagIds: [] })
+const canReadCategories = computed(() => isOwnerOrAdmin.value || hasPermission('categories.read'))
+const canReadTags = computed(() => isOwnerOrAdmin.value || hasPermission('tags.read'))
 let productSearchTimer: ReturnType<typeof setTimeout> | undefined
 let productSearchController: AbortController | undefined
 let productSearchRequestId = 0
@@ -108,7 +119,7 @@ const searchProducts = (query: string, immediate = false) => {
     const controller = new AbortController()
     productSearchController = controller
     try {
-      const results = await productsStore.search(term, 'purchase', controller.signal)
+      const results = await productsStore.search(term, 'purchase', controller.signal, productTaxonomyFilters.value)
       if (requestId === productSearchRequestId) remoteProductIds.value = results.map(product => product.id)
     } catch (error: any) {
       if (requestId !== productSearchRequestId || error?.name === 'AbortError') return
@@ -117,7 +128,14 @@ const searchProducts = (query: string, immediate = false) => {
           const fallback = await productsStore.fetchAll()
           if (requestId === productSearchRequestId) {
             remoteProductIds.value = fallback
-              .filter(product => product.usage_type === 'PURCHASE' || product.usage_type === 'BOTH')
+              .filter((product) => {
+                if (product.usage_type !== 'PURCHASE' && product.usage_type !== 'BOTH') return false
+                if (productTaxonomyFilters.value.categoryIds.length
+                  && !product.product_categories?.some(category => productTaxonomyFilters.value.categoryIds.includes(category.category_id))) return false
+                if (productTaxonomyFilters.value.tagIds.length
+                  && !product.product_tags?.some(tag => productTaxonomyFilters.value.tagIds.includes(tag.tag_id))) return false
+                return true
+              })
               .map(product => product.id)
           }
           return
@@ -191,10 +209,24 @@ onMounted(async () => {
     initCurrencies()
   ])
   if (props.open) {
+    void loadProductTaxonomies()
     searchParties('', true)
     searchProducts('', true)
   }
 })
+
+async function loadProductTaxonomies() {
+  await fetchMyPermissionsIfNeeded().catch(() => {})
+  const requests: Promise<unknown>[] = []
+  if (canReadCategories.value && !categoriesStore.items.length) requests.push(categoriesStore.fetchAll())
+  if (canReadTags.value && !tagsStore.items.length) requests.push(tagsStore.fetchAll())
+  await Promise.allSettled(requests)
+}
+
+function updateProductTaxonomyFilters(filters: { categoryIds: string[], tagIds: string[], query: string }) {
+  productTaxonomyFilters.value = { categoryIds: filters.categoryIds, tagIds: filters.tagIds }
+  searchProducts(filters.query, true)
+}
 
 watch(partySearch, value => searchParties(value))
 watch(productSearch, value => searchProducts(value))
@@ -207,6 +239,8 @@ onBeforeUnmount(() => {
 
 watch(() => props.open, (open) => {
   if (open) {
+    productTaxonomyFilters.value = { categoryIds: [], tagIds: [] }
+    void loadProductTaxonomies()
     assignment.value = { container_id: props.containers?.length === 1 ? props.containers[0]!.id : '', expense_type: 'MERCHANDISE' }
     form.currency_code = props.operationCurrencyCode ?? 'USD'
     partySearch.value = ''
@@ -358,7 +392,12 @@ const handleSubmit = async () => {
           <ProductPickerField
             v-model="selectedProduct"
             v-model:search-term="productSearch"
+            v-model:category-ids="productTaxonomyFilters.categoryIds"
+            v-model:tag-ids="productTaxonomyFilters.tagIds"
             :items="productOptions"
+            :categories="categoriesStore.items"
+            :tags="tagsStore.items"
+            show-taxonomy-filters
             :loading="productSearching"
             :disabled="loading"
             :active="props.open"
@@ -369,6 +408,7 @@ const handleSubmit = async () => {
             field-description="Buscá por código o nombre; los resultados aparecen mientras escribís."
             placeholder="Buscar producto por código o nombre..."
             @add="addItem"
+            @taxonomy-filter="updateProductTaxonomyFilters"
           />
 
           <div class="space-y-3">

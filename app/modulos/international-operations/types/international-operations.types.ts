@@ -113,6 +113,7 @@ export interface InternationalContainer {
   id: string
   operation_id: string
   container_number: string
+  description?: string
   container_type: ContainerType
   seal_number?: string
   booking_number?: string
@@ -172,6 +173,8 @@ export interface IntlOpsSettings {
   operation_fields: Record<string, boolean>
   operation_statuses: string[] | null
   container_statuses: string[] | null
+  container_description_prefix: string
+  container_description_next_number: number
   created_at?: string
   updated_at?: string
 }
@@ -181,6 +184,8 @@ export type UpdateIntlOpsSettingsInput = {
   operation_fields?: Record<string, boolean>
   operation_statuses?: string[] | null
   container_statuses?: string[] | null
+  container_description_prefix?: string
+  container_description_next_number?: number
 }
 
 export interface DeliverContainerResult {
@@ -288,6 +293,7 @@ export interface OperationQuoteRelation {
     number: number
     date: string
     total: number
+    status?: number
     currency_code?: string
     business_parties?: { id: string; name: string }
     document_types?: { code: string; description: string; category?: string }
@@ -417,6 +423,7 @@ export type UpdateOperationInput = Partial<CreateOperationInput> & {
 
 export type CreateContainerInput = {
   container_number: string
+  description?: string
   container_type?: ContainerType
   seal_number?: string
   booking_number?: string
@@ -432,6 +439,10 @@ export type CreateContainerInput = {
   weight?: string
   volume?: string
   notes?: string
+}
+
+export type CreateOperationWithContainerInput = CreateOperationInput & {
+  initial_container?: CreateContainerInput
 }
 
 export type UpdateContainerInput = Partial<CreateContainerInput> & {

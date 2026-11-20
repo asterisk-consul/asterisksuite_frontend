@@ -96,6 +96,7 @@ export interface Product {
   current_cost?: number | string | null
   current_cost_currency_id?: string | null
   current_cost_currency?: Currency | null
+  thumbnail_url?: string | null
 
   unit_id?: string | null
   purchase_unit_id?: string | null

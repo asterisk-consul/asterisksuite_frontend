@@ -670,18 +670,17 @@ export const navigationTree: DrilldownNode[] = [
         moduleCode: 'MASTER_DATA',
         icon: 'i-lucide-package',
         to: '/productos',
-        permission: 'products.read',
         children: [
-          { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
-          { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
+          { label: 'Listado', icon: 'i-lucide-list', to: '/productos', permission: 'products.read' },
+          { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create', permission: 'products.create' },
           // { label: 'Listas de precio', icon: 'i-lucide-tag', to: '/productos/price-lists' },
-          { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party' },
-          { label: 'Plantillas de costo', icon: 'i-lucide-file-text', to: '/cost-templates' }
+          { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party', permission: 'products.read' },
+          { label: 'Plantillas de costo', icon: 'i-lucide-file-text', to: '/cost-templates', permission: 'cost_templates.read' },
+          { label: 'Categorías', icon: 'i-lucide-folder-tree', to: '/productos/settings/categorias', permission: 'categories.read' },
+          { label: 'Etiquetas', icon: 'i-lucide-tags', to: '/productos/settings/tags', permission: 'tags.read' },
+          { label: 'Unidades de medida', icon: 'i-lucide-ruler', to: '/productos/settings/unidades', permission: 'units.read' }
         ]
       },
-      { label: 'Categorías', icon: 'i-lucide-folder-tree', to: '/productos/settings/categorias', permission: 'categories.read' },
-      { label: 'Etiquetas', icon: 'i-lucide-tags', to: '/productos/settings/tags', permission: 'tags.read' },
-      { label: 'Unidades de medida', icon: 'i-lucide-ruler', to: '/productos/settings/unidades', permission: 'units.read' },
       { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
       {
         label: 'Disponibilidad',

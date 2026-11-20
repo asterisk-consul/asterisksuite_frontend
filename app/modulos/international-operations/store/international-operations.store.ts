@@ -5,7 +5,7 @@ import type {
   InternationalOperation,
   OperationListResponse,
   OperationSummary,
-  CreateOperationInput,
+  CreateOperationWithContainerInput,
   UpdateOperationInput,
   InternationalContainer,
   CreateContainerInput,
@@ -77,7 +77,7 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
-  const create = async (payload: CreateOperationInput) => {
+  const create = async (payload: CreateOperationWithContainerInput) => {
     try {
       loading.value = true
       error.value = null

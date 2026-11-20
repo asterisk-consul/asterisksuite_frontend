@@ -39,6 +39,9 @@ export const DEFAULT_OPERATION_FIELDS: Record<string, boolean> = {
   notes: true
 }
 
+export const DEFAULT_CONTAINER_DESCRIPTION_PREFIX = 'Contenedor N°'
+export const DEFAULT_CONTAINER_DESCRIPTION_NEXT_NUMBER = 1
+
 export const useIntlOpsSettingsStore = defineStore('intl-ops-settings', () => {
   const service = useInternationalOperationsService()
 
@@ -56,6 +59,12 @@ export const useIntlOpsSettingsStore = defineStore('intl-ops-settings', () => {
     ...DEFAULT_OPERATION_FIELDS,
     ...(settings.value?.operation_fields ?? {})
   }))
+
+  const nextContainerDescription = computed(() => {
+    const prefix = settings.value?.container_description_prefix ?? DEFAULT_CONTAINER_DESCRIPTION_PREFIX
+    const number = settings.value?.container_description_next_number ?? DEFAULT_CONTAINER_DESCRIPTION_NEXT_NUMBER
+    return `${prefix}${number} - `
+  })
 
   const isOperationFieldVisible = (field: string): boolean =>
     operationFields.value[field] ?? false
@@ -115,6 +124,7 @@ export const useIntlOpsSettingsStore = defineStore('intl-ops-settings', () => {
     loaded,
     containerFields,
     operationFields,
+    nextContainerDescription,
     isOperationFieldVisible,
     isContainerFieldVisible,
     isOperationStatusEnabled,
