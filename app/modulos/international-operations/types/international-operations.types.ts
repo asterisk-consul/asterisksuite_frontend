@@ -286,7 +286,14 @@ export interface OperationQuoteRelation {
   custom_expense_description?: string | null
   exchange_rate?: number | null
   converted_document_id?: string | null
-  converted_document?: { id: string; number: number; status: number; deleted_at?: string | null; document_types?: { code: string; category: string } } | null
+  converted_document?: {
+    id: string
+    number: number
+    status: number
+    deleted_at?: string | null
+    document_types?: { code: string; category: string; direction?: number }
+    international_operation_docs?: Array<{ document_id: string }>
+  } | null
   notes?: string
   document?: {
     id: string

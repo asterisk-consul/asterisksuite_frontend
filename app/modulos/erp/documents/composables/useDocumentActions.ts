@@ -61,6 +61,9 @@ export function useDocumentActions(config: DocumentActionsConfig) {
   const canTrashCancelledInvoice = computed(() => category.value === 'INVOICE'
     && Number(doc.value?.status) === 3
     && canSendDocumentToTrash(doc.value))
+  const hasInternationalQuoteAssociation = computed(() => module === 'purchases'
+    && category.value === 'QUOTE'
+    && (doc.value?.international_operation_quotes ?? []).some((association: any) => !association.deleted_at))
 
   const operationAccountingApplies = computed(() => {
     const basis = doc.value?.commercial_operation?.accounting_basis
@@ -227,7 +230,7 @@ export function useDocumentActions(config: DocumentActionsConfig) {
       || (category.value === 'ORDER' && Number(doc.value?.status) >= 2 && Number(doc.value?.status) < 7)
       || (category.value === 'INVOICE' && (isPending.value || isConfirmed.value))
       || (['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category.value ?? '') && (isPending.value || isConfirmed.value))
-    if (canCancelCurrent && canDocument(module, category.value ?? undefined, 'cancel')) {
+    if (canCancelCurrent && !hasInternationalQuoteAssociation.value && canDocument(module, category.value ?? undefined, 'cancel')) {
       items.push([{ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onClick: () => { cancelModalOpen.value = true } }])
     }
 

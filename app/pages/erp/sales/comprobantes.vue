@@ -39,6 +39,7 @@ const canSelectForTrash = (row: any) => canSendDocumentToTrash(row)
     && !canDocument('sales', row.document_types?.category, 'cancel'))
 
 const SALES_CATEGORIES = ['QUOTE', 'ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
+const NOTES_FILTER_VALUE = 'NOTES'
 const statusCategoryLabels: Record<string, string> = {
   QUOTE: 'Presupuesto',
   ORDER: 'Orden de venta',
@@ -75,15 +76,30 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 const route = useRoute()
 const initialCategory = typeof route.query.category === 'string'
-  && readableSalesCategories.value.includes(route.query.category as typeof SALES_CATEGORIES[number])
+  && (route.query.category === NOTES_FILTER_VALUE
+    ? readableSalesCategories.value.some(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))
+    : readableSalesCategories.value.includes(route.query.category as typeof SALES_CATEGORIES[number]))
   ? route.query.category
   : undefined
 const categoryFilter = ref<string | undefined>(initialCategory)
+const singleCategoryFilter = computed(() => categoryFilter.value && categoryFilter.value !== NOTES_FILTER_VALUE ? categoryFilter.value : undefined)
+const selectedCategories = computed(() => {
+  if (categoryFilter.value === NOTES_FILTER_VALUE) {
+    return readableSalesCategories.value.filter(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))
+  }
+  if (categoryFilter.value) return readableSalesCategories.value.includes(categoryFilter.value as typeof SALES_CATEGORIES[number]) ? [categoryFilter.value] : []
+  return readableSalesCategories.value
+})
 const statusFilter = ref<number | string | undefined>(undefined)
 const selectedCategoryFilter = computed({
   get: () => categoryFilter.value ?? ALL_FILTER_VALUE,
   set: (value: string) => { categoryFilter.value = value === ALL_FILTER_VALUE ? undefined : value }
 })
+const pageTitle = computed(() => categoryFilter.value === 'INVOICE'
+  ? 'Facturas de venta'
+  : categoryFilter.value === NOTES_FILTER_VALUE
+    ? 'Notas de crédito y débito'
+    : 'Comprobantes de venta')
 const selectedStatusFilter = computed({
   get: () => statusFilter.value ?? ALL_FILTER_VALUE,
   set: (value: number | string) => { statusFilter.value = value === ALL_FILTER_VALUE ? undefined : value }
@@ -91,7 +107,7 @@ const selectedStatusFilter = computed({
 const showFullyPaid = ref(false)
 const hiddenStatusKeys = ref<string[]>([])
 const statusVisibilityGroups = computed(() => SALES_CATEGORIES
-  .filter(category => canDocument('sales', category, 'read') && (!categoryFilter.value || categoryFilter.value === category))
+  .filter(category => selectedCategories.value.includes(category))
   .map(category => ({
     category,
     direction: 1 as const,
@@ -113,10 +129,8 @@ const serverTable = useServerTable(
       ...query,
       status: typeof statusFilter.value === 'number' ? statusFilter.value : undefined,
       deliveryStatus,
-      category: categoryFilter.value && readableSalesCategories.value.includes(categoryFilter.value as typeof SALES_CATEGORIES[number])
-        ? categoryFilter.value
-        : undefined,
-      categories: categoryFilter.value ? undefined : readableSalesCategories.value.join(','),
+      category: singleCategoryFilter.value,
+      categories: singleCategoryFilter.value ? undefined : selectedCategories.value.join(','),
       excludeStatuses: hiddenStatusKeys.value.join(',') || undefined,
       excludeOpeningBalances: true
     })
@@ -140,7 +154,7 @@ watch(filters, (currentFilters) => {
     const scopedStatus = scoped?.[2]
     if (scopedCategory && scopedStatus && /^\d+$/.test(scopedStatus)) selectedKeys.add(`${scopedCategory}:${Number(scopedStatus)}`)
     else if (scopedCategory === 'ORDER' && scopedStatus?.startsWith('order-flow:')) hasOrderFlowFilter = true
-    else if (categoryFilter.value && /^\d+$/.test(value)) selectedKeys.add(`${categoryFilter.value}:${Number(value)}`)
+    else if (singleCategoryFilter.value && /^\d+$/.test(value)) selectedKeys.add(`${singleCategoryFilter.value}:${Number(value)}`)
   }
   if (hasOrderFlowFilter) {
     hiddenStatusKeys.value = hiddenStatusKeys.value.filter(key => !key.startsWith('ORDER:'))
@@ -152,7 +166,11 @@ watch(filters, (currentFilters) => {
 }, { deep: true })
 
 watch(readableSalesCategories, (allowedCategories) => {
-  if (categoryFilter.value && !allowedCategories.includes(categoryFilter.value as typeof SALES_CATEGORIES[number])) {
+  if (singleCategoryFilter.value && !allowedCategories.includes(singleCategoryFilter.value as typeof SALES_CATEGORIES[number])) {
+    categoryFilter.value = undefined
+    return
+  }
+  if (categoryFilter.value === NOTES_FILTER_VALUE && !allowedCategories.some(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))) {
     categoryFilter.value = undefined
     return
   }
@@ -170,9 +188,19 @@ watch(categoryFilter, () => {
   router.replace({ query: { ...route.query, category: categoryFilter.value || undefined } })
 })
 
+watch(() => route.query.category, (value) => {
+  const nextCategory = typeof value === 'string'
+    && (value === NOTES_FILTER_VALUE
+      ? readableSalesCategories.value.some(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))
+      : readableSalesCategories.value.includes(value as typeof SALES_CATEGORIES[number]))
+    ? value
+    : undefined
+  if (categoryFilter.value !== nextCategory) categoryFilter.value = nextCategory
+})
+
 watch(statusFilter, (status) => {
   let key: string | undefined
-  if (typeof status === 'number' && categoryFilter.value) key = `${categoryFilter.value}:${status}`
+  if (typeof status === 'number' && singleCategoryFilter.value) key = `${singleCategoryFilter.value}:${status}`
   else if (typeof status === 'string') {
     const match = /^document-status:([A-Z_]+):(\d+)$/.exec(status)
     if (match) key = `${match[1]}:${Number(match[2])}`
@@ -196,6 +224,9 @@ const categoryOptions = computed(() => {
   }
   return [
     { label: 'Todos los comprobantes', value: ALL_FILTER_VALUE },
+    ...(readableSalesCategories.value.some(cat => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(cat))
+      ? [{ label: 'Notas de crédito y débito', value: NOTES_FILTER_VALUE }]
+      : []),
     ...SALES_CATEGORIES.filter((cat) => canDocument('sales', cat, 'read')).map((cat) => ({
       label: CATEGORY_LABELS[cat] ?? cat,
       value: cat
@@ -205,7 +236,7 @@ const categoryOptions = computed(() => {
 
 const categoryStatusFilterOptions = computed(() => [
   { label: categoryFilter.value ? 'Todos los estados' : 'Elegí un comprobante', value: ALL_FILTER_VALUE },
-  ...(categoryFilter.value ? getStatusOptionsForCategory(categoryFilter.value) : [])
+  ...(singleCategoryFilter.value ? getStatusOptionsForCategory(singleCategoryFilter.value) : [])
 ])
 
 const STATUS_TEXT_CLASSES: Record<string, string> = {
@@ -242,10 +273,9 @@ function getStatusOptionsForCategory(category: string): StatusOption[] {
 }
 
 const statusOptions = computed<StatusOption[]>(() => {
-  if (categoryFilter.value) return getStatusOptionsForCategory(categoryFilter.value)
+  if (singleCategoryFilter.value) return getStatusOptionsForCategory(singleCategoryFilter.value)
 
-  return SALES_CATEGORIES
-    .filter((category) => canDocument('sales', category, 'read'))
+  return selectedCategories.value
     .flatMap((category) => getStatusOptionsForCategory(category).map((option) => ({
       label: `${statusCategoryLabels[category] ?? CATEGORY_LABELS[category] ?? category} · ${option.label}`,
       value: `document-status:${category}:${option.value}`
@@ -281,8 +311,8 @@ const financialStats = computed(() => {
 // ─── Estadísticas ─────────────────────────────────────────────────────────────
 const stats = computed(() => {
   const docs = documents.value ?? []
-  if (categoryFilter.value) {
-    const statuses = getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
+  if (singleCategoryFilter.value) {
+    const statuses = getCategoryStatuses(singleCategoryFilter.value, getEnabledStatusesForCategory(singleCategoryFilter.value))
     return {
       byCategory: [],
       byStatus: statuses.map((s) => {
@@ -293,7 +323,7 @@ const stats = computed(() => {
           count: matching.length,
           total: matching.reduce((a, d) => a + Number(d.total), 0),
           color: typeof s.value === 'number'
-            ? getStatusColor(categoryFilter.value, s.value)
+            ? getStatusColor(singleCategoryFilter.value!, s.value)
             : flowValue.endsWith('PENDING')
               ? 'warning'
               : flowValue.endsWith('ELIGIBLE')
@@ -304,7 +334,7 @@ const stats = computed(() => {
     }
   }
   return {
-    byCategory: SALES_CATEGORIES.map((cat) => ({
+    byCategory: selectedCategories.value.map((cat) => ({
       label: CATEGORY_LABELS[cat] ?? cat,
       count: docs.filter((d) => d.document_types?.category === cat).length
     })),
@@ -474,7 +504,7 @@ const columns = computed(() =>
     actionsFirst: true,
     canDuplicate: (row) => canDocument('sales', row.document_types?.category ?? '', 'create'),
     showCreator: isOwnerOrAdmin.value,
-    showSeller: categoryFilter.value === 'ORDER',
+    showSeller: singleCategoryFilter.value === 'ORDER',
     statusFilterOptions: statusOptions.value.length
       ? statusOptions.value.map(({ label, value }) => ({ label, value }))
       : null
@@ -497,7 +527,7 @@ const sortFields = [
 
 <template>
   <UPage class="space-y-4">
-    <AppPageHeader title="Comprobantes de venta" description="Gestión de documentos de venta">
+    <AppPageHeader :title="pageTitle" description="Gestión de documentos de venta">
       <template #links>
         <CreateDocumentMenu direction="sales" />
         <UButton icon="i-lucide-file-plus" label="Generar desde viajes" @click="() => { showGenerateModal = true }" />
@@ -585,7 +615,7 @@ const sortFields = [
             v-model="selectedStatusFilter"
             :items="categoryStatusFilterOptions"
             value-key="value"
-            :disabled="!categoryFilter"
+            :disabled="!singleCategoryFilter"
             class="w-full min-w-0"
             aria-label="Filtrar por estado"
           />

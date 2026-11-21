@@ -48,6 +48,7 @@ export function useInternationalOperations() {
   const associateQuote = async (opId: string, docId: string, assignment: Parameters<typeof store.associateQuote>[2]) => store.associateQuote(opId, docId, assignment)
   const updateQuoteStatus = async (opId: string, quoteId: string, status: string) => store.updateQuoteStatus(opId, quoteId, status)
   const disassociateQuote = async (opId: string, quoteId: string) => store.disassociateQuote(opId, quoteId)
+  const cancelAndDisassociateQuote = async (opId: string, quoteId: string) => store.cancelAndDisassociateQuote(opId, quoteId)
 
   const createContainer = async (opId: string, payload: CreateContainerInput) => store.createContainer(opId, payload)
   const findOneContainer = async (containerId: string) => store.findOneContainer(containerId)
@@ -230,6 +231,7 @@ export function useInternationalOperations() {
     associateQuote,
     updateQuoteStatus,
     disassociateQuote,
+    cancelAndDisassociateQuote,
     createContainer,
     findOneContainer,
     updateContainer,

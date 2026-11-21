@@ -54,7 +54,9 @@ const selectedDocument = ref<{ label: string; value: string } | undefined>(undef
 const selectedExpenseType = ref<{ label: string; value: InternationalExpenseType } | undefined>(undefined)
 const customExpenseDescription = ref('')
 const customExchangeRate = ref<number | null>(null)
+const rateValidationError = ref('')
 const selectedContainer = ref<{ label: string; value: string } | undefined>(undefined)
+watch(customExchangeRate, () => { rateValidationError.value = '' })
 
 const documents = ref<Array<{
   id: string
@@ -210,6 +212,7 @@ const containerOptions = computed(() => (props.containers ?? []).map(c => ({
 watch(() => props.open, (open) => {
   if (open) {
     loading.value = false
+    rateValidationError.value = ''
     documentSearch.value = ''
     documentDirection.value = undefined
     selectedDocument.value = undefined
@@ -225,15 +228,14 @@ watch(() => props.open, (open) => {
 
 const handleAssociate = async () => {
   if (loading.value || !selectedDocumentId.value || !selectedContainerId.value || !selectedExpenseType.value) return
+  if (currencyMismatch.value && (!customExchangeRate.value || customExchangeRate.value <= 0)) {
+    rateValidationError.value = 'Ingresá un tipo de cambio mayor a cero para convertir el importe a la moneda de la operación.'
+    return
+  }
+  rateValidationError.value = ''
   try {
     submitting.value = true
     loading.value = true
-    // La cotización solo es obligatoria si hay diferencia de moneda
-    if (currencyMismatch.value && (!customExchangeRate.value || customExchangeRate.value <= 0)) {
-      alert('Debe ingresar un tipo de cambio válido')
-      loading.value = false
-      return
-    }
     await service.associateDocument(
       props.operationId,
       selectedDocumentId.value,
@@ -262,6 +264,14 @@ const handleAssociate = async () => {
   >
     <template #body>
       <div class="space-y-4">
+        <UAlert
+          v-if="rateValidationError"
+          title="Falta una cotización válida"
+          :description="rateValidationError"
+          icon="i-lucide-triangle-alert"
+          color="error"
+          variant="subtle"
+        />
         <UAlert v-if="!props.containers?.length" color="warning" title="Primero creá un contenedor en esta operación" variant="subtle" />
         <UFormField label="Tipo de documento" name="document_direction" required>
           <USelectMenu

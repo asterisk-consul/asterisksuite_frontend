@@ -422,6 +422,23 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
+  const cancelAndDisassociateQuote = async (operationId: string, quoteId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      const result = await service.cancelAndDisassociateQuote(operationId, quoteId)
+      if (current.value?.id === operationId) {
+        await fetchOne(operationId)
+      }
+      return result
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al anular y desasociar el presupuesto'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     items,
     current,
@@ -445,6 +462,7 @@ export const useInternationalOperationsStore = defineStore('international-operat
     associateQuote,
     updateQuoteStatus,
     disassociateQuote,
+    cancelAndDisassociateQuote,
     createContainer,
     findOneContainer,
     updateContainer,

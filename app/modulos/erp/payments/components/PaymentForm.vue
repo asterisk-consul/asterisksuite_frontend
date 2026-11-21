@@ -524,7 +524,6 @@ const buildPaymentDraftSnapshot = (): PaymentDraftSnapshot => ({
     description: form.description,
     reference: form.reference,
     party_id: form.party_id,
-    party_type: form.party_type,
     account_id: form.account_id,
     withholding_remittance_id: form.withholding_remittance_id,
   }),

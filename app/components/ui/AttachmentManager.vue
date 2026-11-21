@@ -6,6 +6,8 @@ const props = withDefaults(defineProps<{
   allowUpload?: boolean
   maxFiles?: number
   defaultExpanded?: boolean
+  heading?: string
+  hint?: string
 }>(), { readonly: false, allowUpload: true, maxFiles: 10, defaultExpanded: false })
 
 const gallery = ref<any>()
@@ -34,8 +36,8 @@ const onQueued = () => toast.add({
       <div class="flex items-center gap-3">
         <div class="rounded-lg bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-files" class="size-5" /></div>
         <div class="min-w-0 flex-1">
-          <p class="font-medium">Archivo del comprobante</p>
-          <p class="truncate text-sm text-muted">Fotos hasta 5 MB o PDF hasta 10 MB.</p>
+          <p class="font-medium">{{ heading || 'Archivo del comprobante' }}</p>
+          <p class="truncate text-sm text-muted">{{ hint || 'Fotos hasta 5 MB o PDF hasta 10 MB.' }}</p>
         </div>
         <UButton
           :label="expanded ? 'Contraer' : 'Ver o adjuntar'"
@@ -49,7 +51,7 @@ const onQueued = () => toast.add({
     </template>
     <div class="space-y-4">
       <UiImageUploader
-        v-if="allowUpload"
+        v-if="allowUpload && !readonly"
         :entity-type="entityType"
         :entity-id="entityId"
         :max-files="maxFiles"

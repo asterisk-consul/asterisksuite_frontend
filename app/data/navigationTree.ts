@@ -62,7 +62,24 @@ export const navigationTree: DrilldownNode[] = [
         permissions: ['sales.orders.read', 'sales.read', 'documents.read']
       },
       {
-        label: 'Comprobantes',
+        label: 'Facturas',
+        icon: 'i-lucide-receipt-text',
+        to: '/erp/sales/comprobantes?category=INVOICE',
+        permissions: ['sales.invoices.read', 'sales.read', 'documents.read']
+      },
+      {
+        label: 'NC y ND',
+        icon: 'i-lucide-file-diff',
+        to: '/erp/sales/comprobantes?category=NOTES',
+        permissions: [
+          'sales.credit_notes.read',
+          'sales.debit_notes.read',
+          'sales.read',
+          'documents.read'
+        ]
+      },
+      {
+        label: 'Todos los comprobantes',
         icon: 'i-lucide-file-check',
         to: '/erp/sales/comprobantes',
         permissions: [
@@ -138,7 +155,25 @@ export const navigationTree: DrilldownNode[] = [
         permissions: ['purchases.delivery_notes.read', 'purchases.read', 'documents-purchases.read', 'documents.read']
       },
       {
-        label: 'Comprobantes',
+        label: 'Facturas',
+        icon: 'i-lucide-receipt-text',
+        to: '/erp/purchases/comprobantes?category=INVOICE',
+        permissions: ['purchases.invoices.read', 'purchases.read', 'documents-purchases.read', 'documents.read']
+      },
+      {
+        label: 'NC y ND',
+        icon: 'i-lucide-file-diff',
+        to: '/erp/purchases/comprobantes?category=NOTES',
+        permissions: [
+          'purchases.credit_notes.read',
+          'purchases.debit_notes.read',
+          'purchases.read',
+          'documents-purchases.read',
+          'documents.read'
+        ]
+      },
+      {
+        label: 'Todos los comprobantes',
         icon: 'i-lucide-file-check',
         to: '/erp/purchases/comprobantes',
         permissions: [

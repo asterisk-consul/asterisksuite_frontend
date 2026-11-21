@@ -1,5 +1,68 @@
 [
  {
+  "version": "0.178.3-alpha",
+  "date": "2026-11-21",
+  "stage": "alpha",
+  "notes": "Ventas y Compras ahora tienen accesos directos a Facturas y a NC/ND, además del listado completo de comprobantes.",
+  "changes": [
+   { "type": "feat", "scope": "sales-purchases", "title": "Separar los accesos a facturas y notas de crédito/débito en los menús" },
+   { "type": "docs", "scope": "sales-purchases", "title": "Documentar los accesos filtrados y el listado completo de comprobantes" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Separar facturas y notas de crédito/débito en Ventas y Compras"
+ },
+ {
+  "version": "0.178.2-alpha",
+  "date": "2026-11-21",
+  "stage": "alpha",
+  "notes": "Las confirmaciones y advertencias de operaciones internacionales usan diálogos y avisos propios del sistema, con textos claros para cada acción.",
+  "changes": [
+   { "type": "style", "scope": "international-operations", "title": "Unificar las confirmaciones de operaciones y contenedores en modales del sistema" },
+   { "type": "style", "scope": "international-operations", "title": "Mostrar la validación de cotización dentro del modal de asociación de documentos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Unificar los avisos y confirmaciones de operaciones internacionales"
+ },
+ {
+  "version": "0.178.1-alpha",
+  "date": "2026-11-21",
+  "stage": "alpha",
+  "notes": "Al crear un presupuesto desde una operación internacional, ahora se pueden adjuntar archivos en el mismo flujo. También se puede desasociar un presupuesto que ya está anulado sin quitar la OC confirmada que generó.",
+  "changes": [
+   { "type": "fix", "scope": "international-operations", "title": "Permitir liberar un presupuesto ya anulado aunque su OC siga activa" },
+   { "type": "feat", "scope": "international-operations", "title": "Ofrecer adjuntar imágenes y PDF al terminar de crear un presupuesto" },
+   { "type": "docs", "scope": "international-operations", "title": "Documentar adjuntos al crear y liberar presupuestos anulados" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Adjuntar archivos al crear y liberar presupuestos anulados"
+ },
+ {
+  "version": "0.178.0-alpha",
+  "date": "2026-11-21",
+  "stage": "alpha",
+  "notes": "Las propuestas de compra asociadas a operaciones internacionales permiten consultar y adjuntar imágenes o PDF desde su tarjeta.",
+  "changes": [
+   { "type": "feat", "scope": "international-operations", "title": "Consultar y adjuntar archivos en presupuestos desde la operación" },
+   { "type": "docs", "scope": "international-operations", "title": "Documentar los adjuntos de presupuestos por operación" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Adjuntar archivos a presupuestos desde operaciones internacionales"
+ },
+ {
+  "version": "0.177.0-alpha",
+  "date": "2026-11-20",
+  "stage": "alpha",
+  "notes": "Los presupuestos de compra vinculados a una operación internacional ya no se pueden anular mientras sigan asociados. Cuando la OC o factura generada esté anulada y desvinculada, se puede anular y desasociar el presupuesto desde la operación.",
+  "changes": [
+   { "type": "fix", "scope": "purchases", "title": "Bloquear la anulación de presupuestos asociados a operaciones internacionales" },
+   { "type": "feat", "scope": "international-operations", "title": "Anular y desasociar presupuestos cuando el comprobante generado ya está resuelto" },
+   { "type": "fix", "scope": "purchases", "title": "Mostrar el estado Anulado en el detalle de presupuestos de compra" },
+   { "type": "docs", "scope": "international-operations", "title": "Documentar las reglas para anular y desasociar presupuestos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Proteger el vínculo entre presupuestos y operaciones internacionales"
+ },
+ {
   "version": "0.176.1-alpha",
   "date": "2026-11-20",
   "stage": "alpha",

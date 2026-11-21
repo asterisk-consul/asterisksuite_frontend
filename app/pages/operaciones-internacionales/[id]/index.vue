@@ -4,10 +4,12 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
+import { getCancelledDocumentStatus, getStatusLabel } from '~/modulos/erp/documents/types/document-statuses'
 import AssociateDocumentModal from '~/components/international-operations/AssociateDocumentModal.vue'
 import AssociateQuoteModal from '~/components/international-operations/AssociateQuoteModal.vue'
 import CreateQuoteModal from '~/components/international-operations/CreateQuoteModal.vue'
 import ConvertQuoteModal from '~/components/international-operations/ConvertQuoteModal.vue'
+import OperationConfirmModal from '~/components/international-operations/OperationConfirmModal.vue'
 import { summarizeTransitMerchandise } from '~/modulos/international-operations/utils/transit-merchandise'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
 import type {
@@ -43,6 +45,7 @@ const {
   disassociateDocument,
   updateQuoteStatus,
   disassociateQuote,
+  cancelAndDisassociateQuote,
   statusColor,
   statusLabel,
   statusOptions,
@@ -68,6 +71,21 @@ const showDocumentModal = ref(false)
 const showQuoteModal = ref(false)
 const showCreateQuoteModal = ref(false)
 const showConvertQuoteModal = ref(false)
+const showOperationConfirmation = ref(false)
+const operationConfirmationSaving = ref(false)
+type OperationConfirmationColor = 'primary' | 'warning' | 'error'
+interface PendingOperationConfirmation {
+  title: string
+  description: string
+  confirmLabel: string
+  confirmColor: OperationConfirmationColor
+  icon: string
+  warningTitle?: string
+  warningDescription?: string
+  action: () => Promise<void>
+}
+const pendingOperationConfirmation = ref<PendingOperationConfirmation | null>(null)
+const quoteAttachmentsOpenId = ref<string | null>(null)
 const convertingQuote = ref<OperationQuoteRelation | null>(null)
 const refreshingQuoteDocuments = ref(false)
 const hasContainers = computed(() => !!operation.value?.containers?.length)
@@ -153,6 +171,30 @@ const visibleDocumentGroups = computed(() => {
 watch(documentCategoryTabs, (tabs) => {
   if (!tabs.some(tab => tab.value === activeDocumentCategory.value)) activeDocumentCategory.value = 'ALL'
 }, { immediate: true })
+
+const requestOperationConfirmation = (confirmation: PendingOperationConfirmation) => {
+  pendingOperationConfirmation.value = confirmation
+  showOperationConfirmation.value = true
+}
+
+const closeOperationConfirmation = () => {
+  if (operationConfirmationSaving.value) return
+  showOperationConfirmation.value = false
+  pendingOperationConfirmation.value = null
+}
+
+const runOperationConfirmation = async () => {
+  const confirmation = pendingOperationConfirmation.value
+  if (!confirmation || operationConfirmationSaving.value) return
+  operationConfirmationSaving.value = true
+  try {
+    await confirmation.action()
+  } finally {
+    operationConfirmationSaving.value = false
+    showOperationConfirmation.value = false
+    pendingOperationConfirmation.value = null
+  }
+}
 const showCreateInvoiceModal = ref(false)
 const invoiceContainerId = ref('')
 const invoiceExpenseType = ref<InternationalExpenseType>('MERCHANDISE')
@@ -234,10 +276,64 @@ const quoteStatusColor = (status: string): any =>
 const quoteStatusLabel = (status: string) =>
   status === 'ACCEPTED' ? 'Aceptado' : status === 'REJECTED' ? 'Rechazado' : 'Pendiente'
 const quoteDocumentRoute = (quote: OperationQuoteRelation) => `/erp/purchases/purchases-documents/${quote.document_id}`
+const isQuoteDocumentCancelled = (quote: OperationQuoteRelation) =>
+  Number(quote.document?.status) === getCancelledDocumentStatus('QUOTE', -1)
+const canReleaseQuote = (quote: OperationQuoteRelation) => {
+  if (isQuoteDocumentCancelled(quote)) {
+    if (!quote.converted_document_id) return true
+    const generated = quote.converted_document
+    return Boolean(
+      generated
+      && !generated.deleted_at
+      && ['ORDER', 'INVOICE'].includes(String(generated.document_types?.category ?? ''))
+      && Number(generated.document_types?.direction ?? -1) === -1,
+    )
+  }
+  if (!quote.converted_document_id) return true
+  const generated = quote.converted_document
+  if (!generated || generated.deleted_at) return false
+  const category = generated.document_types?.category
+  if (!category) return false
+  if (!Array.isArray(generated.international_operation_docs)) return false
+  const cancelledStatus = getCancelledDocumentStatus(category, Number(generated.document_types?.direction ?? -1))
+  return Number(generated.status) === cancelledStatus
+    && generated.international_operation_docs.length === 0
+}
+const quoteReleaseHint = (quote: OperationQuoteRelation) => {
+  const generated = quote.converted_document
+  if (!generated || generated.deleted_at) return 'No se puede verificar el comprobante generado; revisá su estado antes de liberar el presupuesto.'
+  const category = generated.document_types?.category
+  if (!category) return 'No se puede verificar el estado del comprobante generado.'
+  if (!Array.isArray(generated.international_operation_docs)) return 'No se pudo verificar si el comprobante sigue asociado a la operación.'
+  const cancelledStatus = getCancelledDocumentStatus(category, Number(generated.document_types?.direction ?? -1))
+  if (Number(generated.status) !== cancelledStatus) return 'Para liberar el presupuesto, primero anulá y desasociá el comprobante generado.'
+  if (generated.international_operation_docs.length) return 'El comprobante ya está anulado. Desasocialo de esta operación para liberar el presupuesto.'
+  return ''
+}
+const generatedDocumentStatusLabel = (quote: OperationQuoteRelation) => {
+  const generated = quote.converted_document
+  if (!generated) return 'Estado no disponible'
+  const category = generated.document_types?.category
+  if (category && Number(generated.status) === getCancelledDocumentStatus(category, Number(generated.document_types?.direction ?? -1))) return 'Anulado'
+  if (Number(generated.status) === 0) return 'Borrador'
+  if (Number(generated.status) === 2) return 'Confirmado'
+  return category ? getStatusLabel(category, Number(generated.status)) : 'Ver estado'
+}
 const canEditQuoteDocument = (quote: OperationQuoteRelation) =>
   !quote.converted_document_id
   && [0, 1].includes(Number(quote.document?.status))
   && canDocument('purchases', 'QUOTE', 'update')
+const canReadQuoteAttachments = computed(() =>
+  String(auth.selectedCompany?.role ?? '').toUpperCase() === 'OWNER'
+  || hasPermission('media.read'),
+)
+const canUploadQuoteAttachments = (quote: OperationQuoteRelation) =>
+  canReadQuoteAttachments.value
+  && canEditQuoteDocument(quote)
+  && (String(auth.selectedCompany?.role ?? '').toUpperCase() === 'OWNER' || hasPermission('media.upload'))
+const toggleQuoteAttachments = (quoteId: string) => {
+  quoteAttachmentsOpenId.value = quoteAttachmentsOpenId.value === quoteId ? null : quoteId
+}
 const getQuoteActions = (quote: OperationQuoteRelation) => {
   const actions: any[] = [
     {
@@ -255,13 +351,22 @@ const getQuoteActions = (quote: OperationQuoteRelation) => {
     })
   }
 
-  if (!quote.converted_document_id) {
-    actions.push({
-      label: 'Desasociar',
-      icon: 'i-lucide-unlink',
-      color: 'error',
-      onSelect: () => { void handleDisassociateQuote(quote) },
-    })
+  if (canReleaseQuote(quote)) {
+    if (quote.converted_document_id && !isQuoteDocumentCancelled(quote) && canDocument('purchases', 'QUOTE', 'cancel')) {
+      actions.push({
+        label: 'Anular y desasociar presupuesto',
+        icon: 'i-lucide-ban',
+        color: 'error',
+        onSelect: () => { void handleCancelAndDisassociateQuote(quote) },
+      })
+    } else {
+      actions.push({
+        label: 'Desasociar',
+        icon: 'i-lucide-unlink',
+        color: 'error',
+        onSelect: () => { void handleDisassociateQuote(quote) },
+      })
+    }
   }
 
   return actions
@@ -402,12 +507,28 @@ async function confirmStatusChange() {
 }
 
 const handleRemoveContainer = async (containerId: string) => {
-  if (confirm('¿Eliminar este contenedor?')) {
-    await removeContainer(containerId).catch((e: any) => {
-      alert(e?.data?.message ?? 'No se pudo eliminar el contenedor')
-    })
-    await fetchSummary(id)
-  }
+  requestOperationConfirmation({
+    title: 'Eliminar contenedor',
+    description: 'Se eliminará el contenedor de esta operación.',
+    confirmLabel: 'Eliminar contenedor',
+    confirmColor: 'error',
+    icon: 'i-lucide-trash-2',
+    warningTitle: 'La acción no se puede deshacer desde esta operación',
+    warningDescription: 'Solo se pueden eliminar contenedores que no tengan documentos ni presupuestos asociados.',
+    action: async () => {
+      try {
+        await removeContainer(containerId)
+        await fetchSummary(id)
+        toast.add({ title: 'Contenedor eliminado', color: 'success' })
+      } catch (error: any) {
+        toast.add({
+          title: 'No se pudo eliminar el contenedor',
+          description: error?.data?.message ?? error?.message ?? 'Volvé a intentarlo.',
+          color: 'error',
+        })
+      }
+    },
+  })
 }
 
 const openDocumentDisassociation = async (relation: any) => {
@@ -499,21 +620,97 @@ const handleQuoteConverted = async () => {
 }
 
 const handleRejectQuote = async (quote: any) => {
-  if (confirm('¿Rechazar este presupuesto?')) {
-    await updateQuoteStatus(id, quote.id, 'REJECTED')
-  }
+  requestOperationConfirmation({
+    title: 'Rechazar presupuesto',
+    description: 'La propuesta quedará marcada como rechazada dentro de esta operación.',
+    confirmLabel: 'Rechazar presupuesto',
+    confirmColor: 'error',
+    icon: 'i-lucide-x',
+    action: async () => {
+      try {
+        await updateQuoteStatus(id, quote.id, 'REJECTED')
+        toast.add({ title: 'Presupuesto rechazado', color: 'success' })
+      } catch (error: any) {
+        toast.add({ title: 'No se pudo rechazar el presupuesto', description: error?.data?.message ?? error?.message, color: 'error' })
+      }
+    },
+  })
 }
 
 const handleResetQuote = async (quote: any) => {
-  if (confirm('¿Marcar este presupuesto como pendiente?')) {
-    await updateQuoteStatus(id, quote.id, 'PENDING')
-  }
+  requestOperationConfirmation({
+    title: 'Marcar presupuesto como pendiente',
+    description: 'La propuesta volverá al estado pendiente para que puedas evaluarla nuevamente.',
+    confirmLabel: 'Marcar pendiente',
+    confirmColor: 'warning',
+    icon: 'i-lucide-rotate-ccw',
+    action: async () => {
+      try {
+        await updateQuoteStatus(id, quote.id, 'PENDING')
+        toast.add({ title: 'Presupuesto marcado como pendiente', color: 'success' })
+      } catch (error: any) {
+        toast.add({ title: 'No se pudo actualizar el presupuesto', description: error?.data?.message ?? error?.message, color: 'error' })
+      }
+    },
+  })
 }
 
 const handleDisassociateQuote = async (quote: any) => {
-  if (confirm('¿Desasociar este presupuesto de la operación?')) {
-    await disassociateQuote(id, quote.id)
-  }
+  const cancelledWithGeneratedDocument = isQuoteDocumentCancelled(quote) && Boolean(quote.converted_document_id)
+  const generatedLabel = quote.converted_document
+    ? `${quote.converted_document.document_types?.code ?? 'Comprobante'} #${quote.converted_document.number} · ${generatedDocumentStatusLabel(quote)}`
+    : 'El comprobante generado'
+  requestOperationConfirmation({
+    title: 'Desasociar presupuesto',
+    description: 'Se quitará el vínculo de esta propuesta con la operación internacional.',
+    confirmLabel: 'Desasociar presupuesto',
+    confirmColor: 'error',
+    icon: 'i-lucide-unlink',
+    warningTitle: cancelledWithGeneratedDocument ? 'El comprobante generado se conserva' : undefined,
+    warningDescription: cancelledWithGeneratedDocument
+      ? `${generatedLabel} permanecerá asociado a la operación. Solo se quitará el vínculo del presupuesto anulado.`
+      : undefined,
+    action: async () => {
+      try {
+        await disassociateQuote(id, quote.id)
+        toast.add({
+          title: 'Presupuesto desasociado',
+          description: cancelledWithGeneratedDocument ? 'El comprobante generado sigue asociado a la operación.' : undefined,
+          color: 'success',
+        })
+      } catch (error: any) {
+        toast.add({
+          title: 'No se pudo desasociar el presupuesto',
+          description: error?.data?.message ?? 'Revisá el estado de la OC o factura generada.',
+          color: 'error',
+        })
+      }
+    },
+  })
+}
+
+const handleCancelAndDisassociateQuote = async (quote: OperationQuoteRelation) => {
+  requestOperationConfirmation({
+    title: 'Anular y desasociar presupuesto',
+    description: 'El presupuesto se anulará y se quitará de esta operación internacional.',
+    confirmLabel: 'Anular y desasociar',
+    confirmColor: 'error',
+    icon: 'i-lucide-ban',
+    warningTitle: 'Revisá el comprobante generado',
+    warningDescription: 'Esta acción solo se habilita cuando la OC o factura generada ya está anulada y desasociada de la operación.',
+    action: async () => {
+      try {
+        await cancelAndDisassociateQuote(id, quote.id)
+        toast.add({ title: 'Presupuesto anulado y desasociado', color: 'success' })
+      } catch (error: any) {
+        toast.add({
+          title: 'No se pudo anular y desasociar el presupuesto',
+          description: error?.data?.message ?? 'Revisá que el comprobante generado esté anulado y desasociado de la operación.',
+          color: 'error',
+        })
+      }
+    },
+  })
 }
 
 const quoteAssociatedIds = computed(() => operation.value?.operation_quotes?.map((q) => q.document_id) ?? [])
@@ -1862,8 +2059,8 @@ const scrollTo = (sectionId: string) => {
                       {{ String(quote.document?.number ?? '').padStart(8, '0') }}
                     </span>
                     <UBadge
-                      :label="quoteStatusLabel(quote.status)"
-                      :color="quoteStatusColor(quote.status)"
+                      :label="isQuoteDocumentCancelled(quote) ? 'Anulado' : quoteStatusLabel(quote.status)"
+                      :color="isQuoteDocumentCancelled(quote) ? 'error' : quoteStatusColor(quote.status)"
                       size="xs"
                       variant="subtle"
                     />
@@ -1896,6 +2093,17 @@ const scrollTo = (sectionId: string) => {
 
             <div class="flex items-center justify-end gap-1 mt-2.5 pt-2.5 border-t border-default">
               <UButton
+                v-if="canReadQuoteAttachments"
+                :label="quoteAttachmentsOpenId === quote.id ? 'Cerrar adjuntos' : 'Adjuntos'"
+                :icon="quoteAttachmentsOpenId === quote.id ? 'i-lucide-chevron-up' : 'i-lucide-paperclip'"
+                :color="quoteAttachmentsOpenId === quote.id ? 'primary' : 'neutral'"
+                :variant="quoteAttachmentsOpenId === quote.id ? 'soft' : 'ghost'"
+                size="xs"
+                :aria-expanded="quoteAttachmentsOpenId === quote.id"
+                :aria-controls="`quote-attachments-${quote.id}`"
+                @click="toggleQuoteAttachments(quote.id)"
+              />
+              <UButton
                 v-if="!quote.converted_document_id && quote.status !== 'REJECTED'"
                 label="Elegir y transformar"
                 :disabled="!hasContainers"
@@ -1922,7 +2130,10 @@ const scrollTo = (sectionId: string) => {
                 size="xs"
                 @click="handleResetQuote(quote)"
               />
-              <UButton v-if="quote.converted_document" :label="`${quote.converted_document.document_types?.code ?? 'Comprobante'} #${quote.converted_document.number} · ${quote.converted_document.status === 0 ? 'Borrador' : quote.converted_document.status === 2 ? 'Confirmado' : 'Ver estado'}`" icon="i-lucide-external-link" variant="soft" size="xs" :to="`/erp/purchases/purchases-documents/${quote.converted_document.id}`" />
+              <UButton v-if="quote.converted_document" :label="`${quote.converted_document.document_types?.code ?? 'Comprobante'} #${quote.converted_document.number} · ${generatedDocumentStatusLabel(quote)}`" icon="i-lucide-external-link" variant="soft" size="xs" :to="`/erp/purchases/purchases-documents/${quote.converted_document.id}`" />
+              <p v-if="quote.converted_document_id && !canReleaseQuote(quote)" class="w-full text-right text-xs text-muted">
+                {{ quoteReleaseHint(quote) }}
+              </p>
               <UDropdownMenu :items="getQuoteActions(quote)" :content="{ align: 'end' }">
                 <UButton
                   icon="i-lucide-ellipsis"
@@ -1933,6 +2144,22 @@ const scrollTo = (sectionId: string) => {
                   title="Más acciones"
                 />
               </UDropdownMenu>
+            </div>
+            <div
+              v-if="quoteAttachmentsOpenId === quote.id"
+              :id="`quote-attachments-${quote.id}`"
+              class="mt-3 border-t border-default pt-3"
+            >
+              <UiAttachmentManager
+                :key="quote.id"
+                entity-type="document"
+                :entity-id="quote.document_id"
+                heading="Archivos del presupuesto"
+                hint="Adjuntá imágenes o PDF a esta propuesta de compra."
+                :readonly="!canUploadQuoteAttachments(quote)"
+                :allow-upload="canUploadQuoteAttachments(quote)"
+                :default-expanded="true"
+              />
             </div>
           </div>
               </div>
@@ -2278,6 +2505,20 @@ const scrollTo = (sectionId: string) => {
       </section>
 
       <!-- MODALS -->
+      <OperationConfirmModal
+        :open="showOperationConfirmation"
+        :title="pendingOperationConfirmation?.title ?? 'Confirmar acción'"
+        :description="pendingOperationConfirmation?.description ?? ''"
+        :confirm-label="pendingOperationConfirmation?.confirmLabel ?? 'Confirmar'"
+        :confirm-color="pendingOperationConfirmation?.confirmColor ?? 'primary'"
+        :icon="pendingOperationConfirmation?.icon ?? 'i-lucide-circle-help'"
+        :warning-title="pendingOperationConfirmation?.warningTitle"
+        :warning-description="pendingOperationConfirmation?.warningDescription"
+        :loading="operationConfirmationSaving"
+        @cancel="closeOperationConfirmation"
+        @confirm="runOperationConfirmation"
+      />
+
       <UModal
         v-model:open="showStatusChangeModal"
         :title="pendingStatusMeta?.title"

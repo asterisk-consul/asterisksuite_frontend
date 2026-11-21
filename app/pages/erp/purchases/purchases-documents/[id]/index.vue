@@ -15,6 +15,7 @@ import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocumentActions'
 import DocumentActionButton from '~/modulos/erp/documents/shared/DocumentActionButton.vue'
 import { useDocumentDetailShortcuts } from '~/modulos/erp/documents/composables/useDocumentDetailShortcuts'
+import { getCancelledDocumentStatus } from '~/modulos/erp/documents/types/document-statuses'
 import { usePrint } from '~/composables/usePrint'
 
 const documentsPurchasesStore = useDocumentsPurchasesStore()
@@ -32,7 +33,12 @@ const confirmationDocumentLabel = computed(() => category.value === 'CREDIT_NOTE
   ? 'nota de crédito'
   : category.value === 'DEBIT_NOTE'
     ? 'nota de débito'
+    : category.value === 'QUOTE'
+      ? 'presupuesto'
     : 'factura')
+const quoteOperationAssociation = computed(() => factura.value?.international_operation_quotes?.[0] ?? null)
+const quoteIsCancelled = computed(() => category.value === 'QUOTE'
+  && Number(factura.value?.status) === getCancelledDocumentStatus('QUOTE', -1))
 useBreadcrumbEntityLabel(
   computed(() => `/erp/purchases/purchases-documents/${route.params.id as string}`),
   computed(() => formatDocumentBreadcrumbLabel(factura.value))
@@ -132,6 +138,27 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
 
         <UPageBody>
           <UAlert
+            v-if="category === 'QUOTE' && quoteOperationAssociation"
+            class="mb-4"
+            color="warning"
+            variant="subtle"
+            :title="quoteIsCancelled ? 'El presupuesto está anulado y sigue asociado' : 'El presupuesto está asociado a una operación internacional'"
+            :description="quoteIsCancelled
+              ? `Abrí la operación ${quoteOperationAssociation.operation?.number ?? ''} y desasocialo cuando la OC o factura generada ya esté anulada y desvinculada.`
+              : `Para anularlo, abrí la operación ${quoteOperationAssociation.operation?.number ?? ''} y usá «Anular y desasociar presupuesto» después de anular y desasociar la OC o factura generada.`"
+          >
+            <template #actions>
+              <UButton
+                :to="`/operaciones-internacionales/${quoteOperationAssociation.operation_id}`"
+                label="Abrir operación"
+                icon="i-lucide-arrow-up-right"
+                color="warning"
+                variant="soft"
+                size="xs"
+              />
+            </template>
+          </UAlert>
+          <UAlert
             v-if="factura && category === 'INVOICE' && Number(factura.status) === 3 && Number(factura._count?.child_documents ?? factura.child_documents?.length ?? 0) > 0"
             class="mb-4"
             color="warning"
@@ -181,9 +208,13 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
     </template>
   </UModal>
 
-  <UModal v-model:open="cancelModalOpen" :title="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category ?? '') ? 'Anular nota de crédito/débito' : 'Anular factura'">
+  <UModal v-model:open="cancelModalOpen" :title="category === 'QUOTE' ? 'Anular presupuesto' : ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category ?? '') ? 'Anular nota de crédito/débito' : 'Anular factura'">
     <template #body>
-      <template v-if="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category ?? '')">
+      <template v-if="category === 'QUOTE'">
+        <p>¿Anular el presupuesto <strong>#{{ factura?.number }}</strong>?</p>
+        <p class="text-sm text-muted mt-2">La anulación cancela el presupuesto. Si pertenece a una operación internacional, primero tenés que desasociarlo desde esa operación.</p>
+      </template>
+      <template v-else-if="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category ?? '')">
         <p>¿Anular la nota <strong>#{{ factura?.number }}</strong>?</p>
         <p class="text-sm text-muted mt-2">Una nota confirmada no se edita: si el importe es incorrecto, anulala y creá otra. La anulación revierte su efecto en la cuenta corriente y conserva la relación documental; si tiene pagos activos, primero hay que anularlos.</p>
       </template>

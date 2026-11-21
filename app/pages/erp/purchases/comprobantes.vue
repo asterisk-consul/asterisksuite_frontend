@@ -44,6 +44,7 @@ const readablePurchaseCategories = computed(() =>
   PURCHASE_CATEGORIES.filter((category) => canDocument('purchases', category, 'read'))
 )
 const ALL_FILTER_VALUE = '__ALL__'
+const NOTES_FILTER_VALUE = 'NOTES'
 
 // El endpoint también abastece otros circuitos internos con dirección de compra
 // (por ejemplo, vales de RRHH y saldos iniciales). Este listado muestra sólo
@@ -75,16 +76,31 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 const initialCategory = typeof route.query.category === 'string'
-  && purchaseCategorySet.has(route.query.category)
-  && readablePurchaseCategories.value.includes(route.query.category as typeof PURCHASE_CATEGORIES[number])
+  && (route.query.category === NOTES_FILTER_VALUE
+    ? readablePurchaseCategories.value.some(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))
+    : purchaseCategorySet.has(route.query.category)
+      && readablePurchaseCategories.value.includes(route.query.category as typeof PURCHASE_CATEGORIES[number]))
   ? route.query.category
   : undefined
 const categoryFilter = ref<string | undefined>(initialCategory)
+const singleCategoryFilter = computed(() => categoryFilter.value && categoryFilter.value !== NOTES_FILTER_VALUE ? categoryFilter.value : undefined)
+const selectedCategories = computed(() => {
+  if (categoryFilter.value === NOTES_FILTER_VALUE) {
+    return readablePurchaseCategories.value.filter(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))
+  }
+  if (categoryFilter.value) return readablePurchaseCategories.value.includes(categoryFilter.value as typeof PURCHASE_CATEGORIES[number]) ? [categoryFilter.value] : []
+  return readablePurchaseCategories.value
+})
 const statusFilter = ref<number | undefined>(undefined)
 const selectedCategoryFilter = computed({
   get: () => categoryFilter.value ?? ALL_FILTER_VALUE,
   set: (value: string) => { categoryFilter.value = value === ALL_FILTER_VALUE ? undefined : value }
 })
+const pageTitle = computed(() => categoryFilter.value === 'INVOICE'
+  ? 'Facturas de compra'
+  : categoryFilter.value === NOTES_FILTER_VALUE
+    ? 'Notas de crédito y débito'
+    : 'Comprobantes de compra')
 const selectedStatusFilter = computed({
   get: () => statusFilter.value ?? ALL_FILTER_VALUE,
   set: (value: number | string) => { statusFilter.value = value === ALL_FILTER_VALUE ? undefined : Number(value) }
@@ -92,7 +108,7 @@ const selectedStatusFilter = computed({
 const showFullyPaid = ref(false)
 const hiddenStatusKeys = ref<string[]>([])
 const statusVisibilityGroups = computed(() => PURCHASE_CATEGORIES
-  .filter(category => canDocument('purchases', category, 'read') && (!categoryFilter.value || categoryFilter.value === category))
+  .filter(category => selectedCategories.value.includes(category))
   .map(category => ({
     category,
     direction: -1 as const,
@@ -107,8 +123,8 @@ const serverTable = useServerTable(
   (query) => documentsPurchasesStore.fetchPage({
     ...query,
     status: statusFilter.value,
-    category: categoryFilter.value,
-    categories: categoryFilter.value ? undefined : readablePurchaseCategories.value.join(','),
+    category: singleCategoryFilter.value,
+    categories: singleCategoryFilter.value ? undefined : selectedCategories.value.join(','),
     excludeStatuses: hiddenStatusKeys.value.join(',') || undefined,
     excludeOpeningBalances: true
   }),
@@ -127,7 +143,7 @@ watch(filters, (currentFilters) => {
     const value = String(filter.value ?? '')
     const scoped = /^document-status:([A-Z_]+):(\d+)$/.exec(value)
     if (scoped) selectedKeys.add(`${scoped[1]}:${Number(scoped[2])}`)
-    else if (categoryFilter.value && /^\d+$/.test(value)) selectedKeys.add(`${categoryFilter.value}:${Number(value)}`)
+    else if (singleCategoryFilter.value && /^\d+$/.test(value)) selectedKeys.add(`${singleCategoryFilter.value}:${Number(value)}`)
   }
   if ([...selectedKeys].some(key => hiddenStatusKeys.value.includes(key))) {
     hiddenStatusKeys.value = hiddenStatusKeys.value.filter(key => !selectedKeys.has(key))
@@ -135,7 +151,11 @@ watch(filters, (currentFilters) => {
 }, { deep: true })
 
 watch(readablePurchaseCategories, (allowedCategories) => {
-  if (categoryFilter.value && !allowedCategories.includes(categoryFilter.value as typeof PURCHASE_CATEGORIES[number])) {
+  if (singleCategoryFilter.value && !allowedCategories.includes(singleCategoryFilter.value as typeof PURCHASE_CATEGORIES[number])) {
+    categoryFilter.value = undefined
+    return
+  }
+  if (categoryFilter.value === NOTES_FILTER_VALUE && !allowedCategories.some(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))) {
     categoryFilter.value = undefined
     return
   }
@@ -152,8 +172,18 @@ watch(categoryFilter, () => {
   router.replace({ query: { ...route.query, category: categoryFilter.value || undefined } })
 })
 
+watch(() => route.query.category, (value) => {
+  const nextCategory = typeof value === 'string'
+    && (value === NOTES_FILTER_VALUE
+      ? readablePurchaseCategories.value.some(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))
+      : readablePurchaseCategories.value.includes(value as typeof PURCHASE_CATEGORIES[number]))
+    ? value
+    : undefined
+  if (categoryFilter.value !== nextCategory) categoryFilter.value = nextCategory
+})
+
 watch(statusFilter, (status) => {
-  const key = categoryFilter.value && status !== undefined ? `${categoryFilter.value}:${status}` : undefined
+  const key = singleCategoryFilter.value && status !== undefined ? `${singleCategoryFilter.value}:${status}` : undefined
   if (key && hiddenStatusKeys.value.includes(key)) {
     hiddenStatusKeys.value = hiddenStatusKeys.value.filter(hiddenKey => hiddenKey !== key)
     return
@@ -166,6 +196,9 @@ watch(showFullyPaid, () => { page.value = 1 })
 // ─── Filtros de categoría ─────────────────────────────────────────────────────
 const categoryOptions = computed(() => [
   { label: 'Todos los comprobantes', value: ALL_FILTER_VALUE },
+  ...(readablePurchaseCategories.value.some(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))
+    ? [{ label: 'Notas de crédito y débito', value: NOTES_FILTER_VALUE }]
+    : []),
   ...PURCHASE_CATEGORIES.filter((cat) => canDocument('purchases', cat, 'read')).map((cat) => ({
     label: CATEGORY_LABELS[cat] ?? cat,
     value: cat
@@ -174,13 +207,13 @@ const categoryOptions = computed(() => [
 
 // ─── Filtros de estado (según categoría) ─────────────────────────────────────
 const statusOptions = computed(() =>
-  categoryFilter.value
-    ? getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
+  singleCategoryFilter.value
+    ? getCategoryStatuses(singleCategoryFilter.value, getEnabledStatusesForCategory(singleCategoryFilter.value))
     : []
 )
 
 const categoryStatusFilterOptions = computed(() => [
-  { label: categoryFilter.value ? 'Todos los estados' : 'Elegí un comprobante', value: ALL_FILTER_VALUE },
+  { label: singleCategoryFilter.value ? 'Todos los estados' : 'Elegí un comprobante', value: ALL_FILTER_VALUE },
   ...statusOptions.value
 ])
 
@@ -208,8 +241,8 @@ const financialStats = computed(() => {
 // ─── Estadísticas ─────────────────────────────────────────────────────────────
 const stats = computed(() => {
   const docs = documents.value ?? []
-  if (categoryFilter.value) {
-    const statuses = getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
+  if (singleCategoryFilter.value) {
+    const statuses = getCategoryStatuses(singleCategoryFilter.value, getEnabledStatusesForCategory(singleCategoryFilter.value))
     return {
       byCategory: [],
       byStatus: statuses.map((s) => {
@@ -218,13 +251,13 @@ const stats = computed(() => {
           label: s.label,
           count: matching.length,
           total: matching.reduce((a, d) => a + Number(d.total), 0),
-          color: getStatusColor(categoryFilter.value, s.value)
+          color: getStatusColor(singleCategoryFilter.value!, s.value)
         }
       })
     }
   }
   return {
-    byCategory: PURCHASE_CATEGORIES.map((cat) => ({
+    byCategory: selectedCategories.value.map((cat) => ({
       label: CATEGORY_LABELS[cat] ?? cat,
       count: docs.filter((d) => d.document_types?.category === cat).length
     })),
@@ -422,8 +455,8 @@ const columns = computed(() =>
     actionsFirst: true,
     canDuplicate: (row) => canDocument('purchases', row.document_types?.category ?? '', 'create'),
     showCreator: isOwnerOrAdmin.value,
-    statusFilterOptions: categoryFilter.value
-      ? getDocumentStatusOptions(categoryFilter.value, -1, getEnabledStatusesForCategory(categoryFilter.value))
+    statusFilterOptions: singleCategoryFilter.value
+      ? getDocumentStatusOptions(singleCategoryFilter.value, -1, getEnabledStatusesForCategory(singleCategoryFilter.value))
           .map(({ label, value }) => ({ label, value }))
       : null
   })
@@ -445,7 +478,7 @@ const sortFields = [
 
 <template>
   <UPage class="space-y-4">
-    <AppPageHeader title="Comprobantes de compra" description="Gestión de documentos de compra">
+    <AppPageHeader :title="pageTitle" description="Gestión de documentos de compra">
       <template #links>
         <CreateDocumentMenu direction="purchases" />
       </template>
@@ -521,7 +554,7 @@ const sortFields = [
             v-model="selectedStatusFilter"
             :items="categoryStatusFilterOptions"
             value-key="value"
-            :disabled="!categoryFilter"
+            :disabled="!singleCategoryFilter"
             class="w-full min-w-0"
             aria-label="Filtrar por estado"
           />

@@ -156,6 +156,12 @@ export const useInternationalOperationsService = () => {
   const disassociateQuote = (operationId: string, quoteId: string) =>
     $fetch<void>(`${baseUrl}/${operationId}/quotes/${quoteId}`, { method: 'DELETE' })
 
+  const cancelAndDisassociateQuote = (operationId: string, quoteId: string) =>
+    $fetch<{ document: { id: string; number: number; status: number }; disassociated: boolean }>(
+      `${baseUrl}/${operationId}/quotes/${quoteId}/cancel-and-disassociate`,
+      { method: 'POST' },
+    )
+
   const deliverContainer = (containerId: string, destinationWarehouseId: string) =>
     $fetch<DeliverContainerResult>(
       `${baseUrl}/containers/${containerId}/deliver`,
@@ -189,6 +195,7 @@ export const useInternationalOperationsService = () => {
     convertQuote,
     updateQuoteStatus,
     disassociateQuote,
+    cancelAndDisassociateQuote,
     createContainer,
     findAllContainers,
     findOneContainer,

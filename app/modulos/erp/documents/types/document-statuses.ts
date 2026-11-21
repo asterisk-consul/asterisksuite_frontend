@@ -8,7 +8,7 @@ export const QUOTE_STATUSES: Record<number, string> = {
   3: 'Rechazado',
   4: 'Vencido',
   5: 'Convertido',
-  6: 'Cancelado',
+  6: 'Anulado',
 }
 
 export const QUOTE_STATUS_DESCRIPTIONS: Record<number, string> = {
@@ -18,7 +18,7 @@ export const QUOTE_STATUS_DESCRIPTIONS: Record<number, string> = {
   3: 'Cliente rechazó el presupuesto',
   4: 'Presupuesto vencido, validez expirada',
   5: 'Presupuesto convertido en Orden de Venta',
-  6: 'Presupuesto cancelado',
+  6: 'Presupuesto anulado',
 }
 
 export const ORDER_STATUSES: Record<number, string> = {
