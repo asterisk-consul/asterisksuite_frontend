@@ -62,7 +62,24 @@ export const navigationTree: DrilldownNode[] = [
         permissions: ['sales.orders.read', 'sales.read', 'documents.read']
       },
       {
-        label: 'Comprobantes',
+        label: 'Facturas',
+        icon: 'i-lucide-receipt-text',
+        to: '/erp/sales/comprobantes?category=INVOICE',
+        permissions: ['sales.invoices.read', 'sales.read', 'documents.read']
+      },
+      {
+        label: 'NC y ND',
+        icon: 'i-lucide-file-diff',
+        to: '/erp/sales/comprobantes?category=NOTES',
+        permissions: [
+          'sales.credit_notes.read',
+          'sales.debit_notes.read',
+          'sales.read',
+          'documents.read'
+        ]
+      },
+      {
+        label: 'Todos los comprobantes',
         icon: 'i-lucide-file-check',
         to: '/erp/sales/comprobantes',
         permissions: [
@@ -138,7 +155,25 @@ export const navigationTree: DrilldownNode[] = [
         permissions: ['purchases.delivery_notes.read', 'purchases.read', 'documents-purchases.read', 'documents.read']
       },
       {
-        label: 'Comprobantes',
+        label: 'Facturas',
+        icon: 'i-lucide-receipt-text',
+        to: '/erp/purchases/comprobantes?category=INVOICE',
+        permissions: ['purchases.invoices.read', 'purchases.read', 'documents-purchases.read', 'documents.read']
+      },
+      {
+        label: 'NC y ND',
+        icon: 'i-lucide-file-diff',
+        to: '/erp/purchases/comprobantes?category=NOTES',
+        permissions: [
+          'purchases.credit_notes.read',
+          'purchases.debit_notes.read',
+          'purchases.read',
+          'documents-purchases.read',
+          'documents.read'
+        ]
+      },
+      {
+        label: 'Todos los comprobantes',
         icon: 'i-lucide-file-check',
         to: '/erp/purchases/comprobantes',
         permissions: [
@@ -670,18 +705,17 @@ export const navigationTree: DrilldownNode[] = [
         moduleCode: 'MASTER_DATA',
         icon: 'i-lucide-package',
         to: '/productos',
-        permission: 'products.read',
         children: [
-          { label: 'Listado', icon: 'i-lucide-list', to: '/productos' },
-          { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create' },
+          { label: 'Listado', icon: 'i-lucide-list', to: '/productos', permission: 'products.read' },
+          { label: 'Nuevo producto', icon: 'i-lucide-plus', to: '/productos/create', permission: 'products.create' },
           // { label: 'Listas de precio', icon: 'i-lucide-tag', to: '/productos/price-lists' },
-          { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party' },
-          { label: 'Plantillas de costo', icon: 'i-lucide-file-text', to: '/cost-templates' }
+          { label: 'Por cliente / proveedor', icon: 'i-lucide-users', to: '/productos/by-party', permission: 'products.read' },
+          { label: 'Plantillas de costo', icon: 'i-lucide-file-text', to: '/cost-templates', permission: 'cost_templates.read' },
+          { label: 'Categorías', icon: 'i-lucide-folder-tree', to: '/productos/settings/categorias', permission: 'categories.read' },
+          { label: 'Etiquetas', icon: 'i-lucide-tags', to: '/productos/settings/tags', permission: 'tags.read' },
+          { label: 'Unidades de medida', icon: 'i-lucide-ruler', to: '/productos/settings/unidades', permission: 'units.read' }
         ]
       },
-      { label: 'Categorías', icon: 'i-lucide-folder-tree', to: '/productos/settings/categorias', permission: 'categories.read' },
-      { label: 'Etiquetas', icon: 'i-lucide-tags', to: '/productos/settings/tags', permission: 'tags.read' },
-      { label: 'Unidades de medida', icon: 'i-lucide-ruler', to: '/productos/settings/unidades', permission: 'units.read' },
       { label: 'Depósitos', icon: 'i-lucide-warehouse', to: '/productos/warehouses', permission: 'warehouses.read' },
       {
         label: 'Disponibilidad',

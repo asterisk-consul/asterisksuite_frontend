@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import ProductTaxonomyFilters from './ProductTaxonomyFilters.vue'
+import type { ProductCategoryTaxonomy, ProductTagTaxonomy } from './product-taxonomy.utils'
 
 interface ProductOption {
   value?: string
@@ -29,6 +31,8 @@ const props = withDefaults(defineProps<{
   appearance?: 'card' | 'inline'
   multiple?: boolean
   showTaxonomyFilters?: boolean
+  categories?: ProductCategoryTaxonomy[]
+  tags?: ProductTagTaxonomy[]
 }>(), {
   labelKey: 'label',
   fieldLabel: 'Producto',
@@ -48,14 +52,15 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   add: []
+  'taxonomy-filter': [filters: { categoryIds: string[], tagIds: string[], query: string }]
 }>()
 
 const selectedProduct = defineModel<any>({ default: null })
 const searchTerm = defineModel<string>('searchTerm', { default: '' })
+const selectedCategoryIds = defineModel<string[]>('categoryIds', { default: () => [] })
+const selectedTagIds = defineModel<string[]>('tagIds', { default: () => [] })
 const pickerOpen = ref(false)
 const pickerRoot = ref<HTMLElement | null>(null)
-const selectedCategoryIds = ref<string[]>([])
-const selectedTagIds = ref<string[]>([])
 
 function getOptionValue(option: ProductOption | null | undefined) {
   if (!option) return undefined
@@ -83,8 +88,12 @@ function taxonomyOptions(key: 'categories' | 'tags') {
   return [...options.values()].sort((a, b) => a.label.localeCompare(b.label, 'es-AR'))
 }
 
-const categoryOptions = computed(() => taxonomyOptions('categories'))
-const tagOptions = computed(() => taxonomyOptions('tags'))
+const categoryCatalog = computed(() => props.categories !== undefined
+  ? props.categories
+  : taxonomyOptions('categories').map(option => ({ id: option.value, name: option.label })))
+const tagCatalog = computed(() => props.tags !== undefined
+  ? props.tags
+  : taxonomyOptions('tags').map(option => ({ id: option.value, name: option.label })))
 
 const visibleItems = computed(() => {
   const term = searchTerm.value.trim().toLocaleLowerCase('es-AR')
@@ -113,13 +122,14 @@ const visibleItems = computed(() => {
 })
 
 const hasTaxonomyFilters = computed(() => props.showTaxonomyFilters
-  && (categoryOptions.value.length > 0 || tagOptions.value.length > 0))
-const hasActiveTaxonomyFilters = computed(() => selectedCategoryIds.value.length > 0 || selectedTagIds.value.length > 0)
-
-function clearTaxonomyFilters() {
-  selectedCategoryIds.value = []
-  selectedTagIds.value = []
-}
+  && (categoryCatalog.value.length > 0 || tagCatalog.value.length > 0))
+watch([selectedCategoryIds, selectedTagIds], () => {
+  emit('taxonomy-filter', {
+    categoryIds: [...selectedCategoryIds.value],
+    tagIds: [...selectedTagIds.value],
+    query: searchTerm.value,
+  })
+}, { deep: true })
 
 function focusPicker() {
   if (!props.active || props.disabled) return
@@ -178,34 +188,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleProductShortcu
       </div>
     </div>
 
-    <div v-if="hasTaxonomyFilters" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-      <UFormField v-if="categoryOptions.length" label="Categoría" class="min-w-0">
-        <USelectMenu
-          v-model="selectedCategoryIds"
-          :items="categoryOptions"
-          value-key="value"
-          placeholder="Todas las categorías"
-          searchable
-          multiple
-          class="w-full min-w-0"
-        />
-      </UFormField>
-      <UFormField v-if="tagOptions.length" label="Etiqueta" class="min-w-0">
-        <USelectMenu
-          v-model="selectedTagIds"
-          :items="tagOptions"
-          value-key="value"
-          placeholder="Todas las etiquetas"
-          searchable
-          multiple
-          class="w-full min-w-0"
-        />
-      </UFormField>
-    </div>
-    <p v-if="hasActiveTaxonomyFilters" class="-mt-2 mb-3 text-xs text-muted">
-      Se combina al menos una opción de cada filtro activo.
-    </p>
-
+    <ProductTaxonomyFilters
+      v-if="hasTaxonomyFilters"
+      v-model:category-ids="selectedCategoryIds"
+      v-model:tag-ids="selectedTagIds"
+      :categories="categoryCatalog"
+      :tags="tagCatalog"
+      multiple
+      class="mb-3"
+    />
     <div
       class="grid grid-cols-1 gap-3 lg:items-end"
       :class="hasDetails && $slots.details && !multiple
@@ -254,15 +245,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleProductShortcu
       <span class="inline-flex items-center gap-1.5"><KeyboardShortcutHint :keys="['F2']" /> abre el selector</span>
       <span class="inline-flex items-center gap-1.5"><KeyboardShortcutHint :keys="['Tab']" /> recorre los campos</span>
       <span v-if="multiple && selectedValues.length" class="font-medium text-primary">{{ selectedValues.length }} producto(s) seleccionado(s) · se agrega cada uno con cantidad 1</span>
-      <UButton
-        v-if="hasActiveTaxonomyFilters"
-        label="Limpiar filtros"
-        size="xs"
-        color="neutral"
-        variant="link"
-        class="px-0"
-        @click="clearTaxonomyFilters"
-      />
     </div>
   </div>
 </template>

@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { useInternationalOperations } from '~/modulos/international-operations/composable/useInternationalOperations'
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
+import OperationConfirmModal from '~/components/international-operations/OperationConfirmModal.vue'
 import { createTableBuilder } from '~/composables/table/createColumns'
 import { summarizeTransitMerchandise, type TransitMerchandiseRow } from '~/modulos/international-operations/utils/transit-merchandise'
 import type { ContainerEvent, ContainerEventType, ContainerStatus, ContainerType, CreateEventInput } from '~/modulos/international-operations/types/international-operations.types'
@@ -36,6 +37,44 @@ const { warehouses } = storeToRefs(depositosStore)
 
 const container = ref<any>(null)
 const loading = ref(true)
+const showContainerConfirmation = ref(false)
+const containerConfirmationSaving = ref(false)
+type ContainerConfirmationColor = 'primary' | 'warning' | 'error'
+interface PendingContainerConfirmation {
+  title: string
+  description: string
+  confirmLabel: string
+  confirmColor: ContainerConfirmationColor
+  icon: string
+  warningTitle?: string
+  warningDescription?: string
+  action: () => Promise<void>
+}
+const pendingContainerConfirmation = ref<PendingContainerConfirmation | null>(null)
+
+const requestContainerConfirmation = (confirmation: PendingContainerConfirmation) => {
+  pendingContainerConfirmation.value = confirmation
+  showContainerConfirmation.value = true
+}
+
+const closeContainerConfirmation = () => {
+  if (containerConfirmationSaving.value) return
+  showContainerConfirmation.value = false
+  pendingContainerConfirmation.value = null
+}
+
+const runContainerConfirmation = async () => {
+  const confirmation = pendingContainerConfirmation.value
+  if (!confirmation || containerConfirmationSaving.value) return
+  containerConfirmationSaving.value = true
+  try {
+    await confirmation.action()
+  } finally {
+    containerConfirmationSaving.value = false
+    showContainerConfirmation.value = false
+    pendingContainerConfirmation.value = null
+  }
+}
 
 // ── Documentos de mercadería asociados ──
 const merchandiseDocs = computed(() => {
@@ -156,10 +195,23 @@ const containerStatusItems = computed(() =>
 
 const handleStatusChange = async (status: ContainerStatus) => {
   const current = container.value?.status
-  if (current && current !== status && confirm(`¿Cambiar estado de "${containerStatusLabel(current)}" a "${containerStatusLabel(status)}"?`)) {
-    await updateContainer(containerId, { status })
-    container.value = await findOneContainer(containerId)
-  }
+  if (!current || current === status) return
+  requestContainerConfirmation({
+    title: 'Cambiar estado del contenedor',
+    description: `El contenedor pasará de “${containerStatusLabel(current)}” a “${containerStatusLabel(status)}”.`,
+    confirmLabel: 'Cambiar estado',
+    confirmColor: 'primary',
+    icon: 'i-lucide-arrow-right',
+    action: async () => {
+      try {
+        await updateContainer(containerId, { status })
+        container.value = await findOneContainer(containerId)
+        toast.add({ title: 'Estado del contenedor actualizado', color: 'success' })
+      } catch (error: any) {
+        toast.add({ title: 'No se pudo cambiar el estado', description: error?.data?.message ?? error?.message, color: 'error' })
+      }
+    },
+  })
 }
 
 onMounted(async () => {
@@ -183,16 +235,35 @@ const handleCreateEvent = async () => {
 }
 
 const handleRemoveEvent = async (eventId: string) => {
-  if (confirm('¿Eliminar este evento?')) {
-    await removeEvent(eventId)
-    container.value = await findOneContainer(containerId)
-  }
+  const event = container.value?.events?.find((item: ContainerEvent) => item.id === eventId)
+  requestContainerConfirmation({
+    title: 'Eliminar evento del seguimiento',
+    description: `Se eliminará el evento “${event?.event_type?.replace(/_/g, ' ') ?? 'registrado'}” del historial de este contenedor.`,
+    confirmLabel: 'Eliminar evento',
+    confirmColor: 'error',
+    icon: 'i-lucide-trash-2',
+    warningTitle: 'El evento se quitará del historial',
+    warningDescription: 'Esta acción no se puede deshacer.',
+    action: async () => {
+      try {
+        await removeEvent(eventId)
+        container.value = await findOneContainer(containerId)
+        toast.add({ title: 'Evento eliminado', color: 'success' })
+      } catch (error: any) {
+        toast.add({ title: 'No se pudo eliminar el evento', description: error?.data?.message ?? error?.message, color: 'error' })
+      }
+    },
+  })
 }
 </script>
 
 <template>
   <UPage class="space-y-6">
-    <AppPageHeader v-if="container" :title="container.container_number" :description="`Contenedor — ${container.operation?.number ?? ''}`">
+    <AppPageHeader
+      v-if="container"
+      :title="container.container_number"
+      :description="[container.description, `Contenedor — ${container.operation?.number ?? ''}`].filter(Boolean).join(' · ')"
+    >
       <template #links>
         <UButton label="Volver" variant="ghost" icon="i-lucide-arrow-left" :to="`/operaciones-internacionales/${container.operation?.id}`" />
         <UButton
@@ -416,5 +487,19 @@ const handleRemoveEvent = async (eventId: string) => {
         </div>
       </template>
     </UModal>
+
+    <OperationConfirmModal
+      :open="showContainerConfirmation"
+      :title="pendingContainerConfirmation?.title ?? 'Confirmar acción'"
+      :description="pendingContainerConfirmation?.description ?? ''"
+      :confirm-label="pendingContainerConfirmation?.confirmLabel ?? 'Confirmar'"
+      :confirm-color="pendingContainerConfirmation?.confirmColor ?? 'primary'"
+      :icon="pendingContainerConfirmation?.icon ?? 'i-lucide-circle-help'"
+      :warning-title="pendingContainerConfirmation?.warningTitle"
+      :warning-description="pendingContainerConfirmation?.warningDescription"
+      :loading="containerConfirmationSaving"
+      @cancel="closeContainerConfirmation"
+      @confirm="runContainerConfirmation"
+    />
   </UPage>
 </template>

@@ -15,6 +15,7 @@ import type {
   FinancialResultsSummary,
 } from '~/modulos/erp/management-reports/financial-results.types'
 import { getStatusLabel } from '~/modulos/erp/documents/types/document-statuses'
+import { useCompanyNavigation } from '~/composables/useCompanyNavigation'
 
 const props = withDefaults(defineProps<{ variant?: 'table' | 'executive' }>(), { variant: 'table' })
 

@@ -1,8 +1,8 @@
 import { h } from 'vue'
-import { UButton } from '#components'
+import { UButton, UDropdownMenu, UIcon } from '#components'
 import type { Product } from '~/modulos/logistica/master-data/product/types/product.types'
 
-import type { TableColumn } from '@nuxt/ui'
+import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 
 import { createTableBuilder } from '@/composables/table/createColumns'
 import { useIdColumn } from '@/composables/table/useIdColumn'
@@ -16,8 +16,8 @@ import {
 } from '~/modulos/logistica/master-data/product/utils/product-options.utils'
 
 export const productColumns = (actions: {
+  onView?: (row: Row) => void
   onEdit?: (row: Row) => void
-  onDelete?: (row: Row) => void
   onSortFieldSelect?: (columnId: string) => void
   categoryOptions?: { label: string; value: string }[]
   tagOptions?: { label: string; value: string }[]
@@ -28,9 +28,25 @@ export const productColumns = (actions: {
   })
 
   return [
-    useIdColumn<Row>(actions.onEdit),
+    useIdColumn<Row>(actions.onView),
 
     ...build([
+      {
+        key: 'thumbnail_url',
+        label: 'Foto',
+        meta: { label: 'Foto', filter: false, disableColumnVisibility: true },
+        cell: ({ row }) => h('div', { class: 'flex size-10 items-center justify-center overflow-hidden rounded-md border border-default bg-elevated/50' }, [
+          row.original.thumbnail_url
+            ? h('img', {
+                src: row.original.thumbnail_url,
+                alt: `Foto de ${row.original.name}`,
+                loading: 'lazy',
+                class: 'size-full object-cover',
+              })
+            : h(UIcon, { name: 'i-lucide-image', class: 'size-4 text-muted' }),
+        ]),
+      },
+
       /* ========================
          PRODUCTO
       ======================== */
@@ -285,25 +301,27 @@ export const productColumns = (actions: {
 
       {
         id: 'actions',
-        label: '',
-        cell: ({ row }) => h('div', { class: 'flex gap-1' }, [
-          h(UButton, {
-            icon: 'i-lucide-pencil',
-            size: 'xs',
-            variant: 'ghost',
-            color: 'neutral',
-            onClick: () => actions.onEdit?.(row.original)
-          }),
-          actions.onDelete
-            ? h(UButton, {
-                icon: 'i-lucide-trash-2',
-                size: 'xs',
-                variant: 'ghost',
-                color: 'error',
-                onClick: () => actions.onDelete?.(row.original)
-              })
-            : null
-        ])
+        label: 'Acciones',
+        meta: { label: 'Acciones', filter: false, disableColumnVisibility: true },
+        cell: ({ row }) => {
+          const product = row.original
+          const menuItems: DropdownMenuItem[] = [
+            { label: 'Ver producto', icon: 'i-lucide-eye', onSelect: () => actions.onView?.(product) },
+            { label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => actions.onEdit?.(product) },
+          ]
+
+          return h(UDropdownMenu, { items: menuItems, content: { align: 'end' } }, {
+            default: () => h(UButton, {
+              icon: 'i-lucide-ellipsis-vertical',
+              size: 'xs',
+              variant: 'ghost',
+              color: 'neutral',
+              'aria-label': `Acciones de ${product.name}`,
+              title: 'Más acciones',
+              'data-row-action': 'true',
+            }),
+          })
+        },
       }
     ])
   ]

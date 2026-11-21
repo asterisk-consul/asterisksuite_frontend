@@ -26,7 +26,9 @@ const doc = computed(() => store.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => doc.value?.document_types?.category)
 const itemsWithoutWarehouse = computed(() =>
-  (doc.value?.document_items ?? []).filter((item: any) => !item.warehouse_id && !doc.value?.warehouse_id)
+  (doc.value?.document_items ?? []).filter((item: any) =>
+    item.products?.manages_stock !== false && !item.warehouse_id && !doc.value?.warehouse_id,
+  )
 )
 useBreadcrumbEntityLabel(
   computed(() => `/erp/purchases/remitos/${route.params.id as string}`),
@@ -126,7 +128,7 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [confirmModa
     <UModal v-model:open="confirmModalOpen" title="Confirmar remito">
       <template #body>
         <p>¿Confirmar este remito e ingresar la mercadería?</p>
-        <p class="text-sm text-muted mt-2">Se sumará el stock en los depósitos seleccionados.</p>
+        <p class="text-sm text-muted mt-2">Se sumará el stock para los productos que manejan stock.</p>
         <div class="flex justify-end gap-2 pt-4">
           <UButton label="Cancelar" variant="ghost" @click="() => { confirmModalOpen = false }" />
           <UButton label="Confirmar remito" color="success" :loading="processing" :disabled="itemsWithoutWarehouse.length > 0" @click="handleConfirm" />

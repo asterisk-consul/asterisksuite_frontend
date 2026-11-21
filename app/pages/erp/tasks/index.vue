@@ -46,6 +46,8 @@ const submittingRequiredWorkLog = ref(false)
 const boardSettingsOpen = ref(false)
 const boardRequireWorkLogDraft = ref(false)
 const boardAllowTimerDraft = ref(false)
+const boardTimerMaxHoursDraft = ref(8)
+const timerDesktopNotificationPermission = ref<'default' | 'granted' | 'denied' | 'unsupported'>('default')
 const savingBoardSettings = ref(false)
 type PendingWorkLogAction =
   | { type: 'saveTask'; taskId: string; payload: SaveTaskInput }
@@ -398,18 +400,42 @@ async function submitRequiredWorkLog() {
 }
 
 function openBoardSettings() {
+  refreshTimerDesktopNotificationPermission()
   boardRequireWorkLogDraft.value = !!board.value?.require_work_log_on_transition
   boardAllowTimerDraft.value = !!board.value?.allow_task_timer
+  boardTimerMaxHoursDraft.value = board.value?.task_timer_max_hours ?? 8
   boardSettingsOpen.value = true
+}
+
+function refreshTimerDesktopNotificationPermission() {
+  if (!import.meta.client || !('Notification' in window)) {
+    timerDesktopNotificationPermission.value = 'unsupported'
+    return
+  }
+  timerDesktopNotificationPermission.value = Notification.permission
+}
+
+async function requestTimerDesktopNotifications() {
+  if (!import.meta.client || !('Notification' in window)) {
+    timerDesktopNotificationPermission.value = 'unsupported'
+    return
+  }
+  timerDesktopNotificationPermission.value = await Notification.requestPermission()
+  toast.add({
+    title: timerDesktopNotificationPermission.value === 'granted' ? 'Avisos del navegador habilitados' : 'El navegador no autorizó los avisos',
+    description: timerDesktopNotificationPermission.value === 'denied' ? 'Podés cambiarlo desde los permisos del sitio en el navegador.' : undefined,
+    color: timerDesktopNotificationPermission.value === 'granted' ? 'success' : 'warning',
+  })
 }
 
 async function saveBoardSettings() {
   if (!board.value) return
   savingBoardSettings.value = true
   try {
-    const updated = await service.updateBoardSettings(board.value.id, { require_work_log_on_transition: boardRequireWorkLogDraft.value, allow_task_timer: boardAllowTimerDraft.value })
+    const updated = await service.updateBoardSettings(board.value.id, { require_work_log_on_transition: boardRequireWorkLogDraft.value, allow_task_timer: boardAllowTimerDraft.value, task_timer_max_hours: boardTimerMaxHoursDraft.value })
     board.value.require_work_log_on_transition = updated.require_work_log_on_transition
     board.value.allow_task_timer = updated.allow_task_timer
+    board.value.task_timer_max_hours = updated.task_timer_max_hours
     boardSettingsOpen.value = false
     toast.add({ title: 'Configuración del tablero guardada', color: 'success' })
   } catch (error: any) {
@@ -1358,7 +1384,10 @@ async function deleteTask() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  refreshTimerDesktopNotificationPermission()
+  void load()
+})
 onBeforeUnmount(() => {
   if (partyFilterSearchTimer) clearTimeout(partyFilterSearchTimer)
   if (taskPartySearchTimer) clearTimeout(taskPartySearchTimer)
@@ -1564,6 +1593,14 @@ onBeforeUnmount(() => {
           <USwitch v-model="boardAllowTimerDraft" />
           <span><span class="block font-medium">Permitir temporizador en las tareas</span><span class="mt-1 block text-sm text-muted">Cada persona puede iniciar, pausar y finalizar el tiempo desde una tarea. Al finalizar, se suma al historial de tiempo insumido.</span></span>
         </label>
+        <UFormField label="Tope máximo del temporizador" description="Al alcanzar el límite, se detiene automáticamente y guarda el tiempo con una nota de autoapagado.">
+          <USelectMenu v-model="boardTimerMaxHoursDraft" :items="Array.from({ length: 8 }, (_, index) => ({ label: `${index + 1} ${index === 0 ? 'hora' : 'horas'}`, value: index + 1 }))" value-key="value" class="w-full" :ui="selectMenuUi" />
+        </UFormField>
+        <div v-if="boardAllowTimerDraft" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default p-4">
+          <div class="min-w-0"><p class="font-medium">Aviso en el escritorio</p><p class="text-sm text-muted">Puede avisar cuando la aplicación esté en otra pestaña, si el navegador concede permiso. Para abrirla, hay que hacer clic en el aviso.</p></div>
+          <UButton v-if="timerDesktopNotificationPermission === 'default'" label="Habilitar aviso" icon="i-lucide-bell-ring" color="neutral" variant="outline" @click="requestTimerDesktopNotifications" />
+          <UBadge v-else :color="timerDesktopNotificationPermission === 'granted' ? 'success' : 'neutral'" variant="subtle">{{ timerDesktopNotificationPermission === 'granted' ? 'Habilitado' : timerDesktopNotificationPermission === 'denied' ? 'Bloqueado en el navegador' : 'No disponible' }}</UBadge>
+        </div>
         <label class="flex items-start gap-3 rounded-lg border border-default p-4">
           <USwitch v-model="boardRequireWorkLogDraft" />
           <span><span class="block font-medium">Exigir tiempo al cambiar de estado</span><span class="mt-1 block text-sm text-muted">Al mover, completar o reabrir una tarea, se deberá indicar cuánto tiempo llevó el trabajo. También se puede seguir registrando tiempo manualmente desde el detalle.</span></span>

@@ -6,7 +6,7 @@ import type {
   InternationalOperation,
   OperationStatus,
   ContainerStatus,
-  CreateOperationInput,
+  CreateOperationWithContainerInput,
   UpdateOperationInput,
   CreateContainerInput,
   UpdateContainerInput,
@@ -31,7 +31,7 @@ export function useInternationalOperations() {
     await store.fetchAll(params)
   }
 
-  const create = async (payload: CreateOperationInput) => store.create(payload)
+  const create = async (payload: CreateOperationWithContainerInput) => store.create(payload)
   const update = async (id: string, payload: UpdateOperationInput) => store.update(id, payload)
   const updateStatus = async (id: string, status: string) => store.updateStatus(id, status)
   const remove = async (id: string) => store.remove(id)
@@ -48,6 +48,7 @@ export function useInternationalOperations() {
   const associateQuote = async (opId: string, docId: string, assignment: Parameters<typeof store.associateQuote>[2]) => store.associateQuote(opId, docId, assignment)
   const updateQuoteStatus = async (opId: string, quoteId: string, status: string) => store.updateQuoteStatus(opId, quoteId, status)
   const disassociateQuote = async (opId: string, quoteId: string) => store.disassociateQuote(opId, quoteId)
+  const cancelAndDisassociateQuote = async (opId: string, quoteId: string) => store.cancelAndDisassociateQuote(opId, quoteId)
 
   const createContainer = async (opId: string, payload: CreateContainerInput) => store.createContainer(opId, payload)
   const findOneContainer = async (containerId: string) => store.findOneContainer(containerId)
@@ -230,6 +231,7 @@ export function useInternationalOperations() {
     associateQuote,
     updateQuoteStatus,
     disassociateQuote,
+    cancelAndDisassociateQuote,
     createContainer,
     findOneContainer,
     updateContainer,

@@ -157,6 +157,7 @@ export interface Document {
     direction: number
     category?: string | null
     affects_payment?: boolean
+    requires_fiscal_authorization?: boolean | null
   } | null
 
   commercial_operation?: {

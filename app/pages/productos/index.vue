@@ -13,8 +13,12 @@ import {
 import { useExcelExport } from '~/composables/useExcelExport'
 import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 import { useCategoriesStore } from '~/modulos/almacen/categories/store/categories.store'
-import type { Category } from '~/modulos/almacen/categories/types/categories.types'
 import { useTagsStore } from '~/modulos/almacen/tags/store/tags.store'
+import ProductTaxonomyFilters from '~/components/erp/products/ProductTaxonomyFilters.vue'
+import {
+  buildProductCategoryFilterOptions,
+  buildProductTagFilterOptions,
+} from '~/components/erp/products/product-taxonomy.utils'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
 
@@ -49,28 +53,14 @@ const { isOwnerOrAdmin } = useCompanyRole()
 const canReadCategories = computed(() => isOwnerOrAdmin.value || hasPermission('categories.read'))
 const canReadTags = computed(() => isOwnerOrAdmin.value || hasPermission('tags.read'))
 
-const categoryOptions = computed(() => {
-  if (!canReadCategories.value) return undefined
-  const categoriesById = new Map<string, Category>(categoryStore.items.map((category) => [category.id, category]))
-  const getPath = (category: Category) => {
-    const path: string[] = []
-    const visited = new Set<string>()
-    let current: Category | undefined = category
-    while (current && !visited.has(current.id)) {
-      visited.add(current.id)
-      path.unshift(current.name)
-      current = current.parent_id ? categoriesById.get(current.parent_id) : undefined
-    }
-    return path.join(' › ')
-  }
-  return categoryStore.items
-    .map((category) => ({ label: getPath(category), value: category.id }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'es-AR'))
-})
-
-const tagOptions = computed(() => canReadTags.value
-  ? tagsStore.items.map((tag) => ({ label: tag.name, value: tag.id }))
+const categoryTreeOptions = computed(() => canReadCategories.value
+  ? buildProductCategoryFilterOptions(categoryStore.items)
   : undefined)
+
+const categoryOptions = computed(() => categoryTreeOptions.value?.map(({ path, value }) => ({ label: path, value }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'es-AR')))
+
+const tagOptions = computed(() => canReadTags.value ? buildProductTagFilterOptions(tagsStore.items) : undefined)
 
 onMounted(() => {
   const requests: Promise<unknown>[] = []
@@ -131,6 +121,9 @@ const CALC_TYPE_OPTIONS = [
 const openCreate = () => {
   open.value = true
 }
+const openDetails = (row: any) => {
+  router.push(`/productos/${row.id}`)
+}
 const openEdit = (row: any) => {
   router.push(`/productos/${row.id}/edit`)
 }
@@ -149,12 +142,7 @@ function onSortFieldSelect(columnId: string) {
    DELETE
 --------------------------------------- */
 
-const { deleteOne, deleteMany } = useTableDelete('products')
-
-async function handleDeleteOne(row: any) {
-  await deleteOne(row.id)
-  await refresh()
-}
+const { deleteMany } = useTableDelete('products')
 
 async function handleBulkDelete(rows: any[]) {
   await deleteMany(rows.map(r => r.id))
@@ -162,8 +150,8 @@ async function handleBulkDelete(rows: any[]) {
 }
 
 const columns = computed(() => productColumns({
+  onView: openDetails,
   onEdit: openEdit,
-  onDelete: handleDeleteOne,
   onSortFieldSelect,
   categoryOptions: categoryOptions.value,
   tagOptions: tagOptions.value
@@ -172,10 +160,7 @@ const columns = computed(() => productColumns({
 const serverTable = useServerTable((query) => productsStore.fetchPage(query))
 const { page, pageSize, search, sorting: serverSorting, filters, refresh } = serverTable
 const ALL_CATEGORIES_VALUE = '__all_categories__'
-const categoryFilterOptions = computed(() => [
-  { label: 'Todas las categorías', value: ALL_CATEGORIES_VALUE },
-  ...(categoryOptions.value ?? [])
-])
+const ALL_TAGS_VALUE = '__all_tags__'
 const selectedCategory = computed<string>({
   get: () => String(filters.value.find(filter => filter.column === 'category_id')?.value ?? ALL_CATEGORIES_VALUE),
   set: (value) => {
@@ -194,6 +179,33 @@ const selectedCategory = computed<string>({
     filters.value = otherFilters
     page.value = 1
   }
+})
+const selectedCategoryIds = computed({
+  get: () => selectedCategory.value === ALL_CATEGORIES_VALUE ? [] : [selectedCategory.value],
+  set: (values: string[]) => { selectedCategory.value = values[0] ?? ALL_CATEGORIES_VALUE },
+})
+const selectedTag = computed<string>({
+  get: () => String(filters.value.find(filter => filter.column === 'tag_id')?.value ?? ALL_TAGS_VALUE),
+  set: (value) => {
+    const currentTagFilter = filters.value.find(filter => filter.column === 'tag_id')
+    const otherFilters = filters.value.filter(filter => filter.column !== 'tag_id')
+
+    if (value !== ALL_TAGS_VALUE) {
+      otherFilters.push({
+        id: currentTagFilter?.id ?? 'products-tag-quick-filter',
+        column: 'tag_id',
+        operator: 'equals',
+        value,
+      })
+    }
+
+    filters.value = otherFilters
+    page.value = 1
+  },
+})
+const selectedTagIds = computed({
+  get: () => selectedTag.value === ALL_TAGS_VALUE ? [] : [selectedTag.value],
+  set: (values: string[]) => { selectedTag.value = values[0] ?? ALL_TAGS_VALUE },
 })
 watch(serverSorting, value => { sorting.value = value }, { deep: true })
 watch(sorting, value => { serverSorting.value = value }, { deep: true })
@@ -389,27 +401,27 @@ const sortFields: SortField[] = [
     </AppPageHeader>
 
     <div
-      v-if="canReadCategories && categoryOptions?.length"
-      class="flex flex-col gap-3 rounded-lg border border-default bg-elevated/30 p-3 sm:flex-row sm:items-center sm:justify-between"
+      v-if="(canReadCategories && categoryTreeOptions?.length) || (canReadTags && tagOptions?.length)"
+      class="flex flex-col gap-3 rounded-xl border border-default bg-elevated/20 p-3 sm:flex-row sm:items-end"
     >
-      <div class="flex items-start gap-2">
-        <UIcon name="i-lucide-tags" class="mt-0.5 size-4 shrink-0 text-primary" />
-        <div>
-          <p class="text-sm font-medium">Explorar por categoría</p>
-          <p class="text-xs text-muted">Filtrá el catálogo sin salir del listado.</p>
+      <div class="flex items-center gap-2 sm:mr-2 sm:self-center">
+        <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <UIcon name="i-lucide-list-filter" class="size-4" />
+        </div>
+        <div class="min-w-0">
+          <p class="text-sm font-medium">Filtrar productos</p>
+          <p class="text-xs text-muted">Categoría y etiqueta</p>
         </div>
       </div>
-      <UFormField label="Categoría" class="w-full sm:w-80">
-        <USelectMenu
-          v-model="selectedCategory"
-          :items="categoryFilterOptions"
-          value-key="value"
-          searchable
-          placeholder="Buscar categoría..."
-          class="w-full"
-          aria-label="Filtrar productos por categoría"
-        />
-      </UFormField>
+
+      <ProductTaxonomyFilters
+        v-model:category-ids="selectedCategoryIds"
+        v-model:tag-ids="selectedTagIds"
+        :categories="categoryStore.items"
+        :tags="tagsStore.items"
+        :show-categories="canReadCategories"
+        :show-tags="canReadTags"
+      />
     </div>
 
     <LogisticaTable
@@ -419,11 +431,13 @@ const sortFields: SortField[] = [
       :loading="loading"
       :data="products"
       :columns="columns"
-      :on-row-click="openEdit"
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       v-model:sorting="sorting"
+      selectable
       :on-delete="handleBulkDelete"
+      :get-row-id="(row: any) => row.id"
+      :on-row-click="openDetails"
       server-side
       search-placeholder="Buscar por nombre o SKU..."
       :page-size="pageSize"

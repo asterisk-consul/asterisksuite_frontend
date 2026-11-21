@@ -2,39 +2,54 @@
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import DocumentStatusVisibilityPopover from '~/components/erp/documents/DocumentStatusVisibilityPopover.vue'
 import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
 import { useServerTable } from '~/composables/table/useServerTable'
-import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
+import { getCategoryStatuses } from '~/modulos/erp/documents/types/document-statuses'
+import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
 
 const router = useRouter()
+const toast = useToast()
 const store = useDocumentsSalesStore()
+const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=REMITO')
 
-const showCancelled = ref(false)
+const hiddenStatusKeys = ref<string[]>([])
+const statusVisibilityGroups = computed(() => [{
+  category: 'REMITO',
+  direction: 1 as const,
+  label: 'Remitos',
+  options: getCategoryStatuses('REMITO'),
+}])
+const cancelTarget = ref<any | null>(null)
+const cancelModalOpen = ref(false)
+const cancelProcessing = ref(false)
 const documents = computed(() => store.items ?? [])
-const visibleDocuments = computed(() => showCancelled.value
-  ? documents.value
-  : documents.value.filter(document => !isDocumentCancelled('REMITO', document.status)))
-const loading = computed(() => store.loading)
-const serverTable = useServerTable((query) => store.fetchPage({ ...query, category: 'REMITO', excludeCancelled: !showCancelled.value }))
-const { page, pageSize, search, sorting, filters, refresh } = serverTable
-const cancelledStatusFilterActive = computed(() => filters.value.some((filter) =>
-  filter.column === 'status' && Number(filter.value) === 3
+const visibleDocuments = computed(() => documents.value.filter(document =>
+  !hiddenStatusKeys.value.includes(`REMITO:${document.status}`),
 ))
-watch(showCancelled, (show) => {
-  if (!show && cancelledStatusFilterActive.value) {
-    filters.value = filters.value.filter((filter) => !(filter.column === 'status' && Number(filter.value) === 3))
-    return
-  }
+const loading = computed(() => store.loading)
+const serverTable = useServerTable((query) => store.fetchPage({
+  ...query,
+  category: 'REMITO',
+  excludeStatuses: hiddenStatusKeys.value.join(',') || undefined,
+}))
+const { page, pageSize, search, sorting, filters, refresh } = serverTable
+watch(hiddenStatusKeys, () => {
   page.value = 1
-  refresh()
-})
-watch(cancelledStatusFilterActive, (active) => {
-  if (active && !showCancelled.value) showCancelled.value = true
-}, { immediate: true })
+  void refresh()
+}, { deep: true })
+watch(filters, (currentFilters) => {
+  const selectedStatuses = currentFilters
+    .filter(filter => filter.column === 'status' && /^\d+$/.test(String(filter.value)))
+    .map(filter => `REMITO:${Number(filter.value)}`)
+  if (selectedStatuses.some(key => hiddenStatusKeys.value.includes(key))) {
+    hiddenStatusKeys.value = hiddenStatusKeys.value.filter(key => !selectedStatuses.includes(key))
+  }
+}, { deep: true })
 
 const stats = computed(() => {
   const docs = documents.value
@@ -57,9 +72,53 @@ function openDocument(row: any) {
   router.push(`/erp/remitos/${row.id}`)
 }
 
+function editDocument(row: any) {
+  router.push(`/erp/sales/${row.id}/edit`)
+}
+
+function openCancelModal(row: any) {
+  cancelTarget.value = row
+  cancelModalOpen.value = true
+}
+
+async function confirmCancelRemito() {
+  if (!cancelTarget.value || cancelProcessing.value) return
+  cancelProcessing.value = true
+  try {
+    await store.cancel(cancelTarget.value.id)
+    await refresh()
+    toast.add({ title: 'Remito anulado', color: 'success' })
+    cancelModalOpen.value = false
+    cancelTarget.value = null
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo anular el remito',
+      description: error?.data?.message || error?.message || 'Revisá los efectos operativos asociados.',
+      color: 'error'
+    })
+  } finally {
+    cancelProcessing.value = false
+  }
+}
+
+function getRemitoRowActions(row: any) {
+  const status = Number(row.status)
+  const actions: any[] = []
+  if ([0, 1].includes(status) && row.amounts_visible !== false && canDocument('sales', 'REMITO', 'update')) {
+    actions.push({ label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => editDocument(row) })
+  }
+  if (status === 0 && canDocument('sales', 'REMITO', 'cancel')) {
+    actions.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onSelect: () => openCancelModal(row) })
+  }
+  actions.push({ label: 'Abrir remito', icon: 'i-lucide-arrow-up-right', onSelect: () => openDocument(row) })
+  return [actions]
+}
+
 const columns = computed(() =>
   createSalesColumns({
     onOpen: openDocument,
+    getRowActions: getRemitoRowActions,
+    actionsFirst: true,
     showAmounts: false,
     showCreator: isOwnerOrAdmin.value,
     statusFilterOptions: statusOptions.filter((option): option is { label: string; value: number } => option.value !== undefined)
@@ -124,15 +183,8 @@ const statusOptions = [
         </UPageCard>
       </div>
 
-      <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
-        <div>
-          <p class="text-sm font-medium">Visibilidad de remitos</p>
-          <p class="text-xs text-muted">Podés incluir los remitos cancelados en este listado.</p>
-        </div>
-        <label class="flex shrink-0 items-center gap-2 text-sm text-muted">
-          <span>Mostrar cancelados</span>
-          <USwitch v-model="showCancelled" aria-label="Mostrar remitos cancelados" />
-        </label>
+      <div class="flex justify-end">
+        <DocumentStatusVisibilityPopover v-model:hidden-status-keys="hiddenStatusKeys" :groups="statusVisibilityGroups" />
       </div>
 
       <LogisticaTable
@@ -151,5 +203,16 @@ const statusOptions = [
         :on-row-click="openDocument"
       />
     </div>
+
+    <UModal v-model:open="cancelModalOpen" title="Anular remito" :dismissible="!cancelProcessing">
+      <template #body>
+        <p v-if="cancelTarget">¿Anular el remito <strong>#{{ cancelTarget.number }}</strong>?</p>
+        <p class="mt-2 text-sm text-muted">Se validarán los efectos operativos asociados antes de anularlo.</p>
+        <div class="flex justify-end gap-2 pt-4">
+          <UButton label="Cancelar" variant="ghost" :disabled="cancelProcessing" @click="cancelModalOpen = false" />
+          <UButton label="Anular" color="error" :loading="cancelProcessing" @click="confirmCancelRemito" />
+        </div>
+      </template>
+    </UModal>
   </UPage>
 </template>

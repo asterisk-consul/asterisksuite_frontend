@@ -5,7 +5,7 @@ import { activeCompanyId, readTenantResourceCache, writeTenantResourceCache } fr
 
 import type { ProductTag } from '~/modulos/logistica/master-data/product-tags/types/product-tags.types'
 import type { Category } from '~/modulos/almacen/categories/types/categories.types'
-import { useProductsService } from '~/modulos/logistica/master-data/product/service/product.service'
+import { useProductsService, type ProductSearchFilters } from '~/modulos/logistica/master-data/product/service/product.service'
 
 import type {
   Product,
@@ -101,9 +101,9 @@ export const useProductsStore = defineStore('products', () => {
     return fetchPromise
   }
 
-  const search = async (query: string, usage?: 'sale' | 'purchase' | null, signal?: AbortSignal) => {
+  const search = async (query: string, usage?: 'sale' | 'purchase' | null, signal?: AbortSignal, filters?: ProductSearchFilters) => {
     prepareCache()
-    const data = await service.search(query, usage, signal)
+    const data = await service.search(query, usage, signal, filters)
     const merged = new Map(items.value.map(product => [product.id, product]))
     for (const product of data) merged.set(product.id, product)
     items.value = [...merged.values()]

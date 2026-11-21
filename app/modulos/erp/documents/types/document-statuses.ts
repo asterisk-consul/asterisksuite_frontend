@@ -8,7 +8,7 @@ export const QUOTE_STATUSES: Record<number, string> = {
   3: 'Rechazado',
   4: 'Vencido',
   5: 'Convertido',
-  6: 'Cancelado',
+  6: 'Anulado',
 }
 
 export const QUOTE_STATUS_DESCRIPTIONS: Record<number, string> = {
@@ -18,7 +18,7 @@ export const QUOTE_STATUS_DESCRIPTIONS: Record<number, string> = {
   3: 'Cliente rechazó el presupuesto',
   4: 'Presupuesto vencido, validez expirada',
   5: 'Presupuesto convertido en Orden de Venta',
-  6: 'Presupuesto cancelado',
+  6: 'Presupuesto anulado',
 }
 
 export const ORDER_STATUSES: Record<number, string> = {
@@ -115,6 +115,24 @@ export function getCancelledDocumentStatus(category: string | null | undefined, 
 
 export function isDocumentCancelled(category: string | null | undefined, status: number, direction = 1): boolean {
   return status === getCancelledDocumentStatus(category, direction)
+}
+
+export function isDocumentStatusHiddenByDefault(
+  category: string | null | undefined,
+  status: number,
+  direction = 1,
+): boolean {
+  if (category === 'QUOTE') return [3, 4, 5, 6].includes(status)
+  if (category === 'ORDER') {
+    return direction === -1
+      ? [3, 5, 6, 7, 8].includes(status)
+      : [5, 6, 7, 8].includes(status)
+  }
+  if (category === 'REMITO') return [2, 3].includes(status)
+  if (['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'RECEIPT'].includes(category ?? '')) {
+    return status === 3
+  }
+  return false
 }
 
 const DESCRIPTION_MAPS: Record<string, Record<number, string>> = {

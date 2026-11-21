@@ -107,7 +107,7 @@ const QUOTE_STATUSES: Record<number, string> = {
   3: 'Rechazado',
   4: 'Vencido',
   5: 'Convertido',
-  6: 'Cancelado'
+  6: 'Anulado'
 }
 
 function getStatusLabel(cat: string, status: number): string {

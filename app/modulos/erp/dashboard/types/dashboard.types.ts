@@ -156,6 +156,25 @@ export interface DashboardDocumentCounts {
 }
 
 export interface PersonalActivity {
+  id: string
+  table: string
+  kind: string
+  title: string
+  action: string
+  date: string
+  detail: string
+  to: string | null
+}
+
+export interface PersonalCompletedTask {
+  id: string
+  title: string
+  board: string
+  date: string
+  to: string
+}
+
+export interface PersonalRecentActivity {
   table: string
   action: string
   date: string
@@ -163,11 +182,19 @@ export interface PersonalActivity {
 }
 
 export interface DashboardPersonal {
-  recentActivity: PersonalActivity[]
+  activityDate: string
+  todayActivities: PersonalActivity[]
+  activityCount: number
+  activityPage: number
+  activityHasMore: boolean
+  tasksEnabled: boolean
+  completedTasks: PersonalCompletedTask[]
+  completedTasksCount: number
+  recentActivity: PersonalRecentActivity[]
   pendingDocuments: number
   pendingItems: {
     id: string
-    kind: 'DOCUMENT' | 'CAPTURE'
+    kind: 'DOCUMENT' | 'CAPTURE' | 'TASK'
     title: string
     detail: string
     reference?: string

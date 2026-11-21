@@ -9,6 +9,11 @@ import { DocumentsPurchasesService } from '~/modulos/erp/purchases/purchases-doc
 import { useInternationalOperationsService } from '~/modulos/international-operations/service/international-operations.service'
 import type { BusinessParty } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
 import ProductPickerField from '~/components/erp/products/ProductPickerField.vue'
+import { useCategoriesStore } from '~/modulos/almacen/categories/store/categories.store'
+import { useTagsStore } from '~/modulos/almacen/tags/store/tags.store'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
+import { useCompanyRole } from '~/composables/useCompanyRole'
+import { useAuthStore } from '~/modulos/auth/auth.store'
 import QuoteAssignmentFields from './QuoteAssignmentFields.vue'
 import type { QuoteAssignmentInput } from '~/modulos/international-operations/types/international-operations.types'
 
@@ -31,11 +36,17 @@ const toast = useToast()
 const partiesService = useBusinessPartiesService()
 const operationsService = useInternationalOperationsService()
 const productsStore = useProductsStore()
+const categoriesStore = useCategoriesStore()
+const tagsStore = useTagsStore()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
+const { isOwnerOrAdmin } = useCompanyRole()
+const auth = useAuthStore()
 const docTypes = useDocumentTypes()
 const { init: initCurrencies, codeSelectItems: currencyOptions } = useCurrencies()
 const { items: allProductOptions } = useProducts('purchase')
 
 const loading = ref(false)
+const createdDocumentId = ref<string | null>(null)
 const assignment = ref<QuoteAssignmentInput>({ container_id: '', expense_type: 'MERCHANDISE' })
 const remoteParties = ref<BusinessParty[]>([])
 const selectedPartyFallback = ref<BusinessParty | null>(null)
@@ -48,6 +59,12 @@ const selectedProduct = ref<any>(undefined)
 const productSearch = ref('')
 const productSearching = ref(false)
 const remoteProductIds = ref<string[]>([])
+const productTaxonomyFilters = ref<{ categoryIds: string[], tagIds: string[] }>({ categoryIds: [], tagIds: [] })
+const canReadCategories = computed(() => isOwnerOrAdmin.value || hasPermission('categories.read'))
+const canReadTags = computed(() => isOwnerOrAdmin.value || hasPermission('tags.read'))
+const isCompanyOwner = computed(() => String(auth.selectedCompany?.role ?? '').toUpperCase() === 'OWNER')
+const canReadAttachments = computed(() => isCompanyOwner.value || hasPermission('media.read'))
+const canUploadAttachments = computed(() => canReadAttachments.value && (isCompanyOwner.value || hasPermission('media.upload')))
 let productSearchTimer: ReturnType<typeof setTimeout> | undefined
 let productSearchController: AbortController | undefined
 let productSearchRequestId = 0
@@ -108,7 +125,7 @@ const searchProducts = (query: string, immediate = false) => {
     const controller = new AbortController()
     productSearchController = controller
     try {
-      const results = await productsStore.search(term, 'purchase', controller.signal)
+      const results = await productsStore.search(term, 'purchase', controller.signal, productTaxonomyFilters.value)
       if (requestId === productSearchRequestId) remoteProductIds.value = results.map(product => product.id)
     } catch (error: any) {
       if (requestId !== productSearchRequestId || error?.name === 'AbortError') return
@@ -117,7 +134,14 @@ const searchProducts = (query: string, immediate = false) => {
           const fallback = await productsStore.fetchAll()
           if (requestId === productSearchRequestId) {
             remoteProductIds.value = fallback
-              .filter(product => product.usage_type === 'PURCHASE' || product.usage_type === 'BOTH')
+              .filter((product) => {
+                if (product.usage_type !== 'PURCHASE' && product.usage_type !== 'BOTH') return false
+                if (productTaxonomyFilters.value.categoryIds.length
+                  && !product.product_categories?.some(category => productTaxonomyFilters.value.categoryIds.includes(category.category_id))) return false
+                if (productTaxonomyFilters.value.tagIds.length
+                  && !product.product_tags?.some(tag => productTaxonomyFilters.value.tagIds.includes(tag.tag_id))) return false
+                return true
+              })
               .map(product => product.id)
           }
           return
@@ -191,10 +215,24 @@ onMounted(async () => {
     initCurrencies()
   ])
   if (props.open) {
+    void loadProductTaxonomies()
     searchParties('', true)
     searchProducts('', true)
   }
 })
+
+async function loadProductTaxonomies() {
+  await fetchMyPermissionsIfNeeded().catch(() => {})
+  const requests: Promise<unknown>[] = []
+  if (canReadCategories.value && !categoriesStore.items.length) requests.push(categoriesStore.fetchAll())
+  if (canReadTags.value && !tagsStore.items.length) requests.push(tagsStore.fetchAll())
+  await Promise.allSettled(requests)
+}
+
+function updateProductTaxonomyFilters(filters: { categoryIds: string[], tagIds: string[], query: string }) {
+  productTaxonomyFilters.value = { categoryIds: filters.categoryIds, tagIds: filters.tagIds }
+  searchProducts(filters.query, true)
+}
 
 watch(partySearch, value => searchParties(value))
 watch(productSearch, value => searchProducts(value))
@@ -207,6 +245,9 @@ onBeforeUnmount(() => {
 
 watch(() => props.open, (open) => {
   if (open) {
+    createdDocumentId.value = null
+    productTaxonomyFilters.value = { categoryIds: [], tagIds: [] }
+    void loadProductTaxonomies()
     assignment.value = { container_id: props.containers?.length === 1 ? props.containers[0]!.id : '', expense_type: 'MERCHANDISE' }
     form.currency_code = props.operationCurrencyCode ?? 'USD'
     partySearch.value = ''
@@ -227,7 +268,7 @@ const isValid = computed(() =>
 
 const handleSubmit = async () => {
   if (!isValid.value) return
-  let createdDocumentId: string | null = null
+  let persistedDocumentId: string | null = null
   try {
     loading.value = true
     const containers = await operationsService.findAllContainers(props.operationId)
@@ -245,20 +286,20 @@ const handleSubmit = async () => {
         taxes: []
       }))
     })
-    createdDocumentId = created.id
+    persistedDocumentId = created.id
     await operationsService.associateQuote(props.operationId, created.id, assignment.value)
-    toast.add({ title: 'Presupuesto creado y asociado', color: 'success' })
+    createdDocumentId.value = created.id
+    toast.add({ title: 'Presupuesto creado y asociado', description: 'Ahora podés adjuntar archivos o terminar.', color: 'success' })
     emit('created', created.id)
-    emit('update:open', false)
   } catch (e: any) {
-    if (createdDocumentId) {
+    if (persistedDocumentId) {
       toast.add({
         title: 'Presupuesto creado, falta asociarlo',
-        description: `Se creó el comprobante ${createdDocumentId}. No lo vuelvas a crear: cerrá esta ventana y usá “Asociar presupuesto” para vincularlo.`,
+        description: `Se creó el comprobante ${persistedDocumentId}. No lo vuelvas a crear: cerrá esta ventana y usá “Asociar presupuesto” para vincularlo.`,
         color: 'warning',
         icon: 'i-lucide-link'
       })
-      emit('created', createdDocumentId)
+      emit('created', persistedDocumentId)
       emit('update:open', false)
       return
     }
@@ -277,13 +318,49 @@ const handleSubmit = async () => {
 <template>
   <UModal
     :open="props.open"
-    title="Crear presupuesto"
-    description="Registrá la propuesta del proveedor y comparala dentro de esta operación."
+    :title="createdDocumentId ? 'Adjuntar archivos' : 'Crear presupuesto'"
+    :description="createdDocumentId ? 'El presupuesto ya quedó asociado a la operación.' : 'Registrá la propuesta del proveedor; al guardarla vas a poder adjuntar imágenes o PDF.'"
     :ui="{ content: 'w-[calc(100vw-2rem)] sm:max-w-5xl max-h-[92vh]', body: 'overflow-y-auto' }"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
-      <div class="space-y-5">
+      <div v-if="createdDocumentId" class="space-y-4">
+        <UAlert
+          icon="i-lucide-check-circle-2"
+          color="success"
+          variant="subtle"
+          title="Presupuesto creado y asociado"
+          description="Adjuntá acá la cotización, imágenes o documentación del proveedor. También podés cerrar y hacerlo más tarde desde la tarjeta del presupuesto."
+        />
+        <UiAttachmentManager
+          v-if="canReadAttachments"
+          :key="createdDocumentId"
+          entity-type="document"
+          :entity-id="createdDocumentId"
+          heading="Archivos del presupuesto"
+          hint="Imágenes hasta 5 MB o archivos PDF hasta 10 MB."
+          :readonly="!canUploadAttachments"
+          :allow-upload="canUploadAttachments"
+          :default-expanded="true"
+        />
+        <UAlert
+          v-else
+          icon="i-lucide-lock-keyhole"
+          color="warning"
+          variant="subtle"
+          title="No tenés permiso para consultar adjuntos"
+          description="El presupuesto quedó guardado. Pedile al administrador el permiso para ver archivos; después vas a poder agregarlos desde esta pantalla o desde el detalle del presupuesto."
+        />
+        <UAlert
+          v-if="canReadAttachments && !canUploadAttachments"
+          icon="i-lucide-info"
+          color="neutral"
+          variant="subtle"
+          title="Carga de archivos no habilitada para tu usuario"
+          description="Podés consultar los adjuntos existentes. Para agregar archivos necesitás el permiso de carga de medios."
+        />
+      </div>
+      <div v-else class="space-y-5">
         <QuoteAssignmentFields v-model="assignment" :containers="props.containers ?? []" :document-currency-code="form.currency_code" :operation-currency-code="props.operationCurrencyCode ?? 'USD'" :disabled="loading" />
         <section class="rounded-xl border border-default bg-muted/20 p-4 sm:p-5">
           <div class="mb-4 flex items-start gap-3">
@@ -358,7 +435,12 @@ const handleSubmit = async () => {
           <ProductPickerField
             v-model="selectedProduct"
             v-model:search-term="productSearch"
+            v-model:category-ids="productTaxonomyFilters.categoryIds"
+            v-model:tag-ids="productTaxonomyFilters.tagIds"
             :items="productOptions"
+            :categories="categoriesStore.items"
+            :tags="tagsStore.items"
+            show-taxonomy-filters
             :loading="productSearching"
             :disabled="loading"
             :active="props.open"
@@ -369,6 +451,7 @@ const handleSubmit = async () => {
             field-description="Buscá por código o nombre; los resultados aparecen mientras escribís."
             placeholder="Buscar producto por código o nombre..."
             @add="addItem"
+            @taxonomy-filter="updateProductTaxonomyFilters"
           />
 
           <div class="space-y-3">
@@ -426,7 +509,10 @@ const handleSubmit = async () => {
     </template>
 
     <template #footer>
-      <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <div v-if="createdDocumentId" class="flex w-full justify-end">
+        <UButton label="Listo" icon="i-lucide-check" @click="emit('update:open', false)" />
+      </div>
+      <div v-else class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <UButton
           label="Cancelar"
           variant="ghost"

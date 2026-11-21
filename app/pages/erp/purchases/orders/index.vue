@@ -2,41 +2,55 @@
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import DocumentStatusVisibilityPopover from '~/components/erp/documents/DocumentStatusVisibilityPopover.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { createPurchasesColumns } from '~/modulos/erp/purchases/columns'
 import { useServerTable } from '~/composables/table/useServerTable'
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
-import { isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
+import { getDocumentStatusOptions, isDocumentCancelled } from '~/modulos/erp/documents/types/document-statuses'
 import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vue'
 
 const router = useRouter()
+const toast = useToast()
 const store = useDocumentsPurchasesStore()
 const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/purchases/orders/new')
 
-const showCancelled = ref(false)
+const hiddenStatusKeys = ref<string[]>([])
+const statusVisibilityGroups = computed(() => [{
+  category: 'ORDER',
+  direction: -1 as const,
+  label: 'Órdenes de compra',
+  options: getDocumentStatusOptions('ORDER', -1),
+}])
+const cancelTarget = ref<any | null>(null)
+const cancelModalOpen = ref(false)
+const cancelProcessing = ref(false)
 const documents = computed(() => store.items ?? [])
-const visibleDocuments = computed(() => showCancelled.value
-  ? documents.value
-  : documents.value.filter(document => !isDocumentCancelled('ORDER', document.status, -1)))
-const loading = computed(() => store.loading)
-const serverTable = useServerTable((query) => store.fetchPage({ ...query, category: 'ORDER', direction: -1, excludeCancelled: !showCancelled.value }))
-const { page, pageSize, search, sorting, filters, refresh } = serverTable
-const cancelledStatusFilterActive = computed(() => filters.value.some((filter) =>
-  filter.column === 'status' && Number(filter.value) === 3
+const visibleDocuments = computed(() => documents.value.filter(document =>
+  !hiddenStatusKeys.value.includes(`ORDER:${document.status}`),
 ))
-watch(showCancelled, (show) => {
-  if (!show && cancelledStatusFilterActive.value) {
-    filters.value = filters.value.filter((filter) => !(filter.column === 'status' && Number(filter.value) === 3))
-    return
-  }
+const loading = computed(() => store.loading)
+const serverTable = useServerTable((query) => store.fetchPage({
+  ...query,
+  category: 'ORDER',
+  direction: -1,
+  excludeStatuses: hiddenStatusKeys.value.join(',') || undefined,
+}))
+const { page, pageSize, search, sorting, filters, refresh } = serverTable
+watch(hiddenStatusKeys, () => {
   page.value = 1
-  refresh()
-})
-watch(cancelledStatusFilterActive, (active) => {
-  if (active && !showCancelled.value) showCancelled.value = true
-}, { immediate: true })
+  void refresh()
+}, { deep: true })
+watch(filters, (currentFilters) => {
+  const selectedStatuses = currentFilters
+    .filter(filter => filter.column === 'status' && /^\d+$/.test(String(filter.value)))
+    .map(filter => `ORDER:${Number(filter.value)}`)
+  if (selectedStatuses.some(key => hiddenStatusKeys.value.includes(key))) {
+    hiddenStatusKeys.value = hiddenStatusKeys.value.filter(key => !selectedStatuses.includes(key))
+  }
+}, { deep: true })
 
 const stats = computed(() => {
   const docs = documents.value
@@ -62,6 +76,72 @@ function duplicateDocument(row: any) {
   router.push({ path: '/erp/purchases/orders/new', query: { duplicate_id: row.id } })
 }
 
+function editDocument(row: any) {
+  router.push(`/erp/purchases/orders/${row.id}/edit`)
+}
+
+function canCancelOrder(row: any) {
+  const status = Number(row.status)
+  const cancellable = status === 0 || (status >= 2 && status < 7 && !isDocumentCancelled('ORDER', status, -1))
+  return cancellable && canDocument('purchases', 'ORDER', 'cancel')
+}
+
+function openCancelModal(row: any) {
+  cancelTarget.value = row
+  cancelModalOpen.value = true
+}
+
+async function confirmCancelOrder() {
+  if (!cancelTarget.value || cancelProcessing.value) return
+  cancelProcessing.value = true
+  try {
+    await store.cancel(cancelTarget.value.id)
+    await refresh()
+    toast.add({ title: 'Orden de compra anulada', color: 'success' })
+    cancelModalOpen.value = false
+    cancelTarget.value = null
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo anular la orden',
+      description: error?.data?.message || error?.message || 'Revisá los pagos y efectos asociados.',
+      color: 'error'
+    })
+  } finally {
+    cancelProcessing.value = false
+  }
+}
+
+function getOrderRowActions(row: any) {
+  const status = Number(row.status)
+  const groups: any[][] = []
+
+  if (canDocument('purchases', 'ORDER', 'create')) {
+    groups.push([{
+      label: 'Duplicar como borrador',
+      icon: 'i-lucide-copy',
+      onSelect: () => duplicateDocument(row)
+    }])
+  }
+
+  const actions: any[] = []
+  if ([0, 1].includes(status) && row.amounts_visible !== false && canDocument('purchases', 'ORDER', 'update')) {
+    actions.push({ label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => editDocument(row) })
+  }
+  if (status === 2 && canDocument('purchases', 'INVOICE', 'create')) {
+    actions.push({
+      label: 'Crear factura',
+      icon: 'i-lucide-file-text',
+      onSelect: () => router.push(`/erp/purchases/purchases-documents/new?parent_order_id=${row.id}`)
+    })
+  }
+  if (canCancelOrder(row)) {
+    actions.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onSelect: () => openCancelModal(row) })
+  }
+  if (actions.length) groups.push(actions)
+  groups.push([{ label: 'Abrir orden', icon: 'i-lucide-arrow-up-right', onSelect: () => openDocument(row) }])
+  return groups
+}
+
 const statusFilterOptions = [
   { label: 'Borrador', value: 0 },
   { label: 'Pendiente', value: 1 },
@@ -72,6 +152,8 @@ const statusFilterOptions = [
 const columns = computed(() => createPurchasesColumns({
   onOpen: openDocument,
   onDuplicate: duplicateDocument,
+  getRowActions: getOrderRowActions,
+  actionsFirst: true,
   canDuplicate: () => canDocument('purchases', 'ORDER', 'create'),
   showCreator: isOwnerOrAdmin.value,
   statusFilterOptions
@@ -129,15 +211,8 @@ const sortFields = [
         </UPageCard>
       </div>
 
-      <div class="flex items-center justify-between gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
-        <div>
-          <p class="text-sm font-medium">Visibilidad de órdenes</p>
-          <p class="text-xs text-muted">Podés incluir las órdenes de compra anuladas en este listado.</p>
-        </div>
-        <label class="flex shrink-0 items-center gap-2 text-sm text-muted">
-          <span>Mostrar anuladas</span>
-          <USwitch v-model="showCancelled" aria-label="Mostrar órdenes de compra anuladas" />
-        </label>
+      <div class="flex justify-end">
+        <DocumentStatusVisibilityPopover v-model:hidden-status-keys="hiddenStatusKeys" :groups="statusVisibilityGroups" />
       </div>
 
       <LogisticaTable
@@ -156,5 +231,16 @@ const sortFields = [
         :on-row-click="openDocument"
       />
     </div>
+
+    <UModal v-model:open="cancelModalOpen" title="Anular orden de compra" :dismissible="!cancelProcessing">
+      <template #body>
+        <p v-if="cancelTarget">¿Anular la orden de compra <strong>#{{ cancelTarget.number }}</strong>?</p>
+        <p class="mt-2 text-sm text-muted">Se validarán los pagos y efectos operativos asociados antes de anularla.</p>
+        <div class="flex justify-end gap-2 pt-4">
+          <UButton label="Cancelar" variant="ghost" :disabled="cancelProcessing" @click="cancelModalOpen = false" />
+          <UButton label="Anular" color="error" :loading="cancelProcessing" @click="confirmCancelOrder" />
+        </div>
+      </template>
+    </UModal>
   </UPage>
 </template>

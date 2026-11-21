@@ -13,6 +13,7 @@ import {
 } from '~/modulos/erp/documents/shared/document-line-values'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { getStatusColor, getStatusLabel } from '~/modulos/erp/documents/types/document-statuses'
 
 interface Props {
   document: any
@@ -121,7 +122,13 @@ const statusLabel: Record<number, { label: string; color: string }> = {
   3: { label: 'Anulada', color: 'error' }
 }
 
-const statusInfo = computed(() => statusLabel[props.document.status] ?? { label: 'Desconocido', color: 'neutral' })
+const statusInfo = computed(() => {
+  if (props.document?.document_types?.category === 'QUOTE') {
+    const status = Number(props.document.status)
+    return { label: getStatusLabel('QUOTE', status), color: getStatusColor('QUOTE', status) }
+  }
+  return statusLabel[props.document.status] ?? { label: 'Desconocido', color: 'neutral' }
+})
 
 const allTaxes = computed(() =>
   (props.document.document_taxes ?? []).map((t: any) => ({

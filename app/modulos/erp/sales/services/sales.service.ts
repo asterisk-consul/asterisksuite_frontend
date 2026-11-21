@@ -14,6 +14,7 @@ export type SalesListParams = {
     direction?: number
     party_id?: string
     excludeCancelled?: boolean
+    excludeStatuses?: string
     excludeOpeningBalances?: boolean
     seller_id?: string
 } & Partial<ServerListParams>

@@ -3,6 +3,7 @@ import { h, resolveComponent, ref, watch, computed, reactive } from 'vue'
 
 import type { FacturaItem } from '../types/factura.types'
 import ProductPickerField from '~/components/erp/products/ProductPickerField.vue'
+import type { ProductCategoryTaxonomy, ProductTagTaxonomy } from '~/components/erp/products/product-taxonomy.utils'
 import { useProductVariants } from '~/modulos/logistica/master-data/product-variants/composable/useVariants'
 
 interface Props {
@@ -26,6 +27,8 @@ interface Props {
     categories?: { id: string, name: string }[]
     tags?: { id: string, name: string }[]
   }[]
+  categories?: ProductCategoryTaxonomy[]
+  tags?: ProductTagTaxonomy[]
 
   currencyCode?: string
   warehouses?: { value: string, label: string }[]
@@ -54,6 +57,7 @@ const emit = defineEmits<{
   'update:warehouse': [index: number, warehouseId: string | null]
   'regularize-stock': [index: number, item: FacturaItem]
   'search-products': [query: string]
+  'taxonomy-filter': [filters: { categoryIds: string[], tagIds: string[], query: string }]
 }>()
 
 const selectedProductIds = ref<string[]>([])
@@ -563,6 +567,8 @@ const columns = computed(() => [
       v-model="selectedProductIds"
       v-model:search-term="productSearch"
       :items="props.productOptions"
+      :categories="props.categories"
+      :tags="props.tags"
       value-key="value"
       multiple
       show-taxonomy-filters
@@ -574,6 +580,7 @@ const columns = computed(() => [
       :has-details="hasVariants"
       :add-disabled="!selectedProductIds.length || variantLoading || hasVariantSelectionError"
       @add="handleAdd"
+      @taxonomy-filter="emit('taxonomy-filter', $event)"
     >
       <template #details>
         <div v-if="selectedVariantProducts.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">

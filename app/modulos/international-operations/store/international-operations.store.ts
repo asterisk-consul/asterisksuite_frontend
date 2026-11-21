@@ -5,7 +5,7 @@ import type {
   InternationalOperation,
   OperationListResponse,
   OperationSummary,
-  CreateOperationInput,
+  CreateOperationWithContainerInput,
   UpdateOperationInput,
   InternationalContainer,
   CreateContainerInput,
@@ -77,7 +77,7 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
-  const create = async (payload: CreateOperationInput) => {
+  const create = async (payload: CreateOperationWithContainerInput) => {
     try {
       loading.value = true
       error.value = null
@@ -168,10 +168,11 @@ export const useInternationalOperationsStore = defineStore('international-operat
     try {
       loading.value = true
       error.value = null
-      await service.disassociateDocument(operationId, documentId)
+      const result = await service.disassociateDocument(operationId, documentId)
       if (current.value?.id === operationId) {
         await fetchOne(operationId)
       }
+      return result
     } catch (err: any) {
       error.value = err?.data?.message || 'Error al desasociar documento'
       throw err
@@ -421,6 +422,23 @@ export const useInternationalOperationsStore = defineStore('international-operat
     }
   }
 
+  const cancelAndDisassociateQuote = async (operationId: string, quoteId: string) => {
+    try {
+      loading.value = true
+      error.value = null
+      const result = await service.cancelAndDisassociateQuote(operationId, quoteId)
+      if (current.value?.id === operationId) {
+        await fetchOne(operationId)
+      }
+      return result
+    } catch (err: any) {
+      error.value = err?.data?.message || 'Error al anular y desasociar el presupuesto'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     items,
     current,
@@ -444,6 +462,7 @@ export const useInternationalOperationsStore = defineStore('international-operat
     associateQuote,
     updateQuoteStatus,
     disassociateQuote,
+    cancelAndDisassociateQuote,
     createContainer,
     findOneContainer,
     updateContainer,

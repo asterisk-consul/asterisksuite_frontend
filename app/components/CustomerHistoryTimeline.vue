@@ -15,7 +15,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: string; color: stri
   DEBIT_NOTE: { label: 'Nota de Débito', icon: 'i-lucide-file-plus', color: 'warning', borderColor: 'border-warning' },
 }
 
-const QUOTE_STATUSES: Record<number, string> = { 0: 'Borrador', 1: 'Enviado', 2: 'Aprobado', 3: 'Rechazado', 4: 'Vencido', 5: 'Convertido', 6: 'Cancelado' }
+const QUOTE_STATUSES: Record<number, string> = { 0: 'Borrador', 1: 'Enviado', 2: 'Aprobado', 3: 'Rechazado', 4: 'Vencido', 5: 'Convertido', 6: 'Anulado' }
 const ORDER_STATUSES: Record<number, string> = { 0: 'Borrador', 1: 'Aprobada', 2: 'En Preparación', 3: 'Lista Despacho', 4: 'Parcial Entregada', 5: 'Entregada', 6: 'Facturada', 7: 'Cerrada', 8: 'Cancelada' }
 const REMITO_STATUSES: Record<number, string> = { 0: 'Borrador', 1: 'En Tránsito', 2: 'Entregado', 3: 'Cancelado' }
 const INVOICE_STATUSES: Record<number, string> = { 0: 'Borrador', 1: 'Pendiente', 2: 'Confirmada', 3: 'Anulada' }

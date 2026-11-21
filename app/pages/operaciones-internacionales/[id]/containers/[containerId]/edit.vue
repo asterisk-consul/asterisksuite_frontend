@@ -32,6 +32,7 @@ const initialData = computed<Partial<CreateContainerInput>>(() => {
   if (!c) return {}
   return {
     container_number: c.container_number ?? '',
+    description: c.description ?? '',
     container_type: c.container_type,
     seal_number: c.seal_number ?? '',
     booking_number: c.booking_number ?? '',

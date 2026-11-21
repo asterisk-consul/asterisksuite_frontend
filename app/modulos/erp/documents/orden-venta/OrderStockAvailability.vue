@@ -13,6 +13,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: string 
   AVAILABLE: { label: 'Disponible', color: 'success', icon: 'i-lucide-circle-check' },
   PARTIAL: { label: 'Stock parcial', color: 'warning', icon: 'i-lucide-triangle-alert' },
   NO_PHYSICAL_STOCK: { label: 'Sin stock físico', color: 'error', icon: 'i-lucide-circle-x' },
+  NOT_TRACKED: { label: 'Sin control de stock', color: 'neutral', icon: 'i-lucide-package-open' },
 }
 </script>
 
@@ -25,7 +26,15 @@ const statusConfig: Record<string, { label: string; color: string; icon: string 
 
     <template v-else-if="availability">
       <UAlert
-        v-if="availability.summary?.without_physical_stock"
+        v-if="availability.summary?.tracked_items === 0"
+        color="neutral"
+        variant="subtle"
+        icon="i-lucide-package-open"
+        title="Los productos no requieren control de stock"
+        description="La disponibilidad de stock no bloquea la confirmación de esta orden."
+      />
+      <UAlert
+        v-else-if="availability.summary?.without_physical_stock"
         color="warning"
         variant="subtle"
         icon="i-lucide-warehouse"
@@ -57,7 +66,10 @@ const statusConfig: Record<string, { label: string; color: string; icon: string 
               />
             </div>
 
-            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <p v-if="!item.manages_stock" class="text-sm text-muted">
+              Este producto no controla existencias; no necesita depósito para la confirmación.
+            </p>
+            <div v-else class="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div class="rounded-lg bg-elevated/60 p-2.5">
                 <p class="text-xs text-muted">Solicitado</p>
                 <p class="font-semibold tabular-nums">{{ formatQuantity(item.requested) }}</p>
@@ -76,16 +88,16 @@ const statusConfig: Record<string, { label: string; color: string; icon: string 
               </div>
             </div>
 
-            <div v-if="item.warehouses?.length" class="space-y-1.5">
+            <div v-if="item.manages_stock && item.warehouses?.length" class="space-y-1.5">
               <p class="text-xs font-medium text-muted">Depósitos físicos</p>
               <div v-for="warehouse in item.warehouses" :key="warehouse.id" class="flex items-center justify-between gap-3 rounded-md border border-default px-3 py-2 text-sm">
                 <span class="truncate">{{ warehouse.name }}<span v-if="warehouse.code" class="text-muted"> · {{ warehouse.code }}</span></span>
                 <span class="shrink-0 tabular-nums"><strong>{{ formatQuantity(warehouse.available) }}</strong> disponibles</span>
               </div>
             </div>
-            <p v-else class="text-sm text-muted">No hay existencias en depósitos físicos.</p>
+            <p v-else-if="item.manages_stock" class="text-sm text-muted">No hay existencias en depósitos físicos.</p>
 
-            <div v-if="item.arrivals?.length" class="space-y-1.5">
+            <div v-if="item.manages_stock && item.arrivals?.length" class="space-y-1.5">
               <p class="text-xs font-medium text-muted">Próximos arribos</p>
               <div v-for="(arrival, index) in item.arrivals" :key="arrival.container_id || index" class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-sm">
                 <span>{{ arrival.container_number ? `Contenedor ${arrival.container_number}` : 'Mercadería en tránsito' }}</span>

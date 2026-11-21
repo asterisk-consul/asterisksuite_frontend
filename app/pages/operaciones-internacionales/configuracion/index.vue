@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useIntlOpsSettingsStore } from '~/modulos/international-operations/store/intl-ops-settings.store'
 
 definePageMeta({ layout: 'default', middleware: ['auth'] })
@@ -72,8 +72,14 @@ const form = ref({
   container_fields: {} as Record<string, boolean>,
   operation_fields: {} as Record<string, boolean>,
   operation_statuses: [] as string[],
-  container_statuses: [] as string[]
+  container_statuses: [] as string[],
+  container_description_prefix: 'Contenedor N°',
+  container_description_next_number: 1
 })
+
+const containerDescriptionPreview = computed(() =>
+  `${form.value.container_description_prefix}${form.value.container_description_next_number} - `
+)
 
 async function load() {
   try {
@@ -85,6 +91,8 @@ async function load() {
       ...(data?.container_statuses ?? containerStatusDefs.map(s => s.value)),
       ...containerStatusDefs.filter(s => s.fixed).map(s => s.value)
     ])]
+    form.value.container_description_prefix = data?.container_description_prefix ?? 'Contenedor N°'
+    form.value.container_description_next_number = data?.container_description_next_number ?? 1
   } catch {
     toast.add({ title: 'No se pudo cargar la configuración', color: 'error' })
   }
@@ -103,7 +111,9 @@ async function save() {
       container_fields: form.value.container_fields,
       operation_fields: form.value.operation_fields,
       operation_statuses: form.value.operation_statuses,
-      container_statuses: [...new Set([...form.value.container_statuses, ...containerStatusDefs.filter(s => s.fixed).map(s => s.value)])]
+      container_statuses: [...new Set([...form.value.container_statuses, ...containerStatusDefs.filter(s => s.fixed).map(s => s.value)])],
+      container_description_prefix: form.value.container_description_prefix,
+      container_description_next_number: form.value.container_description_next_number
     })
     toast.add({ title: 'Configuración guardada', description: 'Se aplicará a los formularios de operaciones internacionales.', color: 'success' })
   } catch (error: any) {
@@ -128,6 +138,24 @@ onMounted(load)
     </div>
 
     <template v-else>
+      <UPageCard
+        title="Descripción predeterminada de contenedores"
+        description="Definí el texto y el próximo número. Cada contenedor nuevo consume ese número y el siguiente se incrementa automáticamente."
+      >
+        <div class="grid gap-4 sm:grid-cols-2">
+          <UFormField label="Texto antes del número" name="container_description_prefix">
+            <UInput v-model="form.container_description_prefix" maxlength="100" placeholder="Contenedor N°" class="w-full" />
+          </UFormField>
+          <UFormField label="Próximo número" name="container_description_next_number">
+            <UInput v-model.number="form.container_description_next_number" type="number" min="1" max="2147483646" step="1" class="w-full" />
+          </UFormField>
+          <div class="sm:col-span-2 flex flex-wrap items-center gap-2 rounded-lg border border-default bg-muted/20 px-3 py-2">
+            <span class="text-sm text-muted">Vista previa:</span>
+            <span class="font-medium">{{ containerDescriptionPreview }}</span>
+          </div>
+        </div>
+      </UPageCard>
+
       <UPageCard title="Campos del contenedor" description="Qué datos se piden al crear o editar un contenedor.">
         <div class="space-y-4">
           <div v-for="field in containerFieldDefs" :key="field.key" class="flex items-start justify-between gap-6">

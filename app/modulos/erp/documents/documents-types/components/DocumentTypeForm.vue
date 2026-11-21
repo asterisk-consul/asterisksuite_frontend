@@ -21,6 +21,7 @@ export interface DocumentTypeFormData {
   afip_code: string
   requires_cae: boolean
   is_electronic: boolean
+  requires_fiscal_authorization: boolean | null
   document_sequence_ids: string[]
   tax_ids?: string[]
   enabled_statuses?: number[] | null
@@ -68,12 +69,33 @@ const defaultForm: DocumentTypeFormData = {
   accepts_commercial_adjustments: undefined,
   active: true, category: '', letter_type: '', afip_code: '',
   requires_cae: false, is_electronic: false, document_sequence_ids: [], tax_ids: [],
+  requires_fiscal_authorization: null,
   enabled_statuses: null,
   hidden_amount_statuses: null
 }
 
 const form = reactive<DocumentTypeFormData>({ ...defaultForm })
 const pendingSequenceDrafts = ref<NonNullable<DocumentTypeFormData['pending_sequence_drafts']>>([])
+const fiscalAuthorizationRequirementOptions = [
+  { label: 'Usar política fiscal general', value: 'GLOBAL' },
+  { label: 'Requiere CAI', value: 'REQUIRED' },
+  { label: 'No requiere CAI', value: 'NOT_REQUIRED' },
+]
+const supportsFiscalAuthorizationRequirement = computed(() => form.category === 'REMITO' && Number(form.direction) === 1)
+const fiscalAuthorizationRequirement = computed({
+  get: () => form.requires_fiscal_authorization === true
+    ? 'REQUIRED'
+    : form.requires_fiscal_authorization === false
+      ? 'NOT_REQUIRED'
+      : 'GLOBAL',
+  set: (value: string) => {
+    form.requires_fiscal_authorization = value === 'REQUIRED'
+      ? true
+      : value === 'NOT_REQUIRED'
+        ? false
+        : null
+  },
+})
 const acceptsCommercialAdjustmentsByDefault = (category = form.category, direction = form.direction) =>
   category === 'INVOICE' || (Number(direction) === 1 && ['QUOTE', 'ORDER'].includes(category))
 const selectValue = (value: unknown): string => {
@@ -96,7 +118,12 @@ watch(() => props.modelValue, (val) => {
   const linkedSequenceIds = valAny.document_type_sequences?.length
     ? valAny.document_type_sequences.map((dts: any) => dts.document_sequences?.id ?? dts.sequence_id)
     : (val.document_sequence_ids ?? [])
-  Object.assign(form, { ...val, letter_type: selectValue(valAny.letter_type), document_sequence_ids: linkedSequenceIds })
+  Object.assign(form, {
+    ...val,
+    letter_type: selectValue(valAny.letter_type),
+    document_sequence_ids: linkedSequenceIds,
+    requires_fiscal_authorization: val.requires_fiscal_authorization ?? null,
+  })
 }, { immediate: true })
 
 watch(form, (val) => { emit('update:modelValue', { ...val }) }, { deep: true })
@@ -126,6 +153,7 @@ const handleSubmit = () => {
     afip_code: form.afip_code,
     requires_cae: form.requires_cae,
     is_electronic: form.is_electronic,
+    requires_fiscal_authorization: supportsFiscalAuthorizationRequirement.value ? form.requires_fiscal_authorization : null,
     document_sequence_ids: (form.document_sequence_ids ?? []).map((item: any) => typeof item === 'string' ? item : item.value),
     ...(pendingSequenceDrafts.value.length ? { pending_sequence_drafts: pendingSequenceDrafts.value.map(item => ({ ...item })) } : {}),
     tax_ids: form.tax_ids?.length ? form.tax_ids : undefined,
@@ -394,6 +422,18 @@ const selectedLetterType = computed({
             </div>
             <USwitch v-model="form.requires_cae" />
           </div>
+          <UFormField v-if="supportsFiscalAuthorizationRequirement" label="Requisito de CAI" class="rounded-lg border border-default p-3">
+            <USelect
+              v-model="fiscalAuthorizationRequirement"
+              :items="fiscalAuthorizationRequirementOptions"
+              value-key="value"
+              label-key="label"
+              class="w-full"
+            />
+            <template #help>
+              Si elegís que el CAI es requerido, el remito no se podrá confirmar sin una autorización válida. “Usar política fiscal general” mantiene la configuración actual.
+            </template>
+          </UFormField>
           <div class="flex items-center justify-between gap-3 rounded-lg border border-default p-3">
             <div>
               <p class="text-sm font-medium">Electrónico</p>

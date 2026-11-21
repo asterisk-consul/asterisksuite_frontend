@@ -12,6 +12,7 @@ export type PurchasesListParams = {
   category?: string
   categories?: string
   excludeCancelled?: boolean
+  excludeStatuses?: string
   excludeOpeningBalances?: boolean
   direction?: number
 } & Partial<ServerListParams>

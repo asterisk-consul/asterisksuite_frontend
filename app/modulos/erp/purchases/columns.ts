@@ -13,13 +13,54 @@ export const createPurchasesColumns = (actions: {
   onPay?: (row: Row) => void
   onDuplicate?: (row: Row) => void
   canDuplicate?: (row: Row) => boolean
+  getRowActions?: (row: Row) => any[][]
+  actionsFirst?: boolean
   showCreator?: boolean
   statusFilterOptions?: { label: string; value: number }[] | null
 }): ExtendedColumn<Row>[] => {
   const build = createTableBuilder<Row>({ locale: 'es-AR' })
   const fmtNumber = (row: Row) => `${row.document_types?.code ?? ''}-${String(row.number).padStart(8, '0')}`
 
+  const actionColumn = (actions.onDuplicate || actions.getRowActions)
+    ? {
+        id: 'document_actions',
+        header: '',
+        meta: { label: 'Acciones', filter: false as const, disableColumnVisibility: true },
+        enableHiding: false,
+        cell: ({ row }: any) => {
+          const document = row.original as Row
+          const category = document.document_types?.category
+          const fallbackItems = ['ORDER', 'INVOICE'].includes(category ?? '')
+            && actions.canDuplicate?.(document) !== false
+            ? [[{
+                label: 'Duplicar como borrador',
+                icon: 'i-lucide-copy',
+                onSelect: () => actions.onDuplicate?.(document)
+              }]]
+            : []
+          const items = actions.getRowActions?.(document) ?? fallbackItems
+          if (!items.length) return null
+
+          return h(UDropdownMenu, {
+            items,
+            content: { align: actions.actionsFirst ? 'start' : 'end' }
+          }, {
+            default: () => h(UButton, {
+              icon: 'i-lucide-ellipsis-vertical',
+              color: 'neutral',
+              variant: 'ghost',
+              size: 'sm',
+              'aria-label': `Acciones para ${CATEGORY_LABELS[category ?? ''] ?? 'documento'}`,
+              title: 'Más acciones',
+              onClick: (event: Event) => event.stopPropagation()
+            })
+          })
+        }
+      }
+    : null
+
   return [
+    ...(actions.actionsFirst && actionColumn ? [actionColumn] : []),
     ...build([
       {
         key: 'status',
@@ -164,35 +205,6 @@ export const createPurchasesColumns = (actions: {
           ]
         : [])
     ]),
-    ...(actions.onDuplicate
-      ? [{
-          id: 'document_actions',
-          header: '',
-          meta: { label: 'Acciones', filter: false as const, disableColumnVisibility: true },
-          enableHiding: false,
-          cell: ({ row }: any) => {
-            const document = row.original as Row
-            const category = document.document_types?.category
-            if (!['ORDER', 'INVOICE'].includes(category ?? '') || actions.canDuplicate?.(document) === false) return null
-            return h(UDropdownMenu, {
-              items: [[{
-                label: 'Duplicar como borrador',
-                icon: 'i-lucide-copy',
-                onSelect: () => actions.onDuplicate?.(document)
-              }]],
-              content: { align: 'end' }
-            }, {
-              default: () => h(UButton, {
-                icon: 'i-lucide-ellipsis-vertical',
-                color: 'neutral',
-                variant: 'ghost',
-                size: 'sm',
-                'aria-label': `Acciones para ${CATEGORY_LABELS[category ?? ''] ?? 'documento'}`,
-                title: 'Más acciones'
-              })
-            })
-          }
-        }]
-      : [])
+    ...(!actions.actionsFirst && actionColumn ? [actionColumn] : [])
   ]
 }

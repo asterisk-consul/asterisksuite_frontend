@@ -9,6 +9,11 @@ import type { PaginatedResponse, ServerListParams } from '~/types/pagination'
 
 const baseUrl = '/api/backend/master-data/products'
 
+export interface ProductSearchFilters {
+  categoryIds?: string[]
+  tagIds?: string[]
+}
+
 export const useProductsService = () => {
   // =========================
   // FIND ALL
@@ -31,9 +36,15 @@ export const useProductsService = () => {
     retry: 1
   })
 
-  const search = (query: string, usage?: 'sale' | 'purchase' | null, signal?: AbortSignal) =>
+  const search = (query: string, usage?: 'sale' | 'purchase' | null, signal?: AbortSignal, filters?: ProductSearchFilters) =>
     $fetch<Product[]>(`${baseUrl}/search`, {
-      query: { q: query, usage: usage || undefined, limit: 30 },
+      query: {
+        q: query,
+        usage: usage || undefined,
+        limit: 30,
+        categories: filters?.categoryIds?.join(',') || undefined,
+        tags: filters?.tagIds?.join(',') || undefined,
+      },
       signal,
       timeout: 10_000,
       retry: 1

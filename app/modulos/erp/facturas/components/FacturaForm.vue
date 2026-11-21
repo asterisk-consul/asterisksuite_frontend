@@ -16,6 +16,8 @@ import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussi
 // Products
 import { useProductsStore } from '~/modulos/logistica/master-data/product/store/products.store'
 import { useProducts } from '~/modulos/logistica/master-data/product/composable/useProducts'
+import { useCategoriesStore } from '~/modulos/almacen/categories/store/categories.store'
+import { useTagsStore } from '~/modulos/almacen/tags/store/tags.store'
 import { useDepositosStore } from '~/modulos/logistica/warehouses/warehouse/depositos.store'
 import { useStockService } from '~/modulos/logistica/warehouses/stock/stock.service'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
@@ -77,11 +79,16 @@ const selectedBusinessParty = ref<BusinessParty | undefined>(undefined)
 const showBusinessPartiesModal = ref(false)
 const partiesStore = useBusinessPartiesStore()
 const productsStore = useProductsStore()
+const categoriesStore = useCategoriesStore()
+const tagsStore = useTagsStore()
 const documentsTypesStore = useDocumentsTypesStore()
 const depositosStore = useDepositosStore()
 const stockService = useStockService()
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const { isOwnerOrAdmin } = useCompanyRole()
+const canReadProductCategories = computed(() => isOwnerOrAdmin.value || hasPermission('categories.read'))
+const canReadProductTags = computed(() => isOwnerOrAdmin.value || hasPermission('tags.read'))
+const productTaxonomyFilters = ref<{ categoryIds: string[], tagIds: string[] }>({ categoryIds: [], tagIds: [] })
 const canRegularizeStock = computed(() => isOwnerOrAdmin.value || hasPermission('stock.create'))
 const canManageCommercialAdjustmentConcepts = computed(() => isOwnerOrAdmin.value
   || hasPermission('commercial_adjustment_concepts.create')
@@ -209,11 +216,11 @@ let productSearchController: AbortController | undefined
 function searchProducts(query: string) {
   if (productSearchTimer) clearTimeout(productSearchTimer)
   productSearchController?.abort()
-  if (query.trim().length < 2) return
+  if (query.trim().length === 1) return
 
   productSearchTimer = setTimeout(() => {
     productSearchController = new AbortController()
-    void productsStore.search(query.trim(), usageFilter.value, productSearchController.signal)
+    void productsStore.search(query.trim(), usageFilter.value, productSearchController.signal, productTaxonomyFilters.value)
       .catch((error: any) => {
         if (error?.name !== 'AbortError') {
           toast.add({
@@ -224,6 +231,11 @@ function searchProducts(query: string) {
         }
       })
   }, 300)
+}
+
+function updateProductTaxonomyFilters(filters: { categoryIds: string[], tagIds: string[], query: string }) {
+  productTaxonomyFilters.value = { categoryIds: filters.categoryIds, tagIds: filters.tagIds }
+  searchProducts(filters.query)
 }
 const { init: initCurrencies, codeSelectItems: currencyOptions, baseCurrency } = useCurrencies()
 const {
@@ -1454,7 +1466,10 @@ watch(() => form.document_type_id, (newId) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleSaveShortcut, true)
-  fetchMyPermissionsIfNeeded()
+  void fetchMyPermissionsIfNeeded().then(() => Promise.allSettled([
+    ...(canReadProductCategories.value && !categoriesStore.items.length ? [categoriesStore.fetchAll()] : []),
+    ...(canReadProductTags.value && !tagsStore.items.length ? [tagsStore.fetchAll()] : []),
+  ])).catch(() => {})
   const requestId = ++partySearchRequestId
   partySearching.value = true
   void partiesService.search('', props.moduleCode === 'SALES' ? ['CUSTOMER'] : [...payablePartyTypes])
@@ -2200,6 +2215,8 @@ defineExpose({ submit, completeDraft })
         :adding-products="addingProducts"
         :allow-item-instructions="canAddItemInstructions"
         :product-options="productOptions"
+        :categories="categoriesStore.items"
+        :tags="tagsStore.items"
         :currency-code="form.currency_code"
         :warehouses="warehouseOptions"
         :warehouse-options-for-item="warehouseOptionsForItem"
@@ -2215,6 +2232,7 @@ defineExpose({ submit, completeDraft })
         @update:warehouse="updateItemWarehouse"
         @regularize-stock="openStockRegularization"
         @search-products="searchProducts"
+        @taxonomy-filter="updateProductTaxonomyFilters"
       />
     </UCard>
 

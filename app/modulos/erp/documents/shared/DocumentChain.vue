@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useDocumentPermissions } from '~/modulos/erp/documents/composables/useDocumentPermissions'
+import { getDocumentStatusOptions } from '~/modulos/erp/documents/types/document-statuses'
 
 const props = defineProps<{
   document: any
@@ -15,6 +16,16 @@ function canOpenDocument(doc: any): boolean {
 
 function fmtDate(d?: string) {
   return d ? d.slice(0, 10) : '-'
+}
+
+function getDocumentStatus(doc: any) {
+  const status = Number(doc?.status)
+  if (!Number.isInteger(status)) return { label: 'Estado no disponible', color: 'neutral' as const }
+
+  const category = doc.document_types?.category
+  const direction = Number(doc.document_types?.direction ?? 1)
+  return getDocumentStatusOptions(category, direction).find(option => option.value === status)
+    ?? { label: `Estado ${status}`, color: 'neutral' as const }
 }
 
 function fmtNumber(doc: any) {
@@ -84,9 +95,9 @@ function resolveDocLink(doc: any): string {
           {{ child.document_types?.description }} #{{ fmtNumber(child) }}
         </span>
         <span class="text-muted">{{ fmtDate(child.date) }}</span>
-        <span class="font-medium" :class="child.status === 2 ? 'text-success' : 'text-muted'">
-          {{ child.status === 2 ? 'Confirmado' : 'Borrador' }}
-        </span>
+        <UBadge :color="getDocumentStatus(child).color" variant="subtle" size="sm">
+          {{ getDocumentStatus(child).label }}
+        </UBadge>
       </div>
 
       <div v-if="!document.parent_document && !document.child_documents?.length" class="text-sm text-muted">

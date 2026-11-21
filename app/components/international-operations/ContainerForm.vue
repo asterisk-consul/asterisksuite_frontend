@@ -32,7 +32,10 @@ const settingsReady = ref(false)
 
 onMounted(async () => {
   try {
-    await settingsStore.fetchSettings()
+    await settingsStore.fetchSettings(true)
+    if (props.initialData.description === undefined) {
+      form.value.description = settingsStore.nextContainerDescription
+    }
   } catch {
     // Si falla, se muestra el form con los valores por defecto
   } finally {
@@ -42,6 +45,7 @@ onMounted(async () => {
 
 const form = ref<CreateContainerInput>({
   container_number: '',
+  description: props.initialData.description ?? '',
   container_type: 'TWENTY_DV',
   seal_number: '',
   booking_number: '',
@@ -121,6 +125,10 @@ const onSubmit = () => {
   <UForm v-else :state="form" @submit="onSubmit" class="space-y-6">
     <UPageCard>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <UFormField label="Descripción" name="description" class="md:col-span-2">
+          <UInput v-model="form.description" maxlength="255" placeholder="Contenedor N°1 - " class="w-full" />
+        </UFormField>
+
         <UFormField
           v-if="settingsStore.isContainerFieldVisible('container_number')"
           label="Número de contenedor"

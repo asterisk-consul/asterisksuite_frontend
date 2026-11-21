@@ -2,6 +2,7 @@
 definePageMeta({ middleware: ['auth'] })
 
 import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import DocumentStatusVisibilityPopover from '~/components/erp/documents/DocumentStatusVisibilityPopover.vue'
 import { useDocumentsSalesStore } from '~/modulos/erp/sales/stores/sales.store'
 import { useDocumentsTypesService } from '~/modulos/erp/documents/documents-types/services/documents-types.service'
 import { createSalesColumns } from '~/modulos/erp/sales/columns'
@@ -10,7 +11,6 @@ import CreateDocumentMenu from '~/components/erp/documents/CreateDocumentMenu.vu
 import { useServerTable } from '~/composables/table/useServerTable'
 import {
   CATEGORY_LABELS,
-  getCancelledDocumentStatus,
   getCategoryStatuses,
   getStatusColor,
   isDocumentCancelled
@@ -39,6 +39,15 @@ const canSelectForTrash = (row: any) => canSendDocumentToTrash(row)
     && !canDocument('sales', row.document_types?.category, 'cancel'))
 
 const SALES_CATEGORIES = ['QUOTE', 'ORDER', 'REMITO', 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'] as const
+const NOTES_FILTER_VALUE = 'NOTES'
+const statusCategoryLabels: Record<string, string> = {
+  QUOTE: 'Presupuesto',
+  ORDER: 'Orden de venta',
+  REMITO: 'Remito',
+  INVOICE: 'Factura',
+  CREDIT_NOTE: 'Nota de crédito',
+  DEBIT_NOTE: 'Nota de débito'
+}
 const readableSalesCategories = computed(() =>
   SALES_CATEGORIES.filter((category) => canDocument('sales', category, 'read'))
 )
@@ -67,23 +76,49 @@ const getEnabledStatusesForCategory = (category: string): number[] | null => {
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 const route = useRoute()
 const initialCategory = typeof route.query.category === 'string'
-  && readableSalesCategories.value.includes(route.query.category as typeof SALES_CATEGORIES[number])
+  && (route.query.category === NOTES_FILTER_VALUE
+    ? readableSalesCategories.value.some(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))
+    : readableSalesCategories.value.includes(route.query.category as typeof SALES_CATEGORIES[number]))
   ? route.query.category
   : undefined
 const categoryFilter = ref<string | undefined>(initialCategory)
+const singleCategoryFilter = computed(() => categoryFilter.value && categoryFilter.value !== NOTES_FILTER_VALUE ? categoryFilter.value : undefined)
+const selectedCategories = computed(() => {
+  if (categoryFilter.value === NOTES_FILTER_VALUE) {
+    return readableSalesCategories.value.filter(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))
+  }
+  if (categoryFilter.value) return readableSalesCategories.value.includes(categoryFilter.value as typeof SALES_CATEGORIES[number]) ? [categoryFilter.value] : []
+  return readableSalesCategories.value
+})
 const statusFilter = ref<number | string | undefined>(undefined)
 const selectedCategoryFilter = computed({
   get: () => categoryFilter.value ?? ALL_FILTER_VALUE,
   set: (value: string) => { categoryFilter.value = value === ALL_FILTER_VALUE ? undefined : value }
 })
+const pageTitle = computed(() => categoryFilter.value === 'INVOICE'
+  ? 'Facturas de venta'
+  : categoryFilter.value === NOTES_FILTER_VALUE
+    ? 'Notas de crédito y débito'
+    : 'Comprobantes de venta')
 const selectedStatusFilter = computed({
   get: () => statusFilter.value ?? ALL_FILTER_VALUE,
   set: (value: number | string) => { statusFilter.value = value === ALL_FILTER_VALUE ? undefined : value }
 })
-const showFullyPaid = ref(true)
-const showCancelled = ref(false)
+const showFullyPaid = ref(false)
+const hiddenStatusKeys = ref<string[]>([])
+const statusVisibilityGroups = computed(() => SALES_CATEGORIES
+  .filter(category => selectedCategories.value.includes(category))
+  .map(category => ({
+    category,
+    direction: 1 as const,
+    label: statusCategoryLabels[category] ?? CATEGORY_LABELS[category] ?? category,
+    options: getCategoryStatuses(category),
+  })))
 const generateResult = ref<{ total_trips: number; results: any[] } | null>(null)
 const showGenerateModal = ref(false)
+const cancelTarget = ref<any | null>(null)
+const cancelModalOpen = ref(false)
+const cancelProcessing = ref(false)
 
 const serverTable = useServerTable(
   (query) => {
@@ -94,11 +129,9 @@ const serverTable = useServerTable(
       ...query,
       status: typeof statusFilter.value === 'number' ? statusFilter.value : undefined,
       deliveryStatus,
-      category: categoryFilter.value && readableSalesCategories.value.includes(categoryFilter.value as typeof SALES_CATEGORIES[number])
-        ? categoryFilter.value
-        : undefined,
-      categories: categoryFilter.value ? undefined : readableSalesCategories.value.join(','),
-      excludeCancelled: !showCancelled.value,
+      category: singleCategoryFilter.value,
+      categories: singleCategoryFilter.value ? undefined : selectedCategories.value.join(','),
+      excludeStatuses: hiddenStatusKeys.value.join(',') || undefined,
       excludeOpeningBalances: true
     })
   },
@@ -106,8 +139,38 @@ const serverTable = useServerTable(
 )
 const { page, pageSize, search, sorting, filters, refresh } = serverTable
 
+watch(hiddenStatusKeys, () => {
+  page.value = 1
+  void refresh()
+}, { deep: true })
+watch(filters, (currentFilters) => {
+  const selectedKeys = new Set<string>()
+  let hasOrderFlowFilter = false
+  for (const filter of currentFilters) {
+    if (filter.column !== 'status') continue
+    const value = String(filter.value ?? '')
+    const scoped = /^document-status:([A-Z_]+):(.+)$/.exec(value)
+    const scopedCategory = scoped?.[1]
+    const scopedStatus = scoped?.[2]
+    if (scopedCategory && scopedStatus && /^\d+$/.test(scopedStatus)) selectedKeys.add(`${scopedCategory}:${Number(scopedStatus)}`)
+    else if (scopedCategory === 'ORDER' && scopedStatus?.startsWith('order-flow:')) hasOrderFlowFilter = true
+    else if (singleCategoryFilter.value && /^\d+$/.test(value)) selectedKeys.add(`${singleCategoryFilter.value}:${Number(value)}`)
+  }
+  if (hasOrderFlowFilter) {
+    hiddenStatusKeys.value = hiddenStatusKeys.value.filter(key => !key.startsWith('ORDER:'))
+    return
+  }
+  if ([...selectedKeys].some(key => hiddenStatusKeys.value.includes(key))) {
+    hiddenStatusKeys.value = hiddenStatusKeys.value.filter(key => !selectedKeys.has(key))
+  }
+}, { deep: true })
+
 watch(readableSalesCategories, (allowedCategories) => {
-  if (categoryFilter.value && !allowedCategories.includes(categoryFilter.value as typeof SALES_CATEGORIES[number])) {
+  if (singleCategoryFilter.value && !allowedCategories.includes(singleCategoryFilter.value as typeof SALES_CATEGORIES[number])) {
+    categoryFilter.value = undefined
+    return
+  }
+  if (categoryFilter.value === NOTES_FILTER_VALUE && !allowedCategories.some(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))) {
     categoryFilter.value = undefined
     return
   }
@@ -125,17 +188,25 @@ watch(categoryFilter, () => {
   router.replace({ query: { ...route.query, category: categoryFilter.value || undefined } })
 })
 
-watch(statusFilter, (status) => {
-  if (categoryFilter.value && typeof status === 'number' && status === getCancelledDocumentStatus(categoryFilter.value) && !showCancelled.value) {
-    showCancelled.value = true
-    return
-  }
-  if (page.value !== 1) page.value = 1
-  else void refresh().catch(() => undefined)
+watch(() => route.query.category, (value) => {
+  const nextCategory = typeof value === 'string'
+    && (value === NOTES_FILTER_VALUE
+      ? readableSalesCategories.value.some(category => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category))
+      : readableSalesCategories.value.includes(value as typeof SALES_CATEGORIES[number]))
+    ? value
+    : undefined
+  if (categoryFilter.value !== nextCategory) categoryFilter.value = nextCategory
 })
-watch(showCancelled, (show) => {
-  if (!show && categoryFilter.value && statusFilter.value === getCancelledDocumentStatus(categoryFilter.value)) {
-    statusFilter.value = undefined
+
+watch(statusFilter, (status) => {
+  let key: string | undefined
+  if (typeof status === 'number' && singleCategoryFilter.value) key = `${singleCategoryFilter.value}:${status}`
+  else if (typeof status === 'string') {
+    const match = /^document-status:([A-Z_]+):(\d+)$/.exec(status)
+    if (match) key = `${match[1]}:${Number(match[2])}`
+  }
+  if (key && hiddenStatusKeys.value.includes(key)) {
+    hiddenStatusKeys.value = hiddenStatusKeys.value.filter(hiddenKey => hiddenKey !== key)
     return
   }
   if (page.value !== 1) page.value = 1
@@ -153,6 +224,9 @@ const categoryOptions = computed(() => {
   }
   return [
     { label: 'Todos los comprobantes', value: ALL_FILTER_VALUE },
+    ...(readableSalesCategories.value.some(cat => ['CREDIT_NOTE', 'DEBIT_NOTE'].includes(cat))
+      ? [{ label: 'Notas de crédito y débito', value: NOTES_FILTER_VALUE }]
+      : []),
     ...SALES_CATEGORIES.filter((cat) => canDocument('sales', cat, 'read')).map((cat) => ({
       label: CATEGORY_LABELS[cat] ?? cat,
       value: cat
@@ -162,7 +236,7 @@ const categoryOptions = computed(() => {
 
 const categoryStatusFilterOptions = computed(() => [
   { label: categoryFilter.value ? 'Todos los estados' : 'Elegí un comprobante', value: ALL_FILTER_VALUE },
-  ...(categoryFilter.value ? getStatusOptionsForCategory(categoryFilter.value) : [])
+  ...(singleCategoryFilter.value ? getStatusOptionsForCategory(singleCategoryFilter.value) : [])
 ])
 
 const STATUS_TEXT_CLASSES: Record<string, string> = {
@@ -179,15 +253,6 @@ const statusTextClass = (color: string) => STATUS_TEXT_CLASSES[color] ?? 'text-m
 
 // ─── Filtros de estado (según categoría) ─────────────────────────────────────
 type StatusOption = { label: string; value: number | string }
-
-const statusCategoryLabels: Record<string, string> = {
-  QUOTE: 'Presupuesto',
-  ORDER: 'Orden de venta',
-  REMITO: 'Remito',
-  INVOICE: 'Factura',
-  CREDIT_NOTE: 'Nota de crédito',
-  DEBIT_NOTE: 'Nota de débito'
-}
 
 function getStatusOptionsForCategory(category: string): StatusOption[] {
   const configured = getCategoryStatuses(category, getEnabledStatusesForCategory(category))
@@ -208,10 +273,9 @@ function getStatusOptionsForCategory(category: string): StatusOption[] {
 }
 
 const statusOptions = computed<StatusOption[]>(() => {
-  if (categoryFilter.value) return getStatusOptionsForCategory(categoryFilter.value)
+  if (singleCategoryFilter.value) return getStatusOptionsForCategory(singleCategoryFilter.value)
 
-  return SALES_CATEGORIES
-    .filter((category) => canDocument('sales', category, 'read'))
+  return selectedCategories.value
     .flatMap((category) => getStatusOptionsForCategory(category).map((option) => ({
       label: `${statusCategoryLabels[category] ?? CATEGORY_LABELS[category] ?? category} · ${option.label}`,
       value: `document-status:${category}:${option.value}`
@@ -224,9 +288,9 @@ function matchesStatusOption(document: any, option: StatusOption) {
 }
 
 const visibleDocuments = computed(() => {
-  let rows = documents.value ?? []
-  if (!showCancelled.value)
-    rows = rows.filter((document) => !isDocumentCancelled(document.document_types?.category, document.status))
+  let rows = (documents.value ?? []).filter((document) =>
+    !hiddenStatusKeys.value.includes(`${document.document_types?.category}:${document.status}`),
+  )
   if (!showFullyPaid.value) rows = rows.filter((document) => !isDocumentFullyPaid(document))
   return rows
 })
@@ -247,8 +311,8 @@ const financialStats = computed(() => {
 // ─── Estadísticas ─────────────────────────────────────────────────────────────
 const stats = computed(() => {
   const docs = documents.value ?? []
-  if (categoryFilter.value) {
-    const statuses = getCategoryStatuses(categoryFilter.value, getEnabledStatusesForCategory(categoryFilter.value))
+  if (singleCategoryFilter.value) {
+    const statuses = getCategoryStatuses(singleCategoryFilter.value, getEnabledStatusesForCategory(singleCategoryFilter.value))
     return {
       byCategory: [],
       byStatus: statuses.map((s) => {
@@ -259,7 +323,7 @@ const stats = computed(() => {
           count: matching.length,
           total: matching.reduce((a, d) => a + Number(d.total), 0),
           color: typeof s.value === 'number'
-            ? getStatusColor(categoryFilter.value, s.value)
+            ? getStatusColor(singleCategoryFilter.value!, s.value)
             : flowValue.endsWith('PENDING')
               ? 'warning'
               : flowValue.endsWith('ELIGIBLE')
@@ -270,7 +334,7 @@ const stats = computed(() => {
     }
   }
   return {
-    byCategory: SALES_CATEGORIES.map((cat) => ({
+    byCategory: selectedCategories.value.map((cat) => ({
       label: CATEGORY_LABELS[cat] ?? cat,
       count: docs.filter((d) => d.document_types?.category === cat).length
     })),
@@ -292,6 +356,89 @@ function duplicateDocument(row: any) {
   const category = row.document_types?.category
   if (!['ORDER', 'INVOICE'].includes(category) || !canDocument('sales', category, 'create')) return
   router.push({ path: '/erp/sales/new', query: { category, duplicate_id: row.id } })
+}
+
+function editDocument(row: any) {
+  router.push(`/erp/sales/${row.id}/edit`)
+}
+
+function canCancelDocument(row: any) {
+  const category = row.document_types?.category ?? ''
+  const status = Number(row.status)
+  const cancellable = status === 0
+    || (category === 'ORDER' && status >= 2 && status < 7)
+    || (category === 'INVOICE' && [1, 2].includes(status))
+    || (['CREDIT_NOTE', 'DEBIT_NOTE'].includes(category) && [1, 2].includes(status))
+  return cancellable && canDocument('sales', category, 'cancel')
+}
+
+function openCancelModal(row: any) {
+  cancelTarget.value = row
+  cancelModalOpen.value = true
+}
+
+async function confirmCancelDocument() {
+  if (!cancelTarget.value || cancelProcessing.value) return
+  cancelProcessing.value = true
+  try {
+    await documentsSalesStore.cancel(cancelTarget.value.id)
+    await refresh()
+    toast.add({ title: 'Documento anulado', color: 'success' })
+    cancelModalOpen.value = false
+    cancelTarget.value = null
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo anular el documento',
+      description: error?.data?.message || error?.message || 'Revisá los pagos y efectos operativos asociados.',
+      color: 'error'
+    })
+  } finally {
+    cancelProcessing.value = false
+  }
+}
+
+function getDocumentRowActions(row: any) {
+  const category = row.document_types?.category ?? ''
+  const status = Number(row.status)
+  const groups: any[][] = []
+
+  if (['ORDER', 'INVOICE'].includes(category) && canDocument('sales', category, 'create')) {
+    groups.push([{
+      label: 'Duplicar como borrador',
+      icon: 'i-lucide-copy',
+      onSelect: () => duplicateDocument(row)
+    }])
+  }
+
+  const standardActions: any[] = []
+  if ([0, 1].includes(status) && canDocument('sales', category, 'update')) {
+    standardActions.push({ label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => editDocument(row) })
+  }
+  if (status === 2 && canSettleDocument(row) && row.party_id) {
+    standardActions.push({ label: 'Registrar cobro', icon: 'i-lucide-hand-coins', onSelect: () => collectDocument(row) })
+  }
+  if (category === 'INVOICE' && status === 2) {
+    if (canDocument('sales', 'CREDIT_NOTE', 'create')) {
+      standardActions.push({
+        label: 'Crear NC',
+        icon: 'i-lucide-file-minus',
+        onSelect: () => router.push(`/erp/sales/new?category=CREDIT_NOTE&parent_document_id=${row.id}`)
+      })
+    }
+    if (canDocument('sales', 'DEBIT_NOTE', 'create')) {
+      standardActions.push({
+        label: 'Crear ND',
+        icon: 'i-lucide-file-plus',
+        onSelect: () => router.push(`/erp/sales/new?category=DEBIT_NOTE&parent_document_id=${row.id}`)
+      })
+    }
+  }
+  if (canCancelDocument(row)) {
+    standardActions.push({ label: 'Anular', icon: 'i-lucide-x-circle', color: 'error', onSelect: () => openCancelModal(row) })
+  }
+  if (standardActions.length) groups.push(standardActions)
+  groups.push([{ label: 'Abrir documento', icon: 'i-lucide-arrow-up-right', onSelect: () => openDocument(row) }])
+  return groups
 }
 
 function collectDocument(row: any) {
@@ -353,9 +500,11 @@ const columns = computed(() =>
     onOpen: openDocument,
     onCollect: collectDocument,
     onDuplicate: duplicateDocument,
+    getRowActions: getDocumentRowActions,
+    actionsFirst: true,
     canDuplicate: (row) => canDocument('sales', row.document_types?.category ?? '', 'create'),
     showCreator: isOwnerOrAdmin.value,
-    showSeller: categoryFilter.value === 'ORDER',
+    showSeller: singleCategoryFilter.value === 'ORDER',
     statusFilterOptions: statusOptions.value.length
       ? statusOptions.value.map(({ label, value }) => ({ label, value }))
       : null
@@ -378,7 +527,7 @@ const sortFields = [
 
 <template>
   <UPage class="space-y-4">
-    <AppPageHeader title="Comprobantes de venta" description="Gestión de documentos de venta">
+    <AppPageHeader :title="pageTitle" description="Gestión de documentos de venta">
       <template #links>
         <CreateDocumentMenu direction="sales" />
         <UButton icon="i-lucide-file-plus" label="Generar desde viajes" @click="() => { showGenerateModal = true }" />
@@ -466,7 +615,7 @@ const sortFields = [
             v-model="selectedStatusFilter"
             :items="categoryStatusFilterOptions"
             value-key="value"
-            :disabled="!categoryFilter"
+            :disabled="!singleCategoryFilter"
             class="w-full min-w-0"
             aria-label="Filtrar por estado"
           />
@@ -483,8 +632,7 @@ const sortFields = [
         <div class="flex flex-wrap items-center gap-5">
           <span class="text-sm text-muted">Mostrar cobrados</span>
           <USwitch v-model="showFullyPaid" />
-          <span class="text-sm text-muted">Mostrar anulados</span>
-          <USwitch v-model="showCancelled" />
+          <DocumentStatusVisibilityPopover v-model:hidden-status-keys="hiddenStatusKeys" :groups="statusVisibilityGroups" />
         </div>
       </div>
 
@@ -511,4 +659,26 @@ const sortFields = [
   </UPage>
 
   <GenerateFromTripsModal v-model="showGenerateModal" @saved="onGenerateSaved" />
+
+  <UModal
+    v-model:open="cancelModalOpen"
+    :title="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(cancelTarget?.document_types?.category ?? '') ? 'Anular nota de crédito/débito' : 'Anular documento'"
+    :dismissible="!cancelProcessing"
+  >
+    <template #body>
+      <div v-if="cancelTarget" class="space-y-3">
+        <p>¿Anular el documento <strong>#{{ cancelTarget.number }}</strong>?</p>
+        <p v-if="['CREDIT_NOTE', 'DEBIT_NOTE'].includes(cancelTarget.document_types?.category ?? '')" class="text-sm text-muted">
+          La anulación revierte el efecto de la nota y conserva su relación con la factura. Si tiene cobros activos, primero hay que anularlos.
+        </p>
+        <p v-else class="text-sm text-muted">
+          Se aplicarán las validaciones de pagos y efectos operativos asociados antes de anularlo.
+        </p>
+      </div>
+      <div class="flex justify-end gap-2 pt-4">
+        <UButton label="Cancelar" variant="ghost" :disabled="cancelProcessing" @click="cancelModalOpen = false" />
+        <UButton label="Anular" color="error" :loading="cancelProcessing" @click="confirmCancelDocument" />
+      </div>
+    </template>
+  </UModal>
 </template>

@@ -57,6 +57,10 @@ export const useTaskTimerStore = defineStore('task-timer', () => {
     setTimer(await service.resumeTimer())
   }
 
+  async function confirmContinuation() {
+    setTimer(await service.confirmTimerContinuation())
+  }
+
   async function finish(description?: string) {
     const result = await service.finishTimer(description)
     setTimer(null)
@@ -69,5 +73,5 @@ export const useTaskTimerStore = defineStore('task-timer', () => {
     loading.value = false
   }
 
-  return { timer, loading, elapsedSeconds, fetchActive, start, pause, resume, finish, reset }
+  return { timer, loading, elapsedSeconds, fetchActive, start, pause, resume, confirmContinuation, finish, reset }
 })

@@ -7,6 +7,17 @@ const timer = useTaskTimerStore()
 const toast = useToast()
 const router = useRouter()
 const actionLoading = ref(false)
+const continuityOpen = ref(false)
+const continuitySecondsLeft = ref(15)
+const autoStopping = ref(false)
+const confirmedTimerKey = ref('')
+let continuityTicker: ReturnType<typeof setInterval> | null = null
+
+const timerKey = computed(() => timer.timer ? `${auth.selectedCompany?.id ?? ''}:${timer.timer.task_id}:${timer.timer.timer_key}` : '')
+const maxTimerSeconds = computed(() => (timer.timer?.max_timer_hours ?? 8) * 3600)
+const promptAtSeconds = computed(() => Math.max(0, maxTimerSeconds.value - 15 * 60))
+const canUseDesktopNotifications = computed(() => import.meta.client && 'Notification' in window)
+const desktopNotificationsGranted = computed(() => canUseDesktopNotifications.value && Notification.permission === 'granted')
 
 const formattedTime = computed(() => {
   const total = timer.elapsedSeconds
@@ -26,6 +37,112 @@ watch(() => auth.selectedCompany?.id, async (companyId) => {
     // La campana global no debe bloquear el resto de la navegación si falta tasks.read.
   }
 }, { immediate: true })
+
+function clearContinuityTicker() {
+  if (continuityTicker) clearInterval(continuityTicker)
+  continuityTicker = null
+}
+
+function stopAtMax() {
+  void finishAutomatically(`Detención automática por alcanzar el límite de ${timer.timer?.max_timer_hours ?? 8} horas.`, 'Se alcanzó el tope configurado.')
+}
+
+function showContinuityPrompt() {
+  if (!timer.timer || timer.timer.paused || confirmedTimerKey.value === timerKey.value || continuityOpen.value) return
+  continuitySecondsLeft.value = 15
+  continuityOpen.value = true
+  clearContinuityTicker()
+  continuityTicker = setInterval(() => {
+    continuitySecondsLeft.value -= 1
+    if (continuitySecondsLeft.value <= 0) {
+      clearContinuityTicker()
+      continuityOpen.value = false
+      void finishAutomatically('Detención automática por falta de respuesta al aviso de continuidad.', 'No se confirmó que seguías trabajando.')
+    }
+  }, 1000)
+
+  if (document.visibilityState === 'hidden' && 'Notification' in window && Notification.permission === 'granted') {
+    const notification = new Notification('¿Seguís trabajando en esta tarea?', {
+      body: `Confirmá en la aplicación en ${continuitySecondsLeft.value} segundos para seguir hasta el tope.`,
+      requireInteraction: true,
+    })
+    notification.onclick = () => {
+      window.focus()
+      openTask()
+      notification.close()
+    }
+  }
+}
+
+watch([timerKey, () => timer.elapsedSeconds, () => timer.timer?.paused, () => timer.timer?.continuation_confirmed], ([key, elapsed, paused, continuationConfirmed]) => {
+  if (!key) {
+    continuityOpen.value = false
+    clearContinuityTicker()
+    return
+  }
+  if (elapsed >= maxTimerSeconds.value) {
+    continuityOpen.value = false
+    clearContinuityTicker()
+    stopAtMax()
+    return
+  }
+  if (continuationConfirmed || (key && import.meta.client && localStorage.getItem(`task-timer-continuity:${key}`) === 'confirmed')) confirmedTimerKey.value = key
+  if (!paused && elapsed >= promptAtSeconds.value && confirmedTimerKey.value !== key) showContinuityPrompt()
+}, { immediate: true })
+
+async function continueToLimit() {
+  if (actionLoading.value) return
+  actionLoading.value = true
+  try {
+    await timer.confirmContinuation()
+    confirmedTimerKey.value = timerKey.value
+    if (import.meta.client) localStorage.setItem(`task-timer-continuity:${timerKey.value}`, 'confirmed')
+    continuityOpen.value = false
+    clearContinuityTicker()
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo confirmar el temporizador', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+function onContinuityStorage(event: StorageEvent) {
+  if (event.key !== `task-timer-continuity:${timerKey.value}` || event.newValue !== 'confirmed') return
+  confirmedTimerKey.value = timerKey.value
+  continuityOpen.value = false
+  clearContinuityTicker()
+}
+
+async function stopFromPrompt() {
+  continuityOpen.value = false
+  clearContinuityTicker()
+  await finishTimer('Detenido desde el aviso de continuidad.')
+}
+
+async function finishAutomatically(description: string, reason: string) {
+  if (!timer.timer || autoStopping.value) return
+  autoStopping.value = true
+  actionLoading.value = true
+  try {
+    const workLog = await timer.finish(description)
+    toast.add({ title: 'Temporizador detenido automáticamente', description: `${workLog.minutes} min · ${reason}`, color: 'warning' })
+  } catch (error: any) {
+    try { await timer.fetchActive() } catch { /* El scheduler puede haber cerrado el temporizador a la vez. */ }
+    if (timer.timer) toast.add({ title: 'No se pudo detener el temporizador', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    actionLoading.value = false
+    autoStopping.value = false
+  }
+}
+
+async function enableDesktopNotifications() {
+  if (!('Notification' in window)) {
+    toast.add({ title: 'Notificaciones del navegador no disponibles', color: 'warning' })
+    return
+  }
+  const permission = await Notification.requestPermission()
+  toast.add({ title: permission === 'granted' ? 'Avisos del navegador habilitados' : 'El navegador no autorizó los avisos', color: permission === 'granted' ? 'success' : 'warning' })
+}
 
 async function toggleTimer() {
   if (actionLoading.value) return
@@ -59,6 +176,12 @@ function openTask() {
   if (!active) return
   router.push({ path: '/erp/tasks', query: { board_id: active.board_id, task_id: active.task_id } })
 }
+
+onMounted(() => window.addEventListener('storage', onContinuityStorage))
+onBeforeUnmount(() => {
+  clearContinuityTicker()
+  window.removeEventListener('storage', onContinuityStorage)
+})
 </script>
 
 <template>
@@ -76,4 +199,18 @@ function openTask() {
       <UButton icon="i-lucide-square" color="error" variant="ghost" size="sm" :loading="actionLoading" aria-label="Finalizar temporizador" title="Finalizar y registrar el tiempo" @click="finishTimer" />
     </div>
   </div>
+  <UModal v-model:open="continuityOpen" title="¿Seguís trabajando en esta tarea?" :description="`El temporizador se detendrá en ${continuitySecondsLeft} segundos si no confirmás.`" :dismissible="false" :close="false" :ui="{ content: 'sm:max-w-md' }">
+    <template #body>
+      <div class="flex flex-col gap-4">
+        <p class="text-sm text-muted"><span class="font-medium text-default">{{ timer.timer?.task_title }}</span> sigue corriendo. Si confirmás, continuará hasta el tope de {{ timer.timer?.max_timer_hours ?? 8 }} horas.</p>
+        <UButton v-if="canUseDesktopNotifications && !desktopNotificationsGranted" label="Activar aviso en el escritorio" icon="i-lucide-bell-ring" color="neutral" variant="outline" @click="enableDesktopNotifications" />
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton label="No, detener" color="neutral" variant="outline" :loading="actionLoading" @click="stopFromPrompt" />
+        <UButton :label="`Sí, seguir (${continuitySecondsLeft}s)`" icon="i-lucide-play" :disabled="actionLoading" @click="continueToLimit" />
+      </div>
+    </template>
+  </UModal>
 </template>
