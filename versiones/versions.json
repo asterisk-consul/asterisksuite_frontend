@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.179.0-alpha",
+  "date": "2026-11-21",
+  "stage": "alpha",
+  "notes": "Los conceptos bancarios pueden calcular cargos automáticos por porcentaje según la cuenta y el tipo de movimiento. El cargo se registra como un débito bancario.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Configurar cargos automáticos por cuenta y naturaleza del movimiento bancario" },
+   { "type": "fix", "scope": "treasury", "title": "Mostrar las cuentas configuradas en los conceptos automáticos" },
+   { "type": "docs", "scope": "treasury", "title": "Documentar la configuración y el efecto de los cargos bancarios automáticos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Configurar y aplicar cargos bancarios automáticos"
+ },
+ {
   "version": "0.178.3-alpha",
   "date": "2026-11-21",
   "stage": "alpha",
