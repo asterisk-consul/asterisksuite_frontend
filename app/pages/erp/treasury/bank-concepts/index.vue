@@ -23,7 +23,22 @@ const updatingPaymentConceptId = ref<string | null>(null)
 const searchQuery = ref('')
 const filterType = ref('')
 
-onMounted(() => bankConcepts.init())
+const accountOptions = ref<{ label: string, value: string }[]>([])
+const accountsLoading = ref(false)
+const accountsError = ref(false)
+const loadAccounts = async () => {
+  accountsLoading.value = true
+  accountsError.value = false
+  try {
+    const accounts = await $fetch<{ id: string, name: string, currency_code: string }[]>('/api/backend/bank-accounts')
+    accountOptions.value = accounts.map(account => ({ label: `${account.name} (${account.currency_code})`, value: account.id }))
+  } catch {
+    accountsError.value = true
+  } finally {
+    accountsLoading.value = false
+  }
+}
+onMounted(() => { bankConcepts.init(); loadAccounts() })
 
 const filteredConcepts = computed(() => {
   let list = bankConcepts.concepts.value
@@ -73,7 +88,16 @@ const form = reactive({
   available_manual: true,
   available_payments: false,
   available_settlements: false,
+  automatic_calculation: false,
+  automatic_all_accounts: true,
+  automatic_movement_nature: 'BOTH',
+  automatic_account_ids: [] as string[],
   is_active: true
+})
+
+const automaticScope = computed({
+  get: () => form.automatic_all_accounts ? 'all' : 'specific',
+  set: (value: string) => { form.automatic_all_accounts = value === 'all' }
 })
 
 const openCreate = () => {
@@ -83,7 +107,9 @@ const openCreate = () => {
     accounting_account: '', calculates_iva: false, iva_rate: 21,
     generates_credit: false, impacts_iva_book: false, default_percentage: null,
     affects_balance: true, requires_receipt: false,
-    available_manual: true, available_payments: false, available_settlements: false, is_active: true
+    automatic_all_accounts: true, automatic_account_ids: [],
+    automatic_movement_nature: 'BOTH',
+    available_manual: true, available_payments: false, available_settlements: false, automatic_calculation: false, is_active: true
   })
   modalOpen.value = true
 }
@@ -104,12 +130,21 @@ const openEdit = (concept: any) => {
     available_manual: concept.available_manual ?? true,
     available_payments: concept.available_payments ?? false,
     available_settlements: concept.available_settlements ?? false,
+    automatic_calculation: concept.automatic_calculation ?? false,
+    automatic_all_accounts: concept.automatic_all_accounts ?? true,
+    automatic_movement_nature: concept.automatic_movement_nature ?? 'BOTH',
+    automatic_account_ids: (concept.automatic_accounts ?? []).map((account: { id: string }) => account.id),
     is_active: concept.is_active ?? true
   })
   modalOpen.value = true
 }
 
 const handleSubmit = async () => {
+  if (saving.value) return
+  if (!form.automatic_all_accounts && !form.automatic_account_ids.length) {
+    toast.add({ title: 'Seleccioná al menos una cuenta bancaria', color: 'error' })
+    return
+  }
   saving.value = true
   try {
     if (editingConcept.value) {
@@ -221,6 +256,7 @@ const conceptTypeIcon = (type: string) => ({
         <div class="space-y-1.5 text-xs text-muted">
           <div class="flex flex-wrap gap-1.5">
             <UBadge :label="concept.is_active ? 'Activo' : 'Inactivo'" :color="concept.is_active ? 'success' : 'neutral'" variant="subtle" size="xs" />
+            <UBadge v-if="concept.automatic_calculation" label="Cálculo automático" color="info" variant="subtle" size="xs" />
             <UBadge :label="concept.available_payments && concept.is_active ? 'Disponible en pagos y cobros' : concept.available_payments ? 'Inactivo para pagos y cobros' : 'No disponible en pagos y cobros'" :color="concept.available_payments && concept.is_active ? 'success' : 'neutral'" variant="subtle" size="xs" />
           </div>
           <div v-if="concept.accounting_account" class="flex items-center gap-1">
@@ -324,6 +360,27 @@ const conceptTypeIcon = (type: string) => ({
               <div class="flex items-center justify-between gap-4 rounded-lg border border-default p-3">
                 <div><p class="text-sm font-medium">Afecta el saldo bancario</p><p class="text-xs text-muted">Suma o resta el importe del saldo de la cuenta.</p></div>
                 <USwitch v-model="form.affects_balance" aria-label="Afecta el saldo bancario" />
+              </div>
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-primary/30 bg-primary/5 p-3 sm:col-span-2">
+                <div><p class="text-sm font-medium">Calcula automáticamente</p><p class="text-xs text-muted">Aplica este concepto en cada movimiento bancario alcanzado, usando su porcentaje sobre la base original.</p></div>
+                <USwitch v-model="form.automatic_calculation" color="primary" aria-label="Calcula automáticamente" />
+              </div>
+              <div v-if="form.automatic_calculation" class="space-y-3 sm:col-span-2">
+                <UFormField label="Aplicar sobre movimientos">
+                  <USelect v-model="form.automatic_movement_nature" :items="[{ label: 'Ambos: débitos y créditos', value: 'BOTH' }, { label: 'Débitos bancarios (pagos)', value: 'DEBIT' }, { label: 'Créditos bancarios (cobros)', value: 'CREDIT' }]" class="w-full" />
+                  <p class="mt-1 text-xs text-muted">Indica qué movimiento origina el cargo. El impuesto automático siempre se registra como débito.</p>
+                </UFormField>
+                <UFormField label="Aplicar automáticamente en">
+                  <USelect v-model="automaticScope" :items="[{ label: 'Todas las cuentas', value: 'all' }, { label: 'Cuentas específicas', value: 'specific' }]" class="w-full" />
+                </UFormField>
+                <UFormField v-if="!form.automatic_all_accounts" label="Cuentas bancarias" required>
+                  <USelectMenu v-model="form.automatic_account_ids" :items="accountOptions" value-key="value" multiple :loading="accountsLoading" placeholder="Seleccioná una o varias cuentas" class="w-full" />
+                  <div v-if="accountsError" class="mt-2 text-sm text-error">
+                    No se pudieron cargar las cuentas.
+                    <UButton label="Reintentar" variant="link" @click="loadAccounts" />
+                  </div>
+                  <p class="mt-1 text-xs text-muted">El cargo se debita de la misma cuenta del movimiento. Solo afecta movimientos nuevos.</p>
+                </UFormField>
               </div>
             </div>
           </section>
