@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.182.0-alpha",
+  "date": "2026-11-24",
+  "stage": "alpha",
+  "notes": "La campanita informa cuando Asterisk registra la acreditación automática de un eCheq recibido o cuando no puede procesarla. El aviso diferencia el registro del sistema de la confirmación efectiva del banco.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Notificar en la campanita el registro o fallo de la acreditación automática de eCheq" },
+   { "type": "docs", "scope": "treasury", "title": "Aclarar que el aviso de acreditación no reemplaza la verificación del extracto bancario" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Notificar el resultado de la acreditación automática de eCheq"
+ },
+ {
   "version": "0.181.1-alpha",
   "date": "2026-11-24",
   "stage": "alpha",

@@ -99,6 +99,8 @@ function notificationIcon(type: string) {
   }
   if (type === 'CHECK_DUE') return 'i-lucide-calendar-days'
   if (type === 'CHECK_OVERDUE') return 'i-lucide-calendar-clock'
+  if (type === 'CHECK_ACCREDITED') return 'i-lucide-circle-check'
+  if (type === 'CHECK_ACCREDITATION_FAILED') return 'i-lucide-circle-alert'
   if (type === 'DOCUMENT_AUDIT') return 'i-lucide-eye'
   if (type === 'INTAKE_UPDATE') return 'i-lucide-camera'
   return 'i-lucide-user-round-check'
@@ -112,6 +114,8 @@ function notificationIconTone(type: string) {
   }
   if (type === 'CHECK_DUE') return 'info'
   if (type === 'CHECK_OVERDUE') return 'warning'
+  if (type === 'CHECK_ACCREDITED') return 'success'
+  if (type === 'CHECK_ACCREDITATION_FAILED') return 'warning'
   if (type === 'DOCUMENT_AUDIT' || type === 'INTAKE_UPDATE') return 'info'
   return 'primary'
 }
@@ -421,6 +425,7 @@ onBeforeUnmount(() => {
                 class="flex size-10 items-center justify-center rounded-full"
                 :class="{
                   'bg-info/10': notificationIconTone(notification.type) === 'info',
+                  'bg-success/10': notificationIconTone(notification.type) === 'success',
                   'bg-warning/10': notificationIconTone(notification.type) === 'warning',
                   'bg-primary/10': notificationIconTone(notification.type) === 'primary'
                 }"
@@ -430,6 +435,7 @@ onBeforeUnmount(() => {
                   class="size-5"
                   :class="{
                     'text-info': notificationIconTone(notification.type) === 'info',
+                    'text-success': notificationIconTone(notification.type) === 'success',
                     'text-warning': notificationIconTone(notification.type) === 'warning',
                     'text-primary': notificationIconTone(notification.type) === 'primary'
                   }"
