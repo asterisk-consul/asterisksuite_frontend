@@ -23,11 +23,12 @@ export interface TaskParty {
 
 export interface TaskLabel {
   id: string
-  name: string
+  name: string | null
   color: string
 }
 
-export interface TaskCategory extends TaskLabel {
+export interface TaskCategory extends Omit<TaskLabel, 'name'> {
+  name: string
   active: boolean
 }
 
@@ -184,7 +185,8 @@ export const useTasksService = () => ({
   resumeTimer: () => $fetch<TaskActiveTimer>('/api/backend/erp/tasks/timer/resume', { method: 'PATCH' }),
   confirmTimerContinuation: () => $fetch<TaskActiveTimer>('/api/backend/erp/tasks/timer/continuation/confirm', { method: 'PATCH' }),
   finishTimer: (description?: string) => $fetch<{ success: boolean; work_log: { id: string; task_id: string; user_id: string; minutes: number; description: string | null; created_at: string } }>('/api/backend/erp/tasks/timer/finish', { method: 'POST', body: { description } }),
-  createLabel: (body: { name: string; color: string }) => $fetch<TaskLabel>('/api/backend/erp/tasks/labels', { method: 'POST', body }),
+  createLabel: (body: { name?: string; color: string }) => $fetch<TaskLabel>('/api/backend/erp/tasks/labels', { method: 'POST', body }),
+  updateLabel: (id: string, body: { name?: string | null; color?: string }) => $fetch<TaskLabel>(`/api/backend/erp/tasks/labels/${id}`, { method: 'PATCH', body }),
   getCategories: () => $fetch<TaskCategory[]>('/api/backend/erp/tasks/categories'),
   createCategory: (body: { name: string; color: string }) => $fetch<TaskCategory>('/api/backend/erp/tasks/categories', { method: 'POST', body }),
   updateCategory: (id: string, body: Partial<Pick<TaskCategory, 'name' | 'color' | 'active'>>) => $fetch<TaskCategory>(`/api/backend/erp/tasks/categories/${id}`, { method: 'PATCH', body }),

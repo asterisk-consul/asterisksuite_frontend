@@ -5,6 +5,7 @@ export interface CheckRelatedPayment {
   number: number
   type: string
   status: string
+  deleted_at?: string | null
   amount: number
   party_id?: string | null
   party_type?: string | null
@@ -13,10 +14,13 @@ export interface CheckRelatedPayment {
 
 export interface Check {
   id: string
+  check_format?: 'PAPER' | 'ECHEQ'
   payment_id?: string | null
   bank_account_id?: string | null
   bank_account_company_id?: string | null
   bank_account_external_id?: string | null
+  bank_concept_id?: string | null
+  bank_concept_external_id?: string | null
   check_number: string
   bank_name: string
   bank_branch?: string | null
@@ -56,6 +60,12 @@ export interface Check {
     bank_name: string
     currency_code: string
   } | null
+  bank_concept?: {
+    id: string
+    code: string
+    name: string
+    nature: string
+  } | null
 }
 
 export interface CheckNotificationAlertPreview {
@@ -79,10 +89,13 @@ export interface CheckNotificationAlerts {
 }
 
 export interface CreateCheckInput {
+  check_format?: 'PAPER' | 'ECHEQ'
   payment_id?: string
   bank_account_id?: string
   bank_account_company_id?: string
   bank_account_external_id?: string
+  bank_concept_id?: string
+  bank_concept_external_id?: string
   check_number: string
   bank_name: string
   bank_branch?: string
@@ -99,14 +112,17 @@ export interface CreateCheckInput {
 }
 
 export interface UpdateCheckInput {
+  check_format?: 'PAPER' | 'ECHEQ'
   check_number?: string
   amount?: number
   currency_code?: string
   issue_date?: string
   bank_name?: string
-  bank_account_id?: string
-  bank_account_company_id?: string
-  bank_account_external_id?: string
+  bank_account_id?: string | null
+  bank_account_company_id?: string | null
+  bank_account_external_id?: string | null
+  bank_concept_id?: string | null
+  bank_concept_external_id?: string | null
   bank_branch?: string
   account_number?: string
   issuer_name?: string

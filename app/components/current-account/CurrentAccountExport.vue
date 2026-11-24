@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
 import { useExcelExport } from '~/composables/useExcelExport'
-import { resolveEntrySide, resolveHrValeLabel } from '~/modulos/erp/current-accounts/utils'
+import { resolveCurrentAccountPaymentDescription, resolveEntrySide, resolveHrValeLabel } from '~/modulos/erp/current-accounts/utils'
 import { balanceChartColor } from '~/modulos/erp/current-accounts/balance-utils'
 
 const props = defineProps<{
@@ -67,7 +67,7 @@ const exportEntries = () => {
       { key: 'debit', label: 'Débito', width: 15, format: (v: any) => v ? formatCurrency(v) : '' },
       { key: 'credit', label: 'Crédito', width: 15, format: (v: any) => v ? formatCurrency(v) : '' },
       { key: 'balance_after', label: 'Saldo', width: 15, format: (v: any) => formatCurrency(v) },
-      { key: 'description', label: 'Descripción', width: 30 },
+      { key: 'description', label: 'Descripción', width: 70 },
     ],
     data: sorted.map(e => ({
       ...e,
@@ -76,6 +76,7 @@ const exportEntries = () => {
       debit: resolveEntrySide(e, props.account?.party_type ?? '') === 'debit' ? e.visible_amount : null,
       credit: resolveEntrySide(e, props.account?.party_type ?? '') === 'credit' ? e.visible_amount : null,
       balance_after: e.visible_balance,
+      description: resolveCurrentAccountPaymentDescription(e),
     }))
   })
 }

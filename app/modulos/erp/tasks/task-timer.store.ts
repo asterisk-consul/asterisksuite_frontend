@@ -7,6 +7,10 @@ export const useTaskTimerStore = defineStore('task-timer', () => {
   const timer = ref<TaskActiveTimer | null>(null)
   const now = ref(Date.now())
   const loading = ref(false)
+  const finishDialogOpen = ref(false)
+  const finishDialogLoading = ref(false)
+  const finishDescription = ref('')
+  const resumeAfterFinishCancel = ref(false)
   let ticker: ReturnType<typeof setInterval> | null = null
   let requestSequence = 0
 
@@ -64,14 +68,53 @@ export const useTaskTimerStore = defineStore('task-timer', () => {
   async function finish(description?: string) {
     const result = await service.finishTimer(description)
     setTimer(null)
+    finishDialogOpen.value = false
+    finishDialogLoading.value = false
+    finishDescription.value = ''
+    resumeAfterFinishCancel.value = false
     return result.work_log
+  }
+
+  async function requestFinish() {
+    if (!timer.value || finishDialogOpen.value || finishDialogLoading.value) return
+    finishDialogLoading.value = true
+    const wasRunning = Boolean(timer.value.started_at)
+    try {
+      if (wasRunning) await pause()
+      resumeAfterFinishCancel.value = wasRunning
+      finishDescription.value = ''
+      finishDialogOpen.value = true
+    } finally {
+      finishDialogLoading.value = false
+    }
+  }
+
+  async function cancelFinish() {
+    if (finishDialogLoading.value) return
+    if (!finishDialogOpen.value && !resumeAfterFinishCancel.value) return
+    finishDialogLoading.value = true
+    try {
+      if (resumeAfterFinishCancel.value && timer.value?.paused) await resume()
+      resumeAfterFinishCancel.value = false
+      finishDialogOpen.value = false
+      finishDescription.value = ''
+    } catch (error) {
+      finishDialogOpen.value = true
+      throw error
+    } finally {
+      finishDialogLoading.value = false
+    }
   }
 
   function reset() {
     requestSequence++
     setTimer(null)
     loading.value = false
+    finishDialogOpen.value = false
+    finishDialogLoading.value = false
+    finishDescription.value = ''
+    resumeAfterFinishCancel.value = false
   }
 
-  return { timer, loading, elapsedSeconds, fetchActive, start, pause, resume, confirmContinuation, finish, reset }
+  return { timer, loading, elapsedSeconds, finishDialogOpen, finishDialogLoading, finishDescription, fetchActive, start, pause, resume, confirmContinuation, finish, requestFinish, cancelFinish, reset }
 })

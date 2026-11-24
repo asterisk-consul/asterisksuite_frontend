@@ -36,6 +36,8 @@ export function useChecks() {
 
   const update = async (id: string, payload: UpdateCheckInput) => store.update(id, payload)
 
+  const releaseInactivePaymentLink = async (id: string) => store.releaseInactivePaymentLink(id)
+
   const remove = async (id: string) => store.remove(id)
 
   const clear = async (id: string) => store.clear(id)
@@ -117,6 +119,7 @@ export function useChecks() {
     init,
     create,
     update,
+    releaseInactivePaymentLink,
     remove,
     clear,
     bounce,

@@ -59,11 +59,16 @@ export interface AvailableCheck {
 }
 
 export interface CreateCheckInput {
+  check_format?: 'PAPER' | 'ECHEQ'
   check_number: string
   bank_name: string
   bank_branch?: string
   account_number?: string
   bank_account_id?: string
+  bank_account_company_id?: string
+  bank_account_external_id?: string
+  bank_concept_id?: string
+  bank_concept_external_id?: string
   issuer_name: string
   issuer_id?: string
   amount: number

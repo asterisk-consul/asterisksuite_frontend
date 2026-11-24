@@ -28,7 +28,9 @@ function getAvailableStatuses(row: Check, permissions: { canDeposit?: boolean; c
   // Los cheques de terceros se resuelven desde Pendiente, sin confirmación manual.
   const allowed = row.is_own
     ? row.status === 'CONFIRMED' ? ['CONFIRMED', 'CANCELLED'] : ['PENDING', 'CANCELLED']
-    : row.status === 'CONFIRMED' ? ['CONFIRMED', 'CLEARED', 'BOUNCED'] : ['PENDING', 'CLEARED', 'BOUNCED']
+    : row.check_format === 'ECHEQ'
+      ? row.status === 'CONFIRMED' ? ['CONFIRMED', 'BOUNCED'] : ['PENDING', 'BOUNCED']
+      : row.status === 'CONFIRMED' ? ['CONFIRMED', 'CLEARED', 'BOUNCED'] : ['PENDING', 'CLEARED', 'BOUNCED']
   return all.map(option => {
     const hasPermission = option.value === 'CLEARED'
       ? permissions.canDeposit
@@ -42,14 +44,41 @@ function getAvailableStatuses(row: Check, permissions: { canDeposit?: boolean; c
   })
 }
 
+export function hasInactivePaymentLink(check: Check) {
+  return Boolean(check.payment_id && (
+    !check.payment
+    || check.payment.deleted_at
+    || ['CANCELLED', 'REVERSED'].includes(check.payment.status)
+  ))
+}
+
+export function canReleaseInactivePaymentLink(check: Check) {
+  return hasInactivePaymentLink(check)
+}
+
+function isInactivePayment(payment: NonNullable<Check['payment']>) {
+  return Boolean(payment.deleted_at || ['CANCELLED', 'REVERSED'].includes(payment.status))
+}
+
+function getRelatedPayments(check: Check) {
+  const relatedPayments = new Map<string, NonNullable<Check['payment']>>()
+  if (check.payment) relatedPayments.set(check.payment.id, check.payment)
+  for (const allocation of check.payment_allocations ?? []) {
+    if (allocation.payment) relatedPayments.set(allocation.payment.id, allocation.payment)
+  }
+  return [...relatedPayments.values()]
+}
+
 export const checkColumns = (actions: {
   onDetail?: (row: Row) => void; onEdit?: (row: Row) => void; onDelete?: (row: Row) => void
   onDeposit?: (row: Row) => void; onResolve?: (row: Row) => void; onProcess?: (row: Row) => void
   onRevert?: (row: Row) => void; onSortFieldSelect?: (columnId: string) => void
   onStatusChange?: (row: Row, newStatus: string) => void
+  onReleasePaymentLink?: (row: Row) => void
   canViewPayments?: boolean
   canDeposit?: boolean
   canReject?: boolean
+  canReleasePaymentLink?: boolean
 }): TableColumn<Row>[] => {
   const build = createTableBuilder<Row>({ locale: 'es-AR', onSortFieldSelect: actions.onSortFieldSelect })
   return build([
@@ -91,11 +120,17 @@ export const checkColumns = (actions: {
     {
       id: 'actions', label: 'Acciones', meta: { class: { th: 'min-w-56', td: 'min-w-56' } },
       cell: ({ row }) => h('div', { class: 'flex min-w-max flex-wrap gap-1' }, [
+        ...(actions.canReleasePaymentLink && canReleaseInactivePaymentLink(row.original)
+          ? [h(UButton, {
+              icon: 'i-lucide-unlink', size: 'xs', variant: 'soft', color: 'warning',
+              label: 'Desvincular', onClick: () => actions.onReleasePaymentLink?.(row.original)
+            })]
+          : []),
         ...(row.original.is_own && row.original.status === 'PENDING'
           ? [h('span', {
               class: 'px-2 py-1 text-xs text-muted',
               title: 'Los cheques propios se confirman cuando se confirma el pago asociado'
-            }, row.original.payment || row.original.payment_allocations?.some(allocation => allocation.payment)
+            }, getRelatedPayments(row.original).some(payment => !isInactivePayment(payment))
               ? 'Confirmar el pago asociado'
               : 'Asociar a un pago para confirmar')]
           : []),
@@ -105,8 +140,12 @@ export const checkColumns = (actions: {
             : [h('span', { class: 'px-2 py-1 text-xs text-muted', title: 'Requiere el permiso checks.deposit' }, 'Sin permiso para registrar débito')]
           : []),
         ...(!row.original.is_own && ['PENDING', 'CONFIRMED'].includes(row.original.status)
-          ? [h(UButton, { icon: 'i-lucide-list-checks', size: 'xs', variant: 'soft', color: 'primary', label: 'Resolver', onClick: () => actions.onResolve?.(row.original) }),
-              h(UButton, { icon: 'i-lucide-building-2', size: 'xs', variant: 'ghost', color: 'success', label: 'Depositar', onClick: () => actions.onDeposit?.(row.original) })] : []),
+          ? [
+              h(UButton, { icon: 'i-lucide-list-checks', size: 'xs', variant: 'soft', color: 'primary', label: 'Resolver', onClick: () => actions.onResolve?.(row.original) }),
+              ...(row.original.check_format === 'ECHEQ'
+                ? [h('span', { class: 'px-2 py-1 text-xs text-muted', title: 'Se acredita automáticamente en la cuenta seleccionada al vencimiento' }, 'Acreditación automática')]
+                : [h(UButton, { icon: 'i-lucide-building-2', size: 'xs', variant: 'ghost', color: 'success', label: 'Depositar', onClick: () => actions.onDeposit?.(row.original) })])
+            ] : []),
         ...(actions.canDeposit && row.original.status === 'CLEARED' && (row.original.bank_account_id || row.original.bank_account_external_id)
           ? [h(UButton, { icon: 'i-lucide-undo-2', size: 'xs', variant: 'ghost', color: 'warning', label: 'Revertir', onClick: () => actions.onRevert?.(row.original) })] : []),
         ...(row.original.status !== 'CLEARED'
@@ -118,6 +157,11 @@ export const checkColumns = (actions: {
       key: 'is_own', label: 'Tipo',
       badge: { resolve: row => ({ label: row.is_own ? 'Propio' : 'De tercero', color: row.is_own ? 'info' : 'neutral' }) },
       meta: { filter: { type: 'select', operators: ['equals'], options: [{ label: 'Propio', value: true }, { label: 'Tercero', value: false }] } }
+    },
+    {
+      key: 'check_format', label: 'Formato',
+      badge: { resolve: row => ({ label: row.check_format === 'ECHEQ' ? 'eCheq' : 'Físico', color: row.check_format === 'ECHEQ' ? 'info' : 'neutral' }) },
+      meta: { filter: { type: 'select', operators: ['equals'], options: [{ label: 'Cheque físico', value: 'PAPER' }, { label: 'eCheq', value: 'ECHEQ' }] } }
     },
     {
       key: 'amount', label: 'Monto', sortable: true,
@@ -139,40 +183,45 @@ export const checkColumns = (actions: {
     {
       id: 'related_payments',
       label: 'Pago / Cobro',
-      accessorFn: row => {
-        const relatedPayments = new Map<string, NonNullable<Check['payment']>>()
-        if (row.payment) relatedPayments.set(row.payment.id, row.payment)
-        for (const allocation of row.payment_allocations ?? []) {
-          if (allocation.payment) relatedPayments.set(allocation.payment.id, allocation.payment)
-        }
-        return [...relatedPayments.values()]
-          .map(payment => `${payment.type === 'COLLECTION' ? 'Cobro' : 'Pago'} #${payment.number}`)
-          .join(' ')
-      },
+      accessorFn: row => getRelatedPayments(row)
+        .map(payment => `${payment.type === 'COLLECTION' ? 'Cobro' : 'Pago'} #${payment.number}`)
+        .join(' '),
       cell: ({ row }) => {
-        const relatedPayments = new Map<string, NonNullable<Check['payment']>>()
-        if (row.original.payment) relatedPayments.set(row.original.payment.id, row.original.payment)
-        for (const allocation of row.original.payment_allocations ?? []) {
-          if (allocation.payment) relatedPayments.set(allocation.payment.id, allocation.payment)
-        }
-        const payments = [...relatedPayments.values()]
-        if (!payments.length) return h(UBadge, { label: 'Pendiente de asociar', color: 'warning', variant: 'subtle', size: 'sm' })
+        const payments = getRelatedPayments(row.original)
+        const activePayments = payments.filter(payment => !isInactivePayment(payment))
+        const historicalPayments = payments.filter(isInactivePayment)
+        const historicalLabel = historicalPayments
+          .map(payment => `${payment.type === 'COLLECTION' ? 'Cobro' : 'Pago'} #${payment.number}${payment.deleted_at ? ' · Eliminado' : payment.status === 'CANCELLED' ? ' · Anulado' : ' · Rechazado'}`)
+          .join(' · ')
+        const history = historicalLabel
+          ? h('span', { class: 'text-xs text-muted', title: `Historial: ${historicalLabel}` }, `Historial: ${historicalLabel}`)
+          : null
 
-        return h('div', { class: 'flex min-w-32 flex-col items-start gap-1' }, payments.map(payment => {
-          const label = `${payment.type === 'COLLECTION' ? 'Cobro' : 'Pago'} #${payment.number}`
-          return actions.canViewPayments
-            ? h(UButton, {
-                label,
-                to: `/erp/treasury/payments/${payment.id}`,
-                icon: 'i-lucide-arrow-up-right',
-                size: 'xs',
-                variant: 'link',
-                color: payment.type === 'COLLECTION' ? 'success' : 'primary',
-                class: 'h-auto min-h-0 px-0 py-0 font-medium',
-                onClick: (event: Event) => event.stopPropagation()
-              })
-            : h('span', { class: 'text-xs font-medium' }, label)
-        }))
+        if (!activePayments.length) {
+          return h('div', { class: 'flex min-w-36 flex-col items-start gap-1' }, [
+            h(UBadge, { label: 'Pendiente de asociar', color: 'warning', variant: 'subtle', size: 'sm' }),
+            ...(history ? [history] : [])
+          ])
+        }
+
+        return h('div', { class: 'flex min-w-32 flex-col items-start gap-1' }, [
+          ...activePayments.map(payment => {
+            const label = `${payment.type === 'COLLECTION' ? 'Cobro' : 'Pago'} #${payment.number}`
+            return actions.canViewPayments
+              ? h(UButton, {
+                  label,
+                  to: `/erp/treasury/payments/${payment.id}`,
+                  icon: 'i-lucide-arrow-up-right',
+                  size: 'xs',
+                  variant: 'link',
+                  color: payment.type === 'COLLECTION' ? 'success' : 'primary',
+                  class: 'h-auto min-h-0 px-0 py-0 font-medium',
+                  onClick: (event: Event) => event.stopPropagation()
+                })
+              : h('span', { class: 'text-xs font-medium' }, label)
+          }),
+          ...(history ? [history] : [])
+        ])
       },
       meta: { class: { th: 'min-w-36', td: 'min-w-36' } }
     },
@@ -193,6 +242,14 @@ export const checkColumns = (actions: {
           h('span', { class: 'text-sm' }, account.name), h('span', { class: 'text-xs text-muted' }, account.bank_name)
         ])
       }
+    },
+    {
+      id: 'bank_concept_info', label: 'Concepto de acreditación',
+      accessorFn: row => row.bank_concept ? `${row.bank_concept.code} ${row.bank_concept.name}` : '',
+      cell: ({ row }) => row.original.bank_concept
+        ? h(UBadge, { label: `${row.original.bank_concept.code} · ${row.original.bank_concept.name}`, color: 'neutral', variant: 'subtle', size: 'sm' })
+        : '—',
+      meta: { class: { th: 'min-w-48', td: 'min-w-48' } }
     },
     { key: 'issue_date', label: 'Emisión', sortable: true, date: true, meta: { class: { th: 'whitespace-nowrap', td: 'whitespace-nowrap text-muted' } } },
     { key: 'due_date', label: 'Vencimiento', sortable: true, date: true, meta: { class: { th: 'whitespace-nowrap', td: 'whitespace-nowrap font-medium' } } }

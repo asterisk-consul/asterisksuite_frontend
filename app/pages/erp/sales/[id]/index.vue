@@ -399,7 +399,13 @@ watch(confirmModalOpen, async (open) => {
           :show-warehouse="category === 'REMITO'"
         />
         <DocumentTotals v-if="doc && category !== 'REMITO' && amountsVisible" :document="doc" />
-        <DocumentRelatedPayments v-if="doc && category === 'INVOICE'" :key="doc.id" :document-id="doc.id" />
+        <DocumentRelatedPayments
+          v-if="doc && (category === 'INVOICE' || category === 'OPENING_BALANCE')"
+          :key="doc.id"
+          :document-id="doc.id"
+          :document-label="category === 'OPENING_BALANCE' ? 'este saldo inicial' : 'esta factura'"
+          :show-when-empty="category === 'OPENING_BALANCE'"
+        />
         <UAlert
           v-if="doc && category === 'ORDER' && !amountsVisible"
           color="neutral"

@@ -3,7 +3,7 @@ import { NuxtLink, UButton } from '#components'
 import type { CurrentAccountEntry } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
-import { resolveEntrySide, resolveHrValeLabel } from './utils'
+import { resolveCurrentAccountDescription, resolveEntrySide, resolveHrValeLabel } from './utils'
 import DocumentChainPopover from '~/components/current-account/DocumentChainPopover.vue'
 
 type Row = CurrentAccountEntry
@@ -14,7 +14,7 @@ export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; 
   VALE_CREDIT: { label: 'Vale · ingreso', color: 'success', side: 'credit' },
   WITHHOLDING: { label: 'Retención', color: 'warning', side: 'debit' },
   COLLECTION: { label: 'Cobro', color: 'success', side: 'credit' },
-  ADVANCE: { label: 'Anticipo', color: 'info', side: 'credit' },
+  ADVANCE: { label: 'A cuenta', color: 'info', side: 'credit' },
   LOAN: { label: 'Préstamo', color: 'primary', side: 'credit' },
   LOAN_PAYMENT: { label: 'Pago préstamo', color: 'warning', side: 'debit' },
   ADJUSTMENT: { label: 'Ajuste', color: 'neutral', side: 'debit' },
@@ -44,9 +44,9 @@ function resolveReferenceLink(entry: CurrentAccountEntry, partyType?: string): {
   if (entry.reference_type === 'document' || entry.reference_type === 'document_reversal') {
     if (!entry.reference_id) return null
     if (partyType === 'CUSTOMER') {
-      return { to: `/erp/sales/${entry.reference_id}`, label: 'Factura' }
+      return { to: `/erp/sales/${entry.reference_id}`, label: entry.type === 'OPENING_BALANCE' ? 'Saldo inicial' : 'Factura' }
     }
-    return { to: `/erp/purchases/purchases-documents/${entry.reference_id}`, label: 'Factura' }
+    return { to: `/erp/purchases/purchases-documents/${entry.reference_id}`, label: entry.type === 'OPENING_BALANCE' ? 'Saldo inicial' : 'Factura' }
   }
   if (entry.reference_type === 'order_invoice_replacement' && entry.reference_id) {
     return { to: `/erp/sales/${entry.reference_id}`, label: 'Factura' }
@@ -61,6 +61,7 @@ function formatCurrency(amount: number | string | null | undefined, currency = '
 
 export const currentAccountEntryColumns = (actions: {
   onSortFieldSelect?: (columnId: string) => void
+  onViewDetails?: (entry: Row) => void
   partyType?: string
   baseCurrency?: string
   canDeleteManualAdjustments?: boolean
@@ -80,6 +81,21 @@ export const currentAccountEntryColumns = (actions: {
 
   return [
     ...build([
+      {
+        id: 'details',
+        header: '',
+        enableSorting: false,
+        enableHiding: false,
+        meta: { label: 'Detalle', disableColumnVisibility: true },
+        cell: ({ row }) => h(UButton, {
+          icon: 'i-lucide-eye',
+          size: 'sm',
+          color: 'neutral',
+          variant: 'ghost',
+          'aria-label': 'Ver detalle del movimiento',
+          onClick: () => actions.onViewDetails?.(row.original)
+        })
+      },
       {
         key: 'date',
         label: 'Fecha',
@@ -136,7 +152,7 @@ export const currentAccountEntryColumns = (actions: {
             }
             return '—'
           }
-          const text = entry.description || link.label
+          const text = resolveCurrentAccountDescription(entry.description) || link.label
           const hasChain = entry.document_chain && entry.document_chain.length > 1
           return h('div', { class: 'inline-flex items-center gap-1' }, [
             h(
@@ -219,7 +235,7 @@ export const currentAccountEntryColumns = (actions: {
       {
         key: 'description',
         label: 'Descripción',
-        cell: ({ row }) => row.original.description ?? '—'
+        cell: ({ row }) => resolveCurrentAccountDescription(row.original.description) ?? '—'
       }
     ]),
     ...(actions.canDeleteManualAdjustments && actions.onDeleteManualAdjustment

@@ -56,6 +56,63 @@ export interface DocumentChainNode {
   role: 'parent' | 'current' | 'child'
 }
 
+export interface CurrentAccountPaymentCheck {
+  id: string
+  check_number: string
+  bank_name: string
+  issuer_name: string
+  amount: number | string
+  currency_code: string
+  issue_date: string
+  due_date: string
+  status: string
+  is_own: boolean
+}
+
+export interface CurrentAccountPaymentTender {
+  id: string
+  method: string
+  amount: number | string
+  cash_box?: { id: string; name: string } | null
+  bank_account?: { id: string; name: string; bank_name: string } | null
+}
+
+export interface CurrentAccountEntryPayment {
+  id: string
+  number: number
+  type: string
+  status: string
+  deleted_at?: string | null
+  date: string
+  payment_date?: string | null
+  amount: number | string
+  currency_code: string
+  exchange_rate?: number | string | null
+  payment_method: string
+  reference?: string | null
+  description?: string | null
+  cash_box?: { id: string; name: string } | null
+  bank_account?: { id: string; name: string; bank_name: string } | null
+  documents?: Array<{
+    id: string
+    amount_applied: number | string
+    document: {
+      id: string
+      number: number | string
+      date: string
+      total: number | string
+      currency_code: string
+      document_types?: { code: string; description: string } | null
+    }
+  }>
+  checks?: CurrentAccountPaymentCheck[]
+  payment_allocations?: Array<{
+    amount_applied: number | string
+    check: CurrentAccountPaymentCheck | null
+  }>
+  tenders?: CurrentAccountPaymentTender[]
+}
+
 export interface CurrentAccountEntry {
   id: string
   current_account_id: string
@@ -71,6 +128,7 @@ export interface CurrentAccountEntry {
   reference_type?: string | null
   reference_id?: string | null
   payment_id?: string | null
+  payment?: CurrentAccountEntryPayment | null
   user_name?: string | null
   date: string
   document_chain?: DocumentChainNode[] | null

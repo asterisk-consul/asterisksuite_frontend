@@ -4,6 +4,7 @@ definePageMeta({ middleware: ['auth'] })
 import type { ButtonProps } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
+import type { TableFilter } from '~/components/Tablas/types/tablas.types'
 
 import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
 import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
@@ -17,6 +18,43 @@ import ExcelImportDialog from '~/components/documents/ExcelImportDialog.vue'
 
 const { payments, loading, init, confirm: confirmPayment, markAsPaid, reject, reverse, remove } = usePayments()
 const authStore = useAuthStore()
+type PaymentsTableState = {
+  sorting: SortingState
+  filters: TableFilter[]
+  quickFilters: Record<string, string>
+  modeFilter: 'ALL' | 'NORMAL' | 'ADVANCE'
+  showCancelled: boolean
+}
+const tableStateKey = `treasury-payments-table:${authStore.selectedCompany?.id ?? 'no-company'}:${authStore.user?.id ?? 'anonymous'}`
+const savedTableState = useState<PaymentsTableState>(tableStateKey, () => ({
+  sorting: [],
+  filters: [],
+  quickFilters: {},
+  modeFilter: 'ALL',
+  showCancelled: false
+}))
+const cloneFilter = (filter: TableFilter): TableFilter => ({
+  ...filter,
+  value: Array.isArray(filter.value)
+    ? [...filter.value]
+    : filter.value && typeof filter.value === 'object'
+      ? { ...filter.value }
+      : filter.value
+})
+const sorting = ref<SortingState>(savedTableState.value.sorting.map(item => ({ ...item })))
+const filters = ref<TableFilter[]>(savedTableState.value.filters.map(cloneFilter))
+const quickFilters = ref<Record<string, string>>({ ...savedTableState.value.quickFilters })
+const modeFilter = ref<PaymentsTableState['modeFilter']>(savedTableState.value.modeFilter ?? 'ALL')
+const showCancelled = ref(savedTableState.value.showCancelled ?? false)
+watch([sorting, filters, quickFilters, modeFilter, showCancelled], () => {
+  savedTableState.value = {
+    sorting: sorting.value.map(item => ({ ...item })),
+    filters: filters.value.map(cloneFilter),
+    quickFilters: { ...quickFilters.value },
+    modeFilter: modeFilter.value,
+    showCancelled: showCancelled.value
+  }
+}, { deep: true, flush: 'sync' })
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const toast = useToast()
 const { canImport, canExport } = useDataTransferPermissions()
@@ -30,7 +68,6 @@ const can = (permission: string) => authStore.selectedCompany?.role === 'OWNER' 
 const canCreatePayment = computed(() => can('payments.create'))
 
 const router = useRouter()
-const sorting = ref<SortingState>([])
 const importOpen = ref(false)
 
 // Modals
@@ -112,9 +149,6 @@ onMounted(() => {
   void init()
   void fetchMyPermissionsIfNeeded(authStore.selectedCompany?.id, authStore.user?.id).catch(() => undefined)
 })
-
-const modeFilter = ref<'ALL' | 'NORMAL' | 'ADVANCE'>('ALL')
-const showCancelled = ref(false)
 
 const filteredPayments = computed(() => {
   let rows = payments.value
@@ -248,7 +282,7 @@ const dataActions = computed(() => [
         @click="() => { modeFilter = 'NORMAL' }"
       />
       <UButton
-        label="Anticipos"
+        label="A cuenta"
         size="xs"
         :color="modeFilter === 'ADVANCE' ? 'warning' : 'neutral'"
         :variant="modeFilter === 'ADVANCE' ? 'solid' : 'ghost'"
@@ -268,6 +302,8 @@ const dataActions = computed(() => [
       :filter-fields="filterFields"
       :sort-fields="sortFields"
       storage-key="treasury-payments"
+      v-model:filters="filters"
+      v-model:filter-values="quickFilters"
       v-model:sorting="sorting"
     />
 

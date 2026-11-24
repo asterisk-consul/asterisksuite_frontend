@@ -1,6 +1,6 @@
 import { h } from 'vue'
 import { NuxtLink, UButton } from '#components'
-import type { Payment } from '~/modulos/erp/payments/types/payments.types'
+import type { Payment, PaymentCheckSummary } from '~/modulos/erp/payments/types/payments.types'
 import type { TableColumn } from '@nuxt/ui'
 import { createTableBuilder } from '@/composables/table/createColumns'
 import { useIdColumn } from '@/composables/table/useIdColumn'
@@ -78,7 +78,13 @@ function getDocumentReferences(row: Row): DocumentReference[] {
     }
   })
 
-  if (documents.length || obligations.length) return [...documents, ...obligations]
+  const checks = getPaymentChecks(row).map(check => ({
+    label: `Cheque N° ${check.check_number}`,
+    detail: [check.bank_name, formatPaymentAmount(check.amount, check.currency_code)].filter(Boolean).join(' · '),
+    to: undefined
+  }))
+
+  if (documents.length || obligations.length || checks.length) return [...documents, ...obligations, ...checks]
   return row.description
     ? [{ label: 'Sin comprobante asociado', detail: row.description, to: undefined }]
     : []
@@ -87,8 +93,17 @@ function getDocumentReferences(row: Row): DocumentReference[] {
 function getDocumentSearchText(row: Row) {
   return [
     ...getDocumentReferences(row).flatMap(reference => [reference.label, reference.detail]),
+    ...getPaymentChecks(row).map(check => `Cheque N° ${check.check_number} ${check.bank_name ?? ''} ${check.issuer_name ?? ''}`),
     row.description
   ].filter(Boolean).join(' ')
+}
+
+function getPaymentChecks(row: Row): PaymentCheckSummary[] {
+  const checks = [
+    ...(row.checks ?? []),
+    ...(row.payment_allocations ?? []).map(allocation => allocation.check)
+  ]
+  return [...new Map(checks.map(check => [check.id, check])).values()]
 }
 
 function getAvailableAdvanceAmount(row: Row) {
@@ -134,7 +149,11 @@ export const paymentColumns = (actions: {
         badge: {
           resolve: (row) => {
             if (row.payment_mode === 'ADVANCE') {
-              return { label: 'Pago (anticipo)', color: 'warning' as const }
+              const config = typeConfig[row.type]
+              return {
+                label: `${config?.label ?? row.type} (A cuenta)`,
+                color: (config?.color as any) ?? 'warning'
+              }
             }
             const config = typeConfig[row.type]
             return {
@@ -239,6 +258,10 @@ export const paymentColumns = (actions: {
               ...(row.intercompany_companies ?? []).map(company => ({
                 label: company.name,
                 color: 'info' as const
+              })),
+              ...getPaymentChecks(row).map(check => ({
+                label: `Cheque N° ${check.check_number}`,
+                color: 'warning' as const
               }))
             ]
           }

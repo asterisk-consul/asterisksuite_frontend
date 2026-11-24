@@ -116,7 +116,7 @@ function onContinuityStorage(event: StorageEvent) {
 async function stopFromPrompt() {
   continuityOpen.value = false
   clearContinuityTicker()
-  await finishTimer('Detenido desde el aviso de continuidad.')
+  await finishTimerNow('Detenido desde el aviso de continuidad.')
 }
 
 async function finishAutomatically(description: string, reason: string) {
@@ -158,11 +158,43 @@ async function toggleTimer() {
 }
 
 async function finishTimer() {
-  if (actionLoading.value) return
+  if (actionLoading.value || timer.finishDialogLoading || !timer.timer) return
+  actionLoading.value = true
+  try {
+    await timer.requestFinish()
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo pausar el temporizador', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function cancelFinishTimer() {
+  if (actionLoading.value || timer.finishDialogLoading) return
+  actionLoading.value = true
+  try {
+    await timer.cancelFinish()
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo reanudar el temporizador', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+function handleFinishDialogOpenChange(open: boolean) {
+  if (!open) void cancelFinishTimer()
+}
+
+async function submitFinishTimer() {
+  await finishTimerNow(timer.finishDescription.trim() || undefined)
+}
+
+async function finishTimerNow(description?: string) {
+  if (actionLoading.value || !timer.timer) return
   actionLoading.value = true
   const taskTitle = timer.timer?.task_title ?? 'Tarea'
   try {
-    const workLog = await timer.finish()
+    const workLog = await timer.finish(description)
     toast.add({ title: 'Tiempo registrado', description: `${workLog.minutes} min · ${taskTitle}`, color: 'success' })
   } catch (error: any) {
     toast.add({ title: 'No se pudo finalizar el temporizador', description: error?.data?.message ?? error.message, color: 'error' })
@@ -195,8 +227,8 @@ onBeforeUnmount(() => {
       <span class="block font-mono text-xs tabular-nums" :class="timer.timer.paused ? 'text-warning' : 'text-success'">{{ formattedTime }}{{ timer.timer.paused ? ' · Pausado' : ' · En curso' }}</span>
     </button>
     <div class="flex shrink-0 items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-      <UButton :icon="timer.timer.paused ? 'i-lucide-play' : 'i-lucide-pause'" color="neutral" variant="ghost" size="sm" :loading="actionLoading" :aria-label="timer.timer.paused ? 'Reanudar temporizador' : 'Pausar temporizador'" :title="timer.timer.paused ? 'Reanudar' : 'Pausar'" @click="toggleTimer" />
-      <UButton icon="i-lucide-square" color="error" variant="ghost" size="sm" :loading="actionLoading" aria-label="Finalizar temporizador" title="Finalizar y registrar el tiempo" @click="finishTimer" />
+      <UButton :icon="timer.timer.paused ? 'i-lucide-play' : 'i-lucide-pause'" color="neutral" variant="ghost" size="sm" :loading="actionLoading || timer.finishDialogLoading" :disabled="timer.finishDialogOpen || timer.finishDialogLoading" :aria-label="timer.timer.paused ? 'Reanudar temporizador' : 'Pausar temporizador'" :title="timer.timer.paused ? 'Reanudar' : 'Pausar'" @click="toggleTimer" />
+      <UButton icon="i-lucide-square" color="error" variant="ghost" size="sm" :loading="actionLoading || timer.finishDialogLoading" :disabled="timer.finishDialogOpen || timer.finishDialogLoading" aria-label="Finalizar temporizador" title="Finalizar y registrar el tiempo" @click="finishTimer" />
     </div>
   </div>
   <UModal v-model:open="continuityOpen" title="¿Seguís trabajando en esta tarea?" :description="`El temporizador se detendrá en ${continuitySecondsLeft} segundos si no confirmás.`" :dismissible="false" :close="false" :ui="{ content: 'sm:max-w-md' }">
@@ -210,6 +242,25 @@ onBeforeUnmount(() => {
       <div class="flex w-full justify-end gap-2">
         <UButton label="No, detener" color="neutral" variant="outline" :loading="actionLoading" @click="stopFromPrompt" />
         <UButton :label="`Sí, seguir (${continuitySecondsLeft}s)`" icon="i-lucide-play" :disabled="actionLoading" @click="continueToLimit" />
+      </div>
+    </template>
+  </UModal>
+  <UModal :open="timer.finishDialogOpen" title="Registrar tiempo de la tarea" description="El temporizador queda pausado mientras completás el registro." :dismissible="!actionLoading && !timer.finishDialogLoading" :ui="{ overlay: 'z-[10000]', content: 'z-[10001] sm:max-w-lg' }" @update:open="handleFinishDialogOpenChange">
+    <template #body>
+      <div class="flex flex-col gap-4">
+        <div class="rounded-lg border border-default bg-elevated/40 p-3">
+          <p class="truncate text-sm font-medium">{{ timer.timer?.task_title }}</p>
+          <p class="mt-1 font-mono text-lg tabular-nums text-success">{{ formattedTime }}</p>
+        </div>
+        <UFormField label="Descripción de lo que hiciste (opcional)" description="Quedará junto al tiempo registrado en el historial de la tarea.">
+          <UTextarea v-model="timer.finishDescription" maxlength="500" :rows="3" class="w-full" placeholder="Contá brevemente qué trabajo realizaste…" />
+        </UFormField>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton label="Seguir trabajando" color="neutral" variant="outline" :loading="actionLoading && timer.finishDialogOpen" :disabled="actionLoading || timer.finishDialogLoading" @click="cancelFinishTimer" />
+        <UButton label="Finalizar y registrar" icon="i-lucide-square" color="error" :loading="actionLoading && timer.finishDialogOpen" :disabled="actionLoading || timer.finishDialogLoading" @click="submitFinishTimer" />
       </div>
     </template>
   </UModal>

@@ -126,6 +126,14 @@ export const useChecksStore = defineStore('checks', () => {
     return updated
   }
 
+  const releaseInactivePaymentLink = async (id: string) => {
+    const updated = await service.releaseInactivePaymentLink(id)
+    const index = items.value.findIndex((item) => item.id === id)
+    if (index !== -1) items.value[index] = updated
+    if (current.value?.id === id) current.value = updated
+    return updated
+  }
+
   // =========================
   // DELETE
   // =========================
@@ -230,6 +238,7 @@ export const useChecksStore = defineStore('checks', () => {
     fetchPendingNotification,
     create,
     update,
+    releaseInactivePaymentLink,
     remove,
     clear: (id: string) => updateCheckStatus(id, 'clear'),
     bounce: (id: string) => updateCheckStatus(id, 'bounce'),

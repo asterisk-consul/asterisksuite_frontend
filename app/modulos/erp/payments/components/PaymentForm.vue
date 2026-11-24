@@ -78,6 +78,7 @@ export interface PaymentFormData {
   cash_box?: any
   account?: any
   payment_allocations?: any[]
+  linked_checks?: any[]
   bank_charges?: Array<{
     bank_concept_id: string
     nature: 'DEBIT' | 'CREDIT'
@@ -228,6 +229,11 @@ const bankAccountService = useBankAccountsService()
 const paymentBankConcepts = computed(() =>
   bankConcepts.activeConcepts.value
     .filter(c => c.available_payments === true)
+    .map(c => ({ label: `${c.code} - ${c.name}`, value: c.id }))
+)
+const checkAccreditationConcepts = computed(() =>
+  bankConcepts.activeConcepts.value
+    .filter(c => c.nature === 'CREDIT' && c.affects_balance === true)
     .map(c => ({ label: `${c.code} - ${c.name}`, value: c.id }))
 )
 
@@ -1188,12 +1194,22 @@ const readonlyBankLabel = computed(() => {
   return ba ? `${ba.bank_name} — ${ba.account_number || ba.name}` : 'Cuenta bancaria no disponible'
 })
 
-const readonlyChecks = computed(() =>
-  (props.modelValue?.payment_allocations ?? []).map((allocation: any) => ({
-    ...allocation.check,
-    amount_applied: Number(allocation.amount_applied)
-  }))
-)
+const readonlyChecks = computed(() => {
+  const checksById = new Map<string, any>()
+  for (const allocation of props.modelValue?.payment_allocations ?? []) {
+    const check = allocation.check
+    if (!check?.id) continue
+    checksById.set(check.id, { ...check, amount_applied: Number(allocation.amount_applied) })
+  }
+  for (const check of props.modelValue?.linked_checks ?? []) {
+    if (!check?.id || checksById.has(check.id)) continue
+    checksById.set(check.id, { ...check, amount_applied: Number(check.amount) })
+  }
+  return [...checksById.values()]
+})
+const checkTraceabilityMissing = computed(() => props.readonly
+  && isCheck.value
+  && readonlyChecks.value.length === 0)
 
 const readonlyDocsList = computed(() => {
   if (!props.modelValue?.documents?.length) return []
@@ -1919,6 +1935,8 @@ const handleCheckCreated = async (checkData: CheckFormData) => {
       bank_account_id: checkData.bank_account_id || undefined,
       bank_account_company_id: checkData.bank_account_company_id || undefined,
       bank_account_external_id: checkData.bank_account_external_id || undefined,
+      bank_concept_id: checkData.bank_account_company_id ? undefined : checkData.bank_concept_id || undefined,
+      bank_concept_external_id: checkData.bank_account_company_id ? checkData.bank_concept_id || undefined : undefined,
       issuer_name: checkData.issuer_name,
       issuer_id: checkData.issuer_id || undefined,
       amount: checkData.amount,
@@ -1926,6 +1944,7 @@ const handleCheckCreated = async (checkData: CheckFormData) => {
       issue_date: checkData.issue_date,
       due_date: checkData.due_date,
       is_own: isOwn,
+      check_format: checkData.check_format,
       notes: checkData.notes || undefined,
     })
     checkModalOpen.value = false
@@ -2204,7 +2223,7 @@ defineExpose({ completeDraft: completePaymentDraft })
     </UCard>
 
     <!-- Medio de pago utilizado -->
-    <UCard v-if="isMixedPayment || readonlyCashBoxLabel || readonlyBankLabel || readonlyChecks.length">
+    <UCard v-if="isMixedPayment || readonlyCashBoxLabel || readonlyBankLabel || readonlyChecks.length || isCheck">
       <template #header>
         <p class="text-sm font-medium">Medio de pago utilizado</p>
       </template>
@@ -2252,6 +2271,14 @@ defineExpose({ completeDraft: completePaymentDraft })
           <p class="font-semibold">{{ formatCurrency(check.amount_applied, check.currency_code || form.currency_code) }}</p>
         </div>
       </div>
+      <UAlert
+        v-if="checkTraceabilityMissing"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-circle-alert"
+        title="El pago figura con cheque, pero no tiene un cheque asociado"
+        description="No se encontró una aplicación de cheque vinculada a este pago. Revisá la trazabilidad antes de asumir qué cheque se utilizó."
+      />
     </UCard>
 
     <!-- Documentos aplicados -->
@@ -3213,6 +3240,7 @@ defineExpose({ completeDraft: completePaymentDraft })
       v-model:open="checkModalOpen"
       :loading="checkSaving"
       :bank-account-items="checkBankAccountItems"
+      :bank-concept-items="checkAccreditationConcepts"
       :currency-items="currencyOptions"
       :forced-type="isPayment ? 'OWN' : 'THIRD_PARTY'"
       @success="handleCheckCreated"

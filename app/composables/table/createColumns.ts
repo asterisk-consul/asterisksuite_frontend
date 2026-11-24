@@ -344,17 +344,17 @@ export function createTableBuilder<T, K extends keyof T = keyof T>(
 
         switch (filter.operator) {
           case 'contains':
-            return String(value || '')
+            return String(value ?? '')
               .toLowerCase()
-              .includes(String(filter.value || '').toLowerCase())
+              .includes(String(filter.value ?? '').toLowerCase())
 
           case 'equals':
-            return String(value || '') === String(filter.value || '')
+            return String(value ?? '') === String(filter.value ?? '')
 
           case 'startsWith':
-            return String(value || '')
+            return String(value ?? '')
               .toLowerCase()
-              .startsWith(String(filter.value || '').toLowerCase())
+              .startsWith(String(filter.value ?? '').toLowerCase())
 
           case 'gt':
             return Number(value) > Number(filter.value)

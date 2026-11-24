@@ -51,6 +51,7 @@ const columnFilters = defineModel<ColumnFiltersState>('columnFilters', {
 const page = defineModel<number>('page', { default: 1 })
 const search = defineModel<string>('search', { default: '' })
 const filters = defineModel<TableFilter[]>('filters', { default: () => [] })
+const filterValues = defineModel<Record<string, string>>('filterValues', { default: () => ({}) })
 const expanded = defineModel<Record<string, boolean> | true>('expanded', { default: () => ({}) })
 
 const emit = defineEmits<{
@@ -212,6 +213,7 @@ async function confirmDelete(): Promise<void> {
       v-model:sorting="sorting"
       v-model:search="search"
       v-model:filters="filters"
+      v-model:filter-values="filterValues"
       :server-side="serverSide"
       :search-placeholder="searchPlaceholder"
       :filter-fields="filterFields ?? []"

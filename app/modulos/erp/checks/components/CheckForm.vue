@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
+import { useIntercompanyTreasuryService } from '~/modulos/erp/treasury/intercompany-treasury.service'
 
 export interface CheckFormData {
   id?: string
+  check_format: 'PAPER' | 'ECHEQ'
+  bank_concept_id: string
   check_number: string
   bank_name: string
   bank_branch: string
@@ -29,14 +32,21 @@ export interface BankAccountItem {
   currencyCode?: string
 }
 
+export interface BankConceptItem {
+  label: string
+  value: string
+}
+
 const props = withDefaults(defineProps<{
   modelValue?: CheckFormData
   loading?: boolean
   bankAccountItems?: BankAccountItem[]
+  bankConceptItems?: BankConceptItem[]
   currencyItems?: BankAccountItem[]
   forcedType?: 'OWN' | 'THIRD_PARTY'
 }>(), {
   bankAccountItems: () => [],
+  bankConceptItems: () => [],
   currencyItems: () => [],
 })
 
@@ -47,6 +57,8 @@ const emit = defineEmits<{
 }>()
 
 const defaultForm: CheckFormData = {
+  check_format: 'PAPER',
+  bank_concept_id: '',
   check_number: '',
   bank_name: '',
   bank_branch: '',
@@ -96,6 +108,7 @@ const handleSubmit = () => {
   if (!form.issue_date) missing.push('Fecha emisión')
   if (!form.due_date) missing.push('Vencimiento')
   if (form.is_own && !form.bank_account_id && !(form.bank_account_company_id && form.bank_account_external_id)) missing.push('Cuenta bancaria a debitar')
+  if (!form.is_own && form.check_format === 'ECHEQ' && !form.bank_account_id) missing.push('Cuenta bancaria para acreditar el eCheq')
   if (missing.length > 0) {
     const toast = useToast()
     toast.add({
@@ -121,10 +134,46 @@ const handleSubmit = () => {
 const selectedBankAccount = computed(() => form.bank_account_company_id && form.bank_account_external_id
   ? `shared:${form.bank_account_company_id}:${form.bank_account_external_id}`
   : form.bank_account_id)
-const availableBankAccounts = computed(() => props.bankAccountItems.filter(item => !item.currencyCode || item.currencyCode === form.currency_code))
+const requiresAutomaticAccreditation = computed(() => !form.is_own && form.check_format === 'ECHEQ')
+const isSharedAccreditationAccount = computed(() => Boolean(form.bank_account_company_id && form.bank_account_external_id))
+const availableBankAccounts = computed(() => props.bankAccountItems.filter(item =>
+  !item.currencyCode || item.currencyCode === form.currency_code
+))
+const externalBankConceptItems = ref<BankConceptItem[]>([])
+const externalConceptsLoading = ref(false)
+const visibleBankConceptItems = computed(() => isSharedAccreditationAccount.value
+  ? externalBankConceptItems.value
+  : props.bankConceptItems)
+const intercompanyService = useIntercompanyTreasuryService()
+let externalConceptRequest = 0
+
+watch(
+  () => [form.bank_account_company_id, form.bank_account_external_id, requiresAutomaticAccreditation.value] as const,
+  async ([companyId, accountId, requiresAutomatic]) => {
+    const request = ++externalConceptRequest
+    externalBankConceptItems.value = []
+    if (!companyId || !accountId || !requiresAutomatic) return
+    externalConceptsLoading.value = true
+    try {
+      const concepts = await intercompanyService.findAvailableCreditConcepts(companyId, accountId)
+      if (request === externalConceptRequest) {
+        externalBankConceptItems.value = concepts.map(concept => ({ label: `${concept.code} - ${concept.name}`, value: concept.id }))
+      }
+    } catch {
+      if (request === externalConceptRequest) externalBankConceptItems.value = []
+    } finally {
+      if (request === externalConceptRequest) externalConceptsLoading.value = false
+    }
+  },
+  { immediate: true },
+)
+
 const onBankAccountSelect = (bankId: string) => {
   const item = availableBankAccounts.value.find(b => b.value === bankId)
   if (item) {
+    const currentTarget = `${form.bank_account_company_id}:${form.bank_account_external_id}:${form.bank_account_id}`
+    const nextTarget = `${item.companyId ?? ''}:${item.externalId ?? ''}:${item.companyId ? '' : item.value}`
+    if (currentTarget !== nextTarget) form.bank_concept_id = ''
     form.bank_account_id = item.companyId ? '' : item.value
     form.bank_account_company_id = item.companyId ?? ''
     form.bank_account_external_id = item.externalId ?? ''
@@ -132,6 +181,27 @@ const onBankAccountSelect = (bankId: string) => {
       form.bank_name = item.bankName ?? item.label.split(' - ')[0] ?? ''
     }
   }
+}
+
+const setCheckFormat = (format: CheckFormData['check_format']) => {
+  if (form.check_format === format) return
+  form.check_format = format
+  if (!form.is_own && format === 'PAPER') {
+    form.bank_account_id = ''
+    form.bank_account_company_id = ''
+    form.bank_account_external_id = ''
+    form.bank_concept_id = ''
+  }
+}
+
+const setOrigin = (isOwn: boolean) => {
+  if (form.is_own !== isOwn) {
+    form.bank_account_id = ''
+    form.bank_account_company_id = ''
+    form.bank_account_external_id = ''
+    form.bank_concept_id = ''
+  }
+  form.is_own = isOwn
 }
 
 const knownBanks = [
@@ -161,7 +231,7 @@ const createBank = (value: string) => {
 watch(
   () => props.forcedType,
   (value) => {
-    if (value !== undefined) form.is_own = value === 'OWN'
+    if (value !== undefined) setOrigin(value === 'OWN')
   },
   { immediate: true }
 )
@@ -184,11 +254,11 @@ watch(
         :description="forcedType === 'OWN' ? 'Se utilizará para registrar este pago.' : 'Ingresará a la cartera de cheques con este cobro.'"
       />
       <div v-else class="grid gap-3 sm:grid-cols-2">
-        <button type="button" class="rounded-xl border p-4 text-left transition-colors" :class="!form.is_own ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-default hover:bg-muted/50'" @click="form.is_own = false">
+        <button type="button" class="rounded-xl border p-4 text-left transition-colors" :class="!form.is_own ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-default hover:bg-muted/50'" @click="setOrigin(false)">
           <div class="flex items-center gap-2 font-medium"><UIcon name="i-lucide-hand-coins" class="size-5" /> De terceros</div>
           <p class="mt-1 text-xs text-muted">Recibido de un cliente u otra persona.</p>
         </button>
-        <button type="button" class="rounded-xl border p-4 text-left transition-colors" :class="form.is_own ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-default hover:bg-muted/50'" @click="form.is_own = true">
+        <button type="button" class="rounded-xl border p-4 text-left transition-colors" :class="form.is_own ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-default hover:bg-muted/50'" @click="setOrigin(true)">
           <div class="flex items-center gap-2 font-medium"><UIcon name="i-lucide-building-2" class="size-5" /> Propio</div>
           <p class="mt-1 text-xs text-muted">Emitido desde una cuenta de la empresa.</p>
         </button>
@@ -197,6 +267,17 @@ watch(
 
     <section class="rounded-xl border border-default p-4 space-y-4">
       <div><h3 class="font-semibold">Datos del cheque</h3><p class="text-sm text-muted">Identificación bancaria que figura en el comprobante.</p></div>
+      <UFormField label="Formato del cheque" name="check_format" required>
+        <div class="grid gap-2 sm:grid-cols-2">
+          <button type="button" class="rounded-lg border px-3 py-2 text-left transition-colors" :class="form.check_format === 'PAPER' ? 'border-primary bg-primary/5 text-primary' : 'border-default hover:bg-muted/50'" @click="setCheckFormat('PAPER')">
+            <span class="flex items-center gap-2 font-medium"><UIcon name="i-lucide-file-text" class="size-4" /> Cheque físico</span>
+          </button>
+          <button type="button" class="rounded-lg border px-3 py-2 text-left transition-colors" :class="form.check_format === 'ECHEQ' ? 'border-primary bg-primary/5 text-primary' : 'border-default hover:bg-muted/50'" @click="setCheckFormat('ECHEQ')">
+            <span class="flex items-center gap-2 font-medium"><UIcon name="i-lucide-monitor-smartphone" class="size-4" /> eCheq</span>
+          </button>
+        </div>
+        <p class="mt-1.5 text-xs text-muted">El eCheq recibido se acredita automáticamente en el banco seleccionado al llegar su vencimiento.</p>
+      </UFormField>
       <div class="grid gap-4 md:grid-cols-2">
         <UFormField label="Número de cheque" name="check_number" required><UInput v-model="form.check_number" class="w-full" placeholder="Ej. 00001234" icon="i-lucide-hash" /></UFormField>
         <UFormField label="Banco emisor del cheque" name="bank_name" required>
@@ -237,21 +318,39 @@ watch(
         <UFormField label="Nombre o razón social del emisor" name="issuer_name" required><UInput v-model="form.issuer_name" class="w-full" placeholder="Quién emite el cheque" icon="i-lucide-user-round" /></UFormField>
         <UFormField label="DNI o CUIT del emisor" name="issuer_id"><UInput v-model="form.issuer_id" class="w-full" placeholder="Opcional" /></UFormField>
         <UFormField
-          v-if="form.is_own"
-          label="Cuenta bancaria a debitar"
+          v-if="form.is_own || requiresAutomaticAccreditation"
+          :label="form.is_own ? 'Cuenta bancaria a debitar' : 'Cuenta bancaria de acreditación'"
           name="bank_account_id"
-          description="El importe se descontará de esta cuenta cuando se cobre el cheque."
+          :description="form.is_own ? 'El importe se descontará de esta cuenta cuando se registre el débito.' : 'El eCheq se acreditará en esta cuenta al vencimiento. Debe ser local y operar en la moneda del cheque.'"
           required
         >
-          <USelect :model-value="selectedBankAccount" class="w-full" :items="availableBankAccounts" placeholder="Seleccionar cuenta de débito" @update:model-value="onBankAccountSelect" />
+          <USelect :model-value="selectedBankAccount" class="w-full" :items="availableBankAccounts" :placeholder="form.is_own ? 'Seleccionar cuenta de débito' : 'Seleccionar cuenta de acreditación'" @update:model-value="onBankAccountSelect" />
+        </UFormField>
+        <UFormField
+          v-if="requiresAutomaticAccreditation"
+          label="Concepto bancario de acreditación"
+          name="bank_concept_id"
+          description="Opcional. Si lo elegís, quedará asociado al movimiento bancario automático."
+        >
+          <USelect v-model="form.bank_concept_id" class="w-full" :items="visibleBankConceptItems" placeholder="Sin concepto asociado" />
+          <p v-if="externalConceptsLoading" class="mt-1 text-xs text-muted">Cargando conceptos de la empresa titular…</p>
+          <p v-else-if="isSharedAccreditationAccount && !visibleBankConceptItems.length" class="mt-1 text-xs text-warning">La cuenta compartida no tiene conceptos de crédito activos. Podés continuar sin concepto o pedir que lo configuren en la empresa titular.</p>
         </UFormField>
         <UAlert
-          v-else
+          v-else-if="!form.is_own"
           color="info"
           variant="subtle"
           icon="i-lucide-wallet-cards"
           title="Cheque de terceros"
           description="Queda en cartera hasta que se deposite o se entregue como medio de pago. La cuenta bancaria se elige recién al depositarlo."
+        />
+        <UAlert
+          v-else-if="form.check_format === 'ECHEQ'"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-info"
+          title="eCheq propio"
+          description="Se registra como electrónico. La acreditación automática solo aplica a eCheq recibidos; el débito propio continúa registrándose desde la cuenta bancaria."
         />
         <UFormField label="Notas internas" name="notes"><UTextarea v-model="form.notes" class="w-full" :rows="3" placeholder="Información adicional para identificar el cheque" /></UFormField>
       </div>

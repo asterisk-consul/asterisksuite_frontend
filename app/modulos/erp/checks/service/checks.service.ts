@@ -56,6 +56,12 @@ export const useChecksService = () => {
     })
   }
 
+  const releaseInactivePaymentLink = (id: string) => {
+    return $fetch<Check>(`${urlBase}/${id}/release-inactive-payment-link`, {
+      method: 'PATCH'
+    })
+  }
+
   const remove = (id: string) => {
     return $fetch<void>(`${urlBase}/${id}`, {
       method: 'DELETE'
@@ -128,6 +134,7 @@ export const useChecksService = () => {
     findNotificationAlerts,
     create,
     update,
+    releaseInactivePaymentLink,
     remove,
     clear,
     bounce,

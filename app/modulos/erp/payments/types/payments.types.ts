@@ -53,6 +53,18 @@ export interface PaymentObligationSummary {
   reference?: string | null
 }
 
+export interface PaymentCheckSummary {
+  id: string
+  check_number: string
+  bank_name?: string | null
+  issuer_name?: string | null
+  amount: number | string
+  currency_code: string
+  due_date?: string | null
+  is_own: boolean
+  status?: string
+}
+
 export interface Payment {
   id: string
   source_kind?: 'PARTNER_VALE'
@@ -95,11 +107,9 @@ export interface Payment {
   cash_box?: { id: string; name: string; type: string; currency_code?: string | null } | null
   payment_allocations?: Array<{
     amount_applied: number
-    check: {
-      id: string; check_number: string; bank_name?: string | null; issuer_name?: string | null
-      amount: number; currency_code: string; due_date?: string | null; is_own: boolean
-    }
+    check: PaymentCheckSummary
   }>
+  checks?: PaymentCheckSummary[]
   check_ids?: string[]
   status: PaymentStatus
   payment_mode?: PaymentMode
@@ -213,8 +223,13 @@ export interface CreatePaymentInput {
 export interface UpdatePaymentInput extends Partial<Omit<CreatePaymentInput, 'type'>> {}
 
 export interface ApplyAdvanceInput {
-  document_id: string
-  amount: number
+  applications?: Array<{
+    document_id: string
+    amount: number
+  }>
+  /** Forma individual conservada para compatibilidad con clientes anteriores. */
+  document_id?: string
+  amount?: number
 }
 
 export interface AdvanceAvailable {

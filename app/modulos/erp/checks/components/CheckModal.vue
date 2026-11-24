@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import type { CheckFormData, BankAccountItem } from './CheckForm.vue'
+import type { CheckFormData, BankAccountItem, BankConceptItem } from './CheckForm.vue'
 import CheckForm from './CheckForm.vue'
 
 const props = withDefaults(defineProps<{
   check?: CheckFormData
   loading?: boolean
   bankAccountItems?: BankAccountItem[]
+  bankConceptItems?: BankConceptItem[]
   currencyItems?: BankAccountItem[]
   forcedType?: 'OWN' | 'THIRD_PARTY'
 }>(), {
   bankAccountItems: () => [],
+  bankConceptItems: () => [],
 })
 
 const emit = defineEmits<{
@@ -31,6 +33,7 @@ const handleSubmit = (form: CheckFormData) => {
         :model-value="check"
         :loading="loading"
         :bank-account-items="bankAccountItems"
+        :bank-concept-items="bankConceptItems"
         :currency-items="currencyItems"
         :forced-type="forcedType"
         @submit="handleSubmit"

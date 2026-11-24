@@ -65,6 +65,9 @@ export const useIntercompanyTreasuryService = () => ({
   findAvailable: (use: IntercompanyUse, currencyCode?: string) => $fetch<IntercompanyFundOption[]>(`${baseUrl}/available/${use === 'HR' ? 'hr' : 'payments'}`, {
     query: { ...(use === 'HR' ? {} : { use }), ...(currencyCode ? { currency_code: currencyCode } : {}) },
   }),
+  findAvailableCreditConcepts: (companyId: string, bankAccountId: string) => $fetch<Array<{ id: string; code: string; name: string }>>(
+    `${baseUrl}/bank-accounts/${companyId}/${bankAccountId}/credit-concepts`,
+  ),
   findShares: (type: IntercompanyFundType, fundId: string) => $fetch<any[]>(`${baseUrl}/${type === 'CASH_BOX' ? 'cash-boxes' : 'bank-accounts'}/${fundId}/shares`),
   saveShares: (type: IntercompanyFundType, fundId: string, shares: any[]) => $fetch<any[]>(`${baseUrl}/${type === 'CASH_BOX' ? 'cash-boxes' : 'bank-accounts'}/${fundId}/shares`, {
     method: 'POST',

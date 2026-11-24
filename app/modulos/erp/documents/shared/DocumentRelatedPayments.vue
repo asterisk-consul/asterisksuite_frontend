@@ -4,7 +4,11 @@ import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { usePaymentsService } from '~/modulos/erp/payments/service/payments.service'
 import type { RelatedDocumentPayment } from '~/modulos/erp/payments/types/payments.types'
 
-const props = defineProps<{ documentId: string }>()
+const props = defineProps<{
+  documentId: string
+  documentLabel?: string
+  showWhenEmpty?: boolean
+}>()
 
 const auth = useAuthStore()
 const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
@@ -18,7 +22,14 @@ const hasAdminRole = computed(() => ['OWNER', 'ADMIN'].includes(
   String(auth.selectedCompany?.role ?? '').toUpperCase(),
 ))
 const canReadPayments = computed(() => hasAdminRole.value || hasPermission('payments.read'))
-const canShowSection = computed(() => loading.value || loadError.value || payments.value.length > 0)
+const canShowSection = computed(() => (props.showWhenEmpty && canReadPayments.value)
+  || loading.value || loadError.value || payments.value.length > 0)
+const hasHistoricalPayments = computed(() => payments.value.some(payment => ['CANCELLED', 'REVERSED'].includes(payment.status)))
+const documentLabel = computed(() => props.documentLabel || 'este documento')
+const isHistoricalPayment = (payment: RelatedDocumentPayment) => ['CANCELLED', 'REVERSED'].includes(payment.status)
+const appliedAmountLabel = (payment: RelatedDocumentPayment) => isHistoricalPayment(payment)
+  ? 'Vínculo histórico · no impacta el saldo'
+  : `Aplicado a ${documentLabel.value}`
 
 const statusView = (status: RelatedDocumentPayment['status']) => {
   const options: Record<string, { label: string; color: 'success' | 'info' | 'warning' | 'error' | 'neutral' }> = {
@@ -125,13 +136,23 @@ onBeforeUnmount(() => { activeRequest += 1 })
         </div>
         <div class="flex items-center gap-3 pl-7 sm:pl-0">
           <span class="text-right">
-            <span class="block text-xs text-muted">Aplicado a esta factura</span>
+            <span class="block text-xs text-muted">{{ appliedAmountLabel(payment) }}</span>
             <strong class="font-semibold tabular-nums">{{ formatAmount(payment.amount_applied, payment.currency_code) }}</strong>
+            <span class="block text-xs text-muted">Total del movimiento: {{ formatAmount(payment.amount, payment.currency_code) }}</span>
           </span>
           <span class="text-xs text-primary">Ver pago</span>
         </div>
       </NuxtLink>
-      <p v-if="!payments.length" class="text-sm text-muted">No hay pagos activos asociados a esta factura.</p>
+      <p v-if="!payments.length" class="text-sm text-muted">No hay pagos asociados a {{ documentLabel }}.</p>
+      <UAlert
+        v-if="hasHistoricalPayments"
+        class="mt-2"
+        color="neutral"
+        variant="subtle"
+        icon="i-lucide-history"
+        title="Hay vínculos históricos con pagos anulados o revertidos"
+        description="Se muestran para conservar la trazabilidad, pero no cuentan como pagos vigentes en el saldo del documento."
+      />
     </div>
   </UCard>
 </template>

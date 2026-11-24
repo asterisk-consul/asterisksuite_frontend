@@ -6,7 +6,7 @@ import type { SortingState } from '@tanstack/vue-table'
 import type { FilterField, SortField } from '~/components/Tablas/TableToolbar.vue'
 
 import { useChecks } from '~/modulos/erp/checks/composables/useChecks'
-import { checkColumns } from '~/modulos/erp/checks/columns'
+import { checkColumns, hasInactivePaymentLink } from '~/modulos/erp/checks/columns'
 import type { Check } from '~/modulos/erp/checks/types/checks.types'
 import { useBankAccountsService } from '~/modulos/erp/bank-accounts/service/bank-accounts.service'
 import type { BankAccount } from '~/modulos/erp/bank-accounts/types/bank-accounts.types'
@@ -37,6 +37,7 @@ const {
   loading,
   init,
   remove,
+  releaseInactivePaymentLink,
   bounce,
   reject,
   deposit,
@@ -53,6 +54,11 @@ const sorting = ref<SortingState>([])
 const deleteModalOpen = ref(false)
 const deletingCheck = ref<Check | null>(null)
 const deleting = ref(false)
+const releaseLinkModalOpen = ref(false)
+const releasingLinkCheck = ref<Check | null>(null)
+const releasingLink = ref(false)
+const showOnlyInactivePaymentLinks = ref(false)
+const checkFilterValues = ref<Record<string, string>>({})
 
 // Deposit modal state
 const depositModalOpen = ref(false)
@@ -176,6 +182,35 @@ const alertFilteredChecks = computed(() => {
   )
   return checks.value.filter(check => matchingIds.has(check.id))
 })
+const inactivePaymentLinkChecks = computed(() => checks.value.filter(hasInactivePaymentLink))
+const textFilteredChecks = computed(() => {
+  const activeFilters = Object.entries(checkFilterValues.value)
+    .map(([id, value]) => [id, value.trim().toLocaleLowerCase('es-AR')] as const)
+    .filter(([, value]) => value.length > 0)
+  if (!activeFilters.length) return alertFilteredChecks.value
+
+  return alertFilteredChecks.value.filter((check) => {
+    const payments = [
+      ...(check.payment ? [check.payment] : []),
+      ...(check.payment_allocations ?? []).flatMap(allocation => allocation.payment ? [allocation.payment] : [])
+    ]
+    const searchableValues: Record<string, string> = {
+      check_number: `${check.check_number} ${check.bank_name ?? ''}`,
+      issuer_name: check.issuer_name ?? '',
+      party_name: payments.map(payment => payment.party?.name ?? '').join(' '),
+      related_payments: payments.map(payment => `${payment.type === 'COLLECTION' ? 'Cobro' : 'Pago'} #${payment.number} ${payment.status} ${payment.deleted_at ? 'eliminado' : ''}`).join(' ')
+    }
+    return activeFilters.every(([id, value]) =>
+      (searchableValues[id] ?? '').toLocaleLowerCase('es-AR').includes(value)
+    )
+  })
+})
+const displayedChecks = computed(() => showOnlyInactivePaymentLinks.value
+  ? textFilteredChecks.value.filter(hasInactivePaymentLink)
+  : textFilteredChecks.value)
+const toggleInactivePaymentLinkFilter = () => {
+  showOnlyInactivePaymentLinks.value = !showOnlyInactivePaymentLinks.value
+}
 const alertCards = computed<CheckAlertCard[]>(() => [
   ...(dueThirdPartyChecks.value.length ? [{
     id: 'third-party' as const,
@@ -235,8 +270,14 @@ const openResolveModal = async (check: Check) => {
   resolvingCheck.value = check
   cashBoxId.value = ''
   cashCollectionDate.value = todayInArgentina()
-  await initCashBoxes()
+  if (check.check_format !== 'ECHEQ') await initCashBoxes()
   resolveModalOpen.value = true
+}
+
+const getEcheckAccreditationDescription = (check: Check) => {
+  const accountName = [check.bank_account?.bank_name, check.bank_account?.name].filter(Boolean).join(' · ') || 'la cuenta seleccionada'
+  const concept = check.bank_concept ? ` con el concepto ${check.bank_concept.code} · ${check.bank_concept.name}` : ''
+  return `El ${formatCheckDate(check.due_date)} se acreditará en ${accountName}${concept}.`
 }
 
 const payWithCheck = () => {
@@ -304,6 +345,31 @@ const goToEdit = (row: Check) => {
 const confirmDelete = (check: Check) => {
   deletingCheck.value = check
   deleteModalOpen.value = true
+}
+
+const requestReleaseInactivePaymentLink = (check: Check) => {
+  releasingLinkCheck.value = check
+  releaseLinkModalOpen.value = true
+}
+
+const cancelReleaseInactivePaymentLink = () => {
+  releaseLinkModalOpen.value = false
+}
+
+const handleReleaseInactivePaymentLink = async () => {
+  if (releasingLink.value || !releasingLinkCheck.value) return
+  try {
+    releasingLink.value = true
+    await releaseInactivePaymentLink(releasingLinkCheck.value.id)
+    toast.add({ title: `Se desvinculó el cheque N° ${releasingLinkCheck.value.check_number}`, color: 'success' })
+    releaseLinkModalOpen.value = false
+    releasingLinkCheck.value = null
+    await init()
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo liberar el cheque', description: error?.data?.message || error?.message, color: 'error' })
+  } finally {
+    releasingLink.value = false
+  }
 }
 
 const handleDelete = async () => {
@@ -496,9 +562,11 @@ const columns = computed(() => checkColumns({
   canViewPayments: isOwnerOrAdmin.value || hasPermission('payments.read'),
   canDeposit: isOwnerOrAdmin.value || hasPermission('checks.deposit'),
   canReject: isOwnerOrAdmin.value || hasPermission('checks.reject'),
+  canReleasePaymentLink: isOwnerOrAdmin.value || hasPermission('checks.update'),
   onDetail: goToEdit,
   onEdit: goToEdit,
   onDelete: confirmDelete,
+  onReleasePaymentLink: requestReleaseInactivePaymentLink,
   onDeposit: openDepositModal,
   onResolve: openResolveModal,
   onProcess: openDebitModal,
@@ -578,6 +646,20 @@ const sortFields: SortField[] = [
 
       <CheckAlertCards :alerts="alertCards" :active-filter="activeAlertFilter" @select="toggleAlertFilter" />
 
+      <div v-if="inactivePaymentLinkChecks.length" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
+        <p class="text-sm text-muted">
+          {{ inactivePaymentLinkChecks.length }} cheque(s) siguen vinculados a pagos anulados o eliminados.
+        </p>
+        <UButton
+          :label="showOnlyInactivePaymentLinks ? 'Mostrar todos los cheques' : `Ver vínculos a desvincular (${inactivePaymentLinkChecks.length})`"
+          :icon="showOnlyInactivePaymentLinks ? 'i-lucide-list' : 'i-lucide-unlink'"
+          size="sm"
+          :color="showOnlyInactivePaymentLinks ? 'neutral' : 'warning'"
+          variant="soft"
+          @click="toggleInactivePaymentLinkFilter"
+        />
+      </div>
+
       <div v-if="activeAlertFilter" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-default bg-elevated/40 px-3 py-2">
         <span class="flex items-center gap-2 text-sm text-muted">
           <UIcon name="i-lucide-filter" class="size-4" />
@@ -589,14 +671,30 @@ const sortFields: SortField[] = [
 
       <LogisticaTable
         :loading="loading"
-        :data="alertFilteredChecks"
+        :data="displayedChecks"
         :columns="columns"
         :on-row-click="goToEdit"
         :filter-fields="filterFields"
         :sort-fields="sortFields"
+        v-model:filter-values="checkFilterValues"
         v-model:sorting="sorting"
       />
     </div>
+
+    <UModal v-model:open="releaseLinkModalOpen" title="Desvincular cheque de un pago inactivo">
+      <template #body>
+        <div class="space-y-4">
+          <p>
+            El cheque N° <strong>{{ releasingLinkCheck?.check_number }}</strong> está vinculado a un pago anulado o eliminado.
+            Se quitará la asociación vigente y se conservará el historial del pago. Si el cheque estaba confirmado, vuelve a pendiente.
+          </p>
+          <div class="flex justify-end gap-2">
+            <UButton label="Cancelar" variant="ghost" :disabled="releasingLink" @click="cancelReleaseInactivePaymentLink" />
+            <UButton label="Desvincular" icon="i-lucide-unlink" color="warning" :loading="releasingLink" :disabled="releasingLink" @click="handleReleaseInactivePaymentLink" />
+          </div>
+        </div>
+      </template>
+    </UModal>
 
     <!-- DELETE MODAL -->
     <UModal v-model:open="deleteModalOpen" title="Eliminar cheque">
@@ -705,11 +803,20 @@ const sortFields: SortField[] = [
           </div>
 
           <div class="grid gap-3 sm:grid-cols-2">
-            <UButton label="Depositar en banco" icon="i-lucide-building-2" variant="outline" block @click="depositResolvedCheck" />
+            <UButton v-if="resolvingCheck.check_format !== 'ECHEQ'" label="Depositar en banco" icon="i-lucide-building-2" variant="outline" block @click="depositResolvedCheck" />
             <UButton label="Usar para pagar" icon="i-lucide-hand-coins" variant="outline" block @click="payWithCheck" />
           </div>
 
-          <div class="rounded-xl border border-default p-4 space-y-3">
+          <UAlert
+            v-if="resolvingCheck.check_format === 'ECHEQ'"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-calendar-check"
+            title="Acreditación automática al vencimiento"
+            :description="getEcheckAccreditationDescription(resolvingCheck)"
+          />
+
+          <div v-else class="rounded-xl border border-default p-4 space-y-3">
             <div>
               <p class="text-sm font-medium">Cobrar e ingresar en caja</p>
               <p class="text-xs text-muted">La caja debe estar abierta y operar en {{ resolvingCheck.currency_code }}.</p>

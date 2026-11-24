@@ -3,12 +3,13 @@ definePageMeta({ middleware: ['auth'] })
 
 import { useCurrentAccounts } from '~/modulos/erp/current-accounts/composables/useCurrentAccounts'
 import { ENTRY_TYPE_CONFIG } from '~/modulos/erp/current-accounts/columns'
-import type { CurrentAccount } from '~/modulos/erp/current-accounts/types/current-accounts.types'
+import type { CurrentAccount, CurrentAccountEntry } from '~/modulos/erp/current-accounts/types/current-accounts.types'
 import { resolveEntrySide } from '~/modulos/erp/current-accounts/utils'
 
 import CurrentAccountSummary from '~/components/current-account/CurrentAccountSummary.vue'
 import CurrentAccountChart from '~/components/current-account/CurrentAccountChart.vue'
 import CurrentAccountEntryTable from '~/components/current-account/CurrentAccountEntryTable.vue'
+import CurrentAccountEntryDetailsModal from '~/components/current-account/CurrentAccountEntryDetailsModal.vue'
 import CurrentAccountExport from '~/components/current-account/CurrentAccountExport.vue'
 import AdjustBalanceModal from '~/components/current-account/AdjustBalanceModal.vue'
 import CurrentAccountWithholdingModal from '~/components/current-account/CurrentAccountWithholdingModal.vue'
@@ -41,7 +42,14 @@ const deletingOpeningBalance = ref(false)
 const pendingManualAdjustment = ref<any | null>(null)
 const deletingManualAdjustment = ref(false)
 const showDeleteAdjustmentConfirmation = ref(false)
+const selectedEntry = ref<CurrentAccountEntry | null>(null)
+const showEntryDetails = ref(false)
 const currentAccountsService = useCurrentAccountsService()
+
+function viewEntryDetails(entry: CurrentAccountEntry) {
+  selectedEntry.value = entry
+  showEntryDetails.value = true
+}
 
 function requestDeleteManualAdjustment(entry: any) {
   pendingManualAdjustment.value = entry
@@ -301,6 +309,7 @@ const accountActionItems = computed(() => [
             :entries="entries"
             :loading="loading"
             :party-type="account.party_type"
+            :on-view-details="viewEntryDetails"
             :can-delete-manual-adjustments="isOwnerOrAdmin"
             :on-delete-manual-adjustment="requestDeleteManualAdjustment"
           />
@@ -338,6 +347,13 @@ const accountActionItems = computed(() => [
       :account="account"
       :balance="balance"
       @saved="reloadAccount"
+    />
+
+    <CurrentAccountEntryDetailsModal
+      v-model:open="showEntryDetails"
+      :entry="selectedEntry"
+      :party-name="account?.party?.name"
+      :base-currency="account?.currency_code ?? 'ARS'"
     />
 
     <UModal

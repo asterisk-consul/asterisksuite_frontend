@@ -34,6 +34,21 @@ export const getMovementSignedAmount = (row: Row) => {
   return amount
 }
 
+// Compatibilidad con retiros manuales históricos que quedaron guardados como
+// PAYMENT. Los pagos reales se crean bajo una operación PAYMENT y conservan
+// payment_id; por eso siguen identificándose como Pago.
+const isLegacyManualWithdrawal = (row: Row) =>
+  row.type === 'PAYMENT'
+  && getMovementSignedAmount(row) < 0
+  && row.operation?.operation_type === 'MANUAL'
+  && !row.payment_id
+  && row.reference_type !== 'bank_statement_import'
+
+const isPartnerWithdrawal = (row: Row) =>
+  row.reference_type?.endsWith('hr_vale') === true
+  && /^Retiro de socio\b/i.test(row.description?.trim() ?? '')
+  && getMovementSignedAmount(row) < 0
+
 const investmentMovementLabel = (row: Row) =>
   getMovementSignedAmount(row) < 0 ? 'Constitución' : 'Rescate / vencimiento'
 
@@ -68,6 +83,12 @@ export const getMovementTypeBadge = (row: Row): { label: string; color: BadgeCol
       color: getMovementSignedAmount(row) < 0 ? 'info' : 'success'
     }
   }
+  if (isPartnerWithdrawal(row)) {
+    return { label: 'Retiro de socio', color: 'error' }
+  }
+  if (isLegacyManualWithdrawal(row)) {
+    return { label: 'Retiro', color: 'error' }
+  }
   const config = MOVEMENT_TYPE_CONFIG[row.type]
   return { label: config?.label ?? row.type, color: config?.color ?? 'neutral' }
 }
@@ -80,6 +101,7 @@ export const MOVEMENT_TYPE_OPTIONS = Object.entries(MOVEMENT_TYPE_CONFIG).map(([
 const MOVEMENT_TYPE_FILTER_OPTIONS = [
   ...Object.values(MOVEMENT_TYPE_CONFIG).map(({ label }) => label),
   'Reversión de pago',
+  'Retiro de socio',
   'Constitución',
   'Rescate / vencimiento'
 ].map(label => ({ label, value: label }))

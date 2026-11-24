@@ -170,7 +170,13 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
           <div v-if="factura" id="printable-document">
             <DocumentAssignment :key="factura.id" :document-id="factura.id" />
             <FacturaView :document="factura" mode="purchase" />
-            <DocumentRelatedPayments v-if="category === 'INVOICE'" :key="factura.id" :document-id="factura.id" />
+            <DocumentRelatedPayments
+              v-if="category === 'INVOICE' || category === 'OPENING_BALANCE'"
+              :key="factura.id"
+              :document-id="factura.id"
+              :document-label="category === 'OPENING_BALANCE' ? 'este saldo inicial' : 'esta factura'"
+              :show-when-empty="category === 'OPENING_BALANCE'"
+            />
           </div>
           <UiAttachmentManager
             v-if="factura"

@@ -10,6 +10,7 @@ const props = defineProps<{
   partyType?: string
   initialSorting?: SortingState
   canDeleteManualAdjustments?: boolean
+  onViewDetails?: (entry: any) => void
   onDeleteManualAdjustment?: (entry: any) => void
 }>()
 
@@ -22,6 +23,7 @@ function onSortFieldSelect(columnId: string) {
 
 const columns = computed(() => currentAccountEntryColumns({
   onSortFieldSelect,
+  onViewDetails: props.onViewDetails,
   partyType: props.partyType,
   baseCurrency: 'ARS',
   canDeleteManualAdjustments: props.canDeleteManualAdjustments,

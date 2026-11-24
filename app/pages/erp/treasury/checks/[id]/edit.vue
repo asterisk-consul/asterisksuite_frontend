@@ -4,6 +4,7 @@ definePageMeta({ middleware: ['auth'] })
 import { useChecks } from '~/modulos/erp/checks/composables/useChecks'
 import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBankAccounts'
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
+import { useBankConcepts } from '~/modulos/erp/bank-concepts/composable/useBankConcepts'
 import type { CheckFormData } from '~/modulos/erp/checks/components/CheckForm.vue'
 import CheckForm from '~/modulos/erp/checks/components/CheckForm.vue'
 import type { BankAccountItem } from '~/modulos/erp/checks/components/CheckForm.vue'
@@ -18,6 +19,10 @@ const { selectItems: localBankAccountItems, init: initBankAccounts } = useBankAc
 const sharedBankAccounts = ref<BankAccountItem[]>([])
 const bankAccountItems = computed(() => [...localBankAccountItems.value, ...sharedBankAccounts.value])
 const { codeSelectItems: currencyItems, init: initCurrencies } = useCurrencies()
+const { concepts: bankConcepts, init: initBankConcepts } = useBankConcepts()
+const bankConceptItems = computed(() => bankConcepts.value
+  .filter(concept => concept.is_active && concept.nature === 'CREDIT' && concept.affects_balance)
+  .map(concept => ({ label: `${concept.code} - ${concept.name}`, value: concept.id })))
 
 const check = ref<CheckFormData | null>(null)
 const loadingData = ref(true)
@@ -44,6 +49,8 @@ onMounted(async () => {
     }
     check.value = {
       id: data.id,
+      check_format: data.check_format ?? 'PAPER',
+      bank_concept_id: data.bank_concept_id ?? data.bank_concept_external_id ?? '',
       check_number: data.check_number,
       bank_name: data.bank_name,
       bank_branch: data.bank_branch ?? '',
@@ -67,9 +74,15 @@ onMounted(async () => {
     loadingData.value = false
     await initBankAccounts()
     await initCurrencies()
+    await initBankConcepts().catch(() => undefined)
     try {
-      const funds = await useIntercompanyTreasuryService().findAvailable('PAYMENT')
-      sharedBankAccounts.value = funds.filter(fund => fund.fund_type === 'BANK_ACCOUNT').map(fund => ({
+      const [paymentFunds, collectionFunds] = await Promise.all([
+        useIntercompanyTreasuryService().findAvailable('PAYMENT'),
+        useIntercompanyTreasuryService().findAvailable('COLLECTION'),
+      ])
+      const funds = [...paymentFunds, ...collectionFunds]
+      const uniqueFunds = [...new Map(funds.filter(fund => fund.fund_type === 'BANK_ACCOUNT').map(fund => [`${fund.company_id}:${fund.fund_id}`, fund])).values()]
+      sharedBankAccounts.value = uniqueFunds.map(fund => ({
         label: `${fund.bank_name || fund.name} - ${fund.name} · ${fund.company_name} (${fund.currency_code})`,
         value: `shared:${fund.company_id}:${fund.fund_id}`,
         companyId: fund.company_id,
@@ -92,9 +105,12 @@ const handleSubmit = async (formData: CheckFormData) => {
       currency_code: formData.currency_code,
       issue_date: formData.issue_date || undefined,
       bank_name: formData.bank_name,
-      bank_account_id: formData.bank_account_id || undefined,
-      bank_account_company_id: formData.bank_account_company_id || undefined,
-      bank_account_external_id: formData.bank_account_external_id || undefined,
+      bank_account_id: formData.bank_account_id || null,
+      bank_account_company_id: formData.bank_account_company_id || null,
+      bank_account_external_id: formData.bank_account_external_id || null,
+      bank_concept_id: formData.bank_account_company_id ? null : formData.bank_concept_id || null,
+      bank_concept_external_id: formData.bank_account_company_id ? formData.bank_concept_id || null : null,
+      check_format: formData.check_format,
       bank_branch: formData.bank_branch || undefined,
       account_number: formData.account_number || undefined,
       issuer_name: formData.issuer_name,
@@ -128,6 +144,7 @@ const handleSubmit = async (formData: CheckFormData) => {
         :model-value="check"
         :loading="saving"
         :bank-account-items="bankAccountItems"
+        :bank-concept-items="bankConceptItems"
         :currency-items="currencyItems"
         @submit="handleSubmit"
         @cancel="router.push('/erp/treasury/checks')"

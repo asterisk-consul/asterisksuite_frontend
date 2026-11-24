@@ -61,8 +61,9 @@ const checklistItemDrafts = ref<Record<string, string>>({})
 const checklistDateOpen = reactive<Record<string, boolean>>({})
 const checklistMemberOpen = reactive<Record<string, boolean>>({})
 const convertingChecklistItemId = ref('')
-const activeActionPanel = ref<'add' | 'labels' | 'checklist' | 'members' | 'client' | null>(null)
+const activeActionPanel = ref<'add' | 'labels' | 'checklist' | 'members' | 'client' | 'category' | 'priority' | 'start' | 'due' | null>(null)
 const actionModalOpen = ref(false)
+const timeModalOpen = ref(false)
 const attachmentInput = ref<HTMLInputElement | null>(null)
 const uploadingAttachment = ref(false)
 const attachmentDeletingId = ref('')
@@ -123,8 +124,15 @@ const commentSaving = ref(false)
 const descriptionSaving = ref(false)
 const descriptionEditing = ref(false)
 const addingLabel = ref(false)
+const updatingLabel = ref(false)
 const newLabelName = ref('')
 const newLabelColor = ref('warning')
+const labelSearchTerm = ref('')
+const labelCreateModalOpen = ref(false)
+const labelEditModalOpen = ref(false)
+const editingLabelId = ref('')
+const editingLabelName = ref('')
+const editingLabelColor = ref('warning')
 const commentDraft = ref('')
 const showBoardModal = ref(false)
 const showTaskModal = ref(false)
@@ -150,6 +158,7 @@ const memberRoleToAdd = ref<TaskMemberRole>('COLLABORATOR')
 const boardOptions = computed(() => boards.value.map(item => ({ label: `${item.name}${item.party ? ` · ${item.party.name}` : item.is_default ? ' · Principal' : ''}`, value: item.id })))
 const memberOptions = computed(() => [{ label: 'Sin asignar', value: 'NONE' }, ...members.value.map(member => ({ label: member.name, value: member.id }))])
 const selectMenuUi = { base: 'w-full min-w-0', value: 'min-w-0 truncate', content: 'max-w-[calc(100vw-2rem)]', itemLabel: 'min-w-0 truncate' }
+const stackedModalSelectMenuUi = { ...selectMenuUi, content: 'z-[10030] max-w-[calc(100vw-2rem)]' }
 const taskMemberOptions = computed(() => [
   { label: 'Seleccionar persona', value: 'NONE' },
   ...members.value
@@ -167,7 +176,13 @@ const whatsappModuleEnabled = computed(() => whatsappModule.value?.enabled === t
 const whatsappModuleChecking = computed(() => whatsappModuleRefreshing.value)
 const canManagePlatformModules = computed(() => ['PLATFORM_OWNER', 'PLATFORM_ADMIN'].includes(auth.user?.role ?? ''))
 const selectedTaskPartyOption = computed(() => taskPartyOptions.value.find(option => option.value === taskForm.party_id) ?? customerSuggestions.value.find(option => option.value === taskForm.party_id))
-const labelOptions = computed(() => labels.value.map(label => ({ label: label.name, value: label.id })))
+const labelOptions = computed(() => labels.value.map(label => ({ label: label.name ?? `${labelColorName(label.color)} · solo color`, value: label.id })))
+const selectedTaskLabels = computed(() => taskForm.label_ids.map(id => labels.value.find(label => label.id === id)).filter((label): label is TaskLabel => !!label))
+const filteredTaskLabels = computed(() => {
+  const query = labelSearchTerm.value.trim().toLocaleLowerCase('es')
+  if (!query) return labels.value
+  return labels.value.filter(label => `${label.name ?? ''} ${labelColorName(label.color)}`.toLocaleLowerCase('es').includes(query))
+})
 const categoryOptions = computed(() => categories.value.filter(category => category.active || taskForm.category_id === category.id).map(category => ({ label: category.name, value: category.id })))
 const categoryFilterOptions = computed(() => categories.value.filter(category => category.active).map(category => ({ label: category.name, value: category.id })))
 const boardFilterMemberOptions = computed(() => [{ label: 'Sin miembros', value: 'NONE' }, { label: 'Asignadas a mí', value: 'ME' }, ...members.value.map(member => ({ label: member.name, value: member.id }))])
@@ -195,12 +210,12 @@ const columnMoveOptions = computed(() => {
   ]
 })
 const labelColorOptions = [
-  { label: 'Naranja', value: 'warning' },
-  { label: 'Rojo', value: 'error' },
-  { label: 'Azul', value: 'info' },
-  { label: 'Verde', value: 'success' },
-  { label: 'Violeta', value: 'primary' },
-  { label: 'Gris', value: 'neutral' },
+  { label: 'Naranja', value: 'warning', background: '#9b4e00', foreground: '#ffe1bf' },
+  { label: 'Rojo', value: 'error', background: '#a92d27', foreground: '#ffe0dd' },
+  { label: 'Azul', value: 'info', background: '#205db3', foreground: '#deebff' },
+  { label: 'Verde', value: 'success', background: '#216b52', foreground: '#d5f3e6' },
+  { label: 'Violeta', value: 'primary', background: '#793da0', foreground: '#f0defa' },
+  { label: 'Gris', value: 'neutral', background: '#555b66', foreground: '#f0f1f3' },
 ]
 const actionPanelTitle = computed(() => {
   switch (activeActionPanel.value) {
@@ -209,6 +224,10 @@ const actionPanelTitle = computed(() => {
     case 'checklist': return 'Añadir checklist'
     case 'members': return 'Miembros'
     case 'client': return 'Cliente asociado'
+    case 'category': return 'Categoría'
+    case 'priority': return 'Prioridad'
+    case 'start': return 'Fecha de inicio'
+    case 'due': return 'Fecha de vencimiento'
     default: return 'Acciones de tarea'
   }
 })
@@ -464,14 +483,11 @@ async function toggleSelectedTaskTimer() {
 }
 
 async function finishSelectedTaskTimer() {
-  const taskId = selectedTask.value?.id
-  if (!taskId || !selectedTaskTimer.value) return
+  if (!selectedTask.value?.id || !selectedTaskTimer.value) return
   try {
-    const workLog = await taskTimer.finish()
-    await loadWorkLogs(taskId)
-    toast.add({ title: 'Tiempo registrado', description: `${formatWorkedTime(workLog.minutes)} en esta tarea.`, color: 'success' })
+    await taskTimer.requestFinish()
   } catch (error: any) {
-    toast.add({ title: 'No se pudo finalizar el temporizador', description: error?.data?.message ?? error.message, color: 'error' })
+    toast.add({ title: 'No se pudo pausar el temporizador', description: error?.data?.message ?? error.message, color: 'error' })
   }
 }
 
@@ -561,11 +577,13 @@ async function toggleCategoryActive(category: TaskCategory) {
   } finally { updatingCategoryId.value = '' }
 }
 
-function labelBackgroundClass(color: string) {
-  return ({
-    primary: 'bg-primary/30', success: 'bg-success/30', info: 'bg-info/30',
-    warning: 'bg-warning/30', error: 'bg-error/30', neutral: 'bg-neutral/30',
-  } as const)[color as 'primary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'] ?? 'bg-primary/30'
+function labelColorName(color: string) {
+  return labelColorOptions.find(option => option.value === color)?.label ?? 'Color'
+}
+
+function labelChipStyle(color: string) {
+  const option = labelColorOptions.find(item => item.value === color) ?? labelColorOptions[4]
+  return { backgroundColor: option.background, color: option.foreground }
 }
 
 async function loadBoards() {
@@ -794,7 +812,10 @@ function openBoardModal() {
 function closeBoardModal() { showBoardModal.value = false }
 function closeTaskModal() {
   showTaskModal.value = false
+  timeModalOpen.value = false
   closeActionPanel()
+  labelCreateModalOpen.value = false
+  labelEditModalOpen.value = false
   clearAttachmentPreview()
   if (route.query.task_id) {
     const query = { ...route.query }
@@ -851,16 +872,20 @@ function toggleActionPanel(panel: NonNullable<typeof activeActionPanel.value>) {
     closeActionPanel()
     return
   }
+  if (panel === 'labels') labelSearchTerm.value = ''
   activeActionPanel.value = panel
   actionModalOpen.value = true
 }
 function setActionPanel(panel: NonNullable<typeof activeActionPanel.value>) {
+  if (panel === 'labels') labelSearchTerm.value = ''
   activeActionPanel.value = panel
   actionModalOpen.value = true
 }
 function closeActionPanel() {
   actionModalOpen.value = false
   activeActionPanel.value = null
+  labelCreateModalOpen.value = false
+  labelEditModalOpen.value = false
 }
 function toggleTaskLabel(labelId: string) {
   taskForm.label_ids = taskForm.label_ids.includes(labelId)
@@ -1225,17 +1250,41 @@ async function loadComments(taskId: string) {
 
 async function addLabel() {
   const name = newLabelName.value.trim()
-  if (!name) return
   addingLabel.value = true
   try {
-    const label = await service.createLabel({ name, color: newLabelColor.value })
+    const label = await service.createLabel({ ...(name ? { name } : {}), color: newLabelColor.value })
     if (!labels.value.some(item => item.id === label.id)) labels.value.push(label)
     if (!taskForm.label_ids.includes(label.id)) taskForm.label_ids.push(label.id)
     newLabelName.value = ''
+    labelCreateModalOpen.value = false
   } catch (error: any) {
     toast.add({ title: 'No se pudo crear la etiqueta', description: error?.data?.message ?? error.message, color: 'error' })
   } finally {
     addingLabel.value = false
+  }
+}
+
+function openTaskLabelEditor(label: TaskLabel) {
+  editingLabelId.value = label.id
+  editingLabelName.value = label.name ?? ''
+  editingLabelColor.value = label.color
+  labelEditModalOpen.value = true
+}
+
+async function saveTaskLabelEdit() {
+  if (!editingLabelId.value) return
+  updatingLabel.value = true
+  try {
+    const updated = await service.updateLabel(editingLabelId.value, { name: editingLabelName.value.trim() || null, color: editingLabelColor.value })
+    const index = labels.value.findIndex(label => label.id === updated.id)
+    if (index >= 0) labels.value.splice(index, 1, updated)
+    labelEditModalOpen.value = false
+    editingLabelId.value = ''
+    toast.add({ title: 'Etiqueta actualizada', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo actualizar la etiqueta', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    updatingLabel.value = false
   }
 }
 
@@ -1490,7 +1539,7 @@ onBeforeUnmount(() => {
                     <div class="flex items-start justify-between gap-2"><p class="task-card-title min-w-0 flex-1 font-medium leading-snug" :class="task.completed_at ? 'text-muted line-through task-title-shifted' : hasTaskPermission('tasks.update') ? 'task-title-interactive' : ''">{{ task.title }}</p><UBadge class="shrink-0" :color="task.completed_at ? 'success' : priorityColor(task.priority)" variant="subtle" size="xs">{{ task.completed_at ? 'Completada' : priorityLabel(task.priority) }}</UBadge></div>
                 <p v-if="task.description" class="mt-2 line-clamp-2 text-xs text-muted">{{ descriptionPreview(task.description) }}</p>
                 <div v-if="task.category" class="mt-2"><UBadge :color="categoryColor(task.category.color)" variant="subtle" size="xs">{{ task.category.name }}</UBadge></div>
-                <div v-if="task.labels?.length" class="mt-2 flex flex-wrap gap-1.5"><UBadge v-for="label in task.labels" :key="label.id" :color="labelColor(label.color)" variant="subtle" size="xs">{{ label.name }}</UBadge></div>
+                <div v-if="task.labels?.length" class="mt-2 flex flex-wrap gap-1.5"><span v-for="label in task.labels" :key="label.id" class="inline-flex min-h-6 min-w-8 max-w-36 items-center justify-center truncate rounded px-2 py-1 text-[11px] font-semibold" :style="labelChipStyle(label.color)" :title="label.name ?? `${labelColorName(label.color)} · solo color`" :aria-label="label.name ?? `${labelColorName(label.color)} · etiqueta sin nombre`"><template v-if="label.name">{{ label.name }}</template><span v-else class="sr-only">{{ labelColorName(label.color) }}</span></span></div>
                 <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                   <span v-if="task.party" class="inline-flex min-w-0 items-center gap-1"><UIcon name="i-lucide-building-2" class="size-3.5 shrink-0"/><span class="max-w-36 truncate">{{ task.party.name }}</span></span>
                   <span v-if="task.assignee" class="inline-flex min-w-0 items-center gap-1"><UIcon name="i-lucide-user-round" class="size-3.5 shrink-0"/><span class="max-w-28 truncate">{{ task.assignee.name }}</span></span>
@@ -1633,40 +1682,72 @@ onBeforeUnmount(() => {
   </UModal>
 
   <UModal v-model:open="showTaskModal" :title="selectedTask ? 'Detalle de la tarea' : 'Nueva tarea'" description="Organizá responsables, fechas, etiquetas y comentarios." :ui="{ content: 'sm:max-w-6xl' }">
+    <template #header>
+      <div class="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+        <div class="min-w-0 flex-1">
+          <h2 class="truncate text-lg font-semibold">{{ selectedTask ? 'Detalle de la tarea' : 'Nueva tarea' }}</h2>
+          <p class="text-sm text-muted">Organizá responsables, fechas, etiquetas y comentarios.</p>
+        </div>
+        <UFormField v-if="selectedTask" label="Lista" class="w-full min-w-0 sm:w-52 sm:shrink-0">
+          <USelectMenu v-model="taskForm.column_id" :items="board?.columns.map(column => ({ label: column.name, value: column.id })) ?? []" value-key="value" :disabled="!canEditTask" class="w-full min-w-0" :ui="selectMenuUi" aria-label="Lista de la tarea" />
+        </UFormField>
+        <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" class="self-end sm:self-center" aria-label="Cerrar detalle de la tarea" @click="showTaskModal = false" />
+      </div>
+    </template>
     <template #body>
       <div class="grid max-h-[78vh] gap-6 overflow-y-auto pr-1 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.72fr)]">
         <div class="flex min-w-0 flex-col gap-5">
-          <div class="flex items-center gap-4">
-            <button v-if="selectedTask" type="button" class="flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-200 ease-out hover:scale-[1.03] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60" :class="selectedTask.completed_at ? 'border-success bg-success text-white' : 'border-muted text-transparent hover:border-success hover:bg-success/15'" :aria-label="selectedTask.completed_at ? 'Reabrir tarea' : 'Marcar tarea como completada'" :aria-pressed="!!selectedTask.completed_at" :title="selectedTask.completed_at ? 'Reabrir tarea' : 'Marcar tarea como completada'" :disabled="!hasTaskPermission('tasks.update') || completionTaskId === selectedTask.id" @click="toggleTaskCompletion(selectedTask)"><UIcon v-if="completionTaskId === selectedTask.id" name="i-lucide-loader-circle" class="size-4 animate-spin text-muted"/><UIcon v-else-if="selectedTask.completed_at" name="i-lucide-check" class="size-4"/></button>
-            <span v-else class="flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-muted/60" aria-hidden="true" />
-            <UInput v-model="taskForm.title" :disabled="!canEditTask" maxlength="200" placeholder="Título de la tarea" class="w-full text-lg font-semibold" />
+          <div class="flex min-w-0 flex-wrap items-end gap-3">
+            <button v-if="selectedTask" type="button" class="mb-1 flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-200 ease-out hover:scale-[1.03] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60" :class="selectedTask.completed_at ? 'border-success bg-success text-white' : 'border-muted text-transparent hover:border-success hover:bg-success/15'" :aria-label="selectedTask.completed_at ? 'Reabrir tarea' : 'Marcar tarea como completada'" :aria-pressed="!!selectedTask.completed_at" :title="selectedTask.completed_at ? 'Reabrir tarea' : 'Marcar tarea como completada'" :disabled="!hasTaskPermission('tasks.update') || completionTaskId === selectedTask.id" @click="toggleTaskCompletion(selectedTask)"><UIcon v-if="completionTaskId === selectedTask.id" name="i-lucide-loader-circle" class="size-4 animate-spin text-muted"/><UIcon v-else-if="selectedTask.completed_at" name="i-lucide-check" class="size-4"/></button>
+            <span v-else class="mb-1 flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-muted/60" aria-hidden="true" />
+            <UInput v-model="taskForm.title" :disabled="!canEditTask" maxlength="200" placeholder="Título de la tarea" class="min-w-0 flex-1 text-lg font-semibold" />
           </div>
 
-          <section class="grid min-w-0 gap-3 rounded-xl border border-default bg-elevated/20 p-3 sm:grid-cols-2">
-            <UFormField label="Categoría" class="min-w-0"><USelectMenu v-model="taskForm.category_id" :items="[{ label: 'Sin categoría', value: 'NONE' }, ...categoryOptions]" value-key="value" :disabled="!canEditTask" class="w-full min-w-0" :ui="selectMenuUi" placeholder="Elegir categoría" /></UFormField>
-            <UFormField label="Prioridad" class="min-w-0"><USelectMenu v-model="taskForm.priority" :items="priorityOptions" value-key="value" :disabled="!canEditTask" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
-            <UFormField v-if="!selectedTask" label="Lista" class="min-w-0"><USelectMenu v-model="taskForm.column_id" :items="board?.columns.map(column => ({ label: column.name, value: column.id })) ?? []" value-key="value" :disabled="!canEditTask" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
-            <UFormField v-if="!selectedTask" label="Responsable" class="min-w-0"><USelectMenu v-model="taskForm.assigned_to" :items="memberOptions" value-key="value" searchable :disabled="!canEditTask" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
-            <UFormField label="Inicio" class="min-w-0"><UInput v-model="taskForm.start_at" type="datetime-local" :disabled="!canEditTask" class="w-full" /></UFormField>
-            <UFormField label="Vencimiento" class="min-w-0"><UInput v-model="taskForm.due_at" type="datetime-local" :disabled="!canEditTask" class="w-full" /></UFormField>
+          <section v-if="!selectedTask" class="grid min-w-0 gap-3 sm:grid-cols-2">
+            <UFormField label="Lista" class="min-w-0"><USelectMenu v-model="taskForm.column_id" :items="board?.columns.map(column => ({ label: column.name, value: column.id })) ?? []" value-key="value" :disabled="!canEditTask" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
+            <UFormField label="Responsable" class="min-w-0"><USelectMenu v-model="taskForm.assigned_to" :items="memberOptions" value-key="value" searchable :disabled="!canEditTask" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
           </section>
 
           <div v-if="canEditTask" class="flex flex-wrap gap-2">
             <UButton label="Cliente" icon="i-lucide-building-2" color="neutral" variant="outline" @click="toggleActionPanel('client')" />
             <UButton label="Añadir" icon="i-lucide-plus" color="neutral" variant="outline" @click="toggleActionPanel('add')" />
-            <UButton label="Etiquetas" icon="i-lucide-tag" color="neutral" variant="outline" @click="toggleActionPanel('labels')" />
+            <UButton v-if="!selectedTaskLabels.length" label="Etiquetas" icon="i-lucide-tag" color="neutral" variant="outline" @click="toggleActionPanel('labels')" />
             <UButton v-if="selectedTask" label="Checklist" icon="i-lucide-list-checks" color="neutral" variant="outline" @click="toggleActionPanel('checklist')" />
             <UButton label="Miembros" icon="i-lucide-user-round-plus" color="neutral" variant="outline" @click="toggleActionPanel('members')" />
             <input v-if="selectedTask" ref="attachmentInput" type="file" class="hidden" :accept="attachmentAccept" :disabled="!canEditTask" @change="uploadTaskAttachment" />
           </div>
+          <div v-if="selectedTaskLabels.length" class="flex min-w-0 flex-wrap items-center gap-2">
+            <template v-for="label in selectedTaskLabels" :key="label.id">
+              <span class="inline-flex min-h-8 min-w-12 max-w-48 items-center justify-center truncate rounded-md px-3 py-1.5 text-xs font-semibold" :style="labelChipStyle(label.color)" :title="label.name ?? `${labelColorName(label.color)} · solo color`" :aria-label="label.name ?? `${labelColorName(label.color)} · etiqueta sin nombre`">
+                <template v-if="label.name">{{ label.name }}</template>
+                <span v-else class="sr-only">{{ labelColorName(label.color) }}</span>
+              </span>
+            </template>
+            <UButton v-if="canEditTask" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" class="size-8 justify-center p-0" aria-label="Agregar o quitar etiquetas" title="Etiquetas" @click="toggleActionPanel('labels')" />
+          </div>
+          <div v-if="canEditTask && (taskForm.category_id === 'NONE' || !taskForm.start_at || !taskForm.due_at)" class="flex min-w-0 flex-wrap items-center gap-2">
+            <UButton v-if="taskForm.category_id === 'NONE'" label="Categoría" icon="i-lucide-tag" color="neutral" variant="outline" size="sm" @click="setActionPanel('category')" />
+            <UButton v-if="!taskForm.start_at" label="Inicio" icon="i-lucide-calendar-days" color="neutral" variant="outline" size="sm" @click="setActionPanel('start')" />
+            <UButton v-if="!taskForm.due_at" label="Vencimiento" icon="i-lucide-calendar-clock" color="neutral" variant="outline" size="sm" @click="setActionPanel('due')" />
+          </div>
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <UButton v-if="taskForm.category_id !== 'NONE'" :label="`Categoría · ${categories.find(category => category.id === taskForm.category_id)?.name ?? 'Sin categoría'}`" icon="i-lucide-tag" :color="categoryColor(categories.find(category => category.id === taskForm.category_id)?.color ?? 'neutral')" variant="subtle" size="sm" :disabled="!canEditTask" @click="setActionPanel('category')" />
+            <UButton :label="`Prioridad · ${priorityOptions.find(option => option.value === taskForm.priority)?.label ?? 'Normal'}`" icon="i-lucide-flag" :color="taskForm.priority === 'URGENT' ? 'error' : taskForm.priority === 'HIGH' ? 'warning' : 'neutral'" variant="subtle" size="sm" :disabled="!canEditTask" @click="setActionPanel('priority')" />
+            <UButton v-if="taskForm.start_at" :label="`Inicio · ${formatDueDate(taskForm.start_at)}`" icon="i-lucide-calendar-days" color="neutral" variant="subtle" size="sm" :disabled="!canEditTask" @click="setActionPanel('start')" />
+            <UButton v-if="taskForm.due_at" :label="`Vencimiento · ${formatDueDate(taskForm.due_at)}`" icon="i-lucide-calendar-clock" :color="selectedTask && isOverdue(selectedTask) ? 'error' : 'neutral'" variant="subtle" size="sm" :disabled="!canEditTask" @click="setActionPanel('due')" />
+          </div>
           <UBadge v-if="taskForm.party_id !== 'NONE'" color="neutral" variant="subtle" class="w-fit"><UIcon name="i-lucide-building-2" class="mr-1 size-3"/>{{ selectedTaskPartyOption?.label ?? selectedBoardParty?.name ?? 'Cliente asociado' }}</UBadge>
           <p v-if="selectedBoardParty" class="text-xs text-muted">El cliente está fijado por este tablero.</p>
 
-          <section v-if="actionModalOpen" class="space-y-3 rounded-xl border border-default bg-elevated/20 p-3">
-            <header class="flex items-center gap-2 border-b border-default pb-2">
-              <h3 class="min-w-0 flex-1 text-sm font-semibold">{{ actionPanelTitle }}</h3>
-              <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" aria-label="Cerrar panel" @click="closeActionPanel" />
-            </header>
+          <UModal :open="actionModalOpen" :title="actionPanelTitle" :ui="{ overlay: 'z-[10010]', content: activeActionPanel === 'labels' ? 'z-[10011] sm:max-w-sm' : ['category', 'priority', 'start', 'due'].includes(activeActionPanel ?? '') ? 'z-[10011] sm:max-w-md' : 'z-[10011] sm:max-w-2xl' }" @update:open="open => { if (!open) closeActionPanel() }">
+            <template #header>
+              <div class="flex w-full items-center gap-3">
+                <h2 class="min-w-0 flex-1 text-lg font-semibold">{{ actionPanelTitle }}</h2>
+                <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" aria-label="Cerrar ventana de acciones" @click="closeActionPanel" />
+              </div>
+            </template>
+            <template #body>
+            <div class="space-y-3">
             <div v-if="activeActionPanel === 'add'" class="grid gap-2 sm:grid-cols-2">
               <UButton label="Cliente" icon="i-lucide-building-2" color="neutral" variant="ghost" class="justify-start" @click="setActionPanel('client')" />
               <UButton label="Etiquetas" icon="i-lucide-tag" color="neutral" variant="ghost" class="justify-start" @click="setActionPanel('labels')" />
@@ -1675,18 +1756,36 @@ onBeforeUnmount(() => {
               <UButton v-if="selectedTask" label="Adjunto" icon="i-lucide-paperclip" color="neutral" variant="ghost" class="justify-start" :loading="uploadingAttachment" :disabled="!canEditTask" @click="attachmentInput?.click()" />
             </div>
             <div v-else-if="activeActionPanel === 'labels'" class="space-y-3">
-              <div v-if="labels.length" class="grid gap-2 sm:grid-cols-2">
-                <button v-for="label in labels" :key="label.id" type="button" class="flex items-center gap-2 rounded-lg border border-default p-2 text-left transition hover:bg-elevated" :disabled="!canEditTask" @click="toggleTaskLabel(label.id)">
-                  <span class="flex size-5 items-center justify-center rounded border border-default" :class="taskForm.label_ids.includes(label.id) ? 'bg-primary text-white' : ''"><UIcon v-if="taskForm.label_ids.includes(label.id)" name="i-lucide-check" class="size-3"/></span>
-                  <span class="h-5 flex-1 rounded px-2" :class="labelBackgroundClass(label.color)">{{ label.name }}</span>
-                </button>
+              <UInput v-model="labelSearchTerm" icon="i-lucide-search" placeholder="Buscar etiquetas…" class="w-full" />
+              <div>
+                <p class="mb-2 text-xs font-semibold text-muted">Etiquetas</p>
+                <div v-if="filteredTaskLabels.length" class="max-h-72 space-y-1 overflow-y-auto pr-1">
+                  <div v-for="label in filteredTaskLabels" :key="label.id" class="group flex items-center gap-2">
+                    <button type="button" class="flex min-w-0 flex-1 items-center gap-3 rounded-md py-1 text-left focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60" :aria-pressed="taskForm.label_ids.includes(label.id)" :disabled="!canEditTask" @click="toggleTaskLabel(label.id)">
+                      <span class="flex size-5 shrink-0 items-center justify-center rounded border border-default transition-colors" :class="taskForm.label_ids.includes(label.id) ? 'border-primary bg-primary text-inverted' : 'group-hover:border-primary/70'"><UIcon v-if="taskForm.label_ids.includes(label.id)" name="i-lucide-check" class="size-3.5" /></span>
+                      <span class="flex h-10 min-w-0 flex-1 items-center rounded-md px-3 text-sm font-semibold" :style="labelChipStyle(label.color)" :title="`Color: ${labelColorName(label.color).toLocaleLowerCase('es')}, título: ${label.name ? `“${label.name}”` : 'sin título'}`">
+                        <span v-if="label.name" class="truncate">{{ label.name }}</span>
+                        <span v-else class="sr-only">{{ labelColorName(label.color) }} · solo color</span>
+                      </span>
+                    </button>
+                    <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" size="sm" :disabled="!canEditTask" :aria-label="`Editar etiqueta ${label.name ?? labelColorName(label.color)}`" :title="`Editar etiqueta ${label.name ?? labelColorName(label.color)}`" @click="openTaskLabelEditor(label)" />
+                  </div>
+                </div>
+                <p v-else class="py-3 text-sm text-muted">{{ labels.length ? 'No hay etiquetas que coincidan con la búsqueda.' : 'Todavía no hay etiquetas.' }}</p>
               </div>
-              <p v-else class="text-sm text-muted">Todavía no hay etiquetas. Creá la primera abajo.</p>
-              <div v-if="canEditTask" class="flex flex-wrap gap-2 border-t border-default pt-3">
-                <UInput v-model="newLabelName" placeholder="Crear una etiqueta nueva" maxlength="50" class="min-w-0 flex-1" @keydown.enter.prevent="addLabel" />
-                <USelectMenu v-model="newLabelColor" :items="labelColorOptions" value-key="value" class="w-32 min-w-0 shrink-0" :ui="selectMenuUi" aria-label="Color de etiqueta" />
-                <UButton label="Crear" icon="i-lucide-plus" :loading="addingLabel" :disabled="!newLabelName.trim()" @click="addLabel" />
-              </div>
+              <UButton v-if="canEditTask" label="Crear una etiqueta nueva" icon="i-lucide-plus" color="neutral" variant="outline" class="w-full justify-center" @click="labelCreateModalOpen = true" />
+            </div>
+            <div v-else-if="activeActionPanel === 'category'">
+              <UFormField label="Categoría"><USelectMenu v-model="taskForm.category_id" :items="[{ label: 'Sin categoría', value: 'NONE' }, ...categoryOptions]" value-key="value" :disabled="!canEditTask" class="w-full min-w-0" :ui="stackedModalSelectMenuUi" placeholder="Elegir categoría" /></UFormField>
+            </div>
+            <div v-else-if="activeActionPanel === 'priority'">
+              <UFormField label="Prioridad"><USelectMenu v-model="taskForm.priority" :items="priorityOptions" value-key="value" :disabled="!canEditTask" class="w-full min-w-0" :ui="stackedModalSelectMenuUi" /></UFormField>
+            </div>
+            <div v-else-if="activeActionPanel === 'start'">
+              <UFormField label="Inicio"><UInput v-model="taskForm.start_at" type="datetime-local" :disabled="!canEditTask" class="w-full" /></UFormField>
+            </div>
+            <div v-else-if="activeActionPanel === 'due'">
+              <UFormField label="Vencimiento"><UInput v-model="taskForm.due_at" type="datetime-local" :disabled="!canEditTask" class="w-full" /></UFormField>
             </div>
             <form v-else-if="activeActionPanel === 'checklist'" class="flex gap-2" @submit.prevent="createChecklist">
               <UInput v-model="checklistTitle" maxlength="120" placeholder="Título de la checklist" class="min-w-0 flex-1" :disabled="!canEditTask" />
@@ -1724,11 +1823,54 @@ onBeforeUnmount(() => {
               </UFormField>
               <p class="text-xs text-muted">El cliente seleccionado se guarda junto con la tarea.</p>
             </div>
-          </section>
+            </div>
+            </template>
+          </UModal>
 
-          <div v-if="taskForm.label_ids.length" class="flex flex-wrap gap-2">
-            <UBadge v-for="labelId in taskForm.label_ids" :key="labelId" :color="labelColor(labels.find(label => label.id === labelId)?.color ?? 'primary')" variant="subtle">{{ labels.find(label => label.id === labelId)?.name }}</UBadge>
-          </div>
+          <UModal v-model:open="labelCreateModalOpen" title="Crear una etiqueta nueva" description="Elegí un color y, si querés, agregá un nombre." :ui="{ overlay: 'z-[10020]', content: 'z-[10021] sm:max-w-md' }">
+            <template #body>
+              <div class="flex flex-col gap-4">
+                <UFormField label="Nombre (opcional)" description="Dejalo vacío para crear una etiqueta de solo color.">
+                  <UInput v-model="newLabelName" maxlength="50" placeholder="Ej.: ELEGANTES" class="w-full" />
+                </UFormField>
+                <UFormField label="Color">
+                  <div class="flex flex-wrap gap-2">
+                    <button v-for="option in labelColorOptions" :key="option.value" type="button" class="flex size-9 items-center justify-center rounded-md transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" :style="{ backgroundColor: option.background, color: option.foreground }" :class="newLabelColor === option.value ? 'ring-2 ring-primary ring-offset-2 ring-offset-default' : 'ring-1 ring-white/10'" :aria-pressed="newLabelColor === option.value" :aria-label="option.label" :title="option.label" @click="newLabelColor = option.value"><UIcon v-if="newLabelColor === option.value" name="i-lucide-check" class="size-4" /></button>
+                  </div>
+                </UFormField>
+                <div class="flex min-h-10 items-center rounded-md px-3 text-sm font-semibold" :style="labelChipStyle(newLabelColor)">{{ newLabelName.trim() || 'Vista previa de etiqueta solo color' }}</div>
+              </div>
+            </template>
+            <template #footer>
+              <div class="flex w-full justify-end gap-2">
+                <UButton label="Cancelar" color="neutral" variant="outline" :disabled="addingLabel" @click="labelCreateModalOpen = false" />
+                <UButton label="Crear etiqueta" icon="i-lucide-plus" :loading="addingLabel" @click="addLabel" />
+              </div>
+            </template>
+          </UModal>
+
+          <UModal v-model:open="labelEditModalOpen" title="Editar etiqueta" description="Cambiá el color o el nombre de esta etiqueta." :ui="{ overlay: 'z-[10020]', content: 'z-[10021] sm:max-w-md' }">
+            <template #body>
+              <div class="flex flex-col gap-4">
+                <UFormField label="Nombre (opcional)" description="Dejalo vacío para que se muestre solo el color.">
+                  <UInput v-model="editingLabelName" maxlength="50" placeholder="Ej.: ELEGANTES" class="w-full" />
+                </UFormField>
+                <UFormField label="Color">
+                  <div class="flex flex-wrap gap-2">
+                    <button v-for="option in labelColorOptions" :key="option.value" type="button" class="flex size-9 items-center justify-center rounded-md transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" :style="{ backgroundColor: option.background, color: option.foreground }" :class="editingLabelColor === option.value ? 'ring-2 ring-primary ring-offset-2 ring-offset-default' : 'ring-1 ring-white/10'" :aria-pressed="editingLabelColor === option.value" :aria-label="option.label" :title="option.label" @click="editingLabelColor = option.value"><UIcon v-if="editingLabelColor === option.value" name="i-lucide-check" class="size-4" /></button>
+                  </div>
+                </UFormField>
+                <div class="flex min-h-10 items-center rounded-md px-3 text-sm font-semibold" :style="labelChipStyle(editingLabelColor)">{{ editingLabelName.trim() || 'Vista previa de etiqueta solo color' }}</div>
+              </div>
+            </template>
+            <template #footer>
+              <div class="flex w-full justify-end gap-2">
+                <UButton label="Cancelar" color="neutral" variant="outline" :disabled="updatingLabel" @click="labelEditModalOpen = false" />
+                <UButton label="Guardar cambios" icon="i-lucide-check" :loading="updatingLabel" @click="saveTaskLabelEdit" />
+              </div>
+            </template>
+          </UModal>
+
           <div v-if="taskForm.assigned_to !== 'NONE' || taskForm.members.length" class="space-y-1.5">
             <p class="text-xs font-medium text-muted">Personas asociadas</p>
             <div class="flex flex-wrap gap-1.5">
@@ -1736,37 +1878,43 @@ onBeforeUnmount(() => {
               <UBadge v-for="member in taskForm.members" :key="member.user_id" color="neutral" variant="subtle"><UIcon name="i-lucide-users-round" class="mr-1 size-3"/>{{ members.find(person => person.id === member.user_id)?.name ?? 'Miembro' }} · {{ taskMemberRoleLabel(member.role) }}</UBadge>
             </div>
           </div>
-          <div v-if="taskForm.start_at || taskForm.due_at" class="flex flex-wrap gap-2 text-sm"><UBadge v-if="taskForm.start_at" color="neutral" variant="subtle">Inicio · {{ formatDueDate(taskForm.start_at) }}</UBadge><UBadge v-if="taskForm.due_at" :color="selectedTask && isOverdue(selectedTask) ? 'error' : 'neutral'" variant="subtle">Vence · {{ formatDueDate(taskForm.due_at) }}</UBadge></div>
+          <div v-if="selectedTask" class="flex flex-wrap items-center gap-2">
+            <UButton icon="i-lucide-clock-3" :label="`Tiempo · ${formatWorkedTime(totalWorkMinutes)}`" color="neutral" variant="outline" @click="timeModalOpen = true" />
+            <UBadge v-if="selectedTaskTimer" :color="taskTimer.timer?.paused ? 'warning' : 'success'" variant="subtle"><UIcon name="i-lucide-timer" class="mr-1 size-3.5"/>{{ formatTimerDuration(taskTimer.elapsedSeconds) }} · {{ taskTimer.timer?.paused ? 'Pausado' : 'Corriendo' }}</UBadge>
+          </div>
 
-          <section v-if="selectedTask" class="flex flex-col gap-3 border-t border-default pt-4">
-            <div class="flex flex-wrap items-center gap-2"><UIcon name="i-lucide-clock-3" class="size-5 text-muted"/><h3 class="font-semibold">Tiempo insumido</h3><UBadge color="neutral" variant="subtle">Total · {{ formatWorkedTime(totalWorkMinutes) }}</UBadge></div>
-            <div v-if="board?.allow_task_timer" class="flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated/30 p-3">
-              <template v-if="selectedTaskTimer">
-                <span class="font-mono text-lg font-semibold tabular-nums" :class="taskTimer.timer?.paused ? 'text-warning' : 'text-success'">{{ formatTimerDuration(taskTimer.elapsedSeconds) }}</span>
-                <UBadge :color="taskTimer.timer?.paused ? 'warning' : 'success'" variant="subtle">{{ taskTimer.timer?.paused ? 'Pausado' : 'Corriendo' }}</UBadge>
-                <div class="ml-auto flex items-center gap-2">
-                  <UButton :label="taskTimer.timer?.paused ? 'Reanudar' : 'Pausar'" :icon="taskTimer.timer?.paused ? 'i-lucide-play' : 'i-lucide-pause'" color="neutral" variant="outline" size="sm" :disabled="!canEditTask" @click="toggleSelectedTaskTimer" />
-                  <UButton label="Finalizar" icon="i-lucide-square" color="error" variant="outline" size="sm" :disabled="!canEditTask" @click="finishSelectedTaskTimer" />
+          <UModal v-model:open="timeModalOpen" title="Tiempo insumido" description="Temporizador, registro manual e historial de la tarea." :ui="{ overlay: 'z-[9000]', content: 'z-[9001] sm:max-w-2xl' }">
+            <template #body>
+              <div class="max-h-[68vh] space-y-4 overflow-y-auto pr-1">
+                <div v-if="board?.allow_task_timer" class="flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated/30 p-3">
+                  <template v-if="selectedTaskTimer">
+                    <span class="font-mono text-lg font-semibold tabular-nums" :class="taskTimer.timer?.paused ? 'text-warning' : 'text-success'">{{ formatTimerDuration(taskTimer.elapsedSeconds) }}</span>
+                    <UBadge :color="taskTimer.timer?.paused ? 'warning' : 'success'" variant="subtle">{{ taskTimer.timer?.paused ? 'Pausado' : 'Corriendo' }}</UBadge>
+                    <div class="ml-auto flex items-center gap-2">
+                      <UButton :label="taskTimer.timer?.paused ? 'Reanudar' : 'Pausar'" :icon="taskTimer.timer?.paused ? 'i-lucide-play' : 'i-lucide-pause'" color="neutral" variant="outline" size="sm" :disabled="!canEditTask" @click="toggleSelectedTaskTimer" />
+                      <UButton label="Finalizar" icon="i-lucide-square" color="error" variant="outline" size="sm" :loading="taskTimer.finishDialogLoading" :disabled="!canEditTask || taskTimer.finishDialogLoading" @click="finishSelectedTaskTimer" />
+                    </div>
+                  </template>
+                  <template v-else>
+                    <span class="min-w-0 flex-1 text-sm text-muted">{{ anotherTaskTimerRunning ? `Ya tenés un temporizador abierto en “${taskTimer.timer?.task_title}”. Finalizalo desde el indicador para iniciar este.` : 'Iniciá el temporizador cuando empieces a trabajar.' }}</span>
+                    <UButton label="Iniciar temporizador" icon="i-lucide-play" :disabled="anotherTaskTimerRunning || !canEditTask" @click="startSelectedTaskTimer" />
+                  </template>
                 </div>
-              </template>
-              <template v-else>
-                <span class="min-w-0 flex-1 text-sm text-muted">{{ anotherTaskTimerRunning ? `Ya tenés un temporizador abierto en “${taskTimer.timer?.task_title}”. Finalizalo desde el indicador para iniciar este.` : 'Iniciá el temporizador cuando empieces a trabajar.' }}</span>
-                <UButton label="Iniciar temporizador" icon="i-lucide-play" :disabled="anotherTaskTimerRunning || !canEditTask" @click="startSelectedTaskTimer" />
-              </template>
-            </div>
-            <form v-if="canEditTask" class="grid gap-2 rounded-lg border border-default p-3 sm:grid-cols-[8rem_minmax(0,1fr)_auto]" @submit.prevent="addWorkLog">
-              <UFormField label="Minutos" class="min-w-0"><UInput v-model="workLogMinutes" type="number" min="1" max="1440" step="1" class="w-full" /></UFormField>
-              <UFormField label="Detalle (opcional)" class="min-w-0"><UInput v-model="workLogDescription" maxlength="500" placeholder="Análisis, reunión, desarrollo…" class="w-full" /></UFormField>
-              <div class="flex items-end"><UButton type="submit" label="Registrar" icon="i-lucide-plus" :loading="addingWorkLog" :disabled="!Number.isInteger(Number(workLogMinutes)) || Number(workLogMinutes) < 1 || Number(workLogMinutes) > 1440" /></div>
-            </form>
-            <div v-if="workLogs.length" class="divide-y divide-default rounded-lg border border-default px-3">
-              <article v-for="log in workLogs" :key="log.id" class="flex flex-wrap items-baseline gap-x-2 gap-y-1 py-2.5 text-sm">
-                <UBadge color="primary" variant="subtle" size="xs">{{ formatWorkedTime(log.minutes) }}</UBadge><span class="font-medium">{{ log.user_name }}</span><time class="text-xs text-muted">{{ formatCommentDate(log.created_at) }}</time><p v-if="log.description" class="basis-full text-xs text-muted">{{ log.description }}</p>
-              </article>
-            </div>
-            <p v-else class="rounded-lg bg-elevated/40 p-3 text-sm text-muted">Todavía no se registró tiempo en esta tarea.</p>
-            <p v-if="workLogsLimited" class="text-xs text-muted">Se muestran los últimos 200 registros; el total incluye todo el historial.</p>
-          </section>
+                <form v-if="canEditTask" class="grid gap-2 rounded-lg border border-default p-3 sm:grid-cols-[8rem_minmax(0,1fr)_auto]" @submit.prevent="addWorkLog">
+                  <UFormField label="Minutos" class="min-w-0"><UInput v-model="workLogMinutes" type="number" min="1" max="1440" step="1" class="w-full" /></UFormField>
+                  <UFormField label="Detalle (opcional)" class="min-w-0"><UInput v-model="workLogDescription" maxlength="500" placeholder="Análisis, reunión, desarrollo…" class="w-full" /></UFormField>
+                  <div class="flex items-end"><UButton type="submit" label="Registrar" icon="i-lucide-plus" :loading="addingWorkLog" :disabled="!Number.isInteger(Number(workLogMinutes)) || Number(workLogMinutes) < 1 || Number(workLogMinutes) > 1440" /></div>
+                </form>
+                <div v-if="workLogs.length" class="divide-y divide-default rounded-lg border border-default px-3">
+                  <article v-for="log in workLogs" :key="log.id" class="flex flex-wrap items-baseline gap-x-2 gap-y-1 py-2.5 text-sm">
+                    <UBadge color="primary" variant="subtle" size="xs">{{ formatWorkedTime(log.minutes) }}</UBadge><span class="font-medium">{{ log.user_name }}</span><time class="text-xs text-muted">{{ formatCommentDate(log.created_at) }}</time><p v-if="log.description" class="basis-full text-xs text-muted">{{ log.description }}</p>
+                  </article>
+                </div>
+                <p v-else class="rounded-lg bg-elevated/40 p-3 text-sm text-muted">Todavía no se registró tiempo en esta tarea.</p>
+                <p v-if="workLogsLimited" class="text-xs text-muted">Se muestran los últimos 200 registros; el total incluye todo el historial.</p>
+              </div>
+            </template>
+          </UModal>
 
           <div class="flex items-center gap-2 border-t border-default pt-4"><UIcon name="i-lucide-align-left" class="size-5 text-muted"/><h3 class="font-semibold">Descripción</h3></div>
           <TaskDescriptionEditor v-model="taskForm.description" v-model:editing="descriptionEditing" :disabled="!canEditTask" :members="members" />
@@ -1829,7 +1977,6 @@ onBeforeUnmount(() => {
             </article>
           </section>
 
-          <div v-if="selectedTask" class="border-t border-default pt-4"><UFormField label="Lista" class="max-w-sm min-w-0"><USelectMenu v-model="taskForm.column_id" :items="board?.columns.map(column => ({ label: column.name, value: column.id })) ?? []" value-key="value" :disabled="!canEditTask" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField></div>
         </div>
 
         <section class="flex min-h-72 min-w-0 flex-col gap-3 border-t border-default pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">

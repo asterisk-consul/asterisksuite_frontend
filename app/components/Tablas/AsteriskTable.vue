@@ -6,11 +6,17 @@ defineOptions({ inheritAttrs: false })
 // Este componente es un alias histórico y reenvía cualquier prop/evento al genérico.
 const LogisticaTableCompat = LogisticaTable as any
 const filters = defineModel<TableFilter[]>('filters', { default: () => [] })
+const filterValues = defineModel<Record<string, string>>('filterValues', { default: () => ({}) })
 const expanded = defineModel<Record<string, boolean> | true>('expanded', { default: () => ({}) })
 </script>
 
 <template>
-  <LogisticaTableCompat v-bind="$attrs" v-model:filters="filters" v-model:expanded="expanded">
+  <LogisticaTableCompat
+    v-bind="$attrs"
+    v-model:filters="filters"
+    v-model:filter-values="filterValues"
+    v-model:expanded="expanded"
+  >
     <template v-for="(_, name) in $slots" :key="name" v-slot:[name]="slotProps">
       <slot :name="name" v-bind="slotProps ?? {}" />
     </template>

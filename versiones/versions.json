@@ -1,5 +1,95 @@
 [
  {
+  "version": "0.181.1-alpha",
+  "date": "2026-11-24",
+  "stage": "alpha",
+  "notes": "El detalle de las tareas muestra categoría, prioridad y fechas como campos independientes; cada valor cargado se puede editar desde su chip y la prioridad siempre indica su valor actual.",
+  "changes": [
+   { "type": "style", "scope": "crm-tasks", "title": "Mostrar categoría, prioridad e inicio y vencimiento como chips editables independientes" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar la edición individual de campos en el detalle de tareas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Editar campos del detalle de tareas por separado"
+ },
+ {
+  "version": "0.181.0-alpha",
+  "date": "2026-11-24",
+  "stage": "alpha",
+  "notes": "Los cheques se pueden identificar como físicos o eCheq; los eCheq recibidos se acreditan automáticamente al vencimiento en una cuenta local o compartida y aplican el concepto bancario configurado.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Distinguir cheques físicos y eCheq en altas y ediciones" },
+   { "type": "feat", "scope": "treasury", "title": "Acreditar automáticamente eCheq recibidos vencidos en una cuenta local o compartida" },
+   { "type": "feat", "scope": "treasury", "title": "Asociar al movimiento automático el concepto de crédito de la empresa titular" },
+   { "type": "docs", "scope": "treasury", "title": "Documentar formatos, cuenta, concepto y acreditación automática de eCheq" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Acreditar eCheq recibidos al vencimiento"
+ },
+ {
+  "version": "0.180.4-alpha",
+  "date": "2026-11-24",
+  "stage": "alpha",
+  "notes": "Los retiros de socios registrados mediante vales de RR. HH. muestran una etiqueta propia en el historial bancario.",
+  "changes": [
+   { "type": "fix", "scope": "treasury", "title": "Identificar los débitos de vales de socios como Retiro de socio" },
+   { "type": "docs", "scope": "treasury", "title": "Documentar la etiqueta de los retiros de socios en Bancos" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Identificar los retiros de socios en el historial bancario"
+ },
+ {
+  "version": "0.180.3-alpha",
+  "date": "2026-11-24",
+  "stage": "alpha",
+  "notes": "El historial bancario distingue los retiros manuales históricos de los pagos reales en la etiqueta del tipo de movimiento.",
+  "changes": [
+   { "type": "fix", "scope": "treasury", "title": "Mostrar como Retiro los débitos manuales históricos guardados como Pago" },
+   { "type": "docs", "scope": "treasury", "title": "Aclarar la diferencia entre retiros manuales y pagos en el historial bancario" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Distinguir los retiros manuales de los pagos en Bancos"
+ },
+ {
+  "version": "0.180.2-alpha",
+  "date": "2026-11-23",
+  "stage": "alpha",
+  "notes": "El detalle del pago muestra cheques asociados tanto por su aplicación como por el vínculo directo, y advierte cuando el medio indica cheque sin encontrar una asociación.",
+  "changes": [
+   { "type": "fix", "scope": "treasury", "title": "Mostrar cheques vinculados por aplicación y por relación directa con el pago" },
+   { "type": "fix", "scope": "treasury", "title": "Advertir cuando un pago indica cheque pero no tiene una asociación visible" },
+   { "type": "docs", "scope": "payments", "title": "Documentar la trazabilidad de cheques desde el detalle del pago" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mostrar los cheques asociados al pago"
+ },
+ {
+  "version": "0.180.1-alpha",
+  "date": "2026-11-23",
+  "stage": "alpha",
+  "notes": "El listado de pagos y cobros conserva las búsquedas, filtros y ordenamiento al navegar a un movimiento y volver, separados por usuario y empresa.",
+  "changes": [
+   { "type": "fix", "scope": "treasury", "title": "Conservar filtros, búsquedas y orden del listado de pagos y cobros al volver" },
+   { "type": "docs", "scope": "payments", "title": "Documentar la persistencia de filtros del listado de Tesorería" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Conservar los filtros de pagos y cobros al volver al listado"
+ },
+ {
+  "version": "0.180.0-alpha",
+  "date": "2026-11-23",
+  "stage": "alpha",
+  "notes": "Los anticipos se pueden distribuir entre varios documentos pendientes del mismo cliente o proveedor, incluidos los saldos iniciales. El detalle de un saldo inicial muestra sus pagos y cobros vinculados, con importe aplicado, total y estado para distinguir vínculos anulados.",
+  "changes": [
+   { "type": "feat", "scope": "payments", "title": "Aplicar pagos y cobros anticipados a varios documentos en una sola operación" },
+   { "type": "feat", "scope": "payments", "title": "Incluir saldos iniciales pendientes en la aplicación de anticipos" },
+   { "type": "feat", "scope": "current-accounts", "title": "Mostrar pagos y cobros vinculados desde el detalle de saldos iniciales" },
+   { "type": "fix", "scope": "current-accounts", "title": "Distinguir los vínculos históricos de pagos anulados del importe aplicado vigente" },
+   { "type": "docs", "scope": "payments", "title": "Documentar la distribución de anticipos y la trazabilidad de pagos en saldos iniciales" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Aplicar anticipos y consultar pagos de saldos iniciales"
+ },
+ {
   "version": "0.179.0-alpha",
   "date": "2026-11-21",
   "stage": "alpha",

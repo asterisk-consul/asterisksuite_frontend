@@ -6,7 +6,7 @@ export const BANK_MOVEMENT_TYPE_GUIDE = [
   { code: 'DEPOSIT', label: 'Depósito', meaning: 'Ingreso de fondos en la cuenta bancaria.', usualNature: 'Crédito.' },
   { code: 'WITHDRAWAL', label: 'Retiro', meaning: 'Salida o retiro de fondos de la cuenta.', usualNature: 'Débito.' },
   { code: 'TRANSFER', label: 'Transferencia', meaning: 'Movimiento recibido o enviado por transferencia. Puede ser una transferencia interna o externa.', usualNature: 'Débito o crédito según el sentido.' },
-  { code: 'PAYMENT', label: 'Pago', meaning: 'Pago registrado desde la cuenta bancaria.', usualNature: 'Débito.' },
+  { code: 'PAYMENT', label: 'Pago', meaning: 'Pago registrado desde la cuenta bancaria. En débitos con referencia a un vale de socio, la etiqueta operativa es Retiro de socio.', usualNature: 'Débito.' },
   { code: 'COLLECTION', label: 'Cobro', meaning: 'Cobro acreditado en la cuenta bancaria.', usualNature: 'Crédito.' },
   { code: 'CHECK_ISSUED', label: 'Cheque emitido', meaning: 'Débito relacionado con un cheque propio emitido.', usualNature: 'Débito.' },
   { code: 'CHECK_RECEIVED', label: 'Cheque recibido', meaning: 'Crédito relacionado con la acreditación de un cheque recibido.', usualNature: 'Crédito.' },

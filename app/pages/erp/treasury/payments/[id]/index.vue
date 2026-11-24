@@ -170,9 +170,10 @@ onMounted(async () => {
         installments_total: (payment as any).credit_card_transactions?.[0]?.installments_total ?? 1,
         card_authorization: (payment as any).credit_card_transactions?.[0]?.authorization ?? '',
         expected_clearing_date: (payment as any).credit_card_transactions?.[0]?.expected_clearing_date?.split('T')[0] ?? '',
-        check_ids: ((payment as any).payment_allocations ?? [])
-          .map((allocation: any) => allocation.check_id ?? allocation.check?.id)
-          .filter(Boolean),
+        check_ids: [...new Set([
+          ...((payment as any).payment_allocations ?? []).map((allocation: any) => allocation.check_id ?? allocation.check?.id),
+          ...((payment as any).checks ?? []).map((check: any) => check.id),
+        ].filter(Boolean))],
         documents: (payment as any).documents?.map((d: any) => ({
           document_id: d.document_id,
           amount_applied: Number(d.amount_applied),
@@ -187,6 +188,7 @@ onMounted(async () => {
         cash_box: (payment as any).cash_box,
         account: (payment as any).account,
         payment_allocations: (payment as any).payment_allocations ?? [],
+        linked_checks: (payment as any).checks ?? [],
       }
 
       // Solo fetchear documentos pendientes si el pago es editable (DRAFT)

@@ -45,6 +45,7 @@ const emit = defineEmits<{
 const sorting = defineModel<SortingState>('sorting', { default: () => [] })
 const search = defineModel<string>('search', { default: '' })
 const serverFilters = defineModel<TableFilter[]>('filters', { default: () => [] })
+const filterValues = defineModel<Record<string, string>>('filterValues', { default: () => ({}) })
 const filtersOpen = ref(false)
 const toolbarId = useId()
 const activeFiltersToolbarId = useState<string | null>('table-filters-active-toolbar', () => null)
@@ -85,6 +86,7 @@ onMounted(() => {
     activeFiltersToolbarId.value = toolbarId
   }
   window.addEventListener('keydown', handleFiltersShortcut)
+  nextTick(() => applyCombinedFilters())
 })
 
 onBeforeUnmount(() => {
@@ -105,30 +107,28 @@ const { filters, addFilter, updateFilter, removeFilter, clearFilters } = useTabl
 })
 
 // --- Filtros simples (inputs) ---
-const filterValues = ref<Record<string, string>>({})
+// Los filtros avanzados y los rápidos comparten los filtros de columna de la tabla.
+function applyCombinedFilters(force = false) {
+  const api = props.table?.tableApi
+  if (!api) return
+  const hasFilters = serverFilters.value.length > 0 || Object.values(filterValues.value).some(value => value?.trim())
+  if (!force && !hasFilters) return
 
-// Los inputs simples usan columnFilters normales via tableApi directamente
-watch(
-  filterValues,
-  (vals) => {
-    const api = props.table?.tableApi
-    if (!api) return
+  api.resetColumnFilters()
+  serverFilters.value.forEach((filter) => {
+    if (!filter.column) return
+    api.getColumn(filter.column)?.setFilterValue({ operator: filter.operator, value: filter.value })
+  })
 
-    props.filterFields?.forEach(({ id }) => {
-      api.getColumn(id)?.setFilterValue(undefined)
+  Object.entries(filterValues.value)
+    .filter(([, value]) => value?.trim())
+    .forEach(([id, value]) => {
+      api.getColumn(id)?.setFilterValue({ operator: 'contains', value })
     })
+}
 
-    Object.entries(vals)
-      .filter(([, v]) => v?.trim())
-      .forEach(([id, value]) => {
-        api.getColumn(id)?.setFilterValue({
-          operator: 'contains', // ✅
-          value
-        })
-      })
-  },
-  { deep: true }
-)
+watch(filterValues, () => nextTick(() => applyCombinedFilters(true)), { deep: true })
+watch(serverFilters, () => nextTick(() => applyCombinedFilters(true)), { deep: true })
 
 // --- Ordenamiento ---
 const selectedSortField = ref<string | undefined>(undefined)

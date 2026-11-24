@@ -27,8 +27,8 @@ const {
 } = usePayments()
 const toast = useToast()
 
-const selectedDocId = ref<string>('')
-const amount = ref<number>(0)
+const selectedDocIds = ref<string[]>([])
+const allocations = ref<Record<string, number>>({})
 const submitting = ref(false)
 const loadingDocuments = ref(false)
 const documentsLoadError = ref<string | null>(null)
@@ -36,34 +36,31 @@ const documentsLoadError = ref<string | null>(null)
 const isCollection = computed(() => props.paymentType === 'COLLECTION')
 
 // Ventas ya devuelve el documento elegible según la base configurada en el
-// circuito (OV o factura). Compras permite aplicar anticipos solo a facturas.
+// circuito (OV o factura). Ambos circuitos también permiten saldos iniciales.
 const filteredDocs = computed(() => {
   if (loadingDocuments.value || documentsLoadError.value) return []
   const docs = isCollection.value
     ? (pendingSalesDocuments.value ?? [])
     : (pendingPurchaseDocuments.value ?? [])
   return docs.filter(d => (isCollection.value
-    ? ['ORDER', 'INVOICE'].includes(d.document_type_category ?? '')
-    : d.document_type_category === 'INVOICE')
+    ? ['ORDER', 'INVOICE', 'OPENING_BALANCE'].includes(d.document_type_category ?? '')
+    : ['INVOICE', 'OPENING_BALANCE'].includes(d.document_type_category ?? ''))
     && d.source_type !== 'TREASURY_OBLIGATION'
     && (!props.partyId || d.party_id === props.partyId))
 })
 
-const selectedDoc = computed(() => {
-  return filteredDocs.value.find(d => d.id === selectedDocId.value) ?? null
-})
-
-const docLabel = computed(() => isCollection.value ? 'Documento de venta' : 'Factura de compra')
+const docLabel = computed(() => isCollection.value ? 'Documentos de venta' : 'Documentos de compra')
 const emptyDocumentsMessage = computed(() => isCollection.value
-  ? `No hay comprobantes de venta elegibles con saldo pendiente${props.partyName ? ` para ${props.partyName}` : ''}. Solo se pueden asociar documentos del mismo cliente. El circuito de ventas define si corresponde una OV o una factura.`
-  : `No hay facturas de compra confirmadas con saldo pendiente${props.partyName ? ` para ${props.partyName}` : ''}. Solo se pueden asociar facturas del mismo proveedor.`)
+  ? `No hay comprobantes de venta elegibles con saldo pendiente${props.partyName ? ` para ${props.partyName}` : ''}. Podés asociar documentos del mismo cliente; el circuito define si corresponde una OV o una factura.`
+  : `No hay facturas ni saldos iniciales de compra confirmados con saldo pendiente${props.partyName ? ` para ${props.partyName}` : ''}. Solo se pueden asociar documentos del mismo proveedor.`)
 const flowLabel = computed(() => isCollection.value ? 'Cobro anticipado · Ventas' : 'Pago anticipado · Compras')
 const flowDescription = computed(() => isCollection.value
-  ? `El circuito de ventas define si corresponde cobrar sobre la OV o sobre la factura. Elegí el documento pendiente${props.partyName ? ` de ${props.partyName}` : ''} y definí cuánto aplicar.`
-  : `Seleccioná un comprobante de compra pendiente${props.partyName ? ` de ${props.partyName}` : ''} y definí cuánto del anticipo querés aplicar.`)
+  ? `Elegí uno o varios documentos pendientes${props.partyName ? ` de ${props.partyName}` : ''} y distribuí el anticipo. El circuito define si el saldo comercial corresponde a la OV o a la factura.`
+  : `Elegí una o varias facturas o saldos iniciales pendientes${props.partyName ? ` de ${props.partyName}` : ''} y distribuí el anticipo.`)
 const documentKindLabel = (document: PendingDocument) => {
   if (document.document_type_category === 'ORDER') return 'Orden de venta'
   if (document.document_type_category === 'INVOICE') return isCollection.value ? 'Factura de venta' : 'Factura de compra'
+  if (document.document_type_category === 'OPENING_BALANCE') return 'Saldo inicial'
   return document.document_type_description || 'Comprobante'
 }
 const documentOptions = computed(() => filteredDocs.value.map(document => ({
@@ -75,67 +72,121 @@ const documentOptions = computed(() => filteredDocs.value.map(document => ({
   ].filter(Boolean).join(' · '),
   value: document.id,
 })))
-const applicableExchangeRate = computed(() => {
-  const candidates = [props.exchangeRate, selectedDoc.value?.exchange_rate]
+const applicableExchangeRate = (document: PendingDocument) => {
+  const candidates = [props.exchangeRate, document.exchange_rate]
     .map(value => value == null ? null : Number(value))
   return candidates.find(rate => rate != null && Number.isFinite(rate) && rate > 0) ?? null
-})
+}
 const paymentCurrency = computed(() => (props.currencyCode || 'ARS').toUpperCase())
-const documentCurrency = computed(() => (selectedDoc.value?.currency_code || paymentCurrency.value).toUpperCase())
-const needsCurrencyConversion = computed(() => Boolean(selectedDoc.value && documentCurrency.value !== paymentCurrency.value))
-const supportedCurrencyPair = computed(() => ['USD', 'ARS'].includes(documentCurrency.value)
-  && ['USD', 'ARS'].includes(paymentCurrency.value))
-const currencyConversionError = computed(() => {
-  if (!needsCurrencyConversion.value) return null
-  if (!supportedCurrencyPair.value) {
-    return `No hay una conversión configurada entre ${documentCurrency.value} y ${paymentCurrency.value}.`
+const documentCurrency = (document: PendingDocument) => (document.currency_code || paymentCurrency.value).toUpperCase()
+const needsCurrencyConversion = (document: PendingDocument) => documentCurrency(document) !== paymentCurrency.value
+const supportedCurrencyPair = (document: PendingDocument) => ['USD', 'ARS'].includes(documentCurrency(document))
+  && ['USD', 'ARS'].includes(paymentCurrency.value)
+const currencyConversionError = (document: PendingDocument) => {
+  if (!needsCurrencyConversion(document)) return null
+  const currency = documentCurrency(document)
+  if (!supportedCurrencyPair(document)) {
+    return `No hay una conversión configurada entre ${currency} y ${paymentCurrency.value}.`
   }
-  if (!applicableExchangeRate.value) {
-    return 'Falta una cotización válida en el anticipo o en la factura. No se aplicará el saldo usando una relación 1 a 1.'
+  if (!applicableExchangeRate(document)) {
+    return 'Falta una cotización válida en el anticipo o en el documento. No se aplicará el saldo usando una relación 1 a 1.'
   }
   return null
-})
-const pendingAmountInPaymentCurrency = computed(() => {
-  if (!selectedDoc.value) return 0
-  const value = Number(selectedDoc.value.pending_amount)
-  const from = documentCurrency.value
+}
+const pendingAmountInPaymentCurrency = (document: PendingDocument) => {
+  const value = Number(document.pending_amount)
+  const from = documentCurrency(document)
   const to = paymentCurrency.value
-  const rate = applicableExchangeRate.value
+  const rate = applicableExchangeRate(document)
   if (from === to) return Number(value.toFixed(2))
-  if (!rate || !supportedCurrencyPair.value) return 0
+  if (!rate || !supportedCurrencyPair(document)) return 0
   if (from === 'USD' && to === 'ARS') return Number((value * rate).toFixed(2))
   if (from === 'ARS' && to === 'USD') return Number((value / rate).toFixed(2))
   return 0
-})
-const maxApplicableAmount = computed(() => selectedDoc.value
-  ? Math.min(props.availableBalance, pendingAmountInPaymentCurrency.value)
-  : 0)
-const currencyConversionHint = computed(() => {
-  if (!needsCurrencyConversion.value || currencyConversionError.value || !applicableExchangeRate.value) return null
-  return `El saldo en ${documentCurrency.value} se convierte a ${paymentCurrency.value} con la cotización ${applicableExchangeRate.value.toLocaleString('es-AR')}.`
-})
+}
+const maxApplicableAmount = (document: PendingDocument) => pendingAmountInPaymentCurrency(document)
+const currencyConversionHint = (document: PendingDocument) => {
+  const rate = applicableExchangeRate(document)
+  if (!needsCurrencyConversion(document) || currencyConversionError(document) || !rate) return null
+  return `El saldo en ${documentCurrency(document)} se convierte a ${paymentCurrency.value} con la cotización ${rate.toLocaleString('es-AR')}.`
+}
+const allocationRows = computed(() => selectedDocIds.value
+  .map(id => filteredDocs.value.find(document => document.id === id))
+  .filter((document): document is PendingDocument => Boolean(document))
+  .map(document => ({
+    document,
+    amount: Number(allocations.value[document.id] ?? 0),
+    max: maxApplicableAmount(document),
+    conversionError: currencyConversionError(document),
+    conversionHint: currencyConversionHint(document),
+  })))
+const allocatedTotal = computed(() => Number(allocationRows.value.reduce((sum, row) => sum + row.amount, 0).toFixed(2)))
+const remainingBalance = computed(() => Number(Math.max(0, props.availableBalance - allocatedTotal.value).toFixed(2)))
 const canSubmit = computed(() => Boolean(
-  selectedDoc.value
-  && amount.value > 0
-  && amount.value <= maxApplicableAmount.value + 0.001
-  && !currencyConversionError.value
+  allocationRows.value.some(row => row.amount > 0)
+  && allocationRows.value.every(row => row.amount >= 0
+    && row.amount <= row.max + 0.001
+    && (row.amount <= 0 || !row.conversionError))
+  && allocatedTotal.value <= props.availableBalance + 0.001
   && !loadingDocuments.value
   && !documentsLoadError.value
   && !submitting.value,
 ))
 
-// Default amount to min of available balance and doc pending
-watch(selectedDocId, () => {
-  if (selectedDoc.value) {
-    amount.value = maxApplicableAmount.value
+const distributeAvailable = () => {
+  const next: Record<string, number> = {}
+  let remaining = Math.max(0, Math.floor(props.availableBalance * 100) / 100)
+  const rows = allocationRows.value
+  rows.forEach((row, index) => {
+    const slots = rows.length - index
+    const share = Math.floor((remaining / slots) * 100) / 100
+    const amount = Math.min(row.max, share)
+    next[row.document.id] = Number(amount.toFixed(2))
+    remaining = Number((remaining - amount).toFixed(2))
+  })
+  // Reparte sobrantes cuando algún documento tiene menos saldo que su parte.
+  for (const row of rows) {
+    if (remaining <= 0) break
+    const current = next[row.document.id] ?? 0
+    const extra = Math.min(remaining, Math.max(0, row.max - current))
+    next[row.document.id] = Number((current + extra).toFixed(2))
+    remaining = Number((remaining - extra).toFixed(2))
   }
-})
+  allocations.value = next
+}
+
+watch(selectedDocIds, () => distributeAvailable(), { deep: true })
+
+const setAllocation = (documentId: string, value: unknown) => {
+  const amount = Number(value)
+  const row = allocationRows.value.find(item => item.document.id === documentId)
+  if (!row) return
+  const allocatedToOtherDocs = allocationRows.value.reduce(
+    (sum, item) => item.document.id === documentId ? sum : sum + item.amount,
+    0,
+  )
+  const availableForRow = Math.max(0, props.availableBalance - allocatedToOtherDocs)
+  const maxAllowed = Math.min(row.max, availableForRow)
+  allocations.value = {
+    ...allocations.value,
+    [documentId]: Number.isFinite(amount)
+      ? Number(Math.min(maxAllowed, Math.max(0, amount)).toFixed(2))
+      : 0,
+  }
+}
+
+const applyMaximum = (documentId: string) => {
+  const row = allocationRows.value.find(item => item.document.id === documentId)
+  if (!row) return
+  const availableForRow = Math.max(0, props.availableBalance - allocatedTotal.value + row.amount)
+  setAllocation(documentId, Math.min(row.max, availableForRow))
+}
 
 const loadPendingDocuments = async () => {
   loadingDocuments.value = true
   documentsLoadError.value = null
-  selectedDocId.value = ''
-  amount.value = 0
+  selectedDocIds.value = []
+  allocations.value = {}
   try {
     if (isCollection.value) {
       await fetchPendingSalesDocuments(props.partyId)
@@ -157,18 +208,19 @@ watch([() => props.open, () => props.paymentType, () => props.partyId], ([open])
 
 const handleSubmit = async () => {
   if (submitting.value) return
-  if (!canSubmit.value || !selectedDoc.value) return
+  if (!canSubmit.value) return
 
   submitting.value = true
   try {
     await applyAdvance(props.paymentId, {
-      document_id: selectedDocId.value,
-      amount: amount.value,
+      applications: allocationRows.value
+        .filter(row => row.amount > 0)
+        .map(row => ({ document_id: row.document.id, amount: row.amount })),
     })
     emit('success')
     emit('update:open', false)
-    selectedDocId.value = ''
-    amount.value = 0
+    selectedDocIds.value = []
+    allocations.value = {}
   } catch (e: any) {
     toast.add({
       title: 'Error al aplicar anticipo',
@@ -200,7 +252,7 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('es-AR', {
   <UModal
     :open="open"
     :title="isCollection ? 'Aplicar cobro anticipado' : 'Aplicar pago anticipado'"
-    description="Asociá el saldo disponible con un comprobante pendiente del mismo tercero."
+    description="Distribuí el saldo disponible entre uno o varios documentos pendientes del mismo tercero."
     :ui="{ content: 'sm:max-w-2xl' }"
     @update:open="emit('update:open', $event)"
   >
@@ -219,7 +271,7 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('es-AR', {
           </div>
         </div>
 
-        <div class="grid gap-3 sm:grid-cols-2">
+        <div class="grid gap-3 sm:grid-cols-3">
           <div class="flex items-center justify-between gap-3 rounded-xl border border-default bg-default p-4">
             <div>
               <p class="text-xs text-muted">Disponible del anticipo</p>
@@ -229,25 +281,45 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('es-AR', {
           </div>
           <div class="flex items-center justify-between gap-3 rounded-xl border border-default bg-default p-4">
             <div>
-              <p class="text-xs text-muted">{{ isCollection ? 'Documentos de venta elegibles' : 'Facturas con saldo' }}</p>
+              <p class="text-xs text-muted">{{ isCollection ? 'Documentos elegibles' : 'Documentos con saldo' }}</p>
               <p class="mt-1 text-lg font-semibold tabular-nums">{{ loadingDocuments ? '…' : filteredDocs.length }}</p>
             </div>
             <UIcon name="i-lucide-files" class="size-5 text-muted" />
           </div>
+          <div class="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div>
+              <p class="text-xs text-muted">Saldo a distribuir</p>
+              <p class="mt-1 text-lg font-semibold tabular-nums">{{ formatCurrency(remainingBalance) }}</p>
+            </div>
+            <UIcon name="i-lucide-wallet" class="size-5 text-primary" />
+          </div>
         </div>
 
-        <UFormField :label="docLabel" name="document_id" required :hint="partyName || undefined">
+        <UFormField :label="docLabel" name="document_ids" required :hint="partyName || undefined">
           <USelectMenu
-            v-model="selectedDocId"
+            v-model="selectedDocIds"
             value-key="value"
             :items="documentOptions"
-            :placeholder="loadingDocuments ? 'Buscando comprobantes…' : 'Buscar por número o referencia'"
+            :placeholder="loadingDocuments ? 'Buscando comprobantes…' : 'Buscar y seleccionar documentos'"
             searchable
+            multiple
             :loading="loadingDocuments"
             :disabled="loadingDocuments || Boolean(documentsLoadError) || filteredDocs.length === 0"
             class="w-full"
           />
         </UFormField>
+        <div v-if="allocationRows.length" class="-mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p class="text-xs text-muted">Seleccionados: {{ allocationRows.length }} · Aplicado en este paso: {{ formatCurrency(allocatedTotal) }}</p>
+          <UButton
+            label="Distribuir disponible"
+            icon="i-lucide-split"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            :disabled="submitting || availableBalance <= 0"
+            @click="distributeAvailable"
+          />
+        </div>
 
         <UAlert
           v-if="documentsLoadError"
@@ -285,67 +357,70 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('es-AR', {
           @click="loadPendingDocuments"
         />
 
-        <div v-if="selectedDoc" class="flex flex-col gap-4 rounded-xl border border-default p-4">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p class="text-xs text-muted">{{ documentKindLabel(selectedDoc) }} seleccionado</p>
-              <p class="mt-1 font-semibold">{{ selectedDoc.document_type_code || 'Documento' }} #{{ selectedDoc.number }}</p>
-              <p v-if="selectedDoc.reference" class="mt-1 text-sm text-muted">{{ selectedDoc.reference }}</p>
+        <div v-if="allocationRows.length" class="flex max-h-[45vh] flex-col gap-3 overflow-y-auto pr-1">
+          <div v-for="row in allocationRows" :key="row.document.id" class="flex flex-col gap-3 rounded-xl border border-default p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="text-xs text-muted">{{ documentKindLabel(row.document) }}</p>
+                <p class="mt-1 font-semibold">{{ row.document.document_type_code || 'Documento' }} #{{ row.document.number }}</p>
+                <p v-if="row.document.reference" class="mt-1 text-sm text-muted">{{ row.document.reference }}</p>
+              </div>
+              <UBadge :label="formatDate(row.document.date)" color="neutral" variant="subtle" />
             </div>
-            <UBadge :label="formatDate(selectedDoc.date)" color="neutral" variant="subtle" />
-          </div>
 
-          <div class="grid gap-2 sm:grid-cols-3">
-            <div class="rounded-lg bg-muted/30 p-3">
-              <p class="text-xs text-muted">Total</p>
-              <p class="mt-1 font-medium tabular-nums">{{ formatCurrency(selectedDoc.total, selectedDoc.currency_code) }}</p>
+            <div class="grid gap-2 sm:grid-cols-3">
+              <div class="rounded-lg bg-muted/30 p-3">
+                <p class="text-xs text-muted">Total</p>
+                <p class="mt-1 font-medium tabular-nums">{{ formatCurrency(row.document.total, row.document.currency_code) }}</p>
+              </div>
+              <div class="rounded-lg bg-muted/30 p-3">
+                <p class="text-xs text-muted">Ya aplicado</p>
+                <p class="mt-1 font-medium tabular-nums">{{ formatCurrency(row.document.paid_amount, row.document.currency_code) }}</p>
+              </div>
+              <div class="rounded-lg border border-warning/25 bg-warning/5 p-3">
+                <p class="text-xs text-muted">Saldo pendiente</p>
+                <p class="mt-1 font-semibold tabular-nums">{{ formatCurrency(row.document.pending_amount, row.document.currency_code) }}</p>
+              </div>
             </div>
-            <div class="rounded-lg bg-muted/30 p-3">
-              <p class="text-xs text-muted">Ya aplicado</p>
-              <p class="mt-1 font-medium tabular-nums">{{ formatCurrency(selectedDoc.paid_amount, selectedDoc.currency_code) }}</p>
-            </div>
-            <div class="rounded-lg border border-warning/25 bg-warning/5 p-3">
-              <p class="text-xs text-muted">Saldo pendiente</p>
-              <p class="mt-1 font-semibold tabular-nums">{{ formatCurrency(selectedDoc.pending_amount, selectedDoc.currency_code) }}</p>
-            </div>
-          </div>
 
-          <UAlert
-            v-if="currencyConversionError"
-            color="error"
-            variant="subtle"
-            icon="i-lucide-circle-alert"
-            title="No se puede aplicar con la cotización actual"
-            :description="currencyConversionError"
-          />
-
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <UFormField label="Importe a aplicar" name="amount" required class="min-w-0 flex-1">
-              <UInput
-                v-model.number="amount"
-                type="number"
-                :min="0.01"
-                :max="maxApplicableAmount"
-                :step="0.01"
-                :disabled="loadingDocuments || submitting || Boolean(currencyConversionError)"
-                class="w-full"
-              >
-                <template #trailing>
-                  <span class="text-xs text-muted">{{ currencyCode || 'ARS' }}</span>
-                </template>
-              </UInput>
-            </UFormField>
-            <UButton
-              label="Aplicar máximo"
-              icon="i-lucide-arrow-down-to-line"
-              color="neutral"
-              variant="outline"
-              :disabled="maxApplicableAmount <= 0 || submitting"
-              @click="amount = maxApplicableAmount"
+            <UAlert
+              v-if="row.conversionError"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-circle-alert"
+              title="Este documento necesita una cotización"
+              :description="row.conversionError"
             />
+
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <UFormField :label="`Importe a aplicar (${paymentCurrency})`" :name="`amount-${row.document.id}`" class="min-w-0 flex-1">
+                <UInput
+                  :model-value="row.amount"
+                  type="number"
+                  :min="0"
+                  :max="Math.min(row.max, Math.max(0, availableBalance - allocatedTotal + row.amount))"
+                  :step="0.01"
+                  :disabled="loadingDocuments || submitting || Boolean(row.conversionError)"
+                  class="w-full"
+                  @update:model-value="setAllocation(row.document.id, $event)"
+                >
+                  <template #trailing>
+                    <span class="text-xs text-muted">{{ currencyCode || 'ARS' }}</span>
+                  </template>
+                </UInput>
+              </UFormField>
+              <UButton
+                label="Aplicar máximo"
+                icon="i-lucide-arrow-down-to-line"
+                color="neutral"
+                variant="outline"
+                :disabled="row.max <= 0 || Boolean(row.conversionError) || submitting"
+                @click="applyMaximum(row.document.id)"
+              />
+            </div>
+            <p v-if="row.conversionHint" class="text-xs text-muted">{{ row.conversionHint }}</p>
+            <p v-else class="text-xs text-muted">El importe se carga en {{ paymentCurrency }} y queda limitado por el saldo de la factura y el disponible del anticipo.</p>
           </div>
-          <p v-if="currencyConversionHint" class="text-xs text-muted">{{ currencyConversionHint }}</p>
-          <p v-else class="text-xs text-muted">El máximo considera el saldo disponible del anticipo y el saldo pendiente del comprobante.</p>
         </div>
       </div>
     </template>
