@@ -27,6 +27,7 @@ export interface CashBoxTransfer {
   dest_company_id?: string | null
   dest_company_name?: string | null
   dest_name?: string | null
+  dest_currency_code?: string | null
   amount: number
   currency_code: string
   exchange_rate?: number | null

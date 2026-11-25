@@ -100,6 +100,10 @@ export const usePaymentsService = () => {
     return $fetch<RelatedDocumentPayment[]>(`${urlBase}/by-document/${documentId}`)
   }
 
+  const createOpeningBalanceAdvance = (documentId: string) => {
+    return $fetch<Payment>(`${urlBase}/from-opening-balance/${documentId}`, { method: 'POST' })
+  }
+
   const findPendingSalesDocuments = (partyId?: string) => {
     return $fetch<PendingDocument[]>(`${urlDocsSales}/pending`, {
       method: 'GET',
@@ -249,6 +253,7 @@ export const usePaymentsService = () => {
     findAll,
     findOne,
     findByDocument,
+    createOpeningBalanceAdvance,
     findPendingSalesDocuments,
     findPendingPurchaseDocuments,
     findAvailableChecks,

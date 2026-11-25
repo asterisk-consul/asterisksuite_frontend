@@ -52,6 +52,7 @@ const methodLabel = (method: RelatedDocumentPayment['payment_method']) => ({
   DEBIT_CARD: 'Tarjeta de débito',
   VIRTUAL_WALLET: 'Billetera virtual',
   PAYROLL_DEDUCTION: 'Descuento de haberes',
+  ACCOUNT_CREDIT: 'Saldo inicial a favor',
 }[method] ?? method)
 
 const formatAmount = (amount: number | string, currency: string) => new Intl.NumberFormat('es-AR', {

@@ -70,12 +70,15 @@ const actionLabels: Record<string, { title: string; button: string; color: strin
 const isDraft = computed(() => currentPayment.value?.status === 'DRAFT')
 const isConfirmed = computed(() => currentPayment.value?.status === 'CONFIRMED')
 const isPaid = computed(() => currentPayment.value?.status === 'PAID')
+const isOpeningBalanceCredit = computed(() => Boolean(currentPayment.value?.source_document_id))
 const can = (permission: string) => authStore.selectedCompany?.role === 'OWNER' || hasPermission(permission)
 const canConfirmPayment = computed(() => can('payments.confirm'))
-const canMarkAsPaid = computed(() => can('payments.mark_as_paid'))
-const canRejectPayment = computed(() => can('payments.reject'))
-const canReversePayment = computed(() => can('payments.reverse'))
+const canMarkAsPaid = computed(() => !isOpeningBalanceCredit.value && can('payments.mark_as_paid'))
+const canRejectPayment = computed(() => !isOpeningBalanceCredit.value && can('payments.reject'))
+const canReversePayment = computed(() => !isOpeningBalanceCredit.value && can('payments.reverse'))
 const canReopenAsDraft = computed(() =>
+  !isOpeningBalanceCredit.value
+  &&
   currentPayment.value?.status === 'CANCELLED'
   && ['PAYMENT', 'COLLECTION'].includes(String(currentPayment.value?.type))
   && (
@@ -100,6 +103,11 @@ const canEditFinalizedExchangeRate = computed(() =>
   && Boolean(currentPayment.value?.documents?.some((row: any) => row.document?.currency_code?.toUpperCase() === 'USD'))
 )
 const isAdvance = computed(() => currentPayment.value?.payment_mode === 'ADVANCE')
+const canManageAdvance = computed(() => can('payments.update'))
+const activeAppliedDocuments = computed(() => currentPayment.value?.documents?.filter((row: any) => !row.deleted_at) ?? [])
+const removeApplicationModalOpen = ref(false)
+const applicationToRemove = ref<{ documentId: string; label: string } | null>(null)
+const removingApplicationId = ref<string | null>(null)
 const hasUnsavedDateChange = computed(() => isDraft.value && editingDate.value !== savedDate.value)
 const hasUnsavedChanges = computed(() =>
   isDraft.value && (unsavedChangeSections.value.length > 0 || hasUnsavedDateChange.value)
@@ -133,7 +141,8 @@ onMounted(async () => {
     const payment = await fetchOne(paymentId)
 
     if (payment) {
-      currentPayment.value = payment as Payment
+      const activeDocuments = ((payment as any).documents ?? []).filter((document: any) => !document.deleted_at)
+      currentPayment.value = { ...payment, documents: activeDocuments } as Payment
       savedDate.value = payment.date?.split('T')[0] ?? ''
       editingDate.value = savedDate.value
       paymentData.value = {
@@ -174,7 +183,7 @@ onMounted(async () => {
           ...((payment as any).payment_allocations ?? []).map((allocation: any) => allocation.check_id ?? allocation.check?.id),
           ...((payment as any).checks ?? []).map((check: any) => check.id),
         ].filter(Boolean))],
-        documents: (payment as any).documents?.map((d: any) => ({
+        documents: activeDocuments.map((d: any) => ({
           document_id: d.document_id,
           amount_applied: Number(d.amount_applied),
           document: d.document,
@@ -272,7 +281,18 @@ const handleSubmit = async (formData: PaymentFormData) => {
       obligations: formData.obligations ?? [],
       withholdings: formData.withholdings ?? [],
     })
-    currentPayment.value = updated as Payment
+    const activeDocuments = ((updated as any).documents ?? []).filter((document: any) => !document.deleted_at)
+    currentPayment.value = { ...updated, documents: activeDocuments } as Payment
+    if (paymentData.value) {
+      paymentData.value = {
+        ...paymentData.value,
+        documents: activeDocuments.map((document: any) => ({
+          document_id: document.document_id,
+          amount_applied: Number(document.amount_applied),
+          document: document.document,
+        })),
+      }
+    }
     savedDate.value = updated.date?.split('T')[0] ?? formData.date
     saveRevision.value += 1
     toast.add({ title: 'Pago actualizado', color: 'success' })
@@ -491,6 +511,46 @@ const handleAdvanceSuccess = async () => {
   }
   toast.add({ title: 'Anticipo aplicado correctamente', color: 'success' })
 }
+
+const requestRemoveApplication = (application: NonNullable<Payment['documents']>[number]) => {
+  if (!canManageAdvance.value || !application.document) return
+  applicationToRemove.value = {
+    documentId: application.document_id,
+    label: `${application.document.document_types?.description ?? 'Factura'} #${application.document.number}`,
+  }
+  removeApplicationModalOpen.value = true
+}
+
+const confirmRemoveApplication = async () => {
+  const target = applicationToRemove.value
+  if (!target || !canManageAdvance.value || removingApplicationId.value) return
+  removingApplicationId.value = target.documentId
+  try {
+    await removeAdvanceApplication(paymentId, target.documentId)
+    const updated = await fetchOne(paymentId)
+    if (updated) {
+      const activeDocuments = (updated.documents ?? []).filter((row: any) => !row.deleted_at)
+      currentPayment.value = { ...updated, documents: activeDocuments } as Payment
+      if (paymentData.value) {
+        paymentData.value = {
+          ...paymentData.value,
+          documents: activeDocuments.map((row: any) => ({
+            document_id: row.document_id,
+            amount_applied: Number(row.amount_applied),
+            document: row.document,
+          })),
+        }
+      }
+    }
+    toast.add({ title: 'Aplicación retirada', description: 'El crédito volvió a quedar disponible y la factura recuperó su saldo pendiente.', color: 'success' })
+    removeApplicationModalOpen.value = false
+    applicationToRemove.value = null
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo retirar la aplicación', description: error?.data?.message ?? error?.message ?? 'Revisá el estado del pago y de la factura.', color: 'error' })
+  } finally {
+    removingApplicationId.value = null
+  }
+}
 </script>
 
 <template>
@@ -514,14 +574,14 @@ const handleAdvanceSuccess = async () => {
           <div class="flex flex-wrap items-center gap-2">
             <UBadge v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)" label="Pendiente de asociar documento" color="warning" variant="subtle" />
             <UBadge
-              v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)"
+              v-if="isAdvance && canManageAdvance && availableBalance > 0 && (isConfirmed || isPaid)"
               :label="`Disponible: ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: currentPayment.currency_code || 'ARS' }).format(availableBalance)}`"
               color="info"
               variant="subtle"
             />
             <UBadge v-if="isAdvance && availableBalance <= 0 && (isConfirmed || isPaid)" label="Saldado" color="success" variant="subtle" />
             <UButton
-              v-if="isAdvance && availableBalance > 0 && (isConfirmed || isPaid)"
+              v-if="isAdvance && canManageAdvance && availableBalance > 0 && (isConfirmed || isPaid)"
               label="Aplicar anticipo"
               icon="i-lucide-link"
               size="sm"
@@ -607,6 +667,61 @@ const handleAdvanceSuccess = async () => {
 
     <template v-else-if="paymentData && currentPayment">
       <div class="flex w-full min-w-0 flex-col gap-4">
+        <UAlert
+          v-if="isOpeningBalanceCredit"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-hand-coins"
+          title="Crédito originado en un saldo inicial a favor"
+          description="No representa una salida de dinero: no afecta caja ni banco. Al aplicarlo, reduce el crédito disponible y salda facturas del mismo proveedor sin duplicar el movimiento de cuenta corriente."
+        >
+          <template #actions>
+            <UButton
+              v-if="currentPayment.source_document"
+              label="Ver saldo inicial"
+              size="xs"
+              color="info"
+              variant="outline"
+              :to="`/erp/purchases/purchases-documents/${currentPayment.source_document.id}`"
+            />
+          </template>
+        </UAlert>
+        <section v-if="isOpeningBalanceCredit && activeAppliedDocuments.length" class="rounded-lg border border-default bg-elevated/30 p-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 class="font-semibold">Facturas aplicadas</h2>
+              <p class="text-sm text-muted">Podés retirar una aplicación; el crédito vuelve a quedar disponible.</p>
+            </div>
+            <UBadge :label="`${activeAppliedDocuments.length} factura${activeAppliedDocuments.length === 1 ? '' : 's'}`" color="info" variant="subtle" />
+          </div>
+          <div class="flex flex-col divide-y divide-default">
+            <div v-for="application in activeAppliedDocuments" :key="application.id" class="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+              <div class="min-w-0">
+                <NuxtLink
+                  v-if="application.document"
+                  :to="`/erp/purchases/purchases-documents/${application.document.id}`"
+                  class="font-medium text-primary hover:underline"
+                >
+                  {{ application.document.document_types?.description ?? 'Factura' }} #{{ application.document.number }}
+                </NuxtLink>
+                <p class="text-sm text-muted">
+                  Aplicado {{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: currentPayment.currency_code || 'ARS' }).format(Number(application.amount_applied)) }}
+                </p>
+              </div>
+              <UButton
+                v-if="canManageAdvance"
+                label="Quitar aplicación"
+                icon="i-lucide-unlink"
+                size="xs"
+                color="error"
+                variant="ghost"
+                :loading="removingApplicationId === application.document_id"
+                :disabled="Boolean(removingApplicationId)"
+                @click="requestRemoveApplication(application)"
+              />
+            </div>
+          </div>
+        </section>
         <UAlert
           v-if="isDraft && hasUnsavedChanges"
           color="warning"
@@ -712,6 +827,18 @@ const handleAdvanceSuccess = async () => {
             :disabled="isProcessing || (actionType === 'confirm' && hasUnsavedChanges)"
             @click="handleAction"
           />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="removeApplicationModalOpen" title="Retirar aplicación del crédito">
+      <template #body>
+        <p>
+          Se va a desasociar {{ applicationToRemove?.label }}. El crédito quedará disponible otra vez y la factura recuperará el saldo pendiente. No se crea ni se revierte ningún movimiento de caja o banco.
+        </p>
+        <div class="flex justify-end gap-2 pt-4">
+          <UButton label="Conservar aplicación" variant="ghost" :disabled="Boolean(removingApplicationId)" @click="removeApplicationModalOpen = false" />
+          <UButton label="Retirar aplicación" color="error" icon="i-lucide-unlink" :loading="Boolean(removingApplicationId)" :disabled="!applicationToRemove || !canManageAdvance" @click="confirmRemoveApplication" />
         </div>
       </template>
     </UModal>

@@ -186,6 +186,23 @@ export const checkColumns = (actions: {
       accessorFn: row => getRelatedPayments(row)
         .map(payment => `${payment.type === 'COLLECTION' ? 'Cobro' : 'Pago'} #${payment.number}`)
         .join(' '),
+      searchValue: row => {
+        const payments = getRelatedPayments(row)
+        const activePayments = payments.filter(payment => !isInactivePayment(payment))
+        return [
+          ...payments.flatMap(payment => [
+            payment.type === 'COLLECTION' ? 'Cobro' : 'Pago',
+            `#${payment.number}`,
+            payment.status,
+            statusConfig[payment.status]?.label,
+            payment.deleted_at ? 'eliminado' : '',
+            payment.status === 'CANCELLED' ? 'anulado' : '',
+            payment.status === 'REVERSED' ? 'revertido' : '',
+            payment.status === 'REJECTED' ? 'rechazado' : ''
+          ]),
+          activePayments.length ? '' : 'Pendiente de asociar'
+        ]
+      },
       cell: ({ row }) => {
         const payments = getRelatedPayments(row.original)
         const activePayments = payments.filter(payment => !isInactivePayment(payment))

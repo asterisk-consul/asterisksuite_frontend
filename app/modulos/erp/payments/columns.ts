@@ -28,6 +28,7 @@ const methodConfig: Record<string, { label: string; color?: string }> = {
   BANK_TRANSFER: { label: 'Transferencia', color: 'primary' },
   MIXED: { label: 'Mixto', color: 'primary' },
   PAYROLL_DEDUCTION: { label: 'Descuento de haberes', color: 'info' },
+  ACCOUNT_CREDIT: { label: 'Saldo inicial a favor', color: 'info' },
   // CREDIT_CARD: { label: 'Tarjeta crédito', color: 'info' },
   // DEBIT_CARD: { label: 'Tarjeta débito', color: 'secondary' },
   // VIRTUAL_WALLET: { label: 'Billetera virtual', color: 'success' }
@@ -43,6 +44,13 @@ const formatPaymentAmount = (amount: number | string | null | undefined, currenc
 }
 
 function getDocumentReferences(row: Row): DocumentReference[] {
+  if (row.source_document) {
+    return [{
+      label: `${row.source_document.document_types?.description ?? 'Saldo inicial'} #${row.source_document.number}`,
+      detail: row.description ?? undefined,
+      to: `/erp/purchases/purchases-documents/${row.source_document.id}`,
+    }]
+  }
   if (row.source_kind === 'PARTNER_VALE') {
     return [{
       label: `Vale de socio · N° ${row.number}`,

@@ -1,6 +1,7 @@
 import { h } from 'vue'
 import { UBadge } from '#components'
 import type { TableColumn } from '@nuxt/ui'
+import { matchesTableTextFilter } from '@/composables/table/createColumns'
 import type { StockMovement } from '~/modulos/logistica/warehouses/stock/stock.types'
 
 const MOVEMENT_TYPE_LABELS: Record<string, string> = {
@@ -52,6 +53,11 @@ export const movementColumns: TableColumn<StockMovement>[] = [
     accessorKey: 'products',
     header: 'Producto',
     accessorFn: (row) => (row as any).products?.name ?? '',
+    filterFn: (row, columnId, filterValue) => matchesTableTextFilter([
+      row.getValue(columnId),
+      (row.original as any).products?.name,
+      (row.original as any).products?.sku
+    ], filterValue),
     cell: ({ row }) => {
       const product = (row.original as any).products
       if (!product) return '—'
@@ -64,6 +70,11 @@ export const movementColumns: TableColumn<StockMovement>[] = [
   {
     accessorKey: 'direction',
     header: 'Dirección',
+    filterFn: (row, columnId, filterValue) => {
+      const direction = row.original.direction
+      const directionLabel = direction === 'IN' ? 'Entrada' : direction === 'OUT' ? 'Salida' : direction
+      return matchesTableTextFilter([row.getValue(columnId), direction, directionLabel], filterValue)
+    },
     cell: ({ row }) => {
       const direction = row.getValue<string>('direction')
       const label = direction === 'IN' ? 'Entrada' : 'Salida'
@@ -75,6 +86,10 @@ export const movementColumns: TableColumn<StockMovement>[] = [
     accessorKey: 'movement_type',
     header: 'Tipo',
     accessorFn: (row) => MOVEMENT_TYPE_LABELS[row.movement_type] ?? row.movement_type,
+    filterFn: (row, columnId, filterValue) => matchesTableTextFilter([
+      row.getValue(columnId),
+      row.original.movement_type
+    ], filterValue),
     cell: ({ row }) => {
       const type = row.original.movement_type
       const label = MOVEMENT_TYPE_LABELS[type] ?? type

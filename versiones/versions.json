@@ -1,5 +1,38 @@
 [
  {
+  "version": "0.183.0-alpha",
+  "date": "2026-11-25",
+  "stage": "alpha",
+  "notes": "Tareas incorpora un espacio por tablero con resumen, lista, cronograma, calendario y archivos, claves correlativas, subtareas y actividades relacionadas. Tesorería permite aplicar saldos iniciales a nuestro favor con proveedores a varias facturas y mejora las transferencias entre monedas. Se corrigen filtros rápidos y búsquedas por nombres visibles en tablas.",
+  "changes": [
+   { "type": "feat", "scope": "tasks", "title": "Abrir cada tablero desde el menú lateral con vistas de resumen, lista, tablero, cronograma y calendario" },
+   { "type": "feat", "scope": "tasks", "title": "Consultar documentos y adjuntos del tablero con acceso a sus tareas y vista ampliada del espacio de trabajo" },
+   { "type": "feat", "scope": "tasks", "title": "Identificar tareas con un prefijo configurable al crear el tablero y numeración correlativa por tablero" },
+   { "type": "feat", "scope": "tasks", "title": "Crear subtareas y vincular actividades como bloqueantes, complementarias o relacionadas" },
+   { "type": "feat", "scope": "treasury", "title": "Aplicar saldos iniciales a nuestro favor con proveedores a varias facturas y retirar aplicaciones sin duplicar saldos ni mover caja o banco" },
+   { "type": "fix", "scope": "treasury", "title": "Excluir los créditos internos de saldo inicial de los movimientos de caja de los reportes" },
+   { "type": "feat", "scope": "transfers", "title": "Elegir la moneda del importe y mostrar el débito de origen y la acreditación de destino en transferencias entre monedas" },
+   { "type": "fix", "scope": "transfers", "title": "Validar cotización y saldo disponible antes de registrar una transferencia" },
+   { "type": "fix", "scope": "tables", "title": "Sincronizar filtros rápidos y buscar por etiquetas visibles, códigos y textos sin distinguir acentos" },
+   { "type": "fix", "scope": "tables", "title": "Mejorar búsquedas de pagos asociados a cheques, movimientos de stock y tipos de Mis pendientes" },
+   { "type": "docs", "scope": "erp", "title": "Actualizar las guías de tareas, filtros, transferencias y saldos iniciales a favor" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Ampliar tableros y tareas, aplicar saldos a favor y mejorar transferencias y filtros"
+ },
+ {
+  "version": "0.182.1-alpha",
+  "date": "2026-11-25",
+  "stage": "alpha",
+  "notes": "Los filtros rápidos de texto vuelven a actualizar de forma fiable la tabla y se combinan con los filtros avanzados en los listados de terceros, socios y empleados.",
+  "changes": [
+   { "type": "fix", "scope": "tables", "title": "Sincronizar los filtros rápidos con el estado de la tabla" },
+   { "type": "docs", "scope": "tables", "title": "Documentar los filtros de terceros, socios y empleados y su regla de implementación" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir y documentar los filtros rápidos de las tablas"
+ },
+ {
   "version": "0.182.0-alpha",
   "date": "2026-11-24",
   "stage": "alpha",

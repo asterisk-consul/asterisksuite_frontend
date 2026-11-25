@@ -108,6 +108,16 @@ const { filters, addFilter, updateFilter, removeFilter, clearFilters } = useTabl
 
 // --- Filtros simples (inputs) ---
 // Los filtros avanzados y los rápidos comparten los filtros de columna de la tabla.
+function setQuickFilter(fieldId: string, value: unknown) {
+  // Reemplazar el objeto hace que el cambio atraviese el v-model del componente
+  // y dispare el watcher; mutar filterValues[fieldId] directamente puede dejar
+  // desincronizados el toolbar y el estado de filtros de la tabla.
+  filterValues.value = {
+    ...filterValues.value,
+    [fieldId]: typeof value === 'string' ? value : String(value ?? '')
+  }
+}
+
 function applyCombinedFilters(force = false) {
   const api = props.table?.tableApi
   if (!api) return
@@ -216,7 +226,7 @@ function moveColumn(index: number, direction: -1 | 1) {
           v-else
           v-for="field in filterFields"
           :key="field.id"
-          v-model="filterValues[field.id]"
+          :model-value="filterValues[field.id] ?? ''"
           data-table-search
           :placeholder="field.label"
           :icon="field.icon ?? 'i-lucide-search'"
@@ -224,6 +234,7 @@ function moveColumn(index: number, direction: -1 | 1) {
           size="sm"
           variant="outline"
           clearable
+          @update:model-value="setQuickFilter(field.id, $event)"
         />
       </div>
 

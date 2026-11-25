@@ -13,6 +13,7 @@ export type PaymentMethod =
   | 'DEBIT_CARD'
   | 'VIRTUAL_WALLET'
   | 'PAYROLL_DEDUCTION'
+  | 'ACCOUNT_CREDIT'
 
 export type PaymentStatus = 'DRAFT' | 'CONFIRMED' | 'PAID' | 'REVERSED' | 'CANCELLED'
 
@@ -75,6 +76,15 @@ export interface Payment {
   date: string
   party_id?: string | null
   party_type?: string | null
+  source_document_id?: string | null
+  source_document?: {
+    id: string
+    number: number
+    date: string
+    total: number | string
+    currency_code: string | null
+    document_types?: { description?: string | null; code?: string | null } | null
+  } | null
   payment_method: PaymentMethod
   tenders?: PaymentTenderInput[]
   amount: number
@@ -190,7 +200,7 @@ export interface CreatePaymentInput {
   date: string
   party_id?: string
   party_type?: string
-  payment_method: PaymentMethod
+  payment_method: Exclude<PaymentMethod, 'ACCOUNT_CREDIT'>
   tenders?: PaymentTenderInput[]
   amount: number
   currency_code: string

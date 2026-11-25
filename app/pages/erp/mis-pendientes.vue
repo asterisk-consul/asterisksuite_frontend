@@ -25,6 +25,16 @@ const typeOptions = [
   { label: 'Capturas', value: 'CAPTURE' },
   { label: 'Tareas', value: 'TASK' },
 ]
+const pendingKindLabels = {
+  DOCUMENT: 'Documento',
+  CAPTURE: 'Captura',
+  TASK: 'Tarea',
+} as const
+const pendingKindSearchLabels = {
+  DOCUMENT: 'Documento Documentos',
+  CAPTURE: 'Captura Capturas',
+  TASK: 'Tarea Tareas',
+} as const
 
 function isDateKey(value: unknown): value is string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
@@ -65,8 +75,14 @@ const filteredCompletedTasks = computed(() => (data.value?.completedTasks ?? [])
 ))
 const filteredPendingItems = computed(() => (data.value?.pendingItems ?? []).filter(item => {
   if (selectedType.value !== 'ALL' && item.kind !== selectedType.value) return false
-  return matchesSearch(pendingSearch.value, [item.title, item.detail, item.reference, item.status, item.kind, formatDate(item.date)])
+  return matchesSearch(pendingSearch.value, [item.title, item.detail, item.reference, item.status, pendingKindSearchLabels[item.kind], formatDate(item.date)])
 }))
+const hasPendingFilters = computed(() => !!pendingSearch.value.trim() || selectedType.value !== 'ALL')
+
+function clearPendingFilters() {
+  pendingSearch.value = ''
+  selectedType.value = 'ALL'
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium', timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date(value))
@@ -266,7 +282,7 @@ onMounted(async () => {
               <UIcon :name="item.kind === 'CAPTURE' ? 'i-lucide-paperclip' : item.kind === 'TASK' ? 'i-lucide-list-checks' : 'i-lucide-file-text'" class="size-4" />
             </span>
             <span class="min-w-0 flex-1">
-              <span class="flex flex-wrap items-center gap-2"><span class="truncate font-medium">{{ item.title }}</span><UBadge :label="item.status" :color="statusColor(item.status)" variant="subtle" size="xs" /><UBadge :label="item.kind === 'CAPTURE' ? 'Captura' : item.kind === 'TASK' ? 'Tarea' : 'Documento'" color="neutral" variant="outline" size="xs" /></span>
+              <span class="flex flex-wrap items-center gap-2"><span class="truncate font-medium">{{ item.title }}</span><UBadge :label="item.status" :color="statusColor(item.status)" variant="subtle" size="xs" /><UBadge :label="pendingKindLabels[item.kind]" color="neutral" variant="outline" size="xs" /></span>
               <span class="mt-0.5 block truncate text-sm text-muted">{{ item.detail || 'Sin contraparte' }}</span>
               <span v-if="item.reference" class="mt-0.5 block truncate text-xs text-muted">{{ item.reference }}</span>
             </span>
@@ -276,8 +292,9 @@ onMounted(async () => {
         </div>
         <div v-else-if="!loading" class="flex flex-col items-center py-10 text-center">
           <div class="mb-3 grid size-11 place-items-center rounded-2xl bg-success/10 text-success"><UIcon name="i-lucide-check-check" class="size-5" /></div>
-          <h3 class="font-semibold">No tenés pendientes</h3>
-          <p class="mt-1 max-w-md text-sm text-muted">Cuando te asignen un documento o una tarea, o recibas una captura, va a aparecer acá.</p>
+          <h3 class="font-semibold">{{ hasPendingFilters ? 'No hay coincidencias' : 'No tenés pendientes' }}</h3>
+          <p class="mt-1 max-w-md text-sm text-muted">{{ hasPendingFilters ? 'Probá con otro texto o tipo de pendiente.' : 'Cuando te asignen un documento o una tarea, o recibas una captura, va a aparecer acá.' }}</p>
+          <UButton v-if="hasPendingFilters" class="mt-3" label="Limpiar filtros" color="neutral" variant="outline" size="sm" @click="clearPendingFilters" />
         </div>
       </UPageCard>
       </section>

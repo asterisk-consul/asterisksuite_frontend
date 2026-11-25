@@ -18,7 +18,11 @@ function matchesPath(node: DrilldownNode, path: string, fullPath = path): boolea
   if (target.startsWith('http')) return false
 
   const targetPath = target.split('?')[0]
-  if (target.includes('?')) return fullPath === target
+  if (target.includes('?')) {
+    const expected = new URLSearchParams(target.split('?')[1])
+    const actual = new URLSearchParams(fullPath.split('?')[1] ?? '')
+    return path === targetPath && [...expected.entries()].every(([key, value]) => actual.get(key) === value)
+  }
   if (node.exact) return path === targetPath
   return path === targetPath || path.startsWith(`${targetPath}/`)
 }
@@ -115,6 +119,20 @@ export const useDrilldownNavigation = () => {
   const platformModules = usePlatformModulesStore()
   const auth = useAuthStore()
   const { visible: hasIntercompany } = useIntercompanyVisibility()
+  const taskBoardLinks = useState<{ companyId: string | null; items: Array<{ id: string; name: string }> }>('task-sidebar-board-links', () => ({ companyId: null, items: [] }))
+  const navigationWithTaskBoards = computed(() => navigationTree.map(node => node.label === 'Tareas'
+    ? {
+        ...node,
+        children: [
+          { label: 'Todos los tableros', icon: 'i-lucide-layout-dashboard', to: '/erp/tasks' },
+          ...(taskBoardLinks.value.companyId === auth.selectedCompany?.id ? taskBoardLinks.value.items : []).map(board => ({
+            label: board.name,
+            icon: 'i-lucide-kanban',
+            to: `/erp/tasks?board_id=${encodeURIComponent(board.id)}`,
+          })),
+        ],
+      }
+    : node))
   const isPlatformAdmin = computed(() => ['PLATFORM_OWNER', 'PLATFORM_ADMIN'].includes(auth.user?.role ?? ''))
   const hasAvailableModule = (code: string) => {
     const companyId = auth.selectedCompany?.id
@@ -132,7 +150,7 @@ export const useDrilldownNavigation = () => {
 
   const filteredTree = computed(() =>
     filterNavigationTree(
-      navigationTree,
+      navigationWithTaskBoards.value,
       hasPermission,
       hasAvailableModule,
       isOwnerOrAdmin.value,
@@ -144,7 +162,7 @@ export const useDrilldownNavigation = () => {
   )
 
   // Stack: cada nivel tiene nodos + referencia al nodo padre
-  const stackState = useState<StackLevel[]>('drilldown-stack', () => [{ nodes: navigationTree }])
+  const stackState = useState<StackLevel[]>('drilldown-stack', () => [{ nodes: navigationWithTaskBoards.value }])
 
   const stack = computed<StackLevel[]>({
     get: () => stackState.value,
@@ -160,7 +178,7 @@ export const useDrilldownNavigation = () => {
 
   const activeTo = computed(() => {
     const path = route.path
-    const chain = findBranch(navigationTree, path, route.fullPath)
+    const chain = findBranch(navigationWithTaskBoards.value, path, route.fullPath)
     return chain[chain.length - 1]?.to ?? null
   })
 
@@ -238,7 +256,7 @@ export const useDrilldownNavigation = () => {
   watch(
     () => route.fullPath,
     () => {
-      const chain = findBranch(navigationTree, route.path, route.fullPath)
+      const chain = findBranch(navigationWithTaskBoards.value, route.path, route.fullPath)
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
@@ -266,7 +284,7 @@ export const useDrilldownNavigation = () => {
   watch(
     () => filteredTree.value,
     () => {
-      const chain = findBranch(navigationTree, route.path, route.fullPath)
+      const chain = findBranch(navigationWithTaskBoards.value, route.path, route.fullPath)
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {

@@ -32,6 +32,21 @@ export interface TaskCategory extends Omit<TaskLabel, 'name'> {
   active: boolean
 }
 
+export type TaskPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
+
+export interface TaskRelatedRecord {
+  id: string
+  task_number: number
+  title: string
+  board_id: string
+  column_id: string
+  priority: TaskPriority
+  assigned_to: string | null
+  completed_at: string | null
+  board: { name: string; task_key_prefix: string }
+  column: { name: string }
+}
+
 export interface TaskComment {
   id: string
   content: string
@@ -42,11 +57,12 @@ export interface TaskComment {
 
 export interface TaskRecord {
   id: string
+  task_number?: number
   board_id?: string
   column_id?: string
   title: string
   description: string | null
-  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
+  priority: TaskPriority
   assigned_to: string | null
   start_at?: string | null
   assignee?: TaskMember | null
@@ -60,10 +76,32 @@ export interface TaskRecord {
   labels?: TaskLabel[]
   category?: TaskCategory | null
   category_id?: string | null
+  parent_task_id?: string | null
+  parent_task?: TaskRelatedRecord | null
+  subtasks?: Array<TaskRelatedRecord & { due_at: string | null }>
+  relations?: TaskRelation[]
   comments_count?: number
   checklist_count?: number
-  board?: { name: string }
+  subtasks_count?: number
+  board?: { name: string; task_key_prefix?: string }
   column?: { name: string; is_closed: boolean }
+}
+
+export type TaskRelationInputType = 'BLOCKS' | 'BLOCKED_BY' | 'RELATES_TO' | 'COMPLEMENTS'
+export type TaskRelationStoredType = Extract<TaskRelationInputType, 'BLOCKS' | 'RELATES_TO' | 'COMPLEMENTS'>
+
+export interface TaskRelation {
+  relation_type: TaskRelationStoredType
+  direction: 'OUTGOING' | 'INCOMING'
+  task: TaskRelatedRecord
+}
+
+export interface TaskRelationCandidate {
+  id: string
+  task_number: number
+  title: string
+  board: { name: string; task_key_prefix: string }
+  column: { name: string }
 }
 
 export interface TaskColumn {
@@ -82,6 +120,7 @@ export interface TaskColumn {
 export interface TaskBoard {
   id: string
   name: string
+  task_key_prefix: string
   description: string | null
   party_id?: string | null
   category_id?: string | null
@@ -162,7 +201,7 @@ export const useTasksService = () => ({
   getNotificationSettings: () => $fetch<TaskNotificationSettings>('/api/backend/erp/tasks/notification-settings'),
   saveNotificationSettings: (body: TaskNotificationSettings) => $fetch<TaskNotificationSettings>('/api/backend/erp/tasks/notification-settings', { method: 'PUT', body }),
   getBoards: () => $fetch<TaskBoard[]>('/api/backend/erp/tasks/boards'),
-  createBoard: (body: { name: string; description?: string; party_id?: string | null; columns?: string[] }) =>
+  createBoard: (body: { name: string; task_key_prefix?: string; description?: string; party_id?: string | null; columns?: string[] }) =>
     $fetch<TaskBoard>('/api/backend/erp/tasks/boards', { method: 'POST', body }),
   updateBoardSettings: (id: string, body: { require_work_log_on_transition: boolean; allow_task_timer: boolean; task_timer_max_hours: number }) => $fetch<Pick<TaskBoard, 'id' | 'require_work_log_on_transition' | 'allow_task_timer' | 'task_timer_max_hours'>>(`/api/backend/erp/tasks/boards/${id}/settings`, { method: 'PATCH', body }),
   getBoard: (id: string, query?: Record<string, string | undefined>) => $fetch<TaskBoard & { columns: TaskColumn[] }>(`/api/backend/erp/tasks/boards/${id}`, {
@@ -199,6 +238,10 @@ export const useTasksService = () => ({
   updateChecklistItem: (id: string, body: Partial<Pick<TaskChecklistItem, 'content' | 'completed' | 'assigned_to' | 'due_at'>>) => $fetch<TaskChecklistItem>(`/api/backend/erp/tasks/checklist-items/${id}`, { method: 'PATCH', body }),
   deleteChecklistItem: (id: string) => $fetch<{ success: boolean }>(`/api/backend/erp/tasks/checklist-items/${id}`, { method: 'DELETE' }),
   convertChecklistItemToTask: (id: string) => $fetch<{ id: string }>(`/api/backend/erp/tasks/checklist-items/${id}/convert-to-task`, { method: 'POST' }),
+  createSubtask: (taskId: string, body: { title: string; category_id?: string | null }) => $fetch<{ id: string; title: string; board_id: string; column_id: string; parent_task_id: string; task_number: number; completed_at: string | null }>(`/api/backend/erp/tasks/${taskId}/subtasks`, { method: 'POST', body }),
+  getTaskRelationCandidates: (taskId: string, search = '') => $fetch<TaskRelationCandidate[]>(`/api/backend/erp/tasks/${taskId}/relations/candidates`, { query: search ? { search } : undefined }),
+  createTaskRelation: (taskId: string, related_task_id: string, relation_type: TaskRelationInputType) => $fetch(`/api/backend/erp/tasks/${taskId}/relations`, { method: 'POST', body: { related_task_id, relation_type } }),
+  deleteTaskRelation: (taskId: string, relatedTaskId: string) => $fetch<{ success: boolean }>(`/api/backend/erp/tasks/${taskId}/relations/${relatedTaskId}`, { method: 'DELETE' }),
   getByParty: (partyId: string, limit = 100) => $fetch<TaskRecord[]>(`/api/backend/erp/tasks/by-party/${partyId}`, { query: { limit } }),
   createTask: (boardId: string, body: SaveTaskInput & { title: string; column_id: string }) => $fetch<{ id: string }>(`/api/backend/erp/tasks/boards/${boardId}/tasks`, { method: 'POST', body }),
   updateTask: (id: string, body: SaveTaskInput) => $fetch<{ id: string }>(`/api/backend/erp/tasks/${id}`, { method: 'PATCH', body }),

@@ -12,23 +12,40 @@ import DocumentChain from '~/modulos/erp/documents/shared/DocumentChain.vue'
 import { useDocumentsPurchasesStore } from '~/modulos/erp/purchases/stores/purchases.store'
 import { useCompaniesStore } from '~/modulos/companies/store/company.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
+import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useDocumentActions } from '~/modulos/erp/documents/composables/useDocumentActions'
 import DocumentActionButton from '~/modulos/erp/documents/shared/DocumentActionButton.vue'
 import { useDocumentDetailShortcuts } from '~/modulos/erp/documents/composables/useDocumentDetailShortcuts'
 import { getCancelledDocumentStatus } from '~/modulos/erp/documents/types/document-statuses'
 import { usePrint } from '~/composables/usePrint'
+import { usePaymentsService } from '~/modulos/erp/payments/service/payments.service'
 
 const documentsPurchasesStore = useDocumentsPurchasesStore()
 const companiesStore = useCompaniesStore()
 const auth = useAuthStore()
+const { hasPermission, fetchMyPermissionsIfNeeded } = useRoles()
 const route = useRoute()
 const router = useRouter()
 const { printElement } = usePrint()
+const paymentsService = usePaymentsService()
+const toast = useToast()
 
 const loading = ref(true)
 const factura = computed(() => documentsPurchasesStore.current)
 const company = computed(() => companiesStore.current)
 const category = computed(() => factura.value?.document_types?.category)
+const canCreatePayment = computed(() => auth.selectedCompany?.role === 'OWNER' || hasPermission('payments.create'))
+const canUpdatePayments = computed(() => auth.selectedCompany?.role === 'OWNER' || hasPermission('payments.update'))
+const canApplyOpeningBalanceCredit = computed(() => Boolean(
+  category.value === 'OPENING_BALANCE'
+  && Number(factura.value?.document_types?.direction) === -1
+  && Number(factura.value?.total) < 0
+  && Number(factura.value?.status) === 2
+  && factura.value?.party_id
+  && canCreatePayment.value
+  && canUpdatePayments.value,
+))
+const creatingOpeningBalanceCredit = ref(false)
 const confirmationDocumentLabel = computed(() => category.value === 'CREDIT_NOTE'
   ? 'nota de crédito'
   : category.value === 'DEBIT_NOTE'
@@ -59,6 +76,7 @@ const customTransitions = computed(() => {
 onMounted(async () => {
   try {
     const companyId = auth.selectedCompany?.id
+    void fetchMyPermissionsIfNeeded(companyId, auth.user?.id).catch(() => undefined)
     await Promise.all([
       documentsPurchasesStore.fetchOne(route.params.id as string),
       companyId && companiesStore.fetchOne(companyId),
@@ -67,6 +85,21 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+const applyOpeningBalanceCredit = async () => {
+  if (!factura.value || creatingOpeningBalanceCredit.value) return
+  try {
+    creatingOpeningBalanceCredit.value = true
+    const payment = await paymentsService.createOpeningBalanceAdvance(factura.value.id)
+    toast.add({ title: 'Saldo a favor disponible', description: 'Ya podés aplicarlo a una o varias facturas del mismo proveedor.', color: 'success' })
+    await router.push(`/erp/treasury/payments/${payment.id}`)
+  } catch (error: any) {
+    const message = error?.data?.message ?? error?.response?._data?.message
+    toast.add({ title: 'No se pudo habilitar el saldo a favor', description: typeof message === 'string' ? message : 'Revisá que el saldo inicial esté confirmado y siga disponible.', color: 'error' })
+  } finally {
+    creatingOpeningBalanceCredit.value = false
+  }
+}
 
 const {
   primaryActions,
@@ -125,6 +158,15 @@ const { shortcutKeys } = useDocumentDetailShortcuts(primaryActions, [
           <template #headline>
             <div class="flex gap-2 items-center flex-wrap">
               <DocumentPaymentStatusBadge v-if="factura" :document="factura" />
+              <UButton
+                v-if="canApplyOpeningBalanceCredit"
+                label="Aplicar saldo a favor"
+                icon="i-lucide-hand-coins"
+                color="info"
+                variant="outline"
+                :loading="creatingOpeningBalanceCredit"
+                @click="applyOpeningBalanceCredit"
+              />
               <DocumentActionButton
                 v-for="action in primaryActions"
                 :key="action.label"

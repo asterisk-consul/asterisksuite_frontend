@@ -16,6 +16,9 @@ export const usePhotosService = () => {
   const findMediaByEntity = (entityType: string, entityId: string) =>
     $fetch<Photo[]>(`/api/media/photos/${entityType}/${entityId}`)
 
+  const getTaskBoardAttachments = (boardId: string) =>
+    $fetch<{ items: Array<Record<string, any>>; has_more: boolean; has_more_tasks: boolean }>(`/api/media/task-boards/${boardId}/attachments`)
+
   const uploadMedia = (body: FormData) =>
     $fetch<any>('/api/media/upload', { method: 'POST', body })
 
@@ -35,6 +38,7 @@ export const usePhotosService = () => {
     create,
     findByEntity,
     findMediaByEntity,
+    getTaskBoardAttachments,
     uploadMedia,
     getMediaBlob,
     remove

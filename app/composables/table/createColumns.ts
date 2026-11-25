@@ -79,6 +79,8 @@ type ColumnConfig<T, K extends keyof T = keyof T> = {
     }[]
   }
 
+  searchValue?: (row: T) => string | string[] | null | undefined
+
   component?: {
     is: any
 
@@ -94,6 +96,31 @@ type ColumnConfig<T, K extends keyof T = keyof T> = {
   filterFn?: TableColumn<T>['filterFn']
 
   column?: Partial<TableColumn<T>>
+}
+
+function normalizeTableFilterText(value: unknown, locale: string) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase(locale)
+    .trim()
+}
+
+export function matchesTableTextFilter(values: unknown[], filter: unknown, locale = 'es-AR') {
+  const descriptor = filter && typeof filter === 'object' ? filter as { operator?: string; value?: unknown } : null
+  const operator = descriptor?.operator ?? 'contains'
+  const query = normalizeTableFilterText(descriptor && 'value' in descriptor ? descriptor.value : filter, locale)
+  if (!query) return true
+
+  return values.some((value) => {
+    if (value == null) return false
+    const candidate = normalizeTableFilterText(value, locale)
+    if (!candidate) return false
+    if (operator === 'equals') return candidate === query
+    if (operator === 'startsWith') return candidate.startsWith(query)
+    if (operator === 'endsWith') return candidate.endsWith(query)
+    return candidate.includes(query)
+  })
 }
 
 /* ========================
@@ -322,11 +349,19 @@ export function createTableBuilder<T, K extends keyof T = keyof T>(
         value,
         addMeta // ✅ agregar el 4to parámetro requerido
       ) => {
-        const v = row.getValue(columnId)
-        if (v == null) return false
-        return String(v)
-          .toLowerCase()
-          .includes(String(value || '').toLowerCase())
+        const originalValue = accessorKey ? (row.original as any)?.[accessorKey] : undefined
+        const searchValues: unknown[] = [row.getValue(columnId), originalValue]
+        if (col.enum && originalValue !== undefined) {
+          const option = col.enum.options.find(item => String(item.value) === String(originalValue))
+          if (option) searchValues.push(option.label)
+        }
+        if (col.badge) searchValues.push(col.badge.resolve(row.original).label)
+        if (col.multiBadge) searchValues.push(...(col.multiBadge.resolve(row.original) ?? []).map(item => item.label))
+        if (col.searchValue) {
+          const extra = col.searchValue(row.original)
+          searchValues.push(...(Array.isArray(extra) ? extra : [extra]))
+        }
+        return matchesTableTextFilter(searchValues, value, config?.locale ?? 'es-AR')
       }
       /* ========================
          ADVANCED FILTER
@@ -344,17 +379,10 @@ export function createTableBuilder<T, K extends keyof T = keyof T>(
 
         switch (filter.operator) {
           case 'contains':
-            return String(value ?? '')
-              .toLowerCase()
-              .includes(String(filter.value ?? '').toLowerCase())
-
           case 'equals':
-            return String(value ?? '') === String(filter.value ?? '')
-
           case 'startsWith':
-            return String(value ?? '')
-              .toLowerCase()
-              .startsWith(String(filter.value ?? '').toLowerCase())
+          case 'endsWith':
+            return defaultStringFilter(row, columnId, filter, addMeta)
 
           case 'gt':
             return Number(value) > Number(filter.value)

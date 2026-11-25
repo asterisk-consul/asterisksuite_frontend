@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { VueDraggable } from 'vue-draggable-plus'
-import { useTasksService, type SaveTaskInput, type TaskBoard, type TaskCategory, type TaskChecklist, type TaskColumn, type TaskComment, type TaskLabel, type TaskMember, type TaskMemberInput, type TaskMemberRole, type TaskNotificationSettings, type TaskRecord, type TaskWorkLog, type TaskWorkLogInput } from '~/modulos/erp/tasks/tasks.service'
+import { h, resolveComponent } from 'vue'
+import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
+import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
+import type { SortField } from '~/components/Tablas/TableToolbar.vue'
+import { useTasksService, type SaveTaskInput, type TaskBoard, type TaskCategory, type TaskChecklist, type TaskColumn, type TaskComment, type TaskLabel, type TaskMember, type TaskMemberInput, type TaskMemberRole, type TaskNotificationSettings, type TaskRecord, type TaskRelation, type TaskRelationCandidate, type TaskRelationInputType, type TaskWorkLog, type TaskWorkLogInput } from '~/modulos/erp/tasks/tasks.service'
 import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useAuthStore } from '~/modulos/auth/auth.store'
@@ -25,8 +29,10 @@ const hasTaskPermission = (permission: string) => auth.selectedCompany?.role ===
 const service = useTasksService()
 const partiesService = useBusinessPartiesService()
 const photosService = usePhotosService()
+const notificationFeed = useNotifications()
 
 const boards = ref<TaskBoard[]>([])
+const taskSidebarBoardLinks = useState<{ companyId: string | null; items: Array<{ id: string; name: string }> }>('task-sidebar-board-links', () => ({ companyId: null, items: [] }))
 const members = ref<TaskMember[]>([])
 const labels = ref<TaskLabel[]>([])
 const categories = ref<TaskCategory[]>([])
@@ -55,6 +61,23 @@ type PendingWorkLogAction =
   | { type: 'completeTask'; taskId: string; completed: boolean }
 const pendingWorkLogAction = ref<PendingWorkLogAction | null>(null)
 const checklists = ref<TaskChecklist[]>([])
+const taskSubtasks = ref<NonNullable<TaskRecord['subtasks']>>([])
+const taskParent = ref<TaskRecord['parent_task']>(null)
+const taskRelations = ref<TaskRelation[]>([])
+const relationCandidates = ref<TaskRelationCandidate[]>([])
+const subtaskTitleDraft = ref('')
+const subtaskCategoryDraft = ref('NONE')
+const creatingSubtask = ref(false)
+const relationModalMode = ref<'CREATE' | 'EXISTING'>('EXISTING')
+const relationSearch = ref('')
+const relationCandidateId = ref('')
+const relationTypeDraft = ref<TaskRelationInputType | 'NONE'>('NONE')
+const loadingRelationCandidates = ref(false)
+const savingTaskRelation = ref(false)
+const removingTaskRelation = ref('')
+const taskRelationCreateOpen = ref(false)
+const linkedActivitiesOpen = ref(true)
+let relationSearchTimer: ReturnType<typeof setTimeout> | null = null
 const attachments = ref<any[]>([])
 const checklistTitle = ref('')
 const checklistItemDrafts = ref<Record<string, string>>({})
@@ -138,7 +161,36 @@ const showBoardModal = ref(false)
 const showTaskModal = ref(false)
 const showDeleteModal = ref(false)
 const selectedTask = ref<TaskRecord | null>(null)
-const boardForm = reactive({ name: '', description: '', party_id: 'NONE', columns: 'Pendiente\nEn curso\nEn revisión\nFinalizada' })
+type BoardWorkspaceTab = 'SUMMARY' | 'LIST' | 'BOARD' | 'TIMELINE' | 'CALENDAR' | 'DOCUMENTS' | 'ATTACHMENTS'
+type BoardTaskRow = { id: string; key: string; title: string; list: string; priority: string; assignee: string; due: string; client: string; categoryName: string; labelsText: string; task: TaskRecord; columnId: string }
+const boardWorkspaceExpanded = ref(false)
+const activeBoardTab = ref<BoardWorkspaceTab>('SUMMARY')
+const boardTabs: Array<{ id: BoardWorkspaceTab; label: string; icon: string }> = [
+  { id: 'SUMMARY', label: 'Resumen', icon: 'i-lucide-layout-dashboard' },
+  { id: 'LIST', label: 'Lista', icon: 'i-lucide-list' },
+  { id: 'BOARD', label: 'Tablero', icon: 'i-lucide-kanban' },
+  { id: 'TIMELINE', label: 'Cronograma', icon: 'i-lucide-chart-no-axes-gantt' },
+  { id: 'CALENDAR', label: 'Calendario', icon: 'i-lucide-calendar-days' },
+  { id: 'DOCUMENTS', label: 'Documentos', icon: 'i-lucide-file-text' },
+  { id: 'ATTACHMENTS', label: 'Adjuntos', icon: 'i-lucide-paperclip' },
+]
+const boardAttachments = ref<Array<Record<string, any>>>([])
+const boardAttachmentsLoading = ref(false)
+const boardAttachmentsHasMore = ref(false)
+const boardAttachmentsHasMoreTasks = ref(false)
+const summaryActivityLoading = ref(false)
+let boardAttachmentsRequestId = 0
+const calendarMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+const calendarView = ref<'MONTH' | 'WEEK'>('MONTH')
+const calendarSearch = ref('')
+const calendarMemberId = ref('ALL')
+const boardListSearch = ref('')
+const boardListShowSubtasks = ref(true)
+const timelineScale = ref<'WEEK' | 'MONTH' | 'QUARTER'>('MONTH')
+const timelineSearch = ref('')
+const timelineMemberId = ref('ALL')
+const boardForm = reactive({ name: '', task_key_prefix: '', description: '', party_id: 'NONE', columns: 'Pendiente\nEn curso\nEn revisión\nFinalizada' })
+const taskKeyPrefixManuallyEdited = ref(false)
 const taskForm = reactive({
   title: '',
   description: '',
@@ -155,9 +207,8 @@ const taskForm = reactive({
 const memberToAdd = ref('NONE')
 const memberRoleToAdd = ref<TaskMemberRole>('COLLABORATOR')
 
-const boardOptions = computed(() => boards.value.map(item => ({ label: `${item.name}${item.party ? ` · ${item.party.name}` : item.is_default ? ' · Principal' : ''}`, value: item.id })))
 const memberOptions = computed(() => [{ label: 'Sin asignar', value: 'NONE' }, ...members.value.map(member => ({ label: member.name, value: member.id }))])
-const selectMenuUi = { base: 'w-full min-w-0', value: 'min-w-0 truncate', content: 'max-w-[calc(100vw-2rem)]', itemLabel: 'min-w-0 truncate' }
+const selectMenuUi = { base: 'w-full min-w-0', value: 'min-w-0 truncate', content: 'z-[10030] max-w-[calc(100vw-2rem)]', itemLabel: 'min-w-0 truncate' }
 const stackedModalSelectMenuUi = { ...selectMenuUi, content: 'z-[10030] max-w-[calc(100vw-2rem)]' }
 const taskMemberOptions = computed(() => [
   { label: 'Seleccionar persona', value: 'NONE' },
@@ -184,6 +235,7 @@ const filteredTaskLabels = computed(() => {
   return labels.value.filter(label => `${label.name ?? ''} ${labelColorName(label.color)}`.toLocaleLowerCase('es').includes(query))
 })
 const categoryOptions = computed(() => categories.value.filter(category => category.active || taskForm.category_id === category.id).map(category => ({ label: category.name, value: category.id })))
+const subtaskCategoryOptions = computed(() => categories.value.filter(category => category.active).map(category => ({ label: category.name, value: category.id })))
 const categoryFilterOptions = computed(() => categories.value.filter(category => category.active).map(category => ({ label: category.name, value: category.id })))
 const boardFilterMemberOptions = computed(() => [{ label: 'Sin miembros', value: 'NONE' }, { label: 'Asignadas a mí', value: 'ME' }, ...members.value.map(member => ({ label: member.name, value: member.id }))])
 const activeBoardFilterCount = computed(() => Number(!!taskFilters.search.trim()) + Number(taskFilters.member_ids.length > 0) + Number(taskFilters.label_ids.length > 0) + Number(taskFilters.category_ids.length > 0) + Number(taskFilters.party_ids.length > 0) + Number(taskFilters.completion !== 'ALL') + Number(taskFilters.priority !== 'ALL') + Number(taskFilters.due_status !== 'ALL'))
@@ -192,10 +244,253 @@ const boardPeople = computed(() => {
   const ids = new Set((board.value?.columns ?? []).flatMap(column => column.tasks.flatMap(task => [task.assigned_to, ...(task.members ?? []).map(member => member.user_id)]).filter((id): id is string => !!id)))
   return members.value.filter(member => ids.has(member.id)).slice(0, 6)
 })
+const summaryPeople = computed(() => members.value.slice(0, 6))
+const summaryPeopleExtraCount = computed(() => Math.max(0, members.value.length - summaryPeople.value.length))
 const boardPeopleExtraCount = computed(() => {
   const ids = new Set((board.value?.columns ?? []).flatMap(column => column.tasks.flatMap(task => [task.assigned_to, ...(task.members ?? []).map(member => member.user_id)]).filter((id): id is string => !!id)))
   return Math.max(0, ids.size - boardPeople.value.length)
 })
+const boardTaskRows = computed<BoardTaskRow[]>(() => (board.value?.columns ?? []).flatMap(column => column.tasks.map(task => ({
+  id: task.id,
+  key: taskKey(task, board.value?.task_key_prefix ?? ''),
+  title: task.title,
+  list: column.name,
+  priority: priorityLabel(task.priority),
+  assignee: task.assignee?.name ?? members.value.find(member => member.id === task.assigned_to)?.name ?? 'Sin asignar',
+  due: formatDueDate(task.due_at),
+  client: task.party?.name ?? selectedBoardParty.value?.name ?? 'Sin cliente',
+  categoryName: task.category?.name ?? 'Sin categoría',
+  labelsText: (task.labels ?? []).map(label => label.name ?? labelColorName(label.color)).join(' '),
+  task,
+  columnId: column.id,
+}))))
+const visibleBoardListRows = computed(() => {
+  const query = boardListSearch.value.trim().toLocaleLowerCase('es')
+  return boardTaskRows.value.filter(row => {
+    const column = board.value?.columns.find(item => item.id === row.columnId)
+    if (hideCompletedColumns.value && (column?.is_closed || row.task.completed_at)) return false
+    if (!boardListShowSubtasks.value && row.task.parent_task_id) return false
+    if (!query) return true
+    return `${row.key} ${row.title} ${row.list} ${row.priority} ${row.assignee} ${row.due} ${row.client} ${row.categoryName} ${row.labelsText}`.toLocaleLowerCase('es').includes(query)
+  })
+})
+const hasBoardSummaryFilters = computed(() => activeBoardFilterCount.value > 0)
+const boardSummary = computed(() => {
+  const tasks = boardTaskRows.value
+  const total = hasBoardSummaryFilters.value
+    ? tasks.length
+    : (board.value?.columns ?? []).reduce((sum, column) => sum + (column.total_tasks ?? column.tasks.length), 0)
+  const since = Date.now() - 7 * 24 * 60 * 60 * 1000
+  const through = Date.now() + 7 * 24 * 60 * 60 * 1000
+  return {
+    total,
+    visible: tasks.length,
+    completed: tasks.filter(row => !!row.task.completed_at && new Date(row.task.completed_at).getTime() >= since).length,
+    updated: tasks.filter(row => !!row.task.updated_at && new Date(row.task.updated_at).getTime() >= since).length,
+    created: tasks.filter(row => !!row.task.created_at && new Date(row.task.created_at).getTime() >= since).length,
+    dueSoon: tasks.filter(row => !row.task.completed_at && row.task.due_at && new Date(row.task.due_at).getTime() >= Date.now() && new Date(row.task.due_at).getTime() <= through).length,
+    overdue: tasks.filter(row => isOverdue(row.task)).length,
+  }
+})
+const boardStatusSummary = computed(() => (board.value?.columns ?? []).map(column => {
+  const count = hasBoardSummaryFilters.value
+    ? boardTaskRows.value.filter(row => row.columnId === column.id).length
+    : column.total_tasks ?? column.tasks.length
+  return {
+    id: column.id,
+    name: column.name,
+    count,
+    percent: boardSummary.value.total ? Math.round((count / boardSummary.value.total) * 100) : 0,
+  }
+}))
+const boardPrioritySummary = computed(() => {
+  const priorities: Array<{ value: TaskRecord['priority']; label: string; icon: string }> = [
+    { value: 'URGENT', label: 'Urgente', icon: 'i-lucide-chevrons-up' },
+    { value: 'HIGH', label: 'Alta', icon: 'i-lucide-chevron-up' },
+    { value: 'NORMAL', label: 'Normal', icon: 'i-lucide-equal' },
+    { value: 'LOW', label: 'Baja', icon: 'i-lucide-chevron-down' },
+  ]
+  const counts = priorities.map(priority => ({ ...priority, count: boardTaskRows.value.filter(row => row.task.priority === priority.value).length }))
+  const max = Math.max(1, ...counts.map(item => item.count))
+  return counts.map(item => ({ ...item, percent: Math.round(item.count / max * 100) }))
+})
+const boardCategorySummary = computed(() => {
+  const counts = new Map<string, number>()
+  for (const row of boardTaskRows.value) {
+    const name = row.task.category?.name ?? 'Sin categoría'
+    counts.set(name, (counts.get(name) ?? 0) + 1)
+  }
+  const max = Math.max(1, ...counts.values())
+  return [...counts.entries()].map(([name, count]) => ({ name, count, percent: Math.round(count / max * 100) })).sort((a, b) => b.count - a.count).slice(0, 8)
+})
+const boardAssigneeSummary = computed(() => {
+  const counts = new Map<string, number>()
+  for (const row of boardTaskRows.value) {
+    const name = row.assignee || 'Sin asignar'
+    counts.set(name, (counts.get(name) ?? 0) + 1)
+  }
+  const max = Math.max(1, ...counts.values())
+  return [...counts.entries()].map(([name, count]) => ({ name, count, percent: Math.round(count / max * 100) })).sort((a, b) => b.count - a.count).slice(0, 8)
+})
+const relatedTaskBoards = computed(() => boards.value.filter(item => item.id !== boardId.value).slice(0, 6))
+const boardStatusColors = ['#4f8df7', '#91c83e', '#7b61d1', '#f59e0b', '#14b8a6', '#ef6b6b']
+const boardStatusChartStyle = computed(() => {
+  let cursor = 0
+  const stops = boardStatusSummary.value.map((status, index) => {
+    const start = cursor
+    cursor += status.percent
+    return `${boardStatusColors[index % boardStatusColors.length]} ${start}% ${cursor}%`
+  })
+  return { background: stops.length ? `conic-gradient(${stops.join(', ')})` : 'var(--ui-bg-elevated)' }
+})
+const recentBoardActivities = computed(() => {
+  const taskIds = new Set(boardTaskRows.value.map(row => row.id))
+  return notificationFeed.items.value
+    .filter(item => item.target_type === 'TASK' && (!!item.target_id && taskIds.has(item.target_id) || !hasBoardSummaryFilters.value && !item.target_id && !!item.target_path?.includes(`board_id=${encodeURIComponent(boardId.value)}`)))
+    .slice(0, 20)
+})
+const boardSummaryMetrics = computed(() => [
+  { label: 'Finalizadas', value: boardSummary.value.completed, detail: 'en los últimos 7 días', icon: 'i-lucide-circle-check' },
+  { label: 'Actualizadas', value: boardSummary.value.updated, detail: 'en los últimos 7 días', icon: 'i-lucide-list-todo' },
+  { label: 'Creadas', value: boardSummary.value.created, detail: 'en los últimos 7 días', icon: 'i-lucide-square-plus' },
+  { label: 'Vencen pronto', value: boardSummary.value.dueSoon, detail: 'en los próximos 7 días', icon: 'i-lucide-calendar-days' },
+])
+const monthLabel = computed(() => new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(calendarMonth.value))
+const calendarCells = computed(() => {
+  const monthStart = new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth(), 1)
+  const mondayOffset = (monthStart.getDay() + 6) % 7
+  const gridStart = calendarView.value === 'WEEK'
+    ? new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth(), calendarMonth.value.getDate() - ((calendarMonth.value.getDay() + 6) % 7))
+    : new Date(monthStart.getFullYear(), monthStart.getMonth(), 1 - mondayOffset)
+  return Array.from({ length: calendarView.value === 'WEEK' ? 7 : 42 }, (_, index) => {
+    const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index)
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    return { date, dateKey, inMonth: date.getMonth() === calendarMonth.value.getMonth() }
+  })
+})
+const calendarHeading = computed(() => {
+  if (calendarView.value === 'MONTH') return monthLabel.value
+  const first = calendarCells.value[0]?.date
+  const last = calendarCells.value[calendarCells.value.length - 1]?.date
+  if (!first || !last) return monthLabel.value
+  const formatter = new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'short' })
+  return `${formatter.format(first)} – ${new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }).format(last)}`
+})
+const calendarWeeks = computed(() => {
+  const cells = calendarCells.value
+  const tasks = boardTaskRows.value.filter(row => {
+    const search = calendarSearch.value.trim().toLocaleLowerCase('es')
+    const matchesSearch = !search || `${row.key} ${row.title} ${row.assignee} ${row.client}`.toLocaleLowerCase('es').includes(search)
+    const matchesMember = calendarMemberId.value === 'ALL' || (calendarMemberId.value === 'NONE' ? !row.task.assigned_to : row.task.assigned_to === calendarMemberId.value || row.task.members?.some(member => member.user_id === calendarMemberId.value))
+    return matchesSearch && matchesMember
+  })
+  const weekSize = calendarView.value === 'WEEK' ? cells.length : 7
+  return Array.from({ length: Math.ceil(cells.length / weekSize) }, (_, weekIndex) => {
+    const weekCells = cells.slice(weekIndex * weekSize, (weekIndex + 1) * weekSize)
+    const first = weekCells[0]?.date
+    const last = weekCells[weekCells.length - 1]?.date
+    if (!first || !last) return { cells: weekCells, bars: [] }
+    const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+    const dayMs = 24 * 60 * 60 * 1000
+    const weekStart = startOfDay(first)
+    const weekEnd = startOfDay(last)
+    const bars = tasks.flatMap(row => {
+      const startValue = row.task.start_at ?? row.task.due_at
+      const endValue = row.task.due_at ?? row.task.start_at
+      if (!startValue || !endValue) return []
+      const start = startOfDay(new Date(startValue))
+      const end = startOfDay(new Date(endValue))
+      if (Number.isNaN(start) || Number.isNaN(end) || end < weekStart || start > weekEnd) return []
+      const visibleStart = Math.max(start, weekStart)
+      const visibleEnd = Math.min(Math.max(end, start), weekEnd)
+      const column = Math.max(0, Math.floor((visibleStart - weekStart) / dayMs))
+      const span = Math.min(weekCells.length - column, Math.max(1, Math.floor((visibleEnd - visibleStart) / dayMs) + 1))
+      return [{ ...row, column, span, continuesBefore: start < weekStart, continuesAfter: end > weekEnd }]
+    })
+    const laneEnds: number[] = []
+    const barsWithLanes = bars.sort((a, b) => a.column - b.column).map(bar => {
+      let lane = laneEnds.findIndex(endColumn => endColumn <= bar.column)
+      if (lane < 0) lane = laneEnds.length
+      laneEnds[lane] = bar.column + bar.span
+      return { ...bar, lane }
+    })
+    return { cells: weekCells, bars: barsWithLanes }
+  })
+})
+const timelineVisibleRows = computed(() => boardTaskRows.value.filter(row => {
+  const search = timelineSearch.value.trim().toLocaleLowerCase('es')
+  const matchesSearch = !search || `${row.key} ${row.title} ${row.assignee} ${row.client}`.toLocaleLowerCase('es').includes(search)
+  const matchesMember = timelineMemberId.value === 'ALL' || (timelineMemberId.value === 'NONE' ? !row.task.assigned_to : row.task.assigned_to === timelineMemberId.value || row.task.members?.some(member => member.user_id === timelineMemberId.value))
+  return matchesSearch && matchesMember
+}))
+const timelineRange = computed(() => {
+  const anchor = calendarMonth.value
+  if (timelineScale.value === 'WEEK') {
+    const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - ((anchor.getDay() + 6) % 7))
+    return { start, end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 84) }
+  }
+  if (timelineScale.value === 'QUARTER') {
+    const start = new Date(anchor.getFullYear(), Math.floor(anchor.getMonth() / 3) * 3, 1)
+    return { start, end: new Date(start.getFullYear(), start.getMonth() + 12, 1) }
+  }
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1)
+  return { start, end: new Date(start.getFullYear(), start.getMonth() + 3, 1) }
+})
+const timelinePeriods = computed(() => {
+  const { start, end } = timelineRange.value
+  const periods: Array<{ label: string; left: number; width: number }> = []
+  const total = end.getTime() - start.getTime()
+  const cursor = new Date(start)
+  while (cursor < end) {
+    const next = timelineScale.value === 'WEEK'
+      ? new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 7)
+      : timelineScale.value === 'QUARTER'
+        ? new Date(cursor.getFullYear(), cursor.getMonth() + 3, 1)
+        : new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+    periods.push({
+      label: timelineScale.value === 'WEEK'
+        ? `Sem. ${new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: 'short' }).format(cursor)}`
+        : new Intl.DateTimeFormat('es-AR', { month: 'long', ...(timelineScale.value === 'QUARTER' ? { year: 'numeric' } : {}) }).format(cursor),
+      left: (cursor.getTime() - start.getTime()) / total * 100,
+      width: (Math.min(next.getTime(), end.getTime()) - cursor.getTime()) / total * 100,
+    })
+    cursor.setTime(next.getTime())
+  }
+  return periods
+})
+const timelineTodayPosition = computed(() => {
+  const { start, end } = timelineRange.value
+  const today = new Date()
+  return today < start || today >= end ? null : (today.getTime() - start.getTime()) / (end.getTime() - start.getTime()) * 100
+})
+const attachmentRows = computed(() => boardAttachments.value.map(item => ({
+  ...item,
+  file_name: item.file_name || 'Adjunto de tarea',
+  task_key: item.task?.key ?? '',
+})))
+const documentRows = computed(() => attachmentRows.value.filter(file => file.mime_type === 'application/pdf'))
+const UButtonComponent = resolveComponent('UButton')
+const UBadgeComponent = resolveComponent('UBadge')
+const boardTaskColumns: ExtendedColumn<BoardTaskRow>[] = [
+  { accessorKey: 'key', header: 'Clave', meta: { label: 'Clave', filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { accessorKey: 'title', header: 'Tarea', cell: ({ row }) => h(UButtonComponent, { label: row.original.title, color: 'neutral', variant: 'link', class: 'max-w-full justify-start truncate px-0 text-left font-medium', onClick: () => openBoardTask(row.original) }), meta: { label: 'Tarea', filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { accessorKey: 'list', header: 'Estado', cell: ({ row }) => h(UBadgeComponent, { color: row.original.task.completed_at || board.value?.columns.find(column => column.id === row.original.columnId)?.is_closed ? 'success' : 'neutral', variant: 'subtle', size: 'xs', class: 'max-w-full truncate' }, () => row.original.list), meta: { label: 'Estado', filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { accessorKey: 'categoryName', header: 'Categoría', cell: ({ row }) => h(UBadgeComponent, { color: 'neutral', variant: 'subtle', size: 'xs', class: 'max-w-full truncate', style: labelChipStyle(row.original.task.category?.color ?? 'neutral') }, () => row.original.task.category?.name ?? 'Sin categoría'), meta: { label: 'Categoría', filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { accessorKey: 'labelsText', header: 'Etiquetas', cell: ({ row }) => row.original.task.labels?.length ? h('div', { class: 'flex min-w-0 flex-wrap gap-1' }, [...row.original.task.labels.slice(0, 3).map(label => h(UBadgeComponent, { key: label.id, variant: 'subtle', size: 'xs', class: 'max-w-28 truncate', style: labelChipStyle(label.color) }, () => label.name ?? labelColorName(label.color))), ...(row.original.task.labels.length > 3 ? [h(UBadgeComponent, { key: 'more', color: 'neutral', variant: 'subtle', size: 'xs' }, () => `+${row.original.task.labels!.length - 3}`)] : [])]) : h('span', { class: 'text-xs text-muted' }, '—'), meta: { label: 'Etiquetas', filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { accessorKey: 'priority', header: 'Prioridad', cell: ({ row }) => h(UBadgeComponent, { color: priorityColor(row.original.task.priority), variant: 'subtle', size: 'xs', class: 'max-w-full truncate' }, () => row.original.priority), meta: { label: 'Prioridad', filter: { type: 'select', options: ['Baja', 'Normal', 'Alta', 'Urgente'].map(value => ({ label: value, value })) } } },
+  { accessorKey: 'assignee', header: 'Responsable', meta: { label: 'Responsable', filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { accessorKey: 'due', header: 'Vencimiento', meta: { label: 'Vencimiento', filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { accessorKey: 'client', header: 'Cliente', meta: { label: 'Cliente', filter: { type: 'text', operators: ['contains', 'equals'] } } },
+]
+const boardTaskSortFields: SortField[] = [
+  { label: 'Clave', value: 'key' }, { label: 'Tarea', value: 'title' }, { label: 'Estado', value: 'list' }, { label: 'Categoría', value: 'categoryName' }, { label: 'Prioridad', value: 'priority' }, { label: 'Responsable', value: 'assignee' }, { label: 'Vencimiento', value: 'due' },
+]
+const boardListMenuItems = computed(() => [[
+  { label: hideCompletedColumns.value ? 'Mostrar finalizadas' : 'Ocultar finalizadas', icon: hideCompletedColumns.value ? 'i-lucide-eye' : 'i-lucide-eye-off', onSelect: () => persistHideCompletedColumns(!hideCompletedColumns.value) },
+  { label: boardListShowSubtasks.value ? 'Ocultar subtareas' : 'Mostrar subtareas', icon: 'i-lucide-list-tree', onSelect: () => { boardListShowSubtasks.value = !boardListShowSubtasks.value } },
+  { label: 'Limpiar búsqueda', icon: 'i-lucide-eraser', disabled: !boardListSearch.value, onSelect: () => { boardListSearch.value = '' } },
+]])
+const boardTitle = computed(() => board.value?.name ?? 'Seleccioná un tablero')
 const currentBoardCollapseStorageKey = computed(() => `tasks:collapsed-final-columns:${auth.selectedCompany?.id ?? 'company'}:${auth.user?.id ?? 'user'}:${boardId.value || 'board'}`)
 const hideCompletedColumnsStorageKey = computed(() => `tasks:hide-final-columns:${auth.selectedCompany?.id ?? 'company'}:${auth.user?.id ?? 'user'}`)
 const columnMoveOptions = computed(() => {
@@ -241,6 +536,17 @@ const priorityOptions = [
   { label: 'Alta', value: 'HIGH' },
   { label: 'Urgente', value: 'URGENT' },
 ]
+const taskRelationOptions: Array<{ label: string; value: TaskRelationInputType }> = [
+  { label: 'Bloquea', value: 'BLOCKS' },
+  { label: 'Está bloqueada por', value: 'BLOCKED_BY' },
+  { label: 'Complementa', value: 'COMPLEMENTS' },
+  { label: 'Relacionada con', value: 'RELATES_TO' },
+]
+const linkedTaskRows = computed(() => [
+  ...(taskParent.value ? [{ id: `parent:${taskParent.value.id}`, relation: 'Subtarea de', task: taskParent.value }] : []),
+  ...taskSubtasks.value.map(task => ({ id: `subtask:${task.id}`, relation: 'Subtarea', task })),
+  ...taskRelations.value.map(relation => ({ id: `${relation.task.id}:${relation.direction}`, relation: taskRelationLabel(relation), task: relation.task })),
+])
 
 function taskMemberRoleLabel(role: TaskMemberRole) {
   return role === 'REVIEWER' ? 'Auditor' : role === 'OBSERVER' ? 'Observador' : 'Colaborador'
@@ -496,6 +802,10 @@ watch(() => taskTimer.timer, (current, previous) => {
 })
 
 function toggleBoardMemberFilter(memberId: string) {
+  if (memberId === 'NONE') {
+    taskFilters.member_ids = taskFilters.member_ids.includes('NONE') ? [] : ['NONE']
+    return
+  }
   taskFilters.member_ids = taskFilters.member_ids.includes(memberId)
     ? taskFilters.member_ids.filter(id => id !== memberId)
     : [...taskFilters.member_ids.filter(id => id !== 'NONE' && id !== 'ME'), memberId]
@@ -588,6 +898,7 @@ function labelChipStyle(color: string) {
 
 async function loadBoards() {
   boards.value = await service.getBoards()
+  taskSidebarBoardLinks.value = { companyId: auth.selectedCompany?.id ?? null, items: boards.value.map(item => ({ id: item.id, name: item.name })) }
   const requestedId = typeof route.query.board_id === 'string' ? route.query.board_id : ''
   const requestedPartyId = typeof route.query.party_id === 'string' ? route.query.party_id : ''
   const chosen = boards.value.find(item => item.id === requestedId)
@@ -769,15 +1080,64 @@ function searchCustomers(value: string, target: 'filter' | 'task') {
 }
 watch(partyFilterSearch, value => searchCustomers(value, 'filter'))
 watch(taskPartySearch, value => searchCustomers(value, 'task'))
+watch(relationSearch, search => {
+  const taskId = selectedTask.value?.id
+  if (!taskId) return
+  if (relationSearchTimer) clearTimeout(relationSearchTimer)
+  relationSearchTimer = setTimeout(() => { void loadRelationCandidates(taskId, search) }, 250)
+})
 
 watch(boardId, async () => {
   if (loading.value || !boardId.value) return
+  activeBoardTab.value = 'SUMMARY'
+  if (route.query.board_id !== boardId.value) {
+    const query = { ...route.query, board_id: boardId.value }
+    void router.replace({ query })
+  }
   restoreCollapsedClosedColumns()
   try {
     await loadBoard()
   } catch (error: any) {
     toast.add({ title: 'No se pudo abrir el tablero', description: error?.data?.message ?? error.message, color: 'error' })
   }
+})
+
+watch(() => route.query.board_id, id => {
+  if (typeof id === 'string' && id !== boardId.value && boards.value.some(item => item.id === id)) boardId.value = id
+  else if (typeof id !== 'string' && boards.value.length && route.path === '/erp/tasks') {
+    const fallback = boards.value.find(item => item.is_default) ?? boards.value[0]
+    if (fallback && fallback.id !== boardId.value) boardId.value = fallback.id
+  }
+})
+
+watch([boardId, activeBoardTab], async ([id, tab]) => {
+  const requestId = ++boardAttachmentsRequestId
+  if (!id || !['ATTACHMENTS', 'DOCUMENTS'].includes(tab)) {
+    boardAttachmentsLoading.value = false
+    return
+  }
+  boardAttachmentsLoading.value = true
+  try {
+    const result = await photosService.getTaskBoardAttachments(id)
+    if (requestId !== boardAttachmentsRequestId) return
+    boardAttachments.value = result.items ?? []
+    boardAttachmentsHasMore.value = !!result.has_more
+    boardAttachmentsHasMoreTasks.value = !!result.has_more_tasks
+  } catch (error: any) {
+    if (requestId === boardAttachmentsRequestId) {
+      boardAttachments.value = []
+      toast.add({ title: 'No se pudieron cargar los adjuntos', description: error?.data?.message ?? error.message, color: 'error' })
+    }
+  } finally {
+    if (requestId === boardAttachmentsRequestId) boardAttachmentsLoading.value = false
+  }
+})
+
+watch([boardId, activeBoardTab], async ([id, tab]) => {
+  if (!id || tab !== 'SUMMARY') return
+  summaryActivityLoading.value = true
+  await notificationFeed.refresh(50)
+  summaryActivityLoading.value = false
 })
 
 watch(taskFilters, () => {
@@ -805,14 +1165,26 @@ watch(() => route.query.task_id, async taskId => {
 
 function openBoardModal() {
   taskPartySearch.value = ''
-  Object.assign(boardForm, { name: '', description: '', party_id: taskFilters.party_ids.length === 1 ? taskFilters.party_ids[0] : 'NONE', columns: 'Pendiente\nEn curso\nEn revisión\nFinalizada' })
+  taskKeyPrefixManuallyEdited.value = false
+  Object.assign(boardForm, { name: '', task_key_prefix: '', description: '', party_id: taskFilters.party_ids.length === 1 ? taskFilters.party_ids[0] : 'NONE', columns: 'Pendiente\nEn curso\nEn revisión\nFinalizada' })
   showBoardModal.value = true
 }
+
+function suggestTaskKeyPrefix(name: string) {
+  const stopWords = new Set(['Y', 'DE', 'DEL', 'LA', 'EL', 'EN', 'PARA', 'POR'])
+  const words = (name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().match(/[A-Z0-9]+/g) ?? []).filter(word => !stopWords.has(word))
+  return words.length > 1 ? (words.map(word => word[0]).join('').slice(0, 4) || 'TK') : (words[0] ?? 'TK').slice(0, 3)
+}
+
+watch(() => boardForm.name, name => {
+  if (!taskKeyPrefixManuallyEdited.value) boardForm.task_key_prefix = suggestTaskKeyPrefix(name)
+})
 
 function closeBoardModal() { showBoardModal.value = false }
 function closeTaskModal() {
   showTaskModal.value = false
   timeModalOpen.value = false
+  taskRelationCreateOpen.value = false
   closeActionPanel()
   labelCreateModalOpen.value = false
   labelEditModalOpen.value = false
@@ -898,7 +1270,7 @@ async function createBoard() {
   saving.value = true
   try {
     const columns = boardForm.columns.split(/\r?\n/).map(item => item.trim()).filter(Boolean)
-    const created = await service.createBoard({ name: boardForm.name.trim(), description: boardForm.description.trim() || undefined, party_id: boardForm.party_id === 'NONE' ? null : boardForm.party_id, columns })
+    const created = await service.createBoard({ name: boardForm.name.trim(), task_key_prefix: boardForm.task_key_prefix.trim() || suggestTaskKeyPrefix(boardForm.name), description: boardForm.description.trim() || undefined, party_id: boardForm.party_id === 'NONE' ? null : boardForm.party_id, columns })
     toast.add({ title: 'Tablero creado', color: 'success' })
     showBoardModal.value = false
     await loadBoards()
@@ -1033,6 +1405,11 @@ function openNewTask(column: TaskColumn) {
   workLogs.value = []
   totalWorkMinutes.value = 0
   checklists.value = []
+  taskSubtasks.value = []
+  taskParent.value = null
+  taskRelations.value = []
+  relationCandidates.value = []
+  subtaskTitleDraft.value = ''
   attachments.value = []
   activeActionPanel.value = null
   actionModalOpen.value = false
@@ -1061,6 +1438,14 @@ function openEditTask(task: TaskRecord, columnId: string) {
   workLogs.value = []
   totalWorkMinutes.value = 0
   checklists.value = []
+  taskSubtasks.value = []
+  taskParent.value = null
+  taskRelations.value = []
+  relationCandidates.value = []
+  subtaskTitleDraft.value = ''
+  relationSearch.value = ''
+  relationCandidateId.value = ''
+  relationTypeDraft.value = 'BLOCKS'
   attachments.value = []
   activeActionPanel.value = null
   actionModalOpen.value = false
@@ -1093,7 +1478,187 @@ function openEditTask(task: TaskRecord, columnId: string) {
   void loadComments(task.id)
   void loadWorkLogs(task.id)
   void loadChecklists(task.id)
+  void loadTaskStructure(task.id)
   void loadAttachments(task.id)
+}
+
+function openBoardTask(row: BoardTaskRow) {
+  activeBoardTab.value = 'BOARD'
+  openEditTask(row.task, row.columnId)
+}
+
+async function openBoardTaskById(taskId: string) {
+  try {
+    const task = await service.getTask(taskId)
+    const column = board.value?.columns.find(item => item.id === task.column_id)
+    openEditTask(task, column?.id ?? task.column_id ?? '')
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo abrir la tarea', description: error?.data?.message ?? error.message, color: 'error' })
+  }
+}
+
+function toggleWorkspaceExpanded() {
+  boardWorkspaceExpanded.value = !boardWorkspaceExpanded.value
+}
+
+function shiftCalendarMonth(offset: number) {
+  calendarMonth.value = calendarView.value === 'WEEK'
+    ? new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth(), calendarMonth.value.getDate() + offset * 7)
+    : new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth() + offset, 1)
+}
+
+function setCalendarToday() {
+  const today = new Date()
+  calendarMonth.value = calendarView.value === 'WEEK' ? today : new Date(today.getFullYear(), today.getMonth(), 1)
+}
+
+function shiftTimeline(direction: number) {
+  const anchor = calendarMonth.value
+  const next = timelineScale.value === 'WEEK'
+    ? new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + direction * 84)
+    : timelineScale.value === 'QUARTER'
+      ? new Date(anchor.getFullYear(), anchor.getMonth() + direction * 12, 1)
+      : new Date(anchor.getFullYear(), anchor.getMonth() + direction * 3, 1)
+  calendarMonth.value = next
+}
+
+function setTimelineToday() {
+  const today = new Date()
+  calendarMonth.value = new Date(today.getFullYear(), today.getMonth(), 1)
+}
+
+function timelineBarStyle(row: BoardTaskRow) {
+  const { start, end } = timelineRange.value
+  const startValue = row.task.start_at ?? row.task.due_at
+  const endValue = row.task.due_at ?? row.task.start_at
+  if (!startValue || !endValue) return { display: 'none' }
+  const startTime = new Date(startValue).getTime()
+  const endTime = Math.max(new Date(endValue).getTime(), startTime + 24 * 60 * 60 * 1000)
+  const rangeStart = start.getTime()
+  const rangeEnd = end.getTime()
+  if (Number.isNaN(startTime) || startTime >= rangeEnd || endTime <= rangeStart) return { display: 'none' }
+  const left = Math.max(0, (startTime - rangeStart) / (rangeEnd - rangeStart) * 100)
+  const right = Math.min(100, (endTime - rangeStart) / (rangeEnd - rangeStart) * 100)
+  return { left: `${left}%`, width: `${Math.max(1.5, right - left)}%` }
+}
+
+function calendarChangeView(view: 'MONTH' | 'WEEK') {
+  if (calendarView.value === view) return
+  calendarView.value = view
+  const now = new Date()
+  calendarMonth.value = view === 'WEEK' ? now : new Date(now.getFullYear(), now.getMonth(), 1)
+}
+
+function dateForCalendar(day: Date) {
+  return new Intl.DateTimeFormat('es-AR', { day: 'numeric' }).format(day)
+}
+
+async function loadTaskStructure(taskId: string) {
+  try {
+    const fullTask = await service.getTask(taskId)
+    taskSubtasks.value = fullTask.subtasks ?? []
+    taskParent.value = fullTask.parent_task ?? null
+    taskRelations.value = fullTask.relations ?? []
+    await loadRelationCandidates(taskId, relationSearch.value)
+  } catch (error: any) {
+    toast.add({ title: 'No se pudieron cargar las subtareas y relaciones', description: error?.data?.message ?? error.message, color: 'error' })
+  }
+}
+
+async function loadRelationCandidates(taskId: string, search = '') {
+  loadingRelationCandidates.value = true
+  try {
+    relationCandidates.value = await service.getTaskRelationCandidates(taskId, search)
+  } catch (error: any) {
+    toast.add({ title: 'No se pudieron buscar tareas relacionadas', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    loadingRelationCandidates.value = false
+  }
+}
+
+async function addSubtask() {
+  const parentTaskId = selectedTask.value?.id
+  const title = subtaskTitleDraft.value.trim()
+  if (!parentTaskId || title.length < 2 || creatingSubtask.value || !hasTaskPermission('tasks.create')) return
+  creatingSubtask.value = true
+  try {
+    await service.createSubtask(parentTaskId, { title, category_id: subtaskCategoryDraft.value === 'NONE' ? null : subtaskCategoryDraft.value })
+    subtaskTitleDraft.value = ''
+    subtaskCategoryDraft.value = 'NONE'
+    taskRelationCreateOpen.value = false
+    await Promise.all([loadBoard(), loadTaskStructure(parentTaskId)])
+    toast.add({ title: 'Subtarea creada', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo crear la subtarea', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    creatingSubtask.value = false
+  }
+}
+
+function openTaskRelationModal(mode: 'CREATE' | 'EXISTING') {
+  relationModalMode.value = mode
+  subtaskTitleDraft.value = ''
+  subtaskCategoryDraft.value = 'NONE'
+  relationTypeDraft.value = 'NONE'
+  relationSearch.value = ''
+  relationCandidateId.value = ''
+  taskRelationCreateOpen.value = true
+}
+
+function taskKey(task: Pick<TaskRecord, 'id' | 'task_number' | 'board'>, fallbackPrefix = '') {
+  const prefix = task.board?.task_key_prefix ?? fallbackPrefix
+  return task.task_number && prefix ? `${prefix}${task.task_number}` : `#${task.id.slice(0, 8).toUpperCase()}`
+}
+
+function taskRelationLabel(relation: TaskRelation) {
+  if (relation.relation_type === 'BLOCKS') return relation.direction === 'OUTGOING' ? 'Bloquea' : 'Bloqueada por'
+  return relation.relation_type === 'COMPLEMENTS' ? 'Complementa' : 'Relacionada con'
+}
+
+async function addTaskRelation() {
+  const taskId = selectedTask.value?.id
+  const relationType = relationTypeDraft.value
+  if (!taskId || !relationCandidateId.value || relationType === 'NONE' || savingTaskRelation.value) return
+  savingTaskRelation.value = true
+  try {
+    await service.createTaskRelation(taskId, relationCandidateId.value, relationType)
+    relationCandidateId.value = ''
+    taskRelationCreateOpen.value = false
+    await loadTaskStructure(taskId)
+    toast.add({ title: 'Relación agregada', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo relacionar la tarea', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    savingTaskRelation.value = false
+  }
+}
+
+async function removeTaskRelation(relation: TaskRelation) {
+  const taskId = selectedTask.value?.id
+  if (!taskId || removingTaskRelation.value) return
+  removingTaskRelation.value = relation.task.id
+  try {
+    await service.deleteTaskRelation(taskId, relation.task.id)
+    taskRelations.value = taskRelations.value.filter(item => item.task.id !== relation.task.id)
+    await loadRelationCandidates(taskId, relationSearch.value)
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo quitar la relación', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    removingTaskRelation.value = ''
+  }
+}
+
+async function openRelatedTask(taskId: string) {
+  try {
+    const task = await service.getTask(taskId)
+    if (task.board_id !== boardId.value) {
+      await router.push({ query: { ...route.query, board_id: task.board_id, task_id: task.id } })
+      return
+    }
+    openEditTask(task, task.column_id ?? '')
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo abrir la tarea relacionada', description: error?.data?.message ?? error.message, color: 'error' })
+  }
 }
 
 async function loadChecklists(taskId: string) {
@@ -1155,8 +1720,8 @@ async function convertChecklistItemToTask(checklist: TaskChecklist, item: TaskCh
   try {
     await service.convertChecklistItemToTask(item.id)
     checklist.items = checklist.items.filter(row => row.id !== item.id)
-    await loadBoard()
-    toast.add({ title: 'Tarea creada', description: 'El elemento se movió a la lista actual del tablero.', color: 'success' })
+    await Promise.all([loadBoard(), selectedTask.value ? loadTaskStructure(selectedTask.value.id) : Promise.resolve()])
+    toast.add({ title: 'Subtarea creada', description: 'El elemento se convirtió en una subtarea de esta tarea.', color: 'success' })
   } catch (error: any) {
     toast.add({ title: 'No se pudo convertir el elemento', description: error?.data?.message ?? error.message, color: 'error' })
   } finally {
@@ -1167,7 +1732,7 @@ async function convertChecklistItemToTask(checklist: TaskChecklist, item: TaskCh
 function checklistItemMenuItems(checklist: TaskChecklist, item: TaskChecklist['items'][number]) {
   const actions: Array<Array<Record<string, any>>> = []
   if (canConvertChecklistItem.value) {
-    actions.push([{ label: 'Convertir a tarea', icon: 'i-lucide-square-arrow-out-up-right', onSelect: () => void convertChecklistItemToTask(checklist, item) }])
+    actions.push([{ label: 'Convertir en subtarea', icon: 'i-lucide-list-tree', onSelect: () => void convertChecklistItemToTask(checklist, item) }])
   }
   if (canEditTask.value) {
     actions.push([{ label: 'Eliminar', icon: 'i-lucide-trash-2', color: 'error', onSelect: () => void deleteChecklistItem(checklist, item.id) }])
@@ -1324,13 +1889,12 @@ async function saveTask() {
     if (selectedTask.value) await service.updateTask(selectedTask.value.id, payload)
     else await service.createTask(boardId.value, payload)
     toast.add({ title: selectedTask.value ? 'Tarea actualizada' : 'Tarea creada', color: 'success' })
-    await loadBoard()
     descriptionEditing.value = false
-    if (!selectedTask.value) showTaskModal.value = false
-    else {
-      selectedTask.value = board.value?.columns.flatMap(column => column.tasks).find(task => task.id === selectedTask.value?.id) ?? selectedTask.value
-      taskForm.members = taskForm.members.filter(member => member.user_id !== taskForm.assigned_to)
-      if (selectedTask.value) await loadComments(selectedTask.value.id)
+    closeTaskModal()
+    try {
+      await loadBoard()
+    } catch (refreshError: any) {
+      toast.add({ title: 'La tarea se guardó, pero no se actualizó el tablero', description: refreshError?.data?.message ?? refreshError.message, color: 'warning' })
     }
   } catch (error: any) {
     if (selectedTask.value && isWorkLogRequiredError(error)) requestRequiredWorkLog({ type: 'saveTask', taskId: selectedTask.value.id, payload })
@@ -1441,6 +2005,7 @@ onBeforeUnmount(() => {
   if (partyFilterSearchTimer) clearTimeout(partyFilterSearchTimer)
   if (taskPartySearchTimer) clearTimeout(taskPartySearchTimer)
   if (taskFilterReloadTimer) clearTimeout(taskFilterReloadTimer)
+  if (relationSearchTimer) clearTimeout(relationSearchTimer)
   partyFilterSearchController?.abort()
   taskPartySearchController?.abort()
   clearAttachmentPreview()
@@ -1448,14 +2013,23 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <UPage class="mx-auto !block w-0 min-w-full max-w-full overflow-x-clip px-4 pb-10 sm:px-6">
-    <div class="flex flex-col gap-5">
-    <AppPageHeader title="Tareas" description="Organizá el trabajo de la empresa y vinculá tareas con clientes cuando haga falta.">
+  <UPage :class="boardWorkspaceExpanded ? 'fixed inset-0 z-40 m-0 !block h-screen w-screen min-w-0 max-w-none overflow-y-auto overflow-x-clip bg-default px-2 pb-3 pt-2 sm:px-3' : 'mx-auto !block w-0 min-w-full max-w-full overflow-x-clip px-4 pb-10 sm:px-6'">
+    <div class="flex flex-col" :class="boardWorkspaceExpanded ? 'min-h-[calc(100vh-6rem)] gap-3' : 'gap-5'">
+    <AppPageHeader :title="boardTitle" description="Organizá el trabajo de la empresa y vinculá tareas con clientes cuando haga falta.">
       <template #links>
+        <UButton v-if="board" :icon="boardWorkspaceExpanded ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'" color="neutral" variant="outline" :aria-label="boardWorkspaceExpanded ? 'Salir de la vista expandida' : 'Expandir el tablero'" :title="boardWorkspaceExpanded ? 'Salir de la vista expandida' : 'Expandir el tablero'" @click="toggleWorkspaceExpanded" />
         <UButton v-if="hasTaskPermission('tasks.create')" label="Nuevo tablero" icon="i-lucide-plus" variant="outline" @click="openBoardModal" />
-        <UButton v-if="hasTaskPermission('tasks.update')" label="Categorías" icon="i-lucide-tags" color="neutral" variant="outline" @click="showCategoriesModal = true" />
-        <UButton v-if="hasTaskPermission('tasks.update') && board" label="Regla de tiempo" icon="i-lucide-clock-3" color="neutral" variant="outline" @click="openBoardSettings" />
-        <UButton v-if="!loading && isOwnerOrAdmin" icon="i-lucide-settings-2" color="neutral" variant="outline" aria-label="Configurar avisos de tareas" title="Configurar avisos de tareas" @click="openTaskNotificationSettings" />
+        <UPopover v-if="hasTaskPermission('tasks.update') || (!loading && isOwnerOrAdmin)" :content="{ align: 'end', sideOffset: 8 }">
+          <UButton icon="i-lucide-settings-2" color="neutral" variant="outline" aria-label="Configuración de tareas" title="Configuración de tareas" />
+          <template #content>
+            <div class="flex w-64 flex-col gap-1 p-2">
+              <p class="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted">Configuración</p>
+              <UButton v-if="hasTaskPermission('tasks.update')" label="Categorías" icon="i-lucide-tags" color="neutral" variant="ghost" class="justify-start" @click="showCategoriesModal = true" />
+              <UButton v-if="hasTaskPermission('tasks.update') && board" label="Regla de tiempo del tablero" icon="i-lucide-clock-3" color="neutral" variant="ghost" class="justify-start" @click="openBoardSettings" />
+              <UButton v-if="!loading && isOwnerOrAdmin" label="Avisos y WhatsApp" icon="i-lucide-bell" color="neutral" variant="ghost" class="justify-start" @click="openTaskNotificationSettings" />
+            </div>
+          </template>
+        </UPopover>
       </template>
     </AppPageHeader>
 
@@ -1471,19 +2045,24 @@ onBeforeUnmount(() => {
       <UButton v-if="hasTaskPermission('tasks.create')" class="mt-5" label="Crear tablero" icon="i-lucide-plus" @click="openBoardModal" />
     </UPageCard>
 
-    <UPageCard v-if="!loading && boards.length" variant="subtle" class="min-w-0 space-y-4">
-      <div class="flex flex-wrap items-end justify-between gap-3">
-        <div class="flex flex-wrap items-end gap-3">
-            <UFormField label="Tablero" class="w-full min-w-0 sm:w-64"><USelectMenu v-model="boardId" :items="boardOptions" value-key="value" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
-          <UFormField label="Clientes" class="w-72 max-w-full">
-            <USelectMenu v-model="taskFilters.party_ids" :items="clientFilterOptions" value-key="value" multiple searchable v-model:search-term="partyFilterSearch" :loading="partySearchLoading" placeholder="Todos los clientes" class="w-full min-w-0 sm:w-64" :ui="selectMenuUi" />
+    <UPageCard v-if="!loading && boards.length" variant="subtle" class="w-full min-w-0 max-w-full space-y-4" :class="boardWorkspaceExpanded ? 'min-h-[calc(100vh-10rem)]' : ''">
+        <div class="grid min-w-0 grid-cols-1 items-end gap-3 md:grid-cols-[minmax(0,1fr)_18rem]">
+          <div class="min-w-0"><h2 class="truncate text-lg font-semibold">{{ board?.name ?? 'Tablero' }}</h2><p class="text-xs text-muted">{{ board?.task_key_prefix ? `Clave de tareas: ${board.task_key_prefix}1` : 'Espacio de trabajo del tablero' }}</p></div>
+          <UFormField label="Clientes" class="w-full min-w-0">
+            <USelectMenu v-model="taskFilters.party_ids" :items="clientFilterOptions" value-key="value" multiple searchable v-model:search-term="partyFilterSearch" :loading="partySearchLoading" placeholder="Todos los clientes" class="w-full min-w-0" :ui="selectMenuUi" />
           </UFormField>
+        </div>
+        <nav class="flex min-w-0 gap-1 overflow-x-auto border-b border-default" aria-label="Vistas del tablero">
+          <button v-for="tab in boardTabs" :key="tab.id" type="button" class="inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm transition" :class="activeBoardTab === tab.id ? 'border-primary font-semibold text-primary' : 'border-transparent text-muted hover:text-default'" :aria-current="activeBoardTab === tab.id ? 'page' : undefined" @click="activeBoardTab = tab.id"><UIcon :name="tab.icon" class="size-4" />{{ tab.label }}<UBadge v-if="tab.id === 'ATTACHMENTS' && boardAttachments.length" color="neutral" variant="subtle" size="xs">{{ boardAttachments.length }}</UBadge></button>
+        </nav>
+        <div v-if="activeBoardTab === 'BOARD'" class="flex flex-wrap items-end justify-between gap-3">
+        <div class="flex flex-wrap items-end gap-3">
           <UButton v-if="taskFilters.party_ids.length === 1" label="Ver ficha del cliente" icon="i-lucide-arrow-up-right" color="neutral" variant="outline" :to="`/erp/sales/customers/${taskFilters.party_ids[0]}`" />
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div v-if="boardPeople.length" class="flex items-center -space-x-2" aria-label="Personas con tareas en este tablero">
-            <button v-for="person in boardPeople" :key="person.id" type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-primary/15 text-xs font-semibold text-primary transition hover:z-10 hover:scale-105" :class="taskFilters.member_ids.includes(person.id) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" :title="`Filtrar tareas de ${person.name}`" :aria-label="`Filtrar tareas de ${person.name}`" :aria-pressed="taskFilters.member_ids.includes(person.id)" @click="toggleBoardMemberFilter(person.id)">{{ person.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</button>
-            <span v-if="boardPeopleExtraCount" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-elevated text-xs font-semibold text-muted" :title="`${boardPeopleExtraCount} personas más`">+{{ boardPeopleExtraCount }}</span>
+            <button v-for="person in summaryPeople" :key="person.id" type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-primary/15 text-xs font-semibold text-primary transition hover:z-10 hover:scale-105" :class="taskFilters.member_ids.includes(person.id) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" :title="`Filtrar tareas de ${person.name}`" :aria-label="`Filtrar tareas de ${person.name}`" :aria-pressed="taskFilters.member_ids.includes(person.id)" @click="toggleBoardMemberFilter(person.id)">{{ person.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</button>
+            <span v-if="summaryPeopleExtraCount" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-elevated text-xs font-semibold text-muted" :title="`${summaryPeopleExtraCount} personas más`">+{{ summaryPeopleExtraCount }}</span>
           </div>
           <UPopover v-model:open="filterOpen" :content="{ align: 'end', sideOffset: 8 }">
             <UButton :label="activeBoardFilterCount ? `Filtrar · ${activeBoardFilterCount}` : 'Filtrar'" icon="i-lucide-list-filter" :color="activeBoardFilterCount ? 'primary' : 'neutral'" variant="outline" />
@@ -1507,6 +2086,8 @@ onBeforeUnmount(() => {
           <UButton v-if="hasTaskPermission('tasks.create')" label="Nueva tarea" icon="i-lucide-plus" :disabled="!board" @click="board?.columns[0] && openNewTask(board.columns[0])" />
         </div>
       </div>
+
+      <template v-if="activeBoardTab === 'BOARD'">
 
       <UAlert v-if="taskFilters.party_ids.length" color="info" variant="subtle" icon="i-lucide-building-2" title="Clientes filtrados" description="El tablero muestra tareas asociadas a los clientes seleccionados. Quitá la selección para volver a ver todas." />
       <UAlert v-if="activeBoardFilterCount" color="info" variant="subtle" icon="i-lucide-list-filter" title="Filtros activos" description="El arrastre de tareas se pausa mientras ves resultados filtrados. Limpiá los filtros para volver a moverlas entre listas." />
@@ -1536,7 +2117,7 @@ onBeforeUnmount(() => {
                     <span v-else class="flex size-5 shrink-0 items-center justify-center rounded-full border" :class="task.completed_at ? 'border-success bg-success text-white' : 'border-muted text-transparent'" :aria-label="task.completed_at ? 'Completada' : 'Pendiente'"><UIcon v-if="task.completed_at" name="i-lucide-check" class="size-3" /></span>
                 </div>
                 <div class="min-w-0">
-                    <div class="flex items-start justify-between gap-2"><p class="task-card-title min-w-0 flex-1 font-medium leading-snug" :class="task.completed_at ? 'text-muted line-through task-title-shifted' : hasTaskPermission('tasks.update') ? 'task-title-interactive' : ''">{{ task.title }}</p><UBadge class="shrink-0" :color="task.completed_at ? 'success' : priorityColor(task.priority)" variant="subtle" size="xs">{{ task.completed_at ? 'Completada' : priorityLabel(task.priority) }}</UBadge></div>
+                <div class="task-card-heading flex items-start justify-between gap-2" :class="task.completed_at ? 'task-card-heading-completed' : hasTaskPermission('tasks.update') ? 'task-card-heading-interactive' : ''"><div class="flex min-w-0 flex-1 items-start gap-2"><span class="mt-0.5 shrink-0 rounded border border-default px-1.5 py-0.5 font-mono text-[10px] leading-tight text-muted">{{ taskKey(task, board?.task_key_prefix ?? '') }}</span><p class="task-card-title min-w-0 flex-1 font-medium leading-snug" :class="task.completed_at ? 'text-muted line-through' : ''">{{ task.title }}</p></div><UBadge class="shrink-0" :color="task.completed_at ? 'success' : priorityColor(task.priority)" variant="subtle" size="xs">{{ task.completed_at ? 'Completada' : priorityLabel(task.priority) }}</UBadge></div>
                 <p v-if="task.description" class="mt-2 line-clamp-2 text-xs text-muted">{{ descriptionPreview(task.description) }}</p>
                 <div v-if="task.category" class="mt-2"><UBadge :color="categoryColor(task.category.color)" variant="subtle" size="xs">{{ task.category.name }}</UBadge></div>
                 <div v-if="task.labels?.length" class="mt-2 flex flex-wrap gap-1.5"><span v-for="label in task.labels" :key="label.id" class="inline-flex min-h-6 min-w-8 max-w-36 items-center justify-center truncate rounded px-2 py-1 text-[11px] font-semibold" :style="labelChipStyle(label.color)" :title="label.name ?? `${labelColorName(label.color)} · solo color`" :aria-label="label.name ?? `${labelColorName(label.color)} · etiqueta sin nombre`"><template v-if="label.name">{{ label.name }}</template><span v-else class="sr-only">{{ labelColorName(label.color) }}</span></span></div>
@@ -1547,6 +2128,7 @@ onBeforeUnmount(() => {
                   <span v-if="(task.members?.length ?? 0) > 2" class="text-muted">+{{ (task.members?.length ?? 0) - 2 }}</span>
                   <span v-if="task.due_at" class="inline-flex items-center gap-1" :class="isOverdue(task) ? 'text-error' : ''"><UIcon name="i-lucide-calendar-clock" class="size-3.5"/>{{ formatDueDate(task.due_at) }}</span>
                   <span v-if="task.checklist_count" class="inline-flex items-center gap-1"><UIcon name="i-lucide-list-checks" class="size-3.5"/>{{ task.checklist_count }}</span>
+                  <span v-if="task.subtasks_count" class="inline-flex items-center gap-1" :title="`${task.subtasks_count} subtareas`"><UIcon name="i-lucide-list-tree" class="size-3.5"/>{{ task.subtasks_count }}</span>
                   <span v-if="task.comments_count" class="inline-flex items-center gap-1"><UIcon name="i-lucide-message-circle" class="size-3.5"/>{{ task.comments_count }}</span>
                 </div>
                 </div>
@@ -1573,7 +2155,101 @@ onBeforeUnmount(() => {
         </section>
         </div>
       </div>
-      <div v-else class="flex h-56 items-center justify-center text-sm text-muted">Seleccioná o creá un tablero.</div>
+      </template>
+      <section v-else-if="activeBoardTab === 'SUMMARY'" class="flex min-w-0 flex-col gap-3">
+        <div class="flex min-w-0 flex-wrap items-center gap-2">
+          <div class="flex items-center -space-x-2" aria-label="Filtrar resumen por persona">
+            <button type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-elevated text-muted transition hover:z-10 hover:scale-105" :class="taskFilters.member_ids.includes('NONE') ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" title="Filtrar tareas sin miembros" aria-label="Filtrar tareas sin miembros" :aria-pressed="taskFilters.member_ids.includes('NONE')" @click="toggleBoardMemberFilter('NONE')"><UIcon name="i-lucide-user-round" class="size-4" /></button>
+            <button v-for="person in boardPeople" :key="person.id" type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-primary/15 text-xs font-semibold text-primary transition hover:z-10 hover:scale-105" :class="taskFilters.member_ids.includes(person.id) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" :title="`Filtrar tareas de ${person.name}`" :aria-label="`Filtrar tareas de ${person.name}`" :aria-pressed="taskFilters.member_ids.includes(person.id)" @click="toggleBoardMemberFilter(person.id)">{{ person.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</button>
+            <span v-if="boardPeopleExtraCount" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-elevated text-xs font-semibold text-muted" :title="`${boardPeopleExtraCount} personas más`">+{{ boardPeopleExtraCount }}</span>
+          </div>
+          <UPopover v-model:open="filterOpen" :content="{ align: 'start', sideOffset: 8 }">
+            <UButton :label="activeBoardFilterCount ? `Filtro · ${activeBoardFilterCount}` : 'Filtro'" icon="i-lucide-list-filter" :color="activeBoardFilterCount ? 'primary' : 'neutral'" variant="outline" />
+            <template #content>
+              <div class="flex max-h-[min(60vh,42rem)] w-[min(22rem,calc(100vw-2rem))] flex-col gap-4 overflow-y-auto overscroll-contain p-4">
+                <div class="flex items-center justify-between"><h3 class="font-semibold">Filtrar resumen</h3><UButton label="Limpiar" color="neutral" variant="ghost" size="xs" :disabled="!activeBoardFilterCount" @click="resetBoardFilters" /></div>
+                <UFormField label="Palabra clave" description="Busca tareas, personas, clientes, categorías y etiquetas."><UInput v-model="taskFilters.search" icon="i-lucide-search" placeholder="Buscar en las tareas…" class="w-full" /></UFormField>
+                <UFormField label="Persona asignada"><USelectMenu v-model="taskFilters.member_ids" :items="boardFilterMemberOptions" value-key="value" multiple searchable placeholder="Todas las personas" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
+                <UFormField label="Etiquetas"><USelectMenu v-model="taskFilters.label_ids" :items="labelOptions" value-key="value" multiple searchable placeholder="Todas las etiquetas" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
+                <UFormField label="Categorías"><USelectMenu v-model="taskFilters.category_ids" :items="categoryFilterOptions" value-key="value" multiple searchable placeholder="Todas las categorías" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
+                <UFormField label="Estado"><USelectMenu v-model="taskFilters.completion" :items="[{ label: 'Todos los estados', value: 'ALL' }, { label: 'Pendientes', value: 'OPEN' }, { label: 'Completadas', value: 'COMPLETED' } ]" value-key="value" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
+                <UFormField label="Prioridad"><USelectMenu v-model="taskFilters.priority" :items="[{ label: 'Todas', value: 'ALL' }, { label: 'Baja', value: 'LOW' }, { label: 'Normal', value: 'NORMAL' }, { label: 'Alta', value: 'HIGH' }, { label: 'Urgente', value: 'URGENT' }]" value-key="value" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
+                <UFormField label="Vencimiento"><USelectMenu v-model="taskFilters.due_status" :items="[{ label: 'Cualquier fecha', value: 'ALL' }, { label: 'Sin vencimiento', value: 'NO_DUE' }, { label: 'Vencidas', value: 'OVERDUE' }, { label: 'Vencen hoy', value: 'TODAY' }, { label: 'Vencen mañana', value: 'TOMORROW' }]" value-key="value" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
+              </div>
+            </template>
+          </UPopover>
+        </div>
+        <div class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <UPageCard v-for="metric in boardSummaryMetrics" :key="metric.label" variant="subtle" class="bg-elevated/30"><div class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-xl bg-muted/50"><UIcon :name="metric.icon" class="size-5 text-primary"/></span><div><p class="text-2xl font-semibold">{{ metric.value }}</p><p class="text-sm font-medium">{{ metric.label }}</p><p class="text-xs text-muted">{{ metric.detail }}</p></div></div></UPageCard>
+        <UPageCard variant="subtle" class="min-w-0 min-h-[22rem] sm:col-span-2"><h3 class="font-semibold">Resumen de estado</h3><p class="text-sm text-muted">Distribución de las tareas por lista.</p><div class="mt-5 flex min-h-64 flex-wrap items-center justify-center gap-8 lg:justify-around"><div class="relative size-56 shrink-0 rounded-full p-8" :style="boardStatusChartStyle"><div class="flex size-full flex-col items-center justify-center rounded-full bg-default text-center"><span class="text-4xl font-semibold">{{ boardSummary.total }}</span><span class="max-w-28 text-sm font-medium text-muted">Tareas en el tablero</span></div></div><div class="flex min-w-40 flex-col gap-3"> <div v-for="(status, index) in boardStatusSummary" :key="status.id" class="flex items-center gap-2 text-sm"><span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: boardStatusColors[index % boardStatusColors.length] }"/><span class="min-w-0 flex-1 truncate">{{ status.name }}</span><span class="text-muted">{{ status.count }}</span></div><p v-if="!boardStatusSummary.length" class="text-sm text-muted">Este tablero todavía no tiene listas.</p></div></div></UPageCard>
+        <UPageCard variant="subtle" class="min-w-0 min-h-[22rem] sm:col-span-2"><div class="flex items-start justify-between gap-3"><div><h3 class="font-semibold">Actividad reciente</h3><p class="text-sm text-muted">Avisos de tareas de este tablero que te involucran.</p></div><UIcon name="i-lucide-activity" class="size-5 shrink-0 text-muted"/></div><div v-if="summaryActivityLoading" class="mt-4 flex flex-col gap-3"><USkeleton v-for="item in 3" :key="item" class="h-14 w-full"/></div><div v-else-if="recentBoardActivities.length" class="mt-3 flex max-h-72 flex-col gap-1 overflow-y-auto pr-1"><button v-for="activity in recentBoardActivities" :key="activity.id" type="button" class="flex min-w-0 items-start gap-3 rounded-lg p-2 text-left transition hover:bg-elevated/60" @click="activity.target_path && router.push(activity.target_path)"><span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{{ (activity.actor?.name ?? 'Sistema').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</span><span class="min-w-0 flex-1"><span class="block text-sm"><strong>{{ activity.actor?.name ?? 'Sistema' }}</strong> {{ activity.title.toLocaleLowerCase('es') }}</span><span class="block truncate text-sm text-primary">{{ activity.message }}</span><span class="mt-1 block text-xs text-muted">{{ formatCommentDate(activity.created_at) }}</span></span><UIcon name="i-lucide-arrow-up-right" class="mt-1 size-4 shrink-0 text-muted"/></button></div><div v-else class="flex min-h-56 flex-col items-center justify-center text-center"><UIcon name="i-lucide-message-square-text" class="size-9 text-muted"/><p class="mt-3 font-medium">Aún no hay actividad reciente</p><p class="mt-1 text-sm text-muted">Los avisos relacionados con tareas del tablero aparecerán acá.</p></div></UPageCard>
+        <UPageCard variant="subtle" class="min-w-0 min-h-[22rem] sm:col-span-2"><h3 class="font-semibold">Desglose de prioridad</h3><p class="text-sm text-muted">Distribución de la prioridad de las tareas visibles.</p><div class="mt-5 flex h-56 items-end justify-around gap-3 border-b border-default px-2 pb-2"><div v-for="item in boardPrioritySummary" :key="item.value" class="flex h-full min-w-12 flex-1 flex-col items-center justify-end gap-2"><span class="text-sm text-muted">{{ item.count }}</span><span class="flex w-full max-w-16 items-end justify-center rounded-t bg-muted/50" :style="{ height: '72%' }"><span class="w-full rounded-t bg-primary/60" :style="{ height: `${item.percent}%` }"/></span><div class="flex items-center gap-1 text-xs text-muted"><UIcon :name="item.icon" class="size-3.5" :class="item.value === 'URGENT' ? 'text-error' : item.value === 'HIGH' ? 'text-warning' : item.value === 'LOW' ? 'text-info' : 'text-muted'"/><span>{{ item.label }}</span></div></div></div></UPageCard>
+        <UPageCard variant="subtle" class="min-w-0 min-h-[22rem] sm:col-span-2"><h3 class="font-semibold">Tipos de trabajo</h3><p class="text-sm text-muted">Tareas agrupadas por categoría.</p><div v-if="boardCategorySummary.length" class="mt-5 flex max-h-64 flex-col gap-4 overflow-y-auto pr-1"><div v-for="category in boardCategorySummary" :key="category.name" class="grid grid-cols-[minmax(6rem,0.8fr)_minmax(0,2fr)_2.5rem] items-center gap-3 text-sm"><span class="truncate">{{ category.name }}</span><span class="h-4 overflow-hidden rounded bg-muted/50"><span class="block h-full bg-primary/60" :style="{ width: `${category.percent}%` }"/></span><span class="text-right text-muted">{{ category.count }}</span></div></div><p v-else class="mt-8 text-center text-sm text-muted">Todavía no hay categorías para mostrar.</p></UPageCard>
+        <UPageCard variant="subtle" class="min-w-0 min-h-[22rem] sm:col-span-2"><h3 class="font-semibold">Carga de trabajo del equipo</h3><p class="text-sm text-muted">Distribución de las tareas por responsable.</p><div v-if="boardAssigneeSummary.length" class="mt-5 flex max-h-64 flex-col gap-4 overflow-y-auto pr-1"><div v-for="person in boardAssigneeSummary" :key="person.name" class="grid grid-cols-[minmax(7rem,0.8fr)_minmax(0,2fr)_2.5rem] items-center gap-3 text-sm"><span class="truncate">{{ person.name }}</span><span class="h-4 overflow-hidden rounded bg-muted/50"><span class="block h-full bg-primary/60" :style="{ width: `${person.percent}%` }"/></span><span class="text-right text-muted">{{ person.count }}</span></div></div><p v-else class="mt-8 text-center text-sm text-muted">No hay tareas para distribuir.</p></UPageCard>
+        <UPageCard variant="subtle" class="flex min-w-0 min-h-[22rem] flex-col sm:col-span-2"><h3 class="font-semibold">Tableros relacionados</h3><p class="text-sm text-muted">Cambiá de espacio para revisar el trabajo relacionado de la empresa.</p><div v-if="relatedTaskBoards.length" class="mt-4 flex flex-col gap-2"><button v-for="item in relatedTaskBoards" :key="item.id" type="button" class="flex items-center gap-3 rounded-lg border border-default p-3 text-left transition hover:bg-elevated/50" @click="router.push({ path: '/erp/tasks', query: { board_id: item.id } })"><span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><UIcon name="i-lucide-kanban" class="size-5"/></span><span class="min-w-0 flex-1"><span class="block truncate font-medium">{{ item.name }}</span><span class="block truncate text-xs text-muted">{{ item.party?.name ?? 'Tablero general' }}</span></span><UIcon name="i-lucide-arrow-up-right" class="size-4 text-muted"/></button></div><div v-else class="flex flex-1 flex-col items-center justify-center text-center"><UIcon name="i-lucide-waypoints" class="size-10 text-muted"/><p class="mt-3 font-medium">No hay otros tableros</p><UButton v-if="hasTaskPermission('tasks.create')" class="mt-3" label="Crear tablero" icon="i-lucide-plus" color="neutral" variant="outline" @click="openBoardModal"/></div></UPageCard>
+        </div>
+      </section>
+      <section v-else-if="activeBoardTab === 'LIST'" class="min-w-0 overflow-x-auto">
+        <div class="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <UInput v-model="boardListSearch" icon="i-lucide-search" placeholder="Buscar actividad…" class="w-full max-w-sm" aria-label="Buscar en todas las tareas de la lista" clearable />
+          <UDropdownMenu :items="boardListMenuItems" :content="{ align: 'end' }">
+            <UButton icon="i-lucide-ellipsis" color="neutral" variant="outline" aria-label="Más opciones de la lista" title="Más opciones" />
+          </UDropdownMenu>
+        </div>
+        <AsteriskTable :storage-key="`tasks-board-${boardId}-list`" :data="visibleBoardListRows" :columns="boardTaskColumns" :filter-fields="[]" :sort-fields="boardTaskSortFields" :get-row-id="(row: BoardTaskRow) => row.id" :on-row-click="openBoardTask" :table-min-width="1100" />
+      </section>
+      <section v-else-if="activeBoardTab === 'TIMELINE'" class="flex min-w-0 max-w-full flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2"><UInput v-model="timelineSearch" icon="i-lucide-search" placeholder="Buscar en el cronograma…" class="w-full sm:w-56"/><div class="flex items-center -space-x-2"><button v-for="person in boardPeople" :key="person.id" type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-primary/15 text-xs font-semibold text-primary" :class="timelineMemberId === person.id ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" :title="`Filtrar ${person.name}`" @click="timelineMemberId = timelineMemberId === person.id ? 'ALL' : person.id">{{ person.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</button></div><USelectMenu v-model="timelineMemberId" :items="[{ label: 'Todas las personas', value: 'ALL' }, { label: 'Sin asignar', value: 'NONE' }, ...members.map(member => ({ label: member.name, value: member.id }))]" value-key="value" class="w-48" :ui="selectMenuUi" aria-label="Filtrar por persona"/></div>
+          <div class="flex min-w-0 max-w-full flex-wrap items-center gap-1 rounded-lg border border-default p-1"><UButton label="Hoy" color="neutral" variant="ghost" size="sm" @click="setTimelineToday"/><UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" size="sm" aria-label="Período anterior" @click="shiftTimeline(-1)"/><span class="min-w-36 px-2 text-center text-sm font-medium capitalize">{{ timelinePeriods[0]?.label }} – {{ timelinePeriods[timelinePeriods.length - 1]?.label }}</span><UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" size="sm" aria-label="Período siguiente" @click="shiftTimeline(1)"/><USelectMenu v-model="timelineScale" :items="[{ label: 'Semanas', value: 'WEEK' }, { label: 'Meses', value: 'MONTH' }, { label: 'Trimestres', value: 'QUARTER' }]" value-key="value" class="w-32" :ui="selectMenuUi" aria-label="Escala del cronograma"/></div>
+        </div>
+        <div class="w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-default">
+          <div class="min-w-[1250px]">
+            <div class="grid grid-cols-[minmax(18rem,2fr)_9rem_12rem_minmax(42rem,4fr)] border-b border-default bg-elevated/60 text-xs font-semibold text-muted">
+              <div class="px-3 py-3">Actividad</div><div class="border-l border-default px-3 py-3">Estado</div><div class="border-l border-default px-3 py-3">Persona asignada</div>
+              <div class="relative h-10 border-l border-default"> <div v-for="period in timelinePeriods" :key="period.label" class="absolute inset-y-0 flex items-center justify-center overflow-hidden border-l border-default px-1 capitalize" :style="{ left: `${period.left}%`, width: `${period.width}%` }">{{ period.label }}</div></div>
+            </div>
+            <div v-for="row in timelineVisibleRows" :key="row.id" class="grid min-h-12 grid-cols-[minmax(18rem,2fr)_9rem_12rem_minmax(42rem,4fr)] border-b border-default/70 text-sm last:border-b-0 hover:bg-elevated/30">
+              <button type="button" class="flex min-w-0 items-center gap-2 px-3 text-left" @click="openBoardTask(row)"><span class="shrink-0 rounded border border-default px-1.5 py-0.5 font-mono text-[10px] text-primary">{{ row.key }}</span><span class="truncate" :class="row.task.completed_at ? 'text-muted line-through' : ''">{{ row.title }}</span></button>
+              <div class="flex items-center border-l border-default px-2"><UBadge :color="row.task.completed_at || board?.columns.find(column => column.id === row.columnId)?.is_closed ? 'success' : 'neutral'" variant="subtle" size="xs" class="max-w-full truncate">{{ row.list }}</UBadge></div>
+              <div class="flex min-w-0 items-center gap-2 border-l border-default px-2"><span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold">{{ row.assignee === 'Sin asignar' ? '○' : row.assignee.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</span><span class="truncate">{{ row.assignee }}</span></div>
+              <div class="relative min-h-12 border-l border-default">
+                <span v-for="period in timelinePeriods" :key="period.label" class="pointer-events-none absolute inset-y-0 border-l border-default/70" :style="{ left: `${period.left}%` }" />
+                <div v-if="timelineTodayPosition !== null" class="absolute inset-y-0 z-10 w-px bg-primary" :style="{ left: `${timelineTodayPosition}%` }"><span class="absolute -top-1 -left-1.5 size-3 rotate-45 bg-primary" /></div>
+                <button v-if="row.task.start_at || row.task.due_at" type="button" class="absolute top-1/2 z-20 h-7 -translate-y-1/2 truncate rounded-md border border-success/40 bg-success/25 px-2 text-left text-xs font-medium text-success transition hover:brightness-110" :style="timelineBarStyle(row)" :title="`${row.title} · ${formatDueDate(row.task.start_at)} — ${formatDueDate(row.task.due_at)}`" @click="openBoardTask(row)">{{ row.title }}</button>
+              </div>
+            </div>
+            <p v-if="!timelineVisibleRows.length" class="p-8 text-center text-sm text-muted">No hay tareas que coincidan con esta búsqueda.</p>
+          </div>
+        </div>
+      </section>
+      <section v-else-if="activeBoardTab === 'CALENDAR'" class="flex min-w-0 max-w-full flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2"><UInput v-model="calendarSearch" icon="i-lucide-search" placeholder="Buscar en el calendario…" class="w-full sm:w-56"/><div class="flex items-center -space-x-2"><button v-for="person in boardPeople" :key="person.id" type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-primary/15 text-xs font-semibold text-primary" :class="calendarMemberId === person.id ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" :title="`Filtrar ${person.name}`" @click="calendarMemberId = calendarMemberId === person.id ? 'ALL' : person.id">{{ person.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</button></div><USelectMenu v-model="calendarMemberId" :items="[{ label: 'Todas las personas', value: 'ALL' }, { label: 'Sin asignar', value: 'NONE' }, ...members.map(member => ({ label: member.name, value: member.id }))]" value-key="value" class="w-48" :ui="selectMenuUi" aria-label="Filtrar por persona"/></div>
+          <div class="flex items-center gap-1 rounded-lg border border-default p-1"><UButton label="Hoy" color="neutral" variant="ghost" size="sm" @click="setCalendarToday"/><UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" size="sm" aria-label="Período anterior" @click="shiftCalendarMonth(-1)"/><span class="min-w-28 px-2 text-center text-sm font-medium capitalize">{{ calendarHeading }}</span><UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" size="sm" aria-label="Período siguiente" @click="shiftCalendarMonth(1)"/><USelectMenu :model-value="calendarView" :items="[{ label: 'Mes', value: 'MONTH' }, { label: 'Semana', value: 'WEEK' }]" value-key="value" class="w-28" :ui="selectMenuUi" aria-label="Período del calendario" @update:model-value="calendarChangeView"/></div>
+        </div>
+        <div class="max-h-[70vh] w-full min-w-0 max-w-full overflow-auto overscroll-contain rounded-lg border border-default">
+          <div class="min-w-[900px]">
+            <div class="grid grid-cols-7 border-b border-default bg-elevated/60 text-center text-xs font-semibold text-muted"><span v-for="day in ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']" :key="day" class="border-r border-default px-2 py-3 last:border-r-0">{{ day }}</span></div>
+            <div v-for="(week, weekIndex) in calendarWeeks" :key="weekIndex" class="border-b border-default last:border-b-0">
+              <div class="grid grid-cols-7 border-b border-default/60"><div v-for="cell in week.cells" :key="cell.dateKey" class="h-9 border-r border-default/60 px-2 py-1.5 text-xs last:border-r-0" :class="cell.inMonth ? '' : 'text-muted/60'"><span class="inline-flex min-w-5 justify-center rounded" :class="cell.date.toDateString() === new Date().toDateString() ? 'bg-primary px-1 text-white' : ''">{{ dateForCalendar(cell.date) }}</span></div></div>
+              <div class="relative" :style="{ minHeight: `${Math.max(48, (Math.max(0, ...week.bars.map(bar => bar.lane + 1))) * 26 + 8)}px` }">
+                <div class="pointer-events-none absolute inset-0 grid grid-cols-7"><span v-for="n in 7" :key="n" class="border-r border-default/60 last:border-r-0"/></div>
+                <button v-for="bar in week.bars" :key="bar.id" type="button" class="absolute z-10 h-6 truncate border-y border-success/30 px-2 text-left text-xs font-medium" :class="[bar.task.completed_at ? 'bg-success/30 text-success' : 'bg-primary/20 text-primary', bar.continuesBefore ? 'rounded-l-none' : 'rounded-l-md', bar.continuesAfter ? 'rounded-r-none' : 'rounded-r-md']" :style="{ left: `${bar.column / week.cells.length * 100}%`, width: `${bar.span / week.cells.length * 100}%`, top: `${4 + bar.lane * 26}px` }" :title="`${bar.key} · ${bar.title} · ${formatDueDate(bar.task.start_at)} — ${formatDueDate(bar.task.due_at)}`" @click="openBoardTask(bar)"><span v-if="!bar.continuesBefore">{{ bar.task.completed_at ? '☑ ' : '' }}{{ bar.key }} {{ bar.title }}</span></button>
+              </div>
+            </div>
+            <p v-if="!calendarWeeks.some(week => week.bars.length)" class="p-8 text-center text-sm text-muted">No hay tareas con fechas que coincidan con estos filtros.</p>
+          </div>
+        </div>
+      </section>
+      <section v-else-if="activeBoardTab === 'DOCUMENTS' || activeBoardTab === 'ATTACHMENTS'" class="flex flex-col gap-3">
+        <USkeleton v-if="boardAttachmentsLoading" class="h-24 w-full" />
+        <UAlert v-else-if="boardAttachmentsHasMore || boardAttachmentsHasMoreTasks" color="warning" variant="subtle" title="Listado parcial" description="El tablero tiene más adjuntos de los que se muestran en esta vista. Abrí la tarea para consultar todos sus archivos." />
+        <div v-if="!boardAttachmentsLoading && (activeBoardTab === 'ATTACHMENTS' ? attachmentRows : documentRows).length" class="flex flex-col gap-2">
+          <div v-for="file in (activeBoardTab === 'ATTACHMENTS' ? attachmentRows : documentRows)" :key="file.id" class="flex min-w-0 items-center gap-3 rounded-lg border border-default p-3"><UIcon :name="file.mime_type === 'application/pdf' ? 'i-lucide-file-text' : 'i-lucide-paperclip'" class="size-5 shrink-0 text-primary"/><div class="min-w-0 flex-1"><p class="truncate font-medium">{{ file.file_name }}</p><button v-if="file.task" type="button" class="text-xs text-primary hover:underline" @click="openBoardTaskById(file.task.id)">{{ file.task.key }} · {{ file.task.title }}</button></div><UButton v-if="file.mime_type === 'application/pdf' || file.mime_type?.startsWith('image/')" icon="i-lucide-eye" color="neutral" variant="ghost" aria-label="Previsualizar adjunto" @click="openAttachmentPreview(file)"/><UButton icon="i-lucide-download" color="neutral" variant="ghost" aria-label="Descargar adjunto" @click="downloadTaskAttachment(file)"/></div>
+        </div>
+        <p v-else-if="!boardAttachmentsLoading" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">{{ activeBoardTab === 'DOCUMENTS' ? 'Este tablero todavía no tiene documentos PDF.' : 'Este tablero todavía no tiene archivos adjuntos.' }}</p>
+      </section>
     </UPageCard>
     </div>
   </UPage>
@@ -1673,6 +2349,7 @@ onBeforeUnmount(() => {
     <template #body>
       <div class="space-y-4">
         <UFormField label="Nombre del tablero" required><UInput v-model="boardForm.name" maxlength="120" placeholder="Ej.: Seguimiento comercial" class="w-full" /></UFormField>
+        <UFormField label="Prefijo de tareas" description="Se sugiere desde el nombre del tablero. Podés ajustarlo ahora; después queda fijo. Por ejemplo: DY1, DY2, DY3."><UInput v-model="boardForm.task_key_prefix" maxlength="8" placeholder="Ej.: DY" class="w-full uppercase" @update:model-value="taskKeyPrefixManuallyEdited = true" /></UFormField>
         <UFormField label="Descripción"><UTextarea v-model="boardForm.description" maxlength="500" :rows="2" class="w-full" /></UFormField>
         <UFormField label="Cliente asociado" description="Podés crear varios tableros para el mismo cliente."><USelectMenu v-model="boardForm.party_id" :items="taskPartyOptions" value-key="value" searchable v-model:search-term="taskPartySearch" :loading="taskPartySearchLoading" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
         <UFormField label="Columnas iniciales" description="Una columna por línea; entre 2 y 12 columnas."><UTextarea v-model="boardForm.columns" :rows="5" class="w-full" /></UFormField>
@@ -1685,7 +2362,10 @@ onBeforeUnmount(() => {
     <template #header>
       <div class="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
         <div class="min-w-0 flex-1">
-          <h2 class="truncate text-lg font-semibold">{{ selectedTask ? 'Detalle de la tarea' : 'Nueva tarea' }}</h2>
+          <div class="flex min-w-0 items-center gap-2">
+            <h2 class="truncate text-lg font-semibold">{{ selectedTask ? 'Detalle de la tarea' : 'Nueva tarea' }}</h2>
+            <UBadge v-if="selectedTask" color="neutral" variant="subtle" class="shrink-0 font-mono">{{ taskKey(selectedTask, board?.task_key_prefix ?? '') }}</UBadge>
+          </div>
           <p class="text-sm text-muted">Organizá responsables, fechas, etiquetas y comentarios.</p>
         </div>
         <UFormField v-if="selectedTask" label="Lista" class="w-full min-w-0 sm:w-52 sm:shrink-0">
@@ -1968,8 +2648,69 @@ onBeforeUnmount(() => {
             <p v-if="!checklists.length" class="text-sm text-muted">Añadí elementos para organizar el trabajo en pasos.</p>
           </section>
 
+          <section v-if="selectedTask && (linkedTaskRows.length || canEditTask || hasTaskPermission('tasks.create'))" class="space-y-3 border-t border-default pt-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <UButton v-if="canEditTask" label="Añadir un archivo adjunto" icon="i-lucide-paperclip" color="neutral" variant="outline" size="sm" :loading="uploadingAttachment" @click="attachmentInput?.click()" />
+              <template v-if="!linkedTaskRows.length">
+                <UButton v-if="hasTaskPermission('tasks.create')" label="Añadir subtarea" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" @click="openTaskRelationModal('CREATE')" />
+                <UButton v-if="canEditTask" label="Añadir actividad vinculada" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" @click="openTaskRelationModal('EXISTING')" />
+              </template>
+            </div>
+            <div class="flex items-center gap-2">
+              <button v-if="linkedTaskRows.length" type="button" class="flex min-w-0 flex-1 items-center gap-2 text-left" @click="linkedActivitiesOpen = !linkedActivitiesOpen"><span class="font-semibold">Actividades vinculadas</span><UBadge color="neutral" variant="subtle">{{ linkedTaskRows.length }}</UBadge><UIcon :name="linkedActivitiesOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4 shrink-0 text-muted" /></button>
+              <span v-else class="min-w-0 flex-1 font-semibold">Actividades vinculadas</span>
+              <UButton v-if="(canEditTask || hasTaskPermission('tasks.create')) && linkedTaskRows.length" icon="i-lucide-plus" color="neutral" variant="ghost" size="sm" aria-label="Añadir actividad secundaria" title="Añadir actividad secundaria" @click="openTaskRelationModal(canEditTask ? 'EXISTING' : 'CREATE')" />
+            </div>
+            <div v-if="linkedTaskRows.length && linkedActivitiesOpen" class="overflow-x-auto rounded-lg border border-default">
+              <div class="min-w-[820px]">
+                <div class="grid grid-cols-[9rem_minmax(16rem,1fr)_8rem_10rem_9rem] border-b border-default bg-elevated/40 px-3 py-2 text-xs font-semibold text-muted">
+                  <span>Relación</span><span>Actividad</span><span>Prioridad</span><span>Persona asignada</span><span>Estado</span>
+                </div>
+                <div v-for="row in linkedTaskRows" :key="row.id" class="grid grid-cols-[9rem_minmax(16rem,1fr)_8rem_10rem_9rem] items-center border-b border-default px-3 py-2.5 text-sm last:border-b-0">
+                  <span class="truncate text-muted">{{ row.relation }}</span>
+                  <button type="button" class="flex min-w-0 items-center gap-2 text-left hover:text-primary" :title="`${row.task.board.name} · ${row.task.column.name} · ${row.task.id}`" @click="openRelatedTask(row.task.id)">
+                    <span class="shrink-0 font-mono text-xs text-primary">{{ taskKey(row.task) }}</span><span class="truncate font-medium">{{ row.task.title }}</span>
+                  </button>
+                  <span class="truncate">{{ priorityOptions.find(option => option.value === row.task.priority)?.label ?? 'Normal' }}</span>
+                  <span class="truncate" :title="members.find(member => member.id === row.task.assigned_to)?.name ?? 'Sin asignar'">{{ row.task.assigned_to ? members.find(member => member.id === row.task.assigned_to)?.name ?? 'Usuario asignado' : 'Sin asignar' }}</span>
+                  <UBadge :color="row.task.completed_at ? 'success' : 'neutral'" variant="subtle" class="w-fit max-w-full truncate">{{ row.task.completed_at ? 'Finalizada' : row.task.column.name }}</UBadge>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <UModal v-model:open="taskRelationCreateOpen" :title="relationModalMode === 'CREATE' ? 'Añadir actividad secundaria' : 'Añadir actividad vinculada'" description="Creá una subtarea o relacioná una actividad existente." :ui="{ overlay: 'z-[10040]', content: 'z-[10041] sm:max-w-xl' }">
+            <template #body>
+              <div class="flex flex-col gap-3">
+                <div class="grid rounded-lg bg-elevated p-1" :class="hasTaskPermission('tasks.create') && canEditTask ? 'grid-cols-2' : 'grid-cols-1'">
+                  <button v-if="hasTaskPermission('tasks.create')" type="button" class="rounded-md px-3 py-2 text-sm font-medium transition-colors" :class="relationModalMode === 'CREATE' ? 'bg-default text-highlighted shadow-sm' : 'text-muted hover:text-highlighted'" @click="relationModalMode = 'CREATE'">Crear nuevo</button>
+                  <button v-if="canEditTask" type="button" class="rounded-md px-3 py-2 text-sm font-medium transition-colors" :class="relationModalMode === 'EXISTING' ? 'bg-default text-highlighted shadow-sm' : 'text-muted hover:text-highlighted'" @click="relationModalMode = 'EXISTING'">Añadir existente</button>
+                </div>
+                <template v-if="relationModalMode === 'CREATE'">
+                  <UFormField label="Nombre de la tarea" required><UInput v-model="subtaskTitleDraft" maxlength="200" placeholder="Pon un nombre a esta tarea" class="w-full" @keydown.enter.prevent="addSubtask" /></UFormField>
+                  <UFormField v-if="subtaskCategoryOptions.length" label="Categoría"><USelectMenu v-model="subtaskCategoryDraft" :items="[{ label: 'Sin categoría', value: 'NONE' }, ...subtaskCategoryOptions]" value-key="value" class="w-full min-w-0" :ui="{ ...selectMenuUi, content: 'z-[10050] max-w-[calc(100vw-2rem)]' }" /></UFormField>
+                  <p class="text-xs text-muted">Se agregará como subtarea en la misma lista y con el mismo cliente.</p>
+                </template>
+                <template v-else>
+                  <UFormField label="Definir relación"><USelectMenu v-model="relationTypeDraft" :items="taskRelationOptions" value-key="value" placeholder="Definir relación" class="w-full min-w-0" :ui="{ ...selectMenuUi, content: 'z-[10050] max-w-[calc(100vw-2rem)]' }" /></UFormField>
+                  <UFormField label="Buscar actividad"><UInput v-model="relationSearch" icon="i-lucide-search" placeholder="Busca tareas o pega una clave como DY1" class="w-full" /></UFormField>
+                  <div class="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-default p-1">
+                    <div v-if="loadingRelationCandidates" class="flex items-center gap-2 p-3 text-sm text-muted"><UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />Buscando actividades…</div>
+                    <button v-for="candidate in relationCandidates" :key="candidate.id" type="button" class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-elevated" :class="relationCandidateId === candidate.id ? 'bg-primary/10' : ''" @click="relationCandidateId = relationCandidateId === candidate.id ? '' : candidate.id">
+                      <span class="flex size-4 shrink-0 items-center justify-center rounded border" :class="relationCandidateId === candidate.id ? 'border-primary bg-primary text-inverted' : 'border-muted'"><UIcon v-if="relationCandidateId === candidate.id" name="i-lucide-check" class="size-3" /></span>
+                      <span class="shrink-0 font-mono text-xs text-primary">{{ taskKey(candidate) }}</span><span class="min-w-0 flex-1 truncate text-sm">{{ candidate.title }}</span><span class="max-w-24 truncate text-xs text-muted">{{ candidate.board.name }}</span>
+                    </button>
+                    <p v-if="!loadingRelationCandidates && !relationCandidates.length" class="p-3 text-sm text-muted">No hay otras tareas disponibles con esa búsqueda.</p>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <template #footer>
+              <div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" :disabled="savingTaskRelation || creatingSubtask" @click="taskRelationCreateOpen = false" /><UButton v-if="relationModalMode === 'CREATE'" label="Crear subtarea" icon="i-lucide-plus" :loading="creatingSubtask" :disabled="subtaskTitleDraft.trim().length < 2 || creatingSubtask" @click="addSubtask" /><UButton v-else label="Vincular actividad" icon="i-lucide-link" :loading="savingTaskRelation" :disabled="!relationCandidateId || relationTypeDraft === 'NONE' || savingTaskRelation" @click="addTaskRelation" /></div>
+            </template>
+          </UModal>
           <section v-if="selectedTask && attachments.length" class="space-y-3 border-t border-default pt-4">
-            <div class="flex items-center gap-2"><UIcon name="i-lucide-paperclip" class="size-5 text-muted"/><h3 class="font-semibold">Adjuntos</h3><UBadge color="neutral" variant="subtle">{{ attachments.length }}</UBadge><UButton v-if="canEditTask" label="Añadir" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" class="ml-auto" :loading="uploadingAttachment" @click="attachmentInput?.click()"/></div>
+            <div class="flex items-center gap-2"><UIcon name="i-lucide-paperclip" class="size-5 text-muted"/><h3 class="font-semibold">Adjuntos</h3><UBadge color="neutral" variant="subtle">{{ attachments.length }}</UBadge></div>
             <article v-for="file in attachments" :key="file.id" class="flex min-w-0 items-center gap-3 rounded-lg border border-default p-2.5">
               <button type="button" class="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-elevated" :aria-label="`Previsualizar ${file.file_name}`" @click="openAttachmentPreview(file)"><img v-if="file.thumb_url" :src="file.thumb_url" :alt="file.file_name" class="size-full object-cover"/><UIcon v-else :name="file.mime_type === 'application/pdf' ? 'i-lucide-file-text' : 'i-lucide-file'" class="size-6 text-muted"/></button>
               <div class="min-w-0 flex-1"><button type="button" class="block max-w-full truncate text-left text-sm font-medium hover:text-primary" @click="openAttachmentPreview(file)">{{ file.file_name }}</button><p class="text-xs text-muted">{{ formatFileSize(file.file_size) }}</p></div>
@@ -2071,22 +2812,23 @@ onBeforeUnmount(() => {
   outline-offset: 2px;
 }
 
-:deep(.task-card-title) {
-  transition: transform 220ms ease-out;
+:deep(.task-card-heading) {
+  padding-left: 0;
+  transition: padding-left 220ms ease-out;
 }
 
-:deep(.task-title-shifted) {
-  transform: translateX(2rem);
+:deep(.task-card-heading-completed) {
+  padding-left: 2rem;
 }
 
-:deep(.task-card:hover .task-title-interactive),
-:deep(.task-card:focus-within .task-title-interactive) {
-  transform: translateX(2rem);
+:deep(.task-card:hover .task-card-heading-interactive),
+:deep(.task-card:focus-within .task-card-heading-interactive) {
+  padding-left: 2rem;
 }
 
 @media (hover: none) {
-  :deep(.task-title-interactive) {
-    transform: translateX(2rem);
+  :deep(.task-card-heading-interactive) {
+    padding-left: 2rem;
   }
 
   :deep(.task-completion:not(.task-completion-done)) {

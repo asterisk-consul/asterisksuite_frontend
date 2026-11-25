@@ -27,8 +27,8 @@ const transfersService = useCashBoxTransfersService()
 const { transfers, loading, init, create, confirm, cancel, reverse, remove } = useCashBoxTransfers()
 const { selectItems: cashBoxItems, findById: findCashBox, init: initCashBoxes } = useCashBoxes()
 const { selectItems: bankAccountItems, findById: findBankAccount, init: initBankAccounts } = useBankAccounts()
-const { codeSelectItems: currencyItems, baseCurrency, init: initCurrencies } = useCurrencies()
-const { autoResolve, convertAmount, isBaseCurrency } = useExchangeRate()
+const { codeSelectItems: currencyItems, init: initCurrencies } = useCurrencies()
+const { autoResolve } = useExchangeRate()
 
 const sorting = ref<SortingState>([])
 const modalOpen = ref(false)
@@ -38,6 +38,7 @@ const selectedTransfer = ref<CashBoxTransfer | null>(null)
 const returnToDetailAfterReverse = ref(false)
 const expandAttachmentsOnOpen = ref(false)
 const loadingRate = ref(false)
+let exchangeRateRequest = 0
 const loadingDestinations = ref(false)
 const savingTransfer = ref(false)
 const processingTransferAction = ref(false)
@@ -85,6 +86,19 @@ const detailDestName = computed(() => {
   return account ? `${account.bank_name} - ${account.name}` : (t.dest_company_name ? `Banco de ${t.dest_company_name}` : 'Banco')
 })
 
+const selectedTransferDestinationCurrency = computed(() => {
+  const transfer = selectedTransfer.value
+  if (!transfer) return null
+  if (transfer.dest_currency_code) return transfer.dest_currency_code
+  if (transfer.dest_company_id && transfer.dest_company_id !== authStore.selectedCompany?.id) {
+    const options = transfer.dest_type === 'cash_box' ? remoteDestinations.value?.cash_boxes : remoteDestinations.value?.bank_accounts
+    return options?.find(item => item.id === transfer.dest_id)?.currency_code ?? null
+  }
+  return transfer.dest_type === 'cash_box'
+    ? findCashBox(transfer.dest_id)?.currency_code ?? null
+    : findBankAccount(transfer.dest_id)?.currency_code ?? null
+})
+
 const form = reactive<CreateCashBoxTransferInput>({
   source_type: 'cash_box',
   source_id: '',
@@ -99,6 +113,7 @@ const form = reactive<CreateCashBoxTransferInput>({
   converted_amount: undefined,
   description: ''
 })
+const amountCurrencyCode = ref('')
 
 const transferTypeItems = [
   { label: 'Caja a Caja', value: 'CASH_TO_CASH' },
@@ -155,10 +170,30 @@ const sourceCurrency = computed(() => {
   if (!form.source_id) return null
   if (isSourceCashBox.value) {
     const box = findCashBox(form.source_id)
-    return box?.currency_code ?? null
+    return form.currency_code || box?.currency_code || null
   }
   const account = findBankAccount(form.source_id)
   return account?.currency_code ?? null
+})
+
+const sourceCurrencyItems = computed(() => {
+  if (isSourceCashBox.value && form.source_id) {
+    const box = findCashBox(form.source_id)
+    const availableCodes = new Set([
+      ...(box?.balances ?? []).map(balance => balance.currency_code),
+      ...(box?.currency_code ? [box.currency_code] : [])
+    ])
+    return currencyItems.value.filter(item => availableCodes.has(item.value))
+  }
+
+  const code = sourceCurrency.value
+  return code ? currencyItems.value.filter(item => item.value === code) : []
+})
+
+const amountCurrencyItems = computed(() => {
+  const codes = new Set([sourceCurrency.value, destCurrency.value].filter((code): code is string => Boolean(code)))
+  if (!codes.size) return currencyItems.value
+  return currencyItems.value.filter(item => codes.has(item.value))
 })
 
 const destCurrency = computed(() => {
@@ -189,14 +224,39 @@ const showExchangeRate = computed(() => {
   return sourceCurrency.value.toUpperCase() !== destCurrency.value.toUpperCase()
 })
 
-const computedConvertedAmount = computed(() => {
-  if (!form.exchange_rate || !form.amount) return null
+const normalizedAmountCurrency = computed(() => amountCurrencyCode.value.toUpperCase())
+const computedSourceAmount = computed(() => {
+  if (!form.amount || form.amount <= 0 || !sourceCurrency.value || !destCurrency.value) return null
+  if (!showExchangeRate.value || normalizedAmountCurrency.value === sourceCurrency.value.toUpperCase()) {
+    return Number(form.amount.toFixed(2))
+  }
+  if (normalizedAmountCurrency.value !== destCurrency.value.toUpperCase() || !form.exchange_rate || form.exchange_rate <= 0) return null
+  return Number((form.amount / form.exchange_rate).toFixed(2))
+})
+
+const computedDestinationAmount = computed(() => {
+  if (!form.amount || form.amount <= 0 || !sourceCurrency.value || !destCurrency.value) return null
+  if (!showExchangeRate.value || normalizedAmountCurrency.value === destCurrency.value.toUpperCase()) {
+    return Number(form.amount.toFixed(2))
+  }
+  if (normalizedAmountCurrency.value !== sourceCurrency.value.toUpperCase() || !form.exchange_rate || form.exchange_rate <= 0) return null
   return Number((form.amount * form.exchange_rate).toFixed(2))
 })
 
 const showConvertedAmount = computed(() => {
-  return showExchangeRate.value && !!form.exchange_rate && form.amount > 0
+  return showExchangeRate.value && !!form.exchange_rate && form.amount > 0 && computedSourceAmount.value !== null && computedDestinationAmount.value !== null
 })
+
+const amountFieldLabel = computed(() => {
+  if (!showExchangeRate.value) return 'Monto a transferir'
+  return normalizedAmountCurrency.value === destCurrency.value?.toUpperCase()
+    ? 'Monto que recibe el destino'
+    : 'Monto a debitar en origen'
+})
+
+const sourceBalanceInsufficient = computed(() => sourceBalance.value !== null
+  && computedSourceAmount.value !== null
+  && computedSourceAmount.value > Number(sourceBalance.value))
 
 function formatMoney(amount: number, currencyCode?: string | null) {
   const formatted = amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -212,6 +272,7 @@ function onTransferTypeChange(type: TransferType) {
   form.dest_type = type.endsWith('CASH') ? 'cash_box' : 'bank_account'
   form.source_id = ''
   form.dest_id = ''
+  amountCurrencyCode.value = ''
 }
 
 async function onDestinationCompanyChange(companyId: string) {
@@ -239,31 +300,59 @@ async function onDestinationCompanyChange(companyId: string) {
 function onSourceChange(id: string) {
   form.dest_id = ''
   if (!id) return
-  const currency = sourceCurrency.value
+  const currency = isSourceCashBox.value
+    ? findCashBox(id)?.currency_code ?? form.currency_code
+    : findBankAccount(id)?.currency_code ?? form.currency_code
+  form.currency_code = currency
   if (currency) {
-    form.currency_code = currency
-    checkExchangeRate()
+    amountCurrencyCode.value = currency
   }
-}
-
-function onCurrencyChange() {
   form.exchange_rate = undefined
   form.converted_amount = undefined
   checkExchangeRate()
 }
 
+function onSourceCurrencyChange() {
+  form.exchange_rate = undefined
+  form.converted_amount = undefined
+  if (!amountCurrencyItems.value.some(item => item.value === amountCurrencyCode.value)) {
+    amountCurrencyCode.value = destCurrency.value ?? form.currency_code
+  }
+  checkExchangeRate()
+}
+
+function onAmountCurrencyChange(currencyCode: string) {
+  const previousCode = normalizedAmountCurrency.value
+  const nextCode = currencyCode.toUpperCase()
+  const sourceCode = sourceCurrency.value?.toUpperCase()
+  const destinationCode = destCurrency.value?.toUpperCase()
+  const rate = Number(form.exchange_rate)
+
+  if (form.amount > 0 && rate > 0 && sourceCode && destinationCode) {
+    if (previousCode === sourceCode && nextCode === destinationCode) {
+      form.amount = Number((form.amount * rate).toFixed(2))
+    } else if (previousCode === destinationCode && nextCode === sourceCode) {
+      form.amount = Number((form.amount / rate).toFixed(2))
+    }
+  }
+
+  amountCurrencyCode.value = currencyCode
+}
+
 async function checkExchangeRate() {
+  const requestId = ++exchangeRateRequest
+  form.exchange_rate = undefined
+  form.converted_amount = undefined
   if (!showExchangeRate.value || !sourceCurrency.value || !destCurrency.value) {
-    form.exchange_rate = undefined
-    form.converted_amount = undefined
+    loadingRate.value = false
     return
   }
   loadingRate.value = true
   try {
-    const rate = await autoResolve(sourceCurrency.value, destCurrency.value)
-    if (rate) form.exchange_rate = rate
+    const rate = await autoResolve(sourceCurrency.value, destCurrency.value, form.rate_type)
+    if (requestId === exchangeRateRequest && rate) form.exchange_rate = rate
   } finally {
-    loadingRate.value = false
+    if (requestId === exchangeRateRequest) loadingRate.value = false
   }
 }
 
@@ -271,19 +360,12 @@ function onRateTypeChange() {
   checkExchangeRate()
 }
 
-watch(() => form.amount, (val) => {
-  if (showConvertedAmount.value && form.exchange_rate) {
-    form.converted_amount = computedConvertedAmount.value ?? undefined
-  }
-})
-
-watch(() => form.exchange_rate, (val) => {
-  if (val && form.amount) {
-    form.converted_amount = computedConvertedAmount.value ?? undefined
-  }
+watch([showExchangeRate, computedDestinationAmount], ([isCrossCurrency, destinationAmount]) => {
+  form.converted_amount = isCrossCurrency ? destinationAmount ?? undefined : undefined
 })
 
 watch(() => form.dest_id, () => {
+  if (destCurrency.value) amountCurrencyCode.value = destCurrency.value
   checkExchangeRate()
 })
 
@@ -299,6 +381,7 @@ const openCreate = () => {
     intercompany_purpose: 'OTHER',
     exchange_rate: undefined, rate_type: 'OFFICIAL', converted_amount: undefined, description: ''
   })
+  amountCurrencyCode.value = ''
   destinationCompanyId.value = authStore.selectedCompany?.id ?? ''
   remoteDestinations.value = null
   modalOpen.value = true
@@ -396,13 +479,31 @@ async function handleDelete(row: CashBoxTransfer) {
 
 const handleSubmit = async () => {
   if (savingTransfer.value) return
+  const sourceAmount = computedSourceAmount.value
+  const destinationAmount = computedDestinationAmount.value
+  if (!sourceAmount || !destinationAmount || !sourceCurrency.value) return
+  if (showExchangeRate.value && (!form.exchange_rate || form.exchange_rate <= 0)) {
+    toast.add({ title: 'Falta una cotización válida para convertir las monedas', color: 'warning' })
+    return
+  }
+  if (sourceBalanceInsufficient.value) {
+    toast.add({ title: 'El débito supera el saldo disponible en el origen', color: 'warning' })
+    return
+  }
+
   savingTransfer.value = true
   try {
-    form.converted_amount = computedConvertedAmount.value ?? undefined
-    form.exchange_rate = form.exchange_rate ? Number(form.exchange_rate) : undefined
-    const created = await create({ ...form })
+    form.converted_amount = showExchangeRate.value ? destinationAmount : undefined
+    form.exchange_rate = showExchangeRate.value ? Number(form.exchange_rate) : undefined
+    const created = await create({
+      ...form,
+      amount: sourceAmount,
+      currency_code: sourceCurrency.value,
+      converted_amount: form.converted_amount,
+      exchange_rate: form.exchange_rate
+    })
     modalOpen.value = false
-    selectedTransfer.value = created
+    selectedTransfer.value = { ...created, dest_currency_code: destCurrency.value }
     expandAttachmentsOnOpen.value = true
     detailModalOpen.value = true
     toast.add({
@@ -511,6 +612,16 @@ const sortFields: SortField[] = [
                   @update:model-value="onSourceChange"
                 />
               </UFormField>
+              <UFormField v-if="isSourceCashBox && form.source_id" label="Moneda de origen" description="Se debita de esta moneda en la caja.">
+                <USelect
+                  v-model="form.currency_code"
+                  :items="sourceCurrencyItems"
+                  value-key="value"
+                  :disabled="sourceCurrencyItems.length <= 1"
+                  class="w-full"
+                  @update:model-value="onSourceCurrencyChange"
+                />
+              </UFormField>
               <div v-if="form.source_id && sourceBalance !== null" class="rounded-lg bg-default/60 px-3 py-2 text-sm">
                 <span class="text-muted">Saldo disponible</span>
                 <p class="font-semibold text-highlighted">{{ formatMoney(sourceBalance, sourceCurrency) }}</p>
@@ -572,27 +683,37 @@ const sortFields: SortField[] = [
             ]" class="w-full" />
           </UFormField>
 
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_10rem]">
-            <UFormField label="Monto a transferir" required>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_14rem]">
+            <UFormField :label="amountFieldLabel" required>
               <UInput v-model.number="form.amount" type="number" :min="0" step="0.01" placeholder="0,00" class="w-full">
-                <template #trailing><span class="text-xs text-muted">{{ form.currency_code }}</span></template>
+                <template #trailing><span class="text-xs text-muted">{{ amountCurrencyCode || destCurrency || sourceCurrency || form.currency_code }}</span></template>
               </UInput>
             </UFormField>
-            <UFormField label="Moneda" required>
+            <UFormField label="Moneda del importe" required>
               <USelect
-                v-model="form.currency_code"
-                :items="currencyItems"
+                :model-value="amountCurrencyCode"
+                :items="amountCurrencyItems"
                 value-key="value"
                 placeholder="Moneda"
+                :disabled="!form.source_id || amountCurrencyItems.length <= 1"
                 class="w-full"
-                @update:model-value="onCurrencyChange"
+                @update:model-value="onAmountCurrencyChange"
               />
             </UFormField>
           </div>
 
+          <UAlert
+            v-if="sourceBalanceInsufficient"
+            icon="i-lucide-triangle-alert"
+            color="warning"
+            variant="subtle"
+            description="El débito aproximado supera el saldo disponible en el origen."
+          />
+
           <template v-if="showExchangeRate">
             <div class="rounded-xl border border-default p-4">
-              <p class="mb-3 text-sm font-semibold text-highlighted">Conversión de moneda</p>
+              <p class="mb-1 text-sm font-semibold text-highlighted">Conversión de moneda</p>
+              <p class="mb-3 text-xs text-muted">La cotización expresa {{ destCurrency }} por cada unidad de {{ sourceCurrency }}.</p>
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <UFormField label="Tipo de cambio">
                   <USelect v-model="form.rate_type" :items="rateTypeItems" value-key="value" class="w-full" @update:model-value="onRateTypeChange" />
@@ -605,10 +726,19 @@ const sortFields: SortField[] = [
                   </UInput>
                 </UFormField>
               </div>
-              <div v-if="showConvertedAmount" class="mt-3 flex items-center justify-between rounded-lg bg-elevated/60 px-3 py-2 text-sm">
-                <span class="text-muted">Recibe aproximadamente</span>
-                <span class="font-semibold text-highlighted">{{ formatMoney(computedConvertedAmount ?? 0, destCurrency) }}</span>
+              <div v-if="showConvertedAmount" class="mt-3 grid gap-3 rounded-lg bg-elevated/60 px-3 py-2 text-sm sm:grid-cols-2">
+                <div>
+                  <span class="text-muted">{{ normalizedAmountCurrency === sourceCurrency?.toUpperCase() ? 'Se debita del origen' : 'Se debita aproximadamente' }}</span>
+                  <p class="font-semibold text-highlighted">{{ formatMoney(computedSourceAmount ?? 0, sourceCurrency) }}</p>
+                </div>
+                <div>
+                  <span class="text-muted">{{ normalizedAmountCurrency === destCurrency?.toUpperCase() ? 'El destino recibe' : 'El destino recibe aproximadamente' }}</span>
+                  <p class="font-semibold text-highlighted">{{ formatMoney(computedDestinationAmount ?? 0, destCurrency) }}</p>
+                </div>
               </div>
+              <p v-else-if="!loadingRate && !form.exchange_rate" class="mt-3 text-sm text-warning">
+                No hay una cotización disponible. Ingresá una tasa válida para calcular el importe.
+              </p>
             </div>
           </template>
 
@@ -640,7 +770,7 @@ const sortFields: SortField[] = [
             label="Registrar pendiente"
             icon="i-lucide-file-plus-2"
             :loading="savingTransfer"
-            :disabled="savingTransfer || !form.source_id || !form.dest_id || form.amount <= 0 || loadingDestinations"
+            :disabled="savingTransfer || !form.source_id || !form.dest_id || !form.amount || form.amount <= 0 || !computedSourceAmount || !computedDestinationAmount || sourceBalanceInsufficient || loadingRate || loadingDestinations"
             @click="handleSubmit"
           />
           </div>
@@ -687,7 +817,7 @@ const sortFields: SortField[] = [
               <p class="font-medium">{{ transferTypeMap[selectedTransfer.transfer_type] ?? selectedTransfer.transfer_type }}</p>
             </div>
             <div>
-              <span class="text-muted">Monto</span>
+              <span class="text-muted">Se debita del origen</span>
               <p class="font-medium">{{ formatMoney(selectedTransfer.amount, selectedTransfer.currency_code) }}</p>
             </div>
             <div>
@@ -718,8 +848,8 @@ const sortFields: SortField[] = [
               <p class="font-medium">{{ selectedTransfer.exchange_rate }}</p>
             </div>
             <div v-if="selectedTransfer.converted_amount">
-              <span class="text-muted">Monto convertido</span>
-              <p class="font-medium">{{ formatMoney(selectedTransfer.converted_amount, baseCurrency?.code) }}</p>
+              <span class="text-muted">Recibe el destino</span>
+              <p class="font-medium">{{ formatMoney(selectedTransfer.converted_amount, selectedTransferDestinationCurrency) }}</p>
             </div>
           </div>
 

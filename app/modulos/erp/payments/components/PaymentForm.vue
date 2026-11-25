@@ -1144,7 +1144,9 @@ const readonlyModeLabel = computed(() =>
 
 const readonlyMethodLabel = computed(() => isMixedPayment.value
   ? `Mixto · ${mixedTenderMethods.value.map(method => ({ CASH: 'Efectivo', BANK_TRANSFER: 'Transferencia', CHECK: 'Cheques' }[method])).join(' + ')}`
-  : paymentMethods.value.find(m => m.value === form.payment_method)?.label ?? form.payment_method
+  : form.payment_method === 'ACCOUNT_CREDIT'
+    ? 'Saldo inicial a favor (sin movimiento de caja o banco)'
+    : paymentMethods.value.find(m => m.value === form.payment_method)?.label ?? form.payment_method
 )
 const readonlyTenders = computed(() => props.modelValue?.tenders ?? form.tenders ?? [])
 const readonlyTenderFundLabel = (tender: any) => {
