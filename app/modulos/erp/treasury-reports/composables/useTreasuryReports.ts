@@ -22,11 +22,15 @@ export function useTreasuryReports() {
   return {
     // state
     dashboard: computed(() => store.dashboard),
+    pending: computed(() => store.pending),
+    pendingLoading: computed(() => store.pendingLoading),
+    pendingError: computed(() => store.pendingError),
     movements: computed(() => store.movements),
     loading: computed(() => store.loading),
 
     // actions
     fetchDashboard,
+    fetchPending: () => store.fetchPending(),
     fetchMovements
   }
 }

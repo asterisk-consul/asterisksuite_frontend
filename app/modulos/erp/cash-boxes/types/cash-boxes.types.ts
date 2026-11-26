@@ -8,6 +8,7 @@ export interface CashBoxBalance {
   cash_box_id: string
   currency_code: string
   balance: number
+  deleted_at?: string | null
 }
 
 export interface CashBoxSession {

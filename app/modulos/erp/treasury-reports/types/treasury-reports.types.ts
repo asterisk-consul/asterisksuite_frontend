@@ -33,6 +33,25 @@ export interface TreasuryDashboard {
   }
 }
 
+export type TreasuryPendingKind = 'advances' | 'drafts' | 'obligations' | 'transfers'
+export interface TreasuryPendingItem {
+  id: string
+  label: string
+  detail: string
+  date: string
+  amount: number
+  currency_code: string
+  kind: string
+  estimated: boolean
+}
+export interface TreasuryPendingGroup {
+  count: number
+  estimated_count: number
+  totals: Array<{ currency_code: string; amount: number }>
+  items: TreasuryPendingItem[]
+}
+export type TreasuryPending = Record<TreasuryPendingKind, TreasuryPendingGroup | null>
+
 export interface TreasuryMovement {
   id: string
   source: 'bank' | 'cash_box' | 'payment'

@@ -13,6 +13,7 @@ import { useAccountsStore } from '~/modulos/contabilidad/store/accounts.store'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useFiscalService } from '~/modulos/erp/fiscal/service/fiscal.service'
 import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
+import { addDaysToDateKey, getArgentinaDateKey, getCheckDateKey } from '~/modulos/erp/checks/utils/check-dates'
 
 type View = 'pending' | 'recurring' | 'reports'
 type WithholdingRemittance = {
@@ -37,6 +38,11 @@ const authStore = useAuthStore()
 const productsStore = useProductsStore()
 const accountsStore = useAccountsStore()
 const initialView = String(route.query.view ?? '')
+function clearDashboardDueFilter() {
+  const query = { ...route.query }
+  delete query.dashboard_due
+  void router.replace({ query })
+}
 const activeView = ref<View>(initialView === 'recurring' || initialView === 'reports' ? initialView : 'pending')
 const pendingSection = ref<'obligations' | 'vep'>('obligations')
 const loading = ref(false)
@@ -137,6 +143,7 @@ const expenseAccounts = computed(() => accountsStore.activeItems
 const filteredRows = computed(() => rows.value.filter(row => {
   return (statusFilter.value === 'ALL' || row.effective_status === statusFilter.value)
     && (categoryFilter.value === 'ALL' || row.category === categoryFilter.value)
+    && (route.query.dashboard_due !== '1' || (!row.payment_id && getCheckDateKey(row.due_date) <= addDaysToDateKey(getArgentinaDateKey(), 7)))
 }))
 const upcomingRows = computed(() => filteredRows.value.filter(row => !['PAID', 'CANCELLED'].includes(row.status)))
 const visibleObligationRows = computed(() => {
@@ -459,7 +466,12 @@ watch(pendingSection, value => {
 watch(() => form.category, () => {
   if (form.party_id && !availableParties.value.some(party => party.id === form.party_id)) form.party_id = ''
 })
-onMounted(load)
+onMounted(async () => {
+  await load()
+  const requestedId = typeof route.query.obligation_id === 'string' ? route.query.obligation_id : null
+  const obligation = requestedId ? rows.value.find(row => row.id === requestedId) : null
+  if (obligation) openObligation(obligation)
+})
 </script>
 
 <template>
@@ -474,6 +486,10 @@ onMounted(load)
     </AppPageHeader>
 
     <div class="flex min-w-0 flex-col gap-6">
+    <div v-if="route.query.dashboard_due === '1'" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-default px-3 py-2 text-sm">
+      <span>Vencidas o con vencimiento en los próximos 7 días, sin pago asociado.</span>
+      <UButton label="Quitar filtro" size="xs" color="neutral" variant="ghost" @click="clearDashboardDueFilter" />
+    </div>
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <UPageCard variant="subtle" class="min-w-0"><div class="space-y-2"><p class="text-xs text-muted">Pendiente estimado · incluye VEP</p><div class="flex flex-wrap gap-x-3 gap-y-1"><p v-for="(amount, currency) in pendingByCurrency" :key="currency" class="text-xl font-semibold">{{ fmt(amount, currency) }}</p><p v-if="!Object.keys(pendingByCurrency).length" class="text-xl font-semibold">{{ fmt(0) }}</p></div></div></UPageCard>
       <UPageCard variant="subtle"><div class="space-y-2"><p class="text-xs text-muted">Vencidas</p><p class="text-xl font-semibold text-error">{{ summary.overdue + vepOverdueCount }}</p></div></UPageCard>

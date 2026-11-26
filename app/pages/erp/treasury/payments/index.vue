@@ -10,6 +10,7 @@ import { usePayments } from '~/modulos/erp/payments/composables/usePayments'
 import { useDataTransferPermissions } from '~/modulos/access-control/composables/useDataTransferPermissions'
 import { paymentColumns } from '~/modulos/erp/payments/columns'
 import type { Payment } from '~/modulos/erp/payments/types/payments.types'
+import { isAvailableAdvance } from '~/modulos/erp/payments/utils/payment-pending'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 
@@ -68,6 +69,22 @@ const can = (permission: string) => authStore.selectedCompany?.role === 'OWNER' 
 const canCreatePayment = computed(() => can('payments.create'))
 
 const router = useRouter()
+const route = useRoute()
+const dashboardPending = computed(() => route.query.pending === 'advances' || route.query.pending === 'drafts' ? route.query.pending : null)
+watch(dashboardPending, group => {
+  if (!group) return
+  filters.value = []
+  quickFilters.value = {}
+  sorting.value = [{ id: 'date', desc: false }]
+  modeFilter.value = group === 'advances' ? 'ADVANCE' : 'ALL'
+  showCancelled.value = false
+}, { immediate: true })
+function clearDashboardPending() {
+  modeFilter.value = 'ALL'
+  const query = { ...route.query }
+  delete query.pending
+  void router.replace({ query })
+}
 const importOpen = ref(false)
 
 // Modals
@@ -152,6 +169,8 @@ onMounted(() => {
 
 const filteredPayments = computed(() => {
   let rows = payments.value
+  if (dashboardPending.value === 'advances') rows = rows.filter(isAvailableAdvance)
+  if (dashboardPending.value === 'drafts') rows = rows.filter(payment => !payment.deleted_at && !payment.source_kind && payment.status === 'DRAFT')
   if (!showCancelled.value) rows = rows.filter(payment => !['CANCELLED', 'REVERSED'].includes(payment.status))
   if (modeFilter.value !== 'ALL') rows = rows.filter(payment => payment.payment_mode === modeFilter.value)
   return rows
@@ -264,6 +283,10 @@ const dataActions = computed(() => [
       </template>
     </AppPageHeader>
 
+    <div v-if="dashboardPending" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-default px-3 py-2 text-sm">
+      <span>{{ dashboardPending === 'advances' ? 'Anticipos y créditos con saldo disponible' : 'Pagos y cobros en borrador' }}</span>
+      <UButton label="Quitar filtro" size="xs" color="neutral" variant="ghost" @click="clearDashboardPending" />
+    </div>
     <!-- FILTRO DE MODO -->
     <div class="flex items-center gap-2">
       <span class="text-sm text-muted">Filtrar:</span>

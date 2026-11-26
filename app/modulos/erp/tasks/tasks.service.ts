@@ -200,7 +200,7 @@ export interface TaskChecklist {
 export const useTasksService = () => ({
   getNotificationSettings: () => $fetch<TaskNotificationSettings>('/api/backend/erp/tasks/notification-settings'),
   saveNotificationSettings: (body: TaskNotificationSettings) => $fetch<TaskNotificationSettings>('/api/backend/erp/tasks/notification-settings', { method: 'PUT', body }),
-  getBoards: () => $fetch<TaskBoard[]>('/api/backend/erp/tasks/boards'),
+  getBoards: (skip = 0, take = 100) => $fetch<TaskBoard[]>('/api/backend/erp/tasks/boards', { query: { skip, take } }),
   createBoard: (body: { name: string; task_key_prefix?: string; description?: string; party_id?: string | null; columns?: string[] }) =>
     $fetch<TaskBoard>('/api/backend/erp/tasks/boards', { method: 'POST', body }),
   updateBoardSettings: (id: string, body: { require_work_log_on_transition: boolean; allow_task_timer: boolean; task_timer_max_hours: number }) => $fetch<Pick<TaskBoard, 'id' | 'require_work_log_on_transition' | 'allow_task_timer' | 'task_timer_max_hours'>>(`/api/backend/erp/tasks/boards/${id}/settings`, { method: 'PATCH', body }),

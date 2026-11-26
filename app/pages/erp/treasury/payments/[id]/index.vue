@@ -134,6 +134,12 @@ const availableBalance = computed(() => {
 })
 
 const advanceModalOpen = ref(false)
+const advanceRequestedFromDashboard = ref(route.query.apply === '1')
+watch([currentPayment, canManageAdvance], () => {
+  if (!advanceRequestedFromDashboard.value || !currentPayment.value || !canManageAdvance.value) return
+  advanceRequestedFromDashboard.value = false
+  if (isAdvance.value && (isConfirmed.value || isPaid.value) && availableBalance.value > 0.01) advanceModalOpen.value = true
+})
 
 onMounted(async () => {
   void fetchMyPermissionsIfNeeded(authStore.selectedCompany?.id, authStore.user?.id).catch(() => undefined)

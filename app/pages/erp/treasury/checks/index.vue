@@ -14,14 +14,17 @@ import { useCashBoxes } from '~/modulos/erp/cash-boxes/composables/useCashBoxes'
 import { useAuthStore } from '~/modulos/auth/auth.store'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useCompanyRole } from '~/composables/useCompanyRole'
-import { addDaysToDateKey, formatCheckDate, getArgentinaDateKey, getCheckDateKey } from '~/modulos/erp/checks/utils/check-dates'
+import { formatCheckDate, getArgentinaDateKey, getCheckDateKey } from '~/modulos/erp/checks/utils/check-dates'
+import { CHECK_ALERT_DAYS_STORAGE_KEY, DEFAULT_CHECK_ALERT_DAYS, filterUpcomingChecks, normalizeCheckAlertDays, parseCheckOwnership } from '~/modulos/erp/checks/utils/check-upcoming'
 import type { CheckAlertCard, CheckAlertKind } from '~/modulos/erp/checks/types/check-alerts.types'
 import CheckAlertCards from '~/components/erp/CheckAlertCards.vue'
+import CheckAlertDaysSettings from '~/components/erp/CheckAlertDaysSettings.vue'
+import { sumCheckTotals } from '~/modulos/erp/checks/utils/check-totals'
 import { useIntakeRecordsService } from '~/modulos/erp/intake/intake-records.service'
 import { useIntercompanyTreasuryService } from '~/modulos/erp/treasury/intercompany-treasury.service'
 import type { IntercompanyFundOption } from '~/modulos/erp/treasury/intercompany-treasury.service'
 
-import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 
 const toast = useToast()
 const intakeService = useIntakeRecordsService()
@@ -127,11 +130,35 @@ const debitSourceOptions = computed(() => [
 ])
 
 const todayInArgentina = getArgentinaDateKey
-const upcomingAlertDays = computed(() => {
-  const rawDays = Array.isArray(route.query.days) ? route.query.days[0] : route.query.days
-  const days = Number(rawDays ?? 1)
-  return Number.isFinite(days) ? Math.min(365, Math.max(1, Math.trunc(days))) : 1
+const savedAlertDays = ref(DEFAULT_CHECK_ALERT_DAYS)
+const checkSettingsOpen = ref(false)
+const checkAlertDaysInput = ref(DEFAULT_CHECK_ALERT_DAYS)
+const savingCheckSettings = ref(false)
+const committedAlertDays = computed(() => normalizeCheckAlertDays(route.query.days ?? savedAlertDays.value))
+const upcomingAlertDays = computed(() => checkSettingsOpen.value
+  ? normalizeCheckAlertDays(checkAlertDaysInput.value)
+  : committedAlertDays.value)
+watch(checkSettingsOpen, open => {
+  if (open) checkAlertDaysInput.value = committedAlertDays.value
 })
+function cancelCheckSettings() {
+  checkSettingsOpen.value = false
+  checkAlertDaysInput.value = committedAlertDays.value
+}
+async function saveCheckAlertDays() {
+  if (savingCheckSettings.value) return
+  const days = normalizeCheckAlertDays(checkAlertDaysInput.value)
+  savedAlertDays.value = days
+  checkAlertDaysInput.value = days
+  localStorage.setItem(CHECK_ALERT_DAYS_STORAGE_KEY, String(days))
+  savingCheckSettings.value = true
+  try {
+    await router.replace({ query: { ...route.query, days: String(days) } })
+    checkSettingsOpen.value = false
+  } finally {
+    savingCheckSettings.value = false
+  }
+}
 
 const dueThirdPartyChecks = computed(() => {
   const today = todayInArgentina()
@@ -151,15 +178,7 @@ const dueOwnChecks = computed(() => {
   )
 })
 
-const upcomingChecks = computed(() => {
-  const today = todayInArgentina()
-  const limit = addDaysToDateKey(today, upcomingAlertDays.value)
-  return checks.value.filter(check =>
-    ['PENDING', 'CONFIRMED'].includes(check.status) &&
-    getCheckDateKey(check.due_date) > today &&
-    getCheckDateKey(check.due_date) <= limit
-  )
-})
+const upcomingChecks = computed(() => filterUpcomingChecks(checks.value, upcomingAlertDays.value))
 const parseAlertFilter = (value: unknown): CheckAlertKind | null => {
   const normalized = Array.isArray(value) ? value[0] : value
   return normalized === 'third-party' || normalized === 'own' || normalized === 'upcoming'
@@ -167,6 +186,9 @@ const parseAlertFilter = (value: unknown): CheckAlertKind | null => {
     : null
 }
 const activeAlertFilter = ref<CheckAlertKind | null>(parseAlertFilter(route.query.alert))
+const activeCheckOwnership = computed(() => activeAlertFilter.value === 'upcoming'
+  ? parseCheckOwnership(route.query.ownership)
+  : null)
 watch(() => route.query.alert, value => {
   activeAlertFilter.value = parseAlertFilter(value)
 })
@@ -177,7 +199,7 @@ const alertFilteredChecks = computed(() => {
       ? dueThirdPartyChecks.value
       : activeAlertFilter.value === 'own'
         ? dueOwnChecks.value
-        : upcomingChecks.value)
+        : filterUpcomingChecks(checks.value, upcomingAlertDays.value, activeCheckOwnership.value))
       .map(check => check.id)
   )
   return checks.value.filter(check => matchingIds.has(check.id))
@@ -211,11 +233,13 @@ const displayedChecks = computed(() => showOnlyInactivePaymentLinks.value
 const toggleInactivePaymentLinkFilter = () => {
   showOnlyInactivePaymentLinks.value = !showOnlyInactivePaymentLinks.value
 }
+const alertChecks = (id: CheckAlertKind, group: Check[]) => activeAlertFilter.value === id ? alertFilteredChecks.value : group
 const alertCards = computed<CheckAlertCard[]>(() => [
   ...(dueThirdPartyChecks.value.length ? [{
     id: 'third-party' as const,
     title: 'Cheques de terceros por resolver',
-    count: dueThirdPartyChecks.value.length,
+    count: alertChecks('third-party', dueThirdPartyChecks.value).length,
+    totals: sumCheckTotals(alertChecks('third-party', dueThirdPartyChecks.value)),
     description: 'Vencen hoy o ya vencieron. Depositá, cobrá en caja o aplicalos a un pago.',
     actionLabel: 'Ver pendientes',
     icon: 'i-lucide-calendar-clock',
@@ -224,27 +248,30 @@ const alertCards = computed<CheckAlertCard[]>(() => [
   ...(dueOwnChecks.value.length ? [{
     id: 'own' as const,
     title: 'Débitos de cheques propios por registrar',
-    count: dueOwnChecks.value.length,
+    count: alertChecks('own', dueOwnChecks.value).length,
+    totals: sumCheckTotals(alertChecks('own', dueOwnChecks.value)),
     description: 'El vencimiento llegó. Verificá el movimiento y registrá el débito o pago desde caja.',
     actionLabel: 'Ver débitos',
     icon: 'i-lucide-landmark',
     tone: 'primary' as const
   }] : []),
-  ...(upcomingChecks.value.length ? [{
+  {
     id: 'upcoming' as const,
-    title: upcomingAlertDays.value === 1 ? 'Cheques que vencen mañana' : 'Cheques próximos a vencer',
-    count: upcomingChecks.value.length,
+    title: upcomingAlertDays.value === 1 ? 'Cheques que vencen mañana' : `Cheques próximos a vencer · ${upcomingAlertDays.value} días`,
+    count: alertChecks('upcoming', upcomingChecks.value).length,
+    totals: sumCheckTotals(alertChecks('upcoming', upcomingChecks.value)),
     description: `Prepará la gestión antes del vencimiento. Incluye cheques propios y de terceros dentro de los próximos ${upcomingAlertDays.value} día(s).`,
     actionLabel: 'Ver próximos vencimientos',
     icon: 'i-lucide-calendar-days',
     tone: 'info' as const
-  }] : [])
+  }
 ])
 
 function toggleAlertFilter(filter: CheckAlertKind) {
   const nextFilter = activeAlertFilter.value === filter ? null : filter
   activeAlertFilter.value = nextFilter
   const query = { ...route.query }
+  delete query.ownership
   if (nextFilter) query.alert = nextFilter
   else delete query.alert
   if (nextFilter === 'upcoming') query.days = String(upcomingAlertDays.value)
@@ -253,7 +280,12 @@ function toggleAlertFilter(filter: CheckAlertKind) {
 }
 
 function clearAlertFilter() {
-  if (activeAlertFilter.value) toggleAlertFilter(activeAlertFilter.value)
+  activeAlertFilter.value = null
+  const query = { ...route.query }
+  delete query.alert
+  delete query.days
+  delete query.ownership
+  void router.replace({ query })
 }
 
 const availableCashBoxes = computed(() => {
@@ -556,7 +588,10 @@ const processOwnCheck = async () => {
   }
 }
 
-onMounted(() => init())
+onMounted(() => {
+  savedAlertDays.value = normalizeCheckAlertDays(localStorage.getItem(CHECK_ALERT_DAYS_STORAGE_KEY))
+  return init()
+})
 
 const columns = computed(() => checkColumns({
   canViewPayments: isOwnerOrAdmin.value || hasPermission('payments.read'),
@@ -644,7 +679,18 @@ const sortFields: SortField[] = [
         :links="links"
       />
 
-      <CheckAlertCards :alerts="alertCards" :active-filter="activeAlertFilter" @select="toggleAlertFilter" />
+      <CheckAlertCards :alerts="alertCards" :active-filter="activeAlertFilter" @select="toggleAlertFilter">
+        <template #details="{ alert }">
+          <CheckAlertDaysSettings
+            v-if="alert.id === 'upcoming'"
+            v-model="checkAlertDaysInput"
+            v-model:open="checkSettingsOpen"
+            :loading="savingCheckSettings"
+            @save="saveCheckAlertDays"
+            @cancel="cancelCheckSettings"
+          />
+        </template>
+      </CheckAlertCards>
 
       <div v-if="inactivePaymentLinkChecks.length" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
         <p class="text-sm text-muted">
@@ -663,13 +709,14 @@ const sortFields: SortField[] = [
       <div v-if="activeAlertFilter" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-default bg-elevated/40 px-3 py-2">
         <span class="flex items-center gap-2 text-sm text-muted">
           <UIcon name="i-lucide-filter" class="size-4" />
-          Mostrando {{ activeAlertFilter === 'third-party' ? 'cheques de terceros por resolver' : activeAlertFilter === 'own' ? 'débitos propios por registrar' : upcomingAlertDays === 1 ? 'cheques que vencen mañana' : `cheques próximos a vencer en ${upcomingAlertDays} días` }}
+          Mostrando {{ activeAlertFilter === 'third-party' ? 'cheques de terceros por resolver' : activeAlertFilter === 'own' ? 'débitos propios por registrar' : `cheques ${activeCheckOwnership === 'own' ? 'propios a pagar' : activeCheckOwnership === 'third-party' ? 'de terceros a cobrar' : 'próximos a vencer'} en ${upcomingAlertDays} día(s)` }}
           <span class="font-medium text-highlighted">({{ alertFilteredChecks.length }})</span>
         </span>
         <UButton label="Ver todos" icon="i-lucide-x" size="xs" variant="ghost" @click="clearAlertFilter" />
       </div>
 
-      <LogisticaTable
+      <AsteriskTable
+        storage-key="treasury-checks"
         :loading="loading"
         :data="displayedChecks"
         :columns="columns"

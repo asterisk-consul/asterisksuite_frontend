@@ -16,10 +16,20 @@ import { useBankAccounts } from '~/modulos/erp/bank-accounts/composables/useBank
 import { useCurrencies } from '~/modulos/erp/currencies/composables/useCurrencies'
 import { useExchangeRate } from '~/modulos/erp/currencies/composables/useExchangeRate'
 
-import LogisticaTable from '~/components/Tablas/LogisticaTable.vue'
+import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 
 const toast = useToast()
 const route = useRoute()
+const router = useRouter()
+const pendingFromDashboard = computed(() => route.query.status === 'pending')
+const displayedTransfers = computed(() => pendingFromDashboard.value
+  ? transfers.value.filter(transfer => transfer.status === 'pending' && (!transfer.record_side || transfer.record_side === 'source'))
+  : transfers.value)
+function clearPendingFilter() {
+  const query = { ...route.query }
+  delete query.status
+  void router.replace({ query })
+}
 const authStore = useAuthStore()
 const { isOwner } = useCompanyRole()
 const { hasPermission } = useRoles()
@@ -568,8 +578,13 @@ const sortFields: SortField[] = [
       </template>
     </AppPageHeader>
 
-    <LogisticaTable
-      :data="transfers"
+    <div v-if="pendingFromDashboard" class="mb-3 flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2 text-sm">
+      <span>Transferencias pendientes de confirmar</span>
+      <UButton label="Quitar filtro" size="xs" color="neutral" variant="ghost" @click="clearPendingFilter" />
+    </div>
+    <AsteriskTable
+      storage-key="treasury-cash-box-transfers"
+      :data="displayedTransfers"
       :columns="columns"
       :on-row-click="openDetail"
       :loading="loading"

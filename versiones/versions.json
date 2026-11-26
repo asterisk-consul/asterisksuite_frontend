@@ -1,5 +1,54 @@
 [
  {
+  "version": "0.183.4-alpha",
+  "date": "2026-11-26",
+  "stage": "alpha",
+  "notes": "El widget de tesorería prioriza los cheques próximos a vencer y por resolver, muestra los importes comprometidos por moneda y agrupa otros pendientes en tarjetas compactas.",
+  "changes": [
+   { "type": "feat", "scope": "treasury", "title": "Priorizar cheques y compactar los pendientes del widget de tesorería" },
+   { "type": "docs", "scope": "treasury", "title": "Actualizar la documentación del panel de tesorería y los avisos de cheques" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Priorizar cheques en el widget de tesorería"
+ },
+ {
+  "version": "0.183.3-alpha",
+  "date": "2026-11-26",
+  "stage": "alpha",
+  "notes": "Todos los tableros abre una vista integrada con las tarjetas y cantidades de los tableros activos. Se puede buscar por nombre, filtrar por cliente y entrar al espacio de cada tablero.",
+  "changes": [
+   { "type": "feat", "scope": "crm-tasks", "title": "Integrar los tableros activos en una vista general con búsqueda, filtro por cliente y acceso individual" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar la vista integrada de tableros" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Integrar los tableros en una vista general"
+ },
+ {
+  "version": "0.183.2-alpha",
+  "date": "2026-11-26",
+  "stage": "alpha",
+  "notes": "El menú lateral de Tareas muestra todos los tableros activos y permite filtrarlos por nombre. Las tarjetas del tablero pueden abrirse con un clic sin que un gesto breve active accidentalmente el arrastre.",
+  "changes": [
+   { "type": "fix", "scope": "crm-tasks", "title": "Cargar todos los tableros con páginas acotadas y permitir filtrarlos desde el menú lateral" },
+   { "type": "fix", "scope": "crm-tasks", "title": "Separar el clic para abrir una tarea del gesto de arrastre entre listas" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar la búsqueda de tableros y la apertura de tarjetas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mostrar y filtrar todos los tableros y facilitar la apertura de tareas"
+ },
+ {
+  "version": "0.183.1-alpha",
+  "date": "2026-11-26",
+  "stage": "alpha",
+  "notes": "Los adjuntos eliminados dejan de aparecer en las tareas del CRM. Si otra persona ya quitó un archivo, el detalle actualiza la lista y evita mantener una referencia obsoleta.",
+  "changes": [
+   { "type": "fix", "scope": "crm-tasks", "title": "Ocultar adjuntos con archivos eliminados y actualizar la lista al detectar una eliminación concurrente" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar la actualización de adjuntos en el detalle de tareas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Corregir adjuntos obsoletos en tareas del CRM"
+ },
+ {
   "version": "0.183.0-alpha",
   "date": "2026-11-25",
   "stage": "alpha",

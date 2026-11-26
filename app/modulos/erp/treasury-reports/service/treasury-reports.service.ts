@@ -1,5 +1,6 @@
 ﻿import type {
   TreasuryDashboard,
+  TreasuryPending,
   TreasuryMovement,
   TreasuryMovementsQuery
 } from '~/modulos/erp/treasury-reports/types/treasury-reports.types'
@@ -34,6 +35,7 @@ export const useTreasuryReportsService = () => {
     $fetch<any[]>(`${urlBase}/libro-iva`, { query: params })
 
   return {
+    pending: () => $fetch<TreasuryPending>(`${urlBase}/pending`),
     dashboard,
     movements,
     bankExpenses,

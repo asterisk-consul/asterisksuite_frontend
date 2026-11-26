@@ -32,6 +32,8 @@ const photosService = usePhotosService()
 const notificationFeed = useNotifications()
 
 const boards = ref<TaskBoard[]>([])
+const allBoardsSearch = ref('')
+const allBoardsPartyId = ref('ALL')
 const taskSidebarBoardLinks = useState<{ companyId: string | null; items: Array<{ id: string; name: string }> }>('task-sidebar-board-links', () => ({ companyId: null, items: [] }))
 const members = ref<TaskMember[]>([])
 const labels = ref<TaskLabel[]>([])
@@ -101,6 +103,10 @@ const filterOpen = ref(false)
 const taskFilters = reactive({ search: '', member_ids: [] as string[], label_ids: [] as string[], category_ids: [] as string[], party_ids: [] as string[], completion: 'ALL', priority: 'ALL', due_status: 'ALL' })
 const collapsedClosedColumnIds = ref<string[]>([])
 const hideCompletedColumns = ref(true)
+const boardViewSettingsOpen = ref(false)
+const boardViewSettings = reactive({ columnWidth: 'FIXED' as 'FIXED' | 'FLEXIBLE', scrollMode: 'BOARD' as 'BOARD' | 'COLUMNS', hideCompletedAfter: 'NEVER' as 'NEVER' | 'IMMEDIATELY' | 'DAY' | 'WEEK' | 'MONTH' })
+const boardViewClock = ref(Date.now())
+let boardViewClockTimer: ReturnType<typeof setInterval> | null = null
 const showCategoriesModal = ref(false)
 const newCategoryName = ref('')
 const newCategoryColor = ref('neutral')
@@ -222,6 +228,20 @@ const taskMemberRoleOptions = [
   { label: 'Observador', value: 'OBSERVER' },
 ]
 const selectedBoardParty = computed(() => board.value?.party ?? null)
+const isAllBoardsView = computed(() => !boardId.value)
+const allBoardsPartyOptions = computed(() => {
+  const parties = new Map<string, string>()
+  for (const item of boards.value) if (item.party) parties.set(item.party.id, item.party.name)
+  return [{ label: 'Todos los clientes', value: 'ALL' }, ...[...parties].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'es'))]
+})
+const visibleAllBoards = computed(() => {
+  const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
+  const search = normalize(allBoardsSearch.value.trim())
+  return boards.value.filter(item => {
+    if (allBoardsPartyId.value !== 'ALL' && item.party_id !== allBoardsPartyId.value) return false
+    return !search || normalize(`${item.name} ${item.description ?? ''} ${item.party?.name ?? ''} ${item.task_key_prefix}`).includes(search)
+  })
+})
 const whatsappModule = computed(() => platformModules.modules.find(module => module.code === 'WHATSAPP') ?? null)
 const whatsappModuleEnabled = computed(() => whatsappModule.value?.enabled === true)
 const whatsappModuleChecking = computed(() => whatsappModuleRefreshing.value)
@@ -240,6 +260,10 @@ const categoryFilterOptions = computed(() => categories.value.filter(category =>
 const boardFilterMemberOptions = computed(() => [{ label: 'Sin miembros', value: 'NONE' }, { label: 'Asignadas a mí', value: 'ME' }, ...members.value.map(member => ({ label: member.name, value: member.id }))])
 const activeBoardFilterCount = computed(() => Number(!!taskFilters.search.trim()) + Number(taskFilters.member_ids.length > 0) + Number(taskFilters.label_ids.length > 0) + Number(taskFilters.category_ids.length > 0) + Number(taskFilters.party_ids.length > 0) + Number(taskFilters.completion !== 'ALL') + Number(taskFilters.priority !== 'ALL') + Number(taskFilters.due_status !== 'ALL'))
 const visibleBoardColumns = computed(() => (board.value?.columns ?? []).filter(column => !hideCompletedColumns.value || !column.is_closed))
+const boardGridTemplateColumns = computed(() => [
+  ...visibleBoardColumns.value.map(column => isColumnCollapsed(column) ? '3rem' : boardViewSettings.columnWidth === 'FIXED' ? '340px' : 'minmax(275px, 1fr)'),
+  ...(hasTaskPermission('tasks.create') ? [boardViewSettings.columnWidth === 'FIXED' ? '340px' : 'minmax(275px, 1fr)'] : []),
+].join(' '))
 const boardPeople = computed(() => {
   const ids = new Set((board.value?.columns ?? []).flatMap(column => column.tasks.flatMap(task => [task.assigned_to, ...(task.members ?? []).map(member => member.user_id)]).filter((id): id is string => !!id)))
   return members.value.filter(member => ids.has(member.id)).slice(0, 6)
@@ -490,8 +514,9 @@ const boardListMenuItems = computed(() => [[
   { label: boardListShowSubtasks.value ? 'Ocultar subtareas' : 'Mostrar subtareas', icon: 'i-lucide-list-tree', onSelect: () => { boardListShowSubtasks.value = !boardListShowSubtasks.value } },
   { label: 'Limpiar búsqueda', icon: 'i-lucide-eraser', disabled: !boardListSearch.value, onSelect: () => { boardListSearch.value = '' } },
 ]])
-const boardTitle = computed(() => board.value?.name ?? 'Seleccioná un tablero')
+const boardTitle = computed(() => isAllBoardsView.value ? 'Todos los tableros' : board.value?.name ?? 'Seleccioná un tablero')
 const currentBoardCollapseStorageKey = computed(() => `tasks:collapsed-final-columns:${auth.selectedCompany?.id ?? 'company'}:${auth.user?.id ?? 'user'}:${boardId.value || 'board'}`)
+const currentBoardViewSettingsStorageKey = computed(() => `tasks:view-settings:${auth.selectedCompany?.id ?? 'company'}:${auth.user?.id ?? 'user'}:${boardId.value || 'board'}`)
 const hideCompletedColumnsStorageKey = computed(() => `tasks:hide-final-columns:${auth.selectedCompany?.id ?? 'company'}:${auth.user?.id ?? 'user'}`)
 const columnMoveOptions = computed(() => {
   const columns = board.value?.columns ?? []
@@ -811,7 +836,7 @@ function toggleBoardMemberFilter(memberId: string) {
     : [...taskFilters.member_ids.filter(id => id !== 'NONE' && id !== 'ME'), memberId]
 }
 
-function isColumnCollapsed(column: TaskColumn) { return column.is_closed && collapsedClosedColumnIds.value.includes(column.id) }
+function isColumnCollapsed(column: TaskColumn) { return collapsedClosedColumnIds.value.includes(column.id) }
 
 function restoreCollapsedClosedColumns() {
   if (!import.meta.client) return
@@ -820,6 +845,46 @@ function restoreCollapsedClosedColumns() {
   } catch {
     collapsedClosedColumnIds.value = []
   }
+}
+
+function restoreBoardViewSettings() {
+  if (!import.meta.client) return
+  Object.assign(boardViewSettings, { columnWidth: 'FIXED', scrollMode: 'BOARD', hideCompletedAfter: 'NEVER' })
+  try {
+    const saved = JSON.parse(localStorage.getItem(currentBoardViewSettingsStorageKey.value) ?? '{}')
+    if (saved.columnWidth === 'FIXED' || saved.columnWidth === 'FLEXIBLE') boardViewSettings.columnWidth = saved.columnWidth
+    if (saved.scrollMode === 'BOARD' || saved.scrollMode === 'COLUMNS') boardViewSettings.scrollMode = saved.scrollMode
+    if (['NEVER', 'IMMEDIATELY', 'DAY', 'WEEK', 'MONTH'].includes(saved.hideCompletedAfter)) boardViewSettings.hideCompletedAfter = saved.hideCompletedAfter
+  } catch {
+    boardViewSettings.columnWidth = 'FIXED'
+    boardViewSettings.scrollMode = 'BOARD'
+    boardViewSettings.hideCompletedAfter = 'NEVER'
+  }
+}
+
+function persistBoardViewSettings() {
+  if (import.meta.client) localStorage.setItem(currentBoardViewSettingsStorageKey.value, JSON.stringify(boardViewSettings))
+}
+
+function setBoardViewSetting(key: 'columnWidth' | 'scrollMode', value: 'FIXED' | 'FLEXIBLE' | 'BOARD' | 'COLUMNS') {
+  if (key === 'columnWidth' && (value === 'FIXED' || value === 'FLEXIBLE')) boardViewSettings.columnWidth = value
+  if (key === 'scrollMode' && (value === 'BOARD' || value === 'COLUMNS')) boardViewSettings.scrollMode = value
+  persistBoardViewSettings()
+}
+
+function shouldHideCompletedTask(task: TaskRecord) {
+  if (!task.completed_at || boardViewSettings.hideCompletedAfter === 'NEVER') return false
+  if (boardViewSettings.hideCompletedAfter === 'IMMEDIATELY') return true
+  const cutoff = { DAY: 24, WEEK: 24 * 7, MONTH: 24 * 30 }[boardViewSettings.hideCompletedAfter]
+  return boardViewClock.value - new Date(task.completed_at).getTime() >= cutoff * 60 * 60 * 1000
+}
+
+function toggleColumnCollapsed(column: TaskColumn) {
+  const ids = new Set(collapsedClosedColumnIds.value)
+  if (ids.has(column.id)) ids.delete(column.id)
+  else ids.add(column.id)
+  collapsedClosedColumnIds.value = [...ids]
+  if (import.meta.client) localStorage.setItem(currentBoardCollapseStorageKey.value, JSON.stringify(collapsedClosedColumnIds.value))
 }
 
 function restoreHideCompletedColumns() {
@@ -831,14 +896,6 @@ function restoreHideCompletedColumns() {
 function persistHideCompletedColumns(value: boolean) {
   hideCompletedColumns.value = value
   if (import.meta.client) localStorage.setItem(hideCompletedColumnsStorageKey.value, String(value))
-}
-
-function toggleClosedColumn(column: TaskColumn) {
-  const ids = new Set(collapsedClosedColumnIds.value)
-  if (ids.has(column.id)) ids.delete(column.id)
-  else ids.add(column.id)
-  collapsedClosedColumnIds.value = [...ids]
-  if (import.meta.client) localStorage.setItem(currentBoardCollapseStorageKey.value, JSON.stringify(collapsedClosedColumnIds.value))
 }
 
 function resetBoardFilters() {
@@ -897,15 +954,27 @@ function labelChipStyle(color: string) {
 }
 
 async function loadBoards() {
-  boards.value = await service.getBoards()
+  const pageSize = 100
+  const loadedBoards: TaskBoard[] = []
+  let skip = 0
+  while (true) {
+    const page = await service.getBoards(skip, pageSize)
+    loadedBoards.push(...page)
+    if (page.length < pageSize) break
+    skip += page.length
+  }
+  boards.value = loadedBoards
   taskSidebarBoardLinks.value = { companyId: auth.selectedCompany?.id ?? null, items: boards.value.map(item => ({ id: item.id, name: item.name })) }
   const requestedId = typeof route.query.board_id === 'string' ? route.query.board_id : ''
   const requestedPartyId = typeof route.query.party_id === 'string' ? route.query.party_id : ''
   const chosen = boards.value.find(item => item.id === requestedId)
     ?? boards.value.find(item => item.party_id === requestedPartyId)
-    ?? boards.value.find(item => item.is_default)
-    ?? boards.value[0]
   boardId.value = chosen?.id ?? ''
+}
+
+function openBoardOverviewItem(item: TaskBoard) {
+  activeBoardTab.value = 'SUMMARY'
+  void router.push({ path: '/erp/tasks', query: { board_id: item.id } })
 }
 
 async function loadBoard() {
@@ -985,6 +1054,7 @@ async function load() {
       taskNotificationSettingsError.value = error?.data?.message ?? 'No se pudieron cargar las preferencias de avisos.'
     }
     restoreCollapsedClosedColumns()
+    restoreBoardViewSettings()
     if (boardId.value) await loadBoard()
     await openTaskFromRoute()
   } catch (error: any) {
@@ -1095,6 +1165,7 @@ watch(boardId, async () => {
     void router.replace({ query })
   }
   restoreCollapsedClosedColumns()
+  restoreBoardViewSettings()
   try {
     await loadBoard()
   } catch (error: any) {
@@ -1104,9 +1175,14 @@ watch(boardId, async () => {
 
 watch(() => route.query.board_id, id => {
   if (typeof id === 'string' && id !== boardId.value && boards.value.some(item => item.id === id)) boardId.value = id
-  else if (typeof id !== 'string' && boards.value.length && route.path === '/erp/tasks') {
-    const fallback = boards.value.find(item => item.is_default) ?? boards.value[0]
-    if (fallback && fallback.id !== boardId.value) boardId.value = fallback.id
+  else if (typeof id !== 'string' && route.path === '/erp/tasks') {
+    boardId.value = ''
+    board.value = null
+    showTaskModal.value = false
+    selectedTask.value = null
+    boardWorkspaceExpanded.value = false
+    boardSettingsOpen.value = false
+    activeBoardTab.value = 'SUMMARY'
   }
 })
 
@@ -1667,7 +1743,10 @@ async function loadChecklists(taskId: string) {
 }
 
 async function loadAttachments(taskId: string) {
-  try { attachments.value = await photosService.findMediaByEntity('task', taskId) }
+  try {
+    const taskAttachments = await photosService.findMediaByEntity('task', taskId)
+    if (selectedTask.value?.id === taskId) attachments.value = taskAttachments
+  }
   catch (error: any) { toast.add({ title: 'No se pudieron cargar los adjuntos', description: error?.data?.message ?? error.message, color: 'error' }) }
 }
 
@@ -1793,12 +1872,27 @@ async function uploadTaskAttachment(event: Event) {
 }
 
 async function removeAttachment(attachmentId: string) {
+  const taskId = selectedTask.value?.id
+  if (!taskId) return
   attachmentDeletingId.value = attachmentId
   try {
     await photosService.remove(attachmentId)
-    attachments.value = attachments.value.filter(item => item.id !== attachmentId)
+    if (selectedTask.value?.id === taskId) {
+      attachments.value = attachments.value.filter(item => item.id !== attachmentId)
+    }
     toast.add({ title: 'Adjunto quitado', color: 'success' })
-  } catch (error: any) { toast.add({ title: 'No se pudo quitar el adjunto', description: error?.data?.message ?? error.message, color: 'error' }) }
+  } catch (error: any) {
+    // Si otro usuario ya quitó el adjunto, refrescar evita dejarlo visible en el modal.
+    try {
+      const latestAttachments = await photosService.findMediaByEntity('task', taskId)
+      if (selectedTask.value?.id === taskId) attachments.value = latestAttachments
+      if (!latestAttachments.some(item => item.id === attachmentId)) {
+        toast.add({ title: 'El adjunto ya no estaba asociado', color: 'success' })
+        return
+      }
+    } catch { /* conservar el error original si tampoco se puede refrescar */ }
+    toast.add({ title: 'No se pudo quitar el adjunto', description: error?.data?.message ?? error.message, color: 'error' })
+  }
   finally { attachmentDeletingId.value = '' }
 }
 
@@ -1999,9 +2093,11 @@ async function deleteTask() {
 
 onMounted(() => {
   refreshTimerDesktopNotificationPermission()
+  boardViewClockTimer = setInterval(() => { boardViewClock.value = Date.now() }, 60_000)
   void load()
 })
 onBeforeUnmount(() => {
+  if (boardViewClockTimer) clearInterval(boardViewClockTimer)
   if (partyFilterSearchTimer) clearTimeout(partyFilterSearchTimer)
   if (taskPartySearchTimer) clearTimeout(taskPartySearchTimer)
   if (taskFilterReloadTimer) clearTimeout(taskFilterReloadTimer)
@@ -2045,7 +2141,26 @@ onBeforeUnmount(() => {
       <UButton v-if="hasTaskPermission('tasks.create')" class="mt-5" label="Crear tablero" icon="i-lucide-plus" @click="openBoardModal" />
     </UPageCard>
 
-    <UPageCard v-if="!loading && boards.length" variant="subtle" class="w-full min-w-0 max-w-full space-y-4" :class="boardWorkspaceExpanded ? 'min-h-[calc(100vh-10rem)]' : ''">
+    <UPageCard v-if="!loading && boards.length && isAllBoardsView" variant="subtle" class="w-full min-w-0 max-w-full space-y-4">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div><h2 class="text-lg font-semibold">Vista integrada</h2><p class="text-sm text-muted">Explorá los tableros de esta empresa y abrí el que quieras revisar.</p></div>
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_18rem]">
+        <UInput v-model="allBoardsSearch" icon="i-lucide-search" placeholder="Buscar tableros…" aria-label="Buscar tableros" class="w-full" />
+        <UFormField label="Cliente asociado al tablero"><USelectMenu v-model="allBoardsPartyId" :items="allBoardsPartyOptions" value-key="value" searchable placeholder="Todos los clientes" class="w-full min-w-0" :ui="selectMenuUi" /></UFormField>
+      </div>
+      <p class="text-xs text-muted">{{ visibleAllBoards.length }} de {{ boards.length }} tableros</p>
+      <div v-if="visibleAllBoards.length" class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <button v-for="item in visibleAllBoards" :key="item.id" type="button" class="flex min-w-0 flex-col gap-4 rounded-xl border border-default bg-elevated/20 p-4 text-left transition hover:border-primary/50 hover:bg-elevated/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" @click="openBoardOverviewItem(item)">
+          <div class="flex min-w-0 items-start gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><UIcon name="i-lucide-kanban" class="size-5" /></span><div class="min-w-0 flex-1"><h3 class="truncate font-semibold">{{ item.name }}</h3><p class="mt-1 truncate text-sm text-muted">{{ item.party?.name ?? 'Tablero general' }}</p></div><UIcon name="i-lucide-arrow-up-right" class="size-4 shrink-0 text-muted" /></div>
+          <p v-if="item.description" class="line-clamp-2 min-h-10 text-sm text-muted">{{ item.description }}</p>
+          <div class="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-default pt-3 text-xs text-muted"><span class="inline-flex items-center gap-1"><UIcon name="i-lucide-list-checks" class="size-3.5" />{{ item._count?.tasks ?? 0 }} tareas</span><span class="inline-flex items-center gap-1"><UIcon name="i-lucide-columns-3" class="size-3.5" />{{ item._count?.columns ?? 0 }} listas</span><span class="ml-auto rounded border border-default px-1.5 py-0.5 font-mono">{{ item.task_key_prefix }}</span></div>
+        </button>
+      </div>
+      <div v-else class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">No hay tableros que coincidan con estos filtros.</div>
+    </UPageCard>
+
+    <UPageCard v-if="!loading && boards.length && !isAllBoardsView" variant="subtle" class="w-full min-w-0 max-w-full space-y-4" :class="boardWorkspaceExpanded ? 'min-h-[calc(100vh-10rem)]' : ''">
         <div class="grid min-w-0 grid-cols-1 items-end gap-3 md:grid-cols-[minmax(0,1fr)_18rem]">
           <div class="min-w-0"><h2 class="truncate text-lg font-semibold">{{ board?.name ?? 'Tablero' }}</h2><p class="text-xs text-muted">{{ board?.task_key_prefix ? `Clave de tareas: ${board.task_key_prefix}1` : 'Espacio de trabajo del tablero' }}</p></div>
           <UFormField label="Clientes" class="w-full min-w-0">
@@ -2061,8 +2176,8 @@ onBeforeUnmount(() => {
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <div v-if="boardPeople.length" class="flex items-center -space-x-2" aria-label="Personas con tareas en este tablero">
-            <button v-for="person in summaryPeople" :key="person.id" type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-primary/15 text-xs font-semibold text-primary transition hover:z-10 hover:scale-105" :class="taskFilters.member_ids.includes(person.id) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" :title="`Filtrar tareas de ${person.name}`" :aria-label="`Filtrar tareas de ${person.name}`" :aria-pressed="taskFilters.member_ids.includes(person.id)" @click="toggleBoardMemberFilter(person.id)">{{ person.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</button>
-            <span v-if="summaryPeopleExtraCount" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-elevated text-xs font-semibold text-muted" :title="`${summaryPeopleExtraCount} personas más`">+{{ summaryPeopleExtraCount }}</span>
+            <button v-for="person in boardPeople" :key="person.id" type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-primary/15 text-xs font-semibold text-primary transition hover:z-10 hover:scale-105" :class="taskFilters.member_ids.includes(person.id) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" :title="`Filtrar tareas de ${person.name}`" :aria-label="`Filtrar tareas de ${person.name}`" :aria-pressed="taskFilters.member_ids.includes(person.id)" @click="toggleBoardMemberFilter(person.id)">{{ person.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</button>
+            <span v-if="boardPeopleExtraCount" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-elevated text-xs font-semibold text-muted" :title="`${boardPeopleExtraCount} personas más`">+{{ boardPeopleExtraCount }}</span>
           </div>
           <UPopover v-model:open="filterOpen" :content="{ align: 'end', sideOffset: 8 }">
             <UButton :label="activeBoardFilterCount ? `Filtrar · ${activeBoardFilterCount}` : 'Filtrar'" icon="i-lucide-list-filter" :color="activeBoardFilterCount ? 'primary' : 'neutral'" variant="outline" />
@@ -2079,10 +2194,32 @@ onBeforeUnmount(() => {
               </div>
             </template>
           </UPopover>
-          <label class="flex items-center gap-2 rounded-lg border border-default px-3 py-2 text-sm">
-            <USwitch :model-value="hideCompletedColumns" aria-label="Ocultar listas finalizadas" @update:model-value="persistHideCompletedColumns" />
-            <span>Ocultar finalizadas</span>
-          </label>
+          <UPopover v-model:open="boardViewSettingsOpen" :content="{ align: 'end', sideOffset: 8 }" :ui="{ content: 'overflow-y-auto overscroll-contain' }">
+            <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" aria-label="Configuración de la vista" title="Configuración de la vista" />
+            <template #content>
+              <div class="flex w-[min(25rem,calc(100vw-2rem))] flex-col gap-5 overflow-y-auto overscroll-contain p-4" :style="{ maxHeight: 'var(--reka-popper-available-height, calc(100dvh - 2rem))' }">
+                <div class="flex items-center justify-between"><h3 class="font-semibold">Configuración de la vista</h3><UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" aria-label="Cerrar configuración" @click="boardViewSettingsOpen = false" /></div>
+                <UFormField label="Ocultar actividades completadas después de">
+                  <USelectMenu v-model="boardViewSettings.hideCompletedAfter" :items="[{ label: 'Nunca', value: 'NEVER' }, { label: 'Inmediatamente', value: 'IMMEDIATELY' }, { label: '1 día', value: 'DAY' }, { label: '1 semana', value: 'WEEK' }, { label: '1 mes', value: 'MONTH' }]" value-key="value" class="w-full min-w-0" :ui="selectMenuUi" @update:model-value="persistBoardViewSettings" />
+                </UFormField>
+                <label class="flex items-center justify-between gap-3 text-sm"><span>Ocultar listas finalizadas</span><USwitch :model-value="hideCompletedColumns" aria-label="Ocultar listas finalizadas" @update:model-value="persistHideCompletedColumns" /></label>
+                <div class="flex flex-col gap-2">
+                  <div><p class="text-sm font-semibold">Tamaño de la columna</p><p class="text-xs text-muted">Elegí si las columnas mantienen un ancho fijo o se adaptan al espacio disponible.</p></div>
+                  <div class="grid grid-cols-2 gap-2 rounded-lg border border-default p-1">
+                    <button type="button" class="flex flex-col items-center gap-1 rounded-md border px-3 py-2 text-sm transition" :class="boardViewSettings.columnWidth === 'FIXED' ? 'border-primary bg-primary/10 text-primary' : 'border-transparent text-muted hover:bg-elevated'" :aria-pressed="boardViewSettings.columnWidth === 'FIXED'" @click="setBoardViewSetting('columnWidth', 'FIXED')"><UIcon name="i-lucide-columns-3" class="size-5" />Fijo</button>
+                    <button type="button" class="flex flex-col items-center gap-1 rounded-md border px-3 py-2 text-sm transition" :class="boardViewSettings.columnWidth === 'FLEXIBLE' ? 'border-primary bg-primary/10 text-primary' : 'border-transparent text-muted hover:bg-elevated'" :aria-pressed="boardViewSettings.columnWidth === 'FLEXIBLE'" @click="setBoardViewSetting('columnWidth', 'FLEXIBLE')"><UIcon name="i-lucide-panel-top" class="size-5" />Flexible</button>
+                  </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                  <div><p class="text-sm font-semibold">Desplazamiento</p><p class="text-xs text-muted">Elegí si desplazarte por columnas individuales o por todo el tablero.</p></div>
+                  <div class="grid grid-cols-2 gap-1 rounded-lg border border-default p-1">
+                    <button type="button" class="rounded-md border px-2 py-2 text-sm transition" :class="boardViewSettings.scrollMode === 'COLUMNS' ? 'border-primary bg-primary/10 text-primary' : 'border-transparent text-muted hover:bg-elevated'" :aria-pressed="boardViewSettings.scrollMode === 'COLUMNS'" @click="setBoardViewSetting('scrollMode', 'COLUMNS')">Por columnas</button>
+                    <button type="button" class="rounded-md border px-2 py-2 text-sm transition" :class="boardViewSettings.scrollMode === 'BOARD' ? 'border-primary bg-primary/10 text-primary' : 'border-transparent text-muted hover:bg-elevated'" :aria-pressed="boardViewSettings.scrollMode === 'BOARD'" @click="setBoardViewSetting('scrollMode', 'BOARD')">Por todo el tablero</button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </UPopover>
           <UButton v-if="hasTaskPermission('tasks.create')" label="Nueva tarea" icon="i-lucide-plus" :disabled="!board" @click="board?.columns[0] && openNewTask(board.columns[0])" />
         </div>
       </div>
@@ -2093,22 +2230,28 @@ onBeforeUnmount(() => {
       <UAlert v-if="activeBoardFilterCount" color="info" variant="subtle" icon="i-lucide-list-filter" title="Filtros activos" description="El arrastre de tareas se pausa mientras ves resultados filtrados. Limpiá los filtros para volver a moverlas entre listas." />
       <UAlert v-if="moving" color="neutral" variant="subtle" icon="i-lucide-loader-circle" title="Guardando el nuevo estado…" />
 
-      <div v-if="board" class="overflow-x-auto pb-2">
-        <div class="grid min-w-max items-start gap-3" :style="{ gridTemplateColumns: `repeat(${visibleBoardColumns.length + 1}, minmax(275px, 1fr))` }">
-          <section v-for="column in visibleBoardColumns" :key="column.id" :data-task-column="column.id" class="flex h-fit w-[min(82vw,340px)] self-start flex-col rounded-xl border border-default bg-elevated/25 transition-[background-color,border-color,box-shadow] duration-200" :class="dragOverColumnId === column.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''">
+      <div v-if="board" class="pb-2" :class="boardViewSettings.scrollMode === 'COLUMNS' ? 'overflow-x-auto overflow-y-hidden' : 'overflow-auto'" :style="boardViewSettings.scrollMode === 'COLUMNS' ? { height: 'calc(100vh - 18rem)' } : undefined">
+        <div class="grid gap-3" :class="[boardViewSettings.scrollMode === 'COLUMNS' ? 'h-full items-stretch' : 'items-start', boardViewSettings.columnWidth === 'FIXED' ? 'w-max min-w-max' : 'w-full min-w-full']" :style="{ gridTemplateColumns: boardGridTemplateColumns }">
+          <section v-for="column in visibleBoardColumns" :key="column.id" :data-task-column="column.id" class="flex flex-col rounded-xl border border-default bg-elevated/25 transition-[background-color,border-color,box-shadow] duration-200" :class="[dragOverColumnId === column.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : '', isColumnCollapsed(column) ? 'h-full w-12 min-w-12 items-center' : boardViewSettings.scrollMode === 'COLUMNS' ? 'h-full min-h-0' : 'h-fit', !isColumnCollapsed(column) && boardViewSettings.columnWidth === 'FIXED' ? 'w-[340px] min-w-[340px]' : '', !isColumnCollapsed(column) && boardViewSettings.columnWidth === 'FLEXIBLE' ? 'w-full min-w-[275px]' : '']">
+            <template v-if="isColumnCollapsed(column)">
+              <div class="flex h-full flex-col items-center gap-3 py-3">
+                <span class="[writing-mode:vertical-rl] rotate-180 truncate text-sm font-semibold" :title="column.name">{{ column.name }}</span>
+                <UBadge color="neutral" variant="subtle" size="xs">{{ column.total_tasks ?? column.tasks.length }}</UBadge>
+                <UButton class="mt-auto" icon="i-lucide-arrow-left-right" color="neutral" variant="outline" size="sm" :aria-label="`Expandir ${column.name}`" :title="`Expandir ${column.name}`" @click="toggleColumnCollapsed(column)" />
+              </div>
+            </template>
+            <template v-else>
             <header class="flex items-center justify-between gap-2 border-b border-default px-3 py-3">
               <div class="flex min-w-0 items-center gap-2"><span class="size-2.5 shrink-0 rounded-full" :class="column.is_closed ? 'bg-success' : column.color === 'warning' ? 'bg-warning' : column.color === 'info' ? 'bg-info' : 'bg-neutral-400'"/><h2 class="truncate font-semibold">{{ column.name }}</h2><UBadge color="neutral" variant="subtle">{{ column.total_tasks ?? column.tasks.length }}</UBadge><UIcon v-if="column.is_pinned" name="i-lucide-pin" class="size-3.5 text-primary"/><UIcon v-if="column.is_watching" name="i-lucide-eye" class="size-3.5 text-primary"/></div>
               <div class="flex shrink-0 items-center gap-1">
-                <UButton v-if="column.is_closed" :icon="isColumnCollapsed(column) ? 'i-lucide-eye' : 'i-lucide-eye-off'" color="neutral" variant="ghost" size="sm" :aria-label="isColumnCollapsed(column) ? `Mostrar ${column.name}` : `Ocultar ${column.name}`" :title="isColumnCollapsed(column) ? 'Mostrar lista' : 'Ocultar lista'" @click="toggleClosedColumn(column)" />
+                <UButton icon="i-lucide-arrow-left-right" color="neutral" variant="ghost" size="sm" :aria-label="`Contraer ${column.name}`" :title="`Contraer ${column.name}`" @click="toggleColumnCollapsed(column)" />
                 <UDropdownMenu :items="columnMenuItems(column)" :content="{ align: 'end' }">
                   <UButton icon="i-lucide-ellipsis" color="neutral" variant="ghost" size="sm" :aria-label="`Acciones de ${column.name}`" title="Acciones de la lista" />
                 </UDropdownMenu>
               </div>
             </header>
-            <div v-if="isColumnCollapsed(column)" class="px-3 py-3 text-xs text-muted">Lista oculta · {{ column.total_tasks ?? column.tasks.length }} tareas</div>
-            <template v-else>
-            <VueDraggable v-model="column.tasks" group="company-tasks" item-key="id" :disabled="activeBoardFilterCount > 0 || !hasTaskPermission('tasks.update') || moving" :animation="240" :force-fallback="true" :fallback-on-body="true" :swap-threshold="0.65" filter=".task-completion" :prevent-on-filter="false" class="flex min-h-12 flex-col gap-2 p-2" ghost-class="task-card-ghost" chosen-class="task-card-chosen" drag-class="task-card-drag" fallback-class="task-card-fallback" @move="onDragMove" @end="onDragEnd">
-              <article v-for="task in column.tasks" :key="task.id" :data-task-id="task.id" class="task-card group relative w-full rounded-lg border border-default bg-default p-3 text-left shadow-sm" role="button" tabindex="0" @click="openEditTask(task, column.id)" @keydown.enter.self.prevent="openEditTask(task, column.id)" @keydown.space.self.prevent="openEditTask(task, column.id)">
+            <VueDraggable v-model="column.tasks" group="company-tasks" item-key="id" :disabled="activeBoardFilterCount > 0 || !hasTaskPermission('tasks.update') || moving" :animation="240" :delay="150" :fallback-tolerance="4" :touch-start-threshold="5" :force-fallback="true" :fallback-on-body="true" :swap-threshold="0.65" filter=".task-completion" :prevent-on-filter="false" class="flex min-h-12 flex-col gap-2 p-2" :class="boardViewSettings.scrollMode === 'COLUMNS' ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain' : ''" ghost-class="task-card-ghost" chosen-class="task-card-chosen" drag-class="task-card-drag" fallback-class="task-card-fallback" @move="onDragMove" @end="onDragEnd">
+              <article v-for="task in column.tasks" v-show="!shouldHideCompletedTask(task)" :key="task.id" :data-task-id="task.id" class="task-card group relative w-full rounded-lg border border-default bg-default p-3 text-left shadow-sm" role="button" tabindex="0" @click="openEditTask(task, column.id)" @keydown.enter.self.prevent="openEditTask(task, column.id)" @keydown.space.self.prevent="openEditTask(task, column.id)">
                 <div class="task-completion-slot absolute left-3 top-3 z-10 flex size-5 items-center justify-center">
                     <button v-if="hasTaskPermission('tasks.update')" type="button" class="task-completion flex size-5 shrink-0 scale-75 items-center justify-center rounded-full border border-muted text-transparent opacity-0 transition-[opacity,transform,color,background-color,border-color] duration-200 ease-out hover:border-success hover:bg-success hover:text-white group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100 focus-visible:scale-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" :class="task.completed_at ? 'task-completion-done scale-100 border-success bg-success text-white opacity-100' : ''" :aria-label="task.completed_at ? `Reabrir ${task.title}` : `Marcar ${task.title} como completada`" :title="task.completed_at ? 'Reabrir tarea' : 'Marcar tarea como completada'" :aria-pressed="!!task.completed_at" :disabled="completionTaskId === task.id" @click.stop="toggleTaskCompletion(task)">
                       <UIcon v-if="task.completed_at || completionTaskId === task.id" :name="completionTaskId === task.id ? 'i-lucide-loader-circle' : 'i-lucide-check'" class="size-3" :class="completionTaskId === task.id ? 'animate-spin text-muted' : ''" />
@@ -2133,7 +2276,7 @@ onBeforeUnmount(() => {
                 </div>
                 </div>
               </article>
-              <div v-if="!column.tasks.length" class="flex items-center justify-center rounded-lg border border-dashed border-default px-3 py-8 text-center text-xs text-muted">{{ activeBoardFilterCount ? 'No hay tareas que coincidan con estos filtros.' : 'Soltá una tarea acá o creá una nueva.' }}</div>
+              <div v-if="!column.tasks.some(task => !shouldHideCompletedTask(task))" class="flex items-center justify-center rounded-lg border border-dashed border-default px-3 py-8 text-center text-xs text-muted">{{ column.tasks.length ? 'Las tareas completadas están ocultas por la configuración de la vista.' : activeBoardFilterCount ? 'No hay tareas que coincidan con estos filtros.' : 'Soltá una tarea acá o creá una nueva.' }}</div>
             </VueDraggable>
               <form v-if="quickAddColumnId === column.id" class="mx-2 mb-2 space-y-2 rounded-lg bg-elevated p-2" @submit.prevent="saveQuickTask(column)">
               <UInput v-model="quickTaskTitle" autofocus maxlength="200" placeholder="Introduce un título para la tarjeta…" class="w-full" />
@@ -2146,7 +2289,7 @@ onBeforeUnmount(() => {
             <p v-if="column.limited" class="px-3 pb-3 text-xs text-muted">Se muestran las primeras 100 tareas de esta columna.</p>
             </template>
           </section>
-        <section v-if="hasTaskPermission('tasks.create')" class="flex min-h-20 w-[min(82vw,340px)] self-start flex-col rounded-xl border border-dashed border-default bg-elevated/20 p-2">
+        <section v-if="hasTaskPermission('tasks.create')" class="flex min-h-20 flex-col rounded-xl border border-dashed border-default bg-elevated/20 p-2" :class="[boardViewSettings.scrollMode === 'COLUMNS' ? 'h-full min-h-0' : 'self-start', boardViewSettings.columnWidth === 'FIXED' ? 'w-[340px] min-w-[340px]' : 'w-full min-w-[275px]']">
           <form v-if="showNewColumnForm" class="space-y-2" @submit.prevent="addColumn">
             <UInput v-model="newColumnName" autofocus maxlength="80" placeholder="Introduce el nombre de la lista…" class="w-full" />
             <div class="flex items-center gap-2"><UButton type="submit" label="Añadir lista" size="sm" :loading="creatingColumn" :disabled="!newColumnName.trim()"/><UButton type="button" icon="i-lucide-x" color="neutral" variant="ghost" size="sm" aria-label="Cancelar" @click="cancelNewColumn"/></div>
@@ -2160,8 +2303,8 @@ onBeforeUnmount(() => {
         <div class="flex min-w-0 flex-wrap items-center gap-2">
           <div class="flex items-center -space-x-2" aria-label="Filtrar resumen por persona">
             <button type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-elevated text-muted transition hover:z-10 hover:scale-105" :class="taskFilters.member_ids.includes('NONE') ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" title="Filtrar tareas sin miembros" aria-label="Filtrar tareas sin miembros" :aria-pressed="taskFilters.member_ids.includes('NONE')" @click="toggleBoardMemberFilter('NONE')"><UIcon name="i-lucide-user-round" class="size-4" /></button>
-            <button v-for="person in boardPeople" :key="person.id" type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-primary/15 text-xs font-semibold text-primary transition hover:z-10 hover:scale-105" :class="taskFilters.member_ids.includes(person.id) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" :title="`Filtrar tareas de ${person.name}`" :aria-label="`Filtrar tareas de ${person.name}`" :aria-pressed="taskFilters.member_ids.includes(person.id)" @click="toggleBoardMemberFilter(person.id)">{{ person.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</button>
-            <span v-if="boardPeopleExtraCount" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-elevated text-xs font-semibold text-muted" :title="`${boardPeopleExtraCount} personas más`">+{{ boardPeopleExtraCount }}</span>
+            <button v-for="person in summaryPeople" :key="person.id" type="button" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-primary/15 text-xs font-semibold text-primary transition hover:z-10 hover:scale-105" :class="taskFilters.member_ids.includes(person.id) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''" :title="`Filtrar tareas de ${person.name}`" :aria-label="`Filtrar tareas de ${person.name}`" :aria-pressed="taskFilters.member_ids.includes(person.id)" @click="toggleBoardMemberFilter(person.id)">{{ person.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toLocaleUpperCase() }}</button>
+            <span v-if="summaryPeopleExtraCount" class="flex size-8 items-center justify-center rounded-full border-2 border-default bg-elevated text-xs font-semibold text-muted" :title="`${summaryPeopleExtraCount} personas más`">+{{ summaryPeopleExtraCount }}</span>
           </div>
           <UPopover v-model:open="filterOpen" :content="{ align: 'start', sideOffset: 8 }">
             <UButton :label="activeBoardFilterCount ? `Filtro · ${activeBoardFilterCount}` : 'Filtro'" icon="i-lucide-list-filter" :color="activeBoardFilterCount ? 'primary' : 'neutral'" variant="outline" />

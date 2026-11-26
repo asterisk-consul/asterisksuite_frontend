@@ -16,6 +16,7 @@ const emit = defineEmits<{
 
 const versions = useVersion()
 const { stack, currentLevel, isRoot, isActive, back, select } = useDrilldownNavigation()
+const taskBoardSearch = ref('')
 
 const depth = computed(() => stack.value.length - 1)
 
@@ -26,6 +27,14 @@ const sidebarUi = computed(() => ({
 
 // Nodo padre del nivel actual (para mostrar en header)
 const parentNode = computed(() => stack.value[stack.value.length - 1]?.parentNode ?? null)
+
+function visibleLevelNodes(nodes: DrilldownNode[], levelIndex: number) {
+  const parent = stack.value[levelIndex]?.parentNode
+  const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
+  const search = normalize(taskBoardSearch.value.trim())
+  if (parent?.label !== 'Tareas' || !search) return nodes
+  return nodes.filter((node, index) => index === 0 || normalize(node.label).includes(search))
+}
 </script>
 
 <template>
@@ -125,10 +134,14 @@ const parentNode = computed(() => stack.value[stack.value.length - 1]?.parentNod
                 </div>
               </div>
 
+              <div v-if="level.parentNode?.label === 'Tareas'" class="shrink-0 px-3 pt-2">
+                <UInput v-model="taskBoardSearch" icon="i-lucide-search" size="sm" placeholder="Filtrar tableros…" aria-label="Filtrar tableros" />
+              </div>
+
               <!-- ITEMS DEL NIVEL -->
               <div class="flex flex-col overflow-y-auto flex-1 px-2 pb-2 pt-1">
                 <UButton
-                  v-for="item in level.nodes"
+                  v-for="item in visibleLevelNodes(level.nodes, levelIndex)"
                   :key="item.label"
                   :icon="item.icon"
                   variant="ghost"
@@ -148,6 +161,7 @@ const parentNode = computed(() => stack.value[stack.value.length - 1]?.parentNod
                   </template>
                   <span class="flex-1 text-left truncate">{{ item.label }}</span>
                 </UButton>
+                <p v-if="level.parentNode?.label === 'Tareas' && visibleLevelNodes(level.nodes, levelIndex).length === 1 && taskBoardSearch.trim()" class="px-3 py-4 text-sm text-muted">No hay tableros que coincidan.</p>
               </div>
             </div>
           </div>

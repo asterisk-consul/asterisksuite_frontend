@@ -37,6 +37,10 @@ const handleRangeChange = async (value: number | string) => {
 }
 
 const canAccessWidget = (widget: typeof AVAILABLE_WIDGETS[number]) => {
+  // El widget consulta un endpoint que exige permisos explícitos; el rol ADMIN no lo omite en backend.
+  if (widget.id === 'financial') {
+    return companyRole.value === 'OWNER' || Boolean(widget.permissions?.some(permission => hasPermission(permission)))
+  }
   if (isOwnerOrAdmin.value) return true
   if (widget.permissions?.length) return widget.permissions.some(permission => hasPermission(permission))
   return !widget.permission || hasPermission(widget.permission)
@@ -432,7 +436,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', updateOverviewScrollS
         }"
         class="dashboard-widget"
       >
-        <DashboardFinancialSummary v-if="widget.id === 'financial'" :loading="dataLoading" />
+        <DashboardFinancialSummary v-if="widget.id === 'financial'" />
         <DashboardExchangeRate v-else-if="widget.id === 'exchange_rate'" />
         <DashboardPersonal v-else-if="widget.id === 'personal'" :data="personalData ?? undefined" :loading="dataLoading" />
         <DashboardBudgets v-else-if="widget.id === 'quotes'" :data="dashboardData?.quotes" :loading="dataLoading" />
