@@ -41,6 +41,8 @@ const categories = ref<TaskCategory[]>([])
 const comments = ref<TaskComment[]>([])
 const workLogs = ref<TaskWorkLog[]>([])
 const totalWorkMinutes = ref(0)
+const directWorkMinutes = ref(0)
+const subtaskWorkMinutes = ref(0)
 const workLogsLimited = ref(false)
 const selectedTaskTimer = computed(() => !!selectedTask.value && taskTimer.timer?.task_id === selectedTask.value.id)
 const anotherTaskTimerRunning = computed(() => !!taskTimer.timer && !selectedTaskTimer.value)
@@ -694,6 +696,8 @@ async function loadWorkLogs(taskId: string) {
   try {
     const result = await service.getWorkLogs(taskId)
     workLogs.value = result.items
+    directWorkMinutes.value = result.direct_minutes
+    subtaskWorkMinutes.value = result.subtasks_minutes
     totalWorkMinutes.value = result.total_minutes
     workLogsLimited.value = result.limited
   } catch (error: any) {
@@ -1480,6 +1484,8 @@ function openNewTask(column: TaskColumn) {
   comments.value = []
   workLogs.value = []
   totalWorkMinutes.value = 0
+  directWorkMinutes.value = 0
+  subtaskWorkMinutes.value = 0
   checklists.value = []
   taskSubtasks.value = []
   taskParent.value = null
@@ -1513,6 +1519,8 @@ function openEditTask(task: TaskRecord, columnId: string) {
   comments.value = []
   workLogs.value = []
   totalWorkMinutes.value = 0
+  directWorkMinutes.value = 0
+  subtaskWorkMinutes.value = 0
   checklists.value = []
   taskSubtasks.value = []
   taskParent.value = null
@@ -2709,6 +2717,12 @@ onBeforeUnmount(() => {
           <UModal v-model:open="timeModalOpen" title="Tiempo insumido" description="Temporizador, registro manual e historial de la tarea." :ui="{ overlay: 'z-[9000]', content: 'z-[9001] sm:max-w-2xl' }">
             <template #body>
               <div class="max-h-[68vh] space-y-4 overflow-y-auto pr-1">
+                <div v-if="selectedTask?.subtasks_count" class="grid gap-2 rounded-lg border border-default bg-elevated/30 p-3 text-sm sm:grid-cols-3">
+                  <div><p class="text-xs text-muted">Esta tarea</p><p class="font-semibold">{{ formatWorkedTime(directWorkMinutes) }}</p></div>
+                  <div><p class="text-xs text-muted">Subtareas</p><p class="font-semibold">{{ formatWorkedTime(subtaskWorkMinutes) }}</p></div>
+                  <div><p class="text-xs text-muted">Total acumulado</p><p class="font-semibold text-primary">{{ formatWorkedTime(totalWorkMinutes) }}</p></div>
+                  <p class="text-xs text-muted sm:col-span-3">El total de la tarea suma sus registros y los de todas sus subtareas.</p>
+                </div>
                 <div v-if="board?.allow_task_timer" class="flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated/30 p-3">
                   <template v-if="selectedTaskTimer">
                     <span class="font-mono text-lg font-semibold tabular-nums" :class="taskTimer.timer?.paused ? 'text-warning' : 'text-success'">{{ formatTimerDuration(taskTimer.elapsedSeconds) }}</span>
@@ -2733,8 +2747,8 @@ onBeforeUnmount(() => {
                     <UBadge color="primary" variant="subtle" size="xs">{{ formatWorkedTime(log.minutes) }}</UBadge><span class="font-medium">{{ log.user_name }}</span><time class="text-xs text-muted">{{ formatCommentDate(log.created_at) }}</time><p v-if="log.description" class="basis-full text-xs text-muted">{{ log.description }}</p>
                   </article>
                 </div>
-                <p v-else class="rounded-lg bg-elevated/40 p-3 text-sm text-muted">Todavía no se registró tiempo en esta tarea.</p>
-                <p v-if="workLogsLimited" class="text-xs text-muted">Se muestran los últimos 200 registros; el total incluye todo el historial.</p>
+                <p v-else class="rounded-lg bg-elevated/40 p-3 text-sm text-muted">Todavía no se registró tiempo directamente en esta tarea.</p>
+                <p v-if="workLogsLimited" class="text-xs text-muted">Se muestran los últimos 200 registros directos; el total acumulado incluye todo el historial y las subtareas.</p>
               </div>
             </template>
           </UModal>

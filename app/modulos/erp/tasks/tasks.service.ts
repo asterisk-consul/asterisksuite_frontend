@@ -216,7 +216,7 @@ export const useTasksService = () => ({
     $fetch<{ is_pinned: boolean; is_watching: boolean }>(`/api/backend/erp/tasks/columns/${id}/preferences`, { method: 'PATCH', body }),
   getMembers: () => $fetch<TaskMember[]>('/api/backend/erp/tasks/members'),
   getLabels: () => $fetch<TaskLabel[]>('/api/backend/erp/tasks/labels'),
-  getWorkLogs: (taskId: string) => $fetch<{ items: TaskWorkLog[]; total_minutes: number; limited: boolean }>(`/api/backend/erp/tasks/${taskId}/work-logs`),
+  getWorkLogs: (taskId: string) => $fetch<{ items: TaskWorkLog[]; direct_minutes: number; subtasks_minutes: number; total_minutes: number; limited: boolean }>(`/api/backend/erp/tasks/${taskId}/work-logs`),
   addWorkLog: (taskId: string, body: TaskWorkLogInput) => $fetch<TaskWorkLog>(`/api/backend/erp/tasks/${taskId}/work-logs`, { method: 'POST', body }),
   getActiveTimer: () => $fetch<TaskActiveTimer | null>('/api/backend/erp/tasks/timer/active'),
   startTimer: (taskId: string) => $fetch<TaskActiveTimer>(`/api/backend/erp/tasks/${taskId}/timer/start`, { method: 'POST' }),
