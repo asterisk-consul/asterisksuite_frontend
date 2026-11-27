@@ -1,5 +1,35 @@
 [
  {
+  "version": "0.184.0-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "Compartí tareas del CRM con personas autorizadas de la empresa cliente. Pueden consultarlas en modo de solo lectura aunque el CRM esté desactivado. La vista compartida muestra descripción, avance y tiempos. El registro manual admite semanas, días, horas y minutos, con tiempo restante opcional.",
+  "changes": [
+   { "type": "feat", "scope": "crm-tasks", "title": "Compartir y revocar tareas para usuarios seleccionados de la empresa cliente mediante coincidencia de CUIT" },
+   { "type": "feat", "scope": "crm-tasks", "title": "Abrir Tareas compartidas para los destinatarios aunque no tengan el módulo CRM o el permiso general de lectura" },
+   { "type": "feat", "scope": "crm-tasks", "title": "Consultar tareas compartidas en lista, cronograma y calendario, con descripción y avance de las subtareas incluidas" },
+   { "type": "feat", "scope": "crm-tasks", "title": "Registrar tiempo de trabajo en semanas, días, horas y minutos, también al cambiar de estado" },
+   { "type": "feat", "scope": "crm-tasks", "title": "Mostrar el tiempo empleado y restante acumulado de la tarea y sus subtareas" },
+   { "type": "style", "scope": "crm-tasks", "title": "Abrir las opciones para compartir desde un icono junto al cliente y explicar el alcance del acceso" },
+   { "type": "fix", "scope": "crm-tasks", "title": "Permitir registrar tiempo sin volver a cargar la estimación restante" },
+   { "type": "fix", "scope": "crm-tasks", "title": "Conservar la posición del cursor al editar la descripción de una tarea" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar el acceso compartido, el avance de subtareas y el seguimiento de tiempo" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Compartir tareas del CRM y registrar el seguimiento de tiempo"
+ },
+ {
+  "version": "0.183.13-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "Las barras de prioridad y categoría animan el ancho, la altura y el texto al expandirse y contraerse, con una transición de encogimiento suave.",
+  "changes": [
+   { "type": "style", "scope": "crm-tasks", "title": "Suavizar la animación de expansión y contracción de los badges en las tarjetas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Suavizar el encogimiento de los badges de las tarjetas"
+ },
+ {
   "version": "0.183.12-alpha",
   "date": "2026-11-27",
   "stage": "alpha",

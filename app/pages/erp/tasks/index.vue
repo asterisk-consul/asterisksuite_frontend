@@ -4,7 +4,8 @@ import { h, resolveComponent } from 'vue'
 import AsteriskTable from '~/components/Tablas/AsteriskTable.vue'
 import type { ExtendedColumn } from '~/components/Tablas/types/tablas.types'
 import type { SortField } from '~/components/Tablas/TableToolbar.vue'
-import { useTasksService, type SaveTaskInput, type TaskBoard, type TaskCategory, type TaskChecklist, type TaskColumn, type TaskComment, type TaskLabel, type TaskMember, type TaskMemberInput, type TaskMemberRole, type TaskNotificationSettings, type TaskRecord, type TaskRelation, type TaskRelationCandidate, type TaskRelationInputType, type TaskWorkLog, type TaskWorkLogInput } from '~/modulos/erp/tasks/tasks.service'
+import { useTasksService, type SaveTaskInput, type TaskBoard, type TaskCategory, type TaskChecklist, type TaskColumn, type TaskComment, type TaskExternalShare, type TaskLabel, type TaskMember, type TaskMemberInput, type TaskMemberRole, type TaskNotificationSettings, type TaskRecord, type TaskRelation, type TaskRelationCandidate, type TaskRelationInputType, type TaskWorkLog, type TaskWorkLogInput } from '~/modulos/erp/tasks/tasks.service'
+import { formatTaskDuration, parseTaskDuration } from '~/modulos/erp/tasks/task-time.utils'
 import { useBusinessPartiesService } from '~/modulos/logistica/master-data/bussiness-parties/bussines-parties.service'
 import { useRoles } from '~/modulos/access-control/composables/useRoles'
 import { useAuthStore } from '~/modulos/auth/auth.store'
@@ -43,14 +44,19 @@ const workLogs = ref<TaskWorkLog[]>([])
 const totalWorkMinutes = ref(0)
 const directWorkMinutes = ref(0)
 const subtaskWorkMinutes = ref(0)
+const totalRemainingMinutes = ref(0)
+const directRemainingMinutes = ref(0)
+const subtaskRemainingMinutes = ref(0)
 const workLogsLimited = ref(false)
 const selectedTaskTimer = computed(() => !!selectedTask.value && taskTimer.timer?.task_id === selectedTask.value.id)
 const anotherTaskTimerRunning = computed(() => !!taskTimer.timer && !selectedTaskTimer.value)
-const workLogMinutes = ref('30')
+const workLogMinutes = ref('30m')
+const workLogRemaining = ref('')
 const workLogDescription = ref('')
 const addingWorkLog = ref(false)
 const showRequiredWorkLogModal = ref(false)
-const requiredWorkLogMinutes = ref('30')
+const requiredWorkLogMinutes = ref('30m')
+const requiredWorkLogRemaining = ref('')
 const requiredWorkLogDescription = ref('')
 const submittingRequiredWorkLog = ref(false)
 const boardSettingsOpen = ref(false)
@@ -92,6 +98,16 @@ const convertingChecklistItemId = ref('')
 const activeActionPanel = ref<'add' | 'labels' | 'checklist' | 'members' | 'client' | 'category' | 'priority' | 'start' | 'due' | null>(null)
 const actionModalOpen = ref(false)
 const timeModalOpen = ref(false)
+const taskSharePopoverOpen = ref(false)
+const taskShareCandidates = ref<Array<{ id: string; name: string }>>([])
+const taskShareUsers = ref<TaskMember[]>([])
+const taskShares = ref<TaskExternalShare[]>([])
+const taskShareCompanyId = ref('')
+const taskShareUserIds = ref<string[]>([])
+const taskShareIncludeSubtasks = ref(true)
+const taskShareLoading = ref(false)
+const taskShareSaving = ref(false)
+const taskShareRemovingId = ref('')
 const attachmentInput = ref<HTMLInputElement | null>(null)
 const uploadingAttachment = ref(false)
 const attachmentDeletingId = ref('')
@@ -172,7 +188,7 @@ const showTaskModal = ref(false)
 const showDeleteModal = ref(false)
 const selectedTask = ref<TaskRecord | null>(null)
 type BoardWorkspaceTab = 'SUMMARY' | 'LIST' | 'BOARD' | 'TIMELINE' | 'CALENDAR' | 'DOCUMENTS' | 'ATTACHMENTS'
-type BoardTaskRow = { id: string; key: string; title: string; list: string; priority: string; assignee: string; due: string; client: string; categoryName: string; labelsText: string; task: TaskRecord; columnId: string }
+type BoardTaskRow = { id: string; key: string; title: string; list: string; priority: string; assignee: string; due: string; time: string; remaining: string; client: string; categoryName: string; labelsText: string; task: TaskRecord; columnId: string }
 const boardWorkspaceExpanded = ref(false)
 const activeBoardTab = ref<BoardWorkspaceTab>('SUMMARY')
 const boardTabs: Array<{ id: BoardWorkspaceTab; label: string; icon: string }> = [
@@ -251,6 +267,10 @@ const whatsappModuleEnabled = computed(() => whatsappModule.value?.enabled === t
 const whatsappModuleChecking = computed(() => whatsappModuleRefreshing.value)
 const canManagePlatformModules = computed(() => ['PLATFORM_OWNER', 'PLATFORM_ADMIN'].includes(auth.user?.role ?? ''))
 const selectedTaskPartyOption = computed(() => taskPartyOptions.value.find(option => option.value === taskForm.party_id) ?? customerSuggestions.value.find(option => option.value === taskForm.party_id))
+const parsedWorkLogMinutes = computed(() => parseTaskDuration(workLogMinutes.value))
+const parsedWorkLogRemainingMinutes = computed(() => workLogRemaining.value.trim() ? parseTaskDuration(workLogRemaining.value) : undefined)
+const parsedRequiredWorkLogMinutes = computed(() => parseTaskDuration(requiredWorkLogMinutes.value))
+const parsedRequiredWorkLogRemainingMinutes = computed(() => requiredWorkLogRemaining.value.trim() ? parseTaskDuration(requiredWorkLogRemaining.value) : undefined)
 const labelOptions = computed(() => labels.value.map(label => ({ label: label.name ?? `${labelColorName(label.color)} · solo color`, value: label.id })))
 const selectedTaskLabels = computed(() => taskForm.label_ids.map(id => labels.value.find(label => label.id === id)).filter((label): label is TaskLabel => !!label))
 const filteredTaskLabels = computed(() => {
@@ -287,6 +307,8 @@ const boardTaskRows = computed<BoardTaskRow[]>(() => (board.value?.columns ?? []
   priority: priorityLabel(task.priority),
   assignee: task.assignee?.name ?? members.value.find(member => member.id === task.assigned_to)?.name ?? 'Sin asignar',
   due: formatDueDate(task.due_at),
+  time: formatWorkedTime(taskTrackedMinutes(task)),
+  remaining: task.remaining_minutes_total || task.remaining_minutes != null ? formatWorkedTime(task.remaining_minutes_total ?? task.remaining_minutes ?? 0) : '',
   client: task.party?.name ?? selectedBoardParty.value?.name ?? 'Sin cliente',
   categoryName: task.category?.name ?? 'Sin categoría',
   labelsText: (task.labels ?? []).map(label => label.name ?? labelColorName(label.color)).join(' '),
@@ -300,7 +322,7 @@ const visibleBoardListRows = computed(() => {
     if (hideCompletedColumns.value && (column?.is_closed || row.task.completed_at)) return false
     if (!boardListShowSubtasks.value && row.task.parent_task_id) return false
     if (!query) return true
-    return `${row.key} ${row.title} ${row.list} ${row.priority} ${row.assignee} ${row.due} ${row.client} ${row.categoryName} ${row.labelsText}`.toLocaleLowerCase('es').includes(query)
+    return `${row.key} ${row.title} ${row.list} ${row.priority} ${row.assignee} ${row.due} ${row.time} ${row.remaining} ${row.client} ${row.categoryName} ${row.labelsText}`.toLocaleLowerCase('es').includes(query)
   })
 })
 const hasBoardSummaryFilters = computed(() => activeBoardFilterCount.value > 0)
@@ -507,12 +529,14 @@ const boardTaskColumns: ExtendedColumn<BoardTaskRow>[] = [
   { accessorKey: 'categoryName', header: 'Categoría', cell: ({ row }) => h(UBadgeComponent, { color: 'neutral', variant: 'subtle', size: 'xs', class: 'max-w-full truncate', style: labelChipStyle(row.original.task.category?.color ?? 'neutral') }, () => row.original.task.category?.name ?? 'Sin categoría'), meta: { label: 'Categoría', filter: { type: 'text', operators: ['contains', 'equals'] } } },
   { accessorKey: 'labelsText', header: 'Etiquetas', cell: ({ row }) => row.original.task.labels?.length ? h('div', { class: 'flex min-w-0 flex-wrap gap-1' }, [...row.original.task.labels.slice(0, 3).map(label => h(UBadgeComponent, { key: label.id, variant: 'subtle', size: 'xs', class: 'max-w-28 truncate', style: labelChipStyle(label.color) }, () => label.name ?? labelColorName(label.color))), ...(row.original.task.labels.length > 3 ? [h(UBadgeComponent, { key: 'more', color: 'neutral', variant: 'subtle', size: 'xs' }, () => `+${row.original.task.labels!.length - 3}`)] : [])]) : h('span', { class: 'text-xs text-muted' }, '—'), meta: { label: 'Etiquetas', filter: { type: 'text', operators: ['contains', 'equals'] } } },
   { accessorKey: 'priority', header: 'Prioridad', cell: ({ row }) => h(UBadgeComponent, { color: priorityColor(row.original.task.priority), variant: 'subtle', size: 'xs', class: 'max-w-full truncate' }, () => row.original.priority), meta: { label: 'Prioridad', filter: { type: 'select', options: ['Baja', 'Normal', 'Alta', 'Urgente'].map(value => ({ label: value, value })) } } },
+  { accessorKey: 'time', header: 'Tiempo', cell: ({ row }) => h('span', { class: 'inline-flex items-center gap-1 whitespace-nowrap text-sm text-muted' }, [h(resolveComponent('UIcon'), { name: 'i-lucide-clock-3', class: 'size-3.5' }), row.original.time]), meta: { label: 'Tiempo', filter: { type: 'text', operators: ['contains', 'equals'] } } },
+  { accessorKey: 'remaining', header: 'Tiempo restante', cell: ({ row }) => row.original.remaining ? h('span', { class: 'inline-flex items-center gap-1 whitespace-nowrap text-sm text-warning' }, [h(resolveComponent('UIcon'), { name: 'i-lucide-hourglass', class: 'size-3.5' }), row.original.remaining]) : h('span', { class: 'text-xs text-muted' }, '—'), meta: { label: 'Tiempo restante', filter: { type: 'text', operators: ['contains', 'equals'] } } },
   { accessorKey: 'assignee', header: 'Responsable', meta: { label: 'Responsable', filter: { type: 'text', operators: ['contains', 'equals'] } } },
   { accessorKey: 'due', header: 'Vencimiento', meta: { label: 'Vencimiento', filter: { type: 'text', operators: ['contains', 'equals'] } } },
   { accessorKey: 'client', header: 'Cliente', meta: { label: 'Cliente', filter: { type: 'text', operators: ['contains', 'equals'] } } },
 ]
 const boardTaskSortFields: SortField[] = [
-  { label: 'Clave', value: 'key' }, { label: 'Tarea', value: 'title' }, { label: 'Estado', value: 'list' }, { label: 'Categoría', value: 'categoryName' }, { label: 'Prioridad', value: 'priority' }, { label: 'Responsable', value: 'assignee' }, { label: 'Vencimiento', value: 'due' },
+  { label: 'Clave', value: 'key' }, { label: 'Tarea', value: 'title' }, { label: 'Estado', value: 'list' }, { label: 'Categoría', value: 'categoryName' }, { label: 'Prioridad', value: 'priority' }, { label: 'Tiempo', value: 'time' }, { label: 'Tiempo restante', value: 'remaining' }, { label: 'Responsable', value: 'assignee' }, { label: 'Vencimiento', value: 'due' },
 ]
 const boardListMenuItems = computed(() => [[
   { label: hideCompletedColumns.value ? 'Mostrar finalizadas' : 'Ocultar finalizadas', icon: hideCompletedColumns.value ? 'i-lucide-eye' : 'i-lucide-eye-off', onSelect: () => persistHideCompletedColumns(!hideCompletedColumns.value) },
@@ -654,6 +678,18 @@ function priorityPaletteColor(priority: TaskRecord['priority']) {
   return ({ LOW: 'info', NORMAL: 'success', HIGH: 'warning', URGENT: 'error' } as const)[priority]
 }
 
+function taskCardMetaBadgeStyle(color: string, expanded: boolean) {
+  return {
+    ...labelChipStyle(color),
+    width: 'max-content',
+    minWidth: '3rem',
+    maxWidth: expanded ? '10rem' : '3rem',
+    height: expanded ? '1.25rem' : '0.5rem',
+    paddingInline: expanded ? '0.5rem' : '0',
+    borderRadius: expanded ? '0.25rem' : '9999px',
+  }
+}
+
 function isTaskCardMetaExpanded(taskId: string) {
   return !!expandedTaskCardMeta.value[taskId]
 }
@@ -688,11 +724,76 @@ function columnMenuItems(column: TaskColumn) {
 }
 
 function formatWorkedTime(minutes: number) {
-  const hours = Math.floor(minutes / 60)
-  const remainingMinutes = minutes % 60
-  if (hours && remainingMinutes) return `${hours} h ${remainingMinutes} min`
-  if (hours) return `${hours} h`
-  return `${remainingMinutes} min`
+  return formatTaskDuration(minutes)
+}
+
+function taskTrackedMinutes(task: TaskRecord) {
+  const activeSeconds = taskTimer.timer?.task_id === task.id ? taskTimer.elapsedSeconds : 0
+  return (task.work_minutes_total ?? 0) + Math.ceil(activeSeconds / 60)
+}
+
+async function openTaskSharePopover() {
+  if (!selectedTask.value) return
+  taskSharePopoverOpen.value = true
+  taskShareCompanyId.value = ''
+  taskShareUsers.value = []
+  taskShareUserIds.value = []
+  taskShareIncludeSubtasks.value = true
+  taskShareLoading.value = true
+  try {
+    const [candidates, shares] = await Promise.all([
+      service.getTaskShareCandidates(selectedTask.value.id),
+      service.getTaskExternalShares(selectedTask.value.id),
+    ])
+    taskShareCandidates.value = candidates
+    taskShares.value = shares
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo cargar el acceso compartido', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally {
+    taskShareLoading.value = false
+  }
+}
+
+async function loadTaskShareUsers(companyId: string) {
+  taskShareCompanyId.value = companyId
+  taskShareUsers.value = []
+  taskShareUserIds.value = []
+  if (!selectedTask.value || !companyId) return
+  taskShareLoading.value = true
+  try { taskShareUsers.value = await service.getTaskShareUsers(selectedTask.value.id, companyId) }
+  catch (error: any) { toast.add({ title: 'No se pudieron cargar los usuarios', description: error?.data?.message ?? error.message, color: 'error' }) }
+  finally { taskShareLoading.value = false }
+}
+
+async function saveTaskShare() {
+  if (!selectedTask.value || !taskShareCompanyId.value || !taskShareUserIds.value.length || taskShareSaving.value) return
+  taskShareSaving.value = true
+  try {
+    const share = await service.createTaskExternalShare(selectedTask.value.id, {
+      recipient_company_id: taskShareCompanyId.value,
+      user_ids: taskShareUserIds.value,
+      include_subtasks: taskShareIncludeSubtasks.value,
+    })
+    taskShares.value = await service.getTaskExternalShares(selectedTask.value.id)
+    toast.add({ title: 'Tarea compartida', description: `Acceso concedido a ${share.company.name}.`, color: 'success' })
+    taskShareCompanyId.value = ''
+    taskShareUsers.value = []
+    taskShareUserIds.value = []
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo compartir la tarea', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally { taskShareSaving.value = false }
+}
+
+async function revokeTaskShare(share: TaskExternalShare) {
+  if (taskShareRemovingId.value) return
+  taskShareRemovingId.value = share.id
+  try {
+    await service.deleteTaskExternalShare(share.id)
+    taskShares.value = taskShares.value.filter(item => item.id !== share.id)
+    toast.add({ title: 'Acceso revocado', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: 'No se pudo revocar el acceso', description: error?.data?.message ?? error.message, color: 'error' })
+  } finally { taskShareRemovingId.value = '' }
 }
 
 function formatTimerDuration(seconds: number) {
@@ -706,9 +807,16 @@ function isWorkLogRequiredError(error: any) { return error?.data?.code === 'TASK
 
 function requestRequiredWorkLog(action: PendingWorkLogAction) {
   pendingWorkLogAction.value = action
-  requiredWorkLogMinutes.value = '30'
+  requiredWorkLogMinutes.value = '30m'
+  requiredWorkLogRemaining.value = ''
   requiredWorkLogDescription.value = ''
   showRequiredWorkLogModal.value = true
+}
+
+function openTaskTimeModal() {
+  workLogMinutes.value = '30m'
+  workLogRemaining.value = ''
+  timeModalOpen.value = true
 }
 
 async function loadWorkLogs(taskId: string) {
@@ -718,6 +826,9 @@ async function loadWorkLogs(taskId: string) {
     directWorkMinutes.value = result.direct_minutes
     subtaskWorkMinutes.value = result.subtasks_minutes
     totalWorkMinutes.value = result.total_minutes
+    directRemainingMinutes.value = result.direct_remaining_minutes
+    subtaskRemainingMinutes.value = result.subtasks_remaining_minutes
+    totalRemainingMinutes.value = result.total_remaining_minutes
     workLogsLimited.value = result.limited
   } catch (error: any) {
     toast.add({ title: 'No se pudo cargar el tiempo insumido', description: error?.data?.message ?? error.message, color: 'error' })
@@ -726,14 +837,16 @@ async function loadWorkLogs(taskId: string) {
 
 async function addWorkLog() {
   const taskId = selectedTask.value?.id
-  const minutes = Number(workLogMinutes.value)
-  if (!taskId || !Number.isInteger(minutes) || minutes < 1 || minutes > 1440 || !canEditTask.value) return
+  const minutes = parsedWorkLogMinutes.value
+  const remainingMinutes = parsedWorkLogRemainingMinutes.value
+  if (!taskId || minutes == null || minutes < 1 || (workLogRemaining.value.trim() && remainingMinutes == null) || !canEditTask.value) return
   addingWorkLog.value = true
   try {
-    await service.addWorkLog(taskId, { minutes, description: workLogDescription.value.trim() || undefined })
-    workLogMinutes.value = '30'
+    await service.addWorkLog(taskId, { minutes, ...(remainingMinutes !== undefined ? { remaining_minutes: remainingMinutes } : {}), description: workLogDescription.value.trim() || undefined })
+    workLogMinutes.value = '30m'
+    workLogRemaining.value = ''
     workLogDescription.value = ''
-    await loadWorkLogs(taskId)
+    await Promise.all([loadWorkLogs(taskId), loadBoard()])
     toast.add({ title: 'Tiempo registrado', color: 'success' })
   } catch (error: any) {
     toast.add({ title: 'No se pudo registrar el tiempo', description: error?.data?.message ?? error.message, color: 'error' })
@@ -742,10 +855,11 @@ async function addWorkLog() {
 
 async function submitRequiredWorkLog() {
   const action = pendingWorkLogAction.value
-  const minutes = Number(requiredWorkLogMinutes.value)
-  if (!action || !Number.isInteger(minutes) || minutes < 1 || minutes > 1440) return
+  const minutes = parsedRequiredWorkLogMinutes.value
+  const remainingMinutes = parsedRequiredWorkLogRemainingMinutes.value
+  if (!action || minutes == null || minutes < 1 || (requiredWorkLogRemaining.value.trim() && remainingMinutes == null)) return
   submittingRequiredWorkLog.value = true
-  const workLog: TaskWorkLogInput = { minutes, description: requiredWorkLogDescription.value.trim() || undefined }
+  const workLog: TaskWorkLogInput = { minutes, ...(remainingMinutes !== undefined ? { remaining_minutes: remainingMinutes } : {}), description: requiredWorkLogDescription.value.trim() || undefined }
   try {
     if (action.type === 'saveTask') {
       await service.updateTask(action.taskId, { ...action.payload, work_log: workLog })
@@ -846,7 +960,10 @@ async function finishSelectedTaskTimer() {
 }
 
 watch(() => taskTimer.timer, (current, previous) => {
-  if (!current && previous && selectedTask.value?.id === previous.task_id) void loadWorkLogs(previous.task_id)
+  if (!current && previous) {
+    if (selectedTask.value?.id === previous.task_id) void loadWorkLogs(previous.task_id)
+    void loadBoard()
+  }
 })
 
 function toggleBoardMemberFilter(memberId: string) {
@@ -1542,7 +1659,8 @@ function openNewTask(column: TaskColumn) {
   memberToAdd.value = 'NONE'
   memberRoleToAdd.value = 'COLLABORATOR'
   showTaskModal.value = true
-  workLogMinutes.value = '30'
+  workLogMinutes.value = '30m'
+  workLogRemaining.value = ''
   workLogDescription.value = ''
 }
 
@@ -2153,6 +2271,7 @@ onBeforeUnmount(() => {
     <div class="flex flex-col" :class="boardWorkspaceExpanded ? 'min-h-[calc(100vh-6rem)] gap-3' : 'gap-5'">
     <AppPageHeader :title="boardTitle" description="Organizá el trabajo de la empresa y vinculá tareas con clientes cuando haga falta.">
       <template #links>
+        <UButton label="Compartidas" icon="i-lucide-share-2" color="neutral" variant="outline" to="/erp/tasks/shared" />
         <UButton v-if="board" :icon="boardWorkspaceExpanded ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'" color="neutral" variant="outline" :aria-label="boardWorkspaceExpanded ? 'Salir de la vista expandida' : 'Expandir el tablero'" :title="boardWorkspaceExpanded ? 'Salir de la vista expandida' : 'Expandir el tablero'" @click="toggleWorkspaceExpanded" />
         <UButton v-if="hasTaskPermission('tasks.create')" label="Nuevo tablero" icon="i-lucide-plus" variant="outline" @click="openBoardModal" />
         <UPopover v-if="hasTaskPermission('tasks.update') || (!loading && isOwnerOrAdmin)" :content="{ align: 'end', sideOffset: 8 }">
@@ -2302,10 +2421,10 @@ onBeforeUnmount(() => {
                 <div class="min-w-0">
                 <div class="task-card-meta mb-2 flex min-h-2 items-center gap-1.5 transition-[padding] duration-200" :class="task.completed_at || hasTaskPermission('tasks.update') ? 'task-card-meta-interactive' : ''">
                   <button type="button" class="inline-flex max-w-40 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" :aria-expanded="isTaskCardMetaExpanded(task.id)" :aria-label="`${isTaskCardMetaExpanded(task.id) ? 'Contraer' : 'Mostrar'} prioridad ${priorityLabel(task.priority)}`" :title="priorityLabel(task.priority)" @click.stop="toggleTaskCardMeta(task.id)">
-                    <span :style="labelChipStyle(priorityPaletteColor(task.priority))" class="inline-flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-semibold transition-all duration-200" :class="isTaskCardMetaExpanded(task.id) ? 'min-h-5 max-w-40 rounded px-2 py-0.5' : 'h-2 w-12 rounded-full p-0'"><span v-if="isTaskCardMetaExpanded(task.id)">{{ priorityLabel(task.priority) }}</span></span>
+                    <span :style="taskCardMetaBadgeStyle(priorityPaletteColor(task.priority), isTaskCardMetaExpanded(task.id))" class="inline-flex items-center justify-center overflow-hidden whitespace-nowrap text-[11px] font-semibold transition-[max-width,height,padding,border-radius] duration-300 ease-in-out motion-reduce:transition-none"><span class="overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none" :class="isTaskCardMetaExpanded(task.id) ? 'max-w-36 translate-x-0 opacity-100' : 'max-w-0 -translate-x-1 opacity-0'">{{ priorityLabel(task.priority) }}</span></span>
                   </button>
                   <button v-if="task.category" type="button" class="inline-flex max-w-40 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" :aria-expanded="isTaskCardMetaExpanded(task.id)" :aria-label="`${isTaskCardMetaExpanded(task.id) ? 'Contraer' : 'Mostrar'} categoría ${task.category.name}`" :title="task.category.name" @click.stop="toggleTaskCardMeta(task.id)">
-                    <span :style="labelChipStyle(task.category.color)" class="inline-flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-semibold transition-all duration-200" :class="isTaskCardMetaExpanded(task.id) ? 'min-h-5 max-w-40 rounded px-2 py-0.5' : 'h-2 w-12 rounded-full p-0'"><span v-if="isTaskCardMetaExpanded(task.id)">{{ task.category.name }}</span></span>
+                    <span :style="taskCardMetaBadgeStyle(task.category.color, isTaskCardMetaExpanded(task.id))" class="inline-flex items-center justify-center overflow-hidden whitespace-nowrap text-[11px] font-semibold transition-[max-width,height,padding,border-radius] duration-300 ease-in-out motion-reduce:transition-none"><span class="overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none" :class="isTaskCardMetaExpanded(task.id) ? 'max-w-36 translate-x-0 opacity-100' : 'max-w-0 -translate-x-1 opacity-0'">{{ task.category.name }}</span></span>
                   </button>
                 </div>
                 <div class="task-card-heading flex items-start justify-between gap-2" :class="task.completed_at ? 'task-card-heading-completed' : hasTaskPermission('tasks.update') ? 'task-card-heading-interactive' : ''"><div class="flex min-w-0 flex-1 items-start gap-2"><span class="mt-0.5 shrink-0 rounded border border-default px-1.5 py-0.5 font-mono text-[10px] leading-tight text-muted">{{ taskKey(task, board?.task_key_prefix ?? '') }}</span><p class="task-card-title min-w-0 flex-1 font-medium leading-snug" :class="task.completed_at ? 'text-muted line-through' : ''">{{ task.title }}</p></div><div class="flex shrink-0 items-center gap-1"><button v-if="hasTaskPermission('tasks.update') && !activeBoardFilterCount" type="button" class="task-card-drag-handle flex size-7 touch-none cursor-grab items-center justify-center rounded text-muted opacity-0 transition hover:bg-elevated hover:text-default active:cursor-grabbing group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary" :aria-label="`Arrastrar ${task.title} a otra lista`" :title="`Arrastrar ${task.title}`" :disabled="moving" @click.stop><UIcon name="i-lucide-grip-vertical" class="size-4" /></button><UBadge v-if="task.completed_at" class="shrink-0" color="success" variant="subtle" size="xs">Completada</UBadge></div></div>
@@ -2317,6 +2436,8 @@ onBeforeUnmount(() => {
                   <span v-for="member in task.members?.slice(0, 2)" :key="member.user_id" class="inline-flex min-w-0 items-center gap-1" :title="`${member.name} · ${taskMemberRoleLabel(member.role)}`"><UIcon name="i-lucide-users-round" class="size-3.5 shrink-0"/><span class="max-w-24 truncate">{{ member.name }}</span></span>
                   <span v-if="(task.members?.length ?? 0) > 2" class="text-muted">+{{ (task.members?.length ?? 0) - 2 }}</span>
                   <span v-if="task.due_at" class="inline-flex items-center gap-1" :class="isOverdue(task) ? 'text-error' : ''"><UIcon name="i-lucide-calendar-clock" class="size-3.5"/>{{ formatDueDate(task.due_at) }}</span>
+                  <span class="inline-flex items-center gap-1" :title="`Tiempo acumulado${task.subtasks_count ? ', incluye subtareas' : ''}`"><UIcon name="i-lucide-clock-3" class="size-3.5"/>{{ formatWorkedTime(taskTrackedMinutes(task)) }}</span>
+                  <span v-if="task.remaining_minutes != null || (task.remaining_minutes_total ?? 0) > 0" class="inline-flex items-center gap-1 text-warning" :title="`Tiempo restante${task.subtasks_count ? ', incluye subtareas' : ''}`"><UIcon name="i-lucide-hourglass" class="size-3.5"/>{{ formatWorkedTime(task.remaining_minutes_total ?? task.remaining_minutes ?? 0) }}</span>
                   <span v-if="task.checklist_count" class="inline-flex items-center gap-1"><UIcon name="i-lucide-list-checks" class="size-3.5"/>{{ task.checklist_count }}</span>
                   <span v-if="task.subtasks_count" class="inline-flex items-center gap-1" :title="`${task.subtasks_count} subtareas`"><UIcon name="i-lucide-list-tree" class="size-3.5"/>{{ task.subtasks_count }}</span>
                   <span v-if="task.comments_count" class="inline-flex items-center gap-1"><UIcon name="i-lucide-message-circle" class="size-3.5"/>{{ task.comments_count }}</span>
@@ -2525,14 +2646,18 @@ onBeforeUnmount(() => {
     <template #footer><div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" @click="boardSettingsOpen = false"/><UButton label="Guardar regla" icon="i-lucide-save" :loading="savingBoardSettings" @click="saveBoardSettings" /></div></template>
   </UModal>
 
-  <UModal v-model:open="showRequiredWorkLogModal" title="Registrar tiempo para cambiar el estado" description="Indicá cuánto trabajo se invirtió en esta tarea antes de aplicar el cambio." :ui="{ content: 'sm:max-w-md' }">
+  <UModal v-model:open="showRequiredWorkLogModal" title="Seguimiento de tiempo" description="Registrá el tiempo trabajado antes de aplicar el cambio de estado." :ui="{ content: 'sm:max-w-xl' }">
     <template #body>
       <div class="flex flex-col gap-4">
-        <UFormField label="Tiempo insumido (minutos)" description="Por ejemplo, 45 minutos o 90 minutos."><UInput v-model="requiredWorkLogMinutes" type="number" min="1" max="1440" step="1" class="w-full" /></UFormField>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <UFormField label="Tiempo empleado" required><UInput v-model="requiredWorkLogMinutes" placeholder="2w 4d 6h 45m" class="w-full" /></UFormField>
+          <UFormField label="Tiempo restante (opcional)" description="Si lo dejás vacío, conserva la estimación actual."><UInput v-model="requiredWorkLogRemaining" placeholder="Ej.: 3d 2h" class="w-full" /></UFormField>
+        </div>
+        <p class="text-sm text-muted">Formato: <span class="font-mono">2w 4d 6h 45m</span> · 1w = 5 días laborables, 1d = 8h, h = horas, m = minutos.</p>
         <UFormField label="Detalle (opcional)"><UTextarea v-model="requiredWorkLogDescription" maxlength="500" :rows="2" placeholder="¿En qué se trabajó?" class="w-full" /></UFormField>
       </div>
     </template>
-    <template #footer><div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" :disabled="submittingRequiredWorkLog" @click="showRequiredWorkLogModal = false; pendingWorkLogAction = null"/><UButton label="Registrar y continuar" icon="i-lucide-check" :loading="submittingRequiredWorkLog" :disabled="!Number.isInteger(Number(requiredWorkLogMinutes)) || Number(requiredWorkLogMinutes) < 1 || Number(requiredWorkLogMinutes) > 1440" @click="submitRequiredWorkLog" /></div></template>
+    <template #footer><div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" :disabled="submittingRequiredWorkLog" @click="showRequiredWorkLogModal = false; pendingWorkLogAction = null"/><UButton label="Registrar y continuar" icon="i-lucide-check" :loading="submittingRequiredWorkLog" :disabled="parsedRequiredWorkLogMinutes == null || parsedRequiredWorkLogMinutes < 1 || (requiredWorkLogRemaining.trim() && parsedRequiredWorkLogRemainingMinutes == null)" @click="submitRequiredWorkLog" /></div></template>
   </UModal>
 
   <UModal v-model:open="showBoardModal" title="Crear tablero" description="Podés tener varios tableros por cliente o crear uno general para la empresa." :ui="{ content: 'sm:max-w-2xl' }">
@@ -2606,7 +2731,46 @@ onBeforeUnmount(() => {
             <UButton v-if="taskForm.start_at" :label="`Inicio · ${formatDueDate(taskForm.start_at)}`" icon="i-lucide-calendar-days" color="neutral" variant="subtle" size="sm" :disabled="!canEditTask" @click="setActionPanel('start')" />
             <UButton v-if="taskForm.due_at" :label="`Vencimiento · ${formatDueDate(taskForm.due_at)}`" icon="i-lucide-calendar-clock" :color="selectedTask && isOverdue(selectedTask) ? 'error' : 'neutral'" variant="subtle" size="sm" :disabled="!canEditTask" @click="setActionPanel('due')" />
           </div>
-          <UBadge v-if="taskForm.party_id !== 'NONE'" color="neutral" variant="subtle" class="w-fit"><UIcon name="i-lucide-building-2" class="mr-1 size-3"/>{{ selectedTaskPartyOption?.label ?? selectedBoardParty?.name ?? 'Cliente asociado' }}</UBadge>
+          <div v-if="taskForm.party_id !== 'NONE'" class="flex flex-wrap items-center gap-2">
+            <UBadge color="neutral" variant="subtle" class="w-fit"><UIcon name="i-lucide-building-2" class="mr-1 size-3"/>{{ selectedTaskPartyOption?.label ?? selectedBoardParty?.name ?? 'Cliente asociado' }}</UBadge>
+            <UPopover v-if="selectedTask && canEditTask" v-model:open="taskSharePopoverOpen" :content="{ side: 'right', align: 'end', sideOffset: 8 }" :ui="{ content: 'z-[10060] w-[min(28rem,calc(100vw-2rem))]' }" @update:open="open => open && openTaskSharePopover()">
+              <UButton icon="i-lucide-share-2" color="neutral" variant="outline" size="sm" class="size-8 justify-center p-0" aria-label="Compartir tarea con el cliente" title="Compartir tarea con el cliente" />
+              <template #content>
+                <div class="flex max-h-[calc(100dvh-7rem)] flex-col gap-4 overflow-y-auto p-4">
+                  <div class="flex items-start gap-3">
+                    <UIcon name="i-lucide-share-2" class="mt-0.5 size-5 shrink-0 text-primary" />
+                    <div class="min-w-0 flex-1"><h3 class="font-semibold">Compartir con el cliente</h3><p class="mt-1 text-xs leading-relaxed text-muted">Dales acceso de solo lectura a usuarios de otra empresa vinculada al mismo CUIT del cliente. Podrán ver la descripción y los datos de esta tarea; si incluís subtareas, también verán sus fechas, avance y tiempo.</p></div>
+                    <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" aria-label="Cerrar compartir" @click="taskSharePopoverOpen = false" />
+                  </div>
+                  <UAlert color="neutral" variant="subtle" icon="i-lucide-shield-check" title="Acceso limitado" description="Se comparte la descripción. Los comentarios y adjuntos internos siguen privados." />
+                  <div v-if="taskShareLoading && !taskShareCandidates.length" class="flex items-center gap-2 py-2 text-sm text-muted"><UIcon name="i-lucide-loader-circle" class="size-4 animate-spin"/>Cargando empresas y accesos…</div>
+                  <section v-if="taskShares.length" class="space-y-2">
+                    <h4 class="text-xs font-semibold uppercase tracking-wide text-muted">Accesos actuales</h4>
+                    <article v-for="share in taskShares" :key="share.id" class="flex items-center gap-3 rounded-lg border border-default p-2.5">
+                      <UIcon name="i-lucide-building-2" class="size-4 shrink-0 text-muted" />
+                      <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium">{{ share.company.name }}</p><p class="text-xs text-muted">{{ share.users.map(user => user.name).join(', ') }} · {{ share.include_subtasks ? 'incluye subtareas' : 'solo tarea principal' }}</p></div>
+                      <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="xs" :loading="taskShareRemovingId === share.id" aria-label="Revocar acceso" title="Revocar acceso" @click="revokeTaskShare(share)" />
+                    </article>
+                  </section>
+                  <p v-if="!taskShareCandidates.length && !taskShareLoading" class="rounded-lg border border-dashed border-default p-3 text-sm text-muted">No encontramos otra empresa con el mismo CUIT del cliente. Verificá el CUIT de la empresa y del cliente asociado a la tarea.</p>
+                  <template v-if="taskShareCandidates.length">
+                    <UFormField label="Empresa cliente" description="Solo aparecen empresas que coinciden por CUIT.">
+                      <USelectMenu :model-value="taskShareCompanyId" :items="taskShareCandidates.map(company => ({ label: company.name, value: company.id }))" value-key="value" searchable placeholder="Seleccionar empresa" class="w-full min-w-0" :ui="{ content: 'z-[10070] max-w-[calc(100vw-2rem)]' }" @update:model-value="loadTaskShareUsers" />
+                    </UFormField>
+                    <div v-if="taskShareCompanyId" class="space-y-2">
+                      <h4 class="text-xs font-semibold uppercase tracking-wide text-muted">Usuarios que podrán ver la tarea</h4>
+                      <p v-if="!taskShareUsers.length && !taskShareLoading" class="text-sm text-muted">La empresa no tiene usuarios activos.</p>
+                      <button v-for="member in taskShareUsers" :key="member.id" type="button" class="flex w-full items-center gap-3 rounded-lg border border-default px-3 py-2 text-left transition-colors hover:bg-elevated" :class="taskShareUserIds.includes(member.id) ? 'border-primary bg-primary/10' : ''" :aria-pressed="taskShareUserIds.includes(member.id)" @click="taskShareUserIds = taskShareUserIds.includes(member.id) ? taskShareUserIds.filter(id => id !== member.id) : [...taskShareUserIds, member.id]">
+                        <span class="flex size-4 items-center justify-center rounded border" :class="taskShareUserIds.includes(member.id) ? 'border-primary bg-primary text-inverted' : 'border-muted'"><UIcon v-if="taskShareUserIds.includes(member.id)" name="i-lucide-check" class="size-3"/></span><span class="text-sm">{{ member.name }}</span>
+                      </button>
+                    </div>
+                    <label class="flex items-start gap-2 text-sm"><UCheckbox v-model="taskShareIncludeSubtasks" /><span>Incluir subtareas, sus descripciones, fechas, progreso y tiempo</span></label>
+                    <div class="flex justify-end border-t border-default pt-3"><UButton label="Compartir tarea" icon="i-lucide-share-2" :loading="taskShareSaving" :disabled="!taskShareCompanyId || !taskShareUserIds.length" @click="saveTaskShare" /></div>
+                  </template>
+                </div>
+              </template>
+            </UPopover>
+          </div>
           <p v-if="selectedBoardParty" class="text-xs text-muted">El cliente está fijado por este tablero.</p>
 
           <UModal :open="actionModalOpen" :title="actionPanelTitle" :ui="{ overlay: 'z-[10010]', content: activeActionPanel === 'labels' ? 'z-[10011] sm:max-w-sm' : ['category', 'priority', 'start', 'due'].includes(activeActionPanel ?? '') ? 'z-[10011] sm:max-w-md' : 'z-[10011] sm:max-w-2xl' }" @update:open="open => { if (!open) closeActionPanel() }">
@@ -2766,18 +2930,20 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <div v-if="selectedTask" class="flex flex-wrap items-center gap-2">
-            <UButton icon="i-lucide-clock-3" :label="`Tiempo · ${formatWorkedTime(totalWorkMinutes)}`" color="neutral" variant="outline" @click="timeModalOpen = true" />
+            <UButton icon="i-lucide-clock-3" :label="`Tiempo · ${formatWorkedTime(totalWorkMinutes)}`" color="neutral" variant="outline" @click="openTaskTimeModal" />
+            <UBadge v-if="selectedTask.remaining_minutes != null || totalRemainingMinutes > 0" color="warning" variant="subtle"><UIcon name="i-lucide-hourglass" class="mr-1 size-3.5"/>Restante · {{ formatWorkedTime(totalRemainingMinutes) }}</UBadge>
             <UBadge v-if="selectedTaskTimer" :color="taskTimer.timer?.paused ? 'warning' : 'success'" variant="subtle"><UIcon name="i-lucide-timer" class="mr-1 size-3.5"/>{{ formatTimerDuration(taskTimer.elapsedSeconds) }} · {{ taskTimer.timer?.paused ? 'Pausado' : 'Corriendo' }}</UBadge>
           </div>
 
-          <UModal v-model:open="timeModalOpen" title="Tiempo insumido" description="Temporizador, registro manual e historial de la tarea." :ui="{ overlay: 'z-[9000]', content: 'z-[9001] sm:max-w-2xl' }">
+          <UModal v-model:open="timeModalOpen" title="Seguimiento de tiempo" description="Tiempo empleado, estimación restante, temporizador e historial de la tarea." :ui="{ overlay: 'z-[9000]', content: 'z-[9001] sm:max-w-2xl' }">
             <template #body>
               <div class="max-h-[68vh] space-y-4 overflow-y-auto pr-1">
-                <div v-if="selectedTask?.subtasks_count" class="grid gap-2 rounded-lg border border-default bg-elevated/30 p-3 text-sm sm:grid-cols-3">
+                <div class="grid gap-2 rounded-lg border border-default bg-elevated/30 p-3 text-sm sm:grid-cols-4">
                   <div><p class="text-xs text-muted">Esta tarea</p><p class="font-semibold">{{ formatWorkedTime(directWorkMinutes) }}</p></div>
                   <div><p class="text-xs text-muted">Subtareas</p><p class="font-semibold">{{ formatWorkedTime(subtaskWorkMinutes) }}</p></div>
                   <div><p class="text-xs text-muted">Total acumulado</p><p class="font-semibold text-primary">{{ formatWorkedTime(totalWorkMinutes) }}</p></div>
-                  <p class="text-xs text-muted sm:col-span-3">El total de la tarea suma sus registros y los de todas sus subtareas.</p>
+                  <div><p class="text-xs text-muted">Tiempo restante</p><p class="font-semibold text-warning">{{ formatWorkedTime(totalRemainingMinutes) }}</p></div>
+                  <p class="text-xs text-muted sm:col-span-4">El tiempo empleado y restante suman los valores de la tarea y de todas sus subtareas.</p>
                 </div>
                 <div v-if="board?.allow_task_timer" class="flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated/30 p-3">
                   <template v-if="selectedTaskTimer">
@@ -2793,10 +2959,20 @@ onBeforeUnmount(() => {
                     <UButton label="Iniciar temporizador" icon="i-lucide-play" :disabled="anotherTaskTimerRunning || !canEditTask" @click="startSelectedTaskTimer" />
                   </template>
                 </div>
-                <form v-if="canEditTask" class="grid gap-2 rounded-lg border border-default p-3 sm:grid-cols-[8rem_minmax(0,1fr)_auto]" @submit.prevent="addWorkLog">
-                  <UFormField label="Minutos" class="min-w-0"><UInput v-model="workLogMinutes" type="number" min="1" max="1440" step="1" class="w-full" /></UFormField>
-                  <UFormField label="Detalle (opcional)" class="min-w-0"><UInput v-model="workLogDescription" maxlength="500" placeholder="Análisis, reunión, desarrollo…" class="w-full" /></UFormField>
-                  <div class="flex items-end"><UButton type="submit" label="Registrar" icon="i-lucide-plus" :loading="addingWorkLog" :disabled="!Number.isInteger(Number(workLogMinutes)) || Number(workLogMinutes) < 1 || Number(workLogMinutes) > 1440" /></div>
+                <form v-if="canEditTask" class="flex flex-col gap-4 rounded-xl border border-default bg-elevated/10 p-4" @submit.prevent="addWorkLog">
+                  <div class="flex items-start gap-3">
+                    <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><UIcon name="i-lucide-clock-3" class="size-5" /></span>
+                    <div><h3 class="text-sm font-semibold">Registrar tiempo manual</h3><p class="mt-0.5 text-xs text-muted">Cargá el tiempo empleado. El restante solo se actualiza si completás ese campo.</p></div>
+                  </div>
+                  <div class="grid gap-3 sm:grid-cols-2">
+                    <UFormField label="Tiempo empleado" required><UInput v-model="workLogMinutes" placeholder="Ej.: 2w 4d 6h 45m" class="w-full" /></UFormField>
+                    <UFormField label="Tiempo restante (opcional)" description="Vacío conserva la estimación actual."><UInput v-model="workLogRemaining" placeholder="Ej.: 3d 2h" class="w-full" /></UFormField>
+                  </div>
+                  <p class="rounded-md bg-elevated/50 px-3 py-2 text-xs text-muted">Formato: <span class="font-mono text-highlighted">2w 4d 6h 45m</span> · 1w = 5 días laborables, 1d = 8h, h = horas, m = minutos.</p>
+                  <div class="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <UFormField label="Detalle (opcional)" class="min-w-0"><UInput v-model="workLogDescription" maxlength="500" placeholder="Análisis, reunión, desarrollo…" class="w-full" /></UFormField>
+                    <UButton type="submit" label="Registrar tiempo" icon="i-lucide-plus" :loading="addingWorkLog" :disabled="parsedWorkLogMinutes == null || parsedWorkLogMinutes < 1 || (workLogRemaining.trim() && parsedWorkLogRemainingMinutes == null)" />
+                  </div>
                 </form>
                 <div v-if="workLogs.length" class="divide-y divide-default rounded-lg border border-default px-3">
                   <article v-for="log in workLogs" :key="log.id" class="flex flex-wrap items-baseline gap-x-2 gap-y-1 py-2.5 text-sm">

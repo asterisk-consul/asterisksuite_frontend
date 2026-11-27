@@ -70,7 +70,10 @@ function toEditorHtml(value: string) {
 }
 
 watch(() => props.modelValue, (value) => {
-  if (!props.editing || !editor.value || editor.value.innerHTML === toEditorHtml(value)) return
+  // While the contenteditable owns focus, its live DOM is authoritative. Replacing
+  // innerHTML after each v-model update normalizes browser-created wrappers and
+  // makes the caret jump while the user types.
+  if (!props.editing || !editor.value || editor.value === document.activeElement || editor.value.innerHTML === toEditorHtml(value)) return
   editor.value.innerHTML = toEditorHtml(value)
 }, { immediate: true, flush: 'post' })
 

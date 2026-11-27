@@ -2367,7 +2367,7 @@ defineExpose({ completeDraft: completePaymentDraft })
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="font-medium">{{ canEditFinalizedRate && !allowFinalizedFinancialEdit ? 'Cotización del pago' : 'Datos financieros' }}</p>
-            <p class="text-xs text-muted">La cotización valúa el pago en moneda base y, si la factura está en USD, recalcula su saldo y la diferencia de cambio.</p>
+            <p class="text-xs text-muted">La cotización valúa el pago en moneda base y, si la factura está en USD, recalcula su saldo pendiente.</p>
           </div>
           <UBadge v-if="!allowFinalizedFinancialEdit && !canEditFinalizedRate" label="Solo lectura" variant="subtle" />
         </div>

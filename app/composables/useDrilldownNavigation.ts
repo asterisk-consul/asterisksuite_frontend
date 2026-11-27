@@ -120,19 +120,31 @@ export const useDrilldownNavigation = () => {
   const auth = useAuthStore()
   const { visible: hasIntercompany } = useIntercompanyVisibility()
   const taskBoardLinks = useState<{ companyId: string | null; items: Array<{ id: string; name: string }> }>('task-sidebar-board-links', () => ({ companyId: null, items: [] }))
-  const navigationWithTaskBoards = computed(() => navigationTree.map(node => node.label === 'Tareas'
-    ? {
-        ...node,
-        children: [
-          { label: 'Todos los tableros', icon: 'i-lucide-layout-dashboard', to: '/erp/tasks' },
-          ...(taskBoardLinks.value.companyId === auth.selectedCompany?.id ? taskBoardLinks.value.items : []).map(board => ({
-            label: board.name,
-            icon: 'i-lucide-kanban',
-            to: `/erp/tasks?board_id=${encodeURIComponent(board.id)}`,
-          })),
-        ],
-      }
-    : node))
+  const sharedTaskAccess = useState<{ companyId: string | null; available: boolean; loaded: boolean }>('shared-task-navigation-access', () => ({ companyId: null, available: false, loaded: false }))
+  const navigationWithTaskBoards = computed(() => navigationTree.map(node => {
+    if (node.label !== 'Tareas') return node
+    const companyId = auth.selectedCompany?.id
+    const isSharedOnly = !!companyId
+      && platformModules.loadedCompanyId === companyId
+      && (!platformModules.hasModule('CRM') || !hasPermission('tasks.read'))
+      && sharedTaskAccess.value.companyId === companyId
+      && sharedTaskAccess.value.available
+    if (isSharedOnly) return { ...node, label: 'Tareas compartidas', moduleCode: undefined, permission: undefined, to: '/erp/tasks/shared', children: undefined }
+    return {
+      ...node,
+      children: [
+        { label: 'Todos los tableros', icon: 'i-lucide-layout-dashboard', to: '/erp/tasks' },
+        ...(sharedTaskAccess.value.companyId === companyId && sharedTaskAccess.value.available
+          ? [{ label: 'Tareas compartidas', icon: 'i-lucide-share-2', to: '/erp/tasks/shared' }]
+          : []),
+        ...(taskBoardLinks.value.companyId === companyId ? taskBoardLinks.value.items : []).map(board => ({
+          label: board.name,
+          icon: 'i-lucide-kanban',
+          to: `/erp/tasks?board_id=${encodeURIComponent(board.id)}`,
+        })),
+      ],
+    }
+  }))
   const isPlatformAdmin = computed(() => ['PLATFORM_OWNER', 'PLATFORM_ADMIN'].includes(auth.user?.role ?? ''))
   const hasAvailableModule = (code: string) => {
     const companyId = auth.selectedCompany?.id
@@ -141,6 +153,21 @@ export const useDrilldownNavigation = () => {
     if (!companyId || platformModules.loadedCompanyId !== companyId || platformModules.error) return true
     return platformModules.hasModule(code)
   }
+
+  async function refreshSharedTaskAccess() {
+    if (!import.meta.client) return
+    const companyId = auth.selectedCompany?.id
+    if (!companyId || platformModules.loadedCompanyId !== companyId) return
+    if (sharedTaskAccess.value.companyId === companyId && sharedTaskAccess.value.loaded) return
+    sharedTaskAccess.value = { companyId, available: false, loaded: false }
+    try {
+      sharedTaskAccess.value = { companyId, available: await $fetch<boolean>('/api/backend/erp/tasks/shared/available'), loaded: true }
+    } catch {
+      sharedTaskAccess.value = { companyId, available: false, loaded: true }
+    }
+  }
+
+  watch(() => [auth.selectedCompany?.id, platformModules.loadedCompanyId, platformModules.modules.length], () => { void refreshSharedTaskAccess() }, { immediate: true })
 
   // Cargar el empleado del usuario actual (define is_salesperson para visibleIf)
   // Solo hace el fetch una vez; el watch de filteredTree reconstruye el nav cuando llega

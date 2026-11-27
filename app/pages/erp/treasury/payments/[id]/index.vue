@@ -352,9 +352,9 @@ const handleFinalizedDetailsSave = async (payload: { rate_only?: boolean; accoun
     toast.add({
       title: payload.rate_only ? 'Cotización corregida' : 'Cambios financieros guardados',
       description: payload.rate_only
-        ? 'Se recalcularon el importe aplicado en USD, el saldo del comprobante y la diferencia de cambio de la cuenta corriente. El importe nominal en pesos se conserva.'
+        ? 'Se recalcularon el importe aplicado en USD, el saldo del comprobante y la valuación del pago en la cuenta corriente.'
         : payload.exchange_rate != null
-          ? 'La cotización actualizó los importes convertidos y, cuando corresponde, el saldo del comprobante y la diferencia de cambio. Las retenciones se recalcularon si fueron modificadas.'
+          ? 'La cotización actualizó los importes convertidos y, cuando corresponde, el saldo del comprobante. Las retenciones se recalcularon si fueron modificadas.'
         : 'Si modificaste retenciones, se recalcularon el movimiento y los saldos; el importe bruto aplicado a las facturas se conserva.',
       color: 'success'
     })

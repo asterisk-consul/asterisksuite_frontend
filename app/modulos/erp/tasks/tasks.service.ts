@@ -83,8 +83,63 @@ export interface TaskRecord {
   comments_count?: number
   checklist_count?: number
   subtasks_count?: number
+  work_minutes_total?: number
+  remaining_minutes?: number | null
+  remaining_minutes_total?: number
   board?: { name: string; task_key_prefix?: string }
   column?: { name: string; is_closed: boolean }
+}
+
+export interface TaskExternalShare {
+  id: string
+  include_subtasks: boolean
+  created_at: string
+  company: { id: string; name: string }
+  users: TaskMember[]
+}
+
+export interface SharedTaskSubtask {
+  id: string
+  key: string
+  title: string
+  description: string | null
+  priority: TaskPriority
+  start_at: string | null
+  due_at: string | null
+  completed_at: string | null
+  status: string
+  status_closed: boolean
+  work_minutes: number
+  remaining_minutes: number | null
+  depth?: number
+  subtasks_count: number
+  completed_subtasks_count: number
+}
+
+export interface SharedTaskItem {
+  id: string
+  key: string
+  title: string
+  description: string | null
+  priority: TaskPriority
+  start_at: string | null
+  due_at: string | null
+  completed_at: string | null
+  status: string
+  status_closed: boolean
+  work_minutes: number
+  total_work_minutes: number
+  remaining_minutes: number | null
+  total_remaining_minutes: number
+  subtasks_count: number
+  completed_subtasks_count: number
+  subtasks: SharedTaskSubtask[]
+}
+
+export interface SharedTaskRecord {
+  share_id: string
+  source_company: { id: string; name: string }
+  task: SharedTaskItem
 }
 
 export type TaskRelationInputType = 'BLOCKS' | 'BLOCKED_BY' | 'RELATES_TO' | 'COMPLEMENTS'
@@ -144,6 +199,7 @@ export interface TaskWorkLog {
 
 export interface TaskWorkLogInput {
   minutes: number
+  remaining_minutes?: number | null
   description?: string
 }
 
@@ -198,6 +254,13 @@ export interface TaskChecklist {
 }
 
 export const useTasksService = () => ({
+  hasSharedTasks: () => $fetch<boolean>('/api/backend/erp/tasks/shared/available'),
+  getSharedTasks: () => $fetch<SharedTaskRecord[]>('/api/backend/erp/tasks/shared'),
+  getTaskShareCandidates: (taskId: string) => $fetch<Array<{ id: string; name: string }>>(`/api/backend/erp/tasks/${taskId}/share-candidates`),
+  getTaskShareUsers: (taskId: string, companyId: string) => $fetch<TaskMember[]>(`/api/backend/erp/tasks/${taskId}/share-candidates/${companyId}/users`),
+  getTaskExternalShares: (taskId: string) => $fetch<TaskExternalShare[]>(`/api/backend/erp/tasks/${taskId}/shares`),
+  createTaskExternalShare: (taskId: string, body: { recipient_company_id: string; user_ids: string[]; include_subtasks: boolean }) => $fetch<TaskExternalShare>(`/api/backend/erp/tasks/${taskId}/shares`, { method: 'POST', body }),
+  deleteTaskExternalShare: (shareId: string) => $fetch<{ success: boolean }>(`/api/backend/erp/tasks/shares/${shareId}`, { method: 'DELETE' }),
   getNotificationSettings: () => $fetch<TaskNotificationSettings>('/api/backend/erp/tasks/notification-settings'),
   saveNotificationSettings: (body: TaskNotificationSettings) => $fetch<TaskNotificationSettings>('/api/backend/erp/tasks/notification-settings', { method: 'PUT', body }),
   getBoards: (skip = 0, take = 100) => $fetch<TaskBoard[]>('/api/backend/erp/tasks/boards', { query: { skip, take } }),
@@ -216,7 +279,7 @@ export const useTasksService = () => ({
     $fetch<{ is_pinned: boolean; is_watching: boolean }>(`/api/backend/erp/tasks/columns/${id}/preferences`, { method: 'PATCH', body }),
   getMembers: () => $fetch<TaskMember[]>('/api/backend/erp/tasks/members'),
   getLabels: () => $fetch<TaskLabel[]>('/api/backend/erp/tasks/labels'),
-  getWorkLogs: (taskId: string) => $fetch<{ items: TaskWorkLog[]; direct_minutes: number; subtasks_minutes: number; total_minutes: number; limited: boolean }>(`/api/backend/erp/tasks/${taskId}/work-logs`),
+  getWorkLogs: (taskId: string) => $fetch<{ items: TaskWorkLog[]; direct_minutes: number; subtasks_minutes: number; total_minutes: number; direct_remaining_minutes: number; subtasks_remaining_minutes: number; total_remaining_minutes: number; limited: boolean }>(`/api/backend/erp/tasks/${taskId}/work-logs`),
   addWorkLog: (taskId: string, body: TaskWorkLogInput) => $fetch<TaskWorkLog>(`/api/backend/erp/tasks/${taskId}/work-logs`, { method: 'POST', body }),
   getActiveTimer: () => $fetch<TaskActiveTimer | null>('/api/backend/erp/tasks/timer/active'),
   startTimer: (taskId: string) => $fetch<TaskActiveTimer>(`/api/backend/erp/tasks/${taskId}/timer/start`, { method: 'POST' }),
