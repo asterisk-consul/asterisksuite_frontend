@@ -124,9 +124,10 @@ export const useDrilldownNavigation = () => {
   const navigationWithTaskBoards = computed(() => navigationTree.map(node => {
     if (node.label !== 'Tareas') return node
     const companyId = auth.selectedCompany?.id
+    const canReadCrmTasks = isOwner.value || hasPermission('tasks.read')
     const isSharedOnly = !!companyId
       && platformModules.loadedCompanyId === companyId
-      && (!platformModules.hasModule('CRM') || !hasPermission('tasks.read'))
+      && (!platformModules.hasModule('CRM') || !canReadCrmTasks)
       && sharedTaskAccess.value.companyId === companyId
       && sharedTaskAccess.value.available
     if (isSharedOnly) return { ...node, label: 'Tareas compartidas', moduleCode: undefined, permission: undefined, to: '/erp/tasks/shared', children: undefined }

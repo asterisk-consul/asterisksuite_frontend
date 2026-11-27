@@ -4,6 +4,7 @@ import type { ButtonProps } from '@nuxt/ui'
 const props = defineProps<{
   title: string
   description?: string
+  hideSidebarToggle?: boolean
   showModuleToggle?: boolean
   links?: ButtonProps[]
   ui?: Record<string, string>
@@ -105,7 +106,7 @@ const isCreateHeaderLink = (link: ButtonProps) =>
         </template>
         <template #title>
           <div class="flex items-center gap-2 min-w-0">
-            <AppSidebarToggle />
+            <AppSidebarToggle v-if="!hideSidebarToggle" />
             <span class="min-w-0 flex-1 truncate" :title="title">{{ title }}</span>
           </div>
         </template>

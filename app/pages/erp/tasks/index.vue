@@ -192,6 +192,7 @@ const selectedTask = ref<TaskRecord | null>(null)
 type BoardWorkspaceTab = 'SUMMARY' | 'LIST' | 'BOARD' | 'TIMELINE' | 'CALENDAR' | 'DOCUMENTS' | 'ATTACHMENTS'
 type BoardTaskRow = { id: string; key: string; title: string; list: string; priority: string; assignee: string; due: string; time: string; remaining: string; client: string; categoryName: string; labelsText: string; task: TaskRecord; columnId: string }
 const boardWorkspaceExpanded = ref(false)
+const workspaceExpandLabel = computed(() => boardWorkspaceExpanded.value ? 'Salir de la vista expandida' : 'Expandir Tareas')
 const activeBoardTab = ref<BoardWorkspaceTab>('SUMMARY')
 const boardTabs: Array<{ id: BoardWorkspaceTab; label: string; icon: string }> = [
   { id: 'SUMMARY', label: 'Resumen', icon: 'i-lucide-layout-dashboard' },
@@ -1359,7 +1360,6 @@ watch(() => route.query.board_id, id => {
     board.value = null
     showTaskModal.value = false
     selectedTask.value = null
-    boardWorkspaceExpanded.value = false
     boardSettingsOpen.value = false
     activeBoardTab.value = 'SUMMARY'
   }
@@ -2297,12 +2297,28 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <UPage :class="boardWorkspaceExpanded ? 'fixed inset-0 z-40 m-0 !block h-screen w-screen min-w-0 max-w-none overflow-y-auto overflow-x-clip bg-default px-2 pb-3 pt-2 sm:px-3' : 'mx-auto !block w-0 min-w-full max-w-full overflow-x-clip px-4 pb-10 sm:px-6'">
-    <div class="flex flex-col" :class="boardWorkspaceExpanded ? 'min-h-[calc(100vh-6rem)] gap-3' : 'gap-5'">
-    <AppPageHeader :title="boardTitle" description="Organizá el trabajo de la empresa y vinculá tareas con clientes cuando haga falta.">
+  <UPage :class="boardWorkspaceExpanded ? 'fixed inset-0 z-40 m-0 !block h-dvh min-w-0 max-w-none overflow-y-auto overflow-x-clip bg-default px-2 pb-3 pt-2 sm:px-3' : 'mx-auto !block w-0 min-w-full max-w-full overflow-x-clip px-4 pb-10 sm:px-6'">
+    <div class="flex flex-col" :class="boardWorkspaceExpanded ? 'min-h-[calc(100dvh-6rem)] gap-3' : 'gap-5'">
+    <AppPageHeader :title="boardTitle" :hide-sidebar-toggle="boardWorkspaceExpanded" description="Organizá el trabajo de la empresa y vinculá tareas con clientes cuando haga falta.">
       <template #links>
+        <UButton
+          v-if="boardWorkspaceExpanded && !isAllBoardsView"
+          label="Todos los tableros"
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="outline"
+          to="/erp/tasks"
+        />
         <UButton label="Compartidas" icon="i-lucide-share-2" color="neutral" variant="outline" to="/erp/tasks/shared" />
-        <UButton v-if="board" :icon="boardWorkspaceExpanded ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'" color="neutral" variant="outline" :aria-label="boardWorkspaceExpanded ? 'Salir de la vista expandida' : 'Expandir el tablero'" :title="boardWorkspaceExpanded ? 'Salir de la vista expandida' : 'Expandir el tablero'" @click="toggleWorkspaceExpanded" />
+        <UButton
+          :icon="boardWorkspaceExpanded ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'"
+          color="neutral"
+          variant="outline"
+          :aria-label="workspaceExpandLabel"
+          :title="workspaceExpandLabel"
+          :aria-pressed="boardWorkspaceExpanded"
+          @click="toggleWorkspaceExpanded"
+        />
         <UButton v-if="hasTaskPermission('tasks.create')" label="Nuevo tablero" icon="i-lucide-plus" variant="outline" @click="openBoardModal" />
         <UPopover v-if="hasTaskPermission('tasks.update') || (!loading && isOwnerOrAdmin)" v-model:open="taskSettingsMenuOpen" :content="{ align: 'end', sideOffset: 8 }">
           <UButton icon="i-lucide-settings-2" color="neutral" variant="outline" aria-label="Configuración de tareas" title="Configuración de tareas" />
@@ -2349,7 +2365,7 @@ onBeforeUnmount(() => {
       <div v-else class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">No hay tableros que coincidan con estos filtros.</div>
     </UPageCard>
 
-    <UPageCard v-if="!loading && boards.length && !isAllBoardsView" variant="subtle" class="w-full min-w-0 max-w-full space-y-4" :class="boardWorkspaceExpanded ? 'min-h-[calc(100vh-10rem)]' : ''">
+    <UPageCard v-if="!loading && boards.length && !isAllBoardsView" variant="subtle" class="w-full min-w-0 max-w-full space-y-4" :class="boardWorkspaceExpanded ? 'min-h-[calc(100dvh-10rem)]' : ''">
         <div class="grid min-w-0 grid-cols-1 items-end gap-3 md:grid-cols-[minmax(0,1fr)_18rem]">
           <div class="min-w-0"><h2 class="truncate text-lg font-semibold">{{ board?.name ?? 'Tablero' }}</h2><p class="text-xs text-muted">{{ board?.task_key_prefix ? `Clave de tareas: ${board.task_key_prefix}1` : 'Espacio de trabajo del tablero' }}</p></div>
           <UFormField label="Clientes" class="w-full min-w-0">

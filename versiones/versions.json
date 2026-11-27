@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.184.1-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "Con el CRM activo, los titulares de la empresa y los usuarios con permiso de lectura pueden abrir sus tableros junto con las tareas compartidas que recibieron. El botón Expandir Tareas está disponible tanto en el listado general como dentro de cada tablero.",
+  "changes": [
+   { "type": "fix", "scope": "crm-tasks", "title": "Mostrar los tableros del CRM a los titulares y usuarios con permiso de lectura, incluso cuando tienen tareas compartidas" },
+   { "type": "fix", "scope": "crm-tasks", "title": "Recuperar el botón Expandir Tareas y mantener el modo expandido al volver al listado de tableros" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar el acceso a los tableros y la navegación en modo expandido" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Recuperar el acceso a tableros y el modo expandido en Tareas"
+ },
+ {
   "version": "0.184.0-alpha",
   "date": "2026-11-27",
   "stage": "alpha",

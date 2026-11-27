@@ -25,16 +25,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   if (to.path.replace(/\/$/, '') === '/erp/tasks') {
-    const roles = useRoles()
-    if (store.hasModule('CRM')) {
+    const crmEnabled = store.hasModule('CRM')
+    let lacksTaskReadPermission = false
+    if (crmEnabled && auth.selectedCompany?.role !== 'OWNER') {
       try {
-        await roles.fetchMyPermissionsIfNeeded(companyId, auth.user?.id)
+        const permissions = await useRoles().fetchMyPermissionsIfNeeded(companyId, auth.user?.id)
+        lacksTaskReadPermission = !!permissions && !permissions.permissions.includes('tasks.read')
       } catch {
-        // Si no se pudieron cargar los permisos, no se amplía el acceso al CRM.
+        // Un error de carga no confirma que falte el permiso. La API valida el acceso.
       }
     }
-    const canOpenCrmTasks = auth.selectedCompany?.role === 'OWNER' || roles.hasPermission('tasks.read')
-    if (!store.hasModule('CRM') || !canOpenCrmTasks) {
+    if (!crmEnabled || lacksTaskReadPermission) {
       try {
         const hasSharedTasks = await $fetch<boolean>('/api/backend/erp/tasks/shared/available')
         if (hasSharedTasks) return navigateTo('/erp/tasks/shared')
