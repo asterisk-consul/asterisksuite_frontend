@@ -8,8 +8,10 @@ import type {
 
 const props = defineProps<{
   partyId?: string
+  vatConditionRequired?: boolean
+  vatConditionError?: string
 }>()
-const vatCondition = defineModel<string>('vatCondition', { default: 'CF' })
+const vatCondition = defineModel<string>('vatCondition', { default: '' })
 const exemptionRate = defineModel<number>('exemptionRate', { default: 0 })
 const activeSection = ref<'vat' | 'iibb' | 'withholdings'>('vat')
 const sectionTabs = [
@@ -18,10 +20,10 @@ const sectionTabs = [
   { label: 'Retenciones y otros', value: 'withholdings', icon: 'i-lucide-receipt-text' }
 ]
 const vatConditionOptions = [
-  { label: 'Responsable Inscripto', value: 'RI' },
-  { label: 'Monotributista', value: 'MONO' },
-  { label: 'Consumidor Final', value: 'CF' },
-  { label: 'Exento', value: 'EX' }
+  { label: 'Responsable Inscripto', value: 'RESPONSABLE_INSCRIPTO' },
+  { label: 'Monotributista', value: 'MONOTRIBUTO' },
+  { label: 'Consumidor Final', value: 'CONSUMIDOR_FINAL' },
+  { label: 'Exento', value: 'EXENTO' }
 ]
 
 const toast = useToast()
@@ -240,14 +242,30 @@ watch(() => props.partyId, loadAll, { immediate: true })
 
     <div v-if="activeSection === 'vat'" class="space-y-5">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <UFormField label="Condición frente al IVA" description="Se utiliza para elegir el tipo de comprobante y calcular IVA.">
-          <USelectMenu v-model="vatCondition" :items="vatConditionOptions" value-key="value" class="w-full" />
+        <UFormField
+          label="Condición frente al IVA"
+          :description="vatConditionRequired ? 'Obligatoria para clientes y proveedores. Se usa para validar la letra del comprobante.' : 'Se usa para validar la letra del comprobante.'"
+          :required="vatConditionRequired"
+          :error="vatConditionError"
+        >
+          <USelectMenu
+            v-model="vatCondition"
+            :items="vatConditionOptions"
+            value-key="value"
+            placeholder="Elegí una condición fiscal"
+            class="w-full"
+          />
         </UFormField>
         <UFormField label="Porcentaje de exención" description="Completalo solamente cuando corresponda una exención parcial.">
           <UInput v-model.number="exemptionRate" type="number" min="0" max="100" step="0.01" suffix="%" class="w-full" />
         </UFormField>
       </div>
-      <UAlert color="neutral" variant="soft" title="El IVA se guarda con los datos generales del tercero" />
+      <UAlert
+        color="neutral"
+        variant="soft"
+        title="La condición fiscal no calcula por sí sola el IVA"
+        description="La letra del comprobante se valida con el emisor y el receptor. El importe de IVA depende de los impuestos configurados para los productos y del tipo de documento."
+      />
     </div>
 
     <UAlert

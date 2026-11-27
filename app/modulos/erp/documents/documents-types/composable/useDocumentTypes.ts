@@ -2,6 +2,8 @@
 import type { DocumentsType, CreateDocumentsTypeDto } from '../types/documents-types.types'
 import { useDocumentsTypesService } from '../services/documents-types.service'
 
+import { useDocumentsTypesStore } from '../store/documents-types.store'
+
 export interface DocumentTypeSelectItem {
   label: string
   value: string
@@ -9,6 +11,7 @@ export interface DocumentTypeSelectItem {
 
 export function useDocumentTypes() {
   const service = useDocumentsTypesService()
+  const sharedStore = useDocumentsTypesStore()
   const loading = ref(false)
   const error = ref<string | null>(null)
   const items = ref<DocumentsType[]>([])
@@ -16,7 +19,9 @@ export function useDocumentTypes() {
   const init = async () => {
     loading.value = true
     try {
-      items.value = await service.findAll()
+      const requestedScope = sharedStore.currentCacheScope()
+      const fetchedItems = await sharedStore.fetchAll({ force: true })
+      if (sharedStore.currentCacheScope() === requestedScope) items.value = fetchedItems
     } catch (e: any) {
       error.value = e?.data?.message || 'Error al cargar tipos'
     } finally {
@@ -25,21 +30,33 @@ export function useDocumentTypes() {
   }
 
   const create = async (payload: CreateDocumentsTypeDto) => {
+    const requestedScope = sharedStore.currentCacheScope()
     const created = await service.create(payload)
-    items.value.push(created)
+    if (requestedScope && sharedStore.currentCacheScope() === requestedScope) {
+      items.value.push(created)
+      sharedStore.upsert(created, requestedScope)
+    }
     return created
   }
 
   const update = async (id: string, payload: Partial<CreateDocumentsTypeDto>) => {
+    const requestedScope = sharedStore.currentCacheScope()
     const updated = await service.update(id, payload)
-    const index = items.value.findIndex(i => i.id === id)
-    if (index !== -1) items.value[index] = updated
+    if (requestedScope && sharedStore.currentCacheScope() === requestedScope) {
+      const index = items.value.findIndex(i => i.id === id)
+      if (index !== -1) items.value[index] = updated
+      sharedStore.upsert(updated, requestedScope)
+    }
     return updated
   }
 
   const remove = async (id: string) => {
+    const requestedScope = sharedStore.currentCacheScope()
     await service.remove(id)
-    items.value = items.value.filter(i => i.id !== id)
+    if (requestedScope && sharedStore.currentCacheScope() === requestedScope) {
+      items.value = items.value.filter(i => i.id !== id)
+      sharedStore.removeFromCache(id, requestedScope)
+    }
   }
 
   const selectItems = computed<DocumentTypeSelectItem[]>(() =>

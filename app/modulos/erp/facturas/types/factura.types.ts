@@ -28,6 +28,10 @@ export interface DocumentItem {
 
   product_id: string | null
 
+  variant_id?: string | null
+
+  product_variants?: { id?: string; name?: string | null; sku?: string | null } | null
+
   item_instructions?: string | null
 
   quantity: number

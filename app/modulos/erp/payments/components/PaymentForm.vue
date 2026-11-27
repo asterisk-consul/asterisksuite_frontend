@@ -1490,13 +1490,17 @@ const requiresUsdConversion = computed(() =>
 const usdRateIsMissing = computed(() => requiresUsdConversion.value && (!form.exchange_rate || Number(form.exchange_rate) <= 0))
 const usdRatePromptDescription = computed(() => usdRateIsMissing.value
   ? 'La factura está en USD y el pago en ARS. Ingresá la cotización ARS por USD para completar la conversión.'
-  : `Se propone ${formatCurrency(Number(form.exchange_rate), 'ARS')} por USD. Podés verificarla o cambiarla por la cotización efectiva del pago.`)
-const canEditFinalizedRate = computed(() => props.allowFinalizedRateEdit && requiresUsdConversion.value)
+  : `Cotización efectiva para ${formatDateLabel(form.date)}: ${formatCurrency(Number(form.exchange_rate), 'ARS')} por USD. Podés corregirla si corresponde.`)
+const canEditFinalizedRate = computed(() =>
+  props.allowFinalizedRateEdit
+  && Boolean(usdDocumentForPayment.value)
+  && ['ARS', 'USD'].includes(form.currency_code?.toUpperCase() ?? '')
+)
 const requiresExchangeRate = computed(() => isForeignCurrency.value || requiresUsdConversion.value)
 const exchangeRateLabel = computed(() => requiresUsdConversion.value ? 'Cotización ARS por USD' : 'Tipo de cambio')
 const exchangeRateHint = computed(() => requiresUsdConversion.value
-  ? 'Se propone la cotización guardada en la factura. Podés cambiarla por la cotización efectiva del pago.'
-  : 'Se usa para expresar el pago en moneda base.')
+  ? `Se usa la cotización efectiva de la fecha del pago (${formatDateLabel(form.date)}). La cotización histórica de la factura no cambia.`
+  : `Se usa la cotización efectiva de la fecha del movimiento (${formatDateLabel(form.date)}) para expresarlo en moneda base.`)
 const conversionPreview = computed(() => {
   if (!form.exchange_rate || form.exchange_rate <= 0) return null
   if (requiresUsdConversion.value) {
@@ -1592,7 +1596,7 @@ const repriceSelectedDocumentsForCurrencyChange = (previousCurrency: string, nex
 
   for (const [documentId, entry] of selectedDocs.value.entries()) {
     const pending = Number(entry.doc.pending_amount)
-    const oldFactor = getDocumentAmountFactor(entry.doc, previousCurrency, Number(entry.doc.exchange_rate) || previousRate)
+    const oldFactor = getDocumentAmountFactor(entry.doc, previousCurrency, previousRate ?? Number(entry.doc.exchange_rate))
     const oldMaximum = oldFactor == null ? null : pending * oldFactor
     const ratio = oldMaximum && oldMaximum > 0
       ? Math.min(1, Math.max(0, entry.amount / oldMaximum))
@@ -1612,7 +1616,7 @@ const repriceSelectedDocumentsForCurrencyChange = (previousCurrency: string, nex
   syncDocumentAllocationsToForm()
 }
 
-const repriceSelectedDocumentsForManualRate = () => {
+const repriceSelectedDocumentsForManualRate = (previousRate?: number | null) => {
   const targetCurrency = form.currency_code?.toUpperCase()
   const rate = Number(form.exchange_rate)
   if (!targetCurrency || !Number.isFinite(rate) || rate <= 0) return
@@ -1623,7 +1627,9 @@ const repriceSelectedDocumentsForManualRate = () => {
     if (documentCurrency !== 'USD' && documentCurrency !== 'ARS' && targetCurrency !== 'ARS') continue
     if (documentCurrency !== 'ARS' && targetCurrency !== 'USD' && targetCurrency !== 'ARS') continue
     const pending = Number(entry.doc.pending_amount)
-    const baseRate = Number(entry.doc.exchange_rate ?? resolvedRate.value)
+    const baseRate = requiresUsdConversion.value
+      ? Number(previousRate ?? entry.doc.exchange_rate ?? resolvedRate.value)
+      : Number(entry.doc.exchange_rate ?? previousRate ?? resolvedRate.value)
     const baseFactor = getDocumentAmountFactor(entry.doc, targetCurrency, baseRate)
     const baseMaximum = baseFactor == null ? null : pending * baseFactor
     const ratio = ratiosWaitingForExchangeRate.get(documentId)
@@ -1647,16 +1653,36 @@ const focusExchangeRateField = async () => {
 
 const suggestUsdDocumentRate = async () => {
   if (!requiresUsdConversion.value || manualRateOverride.value) return
-  const document = usdDocumentForPayment.value
-  if (document?.exchange_rate && Number(document.exchange_rate) > 0) {
-    form.exchange_rate = Number(document.exchange_rate)
-    form.rate_type = document.rate_type ?? 'OFFICIAL'
+  const previousRate = Number(form.exchange_rate) > 0 ? Number(form.exchange_rate) : null
+  await resolveCurrentPaymentRate(previousRate)
+}
+
+const formatDateLabel = (value?: string | null) => {
+  if (!value) return 'la fecha seleccionada'
+  const [year, month, day] = value.slice(0, 10).split('-')
+  return year && month && day ? `${day}/${month}/${year}` : value
+}
+
+let paymentRateRequest = 0
+const resolveCurrentPaymentRate = async (previousRate?: number | null, reprice = true) => {
+  if ((props.readonly && !props.allowFinalizedRateEdit) || !form.date) return
+  const request = ++paymentRateRequest
+  const usdApplication = requiresUsdConversion.value
+  const from = usdApplication ? 'USD' : form.currency_code
+  const to = usdApplication ? 'ARS' : (baseCurrency.value?.code ?? 'ARS')
+  if (!from || from.toUpperCase() === to.toUpperCase()) {
+    form.exchange_rate = null
+    form.converted_amount = null
     return
   }
-  if (!form.exchange_rate || form.exchange_rate <= 0) {
-    await autoResolve('USD', 'ARS', form.rate_type)
-    if (!manualRateOverride.value && resolvedRate.value) form.exchange_rate = resolvedRate.value
-  }
+
+  form.exchange_rate = null
+  form.converted_amount = null
+  await autoResolve(from, to, form.rate_type, form.date)
+  if (request !== paymentRateRequest || manualRateOverride.value || !resolvedRate.value) return
+  form.exchange_rate = resolvedRate.value
+  if (isForeignCurrency.value && form.amount) form.converted_amount = convertAmount(form.amount)
+  if (reprice && selectedDocs.value.size) repriceSelectedDocumentsForManualRate(previousRate)
 }
 
 const handleExchangeRateInput = () => {
@@ -1672,29 +1698,12 @@ watch(
     manualRateOverride.value = false
     await nextTick()
     if (!newCode) return
-    if (isForeignCurrency.value) {
-      await autoResolve(newCode, baseCurrency.value?.code ?? 'ARS', form.rate_type)
-      if (resolvedRate.value) form.exchange_rate = resolvedRate.value
-      if (previousCode && previousCode.toUpperCase() !== newCode.toUpperCase() && selectedDocs.value.size > 0) {
-        repriceSelectedDocumentsForCurrencyChange(previousCode, newCode, previousRate)
-      }
-      if (form.exchange_rate && form.amount) form.converted_amount = convertAmount(form.amount)
-      return
-    }
-    if (requiresUsdConversion.value) {
-      await suggestUsdDocumentRate()
-      if (previousCode && previousCode.toUpperCase() !== newCode.toUpperCase() && selectedDocs.value.size > 0) {
-        repriceSelectedDocumentsForCurrencyChange(previousCode, newCode, previousRate)
-      }
-      form.converted_amount = null
-      if (usdRateIsMissing.value) await focusExchangeRateField()
-      return
-    }
-    form.exchange_rate = null
-    form.converted_amount = null
+    await resolveCurrentPaymentRate(previousRate, false)
     if (previousCode && previousCode.toUpperCase() !== newCode.toUpperCase() && selectedDocs.value.size > 0) {
       repriceSelectedDocumentsForCurrencyChange(previousCode, newCode, previousRate)
     }
+    if (!isForeignCurrency.value) form.converted_amount = null
+    if (usdRateIsMissing.value) await focusExchangeRateField()
   },
   { immediate: true },
 )
@@ -1702,7 +1711,6 @@ watch(
 watch(usdDocumentForPayment, async () => {
   if (requiresUsdConversion.value) {
     await suggestUsdDocumentRate()
-    if (Number(form.exchange_rate) > 0) repriceSelectedDocumentsForManualRate()
     if (focusMissingUsdRateAfterSelection.value) {
       focusMissingUsdRateAfterSelection.value = false
       if (usdRateIsMissing.value) await focusExchangeRateField()
@@ -1712,6 +1720,20 @@ watch(usdDocumentForPayment, async () => {
     form.converted_amount = null
     manualRateOverride.value = false
   }
+})
+
+watch(() => form.date, async (date, previousDate) => {
+  if (!date || !previousDate || date === previousDate || props.readonly) return
+  const previousRate = Number(form.exchange_rate) > 0 ? Number(form.exchange_rate) : null
+  manualRateOverride.value = false
+  await resolveCurrentPaymentRate(previousRate)
+})
+
+watch(() => form.rate_type, async (rateType, previousRateType) => {
+  if (!rateType || !previousRateType || rateType === previousRateType || (props.readonly && !props.allowFinalizedRateEdit)) return
+  const previousRate = Number(form.exchange_rate) > 0 ? Number(form.exchange_rate) : null
+  manualRateOverride.value = false
+  await resolveCurrentPaymentRate(previousRate)
 })
 
 watch(resolvedRate, (rate) => {
@@ -2140,7 +2162,7 @@ const formatCurrency = (amount: number, currency: string | null | undefined = 'A
 const submitFinalizedDetails = async () => {
   if (requiresExchangeRate.value && (!form.exchange_rate || Number(form.exchange_rate) <= 0)) {
     await focusExchangeRateField()
-    toast.add({ title: 'Falta ingresar la cotización', description: 'El pago en pesos aplicado a un comprobante en USD necesita una cotización ARS por USD.', color: 'warning' })
+    toast.add({ title: 'Falta ingresar la cotización', description: 'Este pago aplicado a un comprobante en USD necesita una cotización válida para su fecha.', color: 'warning' })
     return
   }
   if (canEditFinalizedRate.value && !props.allowFinalizedFinancialEdit) {
@@ -2340,18 +2362,18 @@ defineExpose({ completeDraft: completePaymentDraft })
       </div>
     </UCard>
 
-    <UCard v-if="allowFinalizedFinancialEdit || allowFinalizedRateEdit || withholdings.length || form.account_id || form.type === 'EXPENSE' || requiresUsdConversion">
+    <UCard v-if="allowFinalizedFinancialEdit || allowFinalizedRateEdit || withholdings.length || form.account_id || form.type === 'EXPENSE' || requiresExchangeRate">
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="font-medium">{{ canEditFinalizedRate && !allowFinalizedFinancialEdit ? 'Cotización del pago' : 'Datos financieros' }}</p>
-            <p class="text-xs text-muted">La cotización actualiza equivalencias; no cambia el importe en pesos ni vuelve a contabilizar el pago.</p>
+            <p class="text-xs text-muted">La cotización valúa el pago en moneda base y, si la factura está en USD, recalcula su saldo y la diferencia de cambio.</p>
           </div>
           <UBadge v-if="!allowFinalizedFinancialEdit && !canEditFinalizedRate" label="Solo lectura" variant="subtle" />
         </div>
       </template>
       <div class="space-y-4">
-        <div v-if="requiresUsdConversion" ref="exchangeRateSectionRef">
+        <div v-if="requiresExchangeRate" ref="exchangeRateSectionRef">
           <UFormField :label="exchangeRateLabel" name="exchange_rate" :description="exchangeRateHint" :error="usdRateIsMissing ? 'Ingresá una cotización mayor a cero para completar la conversión.' : undefined" required>
             <UInput
               v-if="allowFinalizedFinancialEdit || canEditFinalizedRate"
@@ -2630,7 +2652,7 @@ defineExpose({ completeDraft: completePaymentDraft })
         :documents="filteredDocs"
         :selected-docs="selectedDocs"
         :currency-code="form.currency_code"
-        :exchange-rate="null"
+        :exchange-rate="form.exchange_rate"
         :resolved-rate="resolvedRate"
         :format-currency="formatCurrency"
         :actions-disabled="props.loading || checkSaving || openingSaving"

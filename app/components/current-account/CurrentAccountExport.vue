@@ -12,6 +12,10 @@ const props = defineProps<{
 
 const { exportToExcel } = useExcelExport()
 
+const entryTypeLabel = (entry: any) => entry.reference_type === 'exchange_difference'
+  ? 'Diferencia de cambio'
+  : resolveHrValeLabel(entry, props.account?.party_type) ?? ENTRY_TYPE_CONFIG[entry.type]?.label ?? entry.type
+
 const formatCurrency = (amount: number) => {
   const num = Number(amount) || 0
   return new Intl.NumberFormat('es-AR', {
@@ -71,7 +75,7 @@ const exportEntries = () => {
     ],
     data: sorted.map(e => ({
       ...e,
-      type_label: resolveHrValeLabel(e, props.account?.party_type) ?? ENTRY_TYPE_CONFIG[e.type]?.label ?? e.type,
+      type_label: entryTypeLabel(e),
       original_amount: `${e.currency_code || 'ARS'} ${Number(e.amount).toFixed(2)}`,
       debit: resolveEntrySide(e, props.account?.party_type ?? '') === 'debit' ? e.visible_amount : null,
       credit: resolveEntrySide(e, props.account?.party_type ?? '') === 'credit' ? e.visible_amount : null,
@@ -87,12 +91,11 @@ const printStatement = () => {
   const sorted = normalizedEntries.value
   
   const entriesHtml = sorted.map(e => {
-    const config = ENTRY_TYPE_CONFIG[e.type]
     const isDebit = resolveEntrySide(e, props.account?.party_type ?? '') === 'debit'
     const amountInBase = e.visible_amount
     return `<tr>
       <td style="padding:6px 8px;border-bottom:1px solid #eee">${new Date(e.date).toLocaleDateString('es-AR')}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee">${config?.label ?? e.type}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee">${entryTypeLabel(e)}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #eee">${e.currency_code || 'ARS'} ${Number(e.amount).toFixed(2)}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${isDebit ? formatCurrency(amountInBase) : ''}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${!isDebit ? formatCurrency(amountInBase) : ''}</td>

@@ -17,7 +17,6 @@ interface Props {
   currentBalance: number
   bankAccountingAccountId?: string | null
   movements: BankAccountMovement[]
-  standalone?: boolean
 }
 
 interface ColumnMapping {
@@ -47,6 +46,7 @@ interface ReconciliationSuggestion {
   movement?: BankAccountMovement
   candidateCount: number
   candidateMovementIds?: string[]
+  issue?: string
 }
 
 interface ComparisonTableRow {
@@ -64,13 +64,26 @@ interface ComparisonTableRow {
   issue?: string
 }
 
+interface SystemMovementTableRow {
+  id: string
+  date: string
+  type: string
+  description: string
+  reference: string
+  nature: string
+  amount: number
+  balance_before: number
+  balance_after: number
+  status: string
+  movement: BankAccountMovement
+}
+
 type ComparisonFilter = 'all' | 'suggested' | 'pending' | 'system_only' | 'invalid'
+type StatementAmountScale = 'units' | 'cents'
 const NO_COLUMN = '__NO_COLUMN__'
 
 const props = defineProps<Props>()
-const emit = defineEmits<{ imported: [] }>()
-const open = defineModel<boolean>('open', { default: false })
-const modalTitle = computed(() => props.standalone ? `Conciliación bancaria · ${props.accountName}` : 'Importar y comparar extracto bancario')
+const emit = defineEmits<{ imported: []; close: [] }>()
 const toast = useToast()
 const { importStatementMovements, fetchMovementDetails } = useBankAccounts()
 const { activeConcepts, init: initConcepts } = useBankConcepts()
@@ -78,6 +91,11 @@ const { init: initChecks, checks, deposit: depositCheck, debitOwnCheck } = useCh
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileName = ref('')
 const fileHash = ref('')
+const amountScale = ref<StatementAmountScale>('units')
+const amountScaleItems = [
+  { label: 'Importes en pesos / unidades', value: 'units' },
+  { label: 'Importes en centavos (÷ 100)', value: 'cents' }
+]
 const sourceSheetName = ref('')
 const headers = ref<string[]>([])
 const sourceRows = ref<unknown[][]>([])
@@ -97,6 +115,17 @@ const comparisonFilter = ref<ComparisonFilter>('all')
 const importPage = ref(0)
 const selectedImportRows = ref<number[]>([])
 const conceptByRow = reactive<Record<number, string>>({})
+const quickConceptId = ref('')
+const conceptRulesByKey = ref<Record<string, string>>({})
+const rememberConceptRules = ref(true)
+const activeWorkspaceTab = ref<'comparison' | 'resolve' | 'system' | 'notes'>('comparison')
+const quickConceptOpen = ref(false)
+const openConceptMenuRow = ref<number | null>(null)
+const reconciliationNotes = ref('')
+const savedReconciliationNotes = ref('')
+const reconciliationNotesSavedAt = ref('')
+const reconciliationNotesMessage = ref('')
+const notesDirty = computed(() => reconciliationNotes.value !== savedReconciliationNotes.value)
 const resolutionOpen = ref(false)
 const activeResolution = ref<ReconciliationSuggestion | null>(null)
 const resolutionChecks = ref<Check[]>([])
@@ -148,18 +177,18 @@ const normalizedLines = computed<StatementLine[]>(() => sourceRows.value.map((ro
   const date = parseDate(valueFor(normalizedMapping.value.date))
   const description = String(valueFor(normalizedMapping.value.description) ?? '').trim()
   const reference = String(valueFor(normalizedMapping.value.reference) ?? '').trim()
-  const balance = normalizedMapping.value.balance ? parseAmount(valueFor(normalizedMapping.value.balance)) : null
+  const balance = normalizedMapping.value.balance ? parseStatementAmount(valueFor(normalizedMapping.value.balance)) : null
   let amount: number | null = null
   let issue: string | undefined
 
   if (normalizedMapping.value.debit || normalizedMapping.value.credit) {
-    const debit = normalizedMapping.value.debit ? parseAmount(valueFor(normalizedMapping.value.debit)) : 0
-    const credit = normalizedMapping.value.credit ? parseAmount(valueFor(normalizedMapping.value.credit)) : 0
+    const debit = normalizedMapping.value.debit ? parseStatementAmount(valueFor(normalizedMapping.value.debit)) : 0
+    const credit = normalizedMapping.value.credit ? parseStatementAmount(valueFor(normalizedMapping.value.credit)) : 0
     if (debit == null || credit == null) issue = 'No se pudo interpretar débito/crédito'
     else if (debit !== 0 && credit !== 0) issue = 'La fila tiene importe en débito y crédito'
     else amount = debit !== 0 ? -Math.abs(debit) : Math.abs(credit)
   } else {
-    amount = parseAmount(valueFor(normalizedMapping.value.amount))
+    amount = parseStatementAmount(valueFor(normalizedMapping.value.amount))
     if (amount == null) issue = 'No se pudo interpretar el importe'
     else if (amount >= 0) {
       const direction = parseDirection(valueFor(normalizedMapping.value.direction))
@@ -195,10 +224,13 @@ watch(latestStatementDate, (date) => {
 watch(statementBalanceFromFile, (balance) => {
   if (!statementBalanceManuallySet.value) statementClosingBalanceInput.value = balance == null ? '' : String(balance)
 })
+watch(() => props.accountId, loadSavedConceptRules, { immediate: true })
+watch([() => props.accountId, fileHash], loadReconciliationNotes, { immediate: true })
 
 const suggestions = computed<ReconciliationSuggestion[]>(() => {
   const usedMovementIds = new Set<string>()
-  return normalizedLines.value.map((line) => {
+  const chronologicalLines = [...normalizedLines.value].sort((a, b) => a.date.localeCompare(b.date) || a.rowNumber - b.rowNumber)
+  return chronologicalLines.map((line) => {
     if (line.issue || line.amount == null || !line.date) {
       return { line, status: 'invalid', candidateCount: 0 }
     }
@@ -209,7 +241,17 @@ const suggestions = computed<ReconciliationSuggestion[]>(() => {
       : undefined
     if (previouslyImported) {
       usedMovementIds.add(previouslyImported.id)
-      return { line, status: 'suggested', movement: previouslyImported, candidateCount: 1 }
+      const importedAmount = getMovementSignedAmount(previouslyImported)
+      if (Math.abs(importedAmount - line.amount) <= 0.01) {
+        return { line, status: 'suggested', movement: previouslyImported, candidateCount: 1 }
+      }
+      return {
+        line,
+        status: 'invalid',
+        movement: previouslyImported,
+        candidateCount: 1,
+        issue: `Esta fila ya se importó con ${formatMoney(importedAmount)}; verificá la escala del archivo. No se reemplaza automáticamente.`
+      }
     }
 
     const normalizedReference = normalizeText(line.reference)
@@ -258,6 +300,21 @@ const matchedSystemMovementIds = computed(() => new Set(relevantSuggestions.valu
 const systemMovementsThroughDate = computed(() => props.movements
   .filter((movement) => !movement.deleted_at && (!statementDate.value || movement.date.slice(0, 10) <= statementDate.value))
   .sort((a, b) => a.date.localeCompare(b.date) || (a.created_at ?? '').localeCompare(b.created_at ?? '')))
+const systemMovementRows = computed<SystemMovementTableRow[]>(() => [...props.movements]
+  .map((movement) => ({
+    id: movement.id,
+    date: movement.date.slice(0, 10),
+    type: getMovementTypeBadge(movement).label,
+    description: movement.description || movement.concept_name_snapshot || movement.bank_concept?.name || 'Movimiento bancario',
+    reference: movement.reference ?? '',
+    nature: movement.nature ?? (getMovementSignedAmount(movement) < 0 ? 'DEBIT' : 'CREDIT'),
+    amount: getMovementSignedAmount(movement),
+    balance_before: Number(movement.balance_before),
+    balance_after: Number(movement.balance_after),
+    status: movement.deleted_at ? 'Anulado' : 'Activo',
+    movement
+  }))
+  .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)))
 const systemMovementsInStatementPeriod = computed(() => systemMovementsThroughDate.value.filter((movement) => !statementPeriodStart.value || movement.date.slice(0, 10) >= statementPeriodStart.value))
 function movementTotals(amounts: number[]) {
   return {
@@ -291,6 +348,12 @@ const summary = computed(() => ({
   systemOnly: systemOnlyMovements.value.length,
   invalid: relevantSuggestions.value.filter((item) => item.status === 'invalid').length
 }))
+const workspaceTabItems = computed(() => [
+  { label: `Comparación (${summary.value.total})`, value: 'comparison', icon: 'i-lucide-git-compare-arrows' },
+  { label: `Resolver movimientos (${summary.value.pending})`, value: 'resolve', icon: 'i-lucide-wand-sparkles' },
+  { label: `Movimientos del sistema (${systemMovementRows.value.length})`, value: 'system', icon: 'i-lucide-landmark' },
+  { label: notesDirty.value ? 'Notas · sin guardar' : 'Notas', value: 'notes', icon: 'i-lucide-notebook-pen' }
+])
 const closingBalanceDifference = computed(() => closingBalance.value == null || systemBalanceAtDate.value == null
   ? null
   : roundMoney(closingBalance.value - systemBalanceAtDate.value))
@@ -314,12 +377,12 @@ const inferredStatementBalances = computed(() => {
 })
 const comparisonRows = computed<ComparisonTableRow[]>(() => {
   const rows: ComparisonTableRow[] = [
-    ...relevantSuggestions.value.map(({ line, status, movement, candidateCount }) => ({
+    ...relevantSuggestions.value.map(({ line, status, movement, candidateCount, issue }) => ({
     id: `statement:${line.rowNumber}`, rowNumber: line.rowNumber, date: line.date,
     description: line.description || line.issue || 'Fila sin descripción', reference: line.reference,
     amount: line.amount, statementBalance: line.balance ?? inferredStatementBalances.value.get(line.rowNumber) ?? null,
     systemAmount: movement ? getMovementSignedAmount(movement) : null,
-    status, movement, candidateCount, issue: line.issue
+    status, movement, candidateCount, issue: issue ?? line.issue
     })),
     ...systemOnlyMovements.value.map((movement) => ({
     id: `system:${movement.id}`, date: movement.date.slice(0, 10), description: movement.description || getMovementTypeBadge(movement).label,
@@ -327,7 +390,9 @@ const comparisonRows = computed<ComparisonTableRow[]>(() => {
     status: 'system_only' as const, movement, candidateCount: 0
     }))
   ]
-  return rows.sort((a, b) => b.date.localeCompare(a.date) || (b.rowNumber ?? 0) - (a.rowNumber ?? 0))
+  return rows.sort((a, b) => a.date.localeCompare(b.date)
+    || (a.rowNumber ?? Number.MAX_SAFE_INTEGER) - (b.rowNumber ?? Number.MAX_SAFE_INTEGER)
+    || a.id.localeCompare(b.id))
 })
 const filteredComparisonRows = computed(() => comparisonFilter.value === 'all'
   ? comparisonRows.value
@@ -335,13 +400,25 @@ const filteredComparisonRows = computed(() => comparisonFilter.value === 'all'
     ? comparisonRows.value.filter((row) => row.status === 'unmatched' || row.status === 'ambiguous')
     : comparisonRows.value.filter((row) => row.status === comparisonFilter.value))
 const unmatchedSuggestions = computed(() => relevantSuggestions.value.filter((item) => item.status === 'unmatched'))
+const ambiguousSuggestions = computed(() => relevantSuggestions.value.filter((item) => item.status === 'ambiguous'))
 const importPageCount = computed(() => Math.max(1, Math.ceil(unmatchedSuggestions.value.length / importPageSize)))
 const importPageSuggestions = computed(() => unmatchedSuggestions.value.slice(importPage.value * importPageSize, (importPage.value + 1) * importPageSize))
 const importConceptOptions = computed(() => activeConcepts.value
   .filter((concept: any) => concept.affects_balance && concept.accounting_account?.trim() && !concept.requires_receipt)
   .map((concept: any) => ({ label: `${concept.code} · ${concept.name} · Cuenta ${concept.accounting_account}`, value: concept.id })))
+const quickConceptOptions = computed(() => importConceptOptions.value.map((option) => ({
+  ...option,
+  onSelect: (event: Event) => {
+    if (quickConceptId.value !== option.value) return
+    event.preventDefault()
+    quickConceptId.value = ''
+    quickConceptOpen.value = false
+  }
+})))
 const selectedSuggestions = computed(() => unmatchedSuggestions.value.filter((item) => selectedImportRows.value.includes(item.line.rowNumber)))
-const selectedRowsMissingConcept = computed(() => selectedSuggestions.value.filter((item) => !conceptByRow[item.line.rowNumber]).length)
+const selectedRowsMissingConcept = computed(() => selectedSuggestions.value.filter((item) => !getConceptForLine(item.line)).length)
+const hasSavedConceptRules = computed(() => Object.keys(conceptRulesByKey.value).length > 0)
+const hasSuggestedConceptRows = computed(() => importPageSuggestions.value.some(({ line }) => Boolean(getConceptForLine(line))))
 const allVisibleImportRowsSelected = computed(() => importPageSuggestions.value.length > 0 && importPageSuggestions.value.every((item) => selectedImportRows.value.includes(item.line.rowNumber)))
 const resolutionAmount = computed(() => Math.abs(activeResolution.value?.line.amount ?? 0))
 const resolutionIsCollection = computed(() => (activeResolution.value?.line.amount ?? 0) > 0)
@@ -388,7 +465,8 @@ const comparisonColumns: ExtendedColumn<ComparisonTableRow>[] = [
   { accessorKey: 'date', header: 'Fecha', meta: { label: 'Fecha', filter: { type: 'date-range' } } },
   { accessorKey: 'description', header: 'Descripción / movimiento', meta: { label: 'Descripción', filter: { type: 'text' } }, cell: ({ row }) => h('div', { class: 'min-w-52' }, [
     h('span', { class: 'block font-medium' }, row.original.description),
-    h('span', { class: 'block text-xs text-muted' }, row.original.reference ? `Ref. ${row.original.reference}` : row.original.rowNumber ? `Fila ${row.original.rowNumber}` : 'Movimiento del sistema')
+    h('span', { class: 'block text-xs text-muted' }, row.original.reference ? `Ref. ${row.original.reference}` : row.original.rowNumber ? `Fila ${row.original.rowNumber}` : 'Movimiento del sistema'),
+    ...(row.original.issue ? [h('span', { class: 'block text-xs text-warning' }, row.original.issue)] : [])
   ]) },
   { accessorKey: 'amount', header: 'Importe', meta: { label: 'Importe', filter: { type: 'number' } }, cell: ({ row }) => moneyCell(row.original.amount) },
   { accessorKey: 'statementBalance', header: 'Saldo extracto', meta: { label: 'Saldo extracto', filter: { type: 'number' } }, cell: ({ row }) => moneyCell(row.original.statementBalance) },
@@ -401,6 +479,27 @@ const comparisonColumns: ExtendedColumn<ComparisonTableRow>[] = [
   { accessorKey: 'status', header: 'Resultado', meta: { label: 'Resultado', filter: { type: 'select', options: [
     { label: 'Coincidencia', value: 'suggested' }, { label: 'Sin movimiento', value: 'unmatched' }, { label: 'Ambiguo', value: 'ambiguous' }, { label: 'Solo sistema', value: 'system_only' }, { label: 'Fila inválida', value: 'invalid' }
   ] } }, cell: ({ row }) => h('span', { class: row.original.status === 'suggested' ? 'text-success' : row.original.status === 'invalid' || row.original.status === 'ambiguous' ? 'text-warning' : 'text-error' }, comparisonStatusLabel(row.original.status)) }
+]
+
+const systemMovementColumns: ExtendedColumn<SystemMovementTableRow>[] = [
+  { id: 'details', header: '', enableSorting: false, enableHiding: false, meta: { label: 'Detalle', disableColumnVisibility: true }, cell: ({ row }) => h('div', { class: 'flex justify-center' }, [h(detailsButton, {
+    icon: 'i-lucide-eye', size: 'sm', color: 'neutral', variant: 'ghost',
+    'aria-label': 'Ver detalle del movimiento bancario',
+    onClick: (event: Event) => { event.stopPropagation(); void openMovementDetails(row.original.movement) }
+  })]) },
+  { accessorKey: 'date', header: 'Fecha', meta: { label: 'Fecha', filter: { type: 'date-range' } }, cell: ({ row }) => formatDetailDate(row.original.date) },
+  { accessorKey: 'type', header: 'Tipo', meta: { label: 'Tipo', filter: { type: 'text' } } },
+  { accessorKey: 'description', header: 'Descripción', meta: { label: 'Descripción', filter: { type: 'text' } } },
+  { accessorKey: 'reference', header: 'Referencia', meta: { label: 'Referencia', filter: { type: 'text' } } },
+  { accessorKey: 'nature', header: 'Naturaleza', meta: { label: 'Naturaleza', filter: { type: 'select', options: [
+    { label: 'Débito', value: 'DEBIT' }, { label: 'Crédito', value: 'CREDIT' }
+  ] } }, cell: ({ row }) => row.original.nature === 'DEBIT' ? 'Débito' : 'Crédito' },
+  { accessorKey: 'amount', header: 'Importe', meta: { label: 'Importe', filter: { type: 'number' } }, cell: ({ row }) => moneyCell(row.original.amount) },
+  { accessorKey: 'balance_before', header: 'Saldo anterior', meta: { label: 'Saldo anterior', filter: { type: 'number' } }, cell: ({ row }) => moneyCell(row.original.balance_before) },
+  { accessorKey: 'balance_after', header: 'Saldo posterior', meta: { label: 'Saldo posterior', filter: { type: 'number' } }, cell: ({ row }) => moneyCell(row.original.balance_after) },
+  { accessorKey: 'status', header: 'Estado', meta: { label: 'Estado', filter: { type: 'select', options: [
+    { label: 'Activo', value: 'Activo' }, { label: 'Anulado', value: 'Anulado' }
+  ] } }, cell: ({ row }) => h('span', { class: row.original.status === 'Activo' ? 'text-success' : 'text-muted' }, row.original.status) }
 ]
 
 async function openMovementDetails(movement: BankAccountMovement) {
@@ -442,17 +541,14 @@ const movementStatusLabels: Record<string, string> = {
   PENDING: 'Pendiente', CLEARED: 'Acreditado', BOUNCED: 'Rechazado'
 }
 
-watch(open, async (isOpen) => {
-  if (!isOpen) {
-    reset()
-    return
-  }
+onMounted(async () => {
   try {
     await initConcepts()
   } catch {
     // La comparación sigue disponible aunque no se puedan cargar conceptos.
   }
-}, { immediate: true })
+  window.addEventListener('focus', refreshAfterExternalFlowOnFocus)
+})
 
 function normalizeText(value: unknown) {
   return String(value ?? '').trim().toLocaleLowerCase('es-AR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ')
@@ -517,6 +613,12 @@ function parseAmount(value: unknown): number | null {
   return roundMoney(parenthesized ? -Math.abs(parsed) : parsed)
 }
 
+function parseStatementAmount(value: unknown): number | null {
+  const amount = parseAmount(value)
+  if (amount == null || amountScale.value === 'units') return amount
+  return roundMoney(amount / 100)
+}
+
 function parseDirection(value: unknown): 'DEBIT' | 'CREDIT' | null {
   const direction = normalizeText(value)
   if (/^(debit|debito|debe|cargo|out|egreso|salida|d|db|dr)$/.test(direction) || direction.includes('debito')) return 'DEBIT'
@@ -568,17 +670,23 @@ function mapColumns(allHeaders: string[]) {
 async function handleFileSelection(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
+  if (fileHash.value && notesDirty.value) saveReconciliationNotes()
   errorMessage.value = ''
   sourceRows.value = []
   headers.value = []
   fileName.value = ''
   fileHash.value = ''
+  amountScale.value = 'units'
   sourceSheetName.value = ''
   statementDate.value = ''
   statementClosingBalanceInput.value = ''
   statementDateManuallySet.value = false
   statementBalanceManuallySet.value = false
   comparisonFilter.value = 'all'
+  activeWorkspaceTab.value = 'comparison'
+  selectedImportRows.value = []
+  quickConceptId.value = ''
+  for (const key of Object.keys(conceptByRow)) delete conceptByRow[Number(key)]
   if (file.size > 10 * 1024 * 1024) {
     errorMessage.value = 'El archivo supera 10 MB. Exportá un período más corto para continuar.'
     if (fileInput.value) fileInput.value.value = ''
@@ -592,8 +700,11 @@ async function handleFileSelection(event: Event) {
     const digest = await globalThis.crypto?.subtle?.digest('SHA-256', buffer)
     if (!digest) throw new Error('El navegador no permite calcular la huella de seguridad del archivo.')
     fileHash.value = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
-    const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
-    const guidanceSheets = new Set(['instrucciones', 'guiadetipos', 'guia', 'readme', 'comparacion', 'movimientoscuenta', 'movimientossistema'])
+    // Conservá los valores de CSV como texto: SheetJS puede invertir fechas DD/MM
+    // ambiguas y leer importes con coma decimal como enteros 100 veces mayores.
+    // parseDate y parseAmount normalizan luego el texto según el formato bancario.
+    const workbook = XLSX.read(buffer, { type: 'array', cellDates: true, raw: true })
+    const guidanceSheets = new Set(['instrucciones', 'guiadetipos', 'guia', 'readme', 'comparacion', 'notas', 'notasconciliacion', 'movimientoscuenta', 'movimientossistema'])
     let detected: { sheetName: string; allRows: unknown[][]; headerIndex: number; score: number } | null = null
 
     for (const sheetName of workbook.SheetNames) {
@@ -672,8 +783,16 @@ function statusColor(status: ReconciliationSuggestion['status']) {
 
 function toggleImportRow(rowNumber: number, checked: boolean) {
   const next = new Set(selectedImportRows.value)
-  if (checked) next.add(rowNumber)
-  else next.delete(rowNumber)
+  if (checked) {
+    next.add(rowNumber)
+    const suggestion = unmatchedSuggestions.value.find((item) => item.line.rowNumber === rowNumber)
+    if (suggestion && quickConceptId.value) applyConceptToLines([suggestion.line], quickConceptId.value)
+  }
+  else {
+    next.delete(rowNumber)
+    const suggestion = unmatchedSuggestions.value.find((item) => item.line.rowNumber === rowNumber)
+    if (suggestion) clearConceptForLines([suggestion.line])
+  }
   selectedImportRows.value = [...next]
 }
 
@@ -681,12 +800,22 @@ function toggleVisibleImportRows() {
   if (allVisibleImportRowsSelected.value) {
     const visible = new Set(importPageSuggestions.value.map((item) => item.line.rowNumber))
     selectedImportRows.value = selectedImportRows.value.filter((rowNumber) => !visible.has(rowNumber))
+    clearConceptForLines(importPageSuggestions.value.map((item) => item.line))
     return
   }
+  const newlySelectedRows = importPageSuggestions.value
+    .filter((item) => !selectedImportRows.value.includes(item.line.rowNumber))
+    .map((item) => item.line)
+  if (quickConceptId.value) applyConceptToLines(newlySelectedRows, quickConceptId.value)
   selectedImportRows.value = [...new Set([
     ...selectedImportRows.value,
     ...importPageSuggestions.value.map((item) => item.line.rowNumber)
   ])]
+}
+
+function applyQuickConceptToSelectedRows() {
+  if (!quickConceptId.value || !selectedSuggestions.value.length) return
+  applyConceptToLines(selectedSuggestions.value.map((item) => item.line), quickConceptId.value)
 }
 
 function relatedPaymentsFor(check: Check) {
@@ -821,11 +950,15 @@ function localDateToday() {
 }
 
 function refreshAfterExternalFlowOnFocus() {
-  if (refreshAfterExternalFlow.value && open.value) emit('imported')
+  if (!refreshAfterExternalFlow.value) return
+  refreshAfterExternalFlow.value = false
+  emit('imported')
 }
 
-onMounted(() => window.addEventListener('focus', refreshAfterExternalFlowOnFocus))
-onBeforeUnmount(() => window.removeEventListener('focus', refreshAfterExternalFlowOnFocus))
+onBeforeUnmount(() => {
+  if (fileHash.value && notesDirty.value) saveReconciliationNotes()
+  window.removeEventListener('focus', refreshAfterExternalFlowOnFocus)
+})
 
 async function registerSelectedMovements() {
   if (!fileHash.value || !props.bankAccountingAccountId || !selectedSuggestions.value.length || selectedSuggestions.value.length > 50 || selectedRowsMissingConcept.value) return
@@ -839,7 +972,7 @@ async function registerSelectedMovements() {
         description: line.description,
         reference: line.reference || undefined,
         amount: line.amount!,
-        bank_concept_id: conceptByRow[line.rowNumber]!
+        bank_concept_id: getConceptForLine(line)
       }))
     })
     toast.add({
@@ -859,6 +992,159 @@ async function registerSelectedMovements() {
 function formatMoney(amount: number | null) {
   if (amount == null) return '—'
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: props.currencyCode, maximumFractionDigits: 2 }).format(amount)
+}
+
+function conceptRuleStorageKey() {
+  return `bank-statement-concept-rules:${props.accountId}`
+}
+
+function conceptRuleKey(line: StatementLine) {
+  if (!line.description.trim() || line.amount == null) return ''
+  const nature = line.amount < 0 ? 'DEBIT' : 'CREDIT'
+  return `${nature}:${normalizeText(line.description)}`
+}
+
+function getConceptForLine(line: StatementLine) {
+  if (Object.prototype.hasOwnProperty.call(conceptByRow, line.rowNumber)) return conceptByRow[line.rowNumber] || ''
+  const ruleKey = conceptRuleKey(line)
+  const conceptId = ruleKey ? conceptRulesByKey.value[ruleKey] : ''
+  return conceptId && importConceptOptions.value.some((option) => option.value === conceptId) ? conceptId : ''
+}
+
+function conceptOptionsForLine(line: StatementLine) {
+  return importConceptOptions.value.map((option) => ({
+    ...option,
+    onSelect: (event: Event) => {
+      if (getConceptForLine(line) !== option.value) return
+      event.preventDefault()
+      updateConceptForLine(line, '')
+      openConceptMenuRow.value = null
+    }
+  }))
+}
+
+function updateConceptForLine(line: StatementLine, value: unknown) {
+  const conceptId = String(value ?? '')
+  applyConceptToLines([line], conceptId)
+}
+
+function applyConceptToLines(lines: StatementLine[], conceptId: string) {
+  const nextRules = { ...conceptRulesByKey.value }
+  let hasRulesToSave = false
+  for (const line of lines) {
+    conceptByRow[line.rowNumber] = conceptId
+    const ruleKey = conceptRuleKey(line)
+    if (!conceptId || !ruleKey || !rememberConceptRules.value) continue
+    nextRules[ruleKey] = conceptId
+    hasRulesToSave = true
+  }
+  if (!hasRulesToSave) return
+  conceptRulesByKey.value = nextRules
+  try {
+    localStorage.setItem(conceptRuleStorageKey(), JSON.stringify(nextRules))
+  } catch {
+    toast.add({ title: 'No se pudo guardar la sugerencia', description: 'El navegador no permitió guardar reglas para esta cuenta.', color: 'warning' })
+  }
+}
+
+function clearConceptForLines(lines: StatementLine[]) {
+  for (const line of lines) conceptByRow[line.rowNumber] = ''
+}
+
+function loadSavedConceptRules() {
+  if (!import.meta.client) return
+  try {
+    const saved = localStorage.getItem(conceptRuleStorageKey())
+    const parsed = saved ? JSON.parse(saved) : {}
+    conceptRulesByKey.value = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    conceptRulesByKey.value = {}
+  }
+}
+
+function clearSavedConceptRules() {
+  try {
+    localStorage.removeItem(conceptRuleStorageKey())
+    conceptRulesByKey.value = {}
+    toast.add({ title: 'Sugerencias borradas', description: 'Se quitaron las reglas recordadas para esta cuenta en este navegador.', color: 'success' })
+  } catch {
+    toast.add({ title: 'No se pudieron borrar las sugerencias', description: 'El navegador no permitió modificar el almacenamiento local.', color: 'warning' })
+  }
+}
+
+function reconciliationNotesStorageKey() {
+  return fileHash.value ? `bank-statement-notes:${props.accountId}:${fileHash.value}` : ''
+}
+
+function loadReconciliationNotes() {
+  reconciliationNotes.value = ''
+  savedReconciliationNotes.value = ''
+  reconciliationNotesSavedAt.value = ''
+  reconciliationNotesMessage.value = ''
+  const key = reconciliationNotesStorageKey()
+  if (!import.meta.client || !key) return
+  try {
+    const saved = localStorage.getItem(key)
+    if (!saved) return
+    const parsed = JSON.parse(saved) as { text?: unknown; savedAt?: unknown }
+    const text = typeof parsed.text === 'string' ? parsed.text : ''
+    reconciliationNotes.value = text
+    savedReconciliationNotes.value = text
+    reconciliationNotesSavedAt.value = typeof parsed.savedAt === 'string' ? parsed.savedAt : ''
+    reconciliationNotesMessage.value = 'Notas guardadas en este navegador para este archivo.'
+  } catch {
+    reconciliationNotesMessage.value = 'No se pudieron leer las notas guardadas de este archivo.'
+  }
+}
+
+function saveReconciliationNotes() {
+  const key = reconciliationNotesStorageKey()
+  if (!import.meta.client || !key) return
+  try {
+    const savedAt = new Date().toISOString()
+    if (reconciliationNotes.value.trim()) {
+      localStorage.setItem(key, JSON.stringify({ text: reconciliationNotes.value, savedAt, fileName: fileName.value }))
+      reconciliationNotesSavedAt.value = savedAt
+      reconciliationNotesMessage.value = 'Notas guardadas en este navegador para este archivo.'
+    } else {
+      localStorage.removeItem(key)
+      reconciliationNotesSavedAt.value = ''
+      reconciliationNotesMessage.value = 'Se quitaron las notas guardadas para este archivo.'
+    }
+    savedReconciliationNotes.value = reconciliationNotes.value
+  } catch {
+    reconciliationNotesMessage.value = 'No se pudieron guardar las notas; descargalas para conservar una copia.'
+    toast.add({ title: 'No se pudieron guardar las notas', description: 'El almacenamiento local del navegador no está disponible.', color: 'warning' })
+  }
+}
+
+function downloadReconciliationNotes() {
+  const content = [
+    'Notas de conciliación bancaria',
+    `Cuenta: ${accountName}`,
+    `Archivo: ${fileName.value || '—'}`,
+    `Período: ${statementPeriodStart.value || '—'} a ${statementDate.value || '—'}`,
+    `Descargado: ${new Date().toLocaleString('es-AR')}`,
+    '',
+    reconciliationNotes.value.trim() || 'Sin notas.'
+  ].join('\r\n')
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  const safeName = accountName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
+  link.href = url
+  link.download = `notas-conciliacion-${safeName || 'cuenta'}.txt`
+  link.click()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+function selectRowsWithSuggestedConcept() {
+  const nextRows = new Set(selectedImportRows.value)
+  for (const { line } of unmatchedSuggestions.value) {
+    if (nextRows.size >= 50) break
+    if (getConceptForLine(line)) nextRows.add(line.rowNumber)
+  }
+  selectedImportRows.value = [...nextRows]
 }
 
 async function exportComparison() {
@@ -884,7 +1170,7 @@ async function exportComparison() {
     ['Lectura', 'Los importes positivos aumentan el saldo de esta cuenta y los negativos lo reducen. La naturaleza diferencia CREDIT de DEBIT.'],
     ['Resultado', 'Una coincidencia sugerida no modifica registros. Revisá manualmente los pendientes y ambiguos antes de conciliarlos fuera de este reporte.'],
     ['Efecto en Asterisk Suite', 'Exportar este archivo no agrega movimientos ni modifica el saldo o genera asientos contables.'],
-    ['Reimportación', 'La app ignora las hojas Instrucciones, Guía de tipos y Comparación para buscar una hoja de movimientos compatible.']
+    ['Reimportación', 'La app ignora las hojas Instrucciones, Guía de tipos, Comparación y Notas para buscar una hoja de movimientos compatible.']
   ])
   instructionsSheet['!cols'] = [{ wch: 24 }, { wch: 112 }]
   XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instrucciones')
@@ -931,42 +1217,34 @@ async function exportComparison() {
   guideSheet['!cols'] = [{ wch: 34 }, { wch: 32 }, { wch: 88 }, { wch: 54 }]
   XLSX.utils.book_append_sheet(workbook, guideSheet, 'Guía de tipos')
 
+  const notesSheet = XLSX.utils.aoa_to_sheet([
+    ['Notas de conciliación bancaria'],
+    ['Cuenta', props.accountName],
+    ['Archivo', fileName.value || ''],
+    ['Período comparado', `${statementPeriodStart.value || 'No definido'} a ${statementDate.value || 'Sin fecha de cierre'}`],
+    ['Notas', reconciliationNotes.value.trim() || 'Sin notas.']
+  ])
+  notesSheet['!cols'] = [{ wch: 24 }, { wch: 110 }]
+  XLSX.utils.book_append_sheet(workbook, notesSheet, 'Notas')
+
   const safeName = props.accountName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
   XLSX.writeFile(workbook, `comparacion-bancaria-${safeName || 'cuenta'}.xlsx`)
 }
 
-function reset() {
-  movementDetailsOpen.value = false
-  movementDetailsLoading.value = false
-  selectedMovementDetails.value = null
-  fileName.value = ''
-  fileHash.value = ''
-  sourceSheetName.value = ''
-  headers.value = []
-  sourceRows.value = []
-  errorMessage.value = ''
-  savedProfile.value = false
-  importing.value = false
-  statementDate.value = ''
-  statementClosingBalanceInput.value = ''
-  statementDateManuallySet.value = false
-  statementBalanceManuallySet.value = false
-  comparisonFilter.value = 'all'
-  importPage.value = 0
-  selectedImportRows.value = []
-  resolutionOpen.value = false
-  activeResolution.value = null
-  resolutionChecks.value = []
-  refreshAfterExternalFlow.value = false
-  for (const key of Object.keys(conceptByRow)) delete conceptByRow[Number(key)]
-  Object.assign(mapping, { date: '', description: '', amount: '', debit: '', credit: '', direction: '', reference: '', balance: '' })
-}
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="modalTitle" :fullscreen="props.standalone" :overlay="!props.standalone" :ui="props.standalone ? { body: 'min-h-0' } : { content: 'w-[96vw] max-w-[96vw] sm:max-w-[96vw]' }">
-    <template #body>
-      <div :class="props.standalone ? 'space-y-5 pr-1' : 'max-h-[calc(100vh-9rem)] space-y-5 overflow-y-auto pr-1'">
+  <div class="flex flex-col gap-5 p-4 sm:p-6">
+    <header class="flex flex-wrap items-center justify-between gap-4 border-b border-default pb-4">
+      <div>
+        <p class="text-xs font-medium uppercase tracking-wide text-muted">Tesorería · Bancos</p>
+        <h1 class="text-2xl font-semibold">Conciliación bancaria</h1>
+        <p class="text-sm text-muted">{{ accountName }} · {{ currencyCode }}</p>
+      </div>
+      <UButton label="Volver a la cuenta" icon="i-lucide-arrow-left" color="neutral" variant="outline" @click="emit('close')" />
+    </header>
+
+    <div class="flex flex-col gap-5">
         <UAlert
           color="info"
           variant="subtle"
@@ -1031,10 +1309,19 @@ function reset() {
             <UFormField label="Saldo del extracto"><USelect v-model="mapping.balance" :items="fieldOptions" value-key="value" class="w-full" /></UFormField>
           </div>
 
+          <div class="grid gap-3 sm:grid-cols-2">
+            <UFormField
+              label="Escala de importes"
+              description="Si el banco exporta centavos enteros (por ejemplo, 162877000 para $1.628.770), elegí dividir por 100. Se aplica a importes y saldos del archivo; no cambia movimientos ya registrados."
+            >
+              <USelect v-model="amountScale" :items="amountScaleItems" value-key="value" class="w-full" />
+            </UFormField>
+          </div>
+
           <UAlert v-if="normalizedMapping.amount && (normalizedMapping.debit || normalizedMapping.credit)" color="warning" variant="subtle" icon="i-lucide-info" description="Elegí importe con signo o columnas separadas de débito/crédito; se usan estas últimas cuando están configuradas." />
           <UAlert v-if="!mappingIsValid" color="warning" variant="subtle" icon="i-lucide-list-filter" description="Para comparar se necesitan fecha, descripción y una columna de importe o débito/crédito." />
 
-          <section v-if="mappingIsValid" class="space-y-3 rounded-xl border border-default p-4">
+          <section v-if="mappingIsValid && activeWorkspaceTab === 'comparison'" class="space-y-3 rounded-xl border border-default p-4">
             <div>
               <h3 class="font-semibold">Saldo del extracto al cierre</h3>
               <p class="text-sm text-muted">La fecha y el saldo se completan desde la última fila del archivo cuando están disponibles. Si no mapeaste una columna de saldo, ingresá el saldo final que informa el banco.</p>
@@ -1055,7 +1342,8 @@ function reset() {
             <UAlert v-else-if="statementDate && closingBalance != null" color="warning" variant="subtle" icon="i-lucide-circle-alert" description="No hay saldo histórico de la cuenta para la fecha elegida; revisá que la fecha y los movimientos cargados sean correctos." />
           </section>
 
-          <section v-if="mappingIsValid && statementDate && normalizedLines.length" class="grid gap-3 xl:grid-cols-3">
+          <UTabs v-if="mappingIsValid" v-model="activeWorkspaceTab" :items="workspaceTabItems" :content="false" variant="link" class="w-full" />
+          <section v-if="mappingIsValid && activeWorkspaceTab === 'comparison' && statementDate && normalizedLines.length" class="grid gap-3 xl:grid-cols-3">
             <UPageCard variant="subtle">
               <template #header><div><p class="font-semibold">Totales del extracto</p><p class="text-xs text-muted">{{ statementMovementTotals.count }} movimientos · {{ statementPeriodStart }} a {{ statementDate }}</p></div></template>
               <div class="grid grid-cols-3 gap-2 text-sm">
@@ -1082,7 +1370,7 @@ function reset() {
             </UPageCard>
           </section>
 
-          <div v-if="mappingIsValid" class="grid gap-3 sm:grid-cols-4">
+          <div v-if="mappingIsValid && activeWorkspaceTab === 'comparison'" class="grid gap-3 sm:grid-cols-4">
             <button type="button" class="rounded-xl border border-default p-4 text-left transition hover:border-primary" :class="comparisonFilter === 'all' ? 'border-primary bg-primary/5' : ''" :aria-pressed="comparisonFilter === 'all'" @click="comparisonFilter = 'all'"><span class="block text-xs text-muted">Movimientos comparados</span><span class="text-xl font-semibold">{{ summary.total }}</span></button>
             <button type="button" class="rounded-xl border border-default p-4 text-left transition hover:border-success" :class="comparisonFilter === 'suggested' ? 'border-success bg-success/5' : ''" :aria-pressed="comparisonFilter === 'suggested'" @click="comparisonFilter = 'suggested'"><span class="block text-xs text-muted">Coincidencias</span><span class="text-xl font-semibold text-success">{{ summary.suggested }}</span></button>
             <button type="button" class="rounded-xl border border-default p-4 text-left transition hover:border-warning" :class="comparisonFilter === 'pending' ? 'border-warning bg-warning/5' : ''" :aria-pressed="comparisonFilter === 'pending'" @click="comparisonFilter = 'pending'"><span class="block text-xs text-muted">Sin asociar / ambiguos</span><span class="text-xl font-semibold text-warning">{{ summary.pending }}</span></button>
@@ -1090,11 +1378,23 @@ function reset() {
             <button type="button" class="rounded-xl border border-default p-4 text-left transition hover:border-warning sm:col-span-2 lg:col-span-1" :class="comparisonFilter === 'invalid' ? 'border-warning bg-warning/5' : ''" :aria-pressed="comparisonFilter === 'invalid'" @click="comparisonFilter = 'invalid'"><span class="block text-xs text-muted">Filas para corregir</span><span class="text-xl font-semibold text-warning">{{ summary.invalid }}</span></button>
           </div>
 
-          <section v-if="mappingIsValid && unmatchedSuggestions.length" class="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
+          <div v-if="mappingIsValid && activeWorkspaceTab === 'resolve' && ambiguousSuggestions.length" class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
+            <div>
+              <p class="font-medium">{{ ambiguousSuggestions.length }} movimientos tienen más de una coincidencia posible</p>
+              <p class="text-sm text-muted">Revisalos en Comparación antes de registrar para evitar duplicados.</p>
+            </div>
+            <UButton label="Ver coincidencias ambiguas" icon="i-lucide-git-compare-arrows" variant="outline" @click="activeWorkspaceTab = 'comparison'; comparisonFilter = 'pending'" />
+          </div>
+
+          <section v-if="mappingIsValid && activeWorkspaceTab === 'resolve' && unmatchedSuggestions.length" class="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 class="font-semibold">Resolver movimientos sin coincidencia</h3>
-                <p class="text-sm text-muted">Usá Resolver para pagos, cobros o cheques. La selección por lote registra conceptos bancarios (comisiones, impuestos o ajustes); las coincidencias ambiguas quedan para revisión manual.</p>
+                <h3 class="font-semibold">Asociar o registrar movimientos del extracto</h3>
+                <p class="text-sm text-muted">Usá Resolver para pagos, cobros o cheques. Para comisiones, impuestos o rendimientos, elegí un concepto: se registran con la fecha y el importe del extracto.</p>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                  <UCheckbox v-model="rememberConceptRules" label="Recordar conceptos por descripción y débito/crédito para sugerirlos en futuras cargas de esta cuenta" />
+                  <UButton v-if="hasSavedConceptRules" size="xs" color="neutral" variant="ghost" icon="i-lucide-trash-2" label="Borrar sugerencias recordadas" @click="clearSavedConceptRules" />
+                </div>
               </div>
               <div class="text-right text-sm text-muted">
                 <p>{{ selectedSuggestions.length }} seleccionados · máximo 50</p>
@@ -1111,15 +1411,53 @@ function reset() {
               description="No hay conceptos activos con cuenta contable y efecto en saldo. Configuralos en Conceptos bancarios antes de importar."
             />
 
-            <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="grid gap-3 rounded-lg border border-default bg-elevated/30 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+              <UFormField
+                label="Concepto para selección rápida"
+                description="Elegí un concepto y marcá varias filas: se les asigna automáticamente. Desmarcar una fila la saca del lote y borra su concepto."
+              >
+                <USelectMenu
+                  v-model="quickConceptId"
+                  v-model:open="quickConceptOpen"
+                  :items="quickConceptOptions"
+                  value-key="value"
+                  searchable
+                  clear
+                  placeholder="Elegir concepto bancario"
+                  class="w-full"
+                  :disabled="!importConceptOptions.length"
+                />
+              </UFormField>
               <UButton
-                size="xs"
-                color="neutral"
+                label="Aplicar a los seleccionados"
+                icon="i-lucide-list-checks"
                 variant="outline"
-                :label="allVisibleImportRowsSelected ? 'Quitar selección de esta página' : 'Seleccionar esta página'"
-                :disabled="!importPageSuggestions.length || !importConceptOptions.length"
-                @click="toggleVisibleImportRows"
+                :disabled="!quickConceptId || !selectedSuggestions.length"
+                @click="applyQuickConceptToSelectedRows"
               />
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap gap-2">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="outline"
+                  :label="allVisibleImportRowsSelected ? 'Quitar selección de esta página' : 'Seleccionar esta página'"
+                  :disabled="!importPageSuggestions.length || !importConceptOptions.length"
+                  @click="toggleVisibleImportRows"
+                />
+                <UButton
+                  v-if="hasSavedConceptRules || hasSuggestedConceptRows"
+                  size="xs"
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-list-checks"
+                  label="Seleccionar hasta 50 con concepto sugerido"
+                  :disabled="!importConceptOptions.length"
+                  @click="selectRowsWithSuggestedConcept"
+                />
+              </div>
               <div class="flex items-center gap-2 text-sm text-muted">
                 <span>Página {{ importPage + 1 }} de {{ importPageCount }}</span>
                 <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-chevron-left" :disabled="importPage === 0" aria-label="Página anterior" @click="() => { importPage -= 1 }" />
@@ -1128,35 +1466,44 @@ function reset() {
             </div>
 
             <div class="max-h-80 space-y-2 overflow-y-auto pr-1">
-              <article v-for="suggestion in importPageSuggestions" :key="suggestion.line.rowNumber" class="grid gap-3 rounded-lg border border-default bg-default/70 p-3 md:grid-cols-[auto_minmax(0,1fr)_minmax(14rem,0.9fr)_auto] md:items-center">
-                <UCheckbox
-                  :model-value="selectedImportRows.includes(suggestion.line.rowNumber)"
-                :disabled="!importConceptOptions.length"
-                  :aria-label="`Seleccionar fila ${suggestion.line.rowNumber}`"
-                  @update:model-value="value => toggleImportRow(suggestion.line.rowNumber, Boolean(value))"
-                />
-                <div class="min-w-0">
-                  <p class="text-xs text-muted">Fila {{ suggestion.line.rowNumber }} · {{ suggestion.line.date }}<span v-if="suggestion.line.reference"> · Ref. {{ suggestion.line.reference }}</span></p>
-                  <p class="truncate text-sm font-medium">{{ suggestion.line.description }}</p>
-                  <p class="text-sm font-semibold tabular-nums" :class="(suggestion.line.amount ?? 0) < 0 ? 'text-error' : 'text-success'">{{ formatMoney(suggestion.line.amount) }}</p>
+              <article v-for="suggestion in importPageSuggestions" :key="suggestion.line.rowNumber" class="space-y-3 rounded-lg border border-default bg-default/70 p-3">
+                <div class="flex flex-wrap items-center gap-3">
+                  <UCheckbox
+                    :model-value="selectedImportRows.includes(suggestion.line.rowNumber)"
+                    :disabled="!importConceptOptions.length"
+                    :aria-label="`Seleccionar fila ${suggestion.line.rowNumber}`"
+                    @update:model-value="value => toggleImportRow(suggestion.line.rowNumber, Boolean(value))"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <p class="text-xs text-muted">Fila {{ suggestion.line.rowNumber }} · {{ suggestion.line.date }}<span v-if="suggestion.line.reference"> · Ref. {{ suggestion.line.reference }}</span></p>
+                    <p class="truncate text-sm font-medium">{{ suggestion.line.description }}</p>
+                    <p class="text-sm font-semibold tabular-nums" :class="(suggestion.line.amount ?? 0) < 0 ? 'text-error' : 'text-success'">{{ formatMoney(suggestion.line.amount) }} · {{ (suggestion.line.amount ?? 0) < 0 ? 'Débito' : 'Crédito' }}</p>
+                  </div>
+                  <UButton size="sm" icon="i-lucide-wand-sparkles" label="Resolver pago, cobro o cheque" variant="outline" @click="openResolution(suggestion)" />
                 </div>
-                <USelectMenu
-                  v-model="conceptByRow[suggestion.line.rowNumber]"
-                  :items="importConceptOptions"
-                  value-key="value"
-                  searchable
-                  placeholder="Elegir concepto y cuenta"
-                  class="w-full"
-                  :disabled="!importConceptOptions.length"
-                />
-                <UButton size="sm" icon="i-lucide-wand-sparkles" label="Resolver" variant="outline" @click="openResolution(suggestion)" />
+                <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:pl-8">
+                  <USelectMenu
+                    :model-value="getConceptForLine(suggestion.line)"
+                    :items="conceptOptionsForLine(suggestion.line)"
+                    :open="openConceptMenuRow === suggestion.line.rowNumber"
+                    value-key="value"
+                    searchable
+                    clear
+                    placeholder="Elegir concepto bancario"
+                    class="w-full"
+                    :disabled="!importConceptOptions.length"
+                    @update:open="value => { openConceptMenuRow = value ? suggestion.line.rowNumber : null }"
+                    @update:model-value="value => updateConceptForLine(suggestion.line, value)"
+                  />
+                  <p class="self-center text-xs text-muted">Al registrar se usan {{ suggestion.line.date }} y {{ formatMoney(suggestion.line.amount) }} del extracto.</p>
+                </div>
               </article>
             </div>
 
             <p class="text-xs text-muted">Se usa la cotización oficial configurada para la fecha del movimiento cuando la cuenta no opera en la moneda base. Si volvés a importar el mismo archivo, las filas ya registradas no se duplican.</p>
           </section>
 
-          <div v-if="mappingIsValid" class="space-y-2">
+          <div v-if="mappingIsValid && activeWorkspaceTab === 'comparison'" class="space-y-2">
             <div class="flex flex-wrap items-end justify-between gap-2">
               <div><h3 class="font-semibold">Comparación de movimientos</h3><p class="text-sm text-muted">Cada fila muestra el importe y el saldo del extracto junto al saldo posterior del movimiento en el sistema.</p></div>
               <UButton v-if="comparisonFilter !== 'all'" size="xs" color="neutral" variant="ghost" label="Quitar filtro" @click="() => { comparisonFilter = 'all' }" />
@@ -1172,13 +1519,70 @@ function reset() {
             />
             <p v-if="summary.total > filteredComparisonRows.length" class="text-xs text-muted">El filtro está mostrando {{ filteredComparisonRows.length }} de {{ summary.total }} filas.</p>
           </div>
+
+          <section v-else-if="mappingIsValid && activeWorkspaceTab === 'resolve' && !unmatchedSuggestions.length && !ambiguousSuggestions.length" class="rounded-xl border border-success/25 bg-success/5 p-6 text-center">
+            <UIcon name="i-lucide-circle-check" class="mx-auto mb-2 size-8 text-success" />
+            <h3 class="font-semibold">No hay movimientos pendientes de resolver</h3>
+            <p class="text-sm text-muted">Los movimientos del extracto ya tienen una coincidencia o no requieren una acción.</p>
+          </section>
+
+          <section v-else-if="mappingIsValid && activeWorkspaceTab === 'system'" class="space-y-4">
+            <div class="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h3 class="font-semibold">Movimientos del sistema</h3>
+                <p class="text-sm text-muted">{{ systemMovementRows.length }} movimientos cargados para {{ accountName }}. Filtrá por fecha, concepto o referencia; abrí el ojo para ver el detalle.</p>
+              </div>
+            </div>
+            <AsteriskTable
+              :data="systemMovementRows"
+              :columns="systemMovementColumns"
+              :loading="parsing"
+              :get-row-id="(row: SystemMovementTableRow) => row.id"
+              :filter-fields="[
+                { id: 'description', label: 'Buscar concepto o descripción...', class: 'w-64' },
+                { id: 'reference', label: 'Buscar referencia...', class: 'w-48' }
+              ]"
+              :sort-fields="[{ label: 'Fecha', value: 'date' }, { label: 'Importe', value: 'amount' }, { label: 'Saldo posterior', value: 'balance_after' }]"
+              :storage-key="`bank-statement-system-movements-${accountId}`"
+            />
+          </section>
+
+          <section v-else-if="mappingIsValid && activeWorkspaceTab === 'notes'" class="space-y-4 rounded-xl border border-default p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="font-semibold">Notas de esta conciliación</h3>
+                <p class="text-sm text-muted">Quedan asociadas a esta cuenta y a este archivo en este navegador. Podés descargarlas como texto o incluirlas en el Excel de comparación.</p>
+              </div>
+              <UBadge v-if="notesDirty" color="warning" variant="subtle">Cambios sin guardar</UBadge>
+              <UBadge v-else-if="reconciliationNotesSavedAt" color="success" variant="subtle">Guardadas</UBadge>
+            </div>
+            <UTextarea
+              v-model="reconciliationNotes"
+              :rows="12"
+              :maxlength="20000"
+              resize
+              placeholder="Anotá diferencias, comprobantes pendientes, consultas al banco o decisiones para continuar después..."
+              aria-label="Notas de la conciliación bancaria"
+              class="w-full"
+            />
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="space-y-1 text-xs text-muted">
+                <p>{{ reconciliationNotes.length.toLocaleString('es-AR') }} / 20.000 caracteres</p>
+                <p v-if="reconciliationNotesSavedAt">Último guardado: {{ new Date(reconciliationNotesSavedAt).toLocaleString('es-AR') }}</p>
+                <p v-if="reconciliationNotesMessage">{{ reconciliationNotesMessage }}</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <UButton label="Guardar notas" icon="i-lucide-save" :disabled="!notesDirty" @click="saveReconciliationNotes" />
+                <UButton label="Descargar notas .txt" icon="i-lucide-download" variant="outline" :disabled="!reconciliationNotes.trim()" @click="downloadReconciliationNotes" />
+              </div>
+            </div>
+          </section>
         </section>
 
         <div class="flex flex-wrap justify-end gap-2 border-t border-default pt-4">
-          <UButton label="Cerrar" color="neutral" variant="ghost" @click="() => { open = false }" />
-          <UButton v-if="mappingIsValid && summary.total" label="Exportar comparación y guía" icon="i-lucide-file-spreadsheet" @click="exportComparison" />
+          <UButton v-if="activeWorkspaceTab === 'comparison' && mappingIsValid && summary.total" label="Exportar conciliación a Excel" icon="i-lucide-file-spreadsheet" @click="exportComparison" />
           <UButton
-            v-if="mappingIsValid && unmatchedSuggestions.length"
+            v-if="activeWorkspaceTab === 'resolve' && mappingIsValid && unmatchedSuggestions.length"
             label="Registrar conceptos seleccionados"
             icon="i-lucide-file-check-2"
             :loading="importing"
@@ -1187,8 +1591,7 @@ function reset() {
           />
         </div>
       </div>
-    </template>
-  </UModal>
+  </div>
 
   <UModal v-model:open="resolutionOpen" :title="`Resolver movimiento · ${resolutionPaymentType === 'COLLECTION' ? 'Cobro' : 'Pago'}`" :ui="{ content: 'sm:max-w-3xl' }">
     <template #body>

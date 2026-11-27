@@ -32,7 +32,9 @@ const checkStatusLabels: Record<string, string> = {
 }
 
 const entryLabel = computed(() => props.entry
-  ? ENTRY_TYPE_CONFIG[props.entry.type]?.label ?? props.entry.type
+  ? props.entry.reference_type === 'exchange_difference'
+    ? 'Diferencia de cambio'
+    : ENTRY_TYPE_CONFIG[props.entry.type]?.label ?? props.entry.type
   : '')
 const entryDescription = computed(() => resolveCurrentAccountDescription(props.entry?.description))
 
@@ -62,6 +64,14 @@ function formatDate(value?: string | null) {
   >
     <template #body>
       <div v-if="entry" class="space-y-5">
+        <UAlert
+          v-if="entry.reference_type === 'exchange_difference'"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-arrow-left-right"
+          title="Ajuste por cotización del pago"
+          description="El comprobante conserva su cotización histórica y su saldo pendiente se calcula en moneda original. Este movimiento concilia en moneda base la diferencia entre esa valuación y la cotización efectiva del pago; no cambia el total del comprobante."
+        />
         <section class="grid gap-3 rounded-xl border border-default bg-elevated/40 p-4 sm:grid-cols-3">
           <div>
             <p class="text-xs text-muted">Movimiento</p>
@@ -110,7 +120,7 @@ function formatDate(value?: string | null) {
             <h4 class="text-sm font-medium">Comprobantes asociados</h4>
             <div v-for="application in payment.documents" :key="application.id" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-default px-3 py-2 text-sm">
               <span>{{ application.document.document_types?.description || application.document.document_types?.code || 'Documento' }} #{{ application.document.number }} · {{ formatDate(application.document.date) }}</span>
-              <span class="font-medium">Aplicado {{ formatCurrency(application.amount_applied, application.document.currency_code || payment.currency_code) }}</span>
+              <span class="font-medium">Aplicado {{ formatCurrency(application.amount_applied, payment.currency_code) }}</span>
             </div>
           </div>
 

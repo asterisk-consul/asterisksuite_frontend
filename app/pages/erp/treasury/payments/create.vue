@@ -135,8 +135,10 @@ onMounted(async () => {
         party_id: doc.party_id ?? partyId.value ?? '',
         party_type: doc.party_type ?? 'CUSTOMER',
         currency_code: doc.currency_code ?? 'ARS',
-        exchange_rate: doc.exchange_rate == null ? null : Number(doc.exchange_rate),
-        rate_type: doc.rate_type ?? 'OFFICIAL',
+        // La tasa de la factura valora su saldo histórico. El pago debe
+        // proponer la cotización efectiva de su propia fecha.
+        exchange_rate: null,
+        rate_type: 'OFFICIAL',
         amount: doc.pending_amount,
         documents: [{ document_id: documentId.value, amount_applied: doc.pending_amount }]
       }

@@ -99,7 +99,7 @@ const canEditFinalizedExchangeRate = computed(() =>
   (isConfirmed.value || isPaid.value)
   && (['OWNER', 'ADMIN'].includes(String(authStore.selectedCompany?.role)) || hasPermission('payments.update'))
   && currentPayment.value?.payment_mode !== 'ADVANCE'
-  && currentPayment.value?.currency_code?.toUpperCase() === 'ARS'
+  && ['ARS', 'USD'].includes(currentPayment.value?.currency_code?.toUpperCase() ?? '')
   && Boolean(currentPayment.value?.documents?.some((row: any) => row.document?.currency_code?.toUpperCase() === 'USD'))
 )
 const isAdvance = computed(() => currentPayment.value?.payment_mode === 'ADVANCE')
@@ -349,7 +349,15 @@ const handleFinalizedDetailsSave = async (payload: { rate_only?: boolean; accoun
       certificate_date: w.certificate_date?.split('T')[0] ?? undefined,
       is_locked: Boolean(w.certificate_number || w.remittance_id),
     }))
-    toast.add({ title: 'Cambios financieros guardados', description: 'La cotización no altera los importes nominales en pesos. Si modificaste retenciones, se recalcularon el movimiento y los saldos; el importe aplicado a las facturas se conserva.', color: 'success' })
+    toast.add({
+      title: payload.rate_only ? 'Cotización corregida' : 'Cambios financieros guardados',
+      description: payload.rate_only
+        ? 'Se recalcularon el importe aplicado en USD, el saldo del comprobante y la diferencia de cambio de la cuenta corriente. El importe nominal en pesos se conserva.'
+        : payload.exchange_rate != null
+          ? 'La cotización actualizó los importes convertidos y, cuando corresponde, el saldo del comprobante y la diferencia de cambio. Las retenciones se recalcularon si fueron modificadas.'
+        : 'Si modificaste retenciones, se recalcularon el movimiento y los saldos; el importe bruto aplicado a las facturas se conserva.',
+      color: 'success'
+    })
   } catch (error: any) {
     toast.add({ title: 'No se pudieron guardar los cambios', description: error?.data?.message || error?.message || 'Revisá las retenciones y la cuenta seleccionada.', color: 'error', icon: 'i-lucide-alert-circle' })
   } finally {

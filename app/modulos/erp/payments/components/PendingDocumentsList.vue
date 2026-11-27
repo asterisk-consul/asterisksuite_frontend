@@ -104,8 +104,28 @@ function getMaxAmount(doc: PendingDocument): number {
   if (doc.currency_code?.toUpperCase() === props.currencyCode?.toUpperCase()) {
     return doc.pending_amount
   }
-  const rate = doc.exchange_rate ?? props.resolvedRate ?? 1
-  return doc.pending_amount * rate
+  const rate = Number(props.exchangeRate ?? props.resolvedRate ?? doc.exchange_rate)
+  if (!Number.isFinite(rate) || rate <= 0) return 0
+  if (doc.currency_code?.toUpperCase() === 'USD' && props.currencyCode?.toUpperCase() === 'ARS') {
+    return Number((doc.pending_amount * rate).toFixed(2))
+  }
+  if (doc.currency_code?.toUpperCase() === 'ARS' && props.currencyCode?.toUpperCase() === 'USD') {
+    return Number((doc.pending_amount / rate).toFixed(2))
+  }
+  return 0
+}
+
+function getPaymentCurrencyEquivalent(doc: PendingDocument): { amount: number; rate: number } | null {
+  if (doc.currency_code?.toUpperCase() === props.currencyCode?.toUpperCase()) return null
+  const rate = Number(props.exchangeRate ?? props.resolvedRate ?? doc.exchange_rate)
+  if (!Number.isFinite(rate) || rate <= 0) return null
+  if (doc.currency_code?.toUpperCase() === 'USD' && props.currencyCode?.toUpperCase() === 'ARS') {
+    return { amount: Number((doc.pending_amount * rate).toFixed(2)), rate }
+  }
+  if (doc.currency_code?.toUpperCase() === 'ARS' && props.currencyCode?.toUpperCase() === 'USD') {
+    return { amount: Number((doc.pending_amount / rate).toFixed(2)), rate }
+  }
+  return null
 }
 
 function documentTypeLabel(doc: PendingDocument) {
@@ -211,11 +231,11 @@ function documentTypeBadgeClass(doc: PendingDocument) {
             <p class="text-xs text-muted">Saldo pendiente</p>
             <p class="text-base font-semibold text-warning">{{ formatCurrency(doc.pending_amount, doc.currency_code) }}</p>
             <p
-              v-if="doc.currency_code?.toUpperCase() !== currencyCode?.toUpperCase() && (doc.exchange_rate || resolvedRate)"
+              v-if="getPaymentCurrencyEquivalent(doc)"
               class="text-xs font-medium text-primary"
             >
-              {{ formatCurrency(doc.pending_amount * (doc.exchange_rate ?? resolvedRate ?? 1), currencyCode) }}
-              <span>(x{{ doc.exchange_rate ?? resolvedRate }})</span>
+              {{ formatCurrency(getPaymentCurrencyEquivalent(doc)?.amount ?? doc.pending_amount, currencyCode) }}
+              <span>(x{{ getPaymentCurrencyEquivalent(doc)?.rate }})</span>
             </p>
           </div>
           <div v-if="isSelected(doc.id)" class="w-32 shrink-0">

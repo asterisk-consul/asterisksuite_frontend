@@ -20,6 +20,7 @@ export function useExchangeRate() {
   const isAutoResolved = ref(false)
   const loading = ref(false)
   const ratesLoaded = ref(false)
+  let resolveRequest = 0
 
   /**
    * Check if a currency is the base currency
@@ -36,16 +37,33 @@ export function useExchangeRate() {
     fromCode: string,
     toCode: string,
     type?: string,
+    effectiveDate?: string,
   ): Promise<number | null> => {
+    const request = ++resolveRequest
     if (fromCode.toUpperCase() === toCode.toUpperCase()) {
       exchangeRate.value = 1
       isAutoResolved.value = true
+      loading.value = false
       return 1
     }
 
     loading.value = true
     try {
-      // Ensure currency rates store is loaded
+      // Los pagos y cobros deben tomar la cotización efectiva de su fecha,
+      // no la última disponible al momento de abrir el formulario.
+      if (effectiveDate) {
+        const result = await ratesService.resolveRate(fromCode, toCode, effectiveDate, type ?? rateType.value)
+        if (result?.rate && Number(result.rate) > 0) {
+          if (request !== resolveRequest) return null
+          exchangeRate.value = Number(result.rate)
+          rateType.value = result.rateType ?? type ?? rateType.value
+          isAutoResolved.value = true
+          return exchangeRate.value
+        }
+        throw new Error('No hay cotización para la fecha seleccionada')
+      }
+
+      // Las resoluciones sin fecha usan el listado local y su cotización más reciente.
       if (!ratesLoaded.value) {
         await Promise.all([initCurrencies(), fetchRates()])
         ratesLoaded.value = true
@@ -58,6 +76,7 @@ export function useExchangeRate() {
       if (fromCurrency && toCurrency) {
         const rate = getLatestRateValue(fromCurrency.id, toCurrency.id, type ?? rateType.value)
         if (rate) {
+          if (request !== resolveRequest) return null
           exchangeRate.value = rate
           isAutoResolved.value = true
           return rate
@@ -68,16 +87,19 @@ export function useExchangeRate() {
       const result = await ratesService.convert(fromCode, toCode, 1, type ?? rateType.value)
 
       if (result?.rate) {
+        if (request !== resolveRequest) return null
         exchangeRate.value = result.rate
         isAutoResolved.value = true
         return result.rate
       }
     } catch {
       // Rate not found
-      exchangeRate.value = null
-      isAutoResolved.value = false
+      if (request === resolveRequest) {
+        exchangeRate.value = null
+        isAutoResolved.value = false
+      }
     } finally {
-      loading.value = false
+      if (request === resolveRequest) loading.value = false
     }
 
     return null
@@ -87,6 +109,8 @@ export function useExchangeRate() {
    * Set rate manually (user override)
    */
   const setManualRate = (rate: number) => {
+    resolveRequest += 1
+    loading.value = false
     exchangeRate.value = rate
     isAutoResolved.value = false
   }
@@ -95,6 +119,8 @@ export function useExchangeRate() {
    * Reset to auto-resolved rate
    */
   const resetRate = () => {
+    resolveRequest += 1
+    loading.value = false
     exchangeRate.value = null
     isAutoResolved.value = false
   }

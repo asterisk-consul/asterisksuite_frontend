@@ -161,7 +161,7 @@ export interface CreateDocumentsTypeDto {
 
   category?: DocumentCategory
 
-  letter_type?: string
+  letter_type?: string | null
 
   afip_code?: string
 

@@ -202,6 +202,7 @@ const handleSubmit = async (formData: DocumentTypeFormData) => {
     tax_ids: _taxIds,
     enabled_statuses: _enabledStatuses,
     category,
+    letter_type,
     ...documentTypeFields
   } = formData
   void _formId
@@ -209,6 +210,7 @@ const handleSubmit = async (formData: DocumentTypeFormData) => {
   void _enabledStatuses
   const documentTypePayload: CreateDocumentsTypeDto = {
     ...documentTypeFields,
+    letter_type: letter_type?.trim() || null,
     ...(category ? { category: category as DocumentCategory } : {})
   }
   let savedTypeId: string | undefined

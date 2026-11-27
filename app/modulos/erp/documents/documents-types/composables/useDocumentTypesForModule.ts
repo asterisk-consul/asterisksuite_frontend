@@ -12,6 +12,7 @@ export interface DocumentTypeOption {
   value: string
   code: string
   letter_type?: string | null
+  category?: string | null
 }
 
 /**
@@ -20,7 +21,7 @@ export interface DocumentTypeOption {
  *   Emisor       | Receptor        | Letra
  *   -------------|-----------------|------
  *   RI           | RI              | A
- *   RI           | Monotributo     | B
+ *   RI           | Monotributo     | A
  *   RI           | Consumidor Final| B
  *   RI           | Exento          | B
  *   Monotributo  | *               | C
@@ -29,16 +30,16 @@ export interface DocumentTypeOption {
 function getValidLetterTypes(issuer: string | null, partner: string | null): string[] {
   if (!issuer) return []
 
-  const issuerNorm = issuer.toUpperCase()
-  if (issuerNorm === 'MONOTRIBUTO' || issuerNorm === 'EXENTO') return ['C']
+  const issuerNorm = issuer.toUpperCase().replace(/\s+/g, '_')
+  if (issuerNorm === 'MONOTRIBUTO' || issuerNorm === 'MONO' || issuerNorm === 'EXENTO' || issuerNorm === 'EX') return ['C']
 
   // Emisor RI
   if (!partner) return ['A', 'B'] // sin partner seleccionado, mostrar ambas
 
   const partnerNorm = partner.toUpperCase()
-  if (partnerNorm === 'RI' || partnerNorm === 'RESPONSABLE_INSCRIPTO') return ['A']
+  if (partnerNorm === 'RI' || partnerNorm === 'RESPONSABLE_INSCRIPTO' || partnerNorm === 'MONO' || partnerNorm === 'MONOTRIBUTO') return ['A']
 
-  return ['B'] // Monotributo, Consumidor Final, Exento como receptor
+  return ['B'] // Consumidor final o exento como receptor
 }
 
 export function useDocumentTypesForModule(
@@ -66,7 +67,7 @@ export function useDocumentTypesForModule(
       // Compras: proveedor = emisor, empresa = receptor
       return getValidLetterTypes(partnerCond.value, issuerCondition.value)
     }
-    // Ventas: empresa = emisor, proveedor = receptor
+    // Ventas: empresa = emisor, cliente = receptor
     return getValidLetterTypes(issuerCondition.value, partnerCond.value)
   })
 
@@ -83,6 +84,7 @@ export function useDocumentTypesForModule(
         value: d.id,
         code: d.code,
         letter_type: d.letter_type,
+        category: d.category,
       }))
   })
 

@@ -1,5 +1,103 @@
 [
  {
+  "version": "0.183.12-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "El chip de prioridad que aparece en el detalle de la tarea ahora usa el mismo color que la tarjeta y las opciones del selector para cada nivel.",
+  "changes": [
+   { "type": "fix", "scope": "crm-tasks", "title": "Aplicar los colores de prioridad también al chip del detalle de la tarea" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Aclarar que los colores de prioridad son consistentes en el detalle y el tablero" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Unificar el color de prioridad en el detalle y el tablero"
+ },
+ {
+  "version": "0.183.11-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "La prioridad y la categoría seleccionadas ya no muestran una tilde ni un aro; se distinguen por un fondo más oscuro que conserva el color del badge.",
+  "changes": [
+   { "type": "style", "scope": "crm-tasks", "title": "Indicar la selección de categoría y prioridad con un color de fondo más oscuro" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar el estado visual de las opciones seleccionadas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Resaltar las opciones seleccionadas con un tono más oscuro"
+ },
+ {
+  "version": "0.183.10-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "En el detalle de la tarea, prioridad y categoría se eligen con badges coloreados y selección visible. La categoría puede crearse desde el botón + y queda seleccionada al guardarla.",
+  "changes": [
+   { "type": "style", "scope": "crm-tasks", "title": "Elegir prioridad y categoría mediante badges con el color de las tarjetas" },
+   { "type": "feat", "scope": "crm-tasks", "title": "Crear y seleccionar una categoría desde el selector de la tarea" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar la selección visual de categoría y prioridad" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Seleccionar prioridad y categoría desde badges de color"
+ },
+ {
+  "version": "0.183.9-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "Las etiquetas de prioridad y categoría de las tarjetas comparten estilo. La paleta de categorías incorpora celeste, turquesa, rosa, índigo, lima y marrón, con validación compatible en la API.",
+  "changes": [
+   { "type": "style", "scope": "crm-tasks", "title": "Unificar el estilo de prioridad y categoría y ampliar la paleta de colores" },
+   { "type": "compat", "scope": "crm-tasks", "title": "Aceptar los nuevos colores de categorías y etiquetas en la API" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar el estilo común y los colores disponibles para las categorías" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Unificar el estilo y ampliar los colores de categorías"
+ },
+ {
+  "version": "0.183.8-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "Las tarjetas muestran primero la prioridad y luego la categoría, juntas. Las categorías usan la paleta real también en el selector, el detalle y la configuración; el violeta aparece como violeta.",
+  "changes": [
+   { "type": "style", "scope": "crm-tasks", "title": "Acercar prioridad y categoría y aplicar sus colores reales en todas sus vistas" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar el orden y color de las barras en las tarjetas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Acercar las barras de prioridad y categoría y corregir sus colores"
+ },
+ {
+  "version": "0.183.7-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "En las tarjetas del tablero, categoría y prioridad permanecen en posiciones fijas y comparten el control para mostrar u ocultar sus nombres. Las categorías usan el color configurado, incluido el violeta.",
+  "changes": [
+   { "type": "style", "scope": "crm-tasks", "title": "Mantener fijas las barras de categoría y prioridad y desplegarlas en conjunto con sus colores" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar la expansión conjunta y los colores de categoría en las tarjetas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Fijar las barras y desplegar categoría y prioridad juntas"
+ },
+ {
+  "version": "0.183.6-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "Las tarjetas del tablero muestran la categoría y la prioridad como barras de color compactas. Al hacer clic se despliega el nombre y al volver a hacer clic se contrae.",
+  "changes": [
+   { "type": "style", "scope": "crm-tasks", "title": "Mostrar categoría y prioridad compactas y desplegables en las tarjetas" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar la categoría y prioridad desplegables en el tablero" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Mostrar categoría y prioridad compactas en las tarjetas"
+ },
+ {
+  "version": "0.183.5-alpha",
+  "date": "2026-11-27",
+  "stage": "alpha",
+  "notes": "Las tarjetas del tablero muestran un control de agarre al pasar el cursor. Usarlo inicia el arrastre entre listas; hacer clic en el resto de la tarjeta abre el detalle.",
+  "changes": [
+   { "type": "fix", "scope": "crm-tasks", "title": "Separar el control de arrastre del clic que abre el detalle de la tarea" },
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar el control de agarre para mover tarjetas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Arrastrar tarjetas desde un control de agarre"
+ },
+ {
   "version": "0.183.4-alpha",
   "date": "2026-11-26",
   "stage": "alpha",

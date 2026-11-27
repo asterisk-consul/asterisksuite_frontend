@@ -83,6 +83,7 @@ const taskRelationCreateOpen = ref(false)
 const linkedActivitiesOpen = ref(true)
 let relationSearchTimer: ReturnType<typeof setTimeout> | null = null
 const attachments = ref<any[]>([])
+const expandedTaskCardMeta = ref<Record<string, boolean>>({})
 const checklistTitle = ref('')
 const checklistItemDrafts = ref<Record<string, string>>({})
 const checklistDateOpen = reactive<Record<string, boolean>>({})
@@ -110,6 +111,7 @@ const boardViewSettings = reactive({ columnWidth: 'FIXED' as 'FIXED' | 'FLEXIBLE
 const boardViewClock = ref(Date.now())
 let boardViewClockTimer: ReturnType<typeof setInterval> | null = null
 const showCategoriesModal = ref(false)
+const categoryCreatorReturnToPicker = ref(false)
 const newCategoryName = ref('')
 const newCategoryColor = ref('neutral')
 const savingCategory = ref(false)
@@ -257,6 +259,7 @@ const filteredTaskLabels = computed(() => {
   return labels.value.filter(label => `${label.name ?? ''} ${labelColorName(label.color)}`.toLocaleLowerCase('es').includes(query))
 })
 const categoryOptions = computed(() => categories.value.filter(category => category.active || taskForm.category_id === category.id).map(category => ({ label: category.name, value: category.id })))
+const taskCategoryChoices = computed(() => categories.value.filter(category => category.active || taskForm.category_id === category.id))
 const subtaskCategoryOptions = computed(() => categories.value.filter(category => category.active).map(category => ({ label: category.name, value: category.id })))
 const categoryFilterOptions = computed(() => categories.value.filter(category => category.active).map(category => ({ label: category.name, value: category.id })))
 const boardFilterMemberOptions = computed(() => [{ label: 'Sin miembros', value: 'NONE' }, { label: 'Asignadas a mí', value: 'ME' }, ...members.value.map(member => ({ label: member.name, value: member.id }))])
@@ -537,6 +540,12 @@ const labelColorOptions = [
   { label: 'Azul', value: 'info', background: '#205db3', foreground: '#deebff' },
   { label: 'Verde', value: 'success', background: '#216b52', foreground: '#d5f3e6' },
   { label: 'Violeta', value: 'primary', background: '#793da0', foreground: '#f0defa' },
+  { label: 'Celeste', value: 'sky', background: '#0369a1', foreground: '#e0f2fe' },
+  { label: 'Turquesa', value: 'teal', background: '#0f766e', foreground: '#ccfbf1' },
+  { label: 'Rosa', value: 'pink', background: '#be185d', foreground: '#fce7f3' },
+  { label: 'Índigo', value: 'indigo', background: '#4338ca', foreground: '#e0e7ff' },
+  { label: 'Lima', value: 'lime', background: '#4d7c0f', foreground: '#ecfccb' },
+  { label: 'Marrón', value: 'brown', background: '#854d0e', foreground: '#fef3c7' },
   { label: 'Gris', value: 'neutral', background: '#555b66', foreground: '#f0f1f3' },
 ]
 const actionPanelTitle = computed(() => {
@@ -557,7 +566,7 @@ const canEditTask = computed(() => selectedTask.value ? hasTaskPermission('tasks
 const canConvertChecklistItem = computed(() => hasTaskPermission('tasks.create') && hasTaskPermission('tasks.update'))
 const checklistSummary = (checklist: TaskChecklist) => `${checklist.items.filter(item => item.completed).length}/${checklist.items.length}`
 const attachmentAccept = 'image/*,.pdf'
-const priorityOptions = [
+const priorityOptions: Array<{ label: string; value: TaskRecord['priority'] }> = [
   { label: 'Baja', value: 'LOW' },
   { label: 'Normal', value: 'NORMAL' },
   { label: 'Alta', value: 'HIGH' },
@@ -588,6 +597,10 @@ function addTaskMember() {
 function removeTaskMember(userId: string) {
   taskForm.members = taskForm.members.filter(member => member.user_id !== userId)
 }
+
+watch(showCategoriesModal, open => {
+  if (!open) categoryCreatorReturnToPicker.value = false
+})
 
 watch(() => taskForm.assigned_to, assignedTo => {
   if (assignedTo !== 'NONE') removeTaskMember(assignedTo)
@@ -637,6 +650,18 @@ function priorityColor(priority: TaskRecord['priority']) {
   return ({ LOW: 'neutral', NORMAL: 'primary', HIGH: 'warning', URGENT: 'error' } as const)[priority]
 }
 
+function priorityPaletteColor(priority: TaskRecord['priority']) {
+  return ({ LOW: 'info', NORMAL: 'success', HIGH: 'warning', URGENT: 'error' } as const)[priority]
+}
+
+function isTaskCardMetaExpanded(taskId: string) {
+  return !!expandedTaskCardMeta.value[taskId]
+}
+
+function toggleTaskCardMeta(taskId: string) {
+  expandedTaskCardMeta.value = { ...expandedTaskCardMeta.value, [taskId]: !expandedTaskCardMeta.value[taskId] }
+}
+
 function columnMenuItems(column: TaskColumn) {
   const columns = board.value?.columns ?? []
   const groups = [] as Array<Array<Record<string, any>>>
@@ -661,12 +686,6 @@ function columnMenuItems(column: TaskColumn) {
   }
   return groups
 }
-
-function labelColor(color: string) {
-  return ({ primary: 'primary', success: 'success', info: 'info', warning: 'warning', error: 'error', neutral: 'neutral' } as const)[color as 'primary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'] ?? 'primary'
-}
-
-function categoryColor(color: string) { return labelColor(color) }
 
 function formatWorkedTime(minutes: number) {
   const hours = Math.floor(minutes / 60)
@@ -919,6 +938,11 @@ async function addCategory() {
     categoryColorDrafts[category.id] = category.color
     newCategoryName.value = ''
     newCategoryColor.value = 'neutral'
+    if (categoryCreatorReturnToPicker.value) {
+      taskForm.category_id = category.id
+      categoryCreatorReturnToPicker.value = false
+      showCategoriesModal.value = false
+    }
     toast.add({ title: 'Categoría agregada', color: 'success' })
   } catch (error: any) {
     toast.add({ title: 'No se pudo guardar la categoría', description: error?.data?.message ?? error.message, color: 'error' })
@@ -952,9 +976,13 @@ function labelColorName(color: string) {
   return labelColorOptions.find(option => option.value === color)?.label ?? 'Color'
 }
 
-function labelChipStyle(color: string) {
+function labelChipStyle(color: string, selected = false) {
   const option = labelColorOptions.find(item => item.value === color) ?? labelColorOptions[4]
-  return { backgroundColor: option.background, color: option.foreground }
+  const channels = option.background.slice(1).match(/.{2}/g) ?? []
+  const backgroundColor = selected && channels.length === 3
+    ? `#${channels.map(channel => Math.round(parseInt(channel, 16) * 0.72).toString(16).padStart(2, '0')).join('').toUpperCase()}`
+    : option.background
+  return { backgroundColor, color: option.foreground }
 }
 
 async function loadBoards() {
@@ -1332,6 +1360,10 @@ function setActionPanel(panel: NonNullable<typeof activeActionPanel.value>) {
   if (panel === 'labels') labelSearchTerm.value = ''
   activeActionPanel.value = panel
   actionModalOpen.value = true
+}
+function openCategoryCreatorForTask() {
+  categoryCreatorReturnToPicker.value = true
+  showCategoriesModal.value = true
 }
 function closeActionPanel() {
   actionModalOpen.value = false
@@ -2258,7 +2290,7 @@ onBeforeUnmount(() => {
                 </UDropdownMenu>
               </div>
             </header>
-            <VueDraggable v-model="column.tasks" group="company-tasks" item-key="id" :disabled="activeBoardFilterCount > 0 || !hasTaskPermission('tasks.update') || moving" :animation="240" :delay="150" :fallback-tolerance="4" :touch-start-threshold="5" :force-fallback="true" :fallback-on-body="true" :swap-threshold="0.65" filter=".task-completion" :prevent-on-filter="false" class="flex min-h-12 flex-col gap-2 p-2" :class="boardViewSettings.scrollMode === 'COLUMNS' ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain' : ''" ghost-class="task-card-ghost" chosen-class="task-card-chosen" drag-class="task-card-drag" fallback-class="task-card-fallback" @move="onDragMove" @end="onDragEnd">
+            <VueDraggable v-model="column.tasks" group="company-tasks" item-key="id" handle=".task-card-drag-handle" :disabled="activeBoardFilterCount > 0 || !hasTaskPermission('tasks.update') || moving" :animation="240" :fallback-tolerance="4" :touch-start-threshold="5" :force-fallback="true" :fallback-on-body="true" :swap-threshold="0.65" filter=".task-completion" :prevent-on-filter="false" class="flex min-h-12 flex-col gap-2 p-2" :class="boardViewSettings.scrollMode === 'COLUMNS' ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain' : ''" ghost-class="task-card-ghost" chosen-class="task-card-chosen" drag-class="task-card-drag" fallback-class="task-card-fallback" @move="onDragMove" @end="onDragEnd">
               <article v-for="task in column.tasks" v-show="!shouldHideCompletedTask(task)" :key="task.id" :data-task-id="task.id" class="task-card group relative w-full rounded-lg border border-default bg-default p-3 text-left shadow-sm" role="button" tabindex="0" @click="openEditTask(task, column.id)" @keydown.enter.self.prevent="openEditTask(task, column.id)" @keydown.space.self.prevent="openEditTask(task, column.id)">
                 <div class="task-completion-slot absolute left-3 top-3 z-10 flex size-5 items-center justify-center">
                     <button v-if="hasTaskPermission('tasks.update')" type="button" class="task-completion flex size-5 shrink-0 scale-75 items-center justify-center rounded-full border border-muted text-transparent opacity-0 transition-[opacity,transform,color,background-color,border-color] duration-200 ease-out hover:border-success hover:bg-success hover:text-white group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100 focus-visible:scale-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" :class="task.completed_at ? 'task-completion-done scale-100 border-success bg-success text-white opacity-100' : ''" :aria-label="task.completed_at ? `Reabrir ${task.title}` : `Marcar ${task.title} como completada`" :title="task.completed_at ? 'Reabrir tarea' : 'Marcar tarea como completada'" :aria-pressed="!!task.completed_at" :disabled="completionTaskId === task.id" @click.stop="toggleTaskCompletion(task)">
@@ -2268,9 +2300,16 @@ onBeforeUnmount(() => {
                     <span v-else class="flex size-5 shrink-0 items-center justify-center rounded-full border" :class="task.completed_at ? 'border-success bg-success text-white' : 'border-muted text-transparent'" :aria-label="task.completed_at ? 'Completada' : 'Pendiente'"><UIcon v-if="task.completed_at" name="i-lucide-check" class="size-3" /></span>
                 </div>
                 <div class="min-w-0">
-                <div class="task-card-heading flex items-start justify-between gap-2" :class="task.completed_at ? 'task-card-heading-completed' : hasTaskPermission('tasks.update') ? 'task-card-heading-interactive' : ''"><div class="flex min-w-0 flex-1 items-start gap-2"><span class="mt-0.5 shrink-0 rounded border border-default px-1.5 py-0.5 font-mono text-[10px] leading-tight text-muted">{{ taskKey(task, board?.task_key_prefix ?? '') }}</span><p class="task-card-title min-w-0 flex-1 font-medium leading-snug" :class="task.completed_at ? 'text-muted line-through' : ''">{{ task.title }}</p></div><UBadge class="shrink-0" :color="task.completed_at ? 'success' : priorityColor(task.priority)" variant="subtle" size="xs">{{ task.completed_at ? 'Completada' : priorityLabel(task.priority) }}</UBadge></div>
+                <div class="task-card-meta mb-2 flex min-h-2 items-center gap-1.5 transition-[padding] duration-200" :class="task.completed_at || hasTaskPermission('tasks.update') ? 'task-card-meta-interactive' : ''">
+                  <button type="button" class="inline-flex max-w-40 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" :aria-expanded="isTaskCardMetaExpanded(task.id)" :aria-label="`${isTaskCardMetaExpanded(task.id) ? 'Contraer' : 'Mostrar'} prioridad ${priorityLabel(task.priority)}`" :title="priorityLabel(task.priority)" @click.stop="toggleTaskCardMeta(task.id)">
+                    <span :style="labelChipStyle(priorityPaletteColor(task.priority))" class="inline-flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-semibold transition-all duration-200" :class="isTaskCardMetaExpanded(task.id) ? 'min-h-5 max-w-40 rounded px-2 py-0.5' : 'h-2 w-12 rounded-full p-0'"><span v-if="isTaskCardMetaExpanded(task.id)">{{ priorityLabel(task.priority) }}</span></span>
+                  </button>
+                  <button v-if="task.category" type="button" class="inline-flex max-w-40 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" :aria-expanded="isTaskCardMetaExpanded(task.id)" :aria-label="`${isTaskCardMetaExpanded(task.id) ? 'Contraer' : 'Mostrar'} categoría ${task.category.name}`" :title="task.category.name" @click.stop="toggleTaskCardMeta(task.id)">
+                    <span :style="labelChipStyle(task.category.color)" class="inline-flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-semibold transition-all duration-200" :class="isTaskCardMetaExpanded(task.id) ? 'min-h-5 max-w-40 rounded px-2 py-0.5' : 'h-2 w-12 rounded-full p-0'"><span v-if="isTaskCardMetaExpanded(task.id)">{{ task.category.name }}</span></span>
+                  </button>
+                </div>
+                <div class="task-card-heading flex items-start justify-between gap-2" :class="task.completed_at ? 'task-card-heading-completed' : hasTaskPermission('tasks.update') ? 'task-card-heading-interactive' : ''"><div class="flex min-w-0 flex-1 items-start gap-2"><span class="mt-0.5 shrink-0 rounded border border-default px-1.5 py-0.5 font-mono text-[10px] leading-tight text-muted">{{ taskKey(task, board?.task_key_prefix ?? '') }}</span><p class="task-card-title min-w-0 flex-1 font-medium leading-snug" :class="task.completed_at ? 'text-muted line-through' : ''">{{ task.title }}</p></div><div class="flex shrink-0 items-center gap-1"><button v-if="hasTaskPermission('tasks.update') && !activeBoardFilterCount" type="button" class="task-card-drag-handle flex size-7 touch-none cursor-grab items-center justify-center rounded text-muted opacity-0 transition hover:bg-elevated hover:text-default active:cursor-grabbing group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary" :aria-label="`Arrastrar ${task.title} a otra lista`" :title="`Arrastrar ${task.title}`" :disabled="moving" @click.stop><UIcon name="i-lucide-grip-vertical" class="size-4" /></button><UBadge v-if="task.completed_at" class="shrink-0" color="success" variant="subtle" size="xs">Completada</UBadge></div></div>
                 <p v-if="task.description" class="mt-2 line-clamp-2 text-xs text-muted">{{ descriptionPreview(task.description) }}</p>
-                <div v-if="task.category" class="mt-2"><UBadge :color="categoryColor(task.category.color)" variant="subtle" size="xs">{{ task.category.name }}</UBadge></div>
                 <div v-if="task.labels?.length" class="mt-2 flex flex-wrap gap-1.5"><span v-for="label in task.labels" :key="label.id" class="inline-flex min-h-6 min-w-8 max-w-36 items-center justify-center truncate rounded px-2 py-1 text-[11px] font-semibold" :style="labelChipStyle(label.color)" :title="label.name ?? `${labelColorName(label.color)} · solo color`" :aria-label="label.name ?? `${labelColorName(label.color)} · etiqueta sin nombre`"><template v-if="label.name">{{ label.name }}</template><span v-else class="sr-only">{{ labelColorName(label.color) }}</span></span></div>
                 <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                   <span v-if="task.party" class="inline-flex min-w-0 items-center gap-1"><UIcon name="i-lucide-building-2" class="size-3.5 shrink-0"/><span class="max-w-36 truncate">{{ task.party.name }}</span></span>
@@ -2439,7 +2478,7 @@ onBeforeUnmount(() => {
     </template>
   </UModal>
 
-  <UModal v-model:open="showCategoriesModal" title="Categorías de tareas" description="Clasificá las tareas con categorías de esta empresa. Las categorías archivadas siguen visibles en tareas anteriores." :ui="{ content: 'sm:max-w-2xl' }">
+  <UModal v-model:open="showCategoriesModal" title="Categorías de tareas" description="Clasificá las tareas con categorías de esta empresa. Las categorías archivadas siguen visibles en tareas anteriores." :ui="{ overlay: 'z-[10020]', content: 'z-[10021] sm:max-w-2xl' }">
     <template #body>
       <div class="flex max-h-[65vh] flex-col gap-4 overflow-y-auto">
         <form class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_auto]" @submit.prevent="addCategory">
@@ -2449,7 +2488,7 @@ onBeforeUnmount(() => {
         </form>
         <div v-if="categories.length" class="divide-y divide-default rounded-lg border border-default px-3">
           <div v-for="category in categories" :key="category.id" class="flex flex-wrap items-center gap-2 py-2.5">
-            <UBadge :color="categoryColor(category.color)" variant="subtle">{{ category.name }}</UBadge>
+            <span class="inline-flex max-w-48 items-center truncate rounded px-2 py-1 text-xs font-semibold" :style="labelChipStyle(category.color)">{{ category.name }}</span>
             <UInput v-model="categoryNameDrafts[category.id]" maxlength="60" class="min-w-36 flex-1" :disabled="!category.active" :aria-label="`Nombre de ${category.name}`" />
             <USelectMenu v-if="category.active" v-model="categoryColorDrafts[category.id]" :items="labelColorOptions" value-key="value" class="w-full min-w-0 sm:w-32" :ui="selectMenuUi" :aria-label="`Color de ${category.name}`" />
             <UButton v-if="category.active" label="Guardar" color="neutral" variant="outline" size="sm" :loading="updatingCategoryId === category.id" :disabled="!categoryNameDrafts[category.id]?.trim() || (categoryNameDrafts[category.id] === category.name && categoryColorDrafts[category.id] === category.color)" @click="saveCategory(category)" />
@@ -2562,8 +2601,8 @@ onBeforeUnmount(() => {
             <UButton v-if="!taskForm.due_at" label="Vencimiento" icon="i-lucide-calendar-clock" color="neutral" variant="outline" size="sm" @click="setActionPanel('due')" />
           </div>
           <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <UButton v-if="taskForm.category_id !== 'NONE'" :label="`Categoría · ${categories.find(category => category.id === taskForm.category_id)?.name ?? 'Sin categoría'}`" icon="i-lucide-tag" :color="categoryColor(categories.find(category => category.id === taskForm.category_id)?.color ?? 'neutral')" variant="subtle" size="sm" :disabled="!canEditTask" @click="setActionPanel('category')" />
-            <UButton :label="`Prioridad · ${priorityOptions.find(option => option.value === taskForm.priority)?.label ?? 'Normal'}`" icon="i-lucide-flag" :color="taskForm.priority === 'URGENT' ? 'error' : taskForm.priority === 'HIGH' ? 'warning' : 'neutral'" variant="subtle" size="sm" :disabled="!canEditTask" @click="setActionPanel('priority')" />
+            <UButton v-if="taskForm.category_id !== 'NONE'" :label="`Categoría · ${categories.find(category => category.id === taskForm.category_id)?.name ?? 'Sin categoría'}`" icon="i-lucide-tag" color="neutral" variant="subtle" size="sm" :style="labelChipStyle(categories.find(category => category.id === taskForm.category_id)?.color ?? 'neutral')" :disabled="!canEditTask" @click="setActionPanel('category')" />
+            <UButton :label="`Prioridad · ${priorityOptions.find(option => option.value === taskForm.priority)?.label ?? 'Normal'}`" icon="i-lucide-flag" color="neutral" variant="subtle" size="sm" :style="labelChipStyle(priorityPaletteColor(taskForm.priority))" :disabled="!canEditTask" @click="setActionPanel('priority')" />
             <UButton v-if="taskForm.start_at" :label="`Inicio · ${formatDueDate(taskForm.start_at)}`" icon="i-lucide-calendar-days" color="neutral" variant="subtle" size="sm" :disabled="!canEditTask" @click="setActionPanel('start')" />
             <UButton v-if="taskForm.due_at" :label="`Vencimiento · ${formatDueDate(taskForm.due_at)}`" icon="i-lucide-calendar-clock" :color="selectedTask && isOverdue(selectedTask) ? 'error' : 'neutral'" variant="subtle" size="sm" :disabled="!canEditTask" @click="setActionPanel('due')" />
           </div>
@@ -2606,11 +2645,28 @@ onBeforeUnmount(() => {
               </div>
               <UButton v-if="canEditTask" label="Crear una etiqueta nueva" icon="i-lucide-plus" color="neutral" variant="outline" class="w-full justify-center" @click="labelCreateModalOpen = true" />
             </div>
-            <div v-else-if="activeActionPanel === 'category'">
-              <UFormField label="Categoría"><USelectMenu v-model="taskForm.category_id" :items="[{ label: 'Sin categoría', value: 'NONE' }, ...categoryOptions]" value-key="value" :disabled="!canEditTask" class="w-full min-w-0" :ui="stackedModalSelectMenuUi" placeholder="Elegir categoría" /></UFormField>
+            <div v-else-if="activeActionPanel === 'category'" class="space-y-3">
+              <p class="text-sm font-medium">Categoría</p>
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex min-w-0 flex-1 flex-wrap gap-2">
+                  <button type="button" class="inline-flex rounded-md p-0.5 focus-visible:outline-2 focus-visible:outline-primary" :aria-pressed="taskForm.category_id === 'NONE'" :disabled="!canEditTask" @click="taskForm.category_id = 'NONE'">
+                    <span :style="labelChipStyle('neutral', taskForm.category_id === 'NONE')" class="inline-flex min-h-7 items-center rounded px-2.5 py-1 text-xs font-semibold transition-colors duration-150">Sin categoría</span>
+                  </button>
+                  <button v-for="category in taskCategoryChoices" :key="category.id" type="button" class="inline-flex max-w-full rounded-md p-0.5 focus-visible:outline-2 focus-visible:outline-primary" :aria-pressed="taskForm.category_id === category.id" :disabled="!canEditTask" @click="taskForm.category_id = category.id">
+                    <span :style="labelChipStyle(category.color, taskForm.category_id === category.id)" class="inline-flex min-h-7 max-w-56 items-center truncate rounded px-2.5 py-1 text-xs font-semibold transition-colors duration-150">{{ category.name }}</span>
+                  </button>
+                  <p v-if="!taskCategoryChoices.length" class="py-1 text-sm text-muted">Todavía no hay categorías.</p>
+                </div>
+                <UButton v-if="hasTaskPermission('tasks.update')" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" aria-label="Crear categoría" title="Crear categoría" @click="openCategoryCreatorForTask" />
+              </div>
             </div>
-            <div v-else-if="activeActionPanel === 'priority'">
-              <UFormField label="Prioridad"><USelectMenu v-model="taskForm.priority" :items="priorityOptions" value-key="value" :disabled="!canEditTask" class="w-full min-w-0" :ui="stackedModalSelectMenuUi" /></UFormField>
+            <div v-else-if="activeActionPanel === 'priority'" class="space-y-3">
+              <p class="text-sm font-medium">Prioridad</p>
+              <div class="flex flex-wrap gap-2">
+                <button v-for="option in priorityOptions" :key="option.value" type="button" class="inline-flex rounded-md p-0.5 focus-visible:outline-2 focus-visible:outline-primary" :aria-pressed="taskForm.priority === option.value" :disabled="!canEditTask" @click="taskForm.priority = option.value">
+                  <span :style="labelChipStyle(priorityPaletteColor(option.value), taskForm.priority === option.value)" class="inline-flex min-h-7 items-center rounded px-2.5 py-1 text-xs font-semibold transition-colors duration-150">{{ option.label }}</span>
+                </button>
+              </div>
             </div>
             <div v-else-if="activeActionPanel === 'start'">
               <UFormField label="Inicio"><UInput v-model="taskForm.start_at" type="datetime-local" :disabled="!canEditTask" class="w-full" /></UFormField>
@@ -2953,7 +3009,7 @@ onBeforeUnmount(() => {
 
 :deep(.task-card) {
   appearance: none;
-  cursor: grab;
+  cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
@@ -2974,6 +3030,19 @@ onBeforeUnmount(() => {
   transition: padding-left 220ms ease-out;
 }
 
+:deep(.task-card-meta) {
+  padding-left: 0;
+}
+
+:deep(.task-card-meta-interactive) {
+  transition: padding-left 220ms ease-out;
+}
+
+:deep(.task-card:hover .task-card-meta-interactive),
+:deep(.task-card:focus-within .task-card-meta-interactive) {
+  padding-left: 2rem;
+}
+
 :deep(.task-card-heading-completed) {
   padding-left: 2rem;
 }
@@ -2985,6 +3054,10 @@ onBeforeUnmount(() => {
 
 @media (hover: none) {
   :deep(.task-card-heading-interactive) {
+    padding-left: 2rem;
+  }
+
+  :deep(.task-card-meta-interactive) {
     padding-left: 2rem;
   }
 

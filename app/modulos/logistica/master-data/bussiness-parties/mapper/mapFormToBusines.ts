@@ -3,6 +3,7 @@ import type {
   CreateBusinessPartyInput,
   BusinessParty
 } from '~/modulos/logistica/master-data/bussiness-parties/types/bussines-parties.types'
+import { normalizeVatCondition } from '~/modulos/erp/fiscal/utils/vat-condition'
 
 export const mapFormToBusinessPartyDto = (form: BusinessPartyForm): CreateBusinessPartyInput => {
   const isEmployee = form.type === 'EMPLOYEE'
@@ -20,7 +21,7 @@ export const mapFormToBusinessPartyDto = (form: BusinessPartyForm): CreateBusine
     document_type: form.type === 'TAX_AUTHORITY' ? undefined : form.document_type || undefined,
     email: form.email || undefined,
     tax_id: form.type === 'TAX_AUTHORITY' ? undefined : form.tax_id || undefined,
-    vat_condition: form.vat_condition || undefined,
+    vat_condition: normalizeVatCondition(form.vat_condition) ?? (form.vat_condition || undefined),
     exemption_rate: Number(form.exemption_rate ?? 0),
 
     locations: form.locations
@@ -98,7 +99,7 @@ export const mapBusinessPartyToForm = (party: BusinessParty): BusinessPartyForm 
     document_type: party.document_type ?? '',
     email: party.email ?? '',
     tax_id: party.tax_id ?? '',
-    vat_condition: party.vat_condition ?? '',
+    vat_condition: normalizeVatCondition(party.vat_condition) ?? party.vat_condition ?? '',
     exemption_rate: Number(party.exemption_rate ?? 0),
 
     locations:

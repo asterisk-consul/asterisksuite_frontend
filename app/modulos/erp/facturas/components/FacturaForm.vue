@@ -639,11 +639,16 @@ const selectedParty = computed(() => selectedPartyFallback.value?.id === form.pa
 const partnerCondition = computed(() => (selectedParty.value?.vat_condition as string) ?? null)
 
 const {
-  filteredDocumentTypes: documentTypeOptions,
+  filteredDocumentTypes: availableDocumentTypeOptions,
   isDocumentTypeValid,
   getValidationMessage,
   fetchIssuerCondition
 } = useDocumentTypesForModule(moduleCode.value, partnerCondition)
+const documentTypeOptions = computed(() => availableDocumentTypeOptions.value.filter((option) =>
+  !props.category
+  || option.category === props.category
+  || option.value === props.initialValues?.document_type_id
+))
 
 const items = ref<FacturaItem[]>([])
 const validationErrors = ref<Record<string, string>>({})
@@ -1398,6 +1403,7 @@ watch(selectedParty, (party) => {
   const issuerVat = companiesStore.current?.vat_condition ?? null
 
   const suggestedCode = getDocumentTypeForVatCondition(vatCondition, direction, issuerVat)
+  if (!suggestedCode) return
 
   // Determinar si el comprobante actual es NC/ND (por prop o por tipo ya seleccionado)
   const currentDoc = documentsTypes.value.find(d => d.id === form.document_type_id)
@@ -1464,6 +1470,24 @@ watch(() => form.document_type_id, (newId) => {
   }
 })
 
+// Si se cambia el tipo de un borrador, la secuencia anterior puede no estar
+// asociada al nuevo tipo. No la enviamos por accidente: se conserva si sirve,
+// se propone la única disponible o se pide elegir cuando hay varias.
+watch(
+  () => [form.document_type_id, sequenceOptions.value.map(option => option.value).join(',')],
+  ([documentTypeId]) => {
+    if (!props.initialValues?.id || documentTypeId === props.initialValues.document_type_id) return
+
+    const availableSequences = sequenceOptions.value
+    if (availableSequences.some(option => option.value === selectedSequenceId.value)) return
+
+    selectedSequenceId.value = availableSequences.length === 1
+      ? availableSequences[0]?.value ?? ''
+      : ''
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
   window.addEventListener('keydown', handleSaveShortcut, true)
   void fetchMyPermissionsIfNeeded().then(() => Promise.allSettled([
@@ -1514,6 +1538,7 @@ watch(() => form.fiscal_jurisdiction_id, () => {
 
 // Restaurar secuencia cuando sequences se carga (edit mode)
 watch(sequences, () => {
+  if (form.document_type_id !== props.initialValues?.document_type_id) return
   if (props.initialValues?.document_sequence_id && sequenceOptions.value.length > 0) {
     const seqId = (props.initialValues as any).document_sequence_id
     const match = sequenceOptions.value.find(s => s.value === seqId)
@@ -1971,6 +1996,9 @@ defineExpose({ submit, completeDraft })
             size="lg"
             class="w-full min-w-0"
           />
+          <p v-if="moduleCode === 'SALES' && props.category === 'INVOICE'" class="mt-2 text-xs text-muted">
+            Se muestran facturas activas compatibles con la condición fiscal del cliente. Para usar F-SN, verificá que tenga categoría Factura y esté configurado sin letra fiscal.
+          </p>
         </UFormField>
 
         <UFormField label="Punto de venta" :error="validationErrors.document_sequence_id" class="min-w-0 xl:col-span-3">

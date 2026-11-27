@@ -110,6 +110,20 @@ const codeValidationError = computed(() => {
   const duplicate = props.documentTypes?.some(type => type.id !== form.id && type.code.trim().toLocaleLowerCase() === code.toLocaleLowerCase())
   return duplicate ? `El código “${code}” ya está utilizado. Elegí otro.` : ''
 })
+const descriptionValidationError = computed(() => {
+  if (!form.description.trim()) return 'Ingresá una descripción para el tipo de documento.'
+  if (form.description.length > 150) return 'La descripción no puede superar los 150 caracteres.'
+  return ''
+})
+const directionValidationError = computed(() =>
+  [1, -1].includes(Number(form.direction)) ? '' : 'Seleccioná si el tipo es de venta o de compra.'
+)
+const afipCodeValidationError = computed(() => {
+  const code = form.afip_code.trim()
+  if (code.length > 5) return 'El código AFIP no puede superar los 5 caracteres.'
+  if (code && !/^\d+$/.test(code)) return 'El código AFIP debe contener solo números.'
+  return ''
+})
 
 watch(() => props.modelValue, (val) => {
   pendingSequenceDrafts.value = []
@@ -133,13 +147,24 @@ watch(() => form.category, (category) => {
 }, { immediate: true })
 
 const handleSubmit = () => {
-  if (codeValidationError.value) {
-    toast.add({ title: 'Revisá el código', description: codeValidationError.value, color: 'error', icon: 'i-lucide-circle-alert' })
+  const validationMessages = [
+    codeValidationError.value,
+    descriptionValidationError.value,
+    directionValidationError.value,
+    afipCodeValidationError.value,
+  ].filter(Boolean)
+  if (validationMessages.length) {
+    toast.add({
+      title: 'Revisá los datos del tipo',
+      description: validationMessages.join(' '),
+      color: 'error',
+      icon: 'i-lucide-circle-alert'
+    })
     return
   }
   const payload: DocumentTypeFormData = {
     code: form.code.trim(),
-    description: form.description,
+    description: form.description.trim(),
     direction: form.direction,
     affects_stock: form.affects_stock,
     affects_accounting: form.affects_accounting,
@@ -150,7 +175,7 @@ const handleSubmit = () => {
     active: form.active,
     category: form.category,
     letter_type: selectValue(form.letter_type),
-    afip_code: form.afip_code,
+    afip_code: form.afip_code.trim(),
     requires_cae: form.requires_cae,
     is_electronic: form.is_electronic,
     requires_fiscal_authorization: supportsFiscalAuthorizationRequirement.value ? form.requires_fiscal_authorization : null,
@@ -167,7 +192,14 @@ const handleSubmit = () => {
 
 // Sequence inline creation
 const showSeqCreate = ref(false)
-const seqForm = reactive({ name: '', point_of_sale: '0001', prefix: '', range_start: 1, range_end: 999999, automatic: true })
+const seqForm = reactive<{
+  name: string
+  point_of_sale: string
+  prefix: string
+  range_start: number | ''
+  range_end: number | ''
+  automatic: boolean
+}>({ name: '', point_of_sale: '0001', prefix: '', range_start: 1, range_end: 999999, automatic: true })
 
 const openSeqCreate = () => {
   Object.assign(seqForm, { name: '', point_of_sale: '0001', prefix: '', range_start: 1, range_end: 999999, automatic: true })
@@ -175,23 +207,49 @@ const openSeqCreate = () => {
 }
 
 const handleSeqCreate = async () => {
-  if (!seqForm.name.trim() || !seqForm.point_of_sale.trim()) {
-    toast.add({ title: 'Completá los datos requeridos', description: 'La secuencia necesita un nombre y un punto de venta.', color: 'warning' })
+  const rangeStart = seqForm.range_start === '' ? undefined : Number(seqForm.range_start)
+  const rangeEnd = seqForm.range_end === '' ? undefined : Number(seqForm.range_end)
+  const sequenceErrors = [
+    !seqForm.name.trim() ? 'Ingresá el nombre de la secuencia.' : '',
+    seqForm.name.trim().length > 50 ? 'El nombre no puede superar los 50 caracteres.' : '',
+    !seqForm.point_of_sale.trim() ? 'Ingresá el punto de venta.' : '',
+    seqForm.point_of_sale.trim().length > 10 ? 'El punto de venta no puede superar los 10 caracteres.' : '',
+    seqForm.prefix.trim().length > 20 ? 'El prefijo no puede superar los 20 caracteres.' : '',
+    rangeStart !== undefined && (rangeStart < 1 || rangeStart > 2147483647 || !Number.isInteger(rangeStart))
+      ? 'El inicio del rango debe ser un entero entre 1 y 2.147.483.647.'
+      : '',
+    rangeEnd !== undefined && (rangeEnd < 1 || rangeEnd > 2147483647 || !Number.isInteger(rangeEnd))
+      ? 'El fin del rango debe ser un entero entre 1 y 2.147.483.647.'
+      : '',
+    rangeStart !== undefined && rangeEnd !== undefined && rangeEnd < rangeStart
+      ? 'El fin del rango no puede ser menor que el inicio.'
+      : '',
+  ].filter(Boolean)
+  if (sequenceErrors.length) {
+    toast.add({
+      title: 'Revisá los datos de la secuencia',
+      description: sequenceErrors.join(' '),
+      color: 'warning'
+    })
     return
   }
-  if (seqForm.range_start < 1 || seqForm.range_end < seqForm.range_start) {
-    toast.add({ title: 'Revisá el rango', description: 'El inicio debe ser mayor a cero y el fin no puede ser menor que el inicio.', color: 'warning' })
-    return
+  const sequencePayload = {
+    name: seqForm.name.trim(),
+    point_of_sale: seqForm.point_of_sale.trim(),
+    prefix: seqForm.prefix.trim(),
+    ...(rangeStart !== undefined ? { range_start: rangeStart } : {}),
+    ...(rangeEnd !== undefined ? { range_end: rangeEnd } : {}),
+    automatic: seqForm.automatic,
   }
   if (!form.id) {
-    pendingSequenceDrafts.value.push({ ...seqForm, name: seqForm.name.trim(), point_of_sale: seqForm.point_of_sale.trim(), prefix: seqForm.prefix.trim() })
+    pendingSequenceDrafts.value.push(sequencePayload)
     showSeqCreate.value = false
     toast.add({ title: 'Secuencia preparada', description: 'Se creará y vinculará cuando guardes este tipo de documento.', color: 'success' })
     return
   }
   seqCreating.value = true
   try {
-    const created = await sequencesStore.create({ ...seqForm, name: seqForm.name.trim(), point_of_sale: seqForm.point_of_sale.trim(), prefix: seqForm.prefix.trim(), document_type_ids: [form.id] })
+    const created = await sequencesStore.create({ ...sequencePayload, document_type_ids: [form.id] })
     form.document_sequence_ids = [...(form.document_sequence_ids ?? []), created.id]
     showSeqCreate.value = false
     toast.add({ title: 'Secuencia creada', color: 'success' })
@@ -274,7 +332,9 @@ const categoryOptions = [
   { label: 'Remito', value: 'REMITO' }
 ]
 
+const NO_FISCAL_LETTER = '__NO_FISCAL_LETTER__'
 const letterOptions = [
+  { label: 'Sin letra fiscal (no aplica)', value: NO_FISCAL_LETTER },
   { label: 'A', value: 'A' },
   { label: 'B', value: 'B' },
   { label: 'C', value: 'C' },
@@ -309,13 +369,16 @@ const selectedDirection = computed({
 })
 
 const selectedCategory = computed({
-  get: () => categoryOptions.find(o => o.value === form.category) ?? categoryOptions[0],
+  get: () => categoryOptions.find(o => o.value === form.category),
   set: (val: any) => { form.category = val?.value ?? val ?? '' }
 })
 
 const selectedLetterType = computed({
-  get: () => form.letter_type || undefined,
-  set: (val: any) => { form.letter_type = selectValue(val) }
+  get: () => form.letter_type || NO_FISCAL_LETTER,
+  set: (val: any) => {
+    const value = selectValue(val)
+    form.letter_type = value === NO_FISCAL_LETTER ? '' : value
+  }
 })
 </script>
 
@@ -338,20 +401,20 @@ const selectedLetterType = computed({
           <UFormField label="Código" name="code" required :error="codeValidationError || undefined" :description="`${form.code.length}/20 caracteres · Ej.: FA-A, OV, REM`">
             <UInput v-model="form.code" placeholder="Ej: FA-A" maxlength="20" :disabled="!!form.id" class="w-full" icon="i-lucide-hash" />
           </UFormField>
-          <UFormField label="Dirección" name="direction" required description="Si es de emisión o recepción.">
+          <UFormField label="Dirección" name="direction" required description="Si es de emisión o recepción." :error="directionValidationError || undefined">
             <USelectMenu v-model="selectedDirection" :items="directionOptions" class="w-full" />
           </UFormField>
-          <UFormField label="Descripción" name="description" required description="Nombre completo que se muestra al usuario.">
-            <UInput v-model="form.description" placeholder="Ej: Factura A Venta" class="w-full" icon="i-lucide-type" />
+          <UFormField label="Descripción" name="description" required :error="descriptionValidationError || undefined" :description="`${form.description.length}/150 caracteres · Nombre completo que se muestra al usuario.`">
+            <UInput v-model="form.description" placeholder="Ej: Factura A Venta" maxlength="150" class="w-full" icon="i-lucide-type" />
           </UFormField>
-          <UFormField label="Categoría" name="category" description="Tipo de comprobante fiscal.">
+          <UFormField label="Categoría" name="category" description="Opcional para tipos internos. Elegí la categoría correspondiente si lo vas a usar en un circuito del ERP.">
             <USelectMenu v-model="selectedCategory" :items="categoryOptions" placeholder="Seleccionar..." class="w-full" />
           </UFormField>
-          <UFormField label="Letra AFIP" name="letter_type" description="Letra del comprobante (A, B, C, X).">
+          <UFormField label="Letra AFIP" name="letter_type" description="Elegí A, B, C o X cuando corresponda. Si el tipo no usa letra fiscal, indicá que no aplica.">
             <USelectMenu v-model="selectedLetterType" :items="letterOptions" value-key="value" placeholder="A, B, C, X" class="w-full" />
           </UFormField>
-          <UFormField label="Código AFIP" name="afip_code" description="Código numérico ante ARCA/AFIP.">
-            <UInput v-model="form.afip_code" placeholder="Ej: 01, 06, 11" class="w-full" icon="i-lucide-stamp" />
+          <UFormField label="Código AFIP" name="afip_code" :error="afipCodeValidationError || undefined" description="Opcional · hasta 5 dígitos numéricos.">
+            <UInput v-model="form.afip_code" placeholder="Ej: 01, 06, 11" maxlength="5" inputmode="numeric" class="w-full" icon="i-lucide-stamp" />
           </UFormField>
         </div>
       </div>
@@ -495,7 +558,7 @@ const selectedLetterType = computed({
           icon="i-lucide-alert-triangle"
           class="text-xs"
           title="Comprobante sin desglose de impuestos"
-          description="El motor fiscal no calculará impuestos para documentos de este tipo (ej: comprobantes X o internos)."
+          description="Se conservan la categoría fiscal del producto y la condición fiscal del tercero. Para este tipo, el motor no calcula impuestos en el comprobante."
         />
       </div>
     </UPageCard>
@@ -602,7 +665,11 @@ const selectedLetterType = computed({
           </div>
           <div>
             <h2 class="font-semibold text-highlighted">Impuestos del tipo de documento</h2>
-            <p class="mt-0.5 text-sm text-muted">Estos impuestos se aplican automáticamente al crear documentos de este tipo.</p>
+            <p class="mt-0.5 text-sm text-muted">
+              {{ form.calculates_taxes === false
+                ? 'Las selecciones se conservan, pero no se calculan mientras este tipo tenga desactivada la opción anterior.'
+                : 'Estos impuestos se aplican automáticamente al crear documentos de este tipo.' }}
+            </p>
           </div>
         </div>
 
@@ -615,7 +682,11 @@ const selectedLetterType = computed({
               :key="tax.id"
               type="button"
               class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
-              :class="isTaxSelected(tax.id) ? 'border-primary bg-primary/10 text-primary' : 'border-default hover:border-primary/50'"
+              :disabled="form.calculates_taxes === false"
+              :class="[
+                isTaxSelected(tax.id) ? 'border-primary bg-primary/10 text-primary' : 'border-default hover:border-primary/50',
+                form.calculates_taxes === false ? 'cursor-not-allowed opacity-50' : ''
+              ]"
               @click="toggleTax(tax.id)"
             >
               {{ tax.name }} ({{ tax.rate }}%)
@@ -632,7 +703,11 @@ const selectedLetterType = computed({
               :key="tax.id"
               type="button"
               class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
-              :class="isTaxSelected(tax.id) ? 'border-primary bg-primary/10 text-primary' : 'border-default hover:border-primary/50'"
+              :disabled="form.calculates_taxes === false"
+              :class="[
+                isTaxSelected(tax.id) ? 'border-primary bg-primary/10 text-primary' : 'border-default hover:border-primary/50',
+                form.calculates_taxes === false ? 'cursor-not-allowed opacity-50' : ''
+              ]"
               @click="toggleTax(tax.id)"
             >
               {{ tax.name }} ({{ tax.rate }}%)
@@ -658,23 +733,23 @@ const selectedLetterType = computed({
     <UModal v-model:open="showSeqCreate" title="Nueva secuencia" :ui="{ content: 'max-w-lg' }">
       <template #body>
         <UForm :state="seqForm" class="space-y-4" @submit="handleSeqCreate">
-          <UFormField label="Nombre" required>
-            <UInput v-model="seqForm.name" placeholder="Ej: Factura A - PV 0001" />
+          <UFormField label="Nombre" required :description="`${seqForm.name.length}/50 caracteres`">
+            <UInput v-model="seqForm.name" placeholder="Ej: Factura A - PV 0001" maxlength="50" />
           </UFormField>
           <div class="grid grid-cols-2 gap-4">
-            <UFormField label="Punto de venta" required>
-              <UInput v-model="seqForm.point_of_sale" placeholder="0001" />
+            <UFormField label="Punto de venta" required :description="`${seqForm.point_of_sale.length}/10 caracteres`">
+              <UInput v-model="seqForm.point_of_sale" placeholder="0001" maxlength="10" />
             </UFormField>
-            <UFormField label="Prefijo">
-              <UInput v-model="seqForm.prefix" placeholder="A, B, C..." />
+            <UFormField label="Prefijo" :description="`${seqForm.prefix.length}/20 caracteres`">
+              <UInput v-model="seqForm.prefix" placeholder="A, B, C..." maxlength="20" />
             </UFormField>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <UFormField label="Rango inicio">
-              <UInput v-model.number="seqForm.range_start" type="number" />
+              <UInput v-model.number="seqForm.range_start" type="number" min="1" max="2147483647" step="1" />
             </UFormField>
             <UFormField label="Rango fin">
-              <UInput v-model.number="seqForm.range_end" type="number" />
+              <UInput v-model.number="seqForm.range_end" type="number" min="1" max="2147483647" step="1" />
             </UFormField>
           </div>
           <USwitch v-model="seqForm.automatic" label="Numeración automática" />

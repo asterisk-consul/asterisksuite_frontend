@@ -47,12 +47,19 @@ export const useCurrencyRatesService = () => {
       { query: { from, to, amount, rateType } }
     )
 
+  const resolveRate = (from: string, to: string, date: string, rateType = 'OFFICIAL') =>
+    $fetch<{ rate: number; rateType: string; source?: string | null }>(
+      '/api/backend/currencies/resolve-rate',
+      { query: { from, to, date, rateType } },
+    )
+
   return {
     findAll,
     findOne,
     create,
     update,
     remove,
-    convert
+    convert,
+    resolveRate
   }
 }

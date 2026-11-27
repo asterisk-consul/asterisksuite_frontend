@@ -9,7 +9,6 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const accountId = route.params.id as string
-const workspaceOpen = ref(true)
 const { current: account, movements, fetchOne, fetchMovements, loading } = useBankAccounts()
 const activeMovements = computed(() => partitionCancelledTreasuryMovements(movements.value).active)
 
@@ -22,20 +21,18 @@ onMounted(async () => {
   }
 })
 
-watch(workspaceOpen, (isOpen) => {
-  if (!isOpen) void router.push(`/erp/treasury/bank-accounts/${accountId}`)
-})
-
 async function refreshAccountAndMovements() {
   await Promise.all([fetchOne(accountId), fetchMovements(accountId)])
+}
+
+function goBackToAccount() {
+  void router.push(`/erp/treasury/bank-accounts/${accountId}`)
 }
 </script>
 
 <template>
   <UPage v-if="account" class="min-h-0">
     <BankStatementImportModal
-      v-model:open="workspaceOpen"
-      :standalone="true"
       :account-id="accountId"
       :account-name="`${account.bank_name} · ${account.name}`"
       :currency-code="account.currency_code"
@@ -43,6 +40,7 @@ async function refreshAccountAndMovements() {
       :bank-accounting-account-id="account.accounting_account_id"
       :movements="activeMovements"
       @imported="refreshAccountAndMovements"
+      @close="goBackToAccount"
     />
   </UPage>
   <UPage v-else-if="loading" class="p-6">

@@ -67,8 +67,16 @@ const form = reactive<BusinessPartyForm & { createUser?: boolean; user_name?: st
   user_whatsapp_phone: ''
 })
 const submitting = ref(false)
+const activeTab = ref(0)
+const vatConditionError = ref('')
+const requiresVatCondition = computed(() =>
+  form.type === 'CUSTOMER' || form.type === 'SUPPLIER' || (form.type === 'EMPLOYEE' && form.customer_enabled)
+)
 watch(() => props.loading, (loading) => {
   if (!loading) submitting.value = false
+})
+watch(() => form.vat_condition, (condition) => {
+  if (condition) vatConditionError.value = ''
 })
 
 // Expose form state to slot content via slot props
@@ -296,6 +304,17 @@ const submit = () => {
     toast.add({ title: 'Ingresá el nombre o la razón social', color: 'warning', icon: 'i-lucide-alert-circle' })
     return
   }
+  if (requiresVatCondition.value && !form.vat_condition) {
+    vatConditionError.value = 'Seleccioná la condición real del cliente o proveedor.'
+    activeTab.value = 0
+    toast.add({
+      title: 'Falta la condición frente al IVA',
+      description: 'Elegí Responsable Inscripto, Monotributista, Consumidor Final o Exento en la pestaña Impuestos.',
+      color: 'warning',
+      icon: 'i-lucide-alert-circle'
+    })
+    return
+  }
   if (!validateDocument()) return
 
   // Build submit data with create_user if enabled
@@ -350,7 +369,7 @@ const allExtraTabs = computed(() => [
 ])
 
 const tabs = computed(() => {
-  const hideTaxes = form.type === 'EMPLOYEE' || form.type === 'PARTNER'
+  const hideTaxes = form.type === 'PARTNER' || (form.type === 'EMPLOYEE' && !form.customer_enabled)
   const filtered = hideTaxes ? baseTabs.filter(t => t.slot !== 'taxes') : baseTabs
   const createUserTab = (form.type === 'EMPLOYEE' || form.type === 'PARTNER')
     ? [{ label: 'Usuario de Acceso', slot: 'createUser' }]
@@ -465,12 +484,14 @@ const displayTitle = computed(() => {
     </UCard>
 
     <!-- TABS -->
-    <UTabs :items="tabs" variant="link" class="w-full">
+    <UTabs v-model="activeTab" :items="tabs" variant="link" class="w-full">
       <!-- TAXES -->
       <template #taxes>
         <PartyFiscalProfileTab
           v-model:vat-condition="form.vat_condition"
           v-model:exemption-rate="form.exemption_rate"
+          :vat-condition-required="requiresVatCondition"
+          :vat-condition-error="vatConditionError"
           :party-id="form.id"
         />
       </template>

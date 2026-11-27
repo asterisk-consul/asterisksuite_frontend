@@ -155,11 +155,12 @@ export function getActivityInfo(lastEntryDate: string | null | undefined, lastEn
   if (days > 60) color = 'error'
   else if (days > 15) color = 'warning'
 
-  const typeLabel = lastEntry
-    ? lastEntry.type === 'ADJUSTMENT' && lastEntry.description?.startsWith('Anulación Vale #')
-      ? 'Anulación de vale'
-      : ENTRY_TYPE_LABELS[lastEntry.type] ?? lastEntry.type
-    : null
+  let typeLabel: string | null = null
+  if (lastEntry) {
+    if (lastEntry.reference_type === 'exchange_difference') typeLabel = 'Diferencia de cambio'
+    else if (lastEntry.type === 'ADJUSTMENT' && lastEntry.description?.startsWith('Anulación Vale #')) typeLabel = 'Anulación de vale'
+    else typeLabel = ENTRY_TYPE_LABELS[lastEntry.type] ?? lastEntry.type
+  }
   const desc = resolveCurrentAccountDescription(lastEntry?.description)
   const lastMovementLabel = desc
     ? `${typeLabel ?? 'Movimiento'}: ${desc}`

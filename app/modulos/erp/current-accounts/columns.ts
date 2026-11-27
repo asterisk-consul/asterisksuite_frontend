@@ -34,6 +34,11 @@ export const ENTRY_TYPE_CONFIG: Record<string, { label: string; color?: string; 
 }
 
 function resolveReferenceLink(entry: CurrentAccountEntry, partyType?: string): { to: string; label: string } | null {
+  if (entry.reference_type === 'exchange_difference' && entry.reference_id) {
+    return partyType === 'CUSTOMER'
+      ? { to: `/erp/sales/${entry.reference_id}`, label: 'Comprobante' }
+      : { to: `/erp/purchases/purchases-documents/${entry.reference_id}`, label: 'Comprobante' }
+  }
   if (entry.reference_type === 'withholding') {
     return { to: '/erp/fiscal/withholdings', label: 'Retención fiscal' }
   }
@@ -113,6 +118,10 @@ export const currentAccountEntryColumns = (actions: {
 
             if (row.reference_type === 'order_invoice_replacement') {
               label = 'Reemplazo OV → factura'
+            }
+
+            if (row.reference_type === 'exchange_difference') {
+              label = 'Diferencia de cambio'
             }
 
             if (row.type === 'INVOICE' && (actions?.partyType === 'EMPLOYEE' || actions?.partyType === 'PARTNER')) {

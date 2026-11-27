@@ -2,16 +2,18 @@
  * Lógica de selección automática de tipo de documento
  * según condición IVA del emisor y receptor (contexto argentino)
  *
- * Matriz AFIP:
+ * Matriz ARCA vigente:
  *   Emisor       | Receptor        | Comprobante
  *   -------------|-----------------|-------------
  *   RI           | RI              | Factura A
- *   RI           | Monotributo     | Factura B
+ *   RI           | Monotributo     | Factura A
  *   RI           | Consumidor Final| Factura B
  *   RI           | Exento          | Factura B
  *   Monotributo  | *               | Factura C
  *   Exento       | *               | Factura C
  */
+
+import { normalizeVatCondition } from '~/modulos/erp/fiscal/utils/vat-condition'
 
 export type VatCondition = 'RI' | 'MONO' | 'CF' | 'EX'
 
@@ -22,59 +24,40 @@ export interface DocumentTypeMapping {
 }
 
 // Mapeo por condición del receptor (cuando emisor es RI)
-const PARTNER_VAT_TO_SALE_MAP: Record<string, string> = {
-  RI: 'FA-A',
-  RESPONSABLE_INSCRIPTO: 'FA-A',
-  MONO: 'FB-A',
-  MONOTRIBUTO: 'FB-A',
-  CF: 'FB-A',
-  'CONSUMIDOR FINAL': 'FB-A',
-  EX: 'FB-A',
-  EXENTO: 'FB-A',
-}
-
-const PARTNER_VAT_TO_PURCHASE_MAP: Record<string, string> = {
-  RI: 'FA-C',
-  RESPONSABLE_INSCRIPTO: 'FA-C',
-  MONO: 'FB-C',
-  MONOTRIBUTO: 'FB-C',
-  CF: 'FB-C',
-  'CONSUMIDOR FINAL': 'FB-C',
-  EX: 'FB-C',
-  EXENTO: 'FB-C',
-}
-
 /**
  * Obtiene el tipo de documento sugerido según condición IVA del emisor y receptor.
  *
- * Si no se provee issuerCondition, se asume RI (comportamiento legacy).
+ * Si falta la condición del tercero, no se sugiere una factura. Si no se informa
+ * la condición de la empresa, se conserva el supuesto histórico de RI.
  */
 export function getDocumentTypeForVatCondition(
-  partnerCondition: VatCondition,
+  partnerCondition: VatCondition | string,
   direction: 'sale' | 'purchase',
   issuerCondition?: string | null
-): string {
-  let issuer: string
-  let partner: string
+): string | null {
+  let issuer: ReturnType<typeof normalizeVatCondition>
+  let receiver: ReturnType<typeof normalizeVatCondition>
 
   if (direction === 'purchase') {
-    // Compras: partner = empresa (receptor), issuerCondition = proveedor (emisor)
-    issuer = (partnerCondition ?? 'RI').toUpperCase()
-    partner = (issuerCondition ?? 'RI').toUpperCase()
+    // Compras: la parte interesada es el emisor y la empresa es el receptor.
+    issuer = normalizeVatCondition(partnerCondition)
+    receiver = normalizeVatCondition(issuerCondition ?? 'RESPONSABLE_INSCRIPTO')
   } else {
-    // Ventas: partner = cliente (receptor), issuerCondition = empresa (emisor)
-    issuer = (issuerCondition ?? 'RI').toUpperCase()
-    partner = (partnerCondition ?? 'RI').toUpperCase()
+    // Ventas: la empresa es el emisor y el cliente es el receptor.
+    issuer = normalizeVatCondition(issuerCondition ?? 'RESPONSABLE_INSCRIPTO')
+    receiver = normalizeVatCondition(partnerCondition)
   }
 
-  // Emisor Monotributo o Exento → siempre Factura C
   if (issuer === 'MONOTRIBUTO' || issuer === 'EXENTO') {
     return direction === 'sale' ? 'FC-A' : 'FC-C'
   }
 
-  // Emisor RI → mapear según receptor
-  const map = direction === 'sale' ? PARTNER_VAT_TO_SALE_MAP : PARTNER_VAT_TO_PURCHASE_MAP
-  return map[partner] ?? (direction === 'sale' ? 'FB-A' : 'FB-C')
+  if (issuer !== 'RESPONSABLE_INSCRIPTO' || !receiver) return null
+
+  const invoiceFamily = receiver === 'RESPONSABLE_INSCRIPTO' || receiver === 'MONOTRIBUTO'
+    ? 'FA'
+    : 'FB'
+  return `${invoiceFamily}-${direction === 'sale' ? 'A' : 'C'}`
 }
 
 /**
@@ -95,7 +78,7 @@ export function getVatConditionDescription(vatCondition: VatCondition): string {
  */
 export const VAT_CONDITIONS = [
   { value: 'RI', label: 'Responsable Inscripto', saleType: 'FA-A', purchaseType: 'FA-C' },
-  { value: 'MONO', label: 'Monotributista', saleType: 'FC-A', purchaseType: 'FC-C' },
+  { value: 'MONO', label: 'Monotributista', saleType: 'FA-A', purchaseType: 'FC-C' },
   { value: 'CF', label: 'Consumidor Final', saleType: 'FB-A', purchaseType: 'FB-C' },
-  { value: 'EX', label: 'Exento', saleType: 'FC-A', purchaseType: 'FC-C' }
+  { value: 'EX', label: 'Exento', saleType: 'FB-A', purchaseType: 'FC-C' }
 ]
