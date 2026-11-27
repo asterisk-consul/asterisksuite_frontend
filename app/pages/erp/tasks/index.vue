@@ -59,7 +59,9 @@ const requiredWorkLogMinutes = ref('30m')
 const requiredWorkLogRemaining = ref('')
 const requiredWorkLogDescription = ref('')
 const submittingRequiredWorkLog = ref(false)
+const taskSettingsMenuOpen = ref(false)
 const boardSettingsOpen = ref(false)
+const boardSettingsBoardId = ref<string>()
 const boardRequireWorkLogDraft = ref(false)
 const boardAllowTimerDraft = ref(false)
 const boardTimerMaxHoursDraft = ref(8)
@@ -803,7 +805,9 @@ function formatTimerDuration(seconds: number) {
   return [hours, minutes, remainingSeconds].map(value => String(value).padStart(2, '0')).join(':')
 }
 
-function isWorkLogRequiredError(error: any) { return error?.data?.code === 'TASK_WORK_LOG_REQUIRED' }
+function isWorkLogRequiredError(error: { data?: { code?: string; data?: { code?: string } } } | null) {
+  return (error?.data?.data?.code ?? error?.data?.code) === 'TASK_WORK_LOG_REQUIRED'
+}
 
 function requestRequiredWorkLog(action: PendingWorkLogAction) {
   pendingWorkLogAction.value = action
@@ -811,6 +815,11 @@ function requestRequiredWorkLog(action: PendingWorkLogAction) {
   requiredWorkLogRemaining.value = ''
   requiredWorkLogDescription.value = ''
   showRequiredWorkLogModal.value = true
+}
+
+function cancelRequiredWorkLog() {
+  showRequiredWorkLogModal.value = false
+  pendingWorkLogAction.value = null
 }
 
 function openTaskTimeModal() {
@@ -857,41 +866,58 @@ async function submitRequiredWorkLog() {
   const action = pendingWorkLogAction.value
   const minutes = parsedRequiredWorkLogMinutes.value
   const remainingMinutes = parsedRequiredWorkLogRemainingMinutes.value
-  if (!action || minutes == null || minutes < 1 || (requiredWorkLogRemaining.value.trim() && remainingMinutes == null)) return
+  if (submittingRequiredWorkLog.value || !action || minutes == null || minutes < 1 || (requiredWorkLogRemaining.value.trim() && remainingMinutes == null)) return
   submittingRequiredWorkLog.value = true
   const workLog: TaskWorkLogInput = { minutes, ...(remainingMinutes !== undefined ? { remaining_minutes: remainingMinutes } : {}), description: requiredWorkLogDescription.value.trim() || undefined }
   try {
     if (action.type === 'saveTask') {
       await service.updateTask(action.taskId, { ...action.payload, work_log: workLog })
-      await loadBoard()
-      selectedTask.value = board.value?.columns.flatMap(column => column.tasks).find(task => task.id === action.taskId) ?? selectedTask.value
-      await loadWorkLogs(action.taskId)
+      descriptionEditing.value = false
+      closeTaskModal()
       toast.add({ title: 'Tarea actualizada', color: 'success' })
     } else if (action.type === 'moveTask') {
       await service.updateTask(action.taskId, { column_id: action.columnId, position: action.position, work_log: workLog })
-      await loadBoard()
-      await loadWorkLogs(action.taskId)
       toast.add({ title: 'Tarea movida', color: 'success' })
     } else {
-      await service.setTaskCompletion(action.taskId, action.completed, workLog)
-      await loadBoard()
-      selectedTask.value = board.value?.columns.flatMap(column => column.tasks).find(task => task.id === action.taskId) ?? selectedTask.value
-      await loadWorkLogs(action.taskId)
+      const result = await service.setTaskCompletion(action.taskId, action.completed, workLog)
+      if (selectedTask.value?.id === action.taskId) {
+        selectedTask.value = { ...selectedTask.value, column_id: result.column_id, completed_at: result.completed_at }
+        taskForm.column_id = result.column_id
+      }
       toast.add({ title: action.completed ? 'Tarea completada' : 'Tarea reabierta', color: 'success' })
     }
-    showRequiredWorkLogModal.value = false
-    pendingWorkLogAction.value = null
+    cancelRequiredWorkLog()
   } catch (error: any) {
-    toast.add({ title: 'No se pudo guardar el cambio', description: error?.data?.message ?? error.message, color: 'error' })
+    toast.add({ title: 'No se pudo guardar el cambio', description: error?.data?.data?.message ?? error?.data?.message ?? error.message, color: 'error' })
+    return
   } finally { submittingRequiredWorkLog.value = false }
+
+  try {
+    await loadBoard()
+    if (selectedTask.value?.id === action.taskId) await loadWorkLogs(action.taskId)
+  } catch {
+    toast.add({ title: 'El cambio se guardó, pero no se actualizó el tablero', color: 'warning' })
+  }
 }
 
-function openBoardSettings() {
+function selectBoardTimeSettings(id?: string) {
+  boardSettingsBoardId.value = id
+  const settings = board.value?.id === id ? board.value : boards.value.find(item => item.id === id)
+  boardRequireWorkLogDraft.value = settings?.require_work_log_on_transition ?? false
+  boardAllowTimerDraft.value = settings?.allow_task_timer ?? false
+  boardTimerMaxHoursDraft.value = settings?.task_timer_max_hours ?? 8
+}
+
+async function openBoardSettings() {
+  taskSettingsMenuOpen.value = false
   refreshTimerDesktopNotificationPermission()
-  boardRequireWorkLogDraft.value = !!board.value?.require_work_log_on_transition
-  boardAllowTimerDraft.value = !!board.value?.allow_task_timer
-  boardTimerMaxHoursDraft.value = board.value?.task_timer_max_hours ?? 8
+  selectBoardTimeSettings(boardId.value || (boards.value.length === 1 ? boards.value[0]?.id : undefined))
+  await nextTick()
   boardSettingsOpen.value = true
+}
+
+function closeBoardSettings() {
+  boardSettingsOpen.value = false
 }
 
 function refreshTimerDesktopNotificationPermission() {
@@ -916,13 +942,17 @@ async function requestTimerDesktopNotifications() {
 }
 
 async function saveBoardSettings() {
-  if (!board.value) return
+  const id = boardSettingsBoardId.value
+  if (!id || savingBoardSettings.value) return
   savingBoardSettings.value = true
   try {
-    const updated = await service.updateBoardSettings(board.value.id, { require_work_log_on_transition: boardRequireWorkLogDraft.value, allow_task_timer: boardAllowTimerDraft.value, task_timer_max_hours: boardTimerMaxHoursDraft.value })
-    board.value.require_work_log_on_transition = updated.require_work_log_on_transition
-    board.value.allow_task_timer = updated.allow_task_timer
-    board.value.task_timer_max_hours = updated.task_timer_max_hours
+    const updated = await service.updateBoardSettings(id, {
+      require_work_log_on_transition: boardRequireWorkLogDraft.value,
+      allow_task_timer: boardAllowTimerDraft.value,
+      task_timer_max_hours: boardTimerMaxHoursDraft.value,
+    })
+    boards.value = boards.value.map(item => item.id === id ? { ...item, ...updated } : item)
+    if (board.value?.id === id) Object.assign(board.value, updated)
     boardSettingsOpen.value = false
     toast.add({ title: 'Configuración del tablero guardada', color: 'success' })
   } catch (error: any) {
@@ -2274,13 +2304,13 @@ onBeforeUnmount(() => {
         <UButton label="Compartidas" icon="i-lucide-share-2" color="neutral" variant="outline" to="/erp/tasks/shared" />
         <UButton v-if="board" :icon="boardWorkspaceExpanded ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'" color="neutral" variant="outline" :aria-label="boardWorkspaceExpanded ? 'Salir de la vista expandida' : 'Expandir el tablero'" :title="boardWorkspaceExpanded ? 'Salir de la vista expandida' : 'Expandir el tablero'" @click="toggleWorkspaceExpanded" />
         <UButton v-if="hasTaskPermission('tasks.create')" label="Nuevo tablero" icon="i-lucide-plus" variant="outline" @click="openBoardModal" />
-        <UPopover v-if="hasTaskPermission('tasks.update') || (!loading && isOwnerOrAdmin)" :content="{ align: 'end', sideOffset: 8 }">
+        <UPopover v-if="hasTaskPermission('tasks.update') || (!loading && isOwnerOrAdmin)" v-model:open="taskSettingsMenuOpen" :content="{ align: 'end', sideOffset: 8 }">
           <UButton icon="i-lucide-settings-2" color="neutral" variant="outline" aria-label="Configuración de tareas" title="Configuración de tareas" />
           <template #content>
             <div class="flex w-64 flex-col gap-1 p-2">
               <p class="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted">Configuración</p>
               <UButton v-if="hasTaskPermission('tasks.update')" label="Categorías" icon="i-lucide-tags" color="neutral" variant="ghost" class="justify-start" @click="showCategoriesModal = true" />
-              <UButton v-if="hasTaskPermission('tasks.update') && board" label="Regla de tiempo del tablero" icon="i-lucide-clock-3" color="neutral" variant="ghost" class="justify-start" @click="openBoardSettings" />
+              <UButton v-if="hasTaskPermission('tasks.update') && boards.length" label="Reglas de tiempo" icon="i-lucide-clock-3" color="neutral" variant="ghost" class="justify-start" @click="openBoardSettings" />
               <UButton v-if="!loading && isOwnerOrAdmin" label="Avisos y WhatsApp" icon="i-lucide-bell" color="neutral" variant="ghost" class="justify-start" @click="openTaskNotificationSettings" />
             </div>
           </template>
@@ -2622,31 +2652,44 @@ onBeforeUnmount(() => {
     <template #footer><div class="flex justify-end"><UButton label="Cerrar" color="neutral" variant="outline" @click="showCategoriesModal = false" /></div></template>
   </UModal>
 
-  <UModal v-model:open="boardSettingsOpen" title="Regla de registro de tiempo" description="La regla se aplica solo a este tablero." :ui="{ content: 'sm:max-w-xl' }">
+  <UModal v-model:open="boardSettingsOpen" title="Reglas de tiempo" description="La configuración se guarda por tablero." :ui="{ content: 'sm:max-w-xl' }">
     <template #body>
       <div class="flex flex-col gap-3">
-        <label class="flex items-start gap-3 rounded-lg border border-default p-4">
-          <USwitch v-model="boardAllowTimerDraft" />
-          <span><span class="block font-medium">Permitir temporizador en las tareas</span><span class="mt-1 block text-sm text-muted">Cada persona puede iniciar, pausar y finalizar el tiempo desde una tarea. Al finalizar, se suma al historial de tiempo insumido.</span></span>
-        </label>
-        <UFormField label="Tope máximo del temporizador" description="Al alcanzar el límite, se detiene automáticamente y guarda el tiempo con una nota de autoapagado.">
-          <USelectMenu v-model="boardTimerMaxHoursDraft" :items="Array.from({ length: 8 }, (_, index) => ({ label: `${index + 1} ${index === 0 ? 'hora' : 'horas'}`, value: index + 1 }))" value-key="value" class="w-full" :ui="selectMenuUi" />
+        <UFormField label="Tablero" required>
+          <USelectMenu
+            :model-value="boardSettingsBoardId"
+            :items="boards.map(item => ({ label: item.name, value: item.id }))"
+            value-key="value"
+            placeholder="Elegí el tablero"
+            :disabled="savingBoardSettings"
+            :ui="selectMenuUi"
+            @update:model-value="selectBoardTimeSettings"
+          />
         </UFormField>
-        <div v-if="boardAllowTimerDraft" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default p-4">
-          <div class="min-w-0"><p class="font-medium">Aviso en el escritorio</p><p class="text-sm text-muted">Puede avisar cuando la aplicación esté en otra pestaña, si el navegador concede permiso. Para abrirla, hay que hacer clic en el aviso.</p></div>
-          <UButton v-if="timerDesktopNotificationPermission === 'default'" label="Habilitar aviso" icon="i-lucide-bell-ring" color="neutral" variant="outline" @click="requestTimerDesktopNotifications" />
-          <UBadge v-else :color="timerDesktopNotificationPermission === 'granted' ? 'success' : 'neutral'" variant="subtle">{{ timerDesktopNotificationPermission === 'granted' ? 'Habilitado' : timerDesktopNotificationPermission === 'denied' ? 'Bloqueado en el navegador' : 'No disponible' }}</UBadge>
-        </div>
-        <label class="flex items-start gap-3 rounded-lg border border-default p-4">
-          <USwitch v-model="boardRequireWorkLogDraft" />
-          <span><span class="block font-medium">Exigir tiempo al cambiar de estado</span><span class="mt-1 block text-sm text-muted">Al mover, completar o reabrir una tarea, se deberá indicar cuánto tiempo llevó el trabajo. También se puede seguir registrando tiempo manualmente desde el detalle.</span></span>
-        </label>
+        <fieldset v-if="boardSettingsBoardId" :disabled="savingBoardSettings" class="flex min-w-0 flex-col gap-3">
+          <label class="flex items-start gap-3 rounded-lg border border-default p-4">
+            <USwitch v-model="boardAllowTimerDraft" />
+            <span><span class="block font-medium">Permitir temporizador en las tareas</span><span class="mt-1 block text-sm text-muted">Cada persona puede iniciar, pausar y finalizar el tiempo desde una tarea. Al finalizar, se suma al historial de tiempo insumido.</span></span>
+          </label>
+          <UFormField label="Tope máximo del temporizador" description="Al alcanzar el límite, se detiene automáticamente y guarda el tiempo con una nota de autoapagado.">
+            <USelectMenu v-model="boardTimerMaxHoursDraft" :items="Array.from({ length: 8 }, (_, index) => ({ label: `${index + 1} ${index === 0 ? 'hora' : 'horas'}`, value: index + 1 }))" value-key="value" class="w-full" :ui="selectMenuUi" />
+          </UFormField>
+          <div v-if="boardAllowTimerDraft" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default p-4">
+            <div class="min-w-0"><p class="font-medium">Aviso en el escritorio</p><p class="text-sm text-muted">Puede avisar cuando la aplicación esté en otra pestaña, si el navegador concede permiso. Para abrirla, hay que hacer clic en el aviso.</p></div>
+            <UButton v-if="timerDesktopNotificationPermission === 'default'" label="Habilitar aviso" icon="i-lucide-bell-ring" color="neutral" variant="outline" @click="requestTimerDesktopNotifications" />
+            <UBadge v-else :color="timerDesktopNotificationPermission === 'granted' ? 'success' : 'neutral'" variant="subtle">{{ timerDesktopNotificationPermission === 'granted' ? 'Habilitado' : timerDesktopNotificationPermission === 'denied' ? 'Bloqueado en el navegador' : 'No disponible' }}</UBadge>
+          </div>
+          <label class="flex items-start gap-3 rounded-lg border border-default p-4">
+            <USwitch v-model="boardRequireWorkLogDraft" />
+            <span><span class="block font-medium">Exigir tiempo al cambiar de estado</span><span class="mt-1 block text-sm text-muted">Al mover, completar o reabrir una tarea, se deberá indicar cuánto tiempo llevó el trabajo. También se puede seguir registrando tiempo manualmente desde el detalle.</span></span>
+          </label>
+        </fieldset>
       </div>
     </template>
-    <template #footer><div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" @click="boardSettingsOpen = false"/><UButton label="Guardar regla" icon="i-lucide-save" :loading="savingBoardSettings" @click="saveBoardSettings" /></div></template>
+    <template #footer><div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" :disabled="savingBoardSettings" @click="closeBoardSettings"/><UButton label="Guardar regla" icon="i-lucide-save" :disabled="!boardSettingsBoardId" :loading="savingBoardSettings" @click="saveBoardSettings" /></div></template>
   </UModal>
 
-  <UModal v-model:open="showRequiredWorkLogModal" title="Seguimiento de tiempo" description="Registrá el tiempo trabajado antes de aplicar el cambio de estado." :ui="{ content: 'sm:max-w-xl' }">
+  <UModal v-model:open="showRequiredWorkLogModal" :dismissible="!submittingRequiredWorkLog" title="Seguimiento de tiempo" description="Registrá el tiempo trabajado antes de aplicar el cambio de estado." :ui="{ overlay: 'z-[10040]', content: 'z-[10041] sm:max-w-xl' }">
     <template #body>
       <div class="flex flex-col gap-4">
         <div class="grid gap-3 sm:grid-cols-2">
@@ -2657,7 +2700,7 @@ onBeforeUnmount(() => {
         <UFormField label="Detalle (opcional)"><UTextarea v-model="requiredWorkLogDescription" maxlength="500" :rows="2" placeholder="¿En qué se trabajó?" class="w-full" /></UFormField>
       </div>
     </template>
-    <template #footer><div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" :disabled="submittingRequiredWorkLog" @click="showRequiredWorkLogModal = false; pendingWorkLogAction = null"/><UButton label="Registrar y continuar" icon="i-lucide-check" :loading="submittingRequiredWorkLog" :disabled="parsedRequiredWorkLogMinutes == null || parsedRequiredWorkLogMinutes < 1 || (requiredWorkLogRemaining.trim() && parsedRequiredWorkLogRemainingMinutes == null)" @click="submitRequiredWorkLog" /></div></template>
+    <template #footer><div class="flex w-full justify-end gap-2"><UButton label="Cancelar" color="neutral" variant="outline" :disabled="submittingRequiredWorkLog" @click="cancelRequiredWorkLog"/><UButton label="Registrar y continuar" icon="i-lucide-check" :loading="submittingRequiredWorkLog" :disabled="parsedRequiredWorkLogMinutes == null || parsedRequiredWorkLogMinutes < 1 || parsedRequiredWorkLogRemainingMinutes === null" @click="submitRequiredWorkLog" /></div></template>
   </UModal>
 
   <UModal v-model:open="showBoardModal" title="Crear tablero" description="Podés tener varios tableros por cliente o crear uno general para la empresa." :ui="{ content: 'sm:max-w-2xl' }">

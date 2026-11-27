@@ -3,7 +3,7 @@
   "version": "0.184.0-alpha",
   "date": "2026-11-27",
   "stage": "alpha",
-  "notes": "Compartí tareas del CRM con personas autorizadas de la empresa cliente. Pueden consultarlas en modo de solo lectura aunque el CRM esté desactivado. La vista compartida muestra descripción, avance y tiempos. El registro manual admite semanas, días, horas y minutos, con tiempo restante opcional.",
+  "notes": "El CRM permite compartir tareas con clientes, consultar el avance, registrar tiempo y configurar las reglas por tablero. Tesorería mejora la importación y comparación de extractos, la resolución de movimientos bancarios y la aplicación de pagos a facturas en dólares.",
   "changes": [
    { "type": "feat", "scope": "crm-tasks", "title": "Compartir y revocar tareas para usuarios seleccionados de la empresa cliente mediante coincidencia de CUIT" },
    { "type": "feat", "scope": "crm-tasks", "title": "Abrir Tareas compartidas para los destinatarios aunque no tengan el módulo CRM o el permiso general de lectura" },
@@ -13,10 +13,20 @@
    { "type": "style", "scope": "crm-tasks", "title": "Abrir las opciones para compartir desde un icono junto al cliente y explicar el alcance del acceso" },
    { "type": "fix", "scope": "crm-tasks", "title": "Permitir registrar tiempo sin volver a cargar la estimación restante" },
    { "type": "fix", "scope": "crm-tasks", "title": "Conservar la posición del cursor al editar la descripción de una tarea" },
-   { "type": "docs", "scope": "crm-tasks", "title": "Documentar el acceso compartido, el avance de subtareas y el seguimiento de tiempo" }
+   { "type": "docs", "scope": "crm-tasks", "title": "Documentar el acceso compartido, el avance de subtareas y el seguimiento de tiempo" },
+   { "type": "fix", "scope": "crm-tasks", "title": "Abrir las reglas de tiempo desde Todos los tableros y recuperar el aviso de registro obligatorio al cambiar de estado" },
+   { "type": "feat", "scope": "bank-reconciliation", "title": "Organizar la conciliación en Comparación, Resolver movimientos, Movimientos del sistema y Notas" },
+   { "type": "fix", "scope": "bank-reconciliation", "title": "Interpretar fechas e importes locales del CSV y permitir importar importes y saldos expresados en centavos" },
+   { "type": "fix", "scope": "bank-reconciliation", "title": "Mejorar la coincidencia de movimientos por importe, referencia y fecha y señalar casos ambiguos" },
+   { "type": "feat", "scope": "bank-reconciliation", "title": "Asignar conceptos bancarios en lote y recordar sugerencias por descripción y sentido para futuras cargas" },
+   { "type": "feat", "scope": "bank-reconciliation", "title": "Guardar notas de conciliación por cuenta y archivo, descargarlas e incluirlas en el Excel" },
+   { "type": "fix", "scope": "payments", "title": "Aplicar pagos en pesos a facturas en dólares con la cotización efectiva de la fecha del pago" },
+   { "type": "fix", "scope": "payments", "title": "Evitar compensaciones automáticas por diferencia de cambio al confirmar o aplicar un pago" },
+   { "type": "fix", "scope": "payments", "title": "Recalcular saldos y valuación al corregir la cotización de pagos confirmados en pesos o dólares" },
+   { "type": "fix", "scope": "payments", "title": "Descontar las notas de crédito de compra al validar el saldo disponible de una factura" }
   ],
   "contributors": ["agustin"],
-  "message": "Compartir tareas del CRM y registrar el seguimiento de tiempo"
+  "message": "Mejorar las tareas del CRM, la conciliación bancaria y los pagos en dólares"
  },
  {
   "version": "0.183.13-alpha",
