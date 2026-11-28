@@ -93,6 +93,7 @@ export interface PaymentFormData {
 
 const props = defineProps<{
   modelValue?: PaymentFormData
+  saveDraft?: (data: PaymentFormData) => Promise<boolean>
   pendingSalesDocuments?: PendingDocument[]
   pendingPurchaseDocuments?: PendingDocument[]
   availableOwnChecks?: AvailableCheck[]
@@ -283,6 +284,19 @@ const bankChargesTotal = computed(() =>
     return sum + (c.nature === 'DEBIT' ? total : -total)
   }, 0)
 )
+
+const serializeBankCharges = () => bankCharges.value
+  .filter(charge => charge.bank_concept_id)
+  .map(charge => ({
+    bank_concept_id: charge.bank_concept_id,
+    nature: charge.nature,
+    base_amount: Number(charge.base_amount ?? 0),
+    percentage: charge.percentage ?? undefined,
+    tax_amount: charge.tax_amount ?? undefined,
+    total_amount: Number(charge.total_amount ?? 0),
+    reference: charge.reference,
+    retention: charge.retention,
+  }))
 
 const loadSuggestedBankCharges = async () => {
   if (form.payment_method !== 'BANK_TRANSFER' || !form.bank_account_id) return
@@ -732,7 +746,12 @@ onMounted(async () => {
 watch(
   [() => props.modelValue, () => props.pendingPurchaseDocuments, () => props.pendingSalesDocuments, () => props.initialWithholdings],
   ([val], oldValues) => {
+    const pendingDocumentsChanged = props.pendingPurchaseDocuments !== oldValues?.[1]
+      || props.pendingSalesDocuments !== oldValues?.[2]
     const shouldResetSnapshot = val !== oldValues?.[0] || props.initialWithholdings !== oldValues?.[3]
+    const shouldResetAfterDocumentHydration = props.saveOnlyWhenDirty
+      && pendingDocumentsChanged
+      && dirtySections.value.length === 0
     if (!val) {
       Object.assign(form, { ...defaultForm })
       selectedDocs.value.clear()
@@ -745,6 +764,23 @@ watch(
     // podía pisar cambios hechos por el usuario, incluida la fecha.
     if (val !== oldValues?.[0]) {
       Object.assign(form, val)
+      bankCharges.value = (val.bank_charges ?? []).map((charge: any) => ({
+        bank_concept_id: charge.bank_concept_id,
+        nature: charge.nature ?? 'DEBIT',
+        base_amount: charge.base_amount == null ? null : Number(charge.base_amount),
+        percentage: charge.percentage == null && charge.percentage_applied == null
+          ? null
+          : Number(charge.percentage ?? charge.percentage_applied),
+        tax_amount: charge.tax_amount == null ? null : Number(charge.tax_amount),
+        total_amount: Number(charge.total_amount ?? 0),
+        reference: charge.reference ?? undefined,
+        retention: charge.retention ?? {
+          jurisdiction: charge.jurisdiction ?? undefined,
+          tax_code: charge.tax_code ?? undefined,
+          certificate_number: charge.certificate_number ?? undefined,
+          period: charge.period ?? undefined,
+        },
+      }))
       if (val.payment_method === 'MIXED' && val.tenders?.length) {
         form.tenders = val.tenders.map((tender: any) => ({
           method: tender.method,
@@ -769,7 +805,8 @@ watch(
     }
 
     // Poblar selectedDocs desde comprobantes y obligaciones de Tesorería.
-    if ((val.documents?.length || val.obligations?.length) && (val !== oldValues?.[0] || !props.saveOnlyWhenDirty)) {
+    if ((val.documents?.length || val.obligations?.length)
+      && (val !== oldValues?.[0] || pendingDocumentsChanged || !props.saveOnlyWhenDirty)) {
       const allPending = [...(props.pendingPurchaseDocuments ?? []), ...(props.pendingSalesDocuments ?? [])]
       selectedDocs.value.clear()
       for (const docData of val.documents ?? []) {
@@ -820,6 +857,8 @@ watch(
     if (shouldResetSnapshot) {
       withholdings.value = [...(props.initialWithholdings ?? [])]
       if (props.saveOnlyWhenDirty) void nextTick(resetPaymentDraftSnapshot)
+    } else if (shouldResetAfterDocumentHydration) {
+      void nextTick(resetPaymentDraftSnapshot)
     }
   },
   { immediate: true }
@@ -869,9 +908,14 @@ watch(
 )
 
 watch(
-  form,
-  (val) => {
-    emit('update:modelValue', { ...val })
+  [form, bankCharges],
+  ([val]) => {
+    emit('update:modelValue', {
+      ...val,
+      bank_charges: !isMixedPayment.value && form.payment_method === 'BANK_TRANSFER' && !form.bank_account_company_id
+        ? serializeBankCharges()
+        : [],
+    })
   },
   { deep: true }
 )
@@ -1685,7 +1729,10 @@ const resolveCurrentPaymentRate = async (previousRate?: number | null, reprice =
   if (reprice && selectedDocs.value.size) repriceSelectedDocumentsForManualRate(previousRate)
 }
 
-const handleExchangeRateInput = () => {
+const handleExchangeRateInput = async () => {
+  // UInput emits update:model-value alongside v-model. Wait until v-model has
+  // assigned the new quote before repricing selected document allocations.
+  await nextTick()
   manualRateOverride.value = true
   if (isForeignCurrency.value && form.exchange_rate) setManualRate(form.exchange_rate)
   repriceSelectedDocumentsForManualRate()
@@ -2012,8 +2059,7 @@ function handlePaymentFormShortcut(event: KeyboardEvent) {
   emit('cancel')
 }
 
-const handleSubmit = async () => {
-  if (props.saveOnlyWhenDirty && dirtySections.value.length === 0) return
+const handleSubmit = async (): Promise<boolean> => {
   instrumentValidationAttempted.value = true
   if (requiresExchangeRate.value && (!form.exchange_rate || Number(form.exchange_rate) <= 0)) {
     await focusExchangeRateField()
@@ -2025,7 +2071,7 @@ const handleSubmit = async () => {
       color: 'warning',
       icon: 'i-lucide-circle-alert'
     })
-    return
+    return false
   }
   if (!hasInstrumentSelection.value) {
     toast.add({
@@ -2034,7 +2080,7 @@ const handleSubmit = async () => {
       color: 'warning',
       icon: 'i-lucide-circle-alert'
     })
-    return
+    return false
   }
 
   const grossAppliedAmount = totalApplied.value > 0
@@ -2130,25 +2176,16 @@ const handleSubmit = async () => {
     check_ids: undefined,
     checks: buildCheckAllocations(),
     withholdings: withholdingsPayload.length > 0 ? withholdingsPayload : undefined,
-    bank_charges: !isMixedPayment.value && form.payment_method === 'BANK_TRANSFER' && !form.bank_account_company_id && bankCharges.value.length > 0
-      ? bankCharges.value
-          .filter(c => c.bank_concept_id)
-          .map(c => ({
-            bank_concept_id: c.bank_concept_id,
-            nature: c.nature,
-            base_amount: Number(c.base_amount ?? 0),
-            percentage: c.percentage ?? undefined,
-            tax_amount: c.tax_amount ?? undefined,
-            total_amount: c.total_amount,
-            reference: c.reference,
-            retention: c.retention
-          }))
+    bank_charges: !isMixedPayment.value && form.payment_method === 'BANK_TRANSFER' && !form.bank_account_company_id
+      ? serializeBankCharges()
       : undefined,
     documents: documentsData.length > 0 ? documentsData : undefined,
     obligations: obligationsData
   }
 
+  if (props.saveDraft) return await props.saveDraft(payload as PaymentFormData)
   emit('submit', payload as any)
+  return true
 }
 
 const formatCurrency = (amount: number, currency: string | null | undefined = 'ARS') => {
@@ -2208,7 +2245,7 @@ const submitFinalizedDetails = async () => {
   })
 }
 
-defineExpose({ completeDraft: completePaymentDraft })
+defineExpose({ completeDraft: completePaymentDraft, saveDraft: handleSubmit })
 </script>
 
 <template>

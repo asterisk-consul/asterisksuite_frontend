@@ -41,6 +41,8 @@ const {
 } = usePayments()
 
 const paymentData = ref<PaymentFormData | null>(null)
+const latestFormData = ref<PaymentFormData | null>(null)
+const paymentFormRef = ref<{ saveDraft?: () => Promise<boolean> } | null>(null)
 const currentPayment = ref<Payment | null>(null)
 const isInitialLoading = ref(true)
 const savedDate = ref('')
@@ -48,6 +50,7 @@ const editingDate = ref('')
 const initialWithholdings = ref<any[]>([])
 const isProcessing = ref(false)
 const isSaving = ref(false)
+const isSavingBeforeConfirm = ref(false)
 const actionModalOpen = ref(false)
 const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse' | 'reopen'>('confirm')
 const checkAction = ref<'RETURN_TO_PORTFOLIO' | 'CANCEL'>('RETURN_TO_PORTFOLIO')
@@ -60,7 +63,7 @@ useBreadcrumbEntityLabel(
 )
 
 const actionLabels: Record<string, { title: string; button: string; color: string; description: string }> = {
-  confirm: { title: 'Confirmar pago', button: 'Confirmar', color: 'info', description: 'Se aplicarán los datos guardados: documentos, caja/banco y cuenta corriente. Si cambiaste la fecha, primero guardá el borrador.' },
+  confirm: { title: 'Confirmar pago', button: 'Guardar y confirmar', color: 'info', description: 'Se guardará el estado actual del borrador y después se aplicarán los comprobantes, caja/banco y cuenta corriente.' },
   pay: { title: 'Marcar como pagado', button: 'Marcar pagado', color: 'success', description: 'El pago pasará a estado Pagado.' },
   reject: { title: 'Rechazar pago', button: 'Rechazar', color: 'warning', description: 'Se revertirán todos los efectos (documentos, caja/banco, cuenta corriente).' },
   reverse: { title: 'Anular pago', button: 'Anular', color: 'error', description: 'Se revertirán todos los efectos y el pago quedará anulado.' },
@@ -109,15 +112,40 @@ const removeApplicationModalOpen = ref(false)
 const applicationToRemove = ref<{ documentId: string; label: string } | null>(null)
 const removingApplicationId = ref<string | null>(null)
 const hasUnsavedDateChange = computed(() => isDraft.value && editingDate.value !== savedDate.value)
+const hasUnsavedPaymentRateOrApplications = computed(() => {
+  const form = latestFormData.value
+  const payment = currentPayment.value
+  if (!isDraft.value || !form || !payment) return false
+
+  const savedRate = payment.exchange_rate == null ? null : Number(payment.exchange_rate)
+  const formRate = form.exchange_rate == null ? null : Number(form.exchange_rate)
+  const rateChanged = savedRate == null
+    ? formRate != null
+    : formRate == null || Math.abs(savedRate - formRate) > 0.000001
+  const savedApplications = (payment.documents ?? [])
+    .filter((row: any) => !row.deleted_at)
+    .map((row: any) => ({ id: row.document_id, amount: Number(row.amount_applied) }))
+    .sort((left, right) => left.id.localeCompare(right.id))
+  const formApplications = (form.documents ?? [])
+    .map((row: any) => ({ id: row.document_id, amount: Number(row.amount_applied) }))
+    .sort((left, right) => left.id.localeCompare(right.id))
+  const applicationsChanged = JSON.stringify(savedApplications) !== JSON.stringify(formApplications)
+
+  return rateChanged || applicationsChanged
+})
 const hasUnsavedChanges = computed(() =>
-  isDraft.value && (unsavedChangeSections.value.length > 0 || hasUnsavedDateChange.value)
+  isDraft.value && (
+    unsavedChangeSections.value.length > 0
+    || hasUnsavedDateChange.value
+    || hasUnsavedPaymentRateOrApplications.value
+  )
 )
 const unsavedChangesDescription = computed(() => {
   const sections = [...unsavedChangeSections.value]
   if (hasUnsavedDateChange.value && !sections.includes('Datos del pago/cobro')) sections.unshift('Fecha')
   return sections.length
-    ? `Cambios pendientes: ${sections.join(', ')}. Guardá el borrador antes de confirmar.`
-    : 'Hay cambios pendientes. Guardá el borrador antes de confirmar.'
+    ? `Cambios pendientes: ${sections.join(', ')}. Se guardarán antes de confirmar.`
+    : 'Hay cambios pendientes. Se guardarán antes de confirmar.'
 })
 const counterpartyLabel = computed(() => currentPayment.value?.type === 'COLLECTION'
   ? 'Cliente'
@@ -171,6 +199,21 @@ onMounted(async () => {
         exchange_rate: payment.exchange_rate == null ? null : Number(payment.exchange_rate),
         rate_type: payment.rate_type ?? 'OFFICIAL',
         converted_amount: payment.converted_amount == null ? null : Number(payment.converted_amount),
+        bank_charges: ((payment as any).bank_charges ?? []).map((charge: any) => ({
+          bank_concept_id: charge.bank_concept_id,
+          nature: charge.nature,
+          base_amount: Number(charge.base_amount),
+          percentage: charge.percentage_applied == null ? undefined : Number(charge.percentage_applied),
+          tax_amount: Number(charge.tax_amount),
+          total_amount: Number(charge.total_amount),
+          reference: charge.reference ?? undefined,
+          retention: {
+            jurisdiction: charge.jurisdiction ?? undefined,
+            tax_code: charge.tax_code ?? undefined,
+            certificate_number: charge.certificate_number ?? undefined,
+            period: charge.period ?? undefined,
+          },
+        })),
         description: payment.description ?? '',
         reference: payment.reference ?? '',
         party_id: payment.party_id ?? '',
@@ -250,7 +293,7 @@ onMounted(async () => {
 })
 
 const handleSubmit = async (formData: PaymentFormData) => {
-  if (isSaving.value || !isDraft.value) return
+  if (isSaving.value || !isDraft.value) return false
   isSaving.value = true
   try {
     const updated = await update(paymentId, {
@@ -286,22 +329,17 @@ const handleSubmit = async (formData: PaymentFormData) => {
       documents: formData.documents ?? [],
       obligations: formData.obligations ?? [],
       withholdings: formData.withholdings ?? [],
+      bank_charges: formData.payment_method === 'BANK_TRANSFER' && !formData.bank_account_company_id
+        ? formData.bank_charges ?? []
+        : undefined,
     })
     const activeDocuments = ((updated as any).documents ?? []).filter((document: any) => !document.deleted_at)
     currentPayment.value = { ...updated, documents: activeDocuments } as Payment
-    if (paymentData.value) {
-      paymentData.value = {
-        ...paymentData.value,
-        documents: activeDocuments.map((document: any) => ({
-          document_id: document.document_id,
-          amount_applied: Number(document.amount_applied),
-          document: document.document,
-        })),
-      }
-    }
+    latestFormData.value = { ...formData }
     savedDate.value = updated.date?.split('T')[0] ?? formData.date
     saveRevision.value += 1
-    toast.add({ title: 'Pago actualizado', color: 'success' })
+    if (!isSavingBeforeConfirm.value) toast.add({ title: 'Pago actualizado', color: 'success' })
+    return true
   } catch (error: any) {
     toast.add({
       title: 'Error al guardar',
@@ -309,6 +347,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
       color: 'error',
       icon: 'i-lucide-alert-circle'
     })
+    return false
   } finally {
     isSaving.value = false
   }
@@ -366,10 +405,10 @@ const handleFinalizedDetailsSave = async (payload: { rate_only?: boolean; accoun
 }
 
 const openAction = (type: typeof actionType.value) => {
-  if (type === 'confirm' && (isSaving.value || hasUnsavedChanges.value)) {
+  if (type === 'confirm' && isSaving.value) {
     toast.add({
-      title: 'Hay cambios sin guardar',
-      description: unsavedChangesDescription.value,
+      title: 'Guardado en curso',
+      description: 'Esperá a que termine de guardarse el borrador antes de confirmar.',
       color: 'warning',
       icon: 'i-lucide-save'
     })
@@ -382,7 +421,7 @@ const openAction = (type: typeof actionType.value) => {
 
 const paymentShortcutActions = computed(() => {
   const actions: Array<{ label: string; disabled?: boolean; onClick: () => void }> = []
-  if (isDraft.value && canConfirmPayment.value && !hasUnsavedChanges.value) {
+  if (isDraft.value && canConfirmPayment.value) {
     actions.push({
       label: 'Confirmar',
       disabled: isProcessing.value || isSaving.value,
@@ -404,6 +443,7 @@ const paymentShortcutActions = computed(() => {
 const { shortcutKeys: paymentShortcutKeys } = useDocumentDetailShortcuts(paymentShortcutActions, [actionModalOpen, advanceModalOpen])
 
 const handleFormModelUpdate = (value: PaymentFormData) => {
+  latestFormData.value = value
   editingDate.value = value.date ?? ''
 }
 
@@ -414,10 +454,10 @@ const handleDraftDirtyChange = (sections: string[]) => {
 const handleAction = async () => {
   if (isProcessing.value) return
   if (!currentPayment.value) return
-  if (actionType.value === 'confirm' && (isSaving.value || hasUnsavedChanges.value)) {
+  if (actionType.value === 'confirm' && isSaving.value) {
     toast.add({
-      title: 'Hay cambios sin guardar',
-      description: unsavedChangesDescription.value,
+      title: 'Guardado en curso',
+      description: 'Esperá a que termine de guardarse el borrador antes de confirmar.',
       color: 'warning',
       icon: 'i-lucide-save'
     })
@@ -427,9 +467,22 @@ const handleAction = async () => {
   isProcessing.value = true
   try {
     switch (actionType.value) {
-      case 'confirm':
+      case 'confirm': {
+        if (!paymentFormRef.value?.saveDraft) {
+          toast.add({ title: 'No se pudo guardar el borrador', description: 'Volvé a cargar el pago antes de confirmarlo.', color: 'error' })
+          return
+        }
+        isSavingBeforeConfirm.value = true
+        let draftSaved = false
+        try {
+          draftSaved = await paymentFormRef.value.saveDraft()
+        } finally {
+          isSavingBeforeConfirm.value = false
+        }
+        if (!draftSaved) return
         await confirmPayment(paymentId)
         break
+      }
       case 'pay':
         await markAsPaid(paymentId)
         break
@@ -763,7 +816,9 @@ const confirmRemoveApplication = async () => {
         <!-- FORM (readonly when not DRAFT) -->
         <div class="flex w-full min-w-0 flex-col gap-4">
           <PaymentForm
+            ref="paymentFormRef"
             :model-value="paymentData"
+            :save-draft="handleSubmit"
             action-bar-target="#payment-form-actions"
             :readonly="!isDraft"
             :pending-sales-documents="pendingSalesDocuments"
@@ -786,8 +841,8 @@ const confirmRemoveApplication = async () => {
             @cancel="router.push('/erp/treasury/payments')"
           >
             <template #action-bar-actions>
-              <ShortcutButton
-                v-if="isDraft && canConfirmPayment && !hasUnsavedChanges"
+      <ShortcutButton
+                v-if="isDraft && canConfirmPayment"
                 label="Confirmar"
                 :shortcut-keys="paymentShortcutKeys('Confirmar') ?? []"
                 icon="i-lucide-check-circle"
@@ -811,14 +866,16 @@ const confirmRemoveApplication = async () => {
     <!-- ACTION MODAL -->
     <UModal v-model:open="actionModalOpen" :title="actionLabels[actionType]?.title">
       <template #body>
-        <p>{{ actionLabels[actionType]?.description }}</p>
+        <p>
+          {{ actionLabels[actionType]?.description }}
+        </p>
         <UAlert
           v-if="actionType === 'confirm' && hasUnsavedChanges"
           class="mt-3"
           color="warning"
           variant="subtle"
           icon="i-lucide-save"
-          title="Hay cambios sin guardar"
+          title="Se guardará el borrador antes de confirmar"
           :description="unsavedChangesDescription"
         />
         <div v-if="actionType === 'reverse' && currentPayment?.payment_method === 'CHECK'" class="mt-4 space-y-2">
@@ -838,7 +895,7 @@ const confirmRemoveApplication = async () => {
             :label="actionLabels[actionType]?.button"
             :color="(actionLabels[actionType]?.color as any)"
             :loading="isProcessing"
-            :disabled="isProcessing || (actionType === 'confirm' && hasUnsavedChanges)"
+            :disabled="isProcessing || isSaving"
             @click="handleAction"
           />
         </div>

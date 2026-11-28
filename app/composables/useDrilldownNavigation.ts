@@ -66,6 +66,17 @@ function findFirstDestination(nodes: DrilldownNode[]): DrilldownNode | null {
   return null
 }
 
+function moveRootNodeAfter(nodes: DrilldownNode[], label: string, anchorLabel: string): DrilldownNode[] {
+  const result = [...nodes]
+  const nodeIndex = result.findIndex(node => node.label === label)
+  const anchorIndex = result.findIndex(node => node.label === anchorLabel)
+  if (nodeIndex < 0 || anchorIndex < 0 || nodeIndex === anchorIndex) return result
+  const [node] = result.splice(nodeIndex, 1)
+  const nextAnchorIndex = result.findIndex(item => item.label === anchorLabel)
+  result.splice(nextAnchorIndex + 1, 0, node!)
+  return result
+}
+
 // Filtrar nodos recursivamente por permisos y condiciones de visibilidad
 function filterNavigationTree(
   nodes: DrilldownNode[],
@@ -176,8 +187,8 @@ export const useDrilldownNavigation = () => {
     fetchIfNeeded()
   })
 
-  const filteredTree = computed(() =>
-    filterNavigationTree(
+  const filteredTree = computed(() => {
+    const visibleNodes = filterNavigationTree(
       navigationWithTaskBoards.value,
       hasPermission,
       hasAvailableModule,
@@ -187,7 +198,13 @@ export const useDrilldownNavigation = () => {
       isOwner.value,
       hasIntercompany.value
     )
-  )
+    const taskLabel = visibleNodes.some(node => node.label === 'Tareas') ? 'Tareas' : 'Tareas compartidas'
+    return moveRootNodeAfter(
+      moveRootNodeAfter(visibleNodes, taskLabel, 'Tesorería'),
+      'Reportes',
+      'Stock',
+    )
+  })
 
   // Stack: cada nivel tiene nodos + referencia al nodo padre
   const stackState = useState<StackLevel[]>('drilldown-stack', () => [{ nodes: navigationWithTaskBoards.value }])

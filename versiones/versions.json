@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.184.2-alpha",
+  "date": "2026-11-28",
+  "stage": "alpha",
+  "notes": "Los pagos guardan juntos la cotización y los importes aplicados antes de confirmarse; las transferencias conservan sus gastos bancarios al editar el borrador. La navegación reubica Tareas y Reportes y oculta la generación desde viajes cuando Logística está desactivada.",
+  "changes": [
+   { "type": "fix", "scope": "payments", "title": "Recalcular los comprobantes seleccionados cuando cambia la cotización del pago y guardar el borrador antes de confirmarlo" },
+   { "type": "fix", "scope": "payments", "title": "Guardar y recuperar los gastos bancarios al editar pagos por transferencia" },
+   { "type": "style", "scope": "navigation", "title": "Ubicar Tareas debajo de Tesorería y Reportes debajo de Stock en el menú lateral" },
+   { "type": "fix", "scope": "sales", "title": "Ocultar Generar desde viajes cuando Logística está desactivada para la empresa" },
+   { "type": "docs", "scope": "payments", "title": "Actualizar las guías de pagos y cobros con la cotización del movimiento y el guardado previo a la confirmación" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Alinear los pagos con su cotización y ordenar el acceso a los módulos"
+ },
+ {
   "version": "0.184.1-alpha",
   "date": "2026-11-27",
   "stage": "alpha",

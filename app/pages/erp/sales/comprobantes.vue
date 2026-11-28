@@ -23,15 +23,33 @@ import {
   isDocumentFullyPaid
 } from '~/modulos/erp/documents/utils/document-payment-status'
 import { canSendDocumentToTrash } from '~/modulos/erp/documents/utils/trash-eligibility'
+import { useAuthStore } from '~/modulos/auth/auth.store'
+import { usePlatformModulesStore } from '~/modulos/platform-modules/platform-modules.store'
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 const documentsSalesStore = useDocumentsSalesStore()
 const documentsTypesService = useDocumentsTypesService()
+const authStore = useAuthStore()
+const platformModules = usePlatformModulesStore()
 const router = useRouter()
 const toast = useToast()
 const { can: canDocument } = useDocumentPermissions()
 const { isOwnerOrAdmin } = useCompanyRole()
 useDocumentFormPreload('/erp/sales/new?category=INVOICE')
+watch(() => authStore.selectedCompany?.id, (companyId) => {
+  if (companyId && platformModules.loadedCompanyId !== companyId) {
+    void platformModules.fetchEffective(companyId).catch(() => {})
+  }
+}, { immediate: true })
+const canGenerateFromTrips = computed(() => {
+  const companyId = authStore.selectedCompany?.id
+  return Boolean(
+    companyId
+    && platformModules.loadedCompanyId === companyId
+    && !platformModules.error
+    && platformModules.hasModule('LOGISTICS')
+  )
+})
 
 const canSelectForTrash = (row: any) => canSendDocumentToTrash(row)
   && !(Number(row.status) === 2
@@ -530,7 +548,7 @@ const sortFields = [
     <AppPageHeader :title="pageTitle" description="Gestión de documentos de venta">
       <template #links>
         <CreateDocumentMenu direction="sales" />
-        <UButton icon="i-lucide-file-plus" label="Generar desde viajes" @click="() => { showGenerateModal = true }" />
+        <UButton v-if="canGenerateFromTrips" icon="i-lucide-file-plus" label="Generar desde viajes" @click="() => { showGenerateModal = true }" />
       </template>
     </AppPageHeader>
 
