@@ -12,6 +12,14 @@ export interface StackLevel {
   parentNode?: DrilldownNode
 }
 
+interface SharedTaskNavigationAccess {
+  companyId: string | null
+  userId: string | null
+  available: boolean
+  loaded: boolean
+  loading: boolean
+}
+
 function matchesPath(node: DrilldownNode, path: string, fullPath = path): boolean {
   const target = node.to
   if (!target) return false
@@ -131,22 +139,32 @@ export const useDrilldownNavigation = () => {
   const auth = useAuthStore()
   const { visible: hasIntercompany } = useIntercompanyVisibility()
   const taskBoardLinks = useState<{ companyId: string | null; items: Array<{ id: string; name: string }> }>('task-sidebar-board-links', () => ({ companyId: null, items: [] }))
-  const sharedTaskAccess = useState<{ companyId: string | null; available: boolean; loaded: boolean }>('shared-task-navigation-access', () => ({ companyId: null, available: false, loaded: false }))
-  const navigationWithTaskBoards = computed(() => navigationTree.map(node => {
-    if (node.label !== 'Tareas') return node
+  const sharedTaskAccess = useState<SharedTaskNavigationAccess>('shared-task-navigation-access', () => ({ companyId: null, userId: null, available: false, loaded: false, loading: false }))
+  const navigationWithTaskBoards = computed(() => navigationTree.flatMap(node => {
+    if (node.label !== 'Tareas') return [node]
     const companyId = auth.selectedCompany?.id
-    const canReadCrmTasks = isOwner.value || hasPermission('tasks.read')
-    const isSharedOnly = !!companyId
-      && platformModules.loadedCompanyId === companyId
-      && (!platformModules.hasModule('CRM') || !canReadCrmTasks)
+    const userId = auth.user?.id
+    const hasSharedTasks = !!companyId && !!userId
       && sharedTaskAccess.value.companyId === companyId
+      && sharedTaskAccess.value.userId === userId
+      && sharedTaskAccess.value.loaded
       && sharedTaskAccess.value.available
-    if (isSharedOnly) return { ...node, label: 'Tareas compartidas', moduleCode: undefined, permission: undefined, to: '/erp/tasks/shared', children: undefined }
-    return {
+    const canReadCrmTasks = !!companyId && !!userId
+      && platformModules.loadedCompanyId === companyId
+      && !platformModules.error
+      && platformModules.hasModule('CRM')
+      && (isOwner.value || hasPermission('tasks.read'))
+
+    if (!canReadCrmTasks) {
+      return hasSharedTasks
+        ? [{ ...node, label: 'Tareas compartidas', icon: 'i-lucide-share-2', moduleCode: undefined, permission: undefined, to: '/erp/tasks/shared', children: undefined }]
+        : []
+    }
+    return [{
       ...node,
       children: [
         { label: 'Todos los tableros', icon: 'i-lucide-layout-dashboard', to: '/erp/tasks' },
-        ...(sharedTaskAccess.value.companyId === companyId && sharedTaskAccess.value.available
+        ...(hasSharedTasks
           ? [{ label: 'Tareas compartidas', icon: 'i-lucide-share-2', to: '/erp/tasks/shared' }]
           : []),
         ...(taskBoardLinks.value.companyId === companyId ? taskBoardLinks.value.items : []).map(board => ({
@@ -155,7 +173,7 @@ export const useDrilldownNavigation = () => {
           to: `/erp/tasks?board_id=${encodeURIComponent(board.id)}`,
         })),
       ],
-    }
+    }]
   }))
   const isPlatformAdmin = computed(() => ['PLATFORM_OWNER', 'PLATFORM_ADMIN'].includes(auth.user?.role ?? ''))
   const hasAvailableModule = (code: string) => {
@@ -168,18 +186,27 @@ export const useDrilldownNavigation = () => {
 
   async function refreshSharedTaskAccess() {
     if (!import.meta.client) return
-    const companyId = auth.selectedCompany?.id
-    if (!companyId || platformModules.loadedCompanyId !== companyId) return
-    if (sharedTaskAccess.value.companyId === companyId && sharedTaskAccess.value.loaded) return
-    sharedTaskAccess.value = { companyId, available: false, loaded: false }
+    const companyId = auth.selectedCompany?.id ?? null
+    const userId = auth.user?.id ?? null
+    if (sharedTaskAccess.value.companyId !== companyId || sharedTaskAccess.value.userId !== userId) {
+      sharedTaskAccess.value = { companyId, userId, available: false, loaded: false, loading: false }
+    }
+    if (!companyId || !userId || platformModules.loadedCompanyId !== companyId || platformModules.error) return
+    if (sharedTaskAccess.value.loaded || sharedTaskAccess.value.loading) return
+
+    sharedTaskAccess.value = { companyId, userId, available: false, loaded: false, loading: true }
+    const requestAccess = sharedTaskAccess.value
+    const isCurrentRequest = () => sharedTaskAccess.value === requestAccess
+      && auth.selectedCompany?.id === companyId && auth.user?.id === userId
     try {
-      sharedTaskAccess.value = { companyId, available: await $fetch<boolean>('/api/backend/erp/tasks/shared/available'), loaded: true }
+      const available = await $fetch<boolean>('/api/backend/erp/tasks/shared/available')
+      if (isCurrentRequest()) sharedTaskAccess.value = { companyId, userId, available, loaded: true, loading: false }
     } catch {
-      sharedTaskAccess.value = { companyId, available: false, loaded: true }
+      if (isCurrentRequest()) sharedTaskAccess.value = { companyId, userId, available: false, loaded: true, loading: false }
     }
   }
 
-  watch(() => [auth.selectedCompany?.id, platformModules.loadedCompanyId, platformModules.modules.length], () => { void refreshSharedTaskAccess() }, { immediate: true })
+  watch(() => [auth.selectedCompany?.id, auth.user?.id, platformModules.loadedCompanyId, platformModules.error], () => { void refreshSharedTaskAccess() }, { immediate: true })
 
   // Cargar el empleado del usuario actual (define is_salesperson para visibleIf)
   // Solo hace el fetch una vez; el watch de filteredTree reconstruye el nav cuando llega
@@ -207,7 +234,7 @@ export const useDrilldownNavigation = () => {
   })
 
   // Stack: cada nivel tiene nodos + referencia al nodo padre
-  const stackState = useState<StackLevel[]>('drilldown-stack', () => [{ nodes: navigationWithTaskBoards.value }])
+  const stackState = useState<StackLevel[]>('drilldown-stack', () => [{ nodes: filteredTree.value }])
 
   const stack = computed<StackLevel[]>({
     get: () => stackState.value,
@@ -223,7 +250,7 @@ export const useDrilldownNavigation = () => {
 
   const activeTo = computed(() => {
     const path = route.path
-    const chain = findBranch(navigationWithTaskBoards.value, path, route.fullPath)
+    const chain = findBranch(filteredTree.value, path, route.fullPath)
     return chain[chain.length - 1]?.to ?? null
   })
 
@@ -301,7 +328,7 @@ export const useDrilldownNavigation = () => {
   watch(
     () => route.fullPath,
     () => {
-      const chain = findBranch(navigationWithTaskBoards.value, route.path, route.fullPath)
+      const chain = findBranch(filteredTree.value, route.path, route.fullPath)
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {
@@ -329,7 +356,7 @@ export const useDrilldownNavigation = () => {
   watch(
     () => filteredTree.value,
     () => {
-      const chain = findBranch(navigationWithTaskBoards.value, route.path, route.fullPath)
+      const chain = findBranch(filteredTree.value, route.path, route.fullPath)
       const levels: StackLevel[] = [{ nodes: filteredTree.value }]
       for (const node of chain) {
         if (node.children?.length) {

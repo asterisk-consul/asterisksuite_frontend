@@ -1,5 +1,19 @@
 [
  {
+  "version": "0.184.3-alpha",
+  "date": "2026-11-28",
+  "stage": "alpha",
+  "notes": "Los borradores de pagos y cobros conservan la cotización guardada. La acción principal alterna entre Guardar borrador y Confirmar según haya cambios pendientes. Con el CRM desactivado, el menú solo muestra Tareas compartidas a quienes recibieron alguna en la empresa activa.",
+  "changes": [
+   { "type": "fix", "scope": "payments", "title": "Conservar la cotización guardada al abrir un borrador y recalcular los comprobantes al editarla" },
+   { "type": "fix", "scope": "payments", "title": "Mostrar Guardar borrador solo con cambios pendientes y Confirmar cuando el borrador está guardado" },
+   { "type": "fix", "scope": "crm-tasks", "title": "Mostrar solo Tareas compartidas en el menú con el CRM desactivado si el usuario recibió alguna" },
+   { "type": "docs", "scope": "erp", "title": "Actualizar las guías de pagos, cobros y acceso a tareas compartidas" }
+  ],
+  "contributors": ["agustin"],
+  "message": "Conservar la cotización de los borradores y ajustar el acceso a tareas compartidas"
+ },
+ {
   "version": "0.184.2-alpha",
   "date": "2026-11-28",
   "stage": "alpha",

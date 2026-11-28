@@ -108,6 +108,7 @@ const props = defineProps<{
   submitLabel?: string
   actionBarTarget?: string
   saveOnlyWhenDirty?: boolean
+  hasPendingChanges?: boolean
   saveRevision?: number
 }>()
 
@@ -536,11 +537,10 @@ const buildPaymentDraftSnapshot = (): PaymentDraftSnapshot => ({
     type: form.type,
     payment_mode: form.payment_mode,
     date: form.date,
-    amount: Number(form.amount || 0),
+    amount: selectedDocs.value.size > 0 ? null : Number(form.amount || 0),
     currency_code: form.currency_code,
     exchange_rate: form.exchange_rate == null ? null : Number(form.exchange_rate),
     rate_type: form.rate_type,
-    converted_amount: form.converted_amount == null ? null : Number(form.converted_amount),
     description: form.description,
     reference: form.reference,
     party_id: form.party_id,
@@ -610,6 +610,7 @@ const dirtySections = computed(() => {
     .filter(([key]) => current[key] !== savedPaymentDraftSnapshot.value?.[key])
     .map(([, label]) => label)
 })
+const hasDraftChanges = computed(() => props.hasPendingChanges ?? dirtySections.value.length > 0)
 
 const resetPaymentDraftSnapshot = () => {
   savedPaymentDraftSnapshot.value = buildPaymentDraftSnapshot()
@@ -848,7 +849,7 @@ watch(
       selectedDocs.value = new Map(selectedDocs.value)
       // En solo lectura los documentos saldados ya no aparecen entre los pendientes.
       // Conservar el monto persistido del pago en lugar de recalcularlo como cero.
-      if (!props.readonly) {
+      if (!props.readonly && !props.saveOnlyWhenDirty) {
         form.amount = Array.from(selectedDocs.value.values()).reduce((sum, entry) => sum + entry.amount, 0)
       }
     }
@@ -1085,10 +1086,7 @@ const selectedCurrency = computed({
   set: (val: any) => { form.currency_code = val?.value ?? 'ARS' }
 })
 
-const exchangeRateInput = computed<number | undefined>({
-  get: () => form.exchange_rate ?? undefined,
-  set: value => { form.exchange_rate = value ?? null }
-})
+const exchangeRateInput = computed(() => form.exchange_rate ?? undefined)
 
 const accountOptions = computed(() =>
   accountsStore.activeItems.map(a => ({
@@ -1461,7 +1459,8 @@ const checkCoverageGap = computed(() => {
 
 const checkCreditPartyLabel = computed(() => isCollection.value ? 'cliente' : 'proveedor')
 
-watch(selectedPaymentMethod, async (val) => {
+watch(() => form.payment_method, async (method) => {
+  if (props.readonly) return
   instrumentValidationAttempted.value = false
   if (isMixedPayment.value) {
     if (hasTenderMethod('CHECK')) await fetchAvailableChecks()
@@ -1469,19 +1468,19 @@ watch(selectedPaymentMethod, async (val) => {
     if (hasTenderMethod('BANK_TRANSFER')) await initBankAccounts()
     return
   }
-  if (val?.value === 'CHECK') {
+  if (method === 'CHECK') {
     await fetchAvailableChecks()
   } else {
     selectedChecks.value.clear()
     form.check_ids = []
   }
-  if (val?.value === 'CASH') {
+  if (method === 'CASH') {
     await initCashBoxes()
   }
-  if (val?.value === 'BANK_TRANSFER') {
+  if (method === 'BANK_TRANSFER') {
     await initBankAccounts()
   }
-  if (val?.value !== 'CREDIT_CARD') form.credit_card_id = ''
+  if (method !== 'CREDIT_CARD') form.credit_card_id = ''
   if (!preserveInstrumentOnMethodChange.value) {
     form.cash_box_id = ''
     form.bank_account_id = ''
@@ -1504,29 +1503,9 @@ watch(() => form.currency_code, () => {
   form.credit_card_id = ''
 })
 
-// Recalcular montos de documentos cuando cambia la cotización
-watch(resolvedRate, (newRate) => {
-  if (!newRate || selectedDocs.value.size === 0 || requiresUsdConversion.value) return
-  const payCurrency = form.currency_code?.toUpperCase()
-  for (const [, entry] of selectedDocs.value.entries()) {
-    const docCurrency = entry.doc.currency_code?.toUpperCase()
-    if (docCurrency !== payCurrency) {
-      // Preferir el exchange_rate de la factura
-      const rate = manualRateOverride.value
-        ? Number(form.exchange_rate)
-        : Number(newRate ?? entry.doc.exchange_rate)
-      const factor = getDocumentAmountFactor(entry.doc, payCurrency ?? '', rate)
-      entry.amount = Number((entry.doc.pending_amount * (factor ?? rate)).toFixed(2))
-    }
-  }
-  selectedDocs.value = new Map(selectedDocs.value)
-  syncDocumentAllocationsToForm()
-})
-
 // ═══ Exchange Rate: auto-resolve on currency change ═══
 const isForeignCurrency = computed(() => {
-  if (!baseCurrency.value) return false
-  return form.currency_code.toUpperCase() !== baseCurrency.value.code.toUpperCase()
+  return form.currency_code.toUpperCase() !== (baseCurrency.value?.code ?? 'ARS').toUpperCase()
 })
 const requiresUsdConversion = computed(() =>
   form.currency_code?.toUpperCase() === 'ARS' && Boolean(usdDocumentForPayment.value)
@@ -1554,7 +1533,8 @@ const conversionPreview = computed(() => {
   const converted = convertAmount(props.readonly ? Number(form.amount || 0) : Number(form.amount || 0))
   return converted == null ? null : { amount: converted, currency: baseCurrency.value?.code ?? 'ARS' }
 })
-const manualRateOverride = ref(false)
+const manualRateOverride = ref(Boolean(props.saveOnlyWhenDirty && Number(props.modelValue?.exchange_rate) > 0))
+const lastDocumentAllocationRate = ref<number | null>(Number(props.modelValue?.exchange_rate) > 0 ? Number(props.modelValue?.exchange_rate) : null)
 const exchangeRateSectionRef = ref<HTMLElement | null>(null)
 const ratiosWaitingForExchangeRate = new Map<string, number>()
 
@@ -1671,9 +1651,8 @@ const repriceSelectedDocumentsForManualRate = (previousRate?: number | null) => 
     if (documentCurrency !== 'USD' && documentCurrency !== 'ARS' && targetCurrency !== 'ARS') continue
     if (documentCurrency !== 'ARS' && targetCurrency !== 'USD' && targetCurrency !== 'ARS') continue
     const pending = Number(entry.doc.pending_amount)
-    const baseRate = requiresUsdConversion.value
-      ? Number(previousRate ?? entry.doc.exchange_rate ?? resolvedRate.value)
-      : Number(entry.doc.exchange_rate ?? previousRate ?? resolvedRate.value)
+    const allocationRate = previousRate ?? lastDocumentAllocationRate.value
+    const baseRate = Number(allocationRate ?? entry.doc.exchange_rate ?? resolvedRate.value)
     const baseFactor = getDocumentAmountFactor(entry.doc, targetCurrency, baseRate)
     const baseMaximum = baseFactor == null ? null : pending * baseFactor
     const ratio = ratiosWaitingForExchangeRate.get(documentId)
@@ -1684,6 +1663,7 @@ const repriceSelectedDocumentsForManualRate = (previousRate?: number | null) => 
     ratiosWaitingForExchangeRate.delete(documentId)
   }
   selectedDocs.value = new Map(selectedDocs.value)
+  lastDocumentAllocationRate.value = rate
   syncDocumentAllocationsToForm()
 }
 
@@ -1729,18 +1709,22 @@ const resolveCurrentPaymentRate = async (previousRate?: number | null, reprice =
   if (reprice && selectedDocs.value.size) repriceSelectedDocumentsForManualRate(previousRate)
 }
 
-const handleExchangeRateInput = async () => {
-  // UInput emits update:model-value alongside v-model. Wait until v-model has
-  // assigned the new quote before repricing selected document allocations.
-  await nextTick()
+const handleExchangeRateInput = (value: string | number | null | undefined) => {
+  const previousRate = Number(form.exchange_rate) > 0 ? Number(form.exchange_rate) : lastDocumentAllocationRate.value
+  form.exchange_rate = value == null || value === '' ? null : Number(value)
   manualRateOverride.value = true
-  if (isForeignCurrency.value && form.exchange_rate) setManualRate(form.exchange_rate)
-  repriceSelectedDocumentsForManualRate()
+  if (form.exchange_rate && Number.isFinite(form.exchange_rate) && form.exchange_rate > 0) setManualRate(form.exchange_rate)
+  repriceSelectedDocumentsForManualRate(previousRate)
 }
 
 watch(
   () => form.currency_code,
   async (newCode, previousCode) => {
+    // Abrir un pago guardado no es un cambio de moneda ni de cotización.
+    if (previousCode === undefined && props.saveOnlyWhenDirty) {
+      if (Number(form.exchange_rate) > 0) setManualRate(Number(form.exchange_rate))
+      return
+    }
     const previousRate = Number(form.exchange_rate) > 0 ? Number(form.exchange_rate) : null
     manualRateOverride.value = false
     await nextTick()
@@ -2042,7 +2026,7 @@ function handlePaymentFormShortcut(event: KeyboardEvent) {
   if (isSaveShortcut) {
     event.preventDefault()
     event.stopPropagation()
-    if (props.saveOnlyWhenDirty && dirtySections.value.length === 0) return
+    if (props.saveOnlyWhenDirty && !hasDraftChanges.value) return
     void handleSubmit()
     return
   }
@@ -2414,7 +2398,7 @@ defineExpose({ completeDraft: completePaymentDraft, saveDraft: handleSubmit })
           <UFormField :label="exchangeRateLabel" name="exchange_rate" :description="exchangeRateHint" :error="usdRateIsMissing ? 'Ingresá una cotización mayor a cero para completar la conversión.' : undefined" required>
             <UInput
               v-if="allowFinalizedFinancialEdit || canEditFinalizedRate"
-              v-model.number="exchangeRateInput"
+              :model-value="exchangeRateInput"
               type="number"
               min="0.000001"
               step="0.000001"
@@ -2547,7 +2531,7 @@ defineExpose({ completeDraft: completePaymentDraft, saveDraft: handleSubmit })
             @click="emit('cancel')"
           />
           <ShortcutButton
-            v-if="!props.saveOnlyWhenDirty || dirtySections.length > 0"
+            v-if="!props.saveOnlyWhenDirty || hasDraftChanges"
             :label="props.loading ? 'Guardando…' : (props.submitLabel ?? 'Guardar')"
             :shortcut-keys="props.actionBarTarget ? ['Ctrl', 'S'] : []"
             type="button"
@@ -2632,7 +2616,7 @@ defineExpose({ completeDraft: completePaymentDraft, saveDraft: handleSubmit })
         </UFormField>
         <UFormField :label="exchangeRateLabel" name="exchange_rate" :description="exchangeRateHint" :error="requiresExchangeRate && (!form.exchange_rate || Number(form.exchange_rate) <= 0) ? 'Ingresá una cotización mayor a cero para continuar.' : undefined" required>
           <UInput
-            v-model.number="exchangeRateInput"
+            :model-value="exchangeRateInput"
             type="number"
             step="0.000001"
             min="0.000001"

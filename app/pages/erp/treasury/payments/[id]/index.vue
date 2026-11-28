@@ -42,7 +42,6 @@ const {
 
 const paymentData = ref<PaymentFormData | null>(null)
 const latestFormData = ref<PaymentFormData | null>(null)
-const paymentFormRef = ref<{ saveDraft?: () => Promise<boolean> } | null>(null)
 const currentPayment = ref<Payment | null>(null)
 const isInitialLoading = ref(true)
 const savedDate = ref('')
@@ -50,7 +49,6 @@ const editingDate = ref('')
 const initialWithholdings = ref<any[]>([])
 const isProcessing = ref(false)
 const isSaving = ref(false)
-const isSavingBeforeConfirm = ref(false)
 const actionModalOpen = ref(false)
 const actionType = ref<'confirm' | 'pay' | 'reject' | 'reverse' | 'reopen'>('confirm')
 const checkAction = ref<'RETURN_TO_PORTFOLIO' | 'CANCEL'>('RETURN_TO_PORTFOLIO')
@@ -63,7 +61,7 @@ useBreadcrumbEntityLabel(
 )
 
 const actionLabels: Record<string, { title: string; button: string; color: string; description: string }> = {
-  confirm: { title: 'Confirmar pago', button: 'Guardar y confirmar', color: 'info', description: 'Se guardará el estado actual del borrador y después se aplicarán los comprobantes, caja/banco y cuenta corriente.' },
+  confirm: { title: 'Confirmar pago', button: 'Confirmar', color: 'info', description: 'Se aplicarán los datos guardados: comprobantes, caja/banco y cuenta corriente.' },
   pay: { title: 'Marcar como pagado', button: 'Marcar pagado', color: 'success', description: 'El pago pasará a estado Pagado.' },
   reject: { title: 'Rechazar pago', button: 'Rechazar', color: 'warning', description: 'Se revertirán todos los efectos (documentos, caja/banco, cuenta corriente).' },
   reverse: { title: 'Anular pago', button: 'Anular', color: 'error', description: 'Se revertirán todos los efectos y el pago quedará anulado.' },
@@ -144,8 +142,8 @@ const unsavedChangesDescription = computed(() => {
   const sections = [...unsavedChangeSections.value]
   if (hasUnsavedDateChange.value && !sections.includes('Datos del pago/cobro')) sections.unshift('Fecha')
   return sections.length
-    ? `Cambios pendientes: ${sections.join(', ')}. Se guardarán antes de confirmar.`
-    : 'Hay cambios pendientes. Se guardarán antes de confirmar.'
+    ? `Cambios pendientes: ${sections.join(', ')}. Guardá el borrador para poder confirmar.`
+    : 'Hay cambios pendientes. Guardá el borrador para poder confirmar.'
 })
 const counterpartyLabel = computed(() => currentPayment.value?.type === 'COLLECTION'
   ? 'Cliente'
@@ -338,7 +336,7 @@ const handleSubmit = async (formData: PaymentFormData) => {
     latestFormData.value = { ...formData }
     savedDate.value = updated.date?.split('T')[0] ?? formData.date
     saveRevision.value += 1
-    if (!isSavingBeforeConfirm.value) toast.add({ title: 'Pago actualizado', color: 'success' })
+    toast.add({ title: 'Pago actualizado', color: 'success' })
     return true
   } catch (error: any) {
     toast.add({
@@ -405,6 +403,10 @@ const handleFinalizedDetailsSave = async (payload: { rate_only?: boolean; accoun
 }
 
 const openAction = (type: typeof actionType.value) => {
+  if (type === 'confirm' && hasUnsavedChanges.value) {
+    toast.add({ title: 'Guardá el borrador antes de confirmar', description: unsavedChangesDescription.value, color: 'warning' })
+    return
+  }
   if (type === 'confirm' && isSaving.value) {
     toast.add({
       title: 'Guardado en curso',
@@ -421,7 +423,7 @@ const openAction = (type: typeof actionType.value) => {
 
 const paymentShortcutActions = computed(() => {
   const actions: Array<{ label: string; disabled?: boolean; onClick: () => void }> = []
-  if (isDraft.value && canConfirmPayment.value) {
+  if (isDraft.value && canConfirmPayment.value && !hasUnsavedChanges.value) {
     actions.push({
       label: 'Confirmar',
       disabled: isProcessing.value || isSaving.value,
@@ -454,6 +456,10 @@ const handleDraftDirtyChange = (sections: string[]) => {
 const handleAction = async () => {
   if (isProcessing.value) return
   if (!currentPayment.value) return
+  if (actionType.value === 'confirm' && hasUnsavedChanges.value) {
+    toast.add({ title: 'Guardá el borrador antes de confirmar', description: unsavedChangesDescription.value, color: 'warning' })
+    return
+  }
   if (actionType.value === 'confirm' && isSaving.value) {
     toast.add({
       title: 'Guardado en curso',
@@ -467,22 +473,9 @@ const handleAction = async () => {
   isProcessing.value = true
   try {
     switch (actionType.value) {
-      case 'confirm': {
-        if (!paymentFormRef.value?.saveDraft) {
-          toast.add({ title: 'No se pudo guardar el borrador', description: 'Volvé a cargar el pago antes de confirmarlo.', color: 'error' })
-          return
-        }
-        isSavingBeforeConfirm.value = true
-        let draftSaved = false
-        try {
-          draftSaved = await paymentFormRef.value.saveDraft()
-        } finally {
-          isSavingBeforeConfirm.value = false
-        }
-        if (!draftSaved) return
+      case 'confirm':
         await confirmPayment(paymentId)
         break
-      }
       case 'pay':
         await markAsPaid(paymentId)
         break
@@ -816,7 +809,6 @@ const confirmRemoveApplication = async () => {
         <!-- FORM (readonly when not DRAFT) -->
         <div class="flex w-full min-w-0 flex-col gap-4">
           <PaymentForm
-            ref="paymentFormRef"
             :model-value="paymentData"
             :save-draft="handleSubmit"
             action-bar-target="#payment-form-actions"
@@ -831,6 +823,7 @@ const confirmRemoveApplication = async () => {
             :saving-financial-details="isSaving"
             :local-draft-enabled="false"
             :save-only-when-dirty="true"
+            :has-pending-changes="hasUnsavedChanges"
             :save-revision="saveRevision"
             :loading="isSaving"
             submit-label="Guardar borrador"
@@ -841,8 +834,8 @@ const confirmRemoveApplication = async () => {
             @cancel="router.push('/erp/treasury/payments')"
           >
             <template #action-bar-actions>
-      <ShortcutButton
-                v-if="isDraft && canConfirmPayment"
+              <ShortcutButton
+                v-if="isDraft && canConfirmPayment && !hasUnsavedChanges"
                 label="Confirmar"
                 :shortcut-keys="paymentShortcutKeys('Confirmar') ?? []"
                 icon="i-lucide-check-circle"
@@ -875,7 +868,7 @@ const confirmRemoveApplication = async () => {
           color="warning"
           variant="subtle"
           icon="i-lucide-save"
-          title="Se guardará el borrador antes de confirmar"
+          title="Hay cambios sin guardar"
           :description="unsavedChangesDescription"
         />
         <div v-if="actionType === 'reverse' && currentPayment?.payment_method === 'CHECK'" class="mt-4 space-y-2">
@@ -895,7 +888,7 @@ const confirmRemoveApplication = async () => {
             :label="actionLabels[actionType]?.button"
             :color="(actionLabels[actionType]?.color as any)"
             :loading="isProcessing"
-            :disabled="isProcessing || isSaving"
+            :disabled="isProcessing || isSaving || (actionType === 'confirm' && hasUnsavedChanges)"
             @click="handleAction"
           />
         </div>
